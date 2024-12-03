@@ -361,8 +361,8 @@ impl AggregationUpdateJobItem {
         }
     }
 
-    fn entered(self) -> AggregationUpdatejobGuard {
-        AggregationUpdatejobGuard {
+    fn entered(self) -> AggregationUpdateJobGuard {
+        AggregationUpdateJobGuard {
             job: self.job,
             #[cfg(feature = "trace_aggregation_update")]
             _guard: self.span.map(|s| s.entered()),
@@ -370,7 +370,7 @@ impl AggregationUpdateJobItem {
     }
 }
 
-struct AggregationUpdatejobGuard {
+struct AggregationUpdateJobGuard {
     job: AggregationUpdateJob,
     #[cfg(feature = "trace_aggregation_update")]
     _guard: Option<tracing::span::EnteredSpan>,
