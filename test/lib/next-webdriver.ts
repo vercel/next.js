@@ -109,19 +109,9 @@ export default async function webdriver(
     pushErrorAsConsoleLog,
   } = options
 
-  // we import only the needed interface
-  if (
-    process.env.RECORD_REPLAY === 'true' ||
-    process.env.RECORD_REPLAY === '1'
-  ) {
-    const { Replay, quit } = await require('./browsers/replay')
-    CurrentInterface = Replay
-    browserQuit = quit
-  } else {
-    const { Playwright, quit } = await import('./browsers/playwright')
-    CurrentInterface = Playwright
-    browserQuit = quit
-  }
+  const { Playwright, quit } = await import('./browsers/playwright')
+  CurrentInterface = Playwright
+  browserQuit = quit
 
   const browser = new CurrentInterface()
   const browserName = process.env.BROWSER_NAME || 'chrome'

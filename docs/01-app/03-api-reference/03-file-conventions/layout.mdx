@@ -232,7 +232,11 @@ To use `params` in a Client Component (which cannot be `async`), you can use Rea
 
 import { use } from 'react'
 
-export function Page({ params }: { params: Promise<{ slug: string }> }) {
+export default function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   const { slug } = use(params)
 }
 ```
@@ -242,7 +246,7 @@ export function Page({ params }: { params: Promise<{ slug: string }> }) {
 
 import { use } from 'react'
 
-export function Page({ params }) {
+export default function Page({ params }) {
   const { slug } = use(params)
 }
 ```

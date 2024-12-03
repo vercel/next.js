@@ -1,8 +1,10 @@
+"use client";
+
 import type { MouseEvent } from "react";
 import Link from "next/link";
-import { useCount, useDispatchCount } from "../components/Counter";
+import { useCount, useDispatchCount } from "@/_components/Counter";
 
-const AboutPage = () => {
+export default function About() {
   const count = useCount();
   const dispatch = useDispatchCount();
 
@@ -27,6 +29,4 @@ const AboutPage = () => {
       </p>
     </>
   );
-};
-
-export default AboutPage;
+}
