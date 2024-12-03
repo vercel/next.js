@@ -25,10 +25,6 @@ const customJestConfig = {
   prettierPath: require.resolve('prettier-2'),
 }
 
-if (process.env.RECORD_REPLAY) {
-  customJestConfig.testRunner = '@replayio/jest/runner'
-}
-
 // Check if the environment variable is set to enable test report,
 // Insert a reporter to generate a junit report to upload.
 //
