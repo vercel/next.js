@@ -1046,10 +1046,8 @@ async function startWatcher(opts: SetupOpts) {
                 frames
               )
 
-              const error: NextError = new Error(err.message)
-              error.stack = stack
-              error.digest = err.digest
-              errorToLog = error
+              err.stack = stack
+              errorToLog = err
             } else {
               errorToLog = err
             }
