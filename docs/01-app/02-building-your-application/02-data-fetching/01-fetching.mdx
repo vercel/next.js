@@ -561,7 +561,7 @@ export default async function Page({ params }) {
 }
 ```
 
-As below, you can add a [Suspense Boundary](/docs/app/building-your-application/routing/loading-ui-and-streaming) to break up the rendering work and show part of the result as soon as possible.
+Alternatively, you use [`<Suspense>`](https://react.dev/reference/react/Suspense) to break up the rendering work and stream albums and artists separately. Start by calling `getArtist` and `getAlbums` in their respective components. Then, wrap each component in its own Suspense boundary.
 
 ```tsx filename="app/ui/albums.tsx" switcher
 async function getAlbums(username: string) {
@@ -674,8 +674,6 @@ export default async function Page({ params }) {
   )
 }
 ```
-
-Separate the `getArtist` and `getAlbums` functions, and initiate both requests in parallel. Wrap each function's result in its own Suspense boundary, which provides the user with the fastest possible display of results and a distinct loading state.
 
 ### Preloading Data
 
