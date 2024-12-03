@@ -435,6 +435,10 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
             .inspect_err(|err| println!("Looking up data for {task_id} failed: {err:?}"))
             .unwrap_or_default()
     }
+
+    fn shutdown(&self) -> Result<()> {
+        self.database.shutdown()
+    }
 }
 
 fn get_next_free_task_id<'a, S, C>(

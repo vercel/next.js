@@ -7,6 +7,7 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { isRequestAPICallableInsideAfter } from './utils'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -18,7 +19,11 @@ export function connection(): Promise<void> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (workUnitStore && workUnitStore.phase === 'after') {
+    if (
+      workUnitStore &&
+      workUnitStore.phase === 'after' &&
+      !isRequestAPICallableInsideAfter()
+    ) {
       throw new Error(
         `Route ${workStore.route} used "connection" inside "unstable_after(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but "unstable_after(...)" executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
       )
