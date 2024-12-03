@@ -7,7 +7,7 @@ use next_core::{
 };
 use petgraph::{
     graph::{DiGraph, NodeIndex},
-    visit::Dfs,
+    visit::{Dfs, VisitMap, Visitable},
 };
 use tracing::Instrument;
 use turbo_tasks::{
@@ -29,6 +29,14 @@ use crate::{
 #[derive(Clone, Debug)]
 struct SingleModuleGraphs(pub Vec<ResolvedVc<SingleModuleGraph>>);
 
+#[derive(PartialEq, Eq, Debug)]
+pub enum GraphTraversalAction {
+    /// Continue visiting children
+    Continue,
+    /// Skip the immediate children
+    Skip,
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Debug, Default)]
 pub struct SingleModuleGraph {
@@ -47,7 +55,9 @@ struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 impl SingleModuleGraph {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
+    /// If passed, `root` is connected to the entries and include in `self.entries`.
     async fn new_inner(
+        root: Option<ResolvedVc<Box<dyn Module>>>,
         entries: &Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: &HashSet<ResolvedVc<Box<dyn Module>>>,
     ) -> Result<Vc<Self>> {
@@ -56,7 +66,8 @@ impl SingleModuleGraph {
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         let mut stack: Vec<_> = entries.iter().map(|e| (None, *e)).collect();
         while let Some((parent_idx, module)) = stack.pop() {
-            if visited_modules.contains(&module) {
+            // Always add entries, even if already visited in other graphs
+            if parent_idx.is_some() && visited_modules.contains(&module) {
                 continue;
             }
             if let Some(idx) = modules.get(&module) {
@@ -79,11 +90,25 @@ impl SingleModuleGraph {
                 stack.push((Some(idx), *reference));
             }
         }
+
+        let root_idx = root.and_then(|root| {
+            if !modules.contains_key(&root) {
+                let root_idx = graph.add_node(root);
+                for entry in entries {
+                    graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
+                }
+                Some((root, root_idx))
+            } else {
+                None
+            }
+        });
+
         Ok(SingleModuleGraph {
             graph,
             entries: entries
                 .iter()
                 .map(|e| (*e, *modules.get(e).unwrap()))
+                .chain(root_idx.into_iter())
                 .collect(),
         }
         .cell())
@@ -104,6 +129,7 @@ impl SingleModuleGraph {
             .map(move |idx| (idx, *self.graph.node_weight(idx).unwrap()))
     }
 
+    /// Traverses all reachable nodes (once)
     pub fn traverse_from_entry(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
@@ -118,22 +144,63 @@ impl SingleModuleGraph {
         }
         Ok(())
     }
+
+    /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
+    /// target.
+    ///
+    /// This means that target nodes can be revisited (but not recursively).
+    ///
+    /// Edges are traversed in reverse order, so recently added edges are added last.
+    pub fn traverse_edges_from_entry(
+        &self,
+        entry: ResolvedVc<Box<dyn Module>>,
+        mut visitor: impl FnMut(
+            (
+                Option<ResolvedVc<Box<dyn Module>>>,
+                ResolvedVc<Box<dyn Module>>,
+            ),
+        ) -> GraphTraversalAction,
+    ) -> Result<()> {
+        let graph = &self.graph;
+        let entry_node = self.get_entry(entry)?;
+
+        let mut stack = vec![entry_node];
+        let mut discovered = graph.visit_map();
+        visitor((None, entry));
+
+        while let Some(node) = stack.pop() {
+            let node_weight = *graph.node_weight(node).unwrap();
+            if discovered.visit(node) {
+                for succ in graph.neighbors(node).collect::<Vec<_>>().into_iter().rev() {
+                    let succ_weight = *graph.node_weight(succ).unwrap();
+                    let action = visitor((Some(node_weight), succ_weight));
+                    if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
+                        stack.push(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
 }
 
 #[turbo_tasks::value_impl]
 impl SingleModuleGraph {
     #[turbo_tasks::function]
     async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
+        SingleModuleGraph::new_inner(None, &*entries.await?, &Default::default()).await
     }
 
+    /// `root` is connected to the entries and include in `self.entries`.
     #[turbo_tasks::function]
     async fn new_with_entries_visited(
+        root: ResolvedVc<Box<dyn Module>>,
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: Vc<ModuleSet>,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &*visited_modules.await?).await
+        SingleModuleGraph::new_inner(Some(root), &entries, &*visited_modules.await?).await
     }
 }
 
@@ -148,6 +215,7 @@ async fn get_module_graph_for_endpoint(
     } = &*find_server_entries(*entry).await?;
 
     let graph = SingleModuleGraph::new_with_entries_visited(
+        *entry,
         server_utils.iter().map(|m| **m).collect(),
         Vc::cell(Default::default()),
     )
@@ -159,9 +227,9 @@ async fn get_module_graph_for_endpoint(
     for module in server_component_entries
         .iter()
         .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
-        .chain(std::iter::once(entry))
     {
         let graph = SingleModuleGraph::new_with_entries_visited(
+            *entry,
             vec![*module],
             Vc::cell(visited_modules.clone()),
         )
@@ -170,6 +238,14 @@ async fn get_module_graph_for_endpoint(
         visited_modules.extend(graph.await?.graph.node_weights().copied());
         graphs.push(graph);
     }
+    let graph = SingleModuleGraph::new_with_entries_visited(
+        *entry,
+        vec![*entry],
+        Vc::cell(visited_modules.clone()),
+    )
+    .to_resolved()
+    .await?;
+    graphs.push(graph);
 
     Ok(Vc::cell(graphs))
 }
