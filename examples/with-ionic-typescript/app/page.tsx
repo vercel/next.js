@@ -1,32 +1,34 @@
-import Image from "next/image";
+// app/page.tsx
+import IonicLayout from "./components/IonicLayout";
+import CardComponent from "./components/CardComponent";
 
-export default function Home() {
+const Home = () => {
+
+  const destinations = new Array(8).fill({
+    imageSrc: "/cat.jpg",
+    title: "Madison, WI",
+    subtitle: "Destination",
+    content:
+      "Keep close to Nature's heart... and break clear away, once in awhile, and climb a mountain or spend a week in the woods. Wash your spirit clean.",
+  });
   return (
-    <ion-grid>
-      <ion-row>
-        {new Array(8).fill("").map((k, i) => (
-          <ion-col key={i} size="3">
-            <ion-card>
-              <Image
-                src="/cat.jpg"
-                alt="Picture of the author"
-                width={500}
-                height={500}
+    <IonicLayout>
+      <ion-grid>
+        <ion-row>
+          {destinations.map((destination, i) => (
+            <ion-col key={i} size="3">
+              <CardComponent
+                imageSrc={destination.imageSrc}
+                title={destination.title}
+                subtitle={destination.subtitle}
+                content={destination.content}
               />
-              <ion-card-header>
-                <ion-card-subtitle>Destination</ion-card-subtitle>
-                <ion-card-title>Madison, WI</ion-card-title>
-              </ion-card-header>
-              <ion-card-content>
-                <ion-icon name="pin" slot="start"></ion-icon>
-                Keep close to Nature's heart... and break clear away, once in
-                awhile, and climb a mountain or spend a week in the woods. Wash
-                your spirit clean.
-              </ion-card-content>
-            </ion-card>
-          </ion-col>
-        ))}
-      </ion-row>
-    </ion-grid>
+            </ion-col>
+          ))}
+        </ion-row>
+      </ion-grid>
+    </IonicLayout>
   );
-}
+};
+
+export default Home;
