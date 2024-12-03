@@ -215,7 +215,9 @@ export default function BlogPage() {
 
 > **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. The flag was introduced in Next.js 15 canary.
 
-When using `async/await` in Server Components, Next.js will opt into **dynamic rendering**. This means the data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering. To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
+When using `async/await` in Server Components, Next.js will opt into **dynamic rendering**. This means the data will be fetched and rendered on the server for every user request. If there are any slow data requests, the whole route will be blocked from rendering.
+
+To improve the initial load time and user experience, you can use streaming to break up the page's HTML into smaller chunks and progressively send those chunks from the server to the client.
 
 <Image
   alt="How Server Rendering with Streaming Works"
