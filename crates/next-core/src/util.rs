@@ -242,13 +242,11 @@ impl Issue for NextSourceConfigParsingIssue {
 
 fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
     let (explainer, hints) = value.explain(2, 0);
-    NextSourceConfigParsingIssue {
+    NextSourceConfigParsingIssue::new(
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
-            .resolved_cell(),
-    }
-    .resolved_cell()
-    .emit()
+        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+    )
+    .emit();
 }
 
 fn parse_route_matcher_from_js_value(

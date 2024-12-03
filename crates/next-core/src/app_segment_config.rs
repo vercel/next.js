@@ -172,6 +172,23 @@ pub struct NextSegmentConfigParsingIssue {
 }
 
 #[turbo_tasks::value_impl]
+impl NextSegmentConfigParsingIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        detail: ResolvedVc<StyledString>,
+        source: ResolvedVc<IssueSource>,
+    ) -> Vc<Self> {
+        Self {
+            ident,
+            detail,
+            source,
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Issue for NextSegmentConfigParsingIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
@@ -333,13 +350,8 @@ fn parse_config_value(
         let detail =
             StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
 
-        NextSegmentConfigParsingIssue {
-            ident: source.ident(),
-            detail,
-            source: issue_source(source, span),
-        }
-        .cell()
-        .emit();
+        NextSegmentConfigParsingIssue::new(source.ident(), *detail, issue_source(source, span))
+            .emit();
     };
 
     match &*ident.sym {
