@@ -2,6 +2,7 @@ use std::{
     borrow::Cow,
     cell::UnsafeCell,
     fs::File,
+    io::Write,
     mem::{replace, swap},
     path::PathBuf,
     sync::atomic::{AtomicU32, Ordering},
@@ -28,6 +29,15 @@ struct ThreadLocalState<K: StoreKey + Send, const FAMILIES: usize> {
     collectors: [Option<Collector<K>>; FAMILIES],
     /// The list of new SST files that have been created.
     new_sst_files: Vec<(u32, File)>,
+    /// The list of new blob files that have been created.
+    new_blob_files: Vec<File>,
+}
+
+/// The result of a `WriteBatch::finish` operation.
+pub(crate) struct FinishResult {
+    pub(crate) sequence_number: u32,
+    pub(crate) new_sst_files: Vec<(u32, File)>,
+    pub(crate) new_blob_files: Vec<File>,
 }
 
 /// A write batch.
@@ -61,17 +71,27 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             .store(current, Ordering::SeqCst);
     }
 
-    /// Returns the collector for a family for the current thread.
-    fn collector_mut(&self, family: usize) -> Result<&mut Collector<K>> {
-        debug_assert!(family < FAMILIES);
+    /// Returns the thread local state for the current thread.
+    #[allow(clippy::mut_from_ref)]
+    fn thread_local_state(&self) -> &mut ThreadLocalState<K, FAMILIES> {
         let cell = self.thread_locals.get_or(|| {
             UnsafeCell::new(ThreadLocalState {
                 collectors: [const { None }; FAMILIES],
                 new_sst_files: Vec::new(),
+                new_blob_files: Vec::new(),
             })
         });
         // Safety: We know that the cell is only accessed from the current thread.
-        let state = unsafe { &mut *cell.get() };
+        unsafe { &mut *cell.get() }
+    }
+
+    /// Returns the collector for a family for the current thread.
+    fn collector_mut<'l>(
+        &self,
+        state: &'l mut ThreadLocalState<K, FAMILIES>,
+        family: usize,
+    ) -> Result<&'l mut Collector<K>> {
+        debug_assert!(family < FAMILIES);
         let collector = state.collectors[family].get_or_insert_with(|| {
             self.idle_collectors
                 .lock()
@@ -88,31 +108,36 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
 
     /// Puts a key-value pair into the write batch.
     pub fn put(&self, family: usize, key: K, value: Cow<'_, [u8]>) -> Result<()> {
-        let collector = self.collector_mut(family)?;
+        let state = self.thread_local_state();
+        let collector = self.collector_mut(state, family)?;
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
             collector.put(key, value.into_owned());
         } else {
-            let blob = self.create_blob(&value)?;
+            let (blob, file) = self.create_blob(&value)?;
             collector.put_blob(key, blob);
+            state.new_blob_files.push(file);
         }
         Ok(())
     }
 
     /// Puts a delete operation into the write batch.
     pub fn delete(&self, family: usize, key: K) -> Result<()> {
-        let collector = self.collector_mut(family)?;
+        let state = self.thread_local_state();
+        let collector = self.collector_mut(state, family)?;
         collector.delete(key);
         Ok(())
     }
 
     /// Finishes the write batch by returning the new sequence number and the new SST files. This
     /// writes all outstanding thread local data to disk.
-    pub(crate) fn finish(&mut self) -> Result<(u32, Vec<(u32, File)>)> {
+    pub(crate) fn finish(&mut self) -> Result<FinishResult> {
         let mut new_sst_files = Vec::new();
+        let mut new_blob_files = Vec::new();
         let mut all_collectors = [(); FAMILIES].map(|_| Vec::new());
         for cell in self.thread_locals.iter_mut() {
             let state = cell.get_mut();
             new_sst_files.append(&mut state.new_sst_files);
+            new_blob_files.append(&mut state.new_blob_files);
             for (family, global_collector) in all_collectors.iter_mut().enumerate() {
                 if let Some(collector) = state.collectors[family].take() {
                     if !collector.is_empty() {
@@ -200,11 +225,15 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
         shared_error.into_inner()?;
         let seq = self.current_sequence_number.load(Ordering::SeqCst);
         new_sst_files.sort_by_key(|(seq, _)| *seq);
-        Ok((seq, new_sst_files))
+        Ok(FinishResult {
+            sequence_number: seq,
+            new_sst_files,
+            new_blob_files,
+        })
     }
 
     /// Creates a new blob file with the given value.
-    fn create_blob(&self, value: &[u8]) -> Result<u32> {
+    fn create_blob(&self, value: &[u8]) -> Result<(u32, File)> {
         let seq = self.current_sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
         let mut buffer = Vec::new();
         buffer.write_u32::<BE>(value.len() as u32)?;
@@ -212,8 +241,11 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
             .context("Compression of value for blob file failed")?;
 
         let file = self.path.join(format!("{:08}.blob", seq));
-        std::fs::write(file, &buffer).context("Unable to write blob file")?;
-        Ok(seq)
+        let mut file = File::create(&file).context("Unable to create blob file")?;
+        file.write_all(&buffer)
+            .context("Unable to write blob file")?;
+        file.flush().context("Unable to flush blob file")?;
+        Ok((seq, file))
     }
 
     /// Creates a new SST file with the given collector data.

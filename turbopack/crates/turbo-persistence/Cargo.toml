@@ -8,6 +8,7 @@ license = "MIT"
 verify_sst_content = []
 strict_checks = []
 stats = ["quick_cache/stats"]
+print_stats = ["stats"]
 
 [dependencies]
 anyhow = { workspace = true }
