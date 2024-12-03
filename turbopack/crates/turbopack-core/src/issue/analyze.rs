@@ -20,6 +20,29 @@ pub struct AnalyzeIssue {
 }
 
 #[turbo_tasks::value_impl]
+impl AnalyzeIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        severity: ResolvedVc<IssueSeverity>,
+        source_ident: ResolvedVc<AssetIdent>,
+        title: ResolvedVc<RcStr>,
+        message: ResolvedVc<StyledString>,
+        code: Option<RcStr>,
+        source: Option<ResolvedVc<IssueSource>>,
+    ) -> Vc<Self> {
+        Self {
+            severity,
+            source_ident,
+            title,
+            message,
+            code,
+            source,
+        }
+        .cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl Issue for AnalyzeIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
