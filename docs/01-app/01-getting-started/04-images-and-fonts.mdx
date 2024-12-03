@@ -31,7 +31,7 @@ The Next.js [`<Image>`](/docs/app/building-your-application/optimizing/images) c
 - **Faster page loads:** Only loading images when they enter the viewport using native browser lazy loading, with optional blur-up placeholders.
 - **Asset flexibility:** Resizing images on-demand, even images stored on remote servers.
 
-To start using `<Image>`, first import it from `next/image` and render it within your component.
+To start using `<Image>`, import it from `next/image` and render it within your component.
 
 ```tsx filename="app/page.tsx" switcher
 import Image from 'next/image'
@@ -127,9 +127,7 @@ export default function Page() {
 }
 ```
 
-Since Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/app/api-reference/components/image#width), [`height`](/docs/app/api-reference/components/image#height) and optional [`blurDataURL`](/docs/app/api-reference/components/image#blurdataurl) props manually.
-
-> **Good to know:** The `width` and `height` attributes are used to infer the correct aspect ratio of image and avoid layout shift from the image loading in. The `width` and `height` do _not_ determine the rendered size of the image file.
+Since Next.js does not have access to remote files during the build process, you'll need to provide the [`width`](/docs/app/api-reference/components/image#width), [`height`](/docs/app/api-reference/components/image#height) and optional [`blurDataURL`](/docs/app/api-reference/components/image#blurdataurl) props manually. The `width` and `height` attributes are used to infer the correct aspect ratio of image and avoid layout shift from the image loading in. But `width` and `height` do _not_ determine the rendered size of the image file.
 
 Then, to safely allow images from remote servers, you need to define a list of supported URL patterns in `next.config.js`. Be as specific as possible to prevent malicious usage. For example, the following configuration will only allow images from a specific AWS S3 bucket:
 
@@ -177,7 +175,7 @@ The [`next/font`](/docs/app/api-reference/components/font) module automatically 
 
 It includes **built-in automatic self-hosting** for _any_ font file. This means you can optimally load web fonts with no layout shift.
 
-To start using `next/font`, import it from `next/font/local` or `next/font/google` (depending on whether you're using a [local](#local-fonts) or [Google](#google-fonts) font), call it as a function with the appropriate options, and set the `className` of the element you want to apply the font to.
+To start using `next/font`, import it from `next/font/local` or `next/font/google` (depending on whether you're using a [Google](#google-fonts) or [local](#local-fonts) font), call it as a function with the appropriate options, and set the `className` of the element you want to apply the font to.
 
 ```tsx filename="app/layout.tsx" switcher
 import { Geist } from 'next/font/google'
