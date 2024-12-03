@@ -30,10 +30,18 @@ describe('app-dir - server source maps edge runtime', () => {
         isTurbopack
           ? '\nError: Boom' +
               // TODO(veil): Should be sourcemapped
-              '\n    at logError (/'
+              '\n    at logError (.next'
           : '\nError: Boom' +
-              // TODO(veil): Should be sourcemapped
-              '\n    at logError (webpack'
+              '\n    at logError (app/rsc-error-log/page.js:2:16)' +
+              '\n    at logError (app/rsc-error-log/page.js:6:2)' +
+              '\n  1 | function logError() {' +
+              "\n> 2 |   console.error(new Error('Boom'))" +
+              '\n    |                ^' +
+              '\n  3 | }' +
+              '\n  4 |' +
+              '\n  5 | export default function Page() { {' +
+              '\n  ' +
+              '\n}'
       )
     } else {
       // TODO: Test `next build` with `--enable-source-maps`.
