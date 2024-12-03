@@ -736,7 +736,7 @@ export default withMDX(nextConfig)
 
 ## Remote MDX
 
-If your MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a separate local folder, CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
+If your MDX files or content lives _somewhere else_, you can fetch it dynamically on the server. This is useful for content stored in a CMS, database, or anywhere else. A popular community package for this use is [`next-mdx-remote`](https://github.com/hashicorp/next-mdx-remote#react-server-components-rsc--nextjs-app-directory-support).
 
 > **Good to know**: Please proceed with caution. MDX compiles to JavaScript and is executed on the server. You should only fetch MDX content from a trusted source, otherwise this can lead to remote code execution (RCE).
 
@@ -748,7 +748,7 @@ The following example uses `next-mdx-remote`:
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
-  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
+  // MDX text - can be from a database, CMS, fetch, anywhere...
   const res = await fetch('https://...')
   const markdown = await res.text()
   return <MDXRemote source={markdown} />
@@ -759,7 +759,7 @@ export default async function RemoteMdxPage() {
 import { MDXRemote } from 'next-mdx-remote/rsc'
 
 export default async function RemoteMdxPage() {
-  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
+  // MDX text - can be from a database, CMS, fetch, anywhere...
   const res = await fetch('https://...')
   const markdown = await res.text()
   return <MDXRemote source={markdown} />
@@ -783,7 +783,7 @@ export default function RemoteMdxPage({ mdxSource }: Props) {
 }
 
 export async function getStaticProps() {
-  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
+  // MDX text - can be from a database, CMS, fetch, anywhere...
   const res = await fetch('https:...')
   const mdxText = await res.text()
   const mdxSource = await serialize(mdxText)
@@ -800,7 +800,7 @@ export default function RemoteMdxPage({ mdxSource }) {
 }
 
 export async function getStaticProps() {
-  // MDX text - can be from a local file, database, CMS, fetch, anywhere...
+  // MDX text - can be from a database, CMS, fetch, anywhere...
   const res = await fetch('https:...')
   const mdxText = await res.text()
   const mdxSource = await serialize(mdxText)
