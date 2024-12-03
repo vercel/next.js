@@ -230,32 +230,34 @@ impl AggregatedDataUpdate {
                 }
             );
 
-            let dirty_state = get!(task, Dirty).copied();
-            let task_id = task.id();
-            update!(task, AggregatedDirtyContainerCount, |old: Option<
-                DirtyContainerCount,
-            >| {
-                let mut new = old.unwrap_or_default();
-                if let Some(dirty_state) = dirty_state {
-                    new.update_with_dirty_state(&dirty_state);
-                }
-                let aggregated_update = new.update_count(&aggregated_update);
-                if let Some(dirty_state) = dirty_state {
-                    new.undo_update_with_dirty_state(&dirty_state);
-                }
-                if !aggregated_update.is_zero() {
-                    result.dirty_container_update = Some((task_id, aggregated_update));
-                }
-                (!new.is_zero()).then_some(new)
-            });
-            if let Some((_, count)) = result.dirty_container_update.as_ref() {
-                if count.get(session_id) < 0 {
-                    // When the current task is no longer dirty, we need to fire the aggregate root
-                    // events and do some cleanup
-                    if let Some(root_state) = get!(task, AggregateRoot) {
-                        root_state.all_clean_event.notify(usize::MAX);
-                        if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
-                            task.remove(&CachedDataItemKey::AggregateRoot {});
+            if !aggregated_update.is_zero() {
+                let dirty_state = get!(task, Dirty).copied();
+                let task_id = task.id();
+                update!(task, AggregatedDirtyContainerCount, |old: Option<
+                    DirtyContainerCount,
+                >| {
+                    let mut new = old.unwrap_or_default();
+                    if let Some(dirty_state) = dirty_state {
+                        new.update_with_dirty_state(&dirty_state);
+                    }
+                    let aggregated_update = new.update_count(&aggregated_update);
+                    if let Some(dirty_state) = dirty_state {
+                        new.undo_update_with_dirty_state(&dirty_state);
+                    }
+                    if !aggregated_update.is_zero() {
+                        result.dirty_container_update = Some((task_id, aggregated_update));
+                    }
+                    (!new.is_zero()).then_some(new)
+                });
+                if let Some((_, count)) = result.dirty_container_update.as_ref() {
+                    if count.get(session_id) < 0 {
+                        // When the current task is no longer dirty, we need to fire the aggregate
+                        // root events and do some cleanup
+                        if let Some(root_state) = get!(task, AggregateRoot) {
+                            root_state.all_clean_event.notify(usize::MAX);
+                            if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
+                                task.remove(&CachedDataItemKey::AggregateRoot {});
+                            }
                         }
                     }
                 }
