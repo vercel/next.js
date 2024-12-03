@@ -684,11 +684,13 @@ impl ClientReferencesGraph {
 
             // module -> the parent server component (if any)
             let mut state_map = HashMap::new();
-            graph.traverse_edges_from_entry(entry, |(parent_module, module)| {
-                let Some(parent_module) = parent_module else {
+            graph.traverse_edges_from_entry(entry, |(parent_node, node)| {
+                let module = node.module;
+                let Some(parent_node) = parent_node else {
                     state_map.insert(module, VisitState::Entry);
                     return GraphTraversalAction::Continue;
                 };
+                let parent_module = parent_node.module;
 
                 let module_type = data.get(&module);
                 let parent_state = state_map.get(&parent_module).unwrap().clone();

@@ -34,7 +34,8 @@ pub async fn map_client_references(
     let actions = graph
         .await?
         .enumerate_nodes()
-        .map(|(_, module)| async move {
+        .map(|(_, node)| async move {
+            let module = node.module;
             if let Some(client_reference_module) =
                 ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
             {
