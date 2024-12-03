@@ -40,18 +40,26 @@ describe('middleware - development errors', () => {
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? '\n ⨯ Error: boom' +
-              // TODO(veil): Should be sourcemapped
-              '\n    at __TURBOPACK__default__export__ ('
+              // TODO(veil): Sourcemap to original name i.e. "default"
+              '\n    at __TURBOPACK__default__export__ (middleware.js:3:14)' +
+              '\n  1 |' +
+              '\n  2 |       export default function () {' +
+              "\n> 3 |         throw new Error('boom')" +
+              '\n    |              ^' +
+              '\n  4 |       }' +
+              '\n'
           : '\n ⨯ Error: boom' +
               '\n    at default (middleware.js:3:14)' +
               // TODO(veil): Should be ignore-listed
               '\n    at eval (webpack'
       )
       if (isTurbopack) {
-        // TODO(veil): Should have codeframe
+        // already asserted on codeframe earlier
       } else {
         expect(stripAnsi(next.cliOutput)).toContain(
-          "\n> 3 |         throw new Error('boom')"
+          '' +
+            "\n> 3 |         throw new Error('boom')" +
+            '\n    |              ^'
         )
       }
     })
@@ -92,8 +100,17 @@ describe('middleware - development errors', () => {
       })
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
-          ? // TODO(veil): Should be sourcemapped
-            ' ⨯ unhandledRejection:  Error: async boom!\n    at throwError (/'
+          ? ' ⨯ unhandledRejection:  Error: async boom!' +
+              '\n    at throwError (middleware.js:4:14)' +
+              // TODO(veil): Sourcemap to original name i.e. "default"
+              '\n    at __TURBOPACK__default__export__ (middleware.js:7:8)' +
+              "\n  2 |       import { NextResponse } from 'next/server'" +
+              '\n  3 |       async function throwError() {' +
+              "\n> 4 |         throw new Error('async boom!')" +
+              '\n    |              ^' +
+              '\n  5 |       }' +
+              '\n  6 |       export default function () {' +
+              '\n  7 |         throwError()'
           : '\n ⨯ unhandledRejection:  Error: async boom!' +
               '\n    at throwError (middleware.js:4:14)' +
               '\n    at throwError (middleware.js:7:8)' +
@@ -101,10 +118,12 @@ describe('middleware - development errors', () => {
               '\n    at eval (webpack'
       )
       if (isTurbopack) {
-        // TODO(veil): Should have codeframe
+        // already asserted on codeframe earlier
       } else {
         expect(stripAnsi(next.cliOutput)).toContain(
-          "> 4 |         throw new Error('async boom!')"
+          '' +
+            "\n> 4 |         throw new Error('async boom!')" +
+            '\n    |              ^'
         )
       }
     })
@@ -142,19 +161,21 @@ describe('middleware - development errors', () => {
         // In CI, it prefixes "Dynamic Code Evaluation".
         expect(stripAnsi(next.cliOutput)).toContain(
           // TODO(veil): Should be sourcemapped
-          '\n    at __TURBOPACK__default__export__ (/'
+          '\n    at __TURBOPACK__default__export__ (.next/'
         )
       }
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? '\n ⨯ Error [ReferenceError]: test is not defined' +
-              // TODO(veil): Should be sourcemapped
-              '\n    at eval '
+              '\n    at eval (middleware.js:4:8)' +
+              '\n    at <unknown> (middleware.js:4:8)' +
+              // TODO(veil): Should be ignore-listed
+              '\n    at fn (node_modules'
           : '\n ⨯ Error [ReferenceError]: test is not defined' +
-              // TODO: Redundant and not clickable
+              // TODO(veil): Redundant and not clickable
               '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
               '\n    at eval (middleware.js:4:8)' +
-              // TODO: Should be ignore-listed
+              // TODO(veil): Should be ignore-listed
               '\n    at fn (node_modules'
       )
       expect(stripAnsi(next.cliOutput)).toContain(

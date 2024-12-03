@@ -281,7 +281,7 @@ describe('server-side dev errors', () => {
         // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(veil): Should not include `turbopack://[project]`
+            // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
             '\n    at handler (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
             // Next.js internal frame. Feel free to adjust.
             // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules

@@ -165,8 +165,16 @@ describe('app-dir - server source maps', () => {
       expect(cliOutput).toContain(
         isTurbopack
           ? '\n ⨯ Error: Boom' +
-              // TODO(veil): Apply sourcemap
-              '\n    at throwError (/'
+              '\n    at throwError (app/ssr-throw/Thrower.js:4:8)' +
+              '\n    at Thrower (app/ssr-throw/Thrower.js:8:2)' +
+              '\n  2 |' +
+              '\n  3 | function throwError() {' +
+              "\n> 4 |   throw new Error('Boom')" +
+              '\n    |        ^' +
+              '\n  5 | }' +
+              '\n  6 |' +
+              '\n  7 | export function Thrower() { {' +
+              "\n  digest: '"
           : '\n ⨯ Error: Boom' +
               '\n    at throwError (app/ssr-throw/Thrower.js:4:8)' +
               // TODO(veil): Method name should be "Thrower"

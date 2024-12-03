@@ -108,21 +108,43 @@ describe.each([
           if (title === 'Middleware') {
             expect(output).toContain(
               isTurbopack
-                ? // TODO(veil): Apply sourcemap
-                  '\n    at usingEval (/'
+                ? '' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:11:16)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:12:52)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
                 : '\n    at eval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
                     '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:53)' +
-                    // TODO(veil): Should be ignore-listed
                     '\n    at eval (../packages/next/dist'
             )
           } else {
             expect(output).toContain(
               isTurbopack
-                ? // TODO(veil): Apply sourcemap
-                  '\n    at usingEval (/'
+                ? '' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:11:16)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:22)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
                 : '\n    at eval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
                     '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:23)' +
                     '\n   9 | export async function usingEval() {'
+            )
+          }
+
+          // TODO(veil): Inconsistent cursor position
+          if (isTurbopack) {
+            expect(output).toContain(
+              '' +
+                "\n> 11 |   return { value: eval('100') }" +
+                '\n     |                ^'
+            )
+          } else {
+            expect(output).toContain(
+              '' +
+                "\n> 11 |   return { value: eval('100') }" +
+                '\n     |                  ^'
             )
           }
         })
@@ -148,36 +170,47 @@ describe.each([
           if (title === 'Middleware') {
             expect(output).toContain(
               isTurbopack
-                ? // TODO(veil): Apply sourcemap
-                  '\n    at usingWebAssemblyCompile (/'
+                ? '' +
+                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:17)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
                 : '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
                     '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
-                    // TODO(veil): Should be ignore-listed
-                    '\n    at eval (../packages/next'
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
             )
-            if (isTurbopack) {
-              // TODO(veil): Display codeframe
-            } else {
-              expect(output).toContain(
-                '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)'
-              )
-            }
           } else {
             expect(output).toContain(
               isTurbopack
-                ? // TODO(veil): Apply sourcemap
-                  '\n    at usingWebAssemblyCompile (/'
-                : '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                ? '' +
+                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:17)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '' +
+                    '\n    at WebAssembly (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
                     '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
-                    // TODO(veil): Should be ignore-listed
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at'
             )
 
+            // TODO(veil): Inconsistent cursor position
             if (isTurbopack) {
-              // TODO(veil): Display codeframe
+              expect(output).toContain(
+                '' +
+                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
+                  '\n     |                 ^'
+              )
             } else {
               expect(output).toContain(
-                '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)'
+                '' +
+                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
+                  '\n     |                       ^'
               )
             }
           }
@@ -194,34 +227,45 @@ describe.each([
           if (title === 'Middleware') {
             expect(output).toContain(
               isTurbopack
-                ? // TODO(veil): Apply sourcemap
-                  '\n    at async usingWebAssemblyInstantiateWithBuffer (/'
-                : '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                ? '' +
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:37:29)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '' +
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
                     '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:37:29)' +
-                    // TODO(veil): Should be ignore-listed
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
                     '\n    at '
             )
             expect(stripAnsi(output)).toContain(
-              isTurbopack
-                ? // TODO(veil): Use codeframe of a stackframe that's not ignore-listed
-                  '\n> 149 |         result = await edgeFunction({'
-                : '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
+              '' +
+                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
+                '\n     |                       ^'
             )
           } else {
             expect(output).toContain(
               isTurbopack
-                ? // TODO(veil): Apply sourcemap
-                  '\n    at async usingWebAssemblyInstantiateWithBuffer (/'
-                : '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                ? '' +
+                    // TODO(veil): Turbopack duplicates project path
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:16)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '' +
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
                     '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:16)' +
-                    // TODO(veil): Should be ignore-listed
-                    '\n    at '
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
             )
             expect(stripAnsi(output)).toContain(
-              isTurbopack
-                ? // TODO(veil): Use codeframe of a stackframe that's not ignore-listed
-                  '\n> 149 |         result = await edgeFunction({'
-                : '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
+              '' +
+                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
+                '\n     |                       ^'
             )
           }
         })
