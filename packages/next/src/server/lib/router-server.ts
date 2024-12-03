@@ -166,7 +166,9 @@ export async function initialize(opts: {
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
     // internal headers should not be honored by the request handler
-    filterInternalHeaders(req.headers)
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
 
     if (
       !opts.minimalMode &&
