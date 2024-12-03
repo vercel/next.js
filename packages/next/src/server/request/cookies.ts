@@ -22,6 +22,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { isRequestAPICallableInsideAfter } from './utils'
 
 /**
  * In this version of Next.js `cookies()` returns a Promise however you can still reference the properties of the underlying cookies object
@@ -52,7 +53,11 @@ export function cookies(): Promise<ReadonlyRequestCookies> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (workUnitStore && workUnitStore.phase === 'after') {
+    if (
+      workUnitStore &&
+      workUnitStore.phase === 'after' &&
+      !isRequestAPICallableInsideAfter()
+    ) {
       throw new Error(
         // TODO(after): clarify that this only applies to pages?
         `Route ${workStore.route} used "cookies" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "cookies" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`

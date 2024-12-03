@@ -10,6 +10,7 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -70,6 +71,16 @@ export class AfterContext {
       this.workUnitStores.add(workUnitStore)
     }
 
+    const afterTaskStore = afterTaskAsyncStorage.getStore()
+
+    // This is used for checking if request APIs can be called inside `after`.
+    // Note that we need to check the phase in which the *topmost* `after` was called (which should be "action"),
+    // not the current phase (which might be "after" if we're in a nested after).
+    // Otherwise, we might allow `after(() => headers())`, but not `after(() => after(() => headers()))`.
+    const rootTaskSpawnPhase = afterTaskStore
+      ? afterTaskStore.rootTaskSpawnPhase // nested after
+      : workUnitStore?.phase // topmost after
+
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
@@ -83,7 +94,9 @@ export class AfterContext {
     //   await x()
     const wrappedCallback = bindSnapshot(async () => {
       try {
-        await callback()
+        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+          callback()
+        )
       } catch (error) {
         this.reportTaskError(error)
       }
