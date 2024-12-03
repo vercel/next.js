@@ -85,6 +85,11 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const serialized = await streamToString(
     renderToReadableStream(args, clientModules, {
       onError(err) {
+        // We're only reporting one error at a time, starting with the first.
+        if (error) {
+          return
+        }
+
         // Use the original error message...
         error = err instanceof Error ? err : new Error(String(err))
         // ...and attach the previously created stack, because err.stack is a
