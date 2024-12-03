@@ -873,7 +873,7 @@ pub async fn load_next_js_templateon<T: DeserializeOwned>(
     let content = &*file_path.read().await?;
 
     let FileContent::Content(file) = content else {
-        bail!("Expected file content at {}", path);
+        bail!("Expected file content at {}", file_path.to_string().await?);
     };
 
     let result: T = parse_json_rope_with_source_context(file.content())?;
