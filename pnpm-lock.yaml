@@ -57,8 +57,8 @@ importers:
         specifier: 7.22.5
         version: 7.22.5(@babel/core@7.22.5)
       '@edge-runtime/jest-environment':
-        specifier: 3.0.4
-        version: 3.0.4
+        specifier: 4.0.0
+        version: 4.0.0
       '@emotion/cache':
         specifier: 11.11.0
         version: 11.11.0
@@ -954,14 +954,14 @@ importers:
         specifier: 3.4.0
         version: 3.4.0
       '@edge-runtime/cookies':
-        specifier: 5.0.0
-        version: 5.0.0
+        specifier: 6.0.0
+        version: 6.0.0
       '@edge-runtime/ponyfill':
-        specifier: 3.0.0
-        version: 3.0.0
+        specifier: 4.0.0
+        version: 4.0.0
       '@edge-runtime/primitives':
-        specifier: 5.1.1
-        version: 5.1.1
+        specifier: 6.0.0
+        version: 6.0.0
       '@hapi/accept':
         specifier: 5.0.2
         version: 5.0.2
@@ -1221,8 +1221,8 @@ importers:
         specifier: 4.19.0
         version: 4.19.0
       edge-runtime:
-        specifier: 3.0.5
-        version: 3.0.5
+        specifier: 4.0.1
+        version: 4.0.1
       events:
         specifier: 3.3.0
         version: 3.3.0
@@ -3378,29 +3378,29 @@ packages:
     resolution: {integrity: sha512-dBVuXR082gk3jsFp7Rd/JI4kytwGHecnCoTtXFb7DB6CNHp4rg5k1bhg0nWdLGLnOV71lmDzGQaLMy8iPLY0pw==}
     engines: {node: '>=10.0.0'}
 
-  '@edge-runtime/cookies@5.0.0':
-    resolution: {integrity: sha512-VTTuKiK86cLuLKoLLwkCLN75CrXElmitD6Q+7XAYOMQyDUgsNEF/muorgZWttrvYQBVG+7Pdb8udFqIcLszyLw==}
-    engines: {node: '>=16'}
+  '@edge-runtime/cookies@6.0.0':
+    resolution: {integrity: sha512-VVO/8AwC2qVbygLb2IOkX1zWFx2yWIHzFv4D602CTnoRffd/+cdcXqpSydKaedFrk7a1dRYXbWwjzfV/gwZ2Gw==}
+    engines: {node: '>=18'}
 
-  '@edge-runtime/format@3.0.1':
-    resolution: {integrity: sha512-miO5YzjHt9zIyLyHHUqlXqH1pteK65rRrdcE9hCn6sen+vKO76JHlg9dNznQTxN+xqIPieQjGpPizC7878vT4A==}
-    engines: {node: '>=16'}
+  '@edge-runtime/format@4.0.0':
+    resolution: {integrity: sha512-dON4E/O3u0TvksmgS3E+3kniWerMji54mRA/uviHlbn7CiP7eYZVu2sgk/lXMaIvXAu+Jx+bV8KhE3+oQO5N5Q==}
+    engines: {node: '>=18'}
 
-  '@edge-runtime/jest-environment@3.0.4':
-    resolution: {integrity: sha512-2VpMtS0mcc0qodGQ5ZJRC0OdPkbD029eYahTL5WrbItID4xzcbgF89wVJFIU2stHuFg0q/meCGiAbpgM3/57+Q==}
-    engines: {node: '>=16'}
+  '@edge-runtime/jest-environment@4.0.0':
+    resolution: {integrity: sha512-75bTOg+coJO0YRfwzlSzCxdNi7KRKcRBeCYSmnKrvYiS++iF2kif0TLL8oKu6Z70pcFO3ugC6AjOloLe0WxOzw==}
+    engines: {node: '>=18'}
 
-  '@edge-runtime/ponyfill@3.0.0':
-    resolution: {integrity: sha512-JQm5QjLYv/0P6/TwOjFDBfQVNPKNCRsgP8G9sWPwKzcB5bc5mt6AMtQvMloiOm+7PosvBhGB3V448eSNGd3CTQ==}
-    engines: {node: '>=16'}
+  '@edge-runtime/ponyfill@4.0.0':
+    resolution: {integrity: sha512-JZdDyYUqweSbhMgSxxL8QuquNuanVw+gMK8RfFq1LHMQHxzXPVvAf9aw6M7MSuyhnCBtFhqtSTr682rf8U5eyA==}
+    engines: {node: '>=18'}
 
-  '@edge-runtime/primitives@5.1.1':
-    resolution: {integrity: sha512-osrHE4ObQ3XFkvd1sGBLkheV2mcHUqJI/Bum2AWA0R3U78h9lif3xZAdl6eLD/XnW4xhsdwjPUejLusXbjvI4Q==}
-    engines: {node: '>=16'}
+  '@edge-runtime/primitives@6.0.0':
+    resolution: {integrity: sha512-FqoxaBT+prPBHBwE1WXS1ocnu/VLTQyZ6NMUBAdbP7N2hsFTTxMC/jMu2D/8GAlMQfxeuppcPuCUk/HO3fpIvA==}
+    engines: {node: '>=18'}
 
-  '@edge-runtime/vm@4.0.4':
-    resolution: {integrity: sha512-LqPw+yaSPpCNnVZl5XoHQAySEzlnZiC9gReUuQHMh9GI03KKqwpVqWkIK1UfK116Yww7f2WZuAgnY/nhHwTsJA==}
-    engines: {node: '>=16'}
+  '@edge-runtime/vm@5.0.0':
+    resolution: {integrity: sha512-NKBGBSIKUG584qrS1tyxVpX/AKJKQw5HgjYEnPLC0QsTw79JrGn+qUr8CXFb955Iy7GUdiiUv1rJ6JBGvaKb6w==}
+    engines: {node: '>=18'}
 
   '@emnapi/runtime@1.2.0':
     resolution: {integrity: sha512-bV21/9LQmcQeCPEg3BDFtvwL6cwiTMksYNWQQ4KOxCZikEGalWtenoZ0wCiukJINlGCIi2KXx01g4FoH/LxpzQ==}
@@ -7797,9 +7797,9 @@ packages:
   ecdsa-sig-formatter@1.0.11:
     resolution: {integrity: sha512-nagl3RYrbNv6kQkeJIpt6NJZy8twLB/2vtz6yN9Z4vRKHN4/QZJIEbqohALSgwKdnksuY3k5Addp5lg8sVoVcQ==}
 
-  edge-runtime@3.0.5:
-    resolution: {integrity: sha512-E6eva65vwyF91wzCH5QtLtv4L2K8gtVuyPQ5kQ6LrYuQDB5RMzkZFQYW4OfolN0khoEaID2SCLa56pCCynbM1w==}
-    engines: {node: '>=16'}
+  edge-runtime@4.0.1:
+    resolution: {integrity: sha512-knylcPEqTugSmZolBR7P0O+StzYHd2J7wSmI0zqETD+xhy2xSeTA03p0SZqMKRsAsHPZ1qIGb7/bL71LUh9hqQ==}
+    engines: {node: '>=18'}
     hasBin: true
 
   ee-first@1.1.1:
@@ -17289,25 +17289,25 @@ snapshots:
 
   '@discoveryjs/json-ext@0.5.7': {}
 
-  '@edge-runtime/cookies@5.0.0': {}
+  '@edge-runtime/cookies@6.0.0': {}
 
-  '@edge-runtime/format@3.0.1': {}
+  '@edge-runtime/format@4.0.0': {}
 
-  '@edge-runtime/jest-environment@3.0.4':
+  '@edge-runtime/jest-environment@4.0.0':
     dependencies:
-      '@edge-runtime/vm': 4.0.4
+      '@edge-runtime/vm': 5.0.0
       '@jest/environment': 29.5.0
       '@jest/fake-timers': 29.5.0
       jest-mock: 29.5.0
       jest-util: 29.5.0
 
-  '@edge-runtime/ponyfill@3.0.0': {}
+  '@edge-runtime/ponyfill@4.0.0': {}
 
-  '@edge-runtime/primitives@5.1.1': {}
+  '@edge-runtime/primitives@6.0.0': {}
 
-  '@edge-runtime/vm@4.0.4':
+  '@edge-runtime/vm@5.0.0':
     dependencies:
-      '@edge-runtime/primitives': 5.1.1
+      '@edge-runtime/primitives': 6.0.0
 
   '@emnapi/runtime@1.2.0':
     dependencies:
@@ -22724,11 +22724,11 @@ snapshots:
     dependencies:
       safe-buffer: 5.2.1
 
-  edge-runtime@3.0.5:
+  edge-runtime@4.0.1:
     dependencies:
-      '@edge-runtime/format': 3.0.1
-      '@edge-runtime/ponyfill': 3.0.0
-      '@edge-runtime/vm': 4.0.4
+      '@edge-runtime/format': 4.0.0
+      '@edge-runtime/ponyfill': 4.0.0
+      '@edge-runtime/vm': 5.0.0
       async-listen: 3.0.1
       mri: 1.2.0
       picocolors: 1.1.1

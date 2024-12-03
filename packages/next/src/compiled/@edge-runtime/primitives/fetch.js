@@ -14492,7 +14492,7 @@ var require_util4 = __commonJS({
     var { serializeAMimeType, parseMIMEType } = require_data_url();
     var { types } = require("util");
     var { StringDecoder } = require("string_decoder");
-    var { btoa: btoa2 } = require("buffer");
+    var { btoa } = require("buffer");
     var staticPropertyDescriptors = {
       enumerable: true,
       writable: false,
@@ -14586,9 +14586,9 @@ var require_util4 = __commonJS({
           dataURL += ";base64,";
           const decoder = new StringDecoder("latin1");
           for (const chunk of bytes) {
-            dataURL += btoa2(decoder.write(chunk));
+            dataURL += btoa(decoder.write(chunk));
           }
-          dataURL += btoa2(decoder.end());
+          dataURL += btoa(decoder.end());
           return dataURL;
         }
         case "Text": {
@@ -18540,174 +18540,43 @@ __export(fetch_exports, {
   WebSocket: () => WebSocket,
   fetch: () => fetch
 });
+module.exports = __toCommonJS(fetch_exports);
+init_define_process();
+var import_node_buffer = require("buffer");
+var import_undici = __toESM(require_undici());
+var import_response = __toESM(require_response());
 function addDuplexToInit(options) {
   return typeof options === "undefined" || typeof options === "object" && options.duplex === void 0 ? { duplex: "half", ...options } : options;
 }
+__name(addDuplexToInit, "addDuplexToInit");
+var _Request = class _Request extends import_undici.default.Request {
+  constructor(input, options) {
+    super(input, addDuplexToInit(options));
+  }
+};
+__name(_Request, "Request");
+var Request = _Request;
+var Response = import_undici.default.Response;
+Response.error = function() {
+  return (0, import_response.fromInnerResponse)((0, import_response.makeNetworkError)(), "");
+};
 async function fetch(resource, options) {
   const res = await import_undici.default.fetch(resource, addDuplexToInit(options));
   const response = new Response(res.body, res);
   Object.defineProperty(response, "url", { value: res.url });
   return response;
 }
-var import_node_buffer, import_undici, import_response, _Request, Request, Response, Headers, FormData, WebSocket, Blob2;
-var init_fetch = __esm({
-  "src/primitives/fetch.js"() {
-    "use strict";
-    init_define_process();
-    import_node_buffer = require("buffer");
-    import_undici = __toESM(require_undici());
-    import_response = __toESM(require_response());
-    __name(addDuplexToInit, "addDuplexToInit");
-    _Request = class _Request extends import_undici.default.Request {
-      constructor(input, options) {
-        super(input, addDuplexToInit(options));
-      }
-    };
-    __name(_Request, "Request");
-    Request = _Request;
-    Response = import_undici.default.Response;
-    Response.error = function() {
-      return (0, import_response.fromInnerResponse)((0, import_response.makeNetworkError)(), "");
-    };
-    __name(fetch, "fetch");
-    ({ Headers, FormData, WebSocket } = import_undici.default);
-    ({ Blob: Blob2 } = globalThis);
-  }
-});
-
-// src/primitives/load.js
-var load_exports = {};
-__export(load_exports, {
-  load: () => load
-});
-module.exports = __toCommonJS(load_exports);
-init_define_process();
-var import_module = __toESM(require("module"));
-function load(scopedContext = {}) {
-  const context = {};
-  Object.assign(context, {
-    TextDecoder,
-    TextEncoder,
-    TextEncoderStream,
-    TextDecoderStream,
-    atob,
-    btoa,
-    performance
-  });
-  const consoleImpl = requireWithFakeGlobalScope({
-    context,
-    id: "console.js",
-    sourceCode: require("./console.js.text.js"),
-    scopedContext
-  });
-  Object.assign(context, { console: consoleImpl.console });
-  const timersImpl = requireWithFakeGlobalScope({
-    context,
-    id: "timers.js",
-    sourceCode: require("./timers.js.text.js"),
-    scopedContext
-  });
-  Object.assign(context, {
-    setTimeout: timersImpl.setTimeout,
-    setInterval: timersImpl.setInterval
-  });
-  const eventsImpl = requireWithFakeGlobalScope({
-    context,
-    id: "events.js",
-    sourceCode: require("./events.js.text.js"),
-    scopedContext
-  });
-  Object.assign(context, {
-    Event,
-    EventTarget,
-    FetchEvent: eventsImpl.FetchEvent,
-    // @ts-expect-error we need to add this to the type definitions maybe
-    PromiseRejectionEvent: eventsImpl.PromiseRejectionEvent
-  });
-  Object.assign(context, require("./stream"));
-  const abortControllerImpl = requireWithFakeGlobalScope({
-    context,
-    id: "abort-controller.js",
-    sourceCode: require("./abort-controller.js.text.js"),
-    scopedContext: { ...scopedContext }
-  });
-  Object.assign(context, {
-    AbortController: abortControllerImpl.AbortController,
-    AbortSignal: abortControllerImpl.AbortSignal,
-    DOMException: abortControllerImpl.DOMException
-  });
-  const urlImpl = requireWithFakeGlobalScope({
-    context,
-    id: "url.js",
-    sourceCode: require("./url.js.text.js"),
-    scopedContext: { ...scopedContext }
-  });
-  Object.assign(context, {
-    URL,
-    URLSearchParams,
-    URLPattern: urlImpl.URLPattern
-  });
-  Object.assign(context, { structuredClone });
-  Object.assign(context, (init_fetch(), __toCommonJS(fetch_exports)));
-  Object.assign(context, getCrypto(scopedContext));
-  return context;
-}
-__name(load, "load");
-function getCrypto(scopedContext) {
-  if (typeof SubtleCrypto !== "undefined" || scopedContext.SubtleCrypto) {
-    return {
-      crypto: scopedContext.crypto || globalThis.crypto,
-      Crypto: scopedContext.Crypto || globalThis.Crypto,
-      CryptoKey: scopedContext.CryptoKey || globalThis.CryptoKey,
-      SubtleCrypto: scopedContext.SubtleCrypto || globalThis.SubtleCrypto
-    };
-  } else {
-    const webcrypto = require("crypto").webcrypto;
-    return {
-      crypto: webcrypto,
-      Crypto: webcrypto.constructor,
-      CryptoKey: webcrypto.CryptoKey,
-      SubtleCrypto: webcrypto.subtle.constructor
-    };
-  }
-}
-__name(getCrypto, "getCrypto");
-function requireWithFakeGlobalScope(params) {
-  const getModuleCode = `(function(module,exports,require,globalThis,${Object.keys(
-    params.scopedContext
-  ).join(",")}) {${params.sourceCode}
-})`;
-  const module = {
-    exports: {},
-    loaded: false,
-    id: params.id
-  };
-  const moduleRequire = (import_module.default.createRequire || import_module.default.createRequireFromPath)(
-    __filename
-  );
-  function throwingRequire(pathToRequire) {
-    if (pathToRequire.startsWith("./")) {
-      const moduleName = pathToRequire.replace(/^\.\//, "");
-      if (!params.cache || !params.cache.has(moduleName)) {
-        throw new Error(`Cannot find module '${moduleName}'`);
-      }
-      return params.cache.get(moduleName).exports;
-    }
-    return moduleRequire(pathToRequire);
-  }
-  __name(throwingRequire, "throwingRequire");
-  throwingRequire.resolve = moduleRequire.resolve.bind(moduleRequire);
-  eval(getModuleCode)(
-    module,
-    module.exports,
-    throwingRequire,
-    params.context,
-    ...Object.values(params.scopedContext)
-  );
-  return module.exports;
-}
-__name(requireWithFakeGlobalScope, "requireWithFakeGlobalScope");
+__name(fetch, "fetch");
+var { Headers, FormData, WebSocket } = import_undici.default;
+var { Blob: Blob2 } = globalThis;
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
-  load
+  Blob,
+  File,
+  FormData,
+  Headers,
+  Request,
+  Response,
+  WebSocket,
+  fetch
 });
