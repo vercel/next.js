@@ -580,9 +580,9 @@ impl ServerActionsGraph {
                 let graph = &*self.graph.await?;
 
                 let mut result = HashMap::new();
-                graph.traverse_from_entry(entry, |module| {
-                    if let Some(node_data) = data.get(&module) {
-                        result.insert(module, *node_data);
+                graph.traverse_from_entry(entry, |node| {
+                    if let Some(node_data) = data.get(&node.module) {
+                        result.insert(node.module, *node_data);
                     }
                 })?;
                 Cow::Owned(result)

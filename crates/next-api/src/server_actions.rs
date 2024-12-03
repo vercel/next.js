@@ -398,25 +398,23 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
     let actions = graph
         .await?
         .enumerate_nodes()
-        .map(|(_, module)| {
+        .map(|(_, node)| {
             async move {
-                let layer = match module.ident().await?.layer {
-                    Some(layer) => {
-                        // TODO: compare module contexts instead?
-                        let layer = &**layer.await?;
-                        match layer {
-                            "app-rsc" | "app-edge-rsc" => ActionLayer::Rsc,
-                            "app-client" => ActionLayer::ActionBrowser,
-                            // TODO really ignore SSR?
-                            _ => return Ok(None),
-                        }
+                // TODO: compare module contexts instead?
+                let layer = match &node.layer {
+                    Some(layer) if &**layer == "app-rsc" || &**layer == "app-edge-rsc" => {
+                        ActionLayer::Rsc
                     }
-                    None => return Ok(None),
+                    Some(layer) if &**layer == "app-client" => ActionLayer::ActionBrowser,
+                    // TODO really ignore SSR?
+                    _ => return Ok(None),
                 };
                 // TODO the old implementation did parse_actions(to_rsc_context(module))
                 // is that really necessary?
-                Ok(match &*parse_actions(*module).await? {
-                    Some(action_map) => Some((module, (layer, action_map.to_resolved().await?))),
+                Ok(match &*parse_actions(*node.module).await? {
+                    Some(action_map) => {
+                        Some((node.module, (layer, action_map.to_resolved().await?)))
+                    }
                     None => None,
                 })
             }
