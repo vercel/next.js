@@ -19,6 +19,8 @@ export type AfterContextOpts = {
   onTaskError: RequestLifecycleOpts['onAfterTaskError'] | undefined
 }
 
+export type AsyncStackTask = ReturnType<NonNullable<Console['createTask']>>
+
 export class AfterContext {
   private waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
   private onClose: RequestLifecycleOpts['onClose']
@@ -44,7 +46,10 @@ export class AfterContext {
     this.callbackQueue.pause()
   }
 
-  public after(task: AfterTask): void {
+  public after(
+    task: AfterTask,
+    asyncStackTask?: AsyncStackTask | undefined
+  ): void {
     if (isThenable(task)) {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
@@ -52,7 +57,7 @@ export class AfterContext {
       this.waitUntil(task.catch((error) => this.reportTaskError(error)))
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
-      this.addCallback(task)
+      this.addCallback(task, asyncStackTask)
     } else {
       throw new Error(
         '`unstable_after()`: Argument must be a promise or a function'
@@ -60,7 +65,10 @@ export class AfterContext {
     }
   }
 
-  private addCallback(callback: AfterCallback) {
+  private addCallback(
+    callback: AfterCallback,
+    asyncStackTask?: AsyncStackTask | undefined
+  ) {
     // if something is wrong, throw synchronously, bubbling up to the `unstable_after` callsite.
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
@@ -95,7 +103,7 @@ export class AfterContext {
     const wrappedCallback = bindSnapshot(async () => {
       try {
         await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
-          callback()
+          asyncStackTask ? asyncStackTask.run(callback) : callback()
         )
       } catch (error) {
         this.reportTaskError(error)
