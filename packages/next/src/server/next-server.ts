@@ -23,6 +23,7 @@ import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
 import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -104,6 +105,9 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { RouteKind } from './route-kind'
+import { InvariantError } from '../shared/lib/invariant-error'
+import { AwaiterOnce } from './after/awaiter'
+import { AsyncCallbackSet } from './lib/async-callback-set'
 
 export * from './base-server'
 
@@ -170,6 +174,9 @@ export default class NextNodeServer extends BaseServer<
     req: IncomingMessage,
     res: ServerResponse
   ) => void
+
+  protected cleanupListeners = new AsyncCallbackSet()
+  protected internalWaitUntil: WaitUntil | undefined
 
   constructor(options: Options) {
     // Initialize super class
@@ -661,13 +668,10 @@ export default class NextNodeServer extends BaseServer<
             handleInternalReq
           )
 
-      return imageOptimizer(
-        imageUpstream,
-        paramsResult,
-        this.nextConfig,
-        this.renderOpts.dev,
-        previousCacheEntry
-      )
+      return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
+        isDev: this.renderOpts.dev,
+        previousCacheEntry,
+      })
     }
   }
 
@@ -1866,5 +1870,33 @@ export default class NextNodeServer extends BaseServer<
     if (!this.renderOpts.dev) {
       this.logError(args[0] as Error)
     }
+  }
+
+  protected onServerClose(listener: () => Promise<void>) {
+    this.cleanupListeners.add(listener)
+  }
+
+  async close(): Promise<void> {
+    await this.cleanupListeners.runAll()
+  }
+
+  protected getInternalWaitUntil(): WaitUntil {
+    this.internalWaitUntil ??= this.createInternalWaitUntil()
+    return this.internalWaitUntil
+  }
+
+  private createInternalWaitUntil() {
+    if (this.minimalMode) {
+      throw new InvariantError(
+        'createInternalWaitUntil should never be called in minimal mode'
+      )
+    }
+
+    const awaiter = new AwaiterOnce({ onError: console.error })
+
+    // TODO(after): warn if the process exits before these are awaited
+    this.onServerClose(() => awaiter.awaiting())
+
+    return awaiter.waitUntil
   }
 }

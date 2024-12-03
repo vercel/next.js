@@ -26,6 +26,7 @@ import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
 import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
 import type { ServerInitResult } from './lib/render-server'
+import { AsyncCallbackSet } from './lib/async-callback-set'
 
 let ServerImpl: typeof NextNodeServer
 
@@ -198,8 +199,7 @@ export class NextServer implements NextWrapperServer {
 
   async close() {
     if (this.server) {
-      // BaseServer.close() is protected
-      await this.server['close']()
+      await this.server.close()
     }
   }
 
@@ -301,7 +301,7 @@ export class NextServer implements NextWrapperServer {
 /** The wrapper server used for `import next from "next" (in a custom server)` */
 class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
-  protected cleanupListeners: (() => Promise<void>)[] = []
+  protected cleanupListeners?: AsyncCallbackSet
 
   protected init?: ServerInitResult
 
@@ -342,11 +342,17 @@ class NextCustomServer implements NextWrapperServer {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
+    let onDevServerCleanup: AsyncCallbackSet['add'] | undefined
+    if (this.options.dev) {
+      this.cleanupListeners = new AsyncCallbackSet()
+      onDevServerCleanup = this.cleanupListeners.add.bind(this.cleanupListeners)
+    }
+
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
-      onCleanup: (listener) => this.cleanupListeners.push(listener),
+      onDevServerCleanup,
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
       quiet: this.options.quiet,
@@ -437,9 +443,9 @@ class NextCustomServer implements NextWrapperServer {
   }
 
   async close() {
-    await Promise.all([
+    await Promise.allSettled([
       this.init?.server.close(),
-      ...this.cleanupListeners.map((f) => f()),
+      this.cleanupListeners?.runAll(),
     ])
   }
 }

@@ -47,7 +47,7 @@ use turbopack_ecmascript::{
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
-    pub loader: Vc<Box<dyn EvaluatableAsset>>,
+    pub loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
     pub manifest: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
@@ -74,7 +74,9 @@ pub(crate) async fn create_server_actions_manifest(
         build_server_actions_loader(project_path, page_name.clone(), actions, asset_context);
     let evaluable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(loader)
         .await?
-        .context("loader module must be evaluatable")?;
+        .context("loader module must be evaluatable")?
+        .to_resolved()
+        .await?;
 
     let chunk_item = loader.as_chunk_item(Vc::upcast(chunking_context));
     let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
@@ -394,7 +396,7 @@ async fn parse_actions(module: Vc<Box<dyn Module>>) -> Result<Vc<OptionActionMap
 
     let mut actions = FxIndexMap::from_iter(actions.into_iter());
     actions.sort_keys();
-    Ok(Vc::cell(Some(Vc::cell(actions))))
+    Ok(Vc::cell(Some(ResolvedVc::cell(actions))))
 }
 
 fn all_export_names(program: &Program) -> Vec<Atom> {
@@ -483,7 +485,7 @@ fn is_turbopack_internal_var(with: &Option<Box<ObjectLit>>) -> bool {
 /// collecting into a flat-mapped [FxIndexMap].
 async fn parse_actions_filter_map(
     (layer, module, name): FindActionsNode,
-) -> Result<Option<(FindActionsNode, Vc<ActionMap>)>> {
+) -> Result<Option<(FindActionsNode, ResolvedVc<ActionMap>)>> {
     parse_actions(*module).await.map(|option_action_map| {
         option_action_map
             .clone_value()
@@ -512,7 +514,7 @@ struct ActionMap(FxIndexMap<String, String>);
 
 /// An Option wrapper around [ActionMap].
 #[turbo_tasks::value(transparent)]
-struct OptionActionMap(Option<Vc<ActionMap>>);
+struct OptionActionMap(Option<ResolvedVc<ActionMap>>);
 
 #[turbo_tasks::value_impl]
 impl OptionActionMap {

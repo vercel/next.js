@@ -90,9 +90,7 @@ impl MiddlewareEndpoint {
             Value::new(ServerContextType::Middleware {
                 app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name
-                    .as_deref()
-                    .copied(),
+                    .ecmascript_client_reference_transition_name,
             }),
             self.project.next_mode(),
         )
@@ -277,7 +275,11 @@ impl Endpoint for MiddlewareEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            let _ = this
+                .project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .resolve()
+                .await?;
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();

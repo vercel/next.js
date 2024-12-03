@@ -185,7 +185,7 @@ export async function createHotReloaderTurbopack(
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
-  opts.onCleanup(() => project.onExit())
+  opts.onDevServerCleanup?.(() => project.onExit())
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
@@ -872,132 +872,141 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
-      if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
-        return
-      }
-
-      await currentEntriesHandling
-
-      // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
-      let routeDef: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
-        definition ??
-        (await findPagePathData(
-          dir,
+      return hotReloaderSpan
+        .traceChild('ensure-page', {
           inputPage,
-          nextConfig.pageExtensions,
-          opts.pagesDir,
-          opts.appDir
-        ))
-
-      // If the route is actually an app page route, then we should have access
-      // to the app route definition, and therefore, the appPaths from it.
-      if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
-        appPaths = definition.appPaths
-      }
-
-      let page = routeDef.page
-      if (appPaths) {
-        const normalizedPage = normalizeAppPath(page)
-
-        // filter out paths that are not exact matches (e.g. catchall)
-        const matchingAppPaths = appPaths.filter(
-          (path) => normalizeAppPath(path) === normalizedPage
-        )
-
-        // the last item in the array is the root page, if there are parallel routes
-        page = matchingAppPaths[matchingAppPaths.length - 1]
-      }
-
-      const pathname = definition?.pathname ?? inputPage
-
-      if (page === '/_error') {
-        let finishBuilding = startBuilding(pathname, requestUrl, false)
-        try {
-          await handlePagesErrorRoute({
-            dev: true,
-            currentEntryIssues,
-            entrypoints: currentEntrypoints,
-            manifestLoader,
-            devRewrites: opts.fsChecker.rewrites,
-            productionRewrites: undefined,
-            logErrors: true,
-
-            hooks: {
-              subscribeToChanges,
-              handleWrittenEndpoint: (id, result) => {
-                clearRequireCache(id, result)
-                currentWrittenEntrypoints.set(id, result)
-                assetMapper.setPathsForKey(id, result.clientPaths)
-              },
-            },
-          })
-        } finally {
-          finishBuilding()
-        }
-        return
-      }
-
-      const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const isEntryMetadataRouteFile = isMetadataRouteFile(
-        routeDef.filename.replace(opts.appDir || '', ''),
-        nextConfig.pageExtensions,
-        true
-      )
-      const normalizedAppPage = isEntryMetadataRouteFile
-        ? normalizedPageToTurbopackStructureRoute(
-            page,
-            extname(routeDef.filename)
-          )
-        : page
-
-      const route = isInsideAppDir
-        ? currentEntrypoints.app.get(normalizedAppPage)
-        : currentEntrypoints.page.get(page)
-
-      if (!route) {
-        // TODO: why is this entry missing in turbopack?
-        if (page === '/middleware') return
-        if (page === '/src/middleware') return
-        if (page === '/instrumentation') return
-        if (page === '/src/instrumentation') return
-
-        throw new PageNotFoundError(`route not found ${page}`)
-      }
-
-      // We don't throw on ensureOpts.isApp === true for page-api
-      // since this can happen when app pages make
-      // api requests to page API routes.
-      if (isApp && route.type === 'page') {
-        throw new Error(`mis-matched route type: isApp && page for ${page}`)
-      }
-
-      const finishBuilding = startBuilding(pathname, requestUrl, false)
-      try {
-        await handleRouteType({
-          dev,
-          page,
-          pathname,
-          route,
-          currentEntryIssues,
-          entrypoints: currentEntrypoints,
-          manifestLoader,
-          readyIds,
-          devRewrites: opts.fsChecker.rewrites,
-          productionRewrites: undefined,
-          logErrors: true,
-
-          hooks: {
-            subscribeToChanges,
-            handleWrittenEndpoint: (id, result) => {
-              currentWrittenEntrypoints.set(id, result)
-              clearRequireCache(id, result)
-              assetMapper.setPathsForKey(id, result.clientPaths)
-            },
-          },
         })
-      } finally {
-        finishBuilding()
-      }
+        .traceAsyncFn(async () => {
+          if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
+            return
+          }
+
+          await currentEntriesHandling
+
+          // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
+          let routeDef: Pick<
+            RouteDefinition,
+            'filename' | 'bundlePath' | 'page'
+          > =
+            definition ??
+            (await findPagePathData(
+              dir,
+              inputPage,
+              nextConfig.pageExtensions,
+              opts.pagesDir,
+              opts.appDir
+            ))
+
+          // If the route is actually an app page route, then we should have access
+          // to the app route definition, and therefore, the appPaths from it.
+          if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
+            appPaths = definition.appPaths
+          }
+
+          let page = routeDef.page
+          if (appPaths) {
+            const normalizedPage = normalizeAppPath(page)
+
+            // filter out paths that are not exact matches (e.g. catchall)
+            const matchingAppPaths = appPaths.filter(
+              (path) => normalizeAppPath(path) === normalizedPage
+            )
+
+            // the last item in the array is the root page, if there are parallel routes
+            page = matchingAppPaths[matchingAppPaths.length - 1]
+          }
+
+          const pathname = definition?.pathname ?? inputPage
+
+          if (page === '/_error') {
+            let finishBuilding = startBuilding(pathname, requestUrl, false)
+            try {
+              await handlePagesErrorRoute({
+                dev: true,
+                currentEntryIssues,
+                entrypoints: currentEntrypoints,
+                manifestLoader,
+                devRewrites: opts.fsChecker.rewrites,
+                productionRewrites: undefined,
+                logErrors: true,
+
+                hooks: {
+                  subscribeToChanges,
+                  handleWrittenEndpoint: (id, result) => {
+                    clearRequireCache(id, result)
+                    currentWrittenEntrypoints.set(id, result)
+                    assetMapper.setPathsForKey(id, result.clientPaths)
+                  },
+                },
+              })
+            } finally {
+              finishBuilding()
+            }
+            return
+          }
+
+          const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
+          const isEntryMetadataRouteFile = isMetadataRouteFile(
+            routeDef.filename.replace(opts.appDir || '', ''),
+            nextConfig.pageExtensions,
+            true
+          )
+          const normalizedAppPage = isEntryMetadataRouteFile
+            ? normalizedPageToTurbopackStructureRoute(
+                page,
+                extname(routeDef.filename)
+              )
+            : page
+
+          const route = isInsideAppDir
+            ? currentEntrypoints.app.get(normalizedAppPage)
+            : currentEntrypoints.page.get(page)
+
+          if (!route) {
+            // TODO: why is this entry missing in turbopack?
+            if (page === '/middleware') return
+            if (page === '/src/middleware') return
+            if (page === '/instrumentation') return
+            if (page === '/src/instrumentation') return
+
+            throw new PageNotFoundError(`route not found ${page}`)
+          }
+
+          // We don't throw on ensureOpts.isApp === true for page-api
+          // since this can happen when app pages make
+          // api requests to page API routes.
+          if (isApp && route.type === 'page') {
+            throw new Error(`mis-matched route type: isApp && page for ${page}`)
+          }
+
+          const finishBuilding = startBuilding(pathname, requestUrl, false)
+          try {
+            await handleRouteType({
+              dev,
+              page,
+              pathname,
+              route,
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              readyIds,
+              devRewrites: opts.fsChecker.rewrites,
+              productionRewrites: undefined,
+              logErrors: true,
+
+              hooks: {
+                subscribeToChanges,
+                handleWrittenEndpoint: (id, result) => {
+                  currentWrittenEntrypoints.set(id, result)
+                  clearRequireCache(id, result)
+                  assetMapper.setPathsForKey(id, result.clientPaths)
+                },
+              },
+            })
+          } finally {
+            finishBuilding()
+          }
+        })
     },
   }
 

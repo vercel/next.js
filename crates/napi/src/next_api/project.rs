@@ -696,15 +696,15 @@ pub fn project_entrypoints_subscribe(
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_document_endpoint,
+                        *entrypoints.pages_document_endpoint,
                     ))),
                     pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_app_endpoint,
+                        *entrypoints.pages_app_endpoint,
                     ))),
                     pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_error_endpoint,
+                        *entrypoints.pages_error_endpoint,
                     ))),
                 },
                 issues: issues

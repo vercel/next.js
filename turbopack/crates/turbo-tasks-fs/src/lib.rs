@@ -53,7 +53,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
     fs,
-    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
@@ -744,6 +744,7 @@ impl FileSystem for DiskFileSystem {
                             tokio::io::copy(&mut file.read(), &mut f).await?;
                             #[cfg(target_family = "unix")]
                             f.set_permissions(file.meta.permissions.into()).await?;
+                            f.flush().await?;
                             #[cfg(feature = "write_version")]
                             {
                                 let mut full_path = full_path.into_owned();
@@ -759,6 +760,7 @@ impl FileSystem for DiskFileSystem {
                                 tokio::io::copy(&mut file.read(), &mut f).await?;
                                 #[cfg(target_family = "unix")]
                                 f.set_permissions(file.meta.permissions.into()).await?;
+                                f.flush().await?;
                             }
                             Ok::<(), io::Error>(())
                         }
