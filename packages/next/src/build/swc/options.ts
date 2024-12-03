@@ -9,7 +9,7 @@ import type { ResolvedBaseUrl } from '../load-jsconfig'
 import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
 
 const nextDistPath =
-  /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
+  /([\\/]next[\\/]dist[\\/]shared[\\/]lib)|([\\/]next[\\/]dist[\\/]client)|([\\/]next[\\/]dist[\\/]pages)/
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
