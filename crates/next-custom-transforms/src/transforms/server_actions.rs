@@ -2356,72 +2356,44 @@ fn bind_args_to_ref_expr(expr: Expr, bound: Vec<Option<ExprOrSpread>>, action_id
     if bound.is_empty() {
         expr
     } else {
-        // expr.bind(null, encryptActionBoundArgs("id", [arg1, ...]).catch(...)))
-        expr.make_member(quote_ident!("bind")).as_call(
-            DUMMY_SP,
-            vec![
-                Expr::Lit(Lit::Null(Null { span: DUMMY_SP })).into(),
-                quote_ident!("encryptActionBoundArgs")
-                    .as_call(
-                        DUMMY_SP,
-                        vec![
-                            Expr::Lit(Lit::Str(action_id.into())).into(),
-                            Expr::Array(ArrayLit {
-                                span: DUMMY_SP,
-                                elems: bound,
-                            })
-                            .into(),
+        // expr.bind(null, [encryptActionBoundArgs("id", [arg1, ...])])
+        Expr::Call(CallExpr {
+            span: DUMMY_SP,
+            callee: Expr::Member(MemberExpr {
+                span: DUMMY_SP,
+                obj: Box::new(expr),
+                prop: MemberProp::Ident(quote_ident!("bind")),
+            })
+            .as_callee(),
+            args: vec![
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Lit(Lit::Null(Null { span: DUMMY_SP }))),
+                },
+                ExprOrSpread {
+                    spread: None,
+                    expr: Box::new(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: quote_ident!("encryptActionBoundArgs").as_callee(),
+                        args: vec![
+                            ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(action_id.into()),
+                            },
+                            ExprOrSpread {
+                                spread: None,
+                                expr: Box::new(Expr::Array(ArrayLit {
+                                    span: DUMMY_SP,
+                                    elems: bound,
+                                })),
+                            },
                         ],
-                    )
-                    .make_member(quote_ident!("catch"))
-                    .as_call(
-                        DUMMY_SP,
-                        vec![ArrowExpr {
-                            params: vec![quote_ident!("e").into()],
-                            body: Box::new(BlockStmtOrExpr::BlockStmt(BlockStmt {
-                                stmts: vec![
-                                    quote_ident!("Error")
-                                        .into_new_expr(
-                                            DUMMY_SP,
-                                            Some(vec![Expr::Cond(CondExpr {
-                                                span: DUMMY_SP,
-                                                test: quote_ident!("e")
-                                                    .make_bin(
-                                                        BinaryOp::InstanceOf,
-                                                        quote_ident!("Error"),
-                                                    )
-                                                    .into(),
-                                                cons: quote_ident!("e")
-                                                    .make_member("message".into())
-                                                    .into(),
-                                                alt: quote_ident!("e").into(),
-                                            })
-                                            .as_arg()]),
-                                        )
-                                        .into_var_decl(
-                                            VarDeclKind::Const,
-                                            Pat::Ident("error".into()),
-                                        )
-                                        .into(),
-                                    quote_ident!("console")
-                                        .make_member("error".into())
-                                        .as_call(DUMMY_SP, vec![quote_ident!("error").as_arg()])
-                                        .into_stmt(),
-                                    ThrowStmt {
-                                        span: DUMMY_SP,
-                                        arg: quote_ident!("error").into(),
-                                    }
-                                    .into(),
-                                ],
-                                ..Default::default()
-                            })),
-                            ..Default::default()
-                        }
-                        .as_arg()],
-                    )
-                    .into(),
+                        ..Default::default()
+                    })),
+                },
             ],
-        )
+            ..Default::default()
+        })
     }
 }
 

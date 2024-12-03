@@ -10,11 +10,7 @@ function createCachedFn(start) {
     }
     return $$RSC_SERVER_REF_1.bind(null, encryptActionBoundArgs("c03128060c414d59f8552e4788b846c0d2b7f74743", [
         fn
-    ]).catch((e)=>{
-        const error = new Error(e instanceof Error ? e.message : e);
-        console.error(error);
-        throw error;
-    }));
+    ]));
 }
 var $$RSC_SERVER_REF_1 = /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ registerServerReference($$RSC_SERVER_CACHE_0, "c03128060c414d59f8552e4788b846c0d2b7f74743", null);
 export const /*#__TURBOPACK_DISABLE_EXPORT_MERGING__*/ $$RSC_SERVER_ACTION_2 = async function($$ACTION_CLOSURE_BOUND) {
@@ -27,9 +23,5 @@ function createServerAction(start) {
     }
     return registerServerReference($$RSC_SERVER_ACTION_2, "401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", null).bind(null, encryptActionBoundArgs("401c36b06e398c97abe5d5d7ae8c672bfddf4e1b91", [
         fn
-    ]).catch((e)=>{
-        const error = new Error(e instanceof Error ? e.message : e);
-        console.error(error);
-        throw error;
-    }));
+    ]));
 }

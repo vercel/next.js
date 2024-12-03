@@ -25,10 +25,6 @@ export function Component() {
         data,
         baz.value,
         foo
-    ]).catch((e)=>{
-        const error = new Error(e instanceof Error ? e.message : e);
-        console.error(error);
-        throw error;
-    }));
+    ]));
     return <form action={action}/>;
 }

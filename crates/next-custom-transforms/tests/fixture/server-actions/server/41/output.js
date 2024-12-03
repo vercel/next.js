@@ -13,11 +13,7 @@ export var $$RSC_SERVER_CACHE_1 = $$cache__("default", "c0951c375b4a6a6e89d67b74
     var fn = registerServerReference($$RSC_SERVER_ACTION_0, "406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", null).bind(null, encryptActionBoundArgs("406a88810ecce4a4e8b59d53b8327d7e98bbf251d7", [
         a,
         foo
-    ]).catch((e)=>{
-        const error = new Error(e instanceof Error ? e.message : e);
-        console.error(error);
-        throw error;
-    }));
+    ]));
     const data = await fn();
     return <div>{data}</div>;
 });
