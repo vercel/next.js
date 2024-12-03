@@ -1,6 +1,6 @@
 {
   "private": true,
-  "description": "Notify Next.js team about pending PRs and popular issues",
+  "description": "A variety of functions to help with triaging issues, PRs, and feature requests in the Next.js repo.",
   "scripts": {
     "build-issues-by-version": "ncc build src/issues-by-version.ts -m -o dist/issues-by-version --license licenses.txt",
     "build-issues": "ncc build src/popular-issues.mjs -m -o dist/issues --license licenses.txt",
