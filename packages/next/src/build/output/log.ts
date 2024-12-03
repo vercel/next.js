@@ -79,6 +79,10 @@ export function trace(...message: any[]) {
 const warnOnceMessages = new Set()
 export function warnOnce(...message: any[]) {
   if (!warnOnceMessages.has(message[0])) {
+    if (warnOnceMessages.size > 1000) {
+      // delete the oldest message (FIFO) to prevent memory leak
+      warnOnceMessages.delete(warnOnceMessages.values().next().value)
+    }
     warnOnceMessages.add(message.join(' '))
 
     warn(...message)
