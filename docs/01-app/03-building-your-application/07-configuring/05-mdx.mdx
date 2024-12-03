@@ -248,6 +248,67 @@ export default function Page() {
 
 Navigating to the `/mdx-page` route should display your rendered MDX page.
 
+<AppOnly>
+
+### Using dynamic imports
+
+You can also dynamically import MDX in your pages.
+
+Create a new dynamic page within the `/app` directory and add MDX files wherever you'd like:
+
+```txt
+  my-project
+  ├── app
+  │   └── blog
+  │       └── [slug]
+  │           └── page.(tsx/js)
+  ├── content
+  │   ├── welcome.(mdx/md)
+      └── about.(mdx/md)
+  |── mdx-components.(tsx/js)
+  └── package.json
+```
+
+Dynamically import the MDX file inside the page and add a [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) to statically prerender the pages with the MDX content:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+export default async function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const slug = (await params).slug
+  const { default: Post } = await import(`@/content/${slug}.mdx`)
+
+  return <Post />
+}
+
+export function generateStaticParams() {
+  return [{ slug: 'welcome' }, { slug: 'about' }]
+}
+
+export const dynamicParams = false
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export default async function Page({ params }) {
+  const slug = params.slug
+  const { default: Post } = await import(`@/content/${slug}.mdx`)
+
+  return <Post />
+}
+
+export function generateStaticParams() {
+  return [{ slug: 'welcome' }, { slug: 'about' }]
+}
+
+export const dynamicParams = false
+```
+
+Navigating to `/blog/welcome` or `/blog/about` should display your prerendered MDX page.
+
+</AppOnly>
+
 ## Using custom styles and components
 
 Markdown, when rendered, maps to native HTML elements. For example, writing the following markdown:
