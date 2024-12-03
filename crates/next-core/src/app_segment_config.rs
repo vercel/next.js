@@ -166,9 +166,9 @@ impl NextSegmentConfig {
 /// An issue that occurred while parsing the app segment config.
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
-    source: Vc<IssueSource>,
+    source: ResolvedVc<IssueSource>,
 }
 
 #[turbo_tasks::value_impl]

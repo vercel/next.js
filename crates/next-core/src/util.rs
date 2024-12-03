@@ -196,7 +196,7 @@ impl ValueDefault for NextSourceConfig {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
 }
 
