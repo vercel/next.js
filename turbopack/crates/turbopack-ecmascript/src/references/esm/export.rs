@@ -118,14 +118,14 @@ pub enum FoundExportType {
 
 #[turbo_tasks::value]
 pub struct FollowExportsResult {
-    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub export_name: Option<RcStr>,
     pub ty: FoundExportType,
 }
 
 #[turbo_tasks::function]
 pub async fn follow_reexports(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
@@ -160,7 +160,7 @@ pub async fn follow_reexports(
                 .await?
             {
                 ControlFlow::Continue((m, n)) => {
-                    module = m;
+                    module = m.to_resolved().await?;
                     export_name = n;
                     continue;
                 }
@@ -172,9 +172,9 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = get_all_export_names(module).await?;
+            let result = get_all_export_names(*module).await?;
             if let Some(m) = result.esm_exports.get(&export_name) {
-                module = *m;
+                module = m.to_resolved().await?;
                 continue;
             }
             return match &result.dynamic_exporting_modules[..] {
@@ -208,7 +208,7 @@ pub async fn follow_reexports(
 }
 
 async fn handle_declared_export(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     export: &EsmExport,
     side_effect_free_packages: Vc<Glob>,
@@ -223,7 +223,7 @@ async fn handle_declared_export(
                     .await?
                 {
                     return Ok(ControlFlow::Break(FollowExportsResult {
-                        module: *module,
+                        module,
                         export_name: Some(name.clone()),
                         ty: FoundExportType::SideEffects,
                     }));
@@ -232,11 +232,11 @@ async fn handle_declared_export(
             }
         }
         EsmExport::ImportedNamespace(reference) => {
-            if let ReferencedAsset::Some(m) =
+            if let ReferencedAsset::Some(module) =
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Break(FollowExportsResult {
-                    module: *m,
+                    module,
                     export_name: None,
                     ty: FoundExportType::Found,
                 }));
@@ -266,13 +266,13 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
-    dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::function]
 async fn get_all_export_names(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<AllExportNamesResult>> {
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {

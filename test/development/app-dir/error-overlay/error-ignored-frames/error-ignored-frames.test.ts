@@ -10,10 +10,14 @@ describe('error-ignored-frames', () => {
     files: __dirname,
   })
 
-  // TODO: remove this when reactOwnerStack is enabled by default
-  if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+  if (
+    // TODO: remove this when reactOwnerStack is enabled by default
     // Since PPR mode is just going to add owner stack, skip this test for now
-    it('skip ppr test', () => {})
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ||
+    // Skip react 18 test as the call stacks are different
+    process.env.NEXT_TEST_REACT_VERSION === '18.3.1'
+  ) {
+    it('skip test', () => {})
     return
   }
 

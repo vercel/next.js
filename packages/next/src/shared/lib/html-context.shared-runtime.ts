@@ -22,6 +22,11 @@ export type HtmlProps = {
   hybridAmp: boolean
   isDevelopment: boolean
   dynamicImports: string[]
+  /**
+   * This manifest is only needed for Pages dir, Production, Webpack
+   * @see https://github.com/vercel/next.js/pull/72959
+   */
+  dynamicCssManifest: Set<string>
   assetPrefix?: string
   canonicalBase: string
   headTags: any[]
