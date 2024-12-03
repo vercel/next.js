@@ -164,6 +164,9 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // internal headers should not be honored by the request handler
+    delete req.headers['x-middleware-set-cookie']
+
     if (
       !opts.minimalMode &&
       config.i18n &&
