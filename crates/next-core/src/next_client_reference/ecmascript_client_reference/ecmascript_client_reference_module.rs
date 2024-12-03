@@ -105,7 +105,7 @@ impl Asset for EcmascriptClientReferenceModule {
 }
 
 #[turbo_tasks::value]
-struct EcmascriptClientReference {
+pub(crate) struct EcmascriptClientReference {
     module: ResolvedVc<Box<dyn Module>>,
     ty: ChunkGroupType,
     description: ResolvedVc<RcStr>,

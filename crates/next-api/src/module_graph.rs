@@ -14,10 +14,11 @@ use turbo_tasks::{
     CollectiblesSource, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Vc,
 };
 use turbopack_core::{
+    chunk::ChunkingType,
     context::AssetContext,
     issue::Issue,
     module::{Module, Modules},
-    reference::primary_referenced_modules,
+    reference::primary_chunkable_referenced_modules,
 };
 
 use crate::{
@@ -83,11 +84,12 @@ impl SingleModuleGraph {
                 graph.add_edge(parent_idx, idx, ());
             }
 
-            for reference in primary_referenced_modules(*module).await?.iter() {
-                if reference.ident().path().await?.extension_ref() == Some("map") {
-                    continue;
+            for (ty, references) in primary_chunkable_referenced_modules(*module).await?.iter() {
+                if !matches!(ty, ChunkingType::Traced) {
+                    for reference in references {
+                        stack.push((Some(idx), *reference));
+                    }
                 }
-                stack.push((Some(idx), *reference));
             }
         }
 
