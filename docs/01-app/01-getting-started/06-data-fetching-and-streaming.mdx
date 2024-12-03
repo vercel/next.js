@@ -87,11 +87,82 @@ export default async function Page() {
 
 ### Client Components
 
-To fetch data in Client Components, we recommend using a React library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). For example:
+You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
+
+```tsx filename="app/blog/page.tsx" switcher
+import Posts from '@/app/ui/posts
+import { Suspense } from 'react'
+
+export default function Page() {
+  // Don't await the data fetching function
+  const posts = getPosts()
+
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Posts posts={posts} />
+    </Suspense>
+  )
+}
+```
+
+```jsx filename="app/blog/page.js" switcher
+import Posts from '@/app/ui/posts
+import { Suspense } from 'react'
+
+export default function Page() {
+  // Don't await the data fetching function
+  const posts = getPosts()
+
+  return (
+    <Suspense fallback={<div>Loading...</div>}>
+      <Posts posts={posts} />
+    </Suspense>
+  )
+}
+```
+
+Then, in your Client Component, use the `use` hook read the promise:
+
+```tsx filename="app/ui/posts.tsx" switcher
+'use client'
+import { use } from 'react'
+
+export default function Posts({ posts }) {
+  const posts = use(posts)
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/ui/posts.js" switcher
+'use client'
+import { use } from 'react'
+
+export default function Posts({ posts }) {
+  const posts = use(posts)
+
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](#streaming).
+
+Alternatively, you can use a community library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries have their own semantics for caching, streaming, and other features. For example:
 
 ```tsx filename="app/blog/page.tsx" switcher
 'use client'
-
 import useSWR from 'swr'
 
 const fetcher = (url) => fetch(url).then((r) => r.json())
@@ -117,7 +188,6 @@ export default function BlogPage() {
 
 ```jsx filename="app/blog/page.js" switcher
 'use client'
-
 import useSWR from 'swr'
 
 const fetcher = (url) => fetch(url).then((r) => r.json())
