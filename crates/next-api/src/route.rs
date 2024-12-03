@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, Vc,
+};
 use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;
@@ -38,35 +40,52 @@ pub enum Route {
     },
     AppPage(Vec<AppPageRoute>),
     AppRoute {
-        original_name: String,
+        original_name: RcStr,
         endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     Conflict,
 }
 
+#[turbo_tasks::value_impl]
+impl Route {
+    #[turbo_tasks::function]
+    pub fn new_app_route(
+        original_name: RcStr,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    ) -> Vc<Self> {
+        Self::AppRoute {
+            original_name,
+            endpoint,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_page(
+        html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        data_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    ) -> Vc<Self> {
+        Self::Page {
+            html_endpoint,
+            data_endpoint,
+        }
+        .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn new_page_api(endpoint: ResolvedVc<Box<dyn Endpoint>>) -> Vc<Self> {
+        Self::PageApi { endpoint }.cell()
+    }
+}
+
 impl Route {
     pub async fn resolve(&mut self) -> Result<()> {
-        match self {
-            Route::Page {
-                html_endpoint,
-                data_endpoint,
-            } => {
-                *html_endpoint = html_endpoint.resolve().await?;
-                *data_endpoint = data_endpoint.resolve().await?;
+        if let Route::AppPage(routes) = self {
+            for route in routes {
+                route.resolve().await?;
             }
-            Route::PageApi { endpoint } => {
-                *endpoint = endpoint.resolve().await?;
-            }
-            Route::AppPage(routes) => {
-                for route in routes {
-                    route.resolve().await?;
-                }
-            }
-            Route::AppRoute { endpoint, .. } => {
-                *endpoint = endpoint.resolve().await?;
-            }
-            Route::Conflict => {}
         }
+
         Ok(())
     }
 }
