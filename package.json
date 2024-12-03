@@ -68,7 +68,7 @@
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
-    "@ast-grep/cli": "0.26.1",
+    "@ast-grep/cli": "0.31.0",
     "@babel/core": "7.22.5",
     "@babel/eslint-parser": "7.22.5",
     "@babel/generator": "7.22.5",
@@ -94,9 +94,6 @@
     "@next/third-parties": "workspace:*",
     "@opentelemetry/api": "1.4.1",
     "@picocss/pico": "1.5.10",
-    "@replayio/jest": "27.2.35",
-    "@replayio/playwright": "1.1.8",
-    "@replayio/replay": "0.20.1",
     "@svgr/webpack": "5.5.0",
     "@swc/cli": "0.1.55",
     "@swc/core": "1.6.13",
