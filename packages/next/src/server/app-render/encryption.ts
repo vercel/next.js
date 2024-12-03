@@ -73,28 +73,36 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const { clientModules } = getClientReferenceManifestForRsc()
 
-  // An error stack that's created here looks like this:
-  // Error:
-  //     at encryptActionBoundArg
-  //     at <actual userland call site>
-  const stack = new Error().stack!.split('\n').slice(2).join('\n')
+  // Create an error before any asynchrounous calls, to capture the original
+  // call stack in case we need it when the serialization errors.
+  const error = new Error(
+    'Failed to serialize closed-over values for server function.'
+  )
 
-  let error: Error | undefined
+  // Collect all serialization errors so that we can create an aggregated error
+  // message.
+  const errors: string[] = []
 
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
     renderToReadableStream(args, clientModules, {
       onError(err) {
-        // Use the original error message...
-        error = err instanceof Error ? err : new Error(String(err))
-        // ...and attach the previously created stack, because err.stack is a
-        // useless Flight Server call stack.
-        error.stack = stack
+        errors.push(err instanceof Error ? err.message : String(err))
       },
     })
   )
 
-  if (error) {
+  if (errors.length > 0) {
+    // The error stack for the previously created error looks like this:
+    // Error: Failed to serialize closed-over variables for server function.
+    //     at encryptActionBoundArg
+    //     at <actual userland call site>
+    //     ...
+    error.stack = error.stack!.split('\n').slice(2).join('\n')
+
+    // Create an aggregated error message.
+    error.message += '\n\n' + errors.join('\n\n')
+
     if (process.env.NODE_ENV === 'development') {
       // Logging the error is needed for server functions that are passed to the
       // client where the decryption is not done during rendering. Console
