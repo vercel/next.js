@@ -14,7 +14,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use lzzzz::lz4::decompress;
-use memmap2::{Advice, Mmap};
+use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -331,13 +331,13 @@ impl TurboPersistence {
         let path = self.path.join(format!("{:08}.blob", seq));
         let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
         #[cfg(unix)]
-        mmap.advise(Advice::Sequential)?;
+        mmap.advise(memmap2::Advice::Sequential)?;
         #[cfg(unix)]
-        mmap.advise(Advice::WillNeed)?;
+        mmap.advise(memmap2::Advice::WillNeed)?;
         #[cfg(target_os = "linux")]
-        mmap.advise(Advice::DontFork)?;
+        mmap.advise(memmap2::Advice::DontFork)?;
         #[cfg(target_os = "linux")]
-        mmap.advise(Advice::Unmergeable)?;
+        mmap.advise(memmap2::Advice::Unmergeable)?;
         let mut compressed = &mmap[..];
         let uncompressed_length = compressed.read_u32::<BE>()? as usize;
 
