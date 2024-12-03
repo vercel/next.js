@@ -1,7 +1,7 @@
 ---
-title: How to fetch and stream data in your application
+title: How to fetch and stream data
 nav_title: Fetching Data and Streaming
-description: Learn how to fetch and stream data in your Next.js application.
+description: Learn how to fetch data and stream content in your Next.js application.
 related:
   links:
     - app/api-reference/functions/fetch
@@ -21,7 +21,7 @@ You can fetch data in Server Components using:
 
 #### With the `fetch` API
 
-To fetch data with the `fetch` API, turn your component into an async function, and await the `fetch` call. For example:
+To fetch data with the `fetch` API, turn your component into an asynchronous function, and await the `fetch` call. For example:
 
 ```tsx filename="app/blog/page.tsx" switcher
 export default async function Page() {
@@ -53,7 +53,7 @@ export default async function Page() {
 
 #### With an ORM or database
 
-You can fetch data with an ORM or database by turning your component into an `async` function, and awaiting the call:
+You can fetch data with an ORM or database by turning your component into an asynchronous function, and awaiting the call:
 
 ```tsx filename="app/blog/page.tsx" switcher
 import { db, posts } from '@/lib/db'
