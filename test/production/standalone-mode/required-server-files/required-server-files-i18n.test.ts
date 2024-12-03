@@ -24,6 +24,7 @@ describe('required server files i18n', () => {
 
   beforeAll(async () => {
     let wasmPkgIsAvailable = false
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     const res = await nodeFetch(
       `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
@@ -128,6 +129,7 @@ describe('required server files i18n', () => {
     )
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
