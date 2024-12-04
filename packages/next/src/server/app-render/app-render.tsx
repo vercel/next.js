@@ -10,6 +10,7 @@ import type {
   RSCPayload,
   FlightData,
   InitialRSCPayload,
+  FlightDataPath,
 } from './types'
 import {
   workAsyncStorage,
@@ -780,6 +781,16 @@ async function getRSCPayload(
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
 
+  // Assume the head we're rendering contains only partial data if PPR is
+  // enabled and this is a statically generated response. This is used by the
+  // client Segment Cache after a prefetch to determine if it can skip the
+  // second request to fill in the dynamic data.
+  //
+  // See similar comment in create-component-tree.tsx for more context.
+  const isPossiblyPartialHead =
+    workStore.isStaticGeneration &&
+    ctx.renderOpts.experimental.isRoutePPREnabled === true
+
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
@@ -787,7 +798,14 @@ async function getRSCPayload(
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
-    f: [[initialTree, seedData, initialHead]],
+    f: [
+      [
+        initialTree,
+        seedData,
+        initialHead,
+        isPossiblyPartialHead,
+      ] as FlightDataPath,
+    ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
@@ -877,13 +895,24 @@ async function getErrorRSCPayload(
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
 
+  const isPossiblyPartialHead =
+    workStore.isStaticGeneration &&
+    ctx.renderOpts.experimental.isRoutePPREnabled === true
+
   return {
     b: ctx.renderOpts.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
     i: false,
-    f: [[initialTree, initialSeedData, initialHead]],
+    f: [
+      [
+        initialTree,
+        initialSeedData,
+        initialHead,
+        isPossiblyPartialHead,
+      ] as FlightDataPath,
+    ],
     G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
