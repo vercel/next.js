@@ -134,7 +134,8 @@ export async function startServer(
     }
     throw new Error('Invariant upgrade handler was not setup')
   }
-  let nextServer: NextServer
+
+  let nextServer: NextServer | undefined
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -310,7 +311,7 @@ export async function startServer(
 
             // now that no new requests can come in, clean up the rest
             await Promise.all([
-              nextServer.close().catch(console.error),
+              nextServer?.close().catch(console.error),
               cleanupListeners?.runAll().catch(console.error),
             ])
 

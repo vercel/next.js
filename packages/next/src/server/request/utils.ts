@@ -1,4 +1,5 @@
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 // This regex will have fast negatives meaning valid identifiers may not pass
 // this test. However this is only used during static generation to provide hints
@@ -38,6 +39,11 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
   throw new StaticGenBailoutError(
     `Route ${route} with \`dynamic = "error"\` couldn't be rendered statically because it used ${expression}. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
   )
+}
+
+export function isRequestAPICallableInsideAfter() {
+  const afterTaskStore = afterTaskAsyncStorage.getStore()
+  return afterTaskStore?.rootTaskSpawnPhase === 'action'
 }
 
 export const wellKnownProperties = new Set([
