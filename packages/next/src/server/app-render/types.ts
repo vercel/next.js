@@ -97,6 +97,7 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   loading: LoadingModuleData | Promise<LoadingModuleData>,
+  isPartial: boolean,
 ]
 
 export type FlightDataSegment = [

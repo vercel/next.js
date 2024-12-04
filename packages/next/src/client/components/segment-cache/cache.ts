@@ -117,6 +117,7 @@ type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Pending
   rsc: null
   loading: null
+  isPartial: true
   promise: null | PromiseWithResolvers<FulfilledSegmentCacheEntry | null>
 }
 
@@ -124,6 +125,7 @@ type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Rejected
   rsc: null
   loading: null
+  isPartial: true
   promise: null
 }
 
@@ -131,6 +133,7 @@ type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Fulfilled
   rsc: React.ReactNode | null
   loading: LoadingModuleData | Promise<LoadingModuleData>
+  isPartial: boolean
   promise: null
 }
 
@@ -328,6 +331,7 @@ export function requestSegmentEntryFromCache(
     rsc: null,
     loading: null,
     staleAt: route.staleAt,
+    isPartial: true,
     promise: null,
 
     // LRU-related fields
@@ -435,13 +439,15 @@ function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   loading: LoadingModuleData | Promise<LoadingModuleData>,
-  staleAt: number
+  staleAt: number,
+  isPartial: boolean
 ) {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
   fulfilledEntry.loading = loading
   fulfilledEntry.staleAt = staleAt
+  fulfilledEntry.isPartial = isPartial
   // Resolve any listeners that were waiting for this data.
   if (segmentCacheEntry.promise !== null) {
     segmentCacheEntry.promise.resolve(fulfilledEntry)
@@ -612,7 +618,8 @@ async function fetchSegmentEntryOnCacheMiss(
       serverData.loading,
       // TODO: The server does not currently provide per-segment stale time.
       // So we use the stale time of the route.
-      route.staleAt
+      route.staleAt,
+      serverData.isPartial
     )
   } catch (error) {
     // Either the connection itself failed, or something bad happened while

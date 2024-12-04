@@ -872,6 +872,7 @@ async function getErrorRSCPayload(
     </html>,
     {},
     null,
+    false,
   ]
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
