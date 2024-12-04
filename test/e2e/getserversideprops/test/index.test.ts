@@ -19,7 +19,6 @@ import webdriver from 'next-webdriver'
 import { NextInstance } from 'e2e-utils'
 
 const appDir = join(__dirname, '../app')
-const isTurbopack = Boolean(process.env.TURBOPACK)
 
 let buildId
 let next: NextInstance
@@ -761,8 +760,7 @@ const runTests = (isDev = false, isDeploy = false) => {
       await browser.elementByCss('#non-json').click()
 
       await assertHasRedbox(browser, {
-        pageResponseCode: 500,
-        fixmeStackFramesHaveBrokenSourcemaps: isTurbopack,
+        fixmeStackFramesHaveBrokenSourcemaps: true,
       })
       await expect(getRedboxHeader(browser)).resolves.toMatch(
         /Error serializing `.time` returned from `getServerSideProps`/

@@ -18,7 +18,7 @@ describe('unstable_after() in generateStaticParams - thrown errors', () => {
     it('shows the error overlay if an error is thrown inside unstable_after', async () => {
       await next.start()
       const browser = await next.browser('/callback/1')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const route = '/callback/[myParam]'
       expect(await getRedboxDescription(browser)).toContain(
         `My cool error thrown inside unstable_after on route "${route}"`

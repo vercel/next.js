@@ -47,16 +47,14 @@ describe('Error overlay - RSC build errors', () => {
 
         await session.patch(pagePath, break2)
 
+        const pageResponseCode: number[] = []
         for (let i = 0; i < 5; i++) {
           await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
 
           await session.patch(pagePath, break2)
-          // TODO: remove try-catch
-          try {
-            await session.assertHasRedbox()
-          } catch (cause) {
-            throw new Error(`Failed attempt ${i}`, { cause })
-          }
+          // TODO(veil): Why no 500 in initial?
+          await session.assertHasRedbox({ pageResponseCode })
+          pageResponseCode.push(500)
 
           await session.patch(pagePath, break1)
 

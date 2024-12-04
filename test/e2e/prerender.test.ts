@@ -1141,7 +1141,9 @@ describe('Prerender', () => {
             await browser.refresh()
 
             return retry(async () => {
-              await assertHasRedbox(browser)
+              await assertHasRedbox(browser, {
+                fixmeStackFramesHaveBrokenSourcemaps: true,
+              })
               const errOverlayContent = await getRedboxHeader(browser)
               const errorMsg = /oops from getStaticProps/
               expect(next.cliOutput).toMatch(errorMsg)
@@ -1271,7 +1273,9 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, {
+          fixmeStackFramesHaveBrokenSourcemaps: true,
+        })
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1287,7 +1291,9 @@ describe('Prerender', () => {
         // )
 
         // FIXME: disable this
-        await assertHasRedbox(browser)
+        await assertHasRedbox(browser, {
+          fixmeStackFramesHaveBrokenSourcemaps: true,
+        })
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )

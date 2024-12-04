@@ -13,7 +13,7 @@ describe('server-navigation-error', () => {
   describe('pages router', () => {
     it('should error on navigation API redirect', async () => {
       const browser = await next.browser('/pages/redirect')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxDescription(browser)).toMatch(
         `Next.js navigation API is not allowed to be used in Pages Router.`
       )
@@ -45,7 +45,7 @@ describe('server-navigation-error', () => {
 
     it('should error on navigation API notFound', async () => {
       const browser = await next.browser('/pages/not-found')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxDescription(browser)).toMatch(
         `Next.js navigation API is not allowed to be used in Pages Router.`
       )
@@ -81,7 +81,9 @@ describe('server-navigation-error', () => {
       const browser = await next.browser('/middleware/redirect')
       // FIXME: the first request to middleware error load didn't show the redbox, need one more reload
       await browser.refresh()
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, {
+        fixmeStackFramesHaveBrokenSourcemaps: true,
+      })
       expect(await getRedboxDescription(browser)).toMatch(
         `Next.js navigation API is not allowed to be used in Middleware.`
       )
@@ -115,7 +117,7 @@ describe('server-navigation-error', () => {
 
     it('should error on navigation API not-found', async () => {
       const browser = await next.browser('/middleware/not-found')
-      await assertHasRedbox(browser)
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       expect(await getRedboxDescription(browser)).toMatch(
         `Next.js navigation API is not allowed to be used in Middleware.`
       )

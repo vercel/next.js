@@ -23,7 +23,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse ignored frames in server component', async () => {
     const browser = await next.browser('/')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const defaultStack = await getStackFramesContent(browser)
     expect(defaultStack).toMatchInlineSnapshot(`""`)
@@ -50,7 +50,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse ignored frames in client component', async () => {
     const browser = await next.browser('/client')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const defaultStack = await getStackFramesContent(browser)
     expect(defaultStack).toMatchInlineSnapshot(`""`)
@@ -91,7 +91,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse ignored frames in interleaved call stack', async () => {
     const browser = await next.browser('/interleaved')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const defaultStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
@@ -144,7 +144,7 @@ describe('error-ignored-frames', () => {
 
   it('should be able to collapse pages router ignored frames', async () => {
     const browser = await next.browser('/pages')
-    await assertHasRedbox(browser)
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const defaultStack = await getStackFramesContent(browser)
     expect(defaultStack).toMatchInlineSnapshot(`""`)
