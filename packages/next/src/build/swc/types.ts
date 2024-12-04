@@ -169,6 +169,7 @@ export interface TurbopackStackFrame {
   isServer: boolean
   isInternal?: boolean
   file: string
+  originalFile?: string
   /** 1-indexed, unlike source map tokens */
   line?: number
   /** 1-indexed, unlike source map tokens */

@@ -59,20 +59,21 @@ export async function batchedTraceSource(
   }
 
   let source = null
+  const originalFile = sourceFrame.originalFile
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
-    shouldIgnorePath(sourceFrame.file) ||
+    shouldIgnorePath(originalFile ?? sourceFrame.file) ||
     // isInternal means resource starts with turbopack://[turbopack]
     !!sourceFrame.isInternal
-  if (sourceFrame && sourceFrame.file && !ignored) {
-    let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
+  if (originalFile && !ignored) {
+    let sourcePromise = currentSourcesByFile.get(originalFile)
     if (!sourcePromise) {
-      sourcePromise = project.getSourceForAsset(sourceFrame.file)
-      currentSourcesByFile.set(sourceFrame.file, sourcePromise)
+      sourcePromise = project.getSourceForAsset(originalFile)
+      currentSourcesByFile.set(originalFile, sourcePromise)
       setTimeout(() => {
         // Cache file reads for 100ms, as frames will often reference the same
         // files and can be large.
-        currentSourcesByFile.delete(sourceFrame.file!)
+        currentSourcesByFile.delete(originalFile!)
       }, 100)
     }
     source = await sourcePromise
