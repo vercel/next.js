@@ -404,7 +404,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useActionState(createUser, initialState)
+  const [state, formAction, pending] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -412,7 +412,7 @@ export function Signup() {
       <input type="text" id="email" name="email" required />
       {/* ... */}
       <p aria-live="polite">{state?.message}</p>
-      <button>Sign up</button>
+      <button disabled={pending}>Sign up</button>
     </form>
   )
 }
@@ -429,7 +429,7 @@ const initialState = {
 }
 
 export function Signup() {
-  const [state, formAction] = useActionState(createUser, initialState)
+  const [state, formAction, pending] = useActionState(createUser, initialState)
 
   return (
     <form action={formAction}>
@@ -437,7 +437,7 @@ export function Signup() {
       <input type="text" id="email" name="email" required />
       {/* ... */}
       <p aria-live="polite">{state?.message}</p>
-      <button>Sign up</button>
+      <button disabled={pending}>Sign up</button>
     </form>
   )
 }
