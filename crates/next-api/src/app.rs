@@ -1155,7 +1155,7 @@ impl AppEndpoint {
             )
             .await?;
             server_assets.insert(server_action_manifest.manifest);
-            Some(server_action_manifest.loader.to_resolved().await?)
+            Some(server_action_manifest.loader)
         } else {
             None
         };
@@ -1340,7 +1340,7 @@ impl AppEndpoint {
                 }
 
                 AppEndpointOutput::Edge {
-                    files: app_entry_chunks.to_resolved().await?,
+                    files: *app_entry_chunks,
                     server_assets: ResolvedVc::cell(
                         server_assets.iter().cloned().collect::<Vec<_>>(),
                     ),

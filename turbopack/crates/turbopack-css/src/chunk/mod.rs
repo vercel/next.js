@@ -204,7 +204,7 @@ impl OutputChunk for CssChunk {
                 else {
                     return Ok(vec![]);
                 };
-                css_item
+                Ok(css_item
                     .content()
                     .await?
                     .imports
@@ -216,9 +216,7 @@ impl OutputChunk for CssChunk {
                             None
                         }
                     })
-                    .map(|v| async move { v.to_resolved().await })
-                    .try_join()
-                    .await
+                    .collect())
             })
             .try_join()
             .await?

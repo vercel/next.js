@@ -238,9 +238,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 .resolved_cell(),
             )
             .cell(),
-            StaticResult::Rewrite(rewrite) => {
-                ContentSourceContent::Rewrite(rewrite.to_resolved().await?).cell()
-            }
+            StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
         })
     }
 }
