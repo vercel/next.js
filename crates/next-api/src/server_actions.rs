@@ -411,12 +411,9 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
                 };
                 // TODO the old implementation did parse_actions(to_rsc_context(module))
                 // is that really necessary?
-                Ok(match &*parse_actions(*node.module).await? {
-                    Some(action_map) => {
-                        Some((node.module, (layer, action_map.to_resolved().await?)))
-                    }
-                    None => None,
-                })
+                Ok(parse_actions(*node.module)
+                    .await?
+                    .map(|action_map| (node.module, (layer, action_map))))
             }
         })
         .try_flat_join()
