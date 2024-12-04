@@ -3248,7 +3248,7 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
         // Check for imports/exports
         if m.body.iter().any(|item| {
             item.as_module_decl().is_some_and(|module_decl| {
-                module_decl.as_import().map_or(true, |import| {
+                module_decl.as_import().is_none_or(|import| {
                     !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
                 })
             })
