@@ -778,6 +778,7 @@ impl Project {
             } else {
                 SourceMapsType::None
             })
+            .use_annotated_stack_traces()
             .build(),
         );
 

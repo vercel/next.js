@@ -15,6 +15,7 @@ use turbopack_core::{
 };
 
 use crate::{
+    magic_identifier,
     references::async_module::{AsyncModuleOptions, OptionAsyncModuleOptions},
     utils::FormatIter,
     EcmascriptModuleContent, EcmascriptOptions,
@@ -44,6 +45,7 @@ impl EcmascriptChunkItemContent {
             .environment()
             .supports_commonjs_externals()
             .await?;
+        let annotated_stack_traces = *chunking_context.should_use_annotated_stack_traces().await?;
 
         let content = content.await?;
         let async_module = async_module_options.owned().await?;
@@ -63,6 +65,7 @@ impl EcmascriptChunkItemContent {
                     externals,
                     async_module,
                     stub_require: true,
+                    annotated_stack_traces,
                     ..Default::default()
                 }
             } else {
@@ -77,6 +80,7 @@ impl EcmascriptChunkItemContent {
                     module: true,
                     exports: true,
                     this: true,
+                    annotated_stack_traces,
                     ..Default::default()
                 }
             },
@@ -110,7 +114,13 @@ impl EcmascriptChunkItemContent {
         }
         let mut code = CodeBuilder::default();
         let args = FormatIter(|| args.iter().copied().intersperse(", "));
-        if self.options.this {
+        if self.options.annotated_stack_traces {
+            debug_assert!(
+                magic_identifier::mangle("module evaluation").as_str()
+                    == "__TURBOPACK__module__evaluation__"
+            );
+            code += "(function __TURBOPACK__module__evaluation__(__turbopack_context__) {\n";
+        } else if self.options.this {
             code += "(function(__turbopack_context__) {\n";
         } else {
             code += "((__turbopack_context__) => {\n";
@@ -177,7 +187,10 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
     pub async_module: Option<AsyncModuleOptions>,
+    /// Whether this chunk item's module factory should include a `this` argument
     pub this: bool,
+    /// Whether this chunk item's module factory should use a readable name as function name
+    pub annotated_stack_traces: bool,
     /// Whether this chunk item's module factory should include
     /// `__turbopack_wasm__` to load WebAssembly.
     pub wasm: bool,

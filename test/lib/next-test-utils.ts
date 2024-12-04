@@ -1420,7 +1420,7 @@ export async function getRedboxCallStack(
         // `innerText` will be "${methodName}\n${location}".
         // Ideally `innerText` would be "${methodName} ${location}"
         // so that c&p automatically does the right thing.
-        const frame = frameElement.innerText.replace('\n', ' ')
+        const frame = frameElement.innerText.replace(/\n+/g, ' ')
 
         // TODO: Special marker if source-mapping fails.
 
