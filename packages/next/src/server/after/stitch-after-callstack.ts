@@ -51,7 +51,7 @@ function getStitchedAfterCallstack(
     nestedTaskCallerStacks,
   }: AfterTaskStackInfo
 ): StackFrame[] | undefined {
-  let errorFrames = parseStack(error.stack)
+  const errorFrames = parseStack(error.stack)
 
   const userFramesFromError = stripFramesOutsideCallback(errorFrames)
   if (!userFramesFromError) {
@@ -119,7 +119,7 @@ function getStitchedAfterCallstack(
       )
     : []
 
-  return errorFrames.concat(
+  return userFramesFromError.concat(
     userFramesFromTaskCallers,
     userFramesFromRootCaller,
     framesFromReactOwner
