@@ -446,6 +446,7 @@ impl PartialEq for OptimizeJob {
 
 impl Eq for OptimizeJob {}
 
+/// A job to find and schedule dirty tasks that is enqueued. See `find_and_schedule_dirty`.
 #[derive(Serialize, Deserialize, Clone)]
 struct FindAndScheduleJob {
     task_id: TaskId,
