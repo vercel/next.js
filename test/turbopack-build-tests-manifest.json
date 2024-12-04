@@ -15633,6 +15633,7 @@
     "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
       "passed": [],
       "failed": [
+        "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest",
         "actions-tree-shaking - reexport should not have the unused action in the manifest",
         "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
@@ -15652,10 +15653,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
