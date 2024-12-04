@@ -168,7 +168,7 @@ impl Asset for NftJsonAsset {
         let this = &*self.await?;
         let mut result = BTreeSet::new();
 
-        let chunk = this.chunk.to_resolved().await?;
+        let chunk = this.chunk;
         let entries = this
             .additional_assets
             .iter()
@@ -180,7 +180,7 @@ impl Asset for NftJsonAsset {
                 continue;
             }
 
-            if chunk == referenced_chunk.to_resolved().await? {
+            if chunk.eq(referenced_chunk) {
                 continue;
             }
 

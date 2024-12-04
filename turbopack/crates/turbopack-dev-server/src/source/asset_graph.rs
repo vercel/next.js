@@ -178,7 +178,6 @@ async fn expand(
         }
     }
     for (sub_path, asset) in assets {
-        let asset = asset.to_resolved().await?;
         if &*sub_path == "index.html" {
             map.insert("".into(), asset);
         } else if let Some(p) = sub_path.strip_suffix("/index.html") {

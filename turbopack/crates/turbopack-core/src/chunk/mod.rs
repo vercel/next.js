@@ -424,7 +424,7 @@ async fn graph_node_to_referenced_nodes(
                                 .await?;
                             Ok((
                                 Some(ChunkGraphEdge {
-                                    key: Some(module.to_resolved().await?),
+                                    key: Some(module),
                                     node: ChunkContentGraphNode::ChunkItem {
                                         item: chunk_item,
                                         ident: module.ident().to_string().await?,
@@ -440,7 +440,7 @@ async fn graph_node_to_referenced_nodes(
                                 .await?;
                             Ok((
                                 Some(ChunkGraphEdge {
-                                    key: Some(module.to_resolved().await?),
+                                    key: Some(module),
                                     node: ChunkContentGraphNode::ChunkItem {
                                         item: chunk_item,
                                         ident: module.ident().to_string().await?,
@@ -478,7 +478,7 @@ async fn graph_node_to_referenced_nodes(
                                     .await?;
                                 Ok((
                                     Some(ChunkGraphEdge {
-                                        key: Some(module.to_resolved().await?),
+                                        key: Some(module),
                                         node: ChunkContentGraphNode::ChunkItem {
                                             item: chunk_item,
                                             ident: module.ident().to_string().await?,
