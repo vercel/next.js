@@ -633,7 +633,7 @@
           ) {
             if (void 0 === temporaryReferences)
               throw Error(
-                "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported." +
+                "Only plain objects, and a few built-ins, can be passed to Server Functions. Classes or null prototypes are not supported." +
                   describeObjectForErrorMessage(this, key)
               );
             return "$T";
@@ -2465,10 +2465,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-b01722d5-20241114",
+      version: "19.0.0-rc-de68d2f4-20241204",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-b01722d5-20241114",
+      reconcilerVersion: "19.0.0-rc-de68d2f4-20241204",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }
