@@ -135,7 +135,7 @@ export class AfterContext {
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
       taskKind === 'promise'
-        ? `An error occurred in a promise passed to \`unstable_after()\`:`
+        ? `A promise passed to \`unstable_after()\` rejected:`
         : `An error occurred in a function passed to \`unstable_after()\`:`,
       error
     )
