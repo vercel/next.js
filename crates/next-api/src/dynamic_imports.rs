@@ -288,7 +288,7 @@ pub async fn map_next_dynamic(
                 let is_browser = node
                     .layer
                     .as_ref()
-                    .is_some_and(|layer| layer == "app-client" || layer == "client");
+                    .is_some_and(|layer| &**layer == "app-client" || &**layer == "client");
                 if !is_browser {
                     // Only collect in RSC and SSR
                     if let Some(v) =

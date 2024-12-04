@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::{HashMap, HashSet, VecDeque};
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
@@ -88,6 +88,21 @@ where
         }
     }
 
+    /// Returns an owned iterator over the nodes in reverse topological order,
+    /// starting from the roots.
+    pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T> {
+        IntoBreadthFirstEdges {
+            adjacency_map: self.adjacency_map,
+            stack: self
+                .roots
+                .into_iter()
+                .rev()
+                .map(|root| (None, root))
+                .collect(),
+            visited: HashSet::new(),
+        }
+    }
+
     /// Returns an iterator over the nodes in reverse topological order,
     /// starting from the roots.
     pub fn reverse_topological(&self) -> ReverseTopologicalIter<T> {
@@ -171,6 +186,43 @@ where
         };
 
         Some(current)
+    }
+}
+
+pub struct IntoBreadthFirstEdges<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    adjacency_map: HashMap<T, Vec<T>>,
+    stack: VecDeque<(Option<T>, T)>,
+    visited: HashSet<T>,
+}
+
+impl<T> Iterator for IntoBreadthFirstEdges<T>
+where
+    T: Eq + std::hash::Hash + Clone,
+{
+    type Item = (Option<T>, T);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (parent, current) = self.stack.pop_front()?;
+
+        let Some(neighbors) = self.adjacency_map.get(&current) else {
+            self.visited.insert(current.clone());
+            return Some((parent, current));
+        };
+
+        if !self.visited.contains(&current) {
+            self.stack.extend(
+                neighbors
+                    .iter()
+                    .rev()
+                    .map(|neighbor| (Some(current.clone()), neighbor.clone())),
+            );
+        }
+        self.visited.insert(current.clone());
+
+        Some((parent, current))
     }
 }
 

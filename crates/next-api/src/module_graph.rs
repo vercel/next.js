@@ -1,4 +1,8 @@
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    future::Future,
+    hash::Hash,
+};
 
 use anyhow::{Context, Result};
 use next_core::{
@@ -13,8 +17,10 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, CollectiblesSource, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, Vc,
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
+    trace::TraceRawVcs,
+    CollectiblesSource, FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
+    ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::ChunkingType,
@@ -45,7 +51,7 @@ pub enum GraphTraversalAction {
 pub struct SingleModuleGraphNode {
     pub module: ResolvedVc<Box<dyn Module>>,
     pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
-    pub layer: Option<RcStr>,
+    pub layer: Option<ReadRef<RcStr>>,
 }
 impl SingleModuleGraphNode {
     fn emit_issues(&self) {
@@ -70,6 +76,82 @@ pub struct SingleModuleGraph {
 #[derive(Clone, Debug)]
 struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
+#[derive(Clone)]
+struct SingleModuleGraphBuilderNode {
+    module: ResolvedVc<Box<dyn Module>>,
+    layer: Option<ReadRef<RcStr>>,
+    ident: ReadRef<RcStr>,
+}
+
+// Manual impls which ignore layer, to simplify skip_duplicates_with_visited_nodes usage
+impl PartialEq for SingleModuleGraphBuilderNode {
+    fn eq(&self, other: &Self) -> bool {
+        self.module.eq(&other.module)
+    }
+}
+impl Eq for SingleModuleGraphBuilderNode {}
+impl Hash for SingleModuleGraphBuilderNode {
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        self.module.hash(state);
+    }
+}
+
+impl SingleModuleGraphBuilderNode {
+    async fn new(module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
+        let ident = module.ident();
+        Ok(Self {
+            module,
+            layer: match ident.await?.layer {
+                Some(layer) => Some(layer.await?),
+                None => None,
+            },
+            ident: ident.to_string().await?,
+        })
+    }
+}
+struct SingleModuleGraphBuilderEdge {
+    to: SingleModuleGraphBuilderNode,
+}
+struct SingleModuleGraphBuilder {}
+impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
+    type Edge = SingleModuleGraphBuilderEdge;
+    type EdgesIntoIter = Vec<Self::Edge>;
+    type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
+
+    fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<SingleModuleGraphBuilderNode> {
+        VisitControlFlow::Continue(edge.to)
+    }
+
+    fn edges(&mut self, node: &SingleModuleGraphBuilderNode) -> Self::EdgesFuture {
+        let module = node.module;
+        async move {
+            let x = primary_chunkable_referenced_modules(*module)
+                .await?
+                .iter()
+                .flat_map(|(ty, modules)| {
+                    if matches!(ty, ChunkingType::Traced) {
+                        None
+                    } else {
+                        Some(modules.iter())
+                    }
+                })
+                .flatten()
+                .map(|m| async move {
+                    Ok(SingleModuleGraphBuilderEdge {
+                        to: SingleModuleGraphBuilderNode::new(*m).await?,
+                    })
+                })
+                .try_join()
+                .await?;
+            Ok(x)
+        }
+    }
+
+    fn span(&mut self, node: &SingleModuleGraphBuilderNode) -> tracing::Span {
+        tracing::info_span!("module", name = display(&node.ident))
+    }
+}
+
 impl SingleModuleGraph {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
@@ -81,47 +163,61 @@ impl SingleModuleGraph {
     ) -> Result<Vc<Self>> {
         let mut graph = DiGraph::new();
 
+        let root_edges = entries
+            .iter()
+            .map(|e| async move {
+                Ok(SingleModuleGraphBuilderEdge {
+                    to: SingleModuleGraphBuilderNode::new(*e).await?,
+                })
+            })
+            .try_join()
+            .await?;
+        let children_modules_iter = AdjacencyMap::new()
+            .skip_duplicates_with_visited_nodes(VisitedNodes(
+                visited_modules
+                    .iter()
+                    .map(|&module| async move {
+                        Ok(SingleModuleGraphBuilderNode {
+                            module,
+                            layer: None,
+                            ident: module.ident().to_string().await?,
+                        })
+                    })
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .collect(),
+            ))
+            .visit(root_edges, SingleModuleGraphBuilder {})
+            .await
+            .completed()?
+            .into_inner();
+
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
-        let mut stack: Vec<_> = entries.iter().map(|e| (None, *e)).collect();
-        while let Some((parent_idx, module)) = stack.pop() {
-            // Always add entries, even if already visited in other graphs
-            if parent_idx.is_some() && visited_modules.contains(&module) {
-                continue;
-            }
-            if let Some(idx) = modules.get(&module) {
-                if let Some(parent_idx) = parent_idx {
+        {
+            let _span = tracing::info_span!("build petgraph").entered();
+            for (parent, current) in children_modules_iter.into_breadth_first_edges() {
+                let Some(parent) = parent else {
+                    let idx = graph.add_node(SingleModuleGraphNode {
+                        module: current.module,
+                        issues: Default::default(),
+                        layer: current.layer,
+                    });
+                    modules.insert(current.module, idx);
+                    continue;
+                };
+                let parent_idx = *modules.get(&parent.module).unwrap();
+
+                if let Some(idx) = modules.get(&current.module) {
                     graph.add_edge(parent_idx, *idx, ());
-                }
-                continue;
-            }
-
-            let refs_cell = primary_chunkable_referenced_modules(*module);
-            let refs = refs_cell.strongly_consistent().await?;
-            let refs_issues = refs_cell
-                .take_collectibles::<Box<dyn Issue>>()
-                .iter()
-                .map(|issue| issue.to_resolved())
-                .try_join()
-                .await?;
-
-            let idx = graph.add_node(SingleModuleGraphNode {
-                module,
-                issues: refs_issues,
-                layer: match module.ident().await?.layer {
-                    Some(layer) => Some(layer.await?.clone_value()),
-                    None => None,
-                },
-            });
-            modules.insert(module, idx);
-            if let Some(parent_idx) = parent_idx {
-                graph.add_edge(parent_idx, idx, ());
-            }
-
-            for (ty, references) in refs.iter() {
-                if !matches!(ty, ChunkingType::Traced) {
-                    for reference in references {
-                        stack.push((Some(idx), *reference));
-                    }
+                } else {
+                    let idx = graph.add_node(SingleModuleGraphNode {
+                        module: current.module,
+                        issues: Default::default(),
+                        layer: current.layer,
+                    });
+                    modules.insert(current.module, idx);
+                    graph.add_edge(parent_idx, idx, ());
                 }
             }
         }
