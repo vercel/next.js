@@ -127,14 +127,9 @@ export class AfterContext {
       }
     }
 
-    const unwrappedCallback = {
-      [AFTER_CALLBACK_MARKER_FRAME]: async () => {
-        try {
-          await afterTaskAsyncStorage.run(newAfterTaskStore, () => callback())
-        } catch (error) {
-          this.reportTaskError('function', error, newAfterTaskStore)
-        }
-      },
+    // NOTE: the `await` is load-bearing, otherwise the frame might get omitted.
+    const callbackWithStackMarker = {
+      [AFTER_CALLBACK_MARKER_FRAME]: async () => await callback(),
     }[AFTER_CALLBACK_MARKER_FRAME]
 
     // Bind the callback to the current execution context (i.e. preserve all currently available ALS-es).
@@ -142,7 +137,16 @@ export class AfterContext {
     //   after(() => x())
     //   after(x())
     //   await x()
-    const wrappedCallback = bindSnapshot(unwrappedCallback)
+    const wrappedCallback = bindSnapshot(async () => {
+      try {
+        await afterTaskAsyncStorage.run(
+          newAfterTaskStore,
+          callbackWithStackMarker
+        )
+      } catch (error) {
+        this.reportTaskError('function', error, newAfterTaskStore)
+      }
+    })
 
     this.callbackQueue.add(wrappedCallback)
 
