@@ -47,7 +47,7 @@ const BLUR_QUALITY = 70 // should match `next-image-loader`
 
 let _sharp: typeof import('sharp')
 
-function getSharp(concurrency: number | null | undefined) {
+export function getSharp(concurrency: number | null | undefined) {
   if (_sharp) {
     return _sharp
   }
@@ -658,14 +658,18 @@ export async function imageOptimizer(
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
     >
   },
-  isDev: boolean | undefined,
-  previousCacheEntry?: IncrementalCacheItem
+  opts: {
+    isDev?: boolean
+    silent?: boolean
+    previousCacheEntry?: IncrementalCacheItem
+  }
 ): Promise<{
   buffer: Buffer
   contentType: string
   maxAge: number
   etag: string
   upstreamEtag: string
+  error?: unknown
 }> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
@@ -680,18 +684,22 @@ export async function imageOptimizer(
       upstreamType.startsWith('image/svg') &&
       !nextConfig.images.dangerouslyAllowSVG
     ) {
-      Log.error(
-        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-      )
+      if (!opts.silent) {
+        Log.error(
+          `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+        )
+      }
       throw new ImageError(
         400,
         '"url" parameter is valid but image type is not allowed'
       )
     }
     if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      Log.warnOnce(
-        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-      )
+      if (!opts.silent) {
+        Log.warnOnce(
+          `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+        )
+      }
       return {
         buffer: upstreamBuffer,
         contentType: upstreamType,
@@ -713,12 +721,14 @@ export async function imageOptimizer(
       }
     }
     if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      Log.error(
-        "The requested resource isn't a valid image for",
-        href,
-        'received',
-        upstreamType
-      )
+      if (!opts.silent) {
+        Log.error(
+          "The requested resource isn't a valid image for",
+          href,
+          'received',
+          upstreamType
+        )
+      }
       throw new ImageError(400, "The requested resource isn't a valid image.")
     }
   }
@@ -739,13 +749,13 @@ export async function imageOptimizer(
   }
   const previouslyCachedImage = getPreviouslyCachedImageOrNull(
     imageUpstream,
-    previousCacheEntry
+    opts.previousCacheEntry
   )
   if (previouslyCachedImage) {
     return {
       buffer: previouslyCachedImage.buffer,
       contentType,
-      maxAge: previousCacheEntry?.curRevalidate || maxAge,
+      maxAge: opts?.previousCacheEntry?.curRevalidate || maxAge,
       etag: previouslyCachedImage.etag,
       upstreamEtag: previouslyCachedImage.upstreamEtag,
     }
@@ -762,34 +772,30 @@ export async function imageOptimizer(
       sequentialRead: nextConfig.experimental.imgOptSequentialRead,
       timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
-    if (optimizedBuffer) {
-      if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
-        // During `next dev`, we don't want to generate blur placeholders with webpack
-        // because it can delay starting the dev server. Instead, `next-image-loader.js`
-        // will inline a special url to lazily generate the blur placeholder at request time.
-        const meta = await getImageSize(optimizedBuffer)
-        const opts = {
-          blurWidth: meta.width,
-          blurHeight: meta.height,
-          blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
-            'base64'
-          )}`,
-        }
-        optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(opts)))
-        contentType = 'image/svg+xml'
+    if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+      // During `next dev`, we don't want to generate blur placeholders with webpack
+      // because it can delay starting the dev server. Instead, `next-image-loader.js`
+      // will inline a special url to lazily generate the blur placeholder at request time.
+      const meta = await getImageSize(optimizedBuffer)
+      const blurOpts = {
+        blurWidth: meta.width,
+        blurHeight: meta.height,
+        blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
+          'base64'
+        )}`,
       }
-      return {
-        buffer: optimizedBuffer,
-        contentType,
-        maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
-        etag: getImageEtag(optimizedBuffer),
-        upstreamEtag,
-      }
-    } else {
-      throw new ImageError(500, 'Unable to optimize buffer')
+      optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(blurOpts)))
+      contentType = 'image/svg+xml'
+    }
+    return {
+      buffer: optimizedBuffer,
+      contentType,
+      maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
+      etag: getImageEtag(optimizedBuffer),
+      upstreamEtag,
     }
   } catch (error) {
-    if (upstreamBuffer && upstreamType) {
+    if (upstreamType) {
       // If we fail to optimize, fallback to the original image
       return {
         buffer: upstreamBuffer,
@@ -797,6 +803,7 @@ export async function imageOptimizer(
         maxAge: nextConfig.images.minimumCacheTTL,
         etag: upstreamEtag,
         upstreamEtag,
+        error,
       }
     } else {
       throw new ImageError(

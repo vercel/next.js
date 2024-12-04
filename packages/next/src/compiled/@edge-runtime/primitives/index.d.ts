@@ -1,12 +1,12 @@
 export { AbortController, AbortSignal, DOMException } from './abort-controller.d.js';
-export { Blob } from './blob.d.js';
 export { console } from './console.d.js';
 export { Crypto, CryptoKey, SubtleCrypto, crypto } from './crypto.d.js';
 export { Event, EventTarget, FetchEvent, PromiseRejectionEvent } from './events.d.js';
 export { File, FormData, Headers, Request, RequestInfo, RequestInit, Response, WebSocket, fetch } from './fetch.d.js';
-export { structuredClone } from './structured-clone.d.js';
 export { URL, URLPattern, URLSearchParams } from './url.d.js';
 export { setInterval, setTimeout } from './timers.d.js';
+
+declare const BlobConstructor: typeof Blob
 
 declare const TextEncoderConstructor: typeof TextEncoder
 declare const TextDecoderConstructor: typeof TextDecoder
@@ -39,6 +39,8 @@ declare const WritableStreamDefaultWriterConstructor: typeof WritableStreamDefau
 declare const TextDecoderStreamConstructor: typeof TextDecoderStream
 declare const TextEncoderStreamConstructor: typeof TextEncoderStream
 
+declare const structuredCloneConstructor: typeof structuredClone
+
 declare const performanceConstructor: typeof performance
 
-export { ReadableStreamConstructor as ReadableStream, ReadableStreamBYOBReaderConstructor as ReadableStreamBYOBReader, ReadableStreamDefaultReaderConstructor as ReadableStreamDefaultReader, TextDecoderConstructor as TextDecoder, TextDecoderStreamConstructor as TextDecoderStream, TextEncoderConstructor as TextEncoder, TextEncoderStreamConstructor as TextEncoderStream, TransformStreamConstructor as TransformStream, WritableStreamConstructor as WritableStream, WritableStreamDefaultWriterConstructor as WritableStreamDefaultWriter, _atob as atob, _btoa as btoa, performanceConstructor as performance };
+export { BlobConstructor as Blob, ReadableStreamConstructor as ReadableStream, ReadableStreamBYOBReaderConstructor as ReadableStreamBYOBReader, ReadableStreamDefaultReaderConstructor as ReadableStreamDefaultReader, TextDecoderConstructor as TextDecoder, TextDecoderStreamConstructor as TextDecoderStream, TextEncoderConstructor as TextEncoder, TextEncoderStreamConstructor as TextEncoderStream, TransformStreamConstructor as TransformStream, WritableStreamConstructor as WritableStream, WritableStreamDefaultWriterConstructor as WritableStreamDefaultWriter, _atob as atob, _btoa as btoa, performanceConstructor as performance, structuredCloneConstructor as structuredClone };
