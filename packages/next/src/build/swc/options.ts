@@ -1,3 +1,4 @@
+import path from 'path'
 import { WEBPACK_LAYERS, type WebpackLayerName } from '../../lib/constants'
 import type {
   NextConfig,
@@ -8,8 +9,11 @@ import type {
 import type { ResolvedBaseUrl } from '../load-jsconfig'
 import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
 
-const nextDistPath =
-  /([\\/]next[\\/]dist[\\/]shared[\\/]lib)|([\\/]next[\\/]dist[\\/]client)|([\\/]next[\\/]dist[\\/]pages)/
+const nextDirname = path.dirname(require.resolve('next/package.json'))
+
+const nextDistPath = new RegExp(
+  `${nextDirname}[\\/]dist[\\/](shared[\\/]lib|client|pages)`
+)
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
 
