@@ -1,7 +1,7 @@
 import React from 'react'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
-import { CaptureStackTrace } from './after-context'
 import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
+import { CaptureStackTrace } from './stitch-after-callstack'
 
 export type AfterTask<T = unknown> = Promise<T> | AfterCallback<T>
 export type AfterCallback<T = unknown> = () => T | Promise<T>
