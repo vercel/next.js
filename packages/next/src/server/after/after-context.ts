@@ -19,9 +19,8 @@ import {
   stitchAfterCallstack,
   AFTER_CALLBACK_MARKER_FRAME,
   type AfterTaskStackInfo,
+  type CaptureStackTrace,
 } from './stitch-after-callstack'
-
-export class CaptureStackTrace extends Error {}
 
 export type AfterContextOpts = {
   waitUntil: RequestLifecycleOpts['waitUntil'] | undefined
