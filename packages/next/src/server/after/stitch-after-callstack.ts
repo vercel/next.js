@@ -103,12 +103,13 @@ function getStitchedAfterCallstack(
 
   // the caller of the root `after`
   const rootCallerFrames = parseStack(rootTaskCallerStack.stack)
-  const userFramesFromRootCaller = rootCallerFrames.slice(
-    0,
-    rootCallerFrames.findIndex(
-      (frame) => frame.methodName === 'react-stack-bottom-frame'
-    )
+  const reactBottomFrameIndex = rootCallerFrames.findIndex(
+    (frame) => frame.methodName === 'react-stack-bottom-frame'
   )
+  const userFramesFromRootCaller =
+    reactBottomFrameIndex !== -1
+      ? rootCallerFrames.slice(0, reactBottomFrameIndex)
+      : rootCallerFrames
 
   // the owner stack above the caller of the root `after`
   const framesFromReactOwner = rootTaskReactOwnerStack
