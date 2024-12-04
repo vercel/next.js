@@ -290,7 +290,7 @@ impl TurboPersistence {
         }
 
         sst_files.retain(|seq| !deleted_files.contains(seq));
-        sst_files.sort();
+        sst_files.sort_unstable();
         let sst_files = sst_files
             .into_iter()
             .map(|seq| self.open_sst(seq))
@@ -407,11 +407,13 @@ impl TurboPersistence {
     /// new files.
     fn commit(
         &self,
-        new_sst_files: Vec<(u32, File)>,
+        mut new_sst_files: Vec<(u32, File)>,
         new_blob_files: Vec<File>,
         mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
+        new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
+
         let mut new_sst_files = new_sst_files
             .into_iter()
             .map(|(seq, file)| {
@@ -433,7 +435,7 @@ impl TurboPersistence {
         {
             let mut inner = self.inner.write();
             inner.current_sequence_number = seq;
-            indicies_to_delete.sort();
+            indicies_to_delete.sort_unstable();
             removed_ssts = remove_indicies(&mut inner.static_sorted_files, &indicies_to_delete);
             inner.static_sorted_files.append(&mut new_sst_files);
         }
@@ -442,7 +444,7 @@ impl TurboPersistence {
             .into_iter()
             .map(|sst| sst.sequence_number())
             .collect::<Vec<_>>();
-        removed_ssts.sort();
+        removed_ssts.sort_unstable();
 
         if !indicies_to_delete.is_empty() {
             // Write *.del file, marking the selected files as to delete
@@ -747,14 +749,21 @@ impl TurboPersistence {
                     })
                     .collect::<Result<Vec<_>>>()?;
 
+                let move_jobs = move_jobs
+                    .into_iter()
+                    .map(|index| {
+                        let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                        (index, seq)
+                    })
+                    .collect::<Vec<_>>();
+
                 // Move SST files
                 let mut new_sst_files = move_jobs
                     .into_par_iter()
                     .with_min_len(1)
-                    .map(|index| {
+                    .map(|(index, seq)| {
                         let index = ssts_with_ranges[index].index;
                         let sst = &static_sorted_files[index];
-                        let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                         let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
                         let dst_path = self.path.join(format!("{:08}.sst", seq));
                         if fs::hard_link(&src_path, &dst_path).is_err() {

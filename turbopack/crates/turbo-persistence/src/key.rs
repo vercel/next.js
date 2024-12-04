@@ -135,6 +135,12 @@ pub trait StoreKey: KeyBase + Ord {
     fn write_to(&self, buf: &mut Vec<u8>);
 }
 
+impl<const N: usize> StoreKey for [u8; N] {
+    fn write_to(&self, buf: &mut Vec<u8>) {
+        buf.extend_from_slice(&self[..]);
+    }
+}
+
 impl StoreKey for Vec<u8> {
     fn write_to(&self, buf: &mut Vec<u8>) {
         buf.extend_from_slice(self);

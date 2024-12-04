@@ -345,3 +345,106 @@ fn full_cycle() -> Result<()> {
     }
     Ok(())
 }
+
+#[test]
+fn persist_changes() -> Result<()> {
+    let tempdir = tempfile::tempdir()?;
+    let path = tempdir.path();
+
+    fn put(b: &WriteBatch<(u8, [u8; 4]), 1>, key: u8, value: u8) -> Result<()> {
+        for i in 0..2000000u32 {
+            b.put(0, (key, i.to_be_bytes()), vec![value].into())?;
+        }
+        Ok(())
+    }
+    fn check(db: &TurboPersistence, key: u8, value: u8) -> Result<()> {
+        for i in 0..200000u32 {
+            let i = i * 10;
+            assert_eq!(
+                db.get(0, &(key, i.to_be_bytes()))?.as_deref(),
+                Some(&[value][..])
+            );
+        }
+        Ok(())
+    }
+
+    {
+        let db = TurboPersistence::open(path.to_path_buf())?;
+        let b = db.write_batch::<_, 1>()?;
+        put(&b, 1, 11)?;
+        put(&b, 2, 21)?;
+        put(&b, 3, 31)?;
+        db.commit_write_batch(b)?;
+
+        check(&db, 1, 11)?;
+        check(&db, 2, 21)?;
+        check(&db, 3, 31)?;
+
+        db.shutdown()?;
+    }
+
+    println!("---");
+    {
+        let db = TurboPersistence::open(path.to_path_buf())?;
+        let b = db.write_batch::<_, 1>()?;
+        put(&b, 1, 12)?;
+        put(&b, 2, 22)?;
+        db.commit_write_batch(b)?;
+
+        check(&db, 1, 12)?;
+        check(&db, 2, 22)?;
+        check(&db, 3, 31)?;
+
+        db.shutdown()?;
+    }
+
+    {
+        let db = TurboPersistence::open(path.to_path_buf())?;
+        let b = db.write_batch::<_, 1>()?;
+        put(&b, 1, 13)?;
+        db.commit_write_batch(b)?;
+
+        check(&db, 1, 13)?;
+        check(&db, 2, 22)?;
+        check(&db, 3, 31)?;
+
+        db.shutdown()?;
+    }
+
+    println!("---");
+    {
+        let db = TurboPersistence::open(path.to_path_buf())?;
+
+        check(&db, 1, 13)?;
+        check(&db, 2, 22)?;
+        check(&db, 3, 31)?;
+
+        db.shutdown()?;
+    }
+
+    println!("---");
+    {
+        let db = TurboPersistence::open(path.to_path_buf())?;
+
+        db.compact(1.0, 3)?;
+
+        check(&db, 1, 13)?;
+        check(&db, 2, 22)?;
+        check(&db, 3, 31)?;
+
+        db.shutdown()?;
+    }
+
+    println!("---");
+    {
+        let db = TurboPersistence::open(path.to_path_buf())?;
+
+        check(&db, 1, 13)?;
+        check(&db, 2, 22)?;
+        check(&db, 3, 31)?;
+
+        db.shutdown()?;
+    }
+
+    Ok(())
+}
