@@ -8,11 +8,12 @@ import type {
 } from '../../server/config-shared'
 import type { ResolvedBaseUrl } from '../load-jsconfig'
 import { isWebpackServerOnlyLayer, isWebpackAppPagesLayer } from '../utils'
+import { escapeStringRegexp } from '../../shared/lib/escape-regexp'
 
 const nextDirname = path.dirname(require.resolve('next/package.json'))
 
 const nextDistPath = new RegExp(
-  `${nextDirname}[\\/]dist[\\/](shared[\\/]lib|client|pages)`
+  `${escapeStringRegexp(nextDirname)}[\\/]dist[\\/](shared[\\/]lib|client|pages)`
 )
 
 const nodeModulesPath = /[\\/]node_modules[\\/]/
