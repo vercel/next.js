@@ -19,7 +19,7 @@ const pullRequestReviewers = ['eps1lon']
  * Set to a specific version to override the Pages Router React version e.g. `^19.0.0`.
  * @type {string | null}
  */
-const pagesRouterReact = null
+const pagesRouterReact = '^19.0.0'
 
 const filesReferencingReactPeerDependencyVersion = [
   'run-tests.js',
