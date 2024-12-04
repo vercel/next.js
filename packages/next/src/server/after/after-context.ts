@@ -49,7 +49,9 @@ export class AfterContext {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(task.catch((error) => this.reportTaskError(error)))
+      this.waitUntil(
+        task.catch((error) => this.reportTaskError('promise', error))
+      )
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
@@ -98,7 +100,7 @@ export class AfterContext {
           callback()
         )
       } catch (error) {
-        this.reportTaskError(error)
+        this.reportTaskError('function', error)
       }
     })
 
@@ -128,11 +130,13 @@ export class AfterContext {
     })
   }
 
-  private reportTaskError(error: unknown) {
+  private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
     // TODO(after): this is fine for now, but will need better intergration with our error reporting.
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
-      'An error occurred in a function passed to `unstable_after()`:',
+      taskKind === 'promise'
+        ? `An error occurred in a promise passed to \`unstable_after()\`:`
+        : `An error occurred in a function passed to \`unstable_after()\`:`,
       error
     )
     if (this.onTaskError) {
