@@ -16,10 +16,10 @@ import {
 } from '../app-render/after-task-async-storage.external'
 import isError from '../../lib/is-error'
 import {
-  AFTER_CALLBACK_MARKER_FRAME,
   stitchAfterCallstack,
+  AFTER_CALLBACK_MARKER_FRAME,
   type AfterTaskStackInfo,
-} from './after-dev-callstacks'
+} from './stitch-after-callstack'
 
 export class CaptureStackTrace extends Error {}
 

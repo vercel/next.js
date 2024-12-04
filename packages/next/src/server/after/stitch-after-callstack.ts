@@ -1,7 +1,7 @@
 import {
   parseStack,
   type StackFrame,
-} from '../../client/components/react-dev-overlay/server/middleware-webpack'
+} from '../../client/components/react-dev-overlay/internal/helpers/parse-stack'
 import { replaceErrorStack } from '../../client/components/react-dev-overlay/internal/helpers/node-stack-frames'
 import type { AfterTaskStore } from '../app-render/after-task-async-storage.external'
 
