@@ -1,0 +1,44 @@
+---
+title: How to upgrade to Next.js Canary
+nav_title: Canary
+description: Upgrade your Next.js Application to canary and try out new features.
+---
+
+The Next.js canary channel is updated daily with the latest experimental features and bug fixes. It's a great way to try out new features and [give feedback](https://github.com/vercel/next.js/issues) before they are released in a stable version.
+
+To upgrade to canary, run the following command:
+
+```bash filename="Terminal"
+npm i next@canary
+# or
+yarn add next@canary
+# or
+pnpm add next@canary
+```
+
+> **Good to know**: If you're not running on the latest version of Next.js, you may need to follow the [upgrade guide](/docs/app/building-your-application/upgrading) first.
+
+## Features available in canary
+
+The following features are currently available in canary:
+
+**Directives**:
+
+- [`"use cache"`](/docs/app/api-reference/directives/use-cache)
+
+**Functions**:
+
+- [`cacheLife`](/docs/app/api-reference/functions/cacheLife)
+- [`cacheTag`](/docs/app/api-reference/functions/cacheTag)
+- [`forbidden`](/docs/app/api-reference/functions/forbidden)
+- [`unauthorized`](/docs/app/api-reference/functions/unauthorized)
+
+**File Conventions**:
+
+- [`forbidden.js`](/docs/app/api-reference/file-conventions/forbidden)
+- [`unauthorized.js`](/docs/app/api-reference/file-conventions/unauthorized)
+
+**Next.js Config Options**:
+
+- [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO)
+- [`authInterrupts`](/docs/app/api-reference/config/next-config-js/authInterrupts)
