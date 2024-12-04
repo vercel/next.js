@@ -15,6 +15,8 @@ import {
 import * as Log from '../../build/output/log'
 import { trackDynamicFetch } from '../app-render/dynamic-rendering'
 import type { FetchMetric } from '../base-http'
+import { createDedupeFetch } from './dedupe-fetch'
+import { cloneResponse } from './clone-response'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -623,15 +625,26 @@ function createPatchedFetcher(
               if (entry.isStale) {
                 staticGenerationStore.pendingRevalidates ??= {}
                 if (!staticGenerationStore.pendingRevalidates[cacheKey]) {
+                  const pendingRevalidate = doOriginalFetch(true)
+                    .then(async (response) => ({
+                      body: await response.arrayBuffer(),
+                      headers: response.headers,
+                      status: response.status,
+                      statusText: response.statusText,
+                    }))
+                    .finally(() => {
+                      staticGenerationStore.pendingRevalidates ??= {}
+                      delete staticGenerationStore.pendingRevalidates[
+                        cacheKey || ''
+                      ]
+                    })
+
+                  // Attach the empty catch here so we don't get a "unhandled
+                  // promise rejection" warning.
+                  pendingRevalidate.catch(console.error)
+
                   staticGenerationStore.pendingRevalidates[cacheKey] =
-                    doOriginalFetch(true)
-                      .catch(console.error)
-                      .finally(() => {
-                        staticGenerationStore.pendingRevalidates ??= {}
-                        delete staticGenerationStore.pendingRevalidates[
-                          cacheKey || ''
-                        ]
-                      })
+                    pendingRevalidate
                 }
               }
               const resData = entry.value.data
@@ -730,16 +743,40 @@ function createPatchedFetcher(
         // origin hit if it's a cache-able entry
         if (cacheKey && isForegroundRevalidate) {
           staticGenerationStore.pendingRevalidates ??= {}
-          const pendingRevalidate =
+          let pendingRevalidate =
             staticGenerationStore.pendingRevalidates[cacheKey]
 
           if (pendingRevalidate) {
-            const res: Response = await pendingRevalidate
-            return res.clone()
+            const revalidatedResult: {
+              body: ArrayBuffer
+              headers: Headers
+              status: number
+              statusText: string
+            } = await pendingRevalidate
+            return new Response(revalidatedResult.body, {
+              headers: revalidatedResult.headers,
+              status: revalidatedResult.status,
+              statusText: revalidatedResult.statusText,
+            })
           }
+
           const pendingResponse = doOriginalFetch(true, cacheReasonOverride)
-          const nextRevalidate = pendingResponse
-            .then((res) => res.clone())
+            // We're cloning the response using this utility because there
+            // exists a bug in the undici library around response cloning.
+            // See the following pull request for more details:
+            // https://github.com/vercel/next.js/pull/73274
+            .then(cloneResponse)
+
+          pendingRevalidate = pendingResponse
+            .then(async (responses) => {
+              const response = responses[0]
+              return {
+                body: await response.arrayBuffer(),
+                headers: response.headers,
+                status: response.status,
+                statusText: response.statusText,
+              }
+            })
             .finally(() => {
               if (cacheKey) {
                 // If the pending revalidate is not present in the store, then
@@ -754,11 +791,11 @@ function createPatchedFetcher(
 
           // Attach the empty catch here so we don't get a "unhandled promise
           // rejection" warning
-          nextRevalidate.catch(() => {})
+          pendingRevalidate.catch(() => {})
 
-          staticGenerationStore.pendingRevalidates[cacheKey] = nextRevalidate
+          staticGenerationStore.pendingRevalidates[cacheKey] = pendingRevalidate
 
-          return pendingResponse
+          return pendingResponse.then((responses) => responses[1])
         } else {
           return doOriginalFetch(false, cacheReasonOverride).finally(
             handleUnlock
@@ -784,7 +821,7 @@ export function patchFetch(options: PatchableModule) {
 
   // Grab the original fetch function. We'll attach this so we can use it in
   // the patched fetch function.
-  const original = globalThis.fetch
+  const original = createDedupeFetch(globalThis.fetch)
 
   // Set the global fetch to the patched fetch.
   globalThis.fetch = createPatchedFetcher(original, options)
