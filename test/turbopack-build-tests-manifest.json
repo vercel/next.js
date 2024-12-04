@@ -15604,10 +15604,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "actions-tree-shaking - basic should not have the unused action in the manifest"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15631,10 +15631,9 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
-      "passed": [
-        "actions-tree-shaking - reexport should not have the unused action in the manifest"
-      ],
+      "passed": [],
       "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest",
         "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
@@ -15642,10 +15641,9 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
-      "passed": [
-        "actions-tree-shaking - reexport should not have the unused action in the manifest"
-      ],
+      "passed": [],
       "failed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest",
         "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
@@ -15689,10 +15687,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
