@@ -104,8 +104,11 @@ export function createDedupeFetch(originalFetch: typeof fetch) {
     // doesn't include all the options in this environment. We also pass a
     // signal down to the original fetch as to bypass the underlying React fetch
     // cache.
-    const signal = new AbortSignal()
-    const promise = originalFetch(resource, { ...options, signal })
+    const controller = new AbortController()
+    const promise = originalFetch(resource, {
+      ...options,
+      signal: controller.signal,
+    })
     const entry: CacheEntry = [cacheKey, promise, null]
     cacheEntries.push(entry)
 
