@@ -53,8 +53,8 @@ pub struct EntryChunkGroupResult {
 pub trait ChunkingContext {
     fn name(self: Vc<Self>) -> Vc<RcStr>;
     fn should_use_file_source_map_uris(self: Vc<Self>) -> Vc<bool>;
-    // Often the project root
-    fn context_path(self: Vc<Self>) -> Vc<FileSystemPath>;
+    // The root path of the project
+    fn root_path(self: Vc<Self>) -> Vc<FileSystemPath>;
     fn output_root(self: Vc<Self>) -> Vc<FileSystemPath>;
 
     // TODO remove this, a chunking context should not be bound to a specific

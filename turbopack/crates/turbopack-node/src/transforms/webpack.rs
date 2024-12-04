@@ -447,12 +447,7 @@ impl EvaluateContext for WebpackLoaderContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self
-                .chunking_context
-                .context_path()
-                .root()
-                .to_resolved()
-                .await?,
+            root_path: self.chunking_context.root_path().to_resolved().await?,
         }
         .cell()
         .emit();
@@ -497,12 +492,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     severity: severity.resolved_cell(),
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
-                    project_dir: self
-                        .chunking_context
-                        .context_path()
-                        .root()
-                        .to_resolved()
-                        .await?,
+                    project_dir: self.chunking_context.root_path().to_resolved().await?,
                 }
                 .cell()
                 .emit();
@@ -593,12 +583,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root,
-                project_dir: self
-                    .chunking_context
-                    .context_path()
-                    .root()
-                    .to_resolved()
-                    .await?,
+                project_dir: self.chunking_context.root_path().to_resolved().await?,
             }
             .cell()
             .emit();

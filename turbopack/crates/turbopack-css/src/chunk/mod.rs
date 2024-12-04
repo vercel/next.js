@@ -84,10 +84,9 @@ impl CssChunk {
             {
                 let source_map = content.source_map.map(|m| m.generate_source_map());
                 match source_map {
-                    Some(map) => {
-                        (*(fileify_source_map(map, self.chunking_context().context_path()).await?))
-                            .map(ResolvedVc::upcast)
-                    }
+                    Some(map) => (*(fileify_source_map(map, self.chunking_context().root_path())
+                        .await?))
+                        .map(ResolvedVc::upcast),
                     None => None,
                 }
             } else {

@@ -251,7 +251,7 @@ pub async fn get_evaluate_pool(
         env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         assets_for_source_mapping,
         output_root,
-        chunking_context.context_path().root().to_resolved().await?,
+        chunking_context.root_path().to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -612,12 +612,7 @@ impl EvaluateContext for BasicEvaluateContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self
-                .chunking_context
-                .context_path()
-                .root()
-                .to_resolved()
-                .await?,
+            root_path: self.chunking_context.root_path().to_resolved().await?,
         }
         .cell()
         .emit();
@@ -668,7 +663,7 @@ pub struct EvaluationIssue {
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: ResolvedVc<FileSystemPath>,
-    pub project_dir: ResolvedVc<FileSystemPath>,
+    pub root_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -696,7 +691,7 @@ impl Issue for EvaluationIssue {
                     .print(
                         *self.assets_for_source_mapping,
                         *self.assets_root,
-                        *self.project_dir,
+                        *self.root_path,
                         FormattingMode::Plain,
                     )
                     .await?

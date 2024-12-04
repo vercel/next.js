@@ -974,7 +974,7 @@ pub fn get_server_runtime_entries(
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
-    project_path: ResolvedVc<FileSystemPath>,
+    root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
     client_root: ResolvedVc<FileSystemPath>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
@@ -987,7 +987,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
     let mut builder = NodeJsChunkingContext::builder(
-        project_path,
+        root_path,
         node_root,
         client_root,
         node_root
@@ -1019,7 +1019,7 @@ pub async fn get_server_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_server_chunking_context(
     mode: Vc<NextMode>,
-    project_path: ResolvedVc<FileSystemPath>,
+    root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
@@ -1030,7 +1030,7 @@ pub async fn get_server_chunking_context(
     // different server chunking contexts. OR the build chunking context should
     // support both production and development modes.
     let mut builder = NodeJsChunkingContext::builder(
-        project_path,
+        root_path,
         node_root,
         node_root,
         node_root.join("server/chunks".into()).to_resolved().await?,
