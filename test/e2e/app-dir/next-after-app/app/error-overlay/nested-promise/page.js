@@ -15,17 +15,21 @@ function Inner() {
 }
 
 function helper() {
-  unstable_after(async () => {
-    await setTimeout(500)
-    nestedHelper()
-  })
+  unstable_after(
+    (async () => {
+      await setTimeout(500)
+      nestedHelper()
+    })()
+  )
 }
 
 function nestedHelper() {
-  unstable_after(async () => {
-    await setTimeout(500)
-    throws()
-  })
+  unstable_after(
+    (async () => {
+      await setTimeout(500)
+      throws()
+    })()
+  )
 }
 
 function throws() {
