@@ -1190,7 +1190,7 @@ pub async fn find_context_file(
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).cell());
+            return Ok(FindContextFileResult::Found(fs_path, refs).cell());
         }
     }
     if lookup_path.await?.is_root() {
@@ -1232,18 +1232,14 @@ pub async fn find_context_file_or_package_key(
     if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
         if let Some(json) = &*read_package_json(*package_json_path).await? {
             if json.get(&**package_key).is_some() {
-                return Ok(FindContextFileResult::Found(
-                    package_json_path.to_resolved().await?,
-                    refs,
-                )
-                .into());
+                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
             }
         }
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).into());
+            return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
     if lookup_path.await?.is_root() {
@@ -1307,9 +1303,7 @@ async fn find_package(
                             if let Some(fs_path) =
                                 dir_exists(fs_path, &mut affecting_sources).await?
                             {
-                                packages.push(FindPackageItem::PackageDirectory(
-                                    fs_path.to_resolved().await?,
-                                ));
+                                packages.push(FindPackageItem::PackageDirectory(fs_path));
                             }
                         }
                     }
@@ -1351,9 +1345,7 @@ async fn find_package(
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {
-                        packages.push(FindPackageItem::PackageFile(
-                            package_file.to_resolved().await?,
-                        ));
+                        packages.push(FindPackageItem::PackageFile(package_file));
                     }
                 }
             }
@@ -2637,7 +2629,7 @@ async fn resolve_import_map_result(
 
             // We must avoid cycles during resolving
             if request.resolve().await? == original_request
-                && *alias_lookup_path.to_resolved().await? == original_lookup_path
+                && **alias_lookup_path == original_lookup_path
             {
                 None
             } else {
