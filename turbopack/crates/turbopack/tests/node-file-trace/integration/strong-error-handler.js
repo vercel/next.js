@@ -1,0 +1,1 @@
+require("strong-error-handler");

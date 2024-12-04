@@ -183,11 +183,31 @@ const PAGES: Record<
     color: 'rgb(255, 55, 255)',
     background: 'rgba(0, 0, 0, 0)',
   },
+  'global-first': {
+    group: 'global',
+    conflict: true,
+    url: '/global-first',
+    selector: '#hello1',
+    color: 'rgb(0, 255, 0)',
+  },
+  'global-second': {
+    group: 'global',
+    conflict: true,
+    url: '/global-second',
+    selector: '#hello2',
+    color: 'rgb(0, 0, 255)',
+  },
+  vendor: {
+    group: 'vendor',
+    url: '/vendor',
+    selector: '#vendor1',
+    color: 'rgb(0, 255, 0)',
+  },
 }
 
 const allPairs = getPairs(Object.keys(PAGES))
 
-const options = (mode) => ({
+const options = (mode: string) => ({
   files: {
     app: new FileRef(path.join(__dirname, 'app')),
     pages: new FileRef(path.join(__dirname, 'pages')),
@@ -204,11 +224,13 @@ const options = (mode) => ({
   dependencies: {
     sass: 'latest',
   },
+  skipDeployment: true,
 })
-describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', 'loose'])(
+describe.each(process.env.TURBOPACK ? ['turbo'] : ['strict', true])(
   'css-order %s',
   (mode: string) => {
-    const { next, isNextDev } = nextTestSetup(options(mode))
+    const { next, isNextDev, skipped } = nextTestSetup(options(mode))
+    if (skipped) return
     for (const ordering of allPairs) {
       const name = `should load correct styles navigating back again ${ordering.join(
         ' -> '

@@ -1,25 +1,86 @@
 import * as React from 'react'
 
-type CopyState =
-  | {
-      state: 'initial'
-    }
-  | {
-      state: 'error'
-      error: unknown
-    }
-  | { state: 'success' }
+function useCopyLegacy(content: string) {
+  type CopyState =
+    | {
+        state: 'initial'
+      }
+    | {
+        state: 'error'
+        error: unknown
+      }
+    | { state: 'success' }
+    | { state: 'pending' }
 
-export function CopyButton({
-  actionLabel,
-  successLabel,
-  content,
-  ...props
-}: React.HTMLProps<HTMLButtonElement> & {
-  actionLabel: string
-  successLabel: string
-  content: string
-}) {
+  // This would be simpler with useActionState but we need to support React 18 here.
+  // React 18 also doesn't have async transitions.
+  const [copyState, dispatch] = React.useReducer(
+    (
+      state: CopyState,
+      action:
+        | { type: 'reset' | 'copied' | 'copying' }
+        | { type: 'error'; error: unknown }
+    ): CopyState => {
+      if (action.type === 'reset') {
+        return { state: 'initial' }
+      }
+      if (action.type === 'copied') {
+        return { state: 'success' }
+      }
+      if (action.type === 'copying') {
+        return { state: 'pending' }
+      }
+      if (action.type === 'error') {
+        return { state: 'error', error: action.error }
+      }
+      return state
+    },
+    {
+      state: 'initial',
+    }
+  )
+  function copy() {
+    if (isPending) {
+      return
+    }
+
+    if (!navigator.clipboard) {
+      dispatch({
+        type: 'error',
+        error: new Error('Copy to clipboard is not supported in this browser'),
+      })
+    } else {
+      dispatch({ type: 'copying' })
+      navigator.clipboard.writeText(content).then(
+        () => {
+          dispatch({ type: 'copied' })
+        },
+        (error) => {
+          dispatch({ type: 'error', error })
+        }
+      )
+    }
+  }
+  const reset = React.useCallback(() => {
+    dispatch({ type: 'reset' })
+  }, [])
+
+  const isPending = copyState.state === 'pending'
+
+  return [copyState, copy, reset, isPending] as const
+}
+
+function useCopyModern(content: string) {
+  type CopyState =
+    | {
+        state: 'initial'
+      }
+    | {
+        state: 'error'
+        error: unknown
+      }
+    | { state: 'success' }
+
   const [copyState, dispatch, isPending] = React.useActionState(
     (
       state: CopyState,
@@ -53,6 +114,41 @@ export function CopyButton({
     }
   )
 
+  function copy() {
+    React.startTransition(() => {
+      dispatch('copy')
+    })
+  }
+
+  const reset = React.useCallback(() => {
+    dispatch('reset')
+  }, [
+    // TODO: `dispatch` from `useActionState` is not reactive.
+    // Remove from dependencies once https://github.com/facebook/react/pull/29665 is released.
+    dispatch,
+  ])
+
+  return [copyState, copy, reset, isPending] as const
+}
+
+const useCopy =
+  typeof React.useActionState === 'function' ? useCopyModern : useCopyLegacy
+
+export function CopyButton({
+  actionLabel,
+  successLabel,
+  content,
+  icon,
+  disabled,
+  ...props
+}: React.HTMLProps<HTMLButtonElement> & {
+  actionLabel: string
+  successLabel: string
+  content: string
+  icon?: React.ReactNode
+}) {
+  const [copyState, copy, reset, isPending] = useCopy(content)
+
   const error = copyState.state === 'error' ? copyState.error : null
   React.useEffect(() => {
     if (error !== null) {
@@ -63,44 +159,37 @@ export function CopyButton({
   React.useEffect(() => {
     if (copyState.state === 'success') {
       const timeoutId = setTimeout(() => {
-        dispatch('reset')
+        reset()
       }, 2000)
 
       return () => {
         clearTimeout(timeoutId)
       }
     }
-  }, [
-    isPending,
-    copyState.state,
-    // TODO: `dispatch` from `useActionState` is not reactive.
-    // Remove from dependencies once https://github.com/facebook/react/pull/29665 is released.
-    dispatch,
-  ])
-  const isDisabled = isPending
+  }, [isPending, copyState.state, reset])
+  const isDisabled = isPending || disabled
   const label = copyState.state === 'success' ? successLabel : actionLabel
-  const title = label
-  const icon =
-    copyState.state === 'success' ? <CopySuccessIcon /> : <CopyIcon />
+
+  // Assign default icon
+  const renderedIcon =
+    copyState.state === 'success' ? <CopySuccessIcon /> : icon || <CopyIcon />
 
   return (
     <button
       {...props}
       type="button"
-      title={title}
+      title={label}
       aria-label={label}
       aria-disabled={isDisabled}
-      data-nextjs-data-runtime-error-copy-stack
-      className={`nextjs-data-runtime-error-copy-stack nextjs-data-runtime-error-copy-stack--${copyState.state}`}
+      data-nextjs-data-runtime-error-copy-button
+      className={`nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
       onClick={() => {
         if (!isDisabled) {
-          React.startTransition(() => {
-            dispatch('copy')
-          })
+          copy()
         }
       }}
     >
-      {icon}
+      {renderedIcon}
       {copyState.state === 'error' ? ` ${copyState.error}` : null}
     </button>
   )

@@ -10,14 +10,11 @@ trigger:
       - docs
       - errors
       - examples
-  # Do not run Azure on `canary`, `main`, or release tags. This unnecessarily
-  # increases the backlog, and the change was already tested on the PR.
+  # Do not run Azure on release tags. This unnecessarily increases the backlog.
   branches:
     include:
       - '*'
     exclude:
-      - canary
-      - main
       - refs/tags/*
 
 pr:
@@ -34,7 +31,7 @@ pr:
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^18.17.0
+  node_version: ^18.18.2
 
 stages:
   - stage: Test

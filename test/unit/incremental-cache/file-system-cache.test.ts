@@ -2,14 +2,16 @@ import { promises as fs } from 'node:fs'
 import { fileURLToPath } from 'node:url'
 import FileSystemCache from 'next/dist/server/lib/incremental-cache/file-system-cache'
 import { nodeFs } from 'next/dist/server/lib/node-fs-methods'
+import {
+  CachedRouteKind,
+  IncrementalCacheKind,
+} from 'next/dist/server/response-cache'
 
 const cacheDir = fileURLToPath(new URL('./cache', import.meta.url))
 
 describe('FileSystemCache', () => {
   it('set image route', async () => {
     const fsCache = new FileSystemCache({
-      _appDir: true,
-      _pagesDir: true,
       _requestHeaders: {},
       flushToDisk: true,
       fs: nodeFs,
@@ -29,26 +31,31 @@ describe('FileSystemCache', () => {
           'Content-Type': 'image/png',
         },
         status: 200,
-        kind: 'ROUTE',
+        kind: CachedRouteKind.APP_ROUTE,
       },
       {}
     )
 
-    expect((await fsCache.get('icon.png'))?.value).toEqual({
+    expect(
+      (
+        await fsCache.get('icon.png', {
+          kind: IncrementalCacheKind.APP_ROUTE,
+          isFallback: undefined,
+        })
+      )?.value
+    ).toEqual({
       body: binary,
       headers: {
         'Content-Type': 'image/png',
       },
       status: 200,
-      kind: 'ROUTE',
+      kind: IncrementalCacheKind.APP_ROUTE,
     })
   })
 })
 
 describe('FileSystemCache (isrMemory 0)', () => {
   const fsCache = new FileSystemCache({
-    _appDir: true,
-    _pagesDir: true,
     _requestHeaders: {},
     flushToDisk: true,
     fs: nodeFs,
@@ -61,7 +68,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
     await fsCache.set(
       'fetch-cache',
       {
-        kind: 'FETCH',
+        kind: CachedRouteKind.FETCH,
         data: {
           headers: {},
           body: 'MTcwMDA1NjM4MQ==',
@@ -81,7 +88,8 @@ describe('FileSystemCache (isrMemory 0)', () => {
 
     const res = await fsCache.get('fetch-cache', {
       tags: ['server-time'],
-      kindHint: 'fetch',
+      kind: IncrementalCacheKind.FETCH,
+      isFallback: undefined,
     })
 
     expect(res?.value).toEqual({
@@ -101,7 +109,7 @@ describe('FileSystemCache (isrMemory 0)', () => {
     await fsCache.set(
       'unstable-cache',
       {
-        kind: 'FETCH',
+        kind: CachedRouteKind.FETCH,
         data: { headers: {}, body: '1700056381', status: 200, url: '' },
         revalidate: 30,
       },
@@ -110,7 +118,8 @@ describe('FileSystemCache (isrMemory 0)', () => {
 
     const res = await fsCache.get('unstable-cache', {
       tags: ['server-time'],
-      kindHint: 'fetch',
+      kind: IncrementalCacheKind.FETCH,
+      isFallback: undefined,
     })
 
     expect(res?.value).toEqual({

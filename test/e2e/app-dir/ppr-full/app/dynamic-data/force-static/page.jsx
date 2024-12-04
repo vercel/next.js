@@ -5,7 +5,8 @@ import { ServerHtml } from '../../../components/server-html'
 export const dynamic = 'force-static'
 export const revalidate = 60
 
-export default ({ searchParams }) => {
+export default async (props) => {
+  const searchParams = await props.searchParams
   return (
     <>
       <ServerHtml />

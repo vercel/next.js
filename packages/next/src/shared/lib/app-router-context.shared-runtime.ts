@@ -1,11 +1,11 @@
 'use client'
 
+import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type {
   FocusAndScrollRef,
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FetchServerResponseResult } from '../../client/components/router-reducer/fetch-server-response'
 import type { FlightRouterState } from '../../server/app-render/types'
 import React from 'react'
 
@@ -52,10 +52,8 @@ export type LazyCacheNode = {
 
   prefetchHead: React.ReactNode
   head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
 
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   /**
    * Child parallel routes.
@@ -96,10 +94,8 @@ export type ReadyCacheNode = {
   lazyData: null
   prefetchHead: React.ReactNode
   head: React.ReactNode
-  prefetchLayerAssets: React.ReactNode
-  layerAssets: React.ReactNode
 
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 
   parallelRoutes: Map<string, ChildSegmentMap>
 }
@@ -129,7 +125,7 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  fastRefresh(): void
+  hmrRefresh(): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.
@@ -153,11 +149,10 @@ export const LayoutRouterContext = React.createContext<{
   childNodes: CacheNode['parallelRoutes']
   tree: FlightRouterState
   url: string
-  loading: LoadingModuleData
+  loading: LoadingModuleData | Promise<LoadingModuleData>
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
-  buildId: string
   tree: FlightRouterState
   changeByServerResponse: RouterChangeByServerResponse
   focusAndScrollRef: FocusAndScrollRef

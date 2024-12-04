@@ -1,6 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
-import type { Response } from 'playwright'
+import type { Request, Response } from 'playwright'
 
 describe('app dir - navigation', () => {
   const { next, isNextDev, isNextStart, isNextDeploy } = nextTestSetup({
@@ -178,8 +178,6 @@ describe('app dir - navigation', () => {
 
       if (isNextStart || isNextDeploy) {
         await browser.waitForIdleNetwork()
-        // there should be an RSC call for the prefetch
-        expect(hasRscRequest).toBe(true)
       }
 
       // Wait for all network requests to finish, and then initialize the flag
@@ -194,12 +192,17 @@ describe('app dir - navigation', () => {
       await checkLink('top', 0)
       await checkLink('non-existent', 0)
 
-      // there should have been no RSC calls to fetch data
-      expect(hasRscRequest).toBe(false)
+      if (!isNextDev) {
+        // there should have been no RSC calls to fetch data
+        // this is skipped in development because there'll never be a prefetch cache
+        // entry for the loaded page and so every request will be a cache miss.
+        expect(hasRscRequest).toBe(false)
+      }
 
-      // There should be an RSC request if the query param is changed
       await checkLink('query-param', 2284)
       await browser.waitForIdleNetwork()
+
+      // There should be an RSC request if the query param is changed
       expect(hasRscRequest).toBe(true)
     })
 
@@ -490,7 +493,16 @@ describe('app dir - navigation', () => {
       it.each(['/redirect/servercomponent', 'redirect/redirect-with-loading'])(
         'should only trigger the redirect once (%s)',
         async (path) => {
-          const browser = await next.browser(path)
+          const requestedPathnames: string[] = []
+
+          const browser = await next.browser(path, {
+            beforePageLoad(page) {
+              page.on('request', async (req: Request) => {
+                requestedPathnames.push(new URL(req.url()).pathname)
+              })
+            },
+          })
+
           const initialTimestamp = await browser
             .waitForElementByCss('#timestamp')
             .text()
@@ -525,6 +537,13 @@ describe('app dir - navigation', () => {
             }
             // If it's our "forcing continue" error, do nothing. This means we succeeded.
           }
+
+          // Ensure the redirect target page was only requested once.
+          expect(
+            requestedPathnames.filter(
+              (pathname) => pathname === '/redirect/result'
+            )
+          ).toHaveLength(1)
         }
       )
     })
@@ -837,6 +856,7 @@ describe('app dir - navigation', () => {
         // throttling the CPU to rule out flakiness based on how quickly the page loads
         cpuThrottleRate: 6,
       })
+
       const body = await browser.elementByCss('body')
       expect(await body.text()).toContain('Item 50')
       await browser.elementById('load-more').click()
@@ -861,29 +881,50 @@ describe('app dir - navigation', () => {
   })
 
   describe('navigating to a page with async metadata', () => {
-    it('should render the final state of the page with correct metadata', async () => {
+    it('shows a fallback when prefetch was pending', async () => {
+      const resolveMetadataDuration = 5000
       const browser = await next.browser('/metadata-await-promise')
 
-      // dev doesn't trigger the loading boundary as it's not prefetched
-      if (isNextDev) {
-        await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-      } else {
-        const loadingText = await browser
-          .elementByCss("[href='/metadata-await-promise/nested']")
-          .click()
-          .waitForElementByCss('#loading')
-          .text()
+      // Hopefully this click happened before the prefetch was completed.
+      // TODO: Programmatically trigger prefetch e.g. by mounting the link later.
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
-        expect(loadingText).toBe('Loading')
+      await waitFor(resolveMetadataDuration)
+
+      expect(await browser.elementById('page-content').text()).toBe('Content')
+      expect(await browser.elementByCss('title').text()).toBe('Async Title')
+    })
+
+    it('shows a fallback when prefetch completed', async () => {
+      const resolveMetadataDuration = 5000
+      const browser = await next.browser('/metadata-await-promise')
+
+      if (!isNextDev) {
+        await waitFor(resolveMetadataDuration + 500)
       }
 
-      await retry(async () => {
-        expect(await browser.elementById('page-content').text()).toBe('Content')
+      await browser
+        .elementByCss("[href='/metadata-await-promise/nested']")
+        .click()
 
+      if (!isNextDev) {
+        expect(
+          await browser
+            .waitForElementByCss(
+              '#loading',
+              // Give it some time to commit
+              100
+            )
+            .text()
+        ).toEqual('Loading')
         expect(await browser.elementByCss('title').text()).toBe('Async Title')
-      })
+
+        await waitFor(resolveMetadataDuration + 500)
+      }
+
+      expect(await browser.elementById('page-content').text()).toBe('Content')
     })
   })
 
@@ -954,4 +995,27 @@ describe('app dir - navigation', () => {
       )
     })
   })
+
+  if (isNextDev) {
+    describe('locale warnings', () => {
+      it('should warn about using the `locale` prop with `next/link` in app router', async () => {
+        const browser = await next.browser('/locale-app')
+        const logs = await browser.log()
+        expect(logs).toContainEqual(
+          expect.objectContaining({
+            message: expect.stringContaining(
+              'The `locale` prop is not supported in `next/link` while using the `app` router.'
+            ),
+            source: 'warning',
+          })
+        )
+      })
+
+      it('should have no warnings in pages router', async () => {
+        const browser = await next.browser('/locale-pages')
+        const logs = await browser.log()
+        expect(logs.filter((log) => log.source === 'warning')).toHaveLength(0)
+      })
+    })
+  }
 })

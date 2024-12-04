@@ -3,11 +3,11 @@ import { NextRequest, NextResponse } from 'next/server'
 export const runtime = 'edge'
 
 type Context = {
-  params: {
+  params: Promise<{
     slug: string[]
-  }
+  }>
 }
 
 export const GET = async (req: NextRequest, { params }: Context) => {
-  return NextResponse.json(params)
+  return NextResponse.json(await params)
 }

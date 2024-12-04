@@ -8,12 +8,14 @@ import {
   check,
   fetchViaHTTP,
   findPort,
+  getImagesManifest,
   getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -71,7 +73,7 @@ function getRatio(width, height) {
   return height / width
 }
 
-function runTests(mode) {
+function runTests(mode: 'dev' | 'server') {
   it('should load the images', async () => {
     let browser
     try {
@@ -143,7 +145,7 @@ function runTests(mode) {
             '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.webp&w=640&q=75 1x, /_next/image?url=%2Ftest.webp&w=828&q=75 2x',
@@ -158,7 +160,7 @@ function runTests(mode) {
             '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '100vw',
         imagesrcset:
           '/_next/image?url=%2Fwide.png&w=640&q=75 640w, /_next/image?url=%2Fwide.png&w=750&q=75 750w, /_next/image?url=%2Fwide.png&w=828&q=75 828w, /_next/image?url=%2Fwide.png&w=1080&q=75 1080w, /_next/image?url=%2Fwide.png&w=1200&q=75 1200w, /_next/image?url=%2Fwide.png&w=1920&q=75 1920w, /_next/image?url=%2Fwide.png&w=2048&q=75 2048w, /_next/image?url=%2Fwide.png&w=3840&q=75 3840w',
@@ -173,7 +175,7 @@ function runTests(mode) {
             '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.png&w=640&q=75 1x, /_next/image?url=%2Ftest.png&w=828&q=75 2x',
@@ -188,7 +190,7 @@ function runTests(mode) {
             '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x'
         )
       ).toEqual({
-        fetchpriority: 'high',
+        fetchpriority: '',
         imagesizes: '',
         imagesrcset:
           '/_next/image?url=%2Ftest.tiff&w=640&q=75 1x, /_next/image?url=%2Ftest.tiff&w=828&q=75 2x',
@@ -210,19 +212,19 @@ function runTests(mode) {
         await browser.elementById('responsive2').getAttribute('loading')
       ).toBe(null)
 
-      // When priority={true}, we should set fetchpriority="high"
+      // When priority={true}, we should not set fetchpriority="high"
       expect(
         await browser.elementById('basic-image').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('load-eager').getAttribute('fetchpriority')
       ).toBe(null)
       expect(
         await browser.elementById('responsive1').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('responsive2').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
 
       // Setting fetchPriority="low" directly should pass-through to <img>
       expect(
@@ -234,7 +236,7 @@ function runTests(mode) {
 
       expect(
         await browser.elementById('belowthefold').getAttribute('fetchpriority')
-      ).toBe('high')
+      ).toBe(null)
       expect(
         await browser.elementById('belowthefold').getAttribute('loading')
       ).toBe(null)
@@ -860,7 +862,7 @@ function runTests(mode) {
     expect(await img.getAttribute('alt')).toBe('Hero')
     expect(await img.getAttribute('width')).toBe('400')
     expect(await img.getAttribute('height')).toBe('400')
-    expect(await img.getAttribute('fetchPriority')).toBe('high')
+    expect(await img.getAttribute('fetchPriority')).toBeNull()
     expect(await img.getAttribute('sizes')).toBeNull()
     expect(await img.getAttribute('src')).toBe(
       '/_next/image?url=%2Ftest_light.png&w=828&q=75'
@@ -896,6 +898,18 @@ function runTests(mode) {
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image is missing required "src" property/gm)
+    })
+
+    it('should show null src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-null')
+
+      await assertNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
     })
 
     it('should show invalid src error', async () => {
@@ -1574,6 +1588,50 @@ function runTests(mode) {
       }
     }
   })
+
+  it('should call callback ref cleanups when unmounting', async () => {
+    const browser = await webdriver(appPort, '/ref-cleanup')
+    const getLogs = async () => (await browser.log()).map((log) => log.message)
+
+    await retry(async () => {
+      expect(await getLogs()).toContain('callback ref was cleaned up')
+    })
+
+    expect(await getLogs()).not.toContain(
+      'callback refs that returned a cleanup should never be called with null'
+    )
+  })
+
+  if (mode === 'server') {
+    it('should build correct images-manifest.json', async () => {
+      const manifest = getImagesManifest(appDir)
+      expect(manifest).toEqual({
+        version: 1,
+        images: {
+          contentDispositionType: 'attachment',
+          contentSecurityPolicy:
+            "script-src 'none'; frame-src 'none'; sandbox;",
+          dangerouslyAllowSVG: false,
+          deviceSizes: [640, 750, 828, 1080, 1200, 1920, 2048, 3840],
+          disableStaticImages: false,
+          domains: [],
+          formats: ['image/webp'],
+          imageSizes: [16, 32, 48, 64, 96, 128, 256, 384],
+          loader: 'default',
+          loaderFile: '',
+          remotePatterns: [],
+          localPatterns: undefined,
+          minimumCacheTTL: 60,
+          path: '/_next/image',
+          sizes: [
+            640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
+            128, 256, 384,
+          ],
+          unoptimized: false,
+        },
+      })
+    })
+  }
 }
 
 describe('Image Component Default Tests', () => {

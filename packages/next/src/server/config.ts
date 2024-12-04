@@ -22,85 +22,28 @@ import { setHttpClientAndAgentOptions } from './setup-http-agent-env'
 import { pathHasPrefix } from '../shared/lib/router/utils/path-has-prefix'
 import { matchRemotePattern } from '../shared/lib/match-remote-pattern'
 
-import { ZodParsedType, util as ZodUtil } from 'next/dist/compiled/zod'
-import type { ZodError, ZodIssue } from 'next/dist/compiled/zod'
-import { hasNextSupport } from '../telemetry/ci-info'
+import type { ZodError } from 'next/dist/compiled/zod'
+import { hasNextSupport } from '../server/ci-info'
+import { transpileConfig } from '../build/next-config-ts/transpile-config'
+import { dset } from '../shared/lib/dset'
+import { normalizeZodErrors } from '../shared/lib/zod'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
 
-function processZodErrorMessage(issue: ZodIssue) {
-  let message = issue.message
-
-  let path = ''
-
-  if (issue.path.length > 0) {
-    if (issue.path.length === 1) {
-      const identifier = issue.path[0]
-      if (typeof identifier === 'number') {
-        // The first identifier inside path is a number
-        path = `index ${identifier}`
-      } else {
-        path = `"${identifier}"`
-      }
-    } else {
-      // joined path to be shown in the error message
-      path = `"${issue.path.reduce<string>((acc, cur) => {
-        if (typeof cur === 'number') {
-          // array index
-          return `${acc}[${cur}]`
-        }
-        if (cur.includes('"')) {
-          // escape quotes
-          return `${acc}["${cur.replaceAll('"', '\\"')}"]`
-        }
-        // dot notation
-        const separator = acc.length === 0 ? '' : '.'
-        return acc + separator + cur
-      }, '')}"`
-    }
-  }
-
-  if (
-    issue.code === 'invalid_type' &&
-    issue.received === ZodParsedType.undefined
-  ) {
-    // missing key in object
-    return `${path} is missing, expected ${issue.expected}`
-  }
-  if (issue.code === 'invalid_enum_value') {
-    // Remove "Invalid enum value" prefix from zod default error message
-    return `Expected ${ZodUtil.joinValues(issue.options)}, received '${
-      issue.received
-    }' at ${path}`
-  }
-
-  return message + (path ? ` at ${path}` : '')
-}
-
-function normalizeZodErrors(
+function normalizeNextConfigZodErrors(
   error: ZodError<NextConfig>
 ): [errorMessages: string[], shouldExit: boolean] {
   let shouldExit = false
+  const issues = normalizeZodErrors(error)
   return [
-    error.issues.flatMap((issue) => {
-      const messages = [processZodErrorMessage(issue)]
+    issues.flatMap(({ issue, message }) => {
       if (issue.path[0] === 'images') {
         // We exit the build when encountering an error in the images config
         shouldExit = true
       }
 
-      if ('unionErrors' in issue) {
-        issue.unionErrors
-          .map(normalizeZodErrors)
-          .forEach(([unionMessages, unionShouldExit]) => {
-            messages.push(...unionMessages)
-            // If any of the union results shows exit the build, we exit the build
-            shouldExit = shouldExit || unionShouldExit
-          })
-      }
-
-      return messages
+      return message
     }),
     shouldExit,
   ]
@@ -156,6 +99,32 @@ export function warnOptionHasBeenMovedOutOfExperimental(
   }
 
   return config
+}
+
+function warnCustomizedOption(
+  config: NextConfig,
+  key: string,
+  defaultValue: any,
+  customMessage: string,
+  configFileName: string,
+  silent: boolean
+) {
+  const segs = key.split('.')
+  let current = config
+
+  while (segs.length >= 1) {
+    const seg = segs.shift()!
+    if (!(seg in current)) {
+      return
+    }
+    current = current[seg]
+  }
+
+  if (!silent && current !== defaultValue) {
+    Log.warn(
+      `The "${key}" option has been modified. ${customMessage ? customMessage + '. ' : ''}It should be removed from your ${configFileName}.`
+    )
+  }
 }
 
 function assignDefaults(
@@ -250,7 +219,7 @@ function assignDefaults(
     {}
   )
 
-  // TODO: remove once we've made PPR default
+  // TODO: remove these once we've made PPR default
   // If this was defaulted to true, it implies that the configuration was
   // overridden for testing to be defaulted on.
   if (defaultConfig.experimental?.ppr) {
@@ -268,6 +237,23 @@ function assignDefaults(
     throw new Error(
       `The experimental.allowDevelopmentBuild option requires NODE_ENV to be explicitly set to 'development'.`
     )
+  }
+
+  if (
+    !process.env.__NEXT_VERSION?.includes('canary') &&
+    !process.env.__NEXT_TEST_MODE &&
+    !process.env.NEXT_PRIVATE_SKIP_CANARY_CHECK
+  ) {
+    // Prevents usage of certain experimental features outside of canary
+    if (result.experimental?.ppr) {
+      throw new CanaryOnlyError('experimental.ppr')
+    } else if (result.experimental?.dynamicIO) {
+      throw new CanaryOnlyError('experimental.dynamicIO')
+    } else if (result.experimental?.turbo?.unstablePersistentCaching) {
+      throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
+    } else if (result.experimental?.inlineCss) {
+      throw new CanaryOnlyError('experimental.inlineCss')
+    }
   }
 
   if (result.output === 'export') {
@@ -305,25 +291,6 @@ function assignDefaults(
   if (typeof result.basePath !== 'string') {
     throw new Error(
       `Specified basePath is not a string, found type "${typeof result.basePath}"`
-    )
-  }
-
-  // TODO: remove after next minor (current v13.1.1)
-  if (Array.isArray(result.experimental?.outputFileTracingIgnores)) {
-    if (!result.experimental) {
-      result.experimental = {}
-    }
-    if (!result.experimental.outputFileTracingExcludes) {
-      result.experimental.outputFileTracingExcludes = {}
-    }
-    if (!result.experimental.outputFileTracingExcludes['**/*']) {
-      result.experimental.outputFileTracingExcludes['**/*'] = []
-    }
-    result.experimental.outputFileTracingExcludes['**/*'].push(
-      ...(result.experimental.outputFileTracingIgnores || [])
-    )
-    Log.warn(
-      `\`outputFileTracingIgnores\` has been moved to \`experimental.outputFileTracingExcludes\`. Please update your ${configFileName} file accordingly.`
     )
   }
 
@@ -366,6 +333,26 @@ function assignDefaults(
       )
     }
 
+    if (images.localPatterns) {
+      if (!Array.isArray(images.localPatterns)) {
+        throw new Error(
+          `Specified images.localPatterns should be an Array received ${typeof images.localPatterns}.\nSee more info here: https://nextjs.org/docs/messages/invalid-images-config`
+        )
+      }
+      // avoid double-pushing the same pattern if it already exists
+      const hasMatch = images.localPatterns.some(
+        (pattern) =>
+          pattern.pathname === '/_next/static/media/**' && pattern.search === ''
+      )
+      if (!hasMatch) {
+        // static import images are automatically allowed
+        images.localPatterns.push({
+          pathname: '/_next/static/media/**',
+          search: '',
+        })
+      }
+    }
+
     if (images.remotePatterns) {
       if (!Array.isArray(images.remotePatterns)) {
         throw new Error(
@@ -383,9 +370,9 @@ function assignDefaults(
             matchRemotePattern(pattern, url)
           )
 
-          // avoid double-pushing the same remote if it already can be matched
+          // avoid double-pushing the same pattern if it already can be matched
           if (!hasMatchForAssetPrefix) {
-            images.remotePatterns?.push({
+            images.remotePatterns.push({
               hostname: url.hostname,
               protocol: url.protocol.replace(/:$/, '') as 'http' | 'https',
               port: url.port,
@@ -454,6 +441,22 @@ function assignDefaults(
     }
   }
 
+  warnCustomizedOption(
+    result,
+    'experimental.esmExternals',
+    true,
+    'experimental.esmExternals is not recommended to be modified as it may disrupt module resolution',
+    configFileName,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.instrumentationHook',
+    '`experimental.instrumentationHook` is no longer needed to be configured in Next.js',
+    silent
+  )
+
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'bundlePagesExternals',
@@ -506,7 +509,28 @@ function assignDefaults(
   warnOptionHasBeenMovedOutOfExperimental(
     result,
     'swrDelta',
-    'swrDelta',
+    'expireTime',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'outputFileTracingRoot',
+    'outputFileTracingRoot',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'outputFileTracingIncludes',
+    'outputFileTracingIncludes',
+    configFileName,
+    silent
+  )
+  warnOptionHasBeenMovedOutOfExperimental(
+    result,
+    'outputFileTracingExcludes',
+    'outputFileTracingExcludes',
     configFileName,
     silent
   )
@@ -556,15 +580,25 @@ function assignDefaults(
   )
 
   if (
-    result.experimental?.outputFileTracingRoot &&
-    !isAbsolute(result.experimental.outputFileTracingRoot)
+    result?.outputFileTracingRoot &&
+    !isAbsolute(result.outputFileTracingRoot)
   ) {
-    result.experimental.outputFileTracingRoot = resolve(
-      result.experimental.outputFileTracingRoot
-    )
+    result.outputFileTracingRoot = resolve(result.outputFileTracingRoot)
     if (!silent) {
       Log.warn(
-        `experimental.outputFileTracingRoot should be absolute, using: ${result.experimental.outputFileTracingRoot}`
+        `outputFileTracingRoot should be absolute, using: ${result.outputFileTracingRoot}`
+      )
+    }
+  }
+
+  if (
+    result?.experimental?.turbo?.root &&
+    !isAbsolute(result.experimental.turbo.root)
+  ) {
+    result.experimental.turbo.root = resolve(result.experimental.turbo.root)
+    if (!silent) {
+      Log.warn(
+        `experimental.turbo.root should be absolute, using: ${result.experimental.turbo.root}`
       )
     }
   }
@@ -574,20 +608,28 @@ function assignDefaults(
     result.deploymentId = process.env.NEXT_DEPLOYMENT_ID
   }
 
+  if (result?.outputFileTracingRoot && !result?.experimental?.turbo?.root) {
+    dset(
+      result,
+      ['experimental', 'turbo', 'root'],
+      result.outputFileTracingRoot
+    )
+  }
+
   // use the closest lockfile as tracing root
-  if (!result.experimental?.outputFileTracingRoot) {
+  if (!result?.outputFileTracingRoot || !result?.experimental?.turbo?.root) {
     let rootDir = findRootDir(dir)
 
     if (rootDir) {
-      if (!result.experimental) {
-        result.experimental = {}
+      if (!result?.outputFileTracingRoot) {
+        result.outputFileTracingRoot = rootDir
+        defaultConfig.outputFileTracingRoot = result.outputFileTracingRoot
       }
-      if (!defaultConfig.experimental) {
-        defaultConfig.experimental = {}
+
+      if (!result?.experimental?.turbo?.root) {
+        dset(result, ['experimental', 'turbo', 'root'], rootDir)
+        dset(defaultConfig, ['experimental', 'turbo', 'root'], rootDir)
       }
-      result.experimental.outputFileTracingRoot = rootDir
-      defaultConfig.experimental.outputFileTracingRoot =
-        result.experimental.outputFileTracingRoot
     }
   }
 
@@ -771,6 +813,87 @@ function assignDefaults(
     }
   }
 
+  if (result.experimental) {
+    result.experimental.cacheLife = {
+      ...defaultConfig.experimental?.cacheLife,
+      ...result.experimental.cacheLife,
+    }
+    const defaultDefault = defaultConfig.experimental?.cacheLife?.['default']
+    if (
+      !defaultDefault ||
+      defaultDefault.revalidate === undefined ||
+      defaultDefault.expire === undefined ||
+      !defaultConfig.experimental?.staleTimes?.static
+    ) {
+      throw new Error('No default cacheLife profile.')
+    }
+    const defaultCacheLifeProfile = result.experimental.cacheLife['default']
+    if (!defaultCacheLifeProfile) {
+      result.experimental.cacheLife['default'] = defaultDefault
+    } else {
+      if (defaultCacheLifeProfile.stale === undefined) {
+        const staticStaleTime = result.experimental.staleTimes?.static
+        defaultCacheLifeProfile.stale =
+          staticStaleTime ?? defaultConfig.experimental?.staleTimes?.static
+      }
+      if (defaultCacheLifeProfile.revalidate === undefined) {
+        defaultCacheLifeProfile.revalidate = defaultDefault.revalidate
+      }
+      if (defaultCacheLifeProfile.expire === undefined) {
+        defaultCacheLifeProfile.expire =
+          result.expireTime ?? defaultDefault.expire
+      }
+    }
+    // This is the most dynamic cache life profile.
+    const secondsCacheLifeProfile = result.experimental.cacheLife['seconds']
+    if (
+      secondsCacheLifeProfile &&
+      secondsCacheLifeProfile.stale === undefined
+    ) {
+      // We default this to whatever stale time you had configured for dynamic content.
+      // Since this is basically a dynamic cache life profile.
+      const dynamicStaleTime = result.experimental.staleTimes?.dynamic
+      secondsCacheLifeProfile.stale =
+        dynamicStaleTime ?? defaultConfig.experimental?.staleTimes?.dynamic
+    }
+  }
+
+  if (result.experimental?.cacheHandlers) {
+    const allowedHandlerNameRegex = /[a-z-]/
+
+    if (typeof result.experimental.cacheHandlers !== 'object') {
+      throw new Error(
+        `Invalid "experimental.cacheHandlers" provided, expected an object e.g. { default: '/my-handler.js' }, received ${JSON.stringify(result.experimental.cacheHandlers)}`
+      )
+    }
+
+    const handlerKeys = Object.keys(result.experimental.cacheHandlers)
+    const invalidHandlerItems: Array<{ key: string; reason: string }> = []
+
+    for (const key of handlerKeys) {
+      if (!allowedHandlerNameRegex.test(key)) {
+        invalidHandlerItems.push({
+          key,
+          reason: 'key must only use characters a-z and -',
+        })
+      } else {
+        const handlerPath = result.experimental.cacheHandlers[key]
+
+        if (handlerPath && !existsSync(handlerPath)) {
+          invalidHandlerItems.push({
+            key,
+            reason: `cache handler path provided does not exist, received ${handlerPath}`,
+          })
+        }
+      }
+      if (invalidHandlerItems.length) {
+        throw new Error(
+          `Invalid handler fields configured for "experimental.cacheHandler":\n${invalidHandlerItems.map((item) => `${key}: ${item.reason}`).join('\n')}`
+        )
+      }
+    }
+  }
+
   const userProvidedModularizeImports = result.modularizeImports
   // Unfortunately these packages end up re-exporting 10600 modules, for example: https://unpkg.com/browse/@mui/icons-material@5.11.16/esm/index.js.
   // Leveraging modularizeImports tremendously reduces compile times for these.
@@ -887,11 +1010,13 @@ export default async function loadConfig(
     rawConfig,
     silent = true,
     onLoadUserConfig,
+    reactProductionProfiling,
   }: {
     customConfig?: object | null
     rawConfig?: boolean
     silent?: boolean
     onLoadUserConfig?: (conf: NextConfig) => void
+    reactProductionProfiling?: boolean
   } = {}
 ): Promise<NextConfigComplete> {
   if (!process.env.__NEXT_PRIVATE_RENDER_WORKER) {
@@ -946,11 +1071,19 @@ export default async function loadConfig(
 
   const path = await findUp(CONFIG_FILES, { cwd: dir })
 
+  if (process.env.__NEXT_TEST_MODE) {
+    if (path) {
+      Log.info(`Loading config from ${path}`)
+    } else {
+      Log.info('No config file found')
+    }
+  }
+
   // If config file was found
   if (path?.length) {
     configFileName = basename(path)
-    let userConfigModule: any
 
+    let userConfigModule: any
     try {
       const envBefore = Object.assign({}, process.env)
 
@@ -962,6 +1095,11 @@ export default async function loadConfig(
         // jest relies on so we fall back to require for this case
         // https://github.com/nodejs/node/issues/35889
         userConfigModule = require(path)
+      } else if (configFileName === 'next.config.ts') {
+        userConfigModule = await transpileConfig({
+          nextConfigPath: path,
+          cwd: dir,
+        })
       } else {
         userConfigModule = await import(pathToFileURL(path).href)
       }
@@ -978,11 +1116,13 @@ export default async function loadConfig(
         return userConfigModule
       }
     } catch (err) {
+      // TODO: Modify docs to add cases of failing next.config.ts transformation
       curLog.error(
         `Failed to load ${configFileName}, see more info here https://nextjs.org/docs/messages/next-config-error`
       )
       throw err
     }
+
     const userConfig = await normalizeConfig(
       phase,
       userConfigModule.default || userConfigModule
@@ -998,7 +1138,9 @@ export default async function loadConfig(
         // error message header
         const messages = [`Invalid ${configFileName} options detected: `]
 
-        const [errorMessages, shouldExit] = normalizeZodErrors(state.error)
+        const [errorMessages, shouldExit] = normalizeNextConfigZodErrors(
+          state.error
+        )
         // ident list item
         for (const error of errorMessages) {
           messages.push(`    ${error}`)
@@ -1036,6 +1178,10 @@ export default async function loadConfig(
         (canonicalBase.endsWith('/')
           ? canonicalBase.slice(0, -1)
           : canonicalBase) || ''
+    }
+
+    if (reactProductionProfiling) {
+      userConfig.reactProductionProfiling = reactProductionProfiling
     }
 
     if (
@@ -1085,20 +1231,22 @@ export default async function loadConfig(
     return completeConfig
   } else {
     const configBaseName = basename(CONFIG_FILES[0], extname(CONFIG_FILES[0]))
-    const nonJsPath = findUp.sync(
+    const unsupportedConfig = findUp.sync(
       [
-        `${configBaseName}.jsx`,
-        `${configBaseName}.ts`,
-        `${configBaseName}.tsx`,
+        `${configBaseName}.cjs`,
+        `${configBaseName}.cts`,
+        `${configBaseName}.mts`,
         `${configBaseName}.json`,
+        `${configBaseName}.jsx`,
+        `${configBaseName}.tsx`,
       ],
       { cwd: dir }
     )
-    if (nonJsPath?.length) {
+    if (unsupportedConfig?.length) {
       throw new Error(
         `Configuring Next.js via '${basename(
-          nonJsPath
-        )}' is not supported. Please replace the file with 'next.config.js' or 'next.config.mjs'.`
+          unsupportedConfig
+        )}' is not supported. Please replace the file with 'next.config.js', 'next.config.mjs', or 'next.config.ts'.`
       )
     }
   }
@@ -1138,4 +1286,15 @@ export function getEnabledExperimentalFeatures(
     }
   }
   return enabledExperiments
+}
+
+class CanaryOnlyError extends Error {
+  constructor(feature: string) {
+    super(
+      `The experimental feature "${feature}" can only be enabled when using the latest canary version of Next.js.`
+    )
+    // This error is meant to interrupt the server start/build process
+    // but the stack trace isn't meaningful, as it points to internal code.
+    this.stack = undefined
+  }
 }

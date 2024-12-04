@@ -16,6 +16,7 @@
     "typescript",
     "typescriptreact"
   ],
+  "eslint.useFlatConfig": false,
   // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
   // Equivalent to deprecated option "jest.autoRun": "off"
   "jest.runMode": "on-demand",
@@ -52,24 +53,37 @@
     "*.tsx": "$(capture).test.ts, $(capture).test.tsx"
   },
   // Compile rust-analyzer in a separate directory to avoid conflicts with the main project.
-  "rust-analyzer.checkOnSave.extraEnv": {
-    "CARGO_TARGET_DIR": "target/rust-analyzer"
-  },
+  "rust-analyzer.cargo.targetDir": true,
   "rust-analyzer.server.extraEnv": {
-    "CARGO_TARGET_DIR": "target/rust-analyzer",
     "RUST_BACKTRACE": "0"
   },
-  "rust-analyzer.cargo.extraEnv": {
-    "CARGO_TARGET_DIR": "target/rust_analyzer"
-  },
   "cSpell.words": [
+    "codemod",
+    "codemods",
+    "Destructuring",
+    "buildtime",
+    "callsites",
+    "codemod",
+    "datastream",
+    "deduped",
+    "draftmode",
     "Entrypoints",
+    "jscodeshift",
     "napi",
+    "navigations",
     "nextjs",
     "opentelemetry",
+    "Preinit",
     "prerendered",
+    "prerendering",
+    "proxied",
+    "renderable",
+    "revalidates",
+    "subresource",
+    "thenables",
     "Threadsafe",
     "Turbopack",
+    "unproxied",
     "zipkin"
   ],
   "grammarly.selectors": [
@@ -82,5 +96,7 @@
   "gitlens.advanced.blame.customArguments": [
     "--ignore-revs-file",
     "${workspaceRoot}/.git-blame-ignore-revs"
-  ]
+  ],
+  "astGrep.serverPath": "node_modules/@ast-grep/cli/ast-grep",
+  "rust-analyzer.imports.prefix": "crate"
 }

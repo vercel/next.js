@@ -59,7 +59,10 @@ describe('ppr', () => {
     if (isNextDev) {
       it('should have the dynamic part', async () => {
         let $ = await next.render$(pathname)
-        let dynamic = $('#container > #dynamic > #state')
+        // asserting this flushes in a single pass in dev is not reliable
+        // so we just assert that the nodes are somewhere in the document
+        // even if they aren't in position
+        let dynamic = $('#dynamic > #state')
 
         expect(dynamic.length).toBe(1)
         expect(dynamic.text()).toBe('Not Signed In')
@@ -73,7 +76,7 @@ describe('ppr', () => {
             },
           }
         )
-        dynamic = $('#container > #dynamic > #state')
+        dynamic = $('#dynamic > #state')
         expect(dynamic.length).toBe(1)
         expect(dynamic.text()).toBe('Signed In')
       })

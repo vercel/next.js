@@ -183,7 +183,7 @@ describe('page features telemetry', () => {
             await fs.writeFile(
               path.join(__dirname, '../app/edge-ssr/page.js'),
               `
-          export const runtime = 'experimental-edge'
+          export const runtime = 'edge'
           export default function Page() {
             return <p>edge-ssr page</p>
           }
@@ -219,8 +219,8 @@ describe('page features telemetry', () => {
               expect(event1).toMatch(/"staticPropsPageCount": 2/)
               expect(event1).toMatch(/"serverPropsPageCount": 2/)
               expect(event1).toMatch(/"ssrPageCount": 3/)
-              expect(event1).toMatch(/"staticPageCount": 4/)
-              expect(event1).toMatch(/"totalPageCount": 11/)
+              expect(event1).toMatch(/"staticPageCount": 5/)
+              expect(event1).toMatch(/"totalPageCount": 12/)
               expect(event1).toMatch(/"totalAppPagesCount": 5/)
               expect(event1).toMatch(/"serverAppPagesCount": 2/)
               expect(event1).toMatch(/"edgeRuntimeAppCount": 1/)

@@ -15,5 +15,6 @@
       "inputs": ["run-tests.js"],
       "outputs": ["test-timings.json"]
     }
-  }
+  },
+  "ui": "tui"
 }

@@ -25,6 +25,7 @@ describe('required server files i18n', () => {
 
   beforeAll(async () => {
     let wasmPkgIsAvailable = false
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     const res = await nodeFetch(
       `https://registry.npmjs.com/@next/swc-wasm-nodejs/-/swc-wasm-nodejs-${
@@ -128,13 +129,10 @@ describe('required server files i18n', () => {
         },
       }
     )
-
-    if (process.platform === 'darwin') {
-      appPort = `http://127.0.0.1:${appPort}`
-    }
   })
 
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
@@ -352,12 +350,16 @@ describe('required server files i18n', () => {
     expect(isNaN(data2.random)).toBe(false)
     expect(data2.random).not.toBe(data.random)
 
-    const html3 = await renderViaHTTP(appPort, '/some-other-path', undefined, {
-      headers: {
-        'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
-        'x-now-route-matches': '1=second&nxtPslug=second',
-      },
-    })
+    const html3 = await renderViaHTTP(
+      appPort,
+      '/some-other-path?nxtPslug=second',
+      undefined,
+      {
+        headers: {
+          'x-matched-path': '/dynamic/[slug]?slug=%5Bslug%5D.json',
+        },
+      }
+    )
     const $3 = cheerio.load(html3)
     const data3 = JSON.parse($3('#props').text())
 

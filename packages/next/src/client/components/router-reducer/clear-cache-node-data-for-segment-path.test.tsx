@@ -17,8 +17,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
@@ -28,8 +26,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       rsc: <>Root layout</>,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -43,8 +39,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                 rsc: <>Linking</>,
                 prefetchRsc: null,
                 head: null,
-                layerAssets: null,
-                prefetchLayerAssets: null,
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -58,8 +52,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: null,
-                          layerAssets: null,
-                          prefetchLayerAssets: null,
                           prefetchHead: null,
                           parallelRoutes: new Map(),
                           loading: null,
@@ -80,26 +72,22 @@ describe('clearCacheNodeDataForSegmentPath', () => {
     expect(cache).toMatchInlineSnapshot(`
       {
         "head": null,
-        "layerAssets": null,
         "lazyData": null,
         "loading": null,
         "parallelRoutes": Map {
           "children" => Map {
             "linking" => {
               "head": null,
-              "layerAssets": null,
               "lazyData": null,
               "loading": null,
               "parallelRoutes": Map {
                 "children" => Map {
                   "" => {
                     "head": null,
-                    "layerAssets": null,
                     "lazyData": null,
                     "loading": null,
                     "parallelRoutes": Map {},
                     "prefetchHead": null,
-                    "prefetchLayerAssets": null,
                     "prefetchRsc": null,
                     "rsc": <React.Fragment>
                       Page
@@ -108,7 +96,6 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                 },
               },
               "prefetchHead": null,
-              "prefetchLayerAssets": null,
               "prefetchRsc": null,
               "rsc": <React.Fragment>
                 Linking
@@ -116,19 +103,16 @@ describe('clearCacheNodeDataForSegmentPath', () => {
             },
             "dashboard" => {
               "head": null,
-              "layerAssets": null,
               "lazyData": null,
               "loading": null,
               "parallelRoutes": Map {},
               "prefetchHead": null,
-              "prefetchLayerAssets": null,
               "prefetchRsc": null,
               "rsc": null,
             },
           },
         },
         "prefetchHead": null,
-        "prefetchLayerAssets": null,
         "prefetchRsc": null,
         "rsc": null,
       }

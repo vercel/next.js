@@ -141,7 +141,7 @@ const API_DOCS: Record<
   },
   experimental_ppr: {
     description: `Enables experimental Partial Prerendering (PPR) for this page / layout, when PPR is set to "incremental" mode.`,
-    link: 'https://rc.nextjs.org/docs/app/api-reference/next-config-js/ppr',
+    link: 'https://nextjs.org/docs/app/api-reference/next-config-js/ppr',
     options: {
       true: 'Enable PPR for this route',
       false: 'Disable PPR for this route',

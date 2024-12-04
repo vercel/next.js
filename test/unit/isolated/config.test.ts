@@ -80,12 +80,12 @@ describe('config', () => {
     }).rejects.toThrow(/The "target" property is no longer supported/)
   })
 
-  it('Should throw an error when next.config.js is not present', async () => {
+  it('Should throw an error when next.config.(js | mjs | ts) is not present', async () => {
     await expect(
       async () =>
         await loadConfig(
           PHASE_DEVELOPMENT_SERVER,
-          join(__dirname, '_resolvedata', 'typescript-config')
+          join(__dirname, '_resolvedata', 'missing-config')
         )
     ).rejects.toThrow(
       /Configuring Next.js via .+ is not supported. Please replace the file with 'next.config.js'/
@@ -98,5 +98,13 @@ describe('config', () => {
       join(__dirname, '_resolvedata', 'js-ts-config')
     )
     expect(config.__test__ext).toBe('js')
+  })
+
+  it('Should not throw an error when next.config.ts is present', async () => {
+    const config = await loadConfig(
+      PHASE_DEVELOPMENT_SERVER,
+      join(__dirname, '_resolvedata', 'typescript-config')
+    )
+    expect(config.__test__ext).toBe('ts')
   })
 })

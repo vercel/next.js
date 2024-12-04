@@ -58,7 +58,7 @@ interface SerializedDefineEnv {
 /**
  * Collects all environment variables that are using the `NEXT_PUBLIC_` prefix.
  */
-function getNextPublicEnvironmentVariables(): DefineEnv {
+export function getNextPublicEnvironmentVariables(): DefineEnv {
   const defineEnv: DefineEnv = {}
   for (const key in process.env) {
     if (key.startsWith('NEXT_PUBLIC_')) {
@@ -74,7 +74,7 @@ function getNextPublicEnvironmentVariables(): DefineEnv {
 /**
  * Collects the `env` config value from the Next.js config.
  */
-function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
+export function getNextConfigEnv(config: NextConfigComplete): DefineEnv {
   // Refactored code below to use for-of
   const defineEnv: DefineEnv = {}
   const env = config.env
@@ -118,6 +118,7 @@ function getImageConfig(
             // pass domains in development to allow validating on the client
             domains: config.images.domains,
             remotePatterns: config.images?.remotePatterns,
+            localPatterns: config.images?.localPatterns,
             output: config.output,
           }
         : {}),
@@ -139,12 +140,18 @@ export function getDefineEnv({
   isNodeServer,
   middlewareMatchers,
 }: DefineEnvPluginOptions): SerializedDefineEnv {
+  const nextPublicEnv = getNextPublicEnvironmentVariables()
+  const nextConfigEnv = getNextConfigEnv(config)
+
+  const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isDynamicIOEnabled = !!config.experimental.dynamicIO
+
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
 
-    ...getNextPublicEnvironmentVariables(),
-    ...getNextConfigEnv(config),
+    ...nextPublicEnv,
+    ...nextConfigEnv,
     ...(!isEdgeServer
       ? {}
       : {
@@ -173,11 +180,22 @@ export function getDefineEnv({
         ? 'nodejs'
         : '',
     'process.env.NEXT_MINIMAL': '',
-    'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
+    'process.env.__NEXT_APP_NAV_FAIL_HANDLING': Boolean(
+      config.experimental.appNavFailHandling
+    ),
+    'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
+      config.devIndicators.appIsrStatus
+    ),
+    'process.env.__NEXT_PPR': isPPREnabled,
+    'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
-    'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
+    ...(isTurbopack
+      ? {}
+      : {
+          'process.env.__NEXT_MIDDLEWARE_MATCHERS': middlewareMatchers ?? [],
+        }),
     'process.env.__NEXT_MANUAL_CLIENT_BASE_PATH':
       config.experimental.manualClientBasePath ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_DYNAMIC_STALETIME': JSON.stringify(
@@ -190,12 +208,18 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
+    'process.env.__NEXT_FLYING_SHUTTLE': Boolean(
+      config.experimental.flyingShuttle
+    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
+    'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
+      config.experimental.clientSegmentCache
+    ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
@@ -219,7 +243,6 @@ export function getDefineEnv({
     'process.env.__NEXT_STRICT_MODE_APP':
       // When next.config.js does not have reactStrictMode it's enabled by default.
       config.reactStrictMode === null ? true : config.reactStrictMode,
-    'process.env.__NEXT_OPTIMIZE_FONTS': !dev && config.optimizeFonts,
     'process.env.__NEXT_OPTIMIZE_CSS':
       (config.experimental.optimizeCss && !dev) ?? false,
     'process.env.__NEXT_SCRIPT_WORKERS':
@@ -249,6 +272,12 @@ export function getDefineEnv({
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
+    'process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS':
+      // Internal only so untyped to avoid discovery
+      (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
+      false,
+    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
+      !!config.experimental.authInterrupts,
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -264,7 +293,33 @@ export function getDefineEnv({
         }
       : undefined),
   }
-  return serializeDefineEnv(defineEnv)
+
+  const userDefines = config.compiler?.define ?? {}
+  for (const key in userDefines) {
+    if (defineEnv.hasOwnProperty(key)) {
+      throw new Error(
+        `The \`compiler.define\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured via the \`env\` option.`
+      )
+    }
+    defineEnv[key] = userDefines[key]
+  }
+
+  const serializedDefineEnv = serializeDefineEnv(defineEnv)
+
+  if (!dev && Boolean(config.experimental.flyingShuttle)) {
+    // we delay inlining these values until after the build
+    // with flying shuttle enabled so we can update them
+    // without invalidating entries
+    for (const key in nextPublicEnv) {
+      serializedDefineEnv[key] = key
+    }
+
+    for (const key in nextConfigEnv) {
+      serializedDefineEnv[key] = key
+    }
+  }
+
+  return serializedDefineEnv
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

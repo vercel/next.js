@@ -26,6 +26,7 @@ describe('required server files app router', () => {
   }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
@@ -91,18 +92,41 @@ describe('required server files app router', () => {
         cwd: next.testDir,
       }
     )
-
-    if (process.platform === 'darwin') {
-      appPort = `http://127.0.0.1:${appPort}`
-    }
   }
 
   beforeAll(async () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should send the right cache headers for an app route', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/api/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+  })
+
+  it('should send the right cache headers for an app page', async () => {
+    const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=3600, stale-while-revalidate'
+    )
   })
 
   it('should not fail caching', async () => {
@@ -167,19 +191,19 @@ describe('required server files app router', () => {
     for (const [path, tags] of [
       [
         '/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/first,isr-page',
       ],
       [
         '/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second',
+        '_N_T_/layout,_N_T_/isr/layout,_N_T_/isr/[slug]/layout,_N_T_/isr/[slug]/page,_N_T_/isr/second,isr-page',
       ],
       [
         '/api/isr/first',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/first,isr-page',
       ],
       [
         '/api/isr/second',
-        'isr-page,_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second',
+        '_N_T_/layout,_N_T_/api/layout,_N_T_/api/isr/layout,_N_T_/api/isr/[slug]/layout,_N_T_/api/isr/[slug]/route,_N_T_/api/isr/second,isr-page',
       ],
     ]) {
       require('console').error('checking', { path, tags })

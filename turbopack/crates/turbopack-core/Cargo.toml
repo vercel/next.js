@@ -1,0 +1,48 @@
+[package]
+name = "turbopack-core"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+browserslist-rs = { workspace = true }
+futures = { workspace = true }
+indexmap = { workspace = true }
+lazy_static = { workspace = true }
+once_cell = { workspace = true }
+patricia_tree = "0.5.5"
+ref-cast = "1.0.20"
+regex = { workspace = true }
+serde = { workspace = true, features = ["rc"] }
+serde_bytes = { workspace = true }
+serde_json = { workspace = true, features = ["preserve_order"] }
+sourcemap = { workspace = true }
+swc_core = { workspace = true, features = ["ecma_preset_env", "common"] }
+tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }
+
+[dev-dependencies]
+rstest = { workspace = true }
+tokio = { workspace = true }
+
+[features]
+default = []
+issue_path = []

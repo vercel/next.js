@@ -3,6 +3,7 @@
 import type {
   ChildSegmentMap,
   LazyCacheNode,
+  LoadingModuleData,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
@@ -32,7 +33,7 @@ import { ErrorBoundary } from './error-boundary'
 import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
-import { NotFoundBoundary } from './not-found-boundary'
+import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
@@ -337,7 +338,7 @@ function InnerLayoutRouter({
     throw new Error('invariant global layout router not mounted')
   }
 
-  const { buildId, changeByServerResponse, tree: fullTree } = context
+  const { changeByServerResponse, tree: fullTree } = context
 
   // Read segment path from the parallel router cache node.
   let childNode = childNodes.get(cacheKey)
@@ -350,8 +351,6 @@ function InnerLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: null,
-      layerAssets: null,
-      prefetchLayerAssets: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
@@ -408,9 +407,10 @@ function InnerLayoutRouter({
       const includeNextUrl = hasInterceptionRouteInCurrentTree(fullTree)
       childNode.lazyData = lazyData = fetchServerResponse(
         new URL(url, location.origin),
-        refetchTree,
-        includeNextUrl ? context.nextUrl : null,
-        buildId
+        {
+          flightRouterState: refetchTree,
+          nextUrl: includeNextUrl ? context.nextUrl : null,
+        }
       ).then((serverResponse) => {
         startTransition(() => {
           changeByServerResponse({
@@ -427,23 +427,6 @@ function InnerLayoutRouter({
     use(unresolvedThenable) as never
   }
 
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument. We only use the prefetched layer assets
-  // if they are available. Otherwise, we use the non-prefetched version.
-  const resolvedPrefetchLayerAssets =
-    childNode.prefetchLayerAssets !== null
-      ? childNode.prefetchLayerAssets
-      : childNode.layerAssets
-
-  const layerAssets = useDeferredValue(
-    childNode.layerAssets,
-    // @ts-expect-error The second argument to `useDeferredValue` is only
-    // available in the experimental builds. When its disabled, it will always
-    // return `cache.layerAssets`.
-    resolvedPrefetchLayerAssets
-  )
-
   // If we get to this point, then we know we have something we can render.
   const subtree = (
     // The layout router context narrows down tree and childNodes at each level.
@@ -456,7 +439,6 @@ function InnerLayoutRouter({
         loading: childNode.loading,
       }}
     >
-      {layerAssets}
       {resolvedRsc}
     </LayoutRouterContext.Provider>
   )
@@ -469,28 +451,43 @@ function InnerLayoutRouter({
  * If no loading property is provided it renders the children without a suspense boundary.
  */
 function LoadingBoundary({
-  children,
-  hasLoading,
   loading,
-  loadingStyles,
-  loadingScripts,
+  children,
 }: {
+  loading: LoadingModuleData | Promise<LoadingModuleData>
   children: React.ReactNode
-  hasLoading: boolean
-  loading?: React.ReactNode
-  loadingStyles?: React.ReactNode
-  loadingScripts?: React.ReactNode
 }): JSX.Element {
-  // We have an explicit prop for checking if `loading` is provided, to disambiguate between a loading
-  // component that returns `null` / `undefined`, vs not having a loading component at all.
-  if (hasLoading) {
+  // If loading is a promise, unwrap it. This happens in cases where we haven't
+  // yet received the loading data from the server — which includes whether or
+  // not this layout has a loading component at all.
+  //
+  // It's OK to suspend here instead of inside the fallback because this
+  // promise will resolve simultaneously with the data for the segment itself.
+  // So it will never suspend for longer than it would have if we didn't use
+  // a Suspense fallback at all.
+  let loadingModuleData
+  if (
+    typeof loading === 'object' &&
+    loading !== null &&
+    typeof (loading as any).then === 'function'
+  ) {
+    const promiseForLoading = loading as Promise<LoadingModuleData>
+    loadingModuleData = use(promiseForLoading)
+  } else {
+    loadingModuleData = loading as LoadingModuleData
+  }
+
+  if (loadingModuleData) {
+    const loadingRsc = loadingModuleData[0]
+    const loadingStyles = loadingModuleData[1]
+    const loadingScripts = loadingModuleData[2]
     return (
       <Suspense
         fallback={
           <>
             {loadingStyles}
             {loadingScripts}
-            {loading}
+            {loadingRsc}
           </>
         }
       >
@@ -516,8 +513,8 @@ export default function OuterLayoutRouter({
   templateScripts,
   template,
   notFound,
-  notFoundStyles,
-  styles,
+  forbidden,
+  unauthorized,
 }: {
   parallelRouterKey: string
   segmentPath: FlightSegmentPath
@@ -528,8 +525,8 @@ export default function OuterLayoutRouter({
   templateScripts: React.ReactNode | undefined
   template: React.ReactNode
   notFound: React.ReactNode | undefined
-  notFoundStyles: React.ReactNode | undefined
-  styles?: React.ReactNode
+  forbidden: React.ReactNode | undefined
+  unauthorized: React.ReactNode | undefined
 }) {
   const context = useContext(LayoutRouterContext)
   if (!context) {
@@ -562,7 +559,6 @@ export default function OuterLayoutRouter({
 
   return (
     <>
-      {styles}
       {preservedSegments.map((preservedSegment) => {
         const preservedSegmentValue = getSegmentValue(preservedSegment)
         const cacheKey = createRouterCacheKey(preservedSegment)
@@ -586,15 +582,11 @@ export default function OuterLayoutRouter({
                   errorStyles={errorStyles}
                   errorScripts={errorScripts}
                 >
-                  <LoadingBoundary
-                    hasLoading={Boolean(loading)}
-                    loading={loading?.[0]}
-                    loadingStyles={loading?.[1]}
-                    loadingScripts={loading?.[2]}
-                  >
-                    <NotFoundBoundary
+                  <LoadingBoundary loading={loading}>
+                    <HTTPAccessFallbackBoundary
                       notFound={notFound}
-                      notFoundStyles={notFoundStyles}
+                      forbidden={forbidden}
+                      unauthorized={unauthorized}
                     >
                       <RedirectBoundary>
                         <InnerLayoutRouter
@@ -609,7 +601,7 @@ export default function OuterLayoutRouter({
                           }
                         />
                       </RedirectBoundary>
-                    </NotFoundBoundary>
+                    </HTTPAccessFallbackBoundary>
                   </LoadingBoundary>
                 </ErrorBoundary>
               </ScrollAndFocusHandler>

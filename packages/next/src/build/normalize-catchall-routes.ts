@@ -6,7 +6,7 @@ import { AppPathnameNormalizer } from '../server/normalizers/built/app/app-pathn
  * It will traverse the appPaths, looking for catch-all routes and try to find parallel routes that could match
  * the catch-all. If it finds a match, it will add the catch-all to the parallel route's list of possible routes.
  *
- * @param appPaths  The appPaths to transform
+ * @param appPaths The appPaths to transform
  */
 export function normalizeCatchAllRoutes(
   appPaths: Record<string, string[]>,

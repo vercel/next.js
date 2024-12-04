@@ -155,7 +155,6 @@ export type EventBuildFeatureUsage = {
     | 'experimental/nextScriptWorkers'
     | 'experimental/optimizeCss'
     | 'experimental/ppr'
-    | 'optimizeFonts'
     | 'swcLoader'
     | 'swcRelay'
     | 'swcStyledComponents'
@@ -172,6 +171,7 @@ export type EventBuildFeatureUsage = {
     | 'skipMiddlewareUrlNormalize'
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
+    | 'esmExternals'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

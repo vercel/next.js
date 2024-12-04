@@ -1,5 +1,3 @@
-import { trace } from 'next/dist/trace'
-import { createNextInstall } from '../../../lib/create-next-install'
 import {
   command,
   DEFAULT_FILES,
@@ -12,21 +10,25 @@ import {
 const lockFile = 'bun.lockb'
 const files = [...DEFAULT_FILES, lockFile]
 
-beforeEach(async () => {
-  await command('bun', ['--version'])
-    // install bun if not available
-    .catch(() => command('npm', ['i', '-g', 'bun']))
-})
+describe('create-next-app with package manager bun', () => {
+  let nextTgzFilename: string
 
-let nextInstall: Awaited<ReturnType<typeof createNextInstall>>
-beforeAll(async () => {
-  nextInstall = await createNextInstall({
-    parentSpan: trace('test'),
-    keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+  beforeAll(async () => {
+    if (!process.env.NEXT_TEST_PKG_PATHS) {
+      throw new Error('This test needs to be run with `node run-tests.js`.')
+    }
+
+    const pkgPaths = new Map<string, string>(
+      JSON.parse(process.env.NEXT_TEST_PKG_PATHS)
+    )
+
+    nextTgzFilename = pkgPaths.get('next')
+
+    await command('bun', ['--version'])
+      // install bun if not available
+      .catch(() => command('npm', ['i', '-g', 'bun']))
   })
-})
 
-describe.skip('create-next-app with package manager bun', () => {
   it('should use bun for --use-bun flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'use-bun'
@@ -36,13 +38,13 @@ describe.skip('create-next-app with package manager bun', () => {
           '--ts',
           '--app',
           '--use-bun',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
         }
@@ -65,13 +67,13 @@ describe.skip('create-next-app with package manager bun', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-eslint',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
         ],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           env: { npm_config_user_agent: 'bun' },
@@ -92,7 +94,7 @@ describe.skip('create-next-app with package manager bun', () => {
       const projectName = 'use-bun-with-example'
       const res = await run(
         [projectName, '--use-bun', '--example', FULL_EXAMPLE_PATH],
-        nextInstall.installDir,
+        nextTgzFilename,
         { cwd }
       )
 
@@ -110,7 +112,7 @@ describe.skip('create-next-app with package manager bun', () => {
       const projectName = 'user-agent-bun-with-example'
       const res = await run(
         [projectName, '--example', FULL_EXAMPLE_PATH],
-        nextInstall.installDir,
+        nextTgzFilename,
         {
           cwd,
           env: { npm_config_user_agent: 'bun' },

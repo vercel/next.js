@@ -16,12 +16,7 @@ module.exports = function (task) {
     function* (
       file,
       serverOrClient,
-      {
-        stripExtension,
-        keepImportAttributes = false,
-        interopClientDefaultExport = false,
-        esm = false,
-      } = {}
+      { stripExtension, interopClientDefaultExport = false, esm = false } = {}
     ) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
@@ -51,7 +46,7 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAttributes,
+            keepImportAttributes: esm,
           },
           transform: {
             react: {
@@ -96,7 +91,7 @@ module.exports = function (task) {
             tsx: file.base.endsWith('.tsx'),
           },
           experimental: {
-            keepImportAttributes,
+            keepImportAttributes: esm,
           },
           transform: {
             react: {
@@ -132,17 +127,6 @@ module.exports = function (task) {
       const source = file.data.toString('utf-8')
       const output = yield transform(source, options)
       const ext = path.extname(file.base)
-
-      // Make sure the output content keeps the `"use client"` directive.
-      // TODO: Remove this once SWC fixes the issue.
-      if (/^['"]use client['"]/.test(source)) {
-        output.code =
-          '"use client";\n' +
-          output.code
-            .split('\n')
-            .map((l) => (/^['"]use client['"]/.test(l) ? '' : l))
-            .join('\n')
-      }
 
       // Replace `.ts|.tsx` with `.js` in files with an extension
       if (ext) {
@@ -189,8 +173,8 @@ function setNextVersion(code) {
       `"${require('./package.json').version}"`
     )
     .replace(
-      /process\.env\.__NEXT_REQUIRED_NODE_VERSION/g,
-      `"${require('./package.json').engines.node.replace('>=', '')}"`
+      /process\.env\.__NEXT_REQUIRED_NODE_VERSION_RANGE/g,
+      `"${require('./package.json').engines.node}"`
     )
     .replace(
       /process\.env\.REQUIRED_APP_REACT_VERSION/,

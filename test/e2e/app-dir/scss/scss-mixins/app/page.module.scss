@@ -1,4 +1,5 @@
 @mixin body {
+  // This test was specifically added to test the calc deprecation message caused by the following line
   z-index: (100/2);
 }
 

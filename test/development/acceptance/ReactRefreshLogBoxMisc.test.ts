@@ -1,4 +1,4 @@
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -12,7 +12,8 @@ describe.skip('ReactRefreshLogBox', () => {
   })
 
   test('<Link> with multiple children', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -46,12 +47,11 @@ describe.skip('ReactRefreshLogBox', () => {
           ).href
       )
     ).toMatch('https://nextjs.org/docs/messages/link-multiple-children')
-
-    await cleanup()
   })
 
   test('<Link> component props errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -202,12 +202,11 @@ describe.skip('ReactRefreshLogBox', () => {
     )
     await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toMatchSnapshot()
-
-    await cleanup()
   })
 
   test('server-side only compilation errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -227,6 +226,5 @@ describe.skip('ReactRefreshLogBox', () => {
     )
 
     await session.assertHasRedbox()
-    await cleanup()
   })
 })

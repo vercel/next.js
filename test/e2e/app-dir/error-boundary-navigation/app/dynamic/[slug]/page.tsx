@@ -1,9 +1,14 @@
 import { notFound } from 'next/navigation'
 
-export default function DynamicPage({ params }) {
-  if (params.slug === '404') {
+export default async function DynamicPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
+  const { slug } = await params
+  if (slug === '404') {
     notFound()
   }
 
-  return <p id="dynamic">Dynamic page: {params.slug}</p>
+  return <p id="dynamic">Dynamic page: {slug}</p>
 }

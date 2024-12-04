@@ -24,19 +24,31 @@ export const CallStackFrame: React.FC<{
       : undefined
   )
 
+  // Format method to strip out the webpack layer prefix.
+  // e.g. (app-pages-browser)/./app/page.tsx -> ./app/page.tsx
+  const formattedMethod = f.methodName.replace(/^\([\w-]+\)\//, '')
+
+  // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
+  // we'll skip rendering the frame in this case.
+  const fileSource = getFrameSource(f)
+  if (!fileSource) {
+    return null
+  }
+
   return (
     <div data-nextjs-call-stack-frame>
-      <h3 data-nextjs-frame-expanded={Boolean(frame.expanded)}>
-        <HotlinkedText text={f.methodName} />
+      <h3 data-nextjs-frame-expanded={!frame.ignored}>
+        <HotlinkedText text={formattedMethod} />
       </h3>
       <div
         data-has-source={hasSource ? 'true' : undefined}
+        data-no-source={hasSource ? undefined : 'true'}
         tabIndex={hasSource ? 10 : undefined}
         role={hasSource ? 'link' : undefined}
         onClick={open}
         title={hasSource ? 'Click to open in your editor' : undefined}
       >
-        <span>{getFrameSource(f)}</span>
+        <span>{fileSource}</span>
         <svg
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"

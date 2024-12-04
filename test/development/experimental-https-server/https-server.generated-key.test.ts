@@ -33,4 +33,13 @@ describe('experimental-https-server (generated certificate)', () => {
     const html = await renderViaHTTP(next.url, '/2', undefined, { agent })
     expect(html).toContain('Hello from Pages')
   })
+
+  it('should successfully reuse generated certificates', async () => {
+    await next.stop()
+    await next.start()
+    expect(next.url).toInclude('https://')
+    expect(next.cliOutput).toContain(
+      'Using already generated self signed certificate'
+    )
+  })
 })

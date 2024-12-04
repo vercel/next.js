@@ -1,0 +1,51 @@
+[package]
+name = "turbo-tasks"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+
+[lib]
+bench = false
+
+[features]
+default = []
+tokio_tracing = ["tokio/tracing"]
+hanging_detection = []
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true }
+async-trait = { workspace = true }
+auto-hash-map = { workspace = true }
+concurrent-queue = { workspace = true }
+dashmap = { workspace = true }
+erased-serde = "0.3.20"
+event-listener = "2.5.3"
+futures = { workspace = true }
+indexmap = { workspace = true, features = ["serde"] }
+mopa = "0.2.0"
+once_cell = { workspace = true }
+parking_lot = { workspace = true, features = ["serde"]}
+pin-project-lite = { workspace = true }
+rayon = { workspace = true }
+regex = { workspace = true }
+rustc-hash = { workspace = true }
+serde = { workspace = true, features = ["rc", "derive"] }
+serde_json = { workspace = true }
+serde_regex = "1.1.0"
+thiserror = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+tokio-util = { workspace = true }
+tracing = { workspace = true }
+triomphe = { workspace = true, features = ["unsize", "unstable"] }
+turbo-rcstr = { workspace = true }
+turbo-tasks-hash = { workspace = true }
+turbo-tasks-macros = { workspace = true }
+turbo-tasks-malloc = { workspace = true }
+unsize = { workspace = true }
+
+[build-dependencies]
+turbo-tasks-build = { workspace = true }

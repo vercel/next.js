@@ -1,5 +1,5 @@
 import type { AppRouterInstance } from '../app-router-context.shared-runtime'
-import type { Params } from './utils/route-matcher'
+import type { Params } from '../../../server/request/params'
 import type { NextRouter } from './router'
 
 import React, { useMemo, useRef } from 'react'
@@ -22,7 +22,7 @@ export function adaptForAppRouterInstance(
     refresh() {
       pagesRouter.reload()
     },
-    fastRefresh() {},
+    hmrRefresh() {},
     push(href, { scroll } = {}) {
       void pagesRouter.push(href, undefined, { scroll })
     },

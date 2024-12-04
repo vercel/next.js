@@ -1,7 +1,6 @@
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import { NEXT_URL } from '../client/components/app-router-headers'
 import {
-  INTERCEPTION_ROUTE_MARKERS,
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
 } from '../server/lib/interception-routes'
@@ -14,36 +13,11 @@ function toPathToRegexpPath(path: string): string {
     const paramName = capture.replace(/\W+/g, '_')
 
     // handle catch-all segments (e.g. /foo/bar/[...baz] or /foo/bar/[[...baz]])
-    if (paramName.startsWith('...')) {
-      return `:${paramName.slice(3)}*`
+    if (capture.startsWith('...')) {
+      return `:${capture.slice(3)}*`
     }
     return ':' + paramName
   })
-}
-
-// for interception routes we don't have access to the dynamic segments from the
-// referrer route so we mark them as noop for the app renderer so that it
-// can retrieve them from the router state later on. This also allows us to
-// compile the route properly with path-to-regexp, otherwise it will throw
-function voidParamsBeforeInterceptionMarker(path: string): string {
-  let newPath = []
-
-  let foundInterceptionMarker = false
-  for (const segment of path.split('/')) {
-    if (
-      INTERCEPTION_ROUTE_MARKERS.find((marker) => segment.startsWith(marker))
-    ) {
-      foundInterceptionMarker = true
-    }
-
-    if (segment.startsWith(':') && !foundInterceptionMarker) {
-      newPath.push('__NEXT_EMPTY_PARAM__')
-    } else {
-      newPath.push(segment)
-    }
-  }
-
-  return newPath.join('/')
 }
 
 export function generateInterceptionRoutesRewrites(
@@ -62,9 +36,7 @@ export function generateInterceptionRoutesRewrites(
       }/(.*)?`
 
       const normalizedInterceptedRoute = toPathToRegexpPath(interceptedRoute)
-      const normalizedAppPath = voidParamsBeforeInterceptionMarker(
-        toPathToRegexpPath(appPath)
-      )
+      const normalizedAppPath = toPathToRegexpPath(appPath)
 
       // pathToRegexp returns a regex that matches the path, but we need to
       // convert it to a string that can be used in a header value

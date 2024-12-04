@@ -37,15 +37,18 @@ export function refreshReducer(
 
   // TODO-APP: verify that `href` is not an external url.
   // Fetch data from the root of the tree.
-  cache.lazyData = fetchServerResponse(
-    new URL(href, origin),
-    [currentTree[0], currentTree[1], currentTree[2], 'refetch'],
-    includeNextUrl ? state.nextUrl : null,
-    state.buildId
-  )
+  cache.lazyData = fetchServerResponse(new URL(href, origin), {
+    flightRouterState: [
+      currentTree[0],
+      currentTree[1],
+      currentTree[2],
+      'refetch',
+    ],
+    nextUrl: includeNextUrl ? state.nextUrl : null,
+  })
 
   return cache.lazyData.then(
-    async ([flightData, canonicalUrlOverride]) => {
+    async ({ flightData, canonicalUrl: canonicalUrlOverride }) => {
       // Handle case when navigating to page in `pages` from `app`
       if (typeof flightData === 'string') {
         return handleExternalUrl(
@@ -59,16 +62,20 @@ export function refreshReducer(
       // Remove cache.lazyData as it has been resolved at this point.
       cache.lazyData = null
 
-      for (const flightDataPath of flightData) {
-        // FlightDataPath with more than two items means unexpected Flight data was returned
-        if (flightDataPath.length !== 4) {
+      for (const normalizedFlightData of flightData) {
+        const {
+          tree: treePatch,
+          seedData: cacheNodeSeedData,
+          head,
+          isRootRender,
+        } = normalizedFlightData
+
+        if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('REFRESH FAILED')
           return state
         }
 
-        // Given the path can only have two items the items are only the router state and rsc for the root.
-        const [treePatch] = flightDataPath
         const newTree = applyRouterStatePatchToTree(
           // TODO-APP: remove ''
           [''],
@@ -98,12 +105,9 @@ export function refreshReducer(
           mutable.canonicalUrl = canonicalUrlOverrideHref
         }
 
-        // The one before last item is the router state tree patch
-        const [cacheNodeSeedData, head, layerAssets] = flightDataPath.slice(-3)
-
         // Handles case where prefetch only returns the router tree patch without rendered components.
         if (cacheNodeSeedData !== null) {
-          const rsc = cacheNodeSeedData[2]
+          const rsc = cacheNodeSeedData[1]
           const loading = cacheNodeSeedData[3]
           cache.rsc = rsc
           cache.prefetchRsc = null
@@ -114,8 +118,7 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head,
-            layerAssets
+            head
           )
           mutable.prefetchCache = new Map()
         }

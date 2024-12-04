@@ -1,0 +1,145 @@
+[package]
+edition = "2021"
+name = "next-swc-napi"
+version = "0.0.0"
+publish = false
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[features]
+# Instead of enabling all the plugin-related functionality by default, make it
+# overridable when built (i.e napi --build --features plugin). This is due to
+# some of transitive dependencies have features cannot be enabled at the same
+# time (i.e wasmer/default vs wasmer/js-default) while cargo merges all the
+# features at once.
+plugin = [
+    "swc_core/plugin_transform_host_native",
+    "swc_core/plugin_transform_host_native_filesystem_cache",
+    "swc_core/plugin_transform_host_native_shared_runtime",
+    "next-custom-transforms/plugin",
+    "next-core/plugin",
+    "turbopack-ecmascript-plugins",
+    "turbopack-ecmascript-plugins/swc_ecma_transform_plugin",
+]
+
+image-webp = ["next-core/image-webp"]
+image-avif = ["next-core/image-avif"]
+# Enable all the available image codec support.
+# Currently this is identical to `image-webp`, as we are not able to build
+# other codecs easily yet.
+image-extended = ["image-webp"]
+
+# Enable dhat profiling allocator for heap profiling.
+__internal_dhat-heap = ["dhat"]
+# Enable dhat profiling allocator for ad hoc profiling.
+# [Note]: we do not have any ad hoc event in the codebase yet, so enabling this
+# effectively does nothing.
+__internal_dhat-ad-hoc = ["dhat"]
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = "1.0.66"
+backtrace = "0.3"
+fxhash = "0.2.1"
+dhat = { workspace = true, optional = true }
+indexmap = { workspace = true }
+owo-colors = { workspace = true }
+napi = { version = "2", default-features = false, features = [
+    "napi3",
+    "serde-json",
+    "tokio_rt",
+    "error_anyhow",
+    # Lightningcss uses this features
+    "napi4",
+    "napi5",
+    "compat-mode"
+] }
+napi-derive = "2"
+next-custom-transforms = { workspace = true }
+rand = { workspace = true }
+serde = "1"
+serde_json = "1"
+shadow-rs = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+tracing-chrome = "0.5.0"
+url = { workspace = true }
+urlencoding = { workspace = true }
+once_cell = { workspace = true }
+
+swc_core = { workspace = true, features = [
+    "base_concurrent",
+    "base_node",
+    "bundler",
+    "bundler_concurrent",
+    "common_concurrent",
+    "ecma_ast",
+    "ecma_ast_serde",
+    "ecma_codegen",
+    "ecma_loader_lru",
+    "ecma_loader_node",
+    "ecma_minifier",
+    "ecma_parser",
+    "ecma_parser_typescript",
+    "ecma_transforms",
+    "ecma_transforms_optimization",
+    "ecma_transforms_react",
+    "ecma_transforms_typescript",
+    "ecma_utils",
+    "ecma_visit",
+] }
+
+# Dependencies for the native, non-wasm32 build.
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+lightningcss-napi = { workspace = true }
+tokio = { workspace = true, features = ["full"] }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbo-tasks-backend = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+next-api = { workspace = true }
+next-build = { workspace = true }
+next-core = { workspace = true }
+
+mdxjs = { workspace = true, features = ["serializable"] }
+
+turbo-tasks-malloc = { workspace = true, default-features = false, features = [
+    "custom_allocator"
+] }
+
+turbopack = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-ecmascript-hmr-protocol = { workspace = true }
+turbopack-trace-utils = { workspace = true }
+turbopack-trace-server = { workspace = true }
+turbopack-ecmascript-plugins = { workspace = true, optional = true }
+
+
+# Dependencies for the wasm32 build.
+[target.'cfg(target_arch = "wasm32")'.dependencies]
+getrandom = { version = "0.2.9", default-features = false, features = ["js"] }
+iana-time-zone = { version = "*", features = ["fallback"] }
+
+mdxjs = { workspace = true }
+
+turbo-tasks-malloc = { workspace = true, default-features = false }
+
+# wasi-only dependencies.
+[target.wasm32-wasip1-threads.dependencies]
+# this requires tokio_unstable currently.
+tokio = { workspace = true, features = ["full"] }
+
+[build-dependencies]
+napi-build = "2"
+serde = "1"
+serde_json = "1"
+# It is not a mistake this dependency is specified in dep / build-dep both.
+shadow-rs = { workspace = true }
+
+# build-dependencies for the native, non-wasm32 build
+[target.'cfg(not(target_arch = "wasm32"))'.build-dependencies]
+turbo-tasks-build = { workspace = true }

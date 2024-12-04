@@ -69,7 +69,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
@@ -111,6 +111,7 @@ function isStaticImageData(
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
+    !!src &&
     typeof src === 'object' &&
     (isStaticRequire(src as StaticImport) ||
       isStaticImageData(src as StaticImport))
@@ -254,6 +255,7 @@ export function getImgProps(
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -395,13 +397,14 @@ export function getImgProps(
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (isDefaultLoader && src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+  if (
+    isDefaultLoader &&
+    !config.dangerouslyAllowSVG &&
+    src.split('?', 1)[0].endsWith('.svg')
+  ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)
@@ -687,7 +690,7 @@ export function getImgProps(
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
     style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,

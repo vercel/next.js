@@ -95,7 +95,7 @@ class ClientReferenceDependency extends ModuleDependency {
 const clientFileName = require.resolve("../client.browser.js");
 class ReactFlightWebpackPlugin {
   constructor(options) {
-    this.ssrManifestFilename =
+    this.serverConsumerManifestFilename =
       this.clientManifestFilename =
       this.chunkName =
       this.clientReferences =
@@ -120,8 +120,8 @@ class ReactFlightWebpackPlugin {
       : (this.chunkName = "client[index]");
     this.clientManifestFilename =
       options.clientManifestFilename || "react-client-manifest.json";
-    this.ssrManifestFilename =
-      options.ssrManifestFilename || "react-ssr-manifest.json";
+    this.serverConsumerManifestFilename =
+      options.serverConsumerManifestFilename || "react-ssr-manifest.json";
   }
   apply(compiler) {
     const _this = this;
@@ -156,7 +156,7 @@ class ReactFlightWebpackPlugin {
           ClientReferenceDependency,
           new NullDependency.Template()
         );
-        compilation = parser => {
+        compilation = (parser) => {
           parser.hooks.program.tap("React Server Plugin", () => {
             const module = parser.state.module;
             if (
@@ -189,7 +189,7 @@ class ReactFlightWebpackPlugin {
           .tap("HarmonyModulesPlugin", compilation);
       }
     );
-    compiler.hooks.make.tap("React Server Plugin", compilation => {
+    compiler.hooks.make.tap("React Server Plugin", (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: "React Server Plugin",
@@ -214,7 +214,7 @@ class ReactFlightWebpackPlugin {
                   : "anonymous"
                 : null;
             var resolvedClientFiles = new Set(
-                (resolvedClientReferences || []).map(ref => ref.request)
+                (resolvedClientReferences || []).map((ref) => ref.request)
               ),
               clientManifest = {},
               moduleMap = {};
@@ -226,9 +226,9 @@ class ReactFlightWebpackPlugin {
               moduleMap
             };
             var runtimeChunkFiles = new Set();
-            compilation.entrypoints.forEach(entrypoint => {
+            compilation.entrypoints.forEach((entrypoint) => {
               (entrypoint = entrypoint.getRuntimeChunk()) &&
-                entrypoint.files.forEach(runtimeFile => {
+                entrypoint.files.forEach((runtimeFile) => {
                   runtimeChunkFiles.add(runtimeFile);
                 });
             });
@@ -269,7 +269,7 @@ class ReactFlightWebpackPlugin {
                   const moduleId = compilation.chunkGraph.getModuleId(module);
                   recordModule(moduleId, module);
                   module.modules &&
-                    module.modules.forEach(concatenatedMod => {
+                    module.modules.forEach((concatenatedMod) => {
                       recordModule(moduleId, concatenatedMod);
                     });
                 });
@@ -286,7 +286,7 @@ class ReactFlightWebpackPlugin {
               2
             );
             compilation.emitAsset(
-              _this.ssrManifestFilename,
+              _this.serverConsumerManifestFilename,
               new webpack.sources.RawSource(configuredCrossOriginLoading, !1)
             );
           }
@@ -347,7 +347,7 @@ class ReactFlightWebpackPlugin {
                   },
                   (err2, deps) => {
                     if (err2) return cb(err2);
-                    err2 = deps.map(dep => {
+                    err2 = deps.map((dep) => {
                       var request = path.join(
                         resolvedDirectory,
                         dep.userRequest

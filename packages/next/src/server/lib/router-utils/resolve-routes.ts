@@ -4,7 +4,7 @@ import type { NextConfigComplete } from '../../config-shared'
 import type { RenderServer, initialize } from '../router-server'
 import type { PatchMatcher } from '../../../shared/lib/router/utils/path-match'
 import type { Redirect } from '../../../types'
-import type { Header } from '../../../lib/load-custom-routes'
+import type { Header, Rewrite } from '../../../lib/load-custom-routes'
 import type { UnwrapPromise } from '../../../lib/coalesced-function'
 import type { NextUrlWithParsedQuery } from '../../request-meta'
 
@@ -28,7 +28,6 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
-import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -37,6 +36,10 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
+import { NEXT_ROUTER_STATE_TREE_HEADER } from '../../../client/components/app-router-headers'
+import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
+import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
+import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -214,6 +217,11 @@ export function getResolveRoutes(
           parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
         }
       }
+    } else {
+      // As i18n isn't configured we remove the locale related query params.
+      delete parsedUrl.query.__nextLocale
+      delete parsedUrl.query.__nextDefaultLocale
+      delete parsedUrl.query.__nextInferredLocaleFromDefault
     }
 
     const checkLocaleApi = (pathname: string) => {
@@ -298,9 +306,6 @@ export function getResolveRoutes(
           ? new BasePathPathnameNormalizer(config.basePath)
           : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
-      postponed: config.experimental.ppr
-        ? new PostponedPathnameNormalizer()
-        : undefined,
     }
 
     async function handleRoute(
@@ -386,9 +391,17 @@ export function getResolveRoutes(
               updated = true
               parsedUrl.query.__nextDataReq = '1'
               normalized = normalizers.data.normalize(normalized, true)
-            } else if (normalizers.postponed?.match(normalized)) {
-              updated = true
-              normalized = normalizers.postponed.normalize(normalized, true)
+            }
+
+            if (config.i18n) {
+              const curLocaleResult = normalizeLocalePath(
+                normalized,
+                config.i18n.locales
+              )
+
+              if (curLocaleResult.detectedLocale) {
+                parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              }
             }
 
             // If we updated the pathname, and it had a base path, re-add the
@@ -459,6 +472,9 @@ export function getResolveRoutes(
               throw new Error(`Failed to initialize render server "middleware"`)
             }
 
+            addRequestMeta(req, 'invokePath', '')
+            addRequestMeta(req, 'invokeOutput', '')
+            addRequestMeta(req, 'invokeQuery', {})
             addRequestMeta(req, 'middlewareInvoke', true)
             debug('invoking middleware', req.url, req.headers)
 
@@ -569,6 +585,14 @@ export function getResolveRoutes(
               ) {
                 continue
               }
+
+              // for set-cookie, the header shouldn't be added to the response
+              // as it's only needed for the request to the middleware function.
+              if (key === 'x-middleware-set-cookie') {
+                req.headers[key] = value
+                continue
+              }
+
               if (value) {
                 resHeaders[key] = value
                 req.headers[key] = value
@@ -689,10 +713,34 @@ export function getResolveRoutes(
 
         // handle rewrite
         if (route.destination) {
+          let rewriteParams = params
+
+          try {
+            // An interception rewrite might reference a dynamic param for a route the user
+            // is currently on, which wouldn't be extractable from the matched route params.
+            // This attempts to extract the dynamic params from the provided router state.
+            if (isInterceptionRouteRewrite(route as Rewrite)) {
+              const stateHeader =
+                req.headers[NEXT_ROUTER_STATE_TREE_HEADER.toLowerCase()]
+
+              if (stateHeader) {
+                rewriteParams = {
+                  ...getSelectedParams(
+                    parseAndValidateFlightRouterState(stateHeader)
+                  ),
+                  ...params,
+                }
+              }
+            }
+          } catch (err) {
+            // this is a no-op -- we couldn't extract dynamic params from the provided router state,
+            // so we'll just use the params from the route matcher
+          }
+
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
-            params: params,
+            params: rewriteParams,
             query: parsedUrl.query,
           })
 

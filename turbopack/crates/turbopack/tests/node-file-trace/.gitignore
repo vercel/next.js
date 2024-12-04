@@ -1,0 +1,5 @@
+/node_modules
+dist
+integration/**/dist
+
+!integration/**/node_modules

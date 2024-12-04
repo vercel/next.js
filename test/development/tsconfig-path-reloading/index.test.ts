@@ -44,8 +44,6 @@ describe('tsconfig-path-reloading', () => {
 
       if (addAfterStart) {
         await next.patchFile(tsConfigFile, tsConfigContent)
-        // wait a bit for the file watcher to pick up the change
-        await new Promise((resolve) => setTimeout(resolve, 200))
       }
     })
     afterAll(() => next.destroy())

@@ -15,8 +15,14 @@ export async function verifyAndLint(
   enableWorkerThreads: boolean | undefined,
   telemetry: Telemetry
 ): Promise<void> {
+  let lintWorkers:
+    | (Worker & {
+        runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
+      })
+    | undefined
+
   try {
-    const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+    lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
@@ -37,7 +43,7 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(dir, lintDirs, {
+    const lintResults = await lintWorkers?.runLintCheck(dir, lintDirs, {
       lintDuringBuild: true,
       eslintOptions: {
         cacheLocation,
@@ -63,8 +69,6 @@ export async function verifyAndLint(
     if (lintOutput) {
       console.log(lintOutput)
     }
-
-    lintWorkers.end()
   } catch (err) {
     if (isError(err)) {
       if (err.type === 'CompileError' || err instanceof CompileError) {
@@ -77,5 +81,9 @@ export async function verifyAndLint(
       }
     }
     throw err
+  } finally {
+    try {
+      lintWorkers?.end()
+    } catch {}
   }
 }

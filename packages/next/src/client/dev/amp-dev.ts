@@ -108,7 +108,10 @@ addMessageListener((message) => {
     }
   } catch (err: any) {
     console.warn(
-      '[HMR] Invalid message: ' + message + '\n' + (err?.stack ?? '')
+      '[HMR] Invalid message: ' +
+        JSON.stringify(message) +
+        '\n' +
+        (err?.stack ?? '')
     )
   }
 })

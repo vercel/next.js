@@ -9,7 +9,8 @@ export function getRequiredScripts(
   crossOrigin: undefined | '' | 'anonymous' | 'use-credentials',
   SRIManifest: undefined | Record<string, string>,
   qs: string,
-  nonce: string | undefined
+  nonce: string | undefined,
+  pagePath: string
 ): [
   () => void,
   { src: string; integrity?: string; crossOrigin?: string | undefined },
@@ -25,7 +26,9 @@ export function getRequiredScripts(
     crossOrigin,
   }
 
-  const files = buildManifest.rootMainFiles.map(encodeURIPath)
+  const files = (
+    buildManifest.rootMainFilesTree?.[pagePath] || buildManifest.rootMainFiles
+  ).map(encodeURIPath)
   if (files.length === 0) {
     throw new Error(
       'Invariant: missing bootstrap script. This is a bug in Next.js'

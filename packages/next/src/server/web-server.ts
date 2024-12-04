@@ -1,9 +1,8 @@
 import type { WebNextRequest, WebNextResponse } from './base-http/web'
 import type RenderResult from './render-result'
 import type { NextParsedUrlQuery, NextUrlWithParsedQuery } from './request-meta'
-import type { Params } from '../shared/lib/router/utils/route-matcher'
+import type { Params } from './request/params'
 import type { LoadComponentsReturnType } from './load-components'
-import type { PrerenderManifest } from '../build'
 import type {
   LoadedRenderOpts,
   MiddlewareRoutingItem,
@@ -11,7 +10,7 @@ import type {
   Options,
   RouteHandler,
 } from './base-server'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 
 import { byteLength } from './api-utils/web'
 import BaseServer, { NoFallbackError } from './base-server'
@@ -33,7 +32,9 @@ import type { PAGE_TYPES } from '../lib/page-types'
 import type { Rewrite } from '../lib/load-custom-routes'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../api/constants'
-import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { getEdgeInstrumentationModule } from './web/globals'
+import type { ServerOnInstrumentationRequestError } from './app-render/types'
+import { getEdgePreviewProps } from './web/get-edge-preview-props'
 
 interface WebServerOptions extends Options {
   webServerConfig: {
@@ -49,7 +50,6 @@ interface WebServerOptions extends Options {
       | typeof import('./app-render/app-render').renderToHTMLOrFlight
       | undefined
     incrementalCacheHandler?: any
-    prerenderManifest: DeepReadonly<PrerenderManifest> | undefined
     interceptionRouteRewrites?: Rewrite[]
   }
 }
@@ -80,9 +80,8 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
+      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
-      pagesDir: this.enabledDirectories.pages,
-      appDir: this.enabledDirectories.app,
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -137,19 +136,13 @@ export default class NextWebServer extends BaseServer<
   }
 
   protected getPrerenderManifest() {
-    const { prerenderManifest } = this.serverOptions.webServerConfig
-    if (this.renderOpts?.dev || !prerenderManifest) {
-      return {
-        version: -1 as any, // letting us know this doesn't conform to spec
-        routes: {},
-        dynamicRoutes: {},
-        notFoundRoutes: [],
-        preview: {
-          previewModeId: 'development-id',
-        } as any, // `preview` is special case read in next-dev-server
-      }
+    return {
+      version: -1 as any, // letting us know this doesn't conform to spec
+      routes: {},
+      dynamicRoutes: {},
+      notFoundRoutes: [],
+      preview: getEdgePreviewProps(),
     }
-    return prerenderManifest
   }
 
   protected getNextFontManifest() {
@@ -256,10 +249,15 @@ export default class NextWebServer extends BaseServer<
       res as any,
       pathname,
       query,
+      // Edge runtime does not support ISR/PPR, so we don't need to pass in
+      // the unknown params.
+      null,
       Object.assign(renderOpts, {
         disableOptimizedLoading: true,
         runtime: 'experimental-edge',
-      })
+      }),
+      undefined,
+      false
     )
   }
 
@@ -272,7 +270,7 @@ export default class NextWebServer extends BaseServer<
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
-      swrDelta: SwrDelta | undefined
+      expireTime: ExpireTime | undefined
     }
   ): Promise<void> {
     res.setHeader('X-Edge-Runtime', '1')
@@ -363,10 +361,6 @@ export default class NextWebServer extends BaseServer<
     return false
   }
 
-  protected async getFallback() {
-    return ''
-  }
-
   protected getFontManifest() {
     return undefined
   }
@@ -402,15 +396,31 @@ export default class NextWebServer extends BaseServer<
     return new Set<string>()
   }
 
-  protected async getPrefetchRsc(): Promise<string | null> {
-    return null
-  }
-
   protected getinterceptionRoutePatterns(): RegExp[] {
     return (
       this.serverOptions.webServerConfig.interceptionRouteRewrites?.map(
         (rewrite) => new RegExp(buildCustomRoute('rewrite', rewrite).regex)
       ) ?? []
     )
+  }
+
+  protected async loadInstrumentationModule() {
+    return await getEdgeInstrumentationModule()
+  }
+
+  protected async instrumentationOnRequestError(
+    ...args: Parameters<ServerOnInstrumentationRequestError>
+  ) {
+    await super.instrumentationOnRequestError(...args)
+    const err = args[0]
+
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      typeof __next_log_error__ === 'function'
+    ) {
+      __next_log_error__(err)
+    } else {
+      console.error(err)
+    }
   }
 }

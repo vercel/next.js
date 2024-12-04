@@ -43,11 +43,12 @@ export function useFlightStream<T>(
   }
 
   const newResponse = createFromReadableStream(flightStream, {
-    ssrManifest: {
+    serverConsumerManifest: {
       moduleLoading: clientReferenceManifest.moduleLoading,
       moduleMap: isEdgeRuntime
         ? clientReferenceManifest.edgeSSRModuleMapping
         : clientReferenceManifest.ssrModuleMapping,
+      serverModuleMap: null,
     },
     nonce,
   })
@@ -55,28 +56,6 @@ export function useFlightStream<T>(
   flightResponses.set(flightStream, newResponse)
 
   return newResponse
-}
-
-/**
- * There are times when an SSR render may be finished but the RSC render
- * is ongoing and we need to wait for it to complete to make some determination
- * about how to handle the render. This function will drain the RSC reader and
- * resolve when completed. This will generally require teeing the RSC stream and it
- * should be noted that it will cause all the RSC chunks to queue in the underlying
- * ReadableStream however given Flight currently is a push stream that doesn't respond
- * to backpressure this shouldn't change how much memory is maximally consumed
- */
-export async function flightRenderComplete(
-  flightStream: ReadableStream<Uint8Array>
-): Promise<void> {
-  const flightReader = flightStream.getReader()
-
-  while (true) {
-    const { done } = await flightReader.read()
-    if (done) {
-      return
-    }
-  }
 }
 
 /**
@@ -150,15 +129,25 @@ function writeInitialInstructions(
   scriptStart: string,
   formState: unknown | null
 ) {
-  controller.enqueue(
-    encoder.encode(
-      `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
-      )});self.__next_f.push(${htmlEscapeJsonString(
-        JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
-      )})</script>`
+  if (formState != null) {
+    controller.enqueue(
+      encoder.encode(
+        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+        )});self.__next_f.push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_FORM_STATE, formState])
+        )})</script>`
+      )
     )
-  )
+  } else {
+    controller.enqueue(
+      encoder.encode(
+        `${scriptStart}(self.__next_f=self.__next_f||[]).push(${htmlEscapeJsonString(
+          JSON.stringify([INLINE_FLIGHT_PAYLOAD_BOOTSTRAP])
+        )})</script>`
+      )
+    )
+  }
 }
 
 function writeFlightDataInstruction(

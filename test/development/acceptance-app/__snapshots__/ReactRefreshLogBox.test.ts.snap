@@ -76,6 +76,27 @@ exports[`ReactRefreshLogBox app default module init error not shown 1`] = `
   6 |     return <h1>Default Export</h1>;"
 `;
 
+exports[`ReactRefreshLogBox app default should hide unrelated frames in stack trace with nodejs internal calls 1`] = `
+"app/page.js (2:3) @ Page
+
+  1 | export default function Page() {
+> 2 |   new URL("/", "invalid");
+    |   ^
+  3 | }"
+`;
+
+exports[`ReactRefreshLogBox app default should hide unrelated frames in stack trace with unknown anonymous calls 1`] = `
+"app/page.js (4:13) @ eval
+
+  2 |   try {
+  3 |     (function() {
+> 4 |       throw new Error("This is an error from an anonymous function");
+    |             ^
+  5 |     })();
+  6 |   } catch (e) {
+  7 |     throw e"
+`;
+
 exports[`ReactRefreshLogBox app default should strip whitespace correctly with newline 1`] = `
 "index.js (7:15) @ onClick
 
@@ -148,7 +169,7 @@ exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 6`
 exports[`ReactRefreshLogBox app turbo logbox: anchors links in error messages 7`] = `"https://nextjs.org/"`;
 
 exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
-"index.js (3:7) @ <unknown>
+"index.js (3:7) @ [project]/index.js [app-client] (ecmascript)
 
   1 | // top offset for snapshot
   2 | import * as React from 'react';
@@ -157,6 +178,27 @@ exports[`ReactRefreshLogBox app turbo module init error not shown 1`] = `
   4 | class ClassDefault extends React.Component {
   5 |   render() {
   6 |     return <h1>Default Export</h1>;"
+`;
+
+exports[`ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with nodejs internal calls 1`] = `
+"app/page.js (2:3) @ Page
+
+  1 | export default function Page() {
+> 2 |   new URL("/", "invalid");
+    |   ^
+  3 | }"
+`;
+
+exports[`ReactRefreshLogBox app turbo should hide unrelated frames in stack trace with unknown anonymous calls 1`] = `
+"app/page.js (4:13) @ <anonymous>
+
+  2 |   try {
+  3 |     (function() {
+> 4 |       throw new Error("This is an error from an anonymous function");
+    |             ^
+  5 |     })();
+  6 |   } catch (e) {
+  7 |     throw e"
 `;
 
 exports[`ReactRefreshLogBox app turbo should strip whitespace correctly with newline 1`] = `

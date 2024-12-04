@@ -6,6 +6,7 @@ import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
 import type { RouteMatch } from './route-matches/route-match'
 import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { ServerComponentsHmrCache } from './response-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -69,6 +70,11 @@ export interface RequestMeta {
   incrementalCache?: any
 
   /**
+   * The server components HMR cache, only for dev.
+   */
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
    * True when the request is for the prefetch flight data.
    */
   isPrefetchRSCRequest?: true
@@ -129,6 +135,11 @@ export interface RequestMeta {
    * Whether the request is a middleware invocation
    */
   middlewareInvoke?: boolean
+
+  /**
+   * Whether the default route matches were set on the request during routing.
+   */
+  didSetDefaultRouteMatches?: boolean
 }
 
 /**

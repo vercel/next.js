@@ -19,7 +19,8 @@ export type FetchMetric = {
   method: string
   status: number
   cacheReason: string
-  cacheStatus: 'hit' | 'miss' | 'skip'
+  cacheStatus: 'hit' | 'miss' | 'skip' | 'hmr'
+  cacheWarning?: string
 }
 
 export type FetchMetrics = Array<FetchMetric>
@@ -27,7 +28,7 @@ export type FetchMetrics = Array<FetchMetric>
 export abstract class BaseNextRequest<Body = any> {
   protected _cookies: NextApiRequestCookies | undefined
   public abstract headers: IncomingHttpHeaders
-  public abstract fetchMetrics?: FetchMetric[]
+  public abstract fetchMetrics: FetchMetric[] | undefined
 
   constructor(
     public method: string,

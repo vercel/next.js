@@ -1,0 +1,2 @@
+require("jugglingdb");
+module.exports = () => {};

@@ -8,12 +8,62 @@ import {
   killApp,
   nextBuild,
   nextStart,
-  getBuildManifest,
+  retry,
 } from 'next-test-utils'
-import fs from 'fs-extra'
+import webdriver from 'next-webdriver'
+import { check } from 'next-test-utils'
 
-// test suite
-import clientNavigation from './client-navigation'
+const clientNavigation = (context, isProd = false) => {
+  describe('Client Navigation 404', () => {
+    describe('should show 404 upon client replacestate', () => {
+      it('should navigate the page', async () => {
+        const browser = await webdriver(context.appPort, '/asd')
+        const serverCode = await browser
+          .waitForElementByCss('#errorStatusCode')
+          .text()
+        await browser.waitForElementByCss('#errorGoHome').click()
+        await browser.waitForElementByCss('#hellom8').back()
+        const clientCode = await browser
+          .waitForElementByCss('#errorStatusCode')
+          .text()
+
+        expect({ serverCode, clientCode }).toMatchObject({
+          serverCode: '404',
+          clientCode: '404',
+        })
+        await browser.close()
+      })
+    })
+
+    it('should hard navigate to URL on failing to load bundle', async () => {
+      const browser = await webdriver(context.appPort, '/invalid-link')
+      await browser.eval(() => (window.beforeNav = 'hi'))
+      await browser.elementByCss('#to-nonexistent').click()
+      await check(() => browser.elementByCss('#errorStatusCode').text(), /404/)
+      expect(await browser.eval(() => window.beforeNav)).not.toBe('hi')
+    })
+
+    if (isProd) {
+      it('should hard navigate to URL on failing to load missing bundle', async () => {
+        const browser = await webdriver(context.appPort, '/to-missing-link', {
+          beforePageLoad(page) {
+            page.route('**/pages/missing**', (route) => {
+              route.abort('internetdisconnected')
+            })
+          },
+        })
+        await browser.eval(() => (window.beforeNav = 'hi'))
+        await browser.elementByCss('#to-missing').click()
+
+        await retry(async () => {
+          expect(await browser.url()).toContain('/missing')
+        })
+        expect(await browser.elementByCss('#missing').text()).toBe('poof')
+        expect(await browser.eval(() => window.beforeNav)).not.toBe('hi')
+      })
+    }
+  })
+}
 
 const context = {}
 const appDir = join(__dirname, '../')
@@ -45,15 +95,6 @@ describe('Client 404', () => {
         await nextBuild(appDir)
         context.appPort = await findPort()
         context.server = await nextStart(appDir, context.appPort)
-
-        const manifest = await getBuildManifest(appDir)
-        const files = manifest.pages['/missing'].filter((d) =>
-          /static[\\/]chunks[\\/]pages/.test(d)
-        )
-        if (files.length < 1) {
-          throw new Error('oops!')
-        }
-        await Promise.all(files.map((f) => fs.remove(join(appDir, '.next', f))))
       })
       afterAll(() => killApp(context.server))
 

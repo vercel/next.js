@@ -2,12 +2,25 @@
  * @type import('next').NextConfig
  */
 module.exports = {
+  env: {
+    LEGACY_ENV_KEY: '1',
+  },
   experimental: {
     clientRouterFilterRedirects: true,
     parallelServerCompiles: true,
     parallelServerBuildTraces: true,
     webpackBuildWorker: true,
-    flyingShuttle: Boolean(process.env.FLYING_SHUTTLE),
+    appNavFailHandling: Boolean(
+      process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY ||
+        process.env.NEXT_PRIVATE_FLYING_SHUTTLE
+    ),
+    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE_STORE_ONLY)
+      ? { mode: 'store-only' }
+      : Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
+        ? {
+            mode: 'full',
+          }
+        : undefined,
   },
   // output: 'standalone',
   rewrites: async () => {

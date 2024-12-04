@@ -38,7 +38,7 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('a').click()
 
-    await browser.elementByCss('button').click()
+    await browser.elementByCss('#submit').click()
 
     await retry(async () => {
       expect(await browser.elementById('result').text()).toBe('Added to cart!')

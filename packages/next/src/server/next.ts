@@ -4,15 +4,14 @@ import type {
   Options as ServerOptions,
 } from './next-server'
 import type { UrlWithParsedQuery } from 'url'
-import type { NextConfigComplete } from './config-shared'
 import type { IncomingMessage, ServerResponse } from 'http'
+import type { Duplex } from 'stream'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import type { WorkerRequestHandler, WorkerUpgradeHandler } from './lib/types'
 
 import './require-hook'
 import './node-polyfill-crypto'
 
-import type { default as Server } from './next-server'
+import type { default as NextNodeServer } from './next-server'
 import * as log from '../build/output/log'
 import loadConfig from './config'
 import path, { resolve } from 'path'
@@ -25,9 +24,11 @@ import { PHASE_PRODUCTION_SERVER } from '../shared/lib/constants'
 import { getTracer } from './lib/trace/tracer'
 import { NextServerSpan } from './lib/trace/constants'
 import { formatUrl } from '../shared/lib/router/utils/format-url'
-import { getNodeDebugType } from './lib/utils'
+import type { ServerFields } from './lib/router-utils/setup-dev-bundler'
+import type { ServerInitResult } from './lib/render-server'
+import { AsyncCallbackSet } from './lib/async-callback-set'
 
-let ServerImpl: typeof Server
+let ServerImpl: typeof NextNodeServer
 
 const getServerImpl = async () => {
   if (ServerImpl === undefined) {
@@ -41,29 +42,70 @@ export type NextServerOptions = Omit<
   // This is assigned in this server abstraction.
   'conf'
 > &
-  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>> & {
-    preloadedConfig?: NextConfigComplete
-    internal_setStandaloneConfig?: boolean
-  }
+  Partial<Pick<ServerOptions | DevServerOptions, 'conf'>>
 
-export interface RequestHandler {
-  (
-    req: IncomingMessage,
-    res: ServerResponse,
-    parsedUrl?: NextUrlWithParsedQuery | undefined
-  ): Promise<void>
-}
+export type RequestHandler = (
+  req: IncomingMessage,
+  res: ServerResponse,
+  parsedUrl?: NextUrlWithParsedQuery | undefined
+) => Promise<void>
+
+export type UpgradeHandler = (
+  req: IncomingMessage,
+  socket: Duplex,
+  head: Buffer
+) => Promise<void>
 
 const SYMBOL_LOAD_CONFIG = Symbol('next.load_config')
 
-export class NextServer {
-  private serverPromise?: Promise<Server>
-  private server?: Server
+interface NextWrapperServer {
+  // NOTE: the methods/properties here are the public API for custom servers.
+  // Consider backwards compatibilty when changing something here!
+
+  options: NextServerOptions
+  hostname: string | undefined
+  port: number | undefined
+
+  getRequestHandler(): RequestHandler
+  prepare(serverFields?: ServerFields): Promise<void>
+  setAssetPrefix(assetPrefix: string): void
+  close(): Promise<void>
+
+  // used internally
+  getUpgradeHandler(): UpgradeHandler
+
+  // legacy methods that we left exposed in the past
+
+  logError(...args: Parameters<NextNodeServer['logError']>): void
+
+  render(
+    ...args: Parameters<NextNodeServer['render']>
+  ): ReturnType<NextNodeServer['render']>
+
+  renderToHTML(
+    ...args: Parameters<NextNodeServer['renderToHTML']>
+  ): ReturnType<NextNodeServer['renderToHTML']>
+
+  renderError(
+    ...args: Parameters<NextNodeServer['renderError']>
+  ): ReturnType<NextNodeServer['renderError']>
+
+  renderErrorToHTML(
+    ...args: Parameters<NextNodeServer['renderErrorToHTML']>
+  ): ReturnType<NextNodeServer['renderErrorToHTML']>
+
+  render404(
+    ...args: Parameters<NextNodeServer['render404']>
+  ): ReturnType<NextNodeServer['render404']>
+}
+
+/** The wrapper server used by `next start` */
+export class NextServer implements NextWrapperServer {
+  private serverPromise?: Promise<NextNodeServer>
+  private server?: NextNodeServer
   private reqHandler?: NodeRequestHandler
   private reqHandlerPromise?: Promise<NodeRequestHandler>
   private preparedAssetPrefix?: string
-
-  protected standaloneMode?: boolean
 
   public options: NextServerOptions
 
@@ -92,7 +134,7 @@ export class NextServer {
     }
   }
 
-  getUpgradeHandler() {
+  getUpgradeHandler(): UpgradeHandler {
     return async (req: IncomingMessage, socket: any, head: any) => {
       const server = await this.getServer()
       // @ts-expect-error we mark this as protected so it
@@ -109,40 +151,40 @@ export class NextServer {
     }
   }
 
-  logError(...args: Parameters<Server['logError']>) {
+  logError(...args: Parameters<NextWrapperServer['logError']>) {
     if (this.server) {
       this.server.logError(...args)
     }
   }
 
-  async render(...args: Parameters<Server['render']>) {
+  async render(...args: Parameters<NextWrapperServer['render']>) {
     const server = await this.getServer()
     return server.render(...args)
   }
 
-  async renderToHTML(...args: Parameters<Server['renderToHTML']>) {
+  async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
     const server = await this.getServer()
     return server.renderToHTML(...args)
   }
 
-  async renderError(...args: Parameters<Server['renderError']>) {
+  async renderError(...args: Parameters<NextWrapperServer['renderError']>) {
     const server = await this.getServer()
     return server.renderError(...args)
   }
 
-  async renderErrorToHTML(...args: Parameters<Server['renderErrorToHTML']>) {
+  async renderErrorToHTML(
+    ...args: Parameters<NextWrapperServer['renderErrorToHTML']>
+  ) {
     const server = await this.getServer()
     return server.renderErrorToHTML(...args)
   }
 
-  async render404(...args: Parameters<Server['render404']>) {
+  async render404(...args: Parameters<NextWrapperServer['render404']>) {
     const server = await this.getServer()
     return server.render404(...args)
   }
 
-  async prepare(serverFields?: any) {
-    if (this.standaloneMode) return
-
+  async prepare(serverFields?: ServerFields) {
     const server = await this.getServer()
 
     if (serverFields) {
@@ -156,16 +198,18 @@ export class NextServer {
   }
 
   async close() {
-    const server = await this.getServer()
-    return (server as any).close()
+    if (this.server) {
+      await this.server.close()
+    }
   }
 
   private async createServer(
     options: ServerOptions | DevServerOptions
-  ): Promise<Server> {
-    let ServerImplementation: typeof Server
+  ): Promise<NextNodeServer> {
+    let ServerImplementation: typeof NextNodeServer
     if (options.dev) {
-      ServerImplementation = require('./dev/next-dev-server').default
+      ServerImplementation = require('./dev/next-dev-server')
+        .default as typeof import('./dev/next-dev-server').default
     } else {
       ServerImplementation = await getServerImpl()
     }
@@ -177,16 +221,14 @@ export class NextServer {
   private async [SYMBOL_LOAD_CONFIG]() {
     const dir = resolve(this.options.dir || '.')
 
-    const config =
-      this.options.preloadedConfig ||
-      (await loadConfig(
-        this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
-        dir,
-        {
-          customConfig: this.options.conf,
-          silent: true,
-        }
-      ))
+    const config = await loadConfig(
+      this.options.dev ? PHASE_DEVELOPMENT_SERVER : PHASE_PRODUCTION_SERVER,
+      dir,
+      {
+        customConfig: this.options.conf,
+        silent: true,
+      }
+    )
 
     // check serialized build config when available
     if (process.env.NODE_ENV === 'production') {
@@ -211,10 +253,6 @@ export class NextServer {
   private async getServer() {
     if (!this.serverPromise) {
       this.serverPromise = this[SYMBOL_LOAD_CONFIG]().then(async (conf) => {
-        if (this.standaloneMode) {
-          process.env.__NEXT_PRIVATE_STANDALONE_CONFIG = JSON.stringify(conf)
-        }
-
         if (!this.options.dev) {
           if (conf.output === 'standalone') {
             if (!process.env.__NEXT_PRIVATE_STANDALONE_CONFIG) {
@@ -260,35 +298,66 @@ export class NextServer {
   }
 }
 
-class NextCustomServer extends NextServer {
-  protected standaloneMode = true
+/** The wrapper server used for `import next from "next" (in a custom server)` */
+class NextCustomServer implements NextWrapperServer {
   private didWebSocketSetup: boolean = false
+  protected cleanupListeners?: AsyncCallbackSet
 
-  // @ts-expect-error These are initialized in prepare()
-  protected requestHandler: WorkerRequestHandler
-  // @ts-expect-error These are initialized in prepare()
-  protected upgradeHandler: WorkerUpgradeHandler
-  // @ts-expect-error These are initialized in prepare()
-  protected renderServer: NextServer
+  protected init?: ServerInitResult
+
+  public options: NextServerOptions
+
+  constructor(options: NextServerOptions) {
+    this.options = options
+  }
+
+  protected getInit() {
+    if (!this.init) {
+      throw new Error(
+        'prepare() must be called before performing this operation'
+      )
+    }
+    return this.init
+  }
+
+  protected get requestHandler() {
+    return this.getInit().requestHandler
+  }
+  protected get upgradeHandler() {
+    return this.getInit().upgradeHandler
+  }
+  protected get server() {
+    return this.getInit().server
+  }
+
+  get hostname() {
+    return this.options.hostname
+  }
+
+  get port() {
+    return this.options.port
+  }
 
   async prepare() {
     const { getRequestHandlers } =
       require('./lib/start-server') as typeof import('./lib/start-server')
 
-    const isNodeDebugging = typeof getNodeDebugType() === 'string'
+    let onDevServerCleanup: AsyncCallbackSet['add'] | undefined
+    if (this.options.dev) {
+      this.cleanupListeners = new AsyncCallbackSet()
+      onDevServerCleanup = this.cleanupListeners.add.bind(this.cleanupListeners)
+    }
 
     const initResult = await getRequestHandlers({
       dir: this.options.dir!,
       port: this.options.port || 3000,
       isDev: !!this.options.dev,
+      onDevServerCleanup,
       hostname: this.options.hostname || 'localhost',
       minimalMode: this.options.minimalMode,
-      isNodeDebugging,
       quiet: this.options.quiet,
     })
-    this.requestHandler = initResult[0]
-    this.upgradeHandler = initResult[1]
-    this.renderServer = initResult[2]
+    this.init = initResult
   }
 
   private setupWebSocketHandler(
@@ -307,7 +376,7 @@ class NextCustomServer extends NextServer {
     }
   }
 
-  getRequestHandler() {
+  getRequestHandler(): RequestHandler {
     return async (
       req: IncomingMessage,
       res: ServerResponse,
@@ -323,9 +392,9 @@ class NextCustomServer extends NextServer {
     }
   }
 
-  async render(...args: Parameters<Server['render']>) {
+  async render(...args: Parameters<NextWrapperServer['render']>) {
     let [req, res, pathname, query, parsedUrl] = args
-    this.setupWebSocketHandler(this.options.httpServer, req as any)
+    this.setupWebSocketHandler(this.options.httpServer, req as IncomingMessage)
 
     if (!pathname.startsWith('/')) {
       console.error(`Cannot render page with path "${pathname}"`)
@@ -339,18 +408,58 @@ class NextCustomServer extends NextServer {
       query,
     })
 
-    await this.requestHandler(req as any, res as any)
+    await this.requestHandler(req as IncomingMessage, res as ServerResponse)
     return
   }
 
   setAssetPrefix(assetPrefix: string): void {
-    super.setAssetPrefix(assetPrefix)
-    this.renderServer.setAssetPrefix(assetPrefix)
+    this.server.setAssetPrefix(assetPrefix)
+  }
+
+  getUpgradeHandler(): UpgradeHandler {
+    return this.server.getUpgradeHandler()
+  }
+
+  logError(...args: Parameters<NextWrapperServer['logError']>) {
+    this.server.logError(...args)
+  }
+
+  async renderToHTML(...args: Parameters<NextWrapperServer['renderToHTML']>) {
+    return this.server.renderToHTML(...args)
+  }
+
+  async renderError(...args: Parameters<NextWrapperServer['renderError']>) {
+    return this.server.renderError(...args)
+  }
+
+  async renderErrorToHTML(
+    ...args: Parameters<NextWrapperServer['renderErrorToHTML']>
+  ) {
+    return this.server.renderErrorToHTML(...args)
+  }
+
+  async render404(...args: Parameters<NextWrapperServer['render404']>) {
+    return this.server.render404(...args)
+  }
+
+  async close() {
+    await Promise.allSettled([
+      this.init?.server.close(),
+      this.cleanupListeners?.runAll(),
+    ])
   }
 }
 
 // This file is used for when users run `require('next')`
-function createServer(options: NextServerOptions): NextServer {
+function createServer(
+  options: NextServerOptions & {
+    turbo?: boolean
+    turbopack?: boolean
+  }
+): NextWrapperServer {
+  if (options && (options.turbo || options.turbopack)) {
+    process.env.TURBOPACK = '1'
+  }
   // The package is used as a TypeScript plugin.
   if (
     options &&

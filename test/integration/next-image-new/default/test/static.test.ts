@@ -250,7 +250,7 @@ describe('Build Error Tests', () => {
           "Module not found: Can't resolve '../public/foo/test-rect-broken.jpg"
         )
         // should contain the importing module
-        expect(stderr).toContain('./pages/static-img.js')
+        expect(stderr).toContain('pages/static-img.js')
         // should contain a import trace
         expect(stderr).not.toContain('Import trace for requested module')
       })
@@ -269,8 +269,8 @@ describe('Static Image Component Tests', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(false)
     }
@@ -285,8 +285,8 @@ describe('Static Image Component Tests', () => {
         $ = cheerio.load(html)
         browser = await webdriver(appPort, '/static-img')
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests(true)
     }

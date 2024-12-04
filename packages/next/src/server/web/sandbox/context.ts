@@ -21,6 +21,8 @@ import AssertImplementation from 'node:assert'
 import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 import { intervalsManager, timeoutsManager } from './resource-managers'
+import { createLocalRequestContext } from '../../after/builtin-request-context'
+import { patchErrorInspectEdgeLite } from '../../patch-error-inspect'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -28,11 +30,12 @@ interface ModuleContext {
   warnedEvals: Set<string>
 }
 
-let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware').getServerError
+let getServerError: typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack').getServerError
 let decorateServerError: typeof import('../../../shared/lib/error-source').decorateServerError
 
 if (process.env.NODE_ENV === 'development') {
-  const middleware = require('../../../client/components/react-dev-overlay/server/middleware')
+  const middleware =
+    require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
   getServerError = middleware.getServerError
   decorateServerError =
     require('../../../shared/lib/error-source').decorateServerError
@@ -243,6 +246,8 @@ export const requestStore = new AsyncLocalStorage<{
   headers: Headers
 }>()
 
+export const edgeSandboxNextRequestContext = createLocalRequestContext()
+
 /**
  * Create a module cache specific for the provided parameters. It includes
  * a runtime context, require cache and paths cache.
@@ -452,6 +457,16 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
       context.clearTimeout = (timeout: number) =>
         timeoutsManager.remove(timeout)
 
+      // Duplicated from packages/next/src/server/after/builtin-request-context.ts
+      // because we need to use the sandboxed `Symbol.for`, not the one from the outside
+      const NEXT_REQUEST_CONTEXT_SYMBOL = context.Symbol.for(
+        '@next/request-context'
+      )
+      Object.defineProperty(context, NEXT_REQUEST_CONTEXT_SYMBOL, {
+        enumerable: false,
+        value: edgeSandboxNextRequestContext,
+      })
+
       return context
     },
   })
@@ -463,6 +478,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     'unhandledrejection',
     decorateUnhandledRejection
   )
+
+  patchErrorInspectEdgeLite(runtime.context.Error)
 
   return {
     runtime,

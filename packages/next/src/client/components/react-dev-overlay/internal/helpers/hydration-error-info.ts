@@ -32,24 +32,47 @@ const textMismatchWarning =
   'Warning: Text content did not match. Server: "%s" Client: "%s"%s'
 
 export const getHydrationWarningType = (
-  msg: NullableText
+  message: NullableText
 ): 'tag' | 'text' | 'text-in-tag' => {
-  if (isHtmlTagsWarning(msg)) return 'tag'
-  if (isTextInTagsMismatchWarning(msg)) return 'text-in-tag'
+  if (typeof message !== 'string') {
+    // TODO: Doesn't make sense to treat no message as a hydration error message.
+    // We should bail out somewhere earlier.
+    return 'text'
+  }
+
+  const normalizedMessage = message.startsWith('Warning: ')
+    ? message
+    : `Warning: ${message}`
+
+  if (isHtmlTagsWarning(normalizedMessage)) return 'tag'
+  if (isTextInTagsMismatchWarning(normalizedMessage)) return 'text-in-tag'
+
   return 'text'
 }
 
-const isHtmlTagsWarning = (msg: NullableText) =>
-  Boolean(msg && htmlTagsWarnings.has(msg))
+const isHtmlTagsWarning = (message: string) => htmlTagsWarnings.has(message)
 
-const isTextMismatchWarning = (msg: NullableText) => textMismatchWarning === msg
-const isTextInTagsMismatchWarning = (msg: NullableText) =>
-  Boolean(msg && textAndTagsMismatchWarnings.has(msg))
+const isTextMismatchWarning = (message: string) =>
+  textMismatchWarning === message
+const isTextInTagsMismatchWarning = (msg: string) =>
+  textAndTagsMismatchWarnings.has(msg)
 
-const isKnownHydrationWarning = (msg: NullableText) =>
-  isHtmlTagsWarning(msg) ||
-  isTextInTagsMismatchWarning(msg) ||
-  isTextMismatchWarning(msg)
+const isKnownHydrationWarning = (message: NullableText) => {
+  if (typeof message !== 'string') {
+    return false
+  }
+  // React 18 has the `Warning: ` prefix.
+  // React 19 does not.
+  const normalizedMessage = message.startsWith('Warning: ')
+    ? message
+    : `Warning: ${message}`
+
+  return (
+    isHtmlTagsWarning(normalizedMessage) ||
+    isTextInTagsMismatchWarning(normalizedMessage) ||
+    isTextMismatchWarning(normalizedMessage)
+  )
+}
 
 export const getReactHydrationDiffSegments = (msg: NullableText) => {
   if (msg) {
@@ -65,22 +88,18 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
  * When the hydration runtime error is thrown, the message and component stack are added to the error.
  * This results in a more helpful error message in the error overlay.
  */
-export function patchConsoleError() {
-  const prev = console.error
-  console.error = function (msg, serverContent, clientContent, componentStack) {
-    if (isKnownHydrationWarning(msg)) {
-      hydrationErrorState.warning = [
-        // remove the last %s from the message
-        msg,
-        serverContent,
-        clientContent,
-      ]
-      hydrationErrorState.componentStack = componentStack
-      hydrationErrorState.serverContent = serverContent
-      hydrationErrorState.clientContent = clientContent
-    }
 
-    // @ts-expect-error argument is defined
-    prev.apply(console, arguments)
+export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
+  const [msg, serverContent, clientContent, componentStack] = args
+  if (isKnownHydrationWarning(msg)) {
+    hydrationErrorState.warning = [
+      // remove the last %s from the message
+      msg,
+      serverContent,
+      clientContent,
+    ]
+    hydrationErrorState.componentStack = componentStack
+    hydrationErrorState.serverContent = serverContent
+    hydrationErrorState.clientContent = clientContent
   }
 }

@@ -1,11 +1,9 @@
 import type { ParsedUrlQuery } from 'querystring'
-import type {
-  AppRenderContext,
-  GetDynamicParamFromSegment,
-} from '../../server/app-render/app-render'
+import type { GetDynamicParamFromSegment } from '../../server/app-render/app-render'
 import type { LoaderTree } from '../../server/lib/app-dir-module'
+import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
-import React from 'react'
+import { cache, cloneElement } from 'react'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -13,6 +11,7 @@ import {
   BasicMeta,
   ViewportMeta,
   VerificationMeta,
+  FacebookMeta,
 } from './generate/basic'
 import { AlternatesMetadata } from './generate/alternate'
 import {
@@ -21,29 +20,24 @@ import {
   AppLinksMeta,
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
-import { resolveMetadata } from './resolve-metadata'
+import {
+  resolveMetadataItems,
+  accumulateMetadata,
+  accumulateViewport,
+  type MetadataErrorType,
+} from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import type {
   ResolvedMetadata,
   ResolvedViewport,
 } from './types/metadata-interface'
-import {
-  createDefaultMetadata,
-  createDefaultViewport,
-} from './default-metadata'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
-
-export function createMetadataContext(
-  pathname: string,
-  renderOpts: AppRenderContext['renderOpts']
-): MetadataContext {
-  return {
-    pathname,
-    trailingSlash: renderOpts.trailingSlash,
-    isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
-  }
-}
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import {
+  METADATA_BOUNDARY_NAME,
+  VIEWPORT_BOUNDARY_NAME,
+} from './metadata-constants'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -53,111 +47,264 @@ export function createMetadataContext(
 // and the error will be caught by the error boundary and trigger fallbacks.
 export function createMetadataComponents({
   tree,
-  query,
+  searchParams,
   metadataContext,
   getDynamicParamFromSegment,
   appUsingSizeAdjustment,
   errorType,
-  createDynamicallyTrackedSearchParams,
+  createServerParamsForMetadata,
+  workStore,
+  MetadataBoundary,
+  ViewportBoundary,
 }: {
   tree: LoaderTree
-  query: ParsedUrlQuery
+  searchParams: Promise<ParsedUrlQuery>
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
-  errorType?: 'not-found' | 'redirect'
-  createDynamicallyTrackedSearchParams: (
-    searchParams: ParsedUrlQuery
-  ) => ParsedUrlQuery
-}): [React.ComponentType, React.ComponentType] {
-  let resolve: (value: Error | undefined) => void | undefined
-  // Only use promise.resolve here to avoid unhandled rejections
-  const metadataErrorResolving = new Promise<Error | undefined>((res) => {
-    resolve = res
-  })
-
-  async function MetadataTree() {
-    const defaultMetadata = createDefaultMetadata()
-    const defaultViewport = createDefaultViewport()
-    let metadata: ResolvedMetadata | undefined = defaultMetadata
-    let viewport: ResolvedViewport | undefined = defaultViewport
-    let error: any
-    const errorMetadataItem: [null, null, null] = [null, null, null]
-    const errorConvention = errorType === 'redirect' ? undefined : errorType
-    const searchParams = createDynamicallyTrackedSearchParams(query)
-
-    const [resolvedError, resolvedMetadata, resolvedViewport] =
-      await resolveMetadata({
-        tree,
-        parentParams: {},
-        metadataItems: [],
-        errorMetadataItem,
-        searchParams,
-        getDynamicParamFromSegment,
-        errorConvention,
-        metadataContext,
-      })
-    if (!resolvedError) {
-      viewport = resolvedViewport
-      metadata = resolvedMetadata
-      resolve(undefined)
-    } else {
-      error = resolvedError
-      // If a not-found error is triggered during metadata resolution, we want to capture the metadata
-      // for the not-found route instead of whatever triggered the error. For all error types, we resolve an
-      // error, which will cause the outlet to throw it so it'll be handled by an error boundary
-      // (either an actual error, or an internal error that renders UI such as the NotFoundBoundary).
-      if (!errorType && isNotFoundError(resolvedError)) {
-        const [notFoundMetadataError, notFoundMetadata, notFoundViewport] =
-          await resolveMetadata({
-            tree,
-            parentParams: {},
-            metadataItems: [],
-            errorMetadataItem,
-            searchParams,
-            getDynamicParamFromSegment,
-            errorConvention: 'not-found',
-            metadataContext,
-          })
-        viewport = notFoundViewport
-        metadata = notFoundMetadata
-        error = notFoundMetadataError || error
-      }
-      resolve(error)
-    }
-
-    const elements = MetaFilter([
-      ViewportMeta({ viewport: viewport }),
-      BasicMeta({ metadata }),
-      AlternatesMetadata({ alternates: metadata.alternates }),
-      ItunesMeta({ itunes: metadata.itunes }),
-      FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
-      VerificationMeta({ verification: metadata.verification }),
-      AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
-      OpenGraphMetadata({ openGraph: metadata.openGraph }),
-      TwitterMetadata({ twitter: metadata.twitter }),
-      AppLinksMeta({ appLinks: metadata.appLinks }),
-      IconsMetadata({ icons: metadata.icons }),
-    ])
-
-    if (appUsingSizeAdjustment) elements.push(<meta name="next-size-adjust" />)
-
+  errorType?: MetadataErrorType | 'redirect'
+  createServerParamsForMetadata: CreateServerParamsForMetadata
+  workStore: WorkStore
+  MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
+  ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
+}): [React.ComponentType, () => Promise<void>] {
+  function MetadataRoot() {
     return (
       <>
-        {elements.map((el, index) => {
-          return React.cloneElement(el as React.ReactElement, { key: index })
-        })}
+        <MetadataBoundary>
+          <Metadata />
+        </MetadataBoundary>
+        <ViewportBoundary>
+          <Viewport />
+        </ViewportBoundary>
+        {appUsingSizeAdjustment ? (
+          <meta name="next-size-adjust" content="" />
+        ) : null}
       </>
     )
   }
 
-  async function MetadataOutlet() {
-    const error = await metadataErrorResolving
-    if (error) {
-      throw error
-    }
-    return null
+  async function viewport() {
+    return getResolvedViewport(
+      tree,
+      searchParams,
+      getDynamicParamFromSegment,
+      createServerParamsForMetadata,
+      workStore,
+      errorType
+    )
   }
 
-  return [MetadataTree, MetadataOutlet]
+  async function Viewport() {
+    try {
+      return await viewport()
+    } catch (error) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
+        try {
+          return await getNotFoundViewport(
+            tree,
+            searchParams,
+            getDynamicParamFromSegment,
+            createServerParamsForMetadata,
+            workStore
+          )
+        } catch {}
+      }
+      // We don't actually want to error in this component. We will
+      // also error in the MetadataOutlet which causes the error to
+      // bubble from the right position in the page to be caught by the
+      // appropriate boundaries
+      return null
+    }
+  }
+  Viewport.displayName = VIEWPORT_BOUNDARY_NAME
+
+  async function metadata() {
+    return getResolvedMetadata(
+      tree,
+      searchParams,
+      getDynamicParamFromSegment,
+      metadataContext,
+      createServerParamsForMetadata,
+      workStore,
+      errorType
+    )
+  }
+
+  async function Metadata() {
+    try {
+      return await metadata()
+    } catch (error) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
+        try {
+          return await getNotFoundMetadata(
+            tree,
+            searchParams,
+            getDynamicParamFromSegment,
+            metadataContext,
+            createServerParamsForMetadata,
+            workStore
+          )
+        } catch {}
+      }
+      // We don't actually want to error in this component. We will
+      // also error in the MetadataOutlet which causes the error to
+      // bubble from the right position in the page to be caught by the
+      // appropriate boundaries
+      return null
+    }
+  }
+  Metadata.displayName = METADATA_BOUNDARY_NAME
+
+  async function getMetadataAndViewportReady(): Promise<void> {
+    await viewport()
+    await metadata()
+    return undefined
+  }
+
+  return [MetadataRoot, getMetadataAndViewportReady]
+}
+
+const getResolvedMetadata = cache(getResolvedMetadataImpl)
+async function getResolvedMetadataImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  const errorConvention = errorType === 'redirect' ? undefined : errorType
+
+  const metadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+  const elements: Array<React.ReactNode> = createMetadataElements(
+    await accumulateMetadata(metadataItems, metadataContext)
+  )
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+const getNotFoundMetadata = cache(getNotFoundMetadataImpl)
+async function getNotFoundMetadataImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore
+): Promise<React.ReactNode> {
+  const notFoundErrorConvention = 'not-found'
+  const notFoundMetadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    notFoundErrorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+
+  const elements: Array<React.ReactNode> = createMetadataElements(
+    await accumulateMetadata(notFoundMetadataItems, metadataContext)
+  )
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+const getResolvedViewport = cache(getResolvedViewportImpl)
+async function getResolvedViewportImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  const errorConvention = errorType === 'redirect' ? undefined : errorType
+
+  const metadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+  const elements: Array<React.ReactNode> = createViewportElements(
+    await accumulateViewport(metadataItems)
+  )
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+const getNotFoundViewport = cache(getNotFoundViewportImpl)
+async function getNotFoundViewportImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore
+): Promise<React.ReactNode> {
+  const notFoundErrorConvention = 'not-found'
+  const notFoundMetadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    notFoundErrorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+
+  const elements: Array<React.ReactNode> = createViewportElements(
+    await accumulateViewport(notFoundMetadataItems)
+  )
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+function createMetadataElements(metadata: ResolvedMetadata) {
+  return MetaFilter([
+    BasicMeta({ metadata }),
+    AlternatesMetadata({ alternates: metadata.alternates }),
+    ItunesMeta({ itunes: metadata.itunes }),
+    FacebookMeta({ facebook: metadata.facebook }),
+    FormatDetectionMeta({ formatDetection: metadata.formatDetection }),
+    VerificationMeta({ verification: metadata.verification }),
+    AppleWebAppMeta({ appleWebApp: metadata.appleWebApp }),
+    OpenGraphMetadata({ openGraph: metadata.openGraph }),
+    TwitterMetadata({ twitter: metadata.twitter }),
+    AppLinksMeta({ appLinks: metadata.appLinks }),
+    IconsMetadata({ icons: metadata.icons }),
+  ])
+}
+
+function createViewportElements(viewport: ResolvedViewport) {
+  return MetaFilter([ViewportMeta({ viewport: viewport })])
 }

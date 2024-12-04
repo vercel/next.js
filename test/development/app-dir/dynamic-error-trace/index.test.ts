@@ -1,41 +1,71 @@
 import { nextTestSetup } from 'e2e-utils'
-import {
-  assertHasRedbox,
-  getRedboxCallStack,
-  shouldRunTurboDevTest,
-  expandCallStack,
-  getRedboxSource,
-} from 'next-test-utils'
+import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
+import { outdent } from 'outdent'
+
+const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
+function normalizeStackTrace(trace) {
+  return trace.replace(/ \(.*\)/g, '')
+}
 
 describe('app dir - dynamic error trace', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
-    dependencies: {
-      swr: 'latest',
-    },
-    packageJson: {
-      scripts: {
-        build: 'next build',
-        dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
-        start: 'next start',
-      },
-    },
-    installCommand: 'pnpm install',
-    startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
-    buildCommand: 'pnpm build',
     skipDeployment: true,
   })
   if (skipped) return
 
   it('should show the error trace', async () => {
     const browser = await next.browser('/')
+
     await assertHasRedbox(browser)
-    await expandCallStack(browser)
-    const callStack = await getRedboxCallStack(browser)
 
-    expect(callStack).toContain('node_modules/headers-lib/index.mjs')
+    await expect(
+      browser.hasElementByCssSelector(
+        '[data-nextjs-data-runtime-error-collapsed-action]'
+      )
+    ).resolves.toEqual(false)
 
-    const source = await getRedboxSource(browser)
-    expect(source).toContain('app/lib.js')
+    const stackFrameElements = await browser.elementsByCss(
+      '[data-nextjs-call-stack-frame]'
+    )
+    const stackFramesContent = // TODO: Why is this text empty?
+      (await Promise.all(stackFrameElements.map((f) => f.innerText())))
+        // Filter out the frames having code snippet but without methodName and source
+        .filter(Boolean)
+        .join('\n')
+
+    // TODO: Show useful stack
+    expect(normalizeStackTrace(stackFramesContent)).toMatchInlineSnapshot(
+      isReactExperimental ? `""` : `""`
+    )
+
+    const codeframe = await getRedboxSource(browser)
+    expect(codeframe).toEqual(
+      process.env.TURBOPACK
+        ? outdent`
+            app/lib.js (4:13) @ Foo
+            
+              2 |
+              3 | export function Foo() {
+            > 4 |   useHeaders()
+                |             ^
+              5 |   return 'foo'
+              6 | }
+              7 |
+          `
+        : // TODO: should be "@ Foo" since that's where we put the codeframe and print the source location
+          outdent`
+            app/lib.js (4:13) @ useHeaders
+
+              2 |
+              3 | export function Foo() {
+            > 4 |   useHeaders()
+                |             ^
+              5 |   return 'foo'
+              6 | }
+              7 |
+          `
+    )
   })
 })

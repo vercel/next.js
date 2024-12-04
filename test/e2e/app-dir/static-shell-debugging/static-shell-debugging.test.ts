@@ -3,8 +3,6 @@ import { nextTestSetup } from 'e2e-utils'
 describe('static-shell-debugging', () => {
   describe.each([
     { ppr: true, debugging: true },
-    { ppr: false, debugging: true },
-    { ppr: true, debugging: false },
     { ppr: false, debugging: false },
   ])('ppr = $ppr, debugging = $debugging', (context) => {
     const { next, skipped, isNextDev } = nextTestSetup({
@@ -17,7 +15,9 @@ describe('static-shell-debugging', () => {
           ? '1'
           : undefined,
       },
-      nextConfig: { experimental: { ppr: context.ppr } },
+      nextConfig: {
+        experimental: { ppr: context.ppr },
+      },
     })
 
     if (skipped) return

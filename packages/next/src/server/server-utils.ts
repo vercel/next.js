@@ -70,25 +70,18 @@ export function interpolateDynamicPath(
       builtParam = `[${builtParam}]`
     }
 
-    const paramIdx = pathname!.indexOf(builtParam)
+    let paramValue: string
+    const value = params[param]
 
-    if (paramIdx > -1) {
-      let paramValue: string
-      const value = params[param]
-
-      if (Array.isArray(value)) {
-        paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
-      } else if (value) {
-        paramValue = encodeURIComponent(value)
-      } else {
-        paramValue = ''
-      }
-
-      pathname =
-        pathname.slice(0, paramIdx) +
-        paramValue +
-        pathname.slice(paramIdx + builtParam.length)
+    if (Array.isArray(value)) {
+      paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
+    } else if (value) {
+      paramValue = encodeURIComponent(value)
+    } else {
+      paramValue = ''
     }
+
+    pathname = pathname.replaceAll(builtParam, paramValue)
   }
 
   return pathname

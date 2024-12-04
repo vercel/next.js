@@ -1,7 +1,7 @@
 import type { IncomingMessage } from 'http'
 import type { BaseNextRequest } from '../base-http'
 import type { NextRequest } from '../web/exports'
-import { ACTION } from '../../client/components/app-router-headers'
+import { ACTION_HEADER } from '../../client/components/app-router-headers'
 
 export function getServerActionRequestMetadata(
   req: IncomingMessage | BaseNextRequest | NextRequest
@@ -16,10 +16,10 @@ export function getServerActionRequestMetadata(
   let contentType: string | null
 
   if (req.headers instanceof Headers) {
-    actionId = req.headers.get(ACTION.toLowerCase()) ?? null
+    actionId = req.headers.get(ACTION_HEADER.toLowerCase()) ?? null
     contentType = req.headers.get('content-type')
   } else {
-    actionId = (req.headers[ACTION.toLowerCase()] as string) ?? null
+    actionId = (req.headers[ACTION_HEADER.toLowerCase()] as string) ?? null
     contentType = req.headers['content-type'] ?? null
   }
 

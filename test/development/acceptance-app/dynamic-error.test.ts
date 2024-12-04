@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -7,35 +7,32 @@ import { outdent } from 'outdent'
 describe('dynamic = "error" in devmode', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    skipStart: true,
   })
 
   it('should show error overlay when dynamic is forced', async () => {
-    const { session, cleanup } = await sandbox(next, undefined, '/server')
+    await using sandbox = await createSandbox(
+      next,
+      new Map([
+        [
+          'app/server/page.js',
+          outdent`
+          import { cookies } from 'next/headers';
 
-    // dynamic = "error" and force dynamic
-    await session.patch(
-      'app/server/page.js',
-      outdent`
-        import { cookies } from 'next/headers';
+          export default async function Page() {
+            await cookies()
+            return null
+          }
 
-        import Component from '../../index'
-
-        export default function Page() {
-          cookies()
-          return <Component />
-        }
-
-        export const dynamic = "error"
-      `
+          export const dynamic = "error"
+        `,
+        ],
+      ]),
+      '/server'
     )
-
+    const { session } = sandbox
     await session.assertHasRedbox()
-    console.log(await session.getRedboxDescription())
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
-      `"Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
+      `"[ Server ] Error: Route /server with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering"`
     )
-
-    await cleanup()
   })
 })

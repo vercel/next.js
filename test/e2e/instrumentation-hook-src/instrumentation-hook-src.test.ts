@@ -4,11 +4,6 @@ describe('instrumentation-hook-rsc', () => {
   describe('instrumentation', () => {
     const { next, isNextDev, skipped } = nextTestSetup({
       files: __dirname,
-      nextConfig: {
-        experimental: {
-          instrumentationHook: true,
-        },
-      },
       skipDeployment: true,
     })
 

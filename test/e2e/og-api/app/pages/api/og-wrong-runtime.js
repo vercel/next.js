@@ -1,5 +1,5 @@
 // /pages/api/og.jsx
-import { ImageResponse } from '@vercel/og'
+import { ImageResponse } from 'next/og'
 
 export default function () {
   return new ImageResponse(

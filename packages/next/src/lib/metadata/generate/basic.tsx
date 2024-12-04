@@ -125,6 +125,23 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
   return <meta name="apple-itunes-app" content={content} />
 }
 
+export function FacebookMeta({
+  facebook,
+}: {
+  facebook: ResolvedMetadata['facebook']
+}) {
+  if (!facebook) return null
+
+  const { appId, admins } = facebook
+
+  return MetaFilter([
+    appId ? <meta property="fb:app_id" content={appId} /> : null,
+    ...(admins
+      ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
+      : []),
+  ])
+}
+
 const formatDetectionKeys = [
   'telephone',
   'date',
@@ -158,9 +175,7 @@ export function AppleWebAppMeta({
   const { capable, title, startupImage, statusBarStyle } = appleWebApp
 
   return MetaFilter([
-    capable
-      ? Meta({ name: 'apple-mobile-web-app-capable', content: 'yes' })
-      : null,
+    capable ? Meta({ name: 'mobile-web-app-capable', content: 'yes' }) : null,
     Meta({ name: 'apple-mobile-web-app-title', content: title }),
     startupImage
       ? startupImage.map((image) => (
