@@ -631,7 +631,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    pub fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.project_fs().root()
     }
 

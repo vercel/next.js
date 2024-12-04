@@ -28,7 +28,8 @@ use turbo_tasks::{
     get_effects, Completion, Effects, ReadRef, ResolvedVc, TransientInstance, UpdateInfo, Vc,
 };
 use turbo_tasks_fs::{
-    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+    get_relative_path_to, util::uri_from_file, DiskFileSystem, FileContent, FileSystem,
+    FileSystemPath,
 };
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
@@ -1084,6 +1085,7 @@ pub async fn get_source_map(
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
+    current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
     let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
@@ -1120,27 +1122,39 @@ pub async fn project_trace_source(
                 }
             };
 
-            let project_path_uri =
-                uri_from_file(project.container.project().project_path(), None).await? + "/";
-            let (source_file, is_internal) =
-                if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
-                    // Client code uses file://
-                    (source_file, false)
-                } else if let Some(source_file) =
-                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
-                {
-                    // Server code uses turbopack://[project]
-                    // TODO should this also be file://?
-                    (source_file, false)
-                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
-                    // All other code like turbopack://[turbopack] is internal code
-                    (source_file, true)
-                } else {
-                    bail!("Original file ({}) outside project", original_file)
-                };
+            let project_root_uri =
+                uri_from_file(project.container.project().project_root_path(), None).await? + "/";
+            let (source_file, is_internal) = if original_file.starts_with(&project_root_uri) {
+                // Client code uses file://
+                (
+                    get_relative_path_to(&current_directory_file_url, &original_file),
+                    false,
+                )
+            } else if let Some(source_file) =
+                original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+            {
+                // Server code uses turbopack://[project]
+                // TODO should this also be file://?
+                (
+                    get_relative_path_to(
+                        &current_directory_file_url,
+                        &format!("{}/{}", project_root_uri, source_file),
+                    ),
+                    false,
+                )
+            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                // All other code like turbopack://[turbopack] is internal code
+                (source_file.to_string(), true)
+            } else {
+                bail!(
+                    "Original file ({}) outside project ({})",
+                    original_file,
+                    project_root_uri
+                )
+            };
 
             Ok(Some(StackFrame {
-                file: source_file.to_string(),
+                file: source_file,
                 method_name: name.as_ref().map(ToString::to_string),
                 line,
                 column,

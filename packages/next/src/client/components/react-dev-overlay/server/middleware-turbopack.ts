@@ -18,6 +18,7 @@ import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
+import { pathToFileURL } from 'node:url'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -40,7 +41,9 @@ export async function batchedTraceSource(
     : undefined
   if (!file) return
 
-  const sourceFrame = await project.traceSource(frame)
+  const currentDirectoryFileUrl = pathToFileURL(process.cwd()).href
+
+  const sourceFrame = await project.traceSource(frame, currentDirectoryFileUrl)
   if (!sourceFrame) {
     return {
       frame: {
