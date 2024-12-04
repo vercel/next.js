@@ -180,6 +180,7 @@ import {
   createRenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
+import { createPrerenderStore } from '../async-storage/prerender-store'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -627,20 +628,14 @@ async function warmupDevRender(
   const renderController = new AbortController()
   const prerenderController = new AbortController()
   const cacheSignal = new CacheSignal()
-  const prerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
+  const prerenderStore = createPrerenderStore({
     renderSignal: renderController.signal,
     controller: prerenderController,
     cacheSignal,
-    dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
-  }
+    // TODO: Should the dev warmup request set encryptedBoundArgsCache and
+    // somehow hand it over to the subsequent actual request?
+  })
 
   const rscPayload = await workUnitAsyncStorage.run(
     prerenderStore,
@@ -1994,6 +1989,7 @@ async function spawnDynamicValidationInDev(
   route: string,
   requestStore: RequestStore
 ): Promise<void> {
+  console.log('spawnDynamicValidationInDev')
   const { componentMod: ComponentMod } = ctx
 
   // Prerender controller represents the lifetime of the prerender.
@@ -2009,36 +2005,23 @@ async function spawnDynamicValidationInDev(
 
   const cacheSignal = new CacheSignal()
   const prerenderResumeDataCache = createPrerenderResumeDataCache()
-  const initialServerPrerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
+  const encryptedBoundArgsCache = new Map<string, string>()
+  const initialServerPrerenderStore = createPrerenderStore({
     renderSignal: initialServerRenderController.signal,
     controller: initialServerPrerenderController,
     cacheSignal,
-    dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
-  }
+    encryptedBoundArgsCache,
+  })
 
   const initialClientController = new AbortController()
-  const initialClientPrerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
+  const initialClientPrerenderStore = createPrerenderStore({
     renderSignal: initialClientController.signal,
     controller: initialClientController,
     cacheSignal,
-    dynamicTracking: null,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
-  }
+    encryptedBoundArgsCache,
+  })
 
   // We're not going to use the result of this render because the only time it could be used
   // is if it completes in a microtask and that's likely very rare for any non-trivial app
@@ -2156,41 +2139,29 @@ async function spawnDynamicValidationInDev(
   const finalServerController = new AbortController()
   const serverDynamicTracking = createDynamicTrackingState(false)
 
-  const finalServerPrerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
+  const finalServerPrerenderStore = createPrerenderStore({
     renderSignal: finalServerController.signal,
     controller: finalServerController,
     // During the final prerender we don't need to track cache access so we omit the signal
     cacheSignal: null,
     dynamicTracking: serverDynamicTracking,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
-  }
+    encryptedBoundArgsCache,
+  })
 
   const finalClientController = new AbortController()
   const clientDynamicTracking = createDynamicTrackingState(false)
   const dynamicValidation = createDynamicValidationState()
 
-  const finalClientPrerenderStore: PrerenderStore = {
-    type: 'prerender',
-    phase: 'render',
-    implicitTags: [],
+  const finalClientPrerenderStore = createPrerenderStore({
     renderSignal: finalClientController.signal,
     controller: finalClientController,
     // During the final prerender we don't need to track cache access so we omit the signal
     cacheSignal: null,
     dynamicTracking: clientDynamicTracking,
-    revalidate: INFINITE_CACHE,
-    expire: INFINITE_CACHE,
-    stale: INFINITE_CACHE,
-    tags: [],
     prerenderResumeDataCache,
-  }
+    encryptedBoundArgsCache,
+  })
 
   const finalServerPayload = await workUnitAsyncStorage.run(
     finalServerPrerenderStore,
@@ -2464,20 +2435,17 @@ async function prerenderToStream(
         // resume data cache instead.
         const prerenderResumeDataCache = createPrerenderResumeDataCache()
 
-        const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: initialServerRenderController.signal,
-          controller: initialServerPrerenderController,
-          cacheSignal,
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
+        const encryptedBoundArgsCache = new Map<string, string>()
+
+        const initialServerPrerenderStore = (prerenderStore =
+          createPrerenderStore({
+            implicitTags,
+            renderSignal: initialServerRenderController.signal,
+            controller: initialServerPrerenderController,
+            cacheSignal,
+            prerenderResumeDataCache,
+            encryptedBoundArgsCache,
+          }))
 
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
@@ -2551,20 +2519,14 @@ async function prerenderToStream(
           )
 
           const initialClientController = new AbortController()
-          const initialClientPrerenderStore: PrerenderStore = {
-            type: 'prerender',
-            phase: 'render',
-            implicitTags: implicitTags,
+          const initialClientPrerenderStore = createPrerenderStore({
+            implicitTags,
             renderSignal: initialClientController.signal,
             controller: initialClientController,
             cacheSignal: null,
-            dynamicTracking: null,
-            revalidate: INFINITE_CACHE,
-            expire: INFINITE_CACHE,
-            stale: INFINITE_CACHE,
-            tags: [...implicitTags],
             prerenderResumeDataCache,
-          }
+            encryptedBoundArgsCache,
+          })
 
           const prerender = require('react-dom/static.edge')
             .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -2630,21 +2592,17 @@ async function prerenderToStream(
           renderOpts.isDebugDynamicAccesses
         )
 
-        const finalRenderPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalServerController.signal,
-          controller: finalServerController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: serverDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
+        const finalRenderPrerenderStore: PrerenderStore = (prerenderStore =
+          createPrerenderStore({
+            implicitTags,
+            renderSignal: finalServerController.signal,
+            controller: finalServerController,
+            // During the final prerender we don't need to track cache access so we omit the signal
+            cacheSignal: null,
+            dynamicTracking: serverDynamicTracking,
+            prerenderResumeDataCache,
+            encryptedBoundArgsCache,
+          }))
 
         const finalAttemptRSCPayload = await workUnitAsyncStorage.run(
           finalRenderPrerenderStore,
@@ -2687,21 +2645,16 @@ async function prerenderToStream(
           renderOpts.isDebugDynamicAccesses
         )
         const finalClientController = new AbortController()
-        const finalClientPrerenderStore: PrerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
+        const finalClientPrerenderStore = createPrerenderStore({
+          implicitTags,
           renderSignal: finalClientController.signal,
           controller: finalClientController,
           // For HTML Generation we don't need to track cache reads (RSC only)
           cacheSignal: null,
           dynamicTracking: clientDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
           prerenderResumeDataCache,
-        }
+          encryptedBoundArgsCache,
+        })
 
         let clientIsDynamic = false
         let dynamicValidation = createDynamicValidationState()
@@ -2919,37 +2872,28 @@ async function prerenderToStream(
 
         const cacheSignal = new CacheSignal()
         const prerenderResumeDataCache = createPrerenderResumeDataCache()
+        const encryptedBoundArgsCache = new Map<string, string>()
 
-        const initialServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: initialServerRenderController.signal,
-          controller: initialServerPrerenderController,
-          cacheSignal,
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
+        const initialServerPrerenderStore = (prerenderStore =
+          createPrerenderStore({
+            implicitTags,
+            renderSignal: initialServerRenderController.signal,
+            controller: initialServerPrerenderController,
+            cacheSignal,
+            prerenderResumeDataCache,
+            encryptedBoundArgsCache,
+          }))
 
         const initialClientController = new AbortController()
-        const initialClientPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: initialClientController.signal,
-          controller: initialClientController,
-          cacheSignal,
-          dynamicTracking: null,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
+        const initialClientPrerenderStore = (prerenderStore =
+          createPrerenderStore({
+            implicitTags,
+            renderSignal: initialClientController.signal,
+            controller: initialClientController,
+            cacheSignal,
+            prerenderResumeDataCache,
+            encryptedBoundArgsCache,
+          }))
 
         // We're not going to use the result of this render because the only time it could be used
         // is if it completes in a microtask and that's likely very rare for any non-trivial app
@@ -3078,21 +3022,17 @@ async function prerenderToStream(
           renderOpts.isDebugDynamicAccesses
         )
 
-        const finalServerPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalServerController.signal,
-          controller: finalServerController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: serverDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
+        const finalServerPrerenderStore: PrerenderStore = (prerenderStore =
+          createPrerenderStore({
+            implicitTags,
+            renderSignal: finalServerController.signal,
+            controller: finalServerController,
+            // During the final prerender we don't need to track cache access so we omit the signal
+            cacheSignal: null,
+            dynamicTracking: serverDynamicTracking,
+            prerenderResumeDataCache,
+            encryptedBoundArgsCache,
+          }))
 
         let clientIsDynamic = false
         const finalClientController = new AbortController()
@@ -3101,21 +3041,17 @@ async function prerenderToStream(
         )
         const dynamicValidation = createDynamicValidationState()
 
-        const finalClientPrerenderStore: PrerenderStore = (prerenderStore = {
-          type: 'prerender',
-          phase: 'render',
-          implicitTags: implicitTags,
-          renderSignal: finalClientController.signal,
-          controller: finalClientController,
-          // During the final prerender we don't need to track cache access so we omit the signal
-          cacheSignal: null,
-          dynamicTracking: clientDynamicTracking,
-          revalidate: INFINITE_CACHE,
-          expire: INFINITE_CACHE,
-          stale: INFINITE_CACHE,
-          tags: [...implicitTags],
-          prerenderResumeDataCache,
-        })
+        const finalClientPrerenderStore: PrerenderStore = (prerenderStore =
+          createPrerenderStore({
+            implicitTags,
+            renderSignal: finalClientController.signal,
+            controller: finalClientController,
+            // During the final prerender we don't need to track cache access so we omit the signal
+            cacheSignal: null,
+            dynamicTracking: clientDynamicTracking,
+            prerenderResumeDataCache,
+            encryptedBoundArgsCache,
+          }))
 
         const finalServerPayload = await workUnitAsyncStorage.run(
           finalServerPrerenderStore,

@@ -109,10 +109,27 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
     throw error
   }
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  const prerenderStore =
+    workUnitStore?.type === 'prerender' ? workUnitStore : undefined
+
+  const cachedEncrypted =
+    prerenderStore?.encryptedBoundArgsCache?.get(serialized)
+
+  if (cachedEncrypted) {
+    return cachedEncrypted
+  }
+
+  prerenderStore?.cacheSignal?.beginRead()
+
   // Encrypt the serialized string with the action id as the salt.
   // Add a prefix to later ensure that the payload is correctly decrypted, similar
   // to a checksum.
   const encrypted = await encodeActionBoundArg(actionId, serialized)
+
+  prerenderStore?.cacheSignal?.endRead()
+  prerenderStore?.encryptedBoundArgsCache?.set(serialized, encrypted)
 
   return encrypted
 }
