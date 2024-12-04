@@ -76,30 +76,21 @@ pub struct SingleModuleGraph {
 #[derive(Clone, Debug)]
 struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
-#[derive(Clone)]
-struct SingleModuleGraphBuilderNode {
-    module: ResolvedVc<Box<dyn Module>>,
-    layer: Option<ReadRef<RcStr>>,
-    ident: ReadRef<RcStr>,
-}
-
-// Manual impls which ignore layer, to simplify skip_duplicates_with_visited_nodes usage
-impl PartialEq for SingleModuleGraphBuilderNode {
-    fn eq(&self, other: &Self) -> bool {
-        self.module.eq(&other.module)
-    }
-}
-impl Eq for SingleModuleGraphBuilderNode {}
-impl Hash for SingleModuleGraphBuilderNode {
-    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
-        self.module.hash(state);
-    }
+#[derive(Clone, Hash, PartialEq, Eq)]
+enum SingleModuleGraphBuilderNode {
+    Module {
+        module: ResolvedVc<Box<dyn Module>>,
+        layer: Option<ReadRef<RcStr>>,
+        ident: ReadRef<RcStr>,
+    },
+    #[allow(dead_code)]
+    Issues(Vec<ResolvedVc<Box<dyn Issue>>>),
 }
 
 impl SingleModuleGraphBuilderNode {
     async fn new(module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
         let ident = module.ident();
-        Ok(Self {
+        Ok(Self::Module {
             module,
             layer: match ident.await?.layer {
                 Some(layer) => Some(layer.await?),
@@ -107,6 +98,12 @@ impl SingleModuleGraphBuilderNode {
             },
             ident: ident.to_string().await?,
         })
+    }
+    fn module(&self) -> Option<ResolvedVc<Box<dyn Module>>> {
+        match self {
+            SingleModuleGraphBuilderNode::Module { module, .. } => Some(*module),
+            SingleModuleGraphBuilderNode::Issues(_) => None,
+        }
     }
 }
 struct SingleModuleGraphBuilderEdge {
@@ -119,14 +116,29 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<SingleModuleGraphBuilderNode> {
-        VisitControlFlow::Continue(edge.to)
+        match edge.to {
+            SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue(edge.to),
+            SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
+        }
     }
 
     fn edges(&mut self, node: &SingleModuleGraphBuilderNode) -> Self::EdgesFuture {
-        let module = node.module;
+        let module = node.module();
         async move {
-            let x = primary_chunkable_referenced_modules(*module)
-                .await?
+            // This error should never occur since we always skip visiting these
+            let module = module.context("visiting SingleModuleGraphBuilderNode::Issues")?;
+
+            let refs_cell = primary_chunkable_referenced_modules(*module);
+            let refs = refs_cell.await?;
+            // TODO This is currently too slow
+            // let refs_issues = refs_cell
+            //     .take_collectibles::<Box<dyn Issue>>()
+            //     .iter()
+            //     .map(|issue| issue.to_resolved())
+            //     .try_join()
+            // .await?;
+
+            let edges = refs
                 .iter()
                 .flat_map(|(ty, modules)| {
                     if matches!(ty, ChunkingType::Traced) {
@@ -143,12 +155,24 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
                 })
                 .try_join()
                 .await?;
-            Ok(x)
+            // if !refs_issues.is_empty() {
+            //     x.push(SingleModuleGraphBuilderEdge {
+            //         to: SingleModuleGraphBuilderNode::Issues(refs_issues),
+            //     });
+            // }
+            Ok(edges)
         }
     }
 
     fn span(&mut self, node: &SingleModuleGraphBuilderNode) -> tracing::Span {
-        tracing::info_span!("module", name = display(&node.ident))
+        match node {
+            SingleModuleGraphBuilderNode::Module { ident, .. } => {
+                tracing::info_span!("module", name = display(ident))
+            }
+            SingleModuleGraphBuilderNode::Issues(_) => {
+                tracing::info_span!("issues")
+            }
+        }
     }
 }
 
@@ -176,13 +200,7 @@ impl SingleModuleGraph {
             .skip_duplicates_with_visited_nodes(VisitedNodes(
                 visited_modules
                     .iter()
-                    .map(|&module| async move {
-                        Ok(SingleModuleGraphBuilderNode {
-                            module,
-                            layer: None,
-                            ident: module.ident().to_string().await?,
-                        })
-                    })
+                    .map(|&module| SingleModuleGraphBuilderNode::new(module))
                     .try_join()
                     .await?
                     .into_iter()
@@ -197,27 +215,39 @@ impl SingleModuleGraph {
         {
             let _span = tracing::info_span!("build petgraph").entered();
             for (parent, current) in children_modules_iter.into_breadth_first_edges() {
-                let Some(parent) = parent else {
-                    let idx = graph.add_node(SingleModuleGraphNode {
-                        module: current.module,
-                        issues: Default::default(),
-                        layer: current.layer,
-                    });
-                    modules.insert(current.module, idx);
-                    continue;
-                };
-                let parent_idx = *modules.get(&parent.module).unwrap();
+                let parent_idx =
+                    parent.map(|parent| *modules.get(&parent.module().unwrap()).unwrap());
 
-                if let Some(idx) = modules.get(&current.module) {
-                    graph.add_edge(parent_idx, *idx, ());
-                } else {
-                    let idx = graph.add_node(SingleModuleGraphNode {
-                        module: current.module,
-                        issues: Default::default(),
-                        layer: current.layer,
-                    });
-                    modules.insert(current.module, idx);
-                    graph.add_edge(parent_idx, idx, ());
+                match current {
+                    SingleModuleGraphBuilderNode::Module {
+                        module,
+                        layer,
+                        ident: _,
+                    } => {
+                        if let Some(idx) = modules.get(&module) {
+                            if let Some(parent_idx) = parent_idx {
+                                graph.add_edge(parent_idx, *idx, ());
+                            }
+                        } else {
+                            let idx = graph.add_node(SingleModuleGraphNode {
+                                module,
+                                issues: Default::default(),
+                                layer,
+                            });
+                            modules.insert(module, idx);
+                            if let Some(parent_idx) = parent_idx {
+                                graph.add_edge(parent_idx, idx, ());
+                            }
+                        }
+                    }
+                    SingleModuleGraphBuilderNode::Issues(issues) => {
+                        let parent_idx = parent_idx.unwrap();
+                        graph
+                            .node_weight_mut(parent_idx)
+                            .unwrap()
+                            .issues
+                            .extend(issues)
+                    }
                 }
             }
         }
