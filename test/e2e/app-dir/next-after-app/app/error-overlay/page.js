@@ -2,6 +2,14 @@ import { after } from 'next/server'
 import { setTimeout } from 'timers/promises'
 
 export default function Page() {
+  return <Wrapper />
+}
+
+function Wrapper() {
+  return <Inner />
+}
+
+function Inner() {
   helper()
   return null
 }
@@ -17,5 +25,5 @@ function helper() {
 }
 
 function throws() {
-  throw new Error('kaboom')
+  // throw new Error('kaboom')
 }

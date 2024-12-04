@@ -10,22 +10,22 @@ function Wrapper() {
 }
 
 function Inner() {
-  helper()
+  foo()
   return null
 }
 
-function helper() {
-  after(async () => {
-    await setTimeout(500)
-    nestedHelper()
-  })
+async function foo() {
+  await setTimeout(0)
+  after(bar())
+}
+async function bar() {
+  await setTimeout(0)
+  after(zap())
 }
 
-function nestedHelper() {
-  after(async () => {
-    await setTimeout(500)
-    throws()
-  })
+async function zap() {
+  await setTimeout(0)
+  throws()
 }
 
 function throws() {
