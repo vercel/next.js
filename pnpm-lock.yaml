@@ -449,18 +449,12 @@ importers:
       react:
         specifier: 19.0.0-rc-de68d2f4-20241204
         version: 19.0.0-rc-de68d2f4-20241204
-      react-17:
-        specifier: npm:react@17.0.2
-        version: react@17.0.2
       react-builtin:
         specifier: npm:react@19.0.0-rc-de68d2f4-20241204
         version: react@19.0.0-rc-de68d2f4-20241204
       react-dom:
         specifier: 19.0.0-rc-de68d2f4-20241204
         version: 19.0.0-rc-de68d2f4-20241204(react@19.0.0-rc-de68d2f4-20241204)
-      react-dom-17:
-        specifier: npm:react-dom@17.0.2
-        version: react-dom@17.0.2(react@19.0.0-rc-de68d2f4-20241204)
       react-dom-builtin:
         specifier: npm:react-dom@19.0.0-rc-de68d2f4-20241204
         version: react-dom@19.0.0-rc-de68d2f4-20241204(react@19.0.0-rc-de68d2f4-20241204)
@@ -12659,11 +12653,6 @@ packages:
     peerDependencies:
       react: 19.0.0-rc-de68d2f4-20241204
 
-  react-dom@17.0.2:
-    resolution: {integrity: sha512-s4h96KtLDUQlsENhMn1ar8t2bEa+q/YAtj8pPPdIjPDGBDIVNsrD9aXNWqspUe6AzKCIG0C1HZZLqLV7qpOBGA==}
-    peerDependencies:
-      react: 19.0.0-rc-de68d2f4-20241204
-
   react-dom@19.0.0-rc-de68d2f4-20241204:
     resolution: {integrity: sha512-DrJ+o2bSvinvpQxBO49C8rDgkCshg/z4wU3P1RTAXzu2AgEqZwZqKQ8YJpHVNGEP7/4jg5FjJmuwPtzoNZpeIg==}
     peerDependencies:
@@ -12783,10 +12772,6 @@ packages:
 
   react@0.0.0-experimental-de68d2f4-20241204:
     resolution: {integrity: sha512-7edC9vkyrXKZkRnvYR57I+87kAZyGrfjqiXa7NQf4jTxdZRu7GIDFpKvQjpxrIQGkLmk6qGiQ+52ilLIAcQdfw==}
-    engines: {node: '>=0.10.0'}
-
-  react@17.0.2:
-    resolution: {integrity: sha512-gnhPt75i/dq/z3/6q/0asP78D0u592D5L1pd7M8P+dck6Fu/jJeL6iVVK23fptSUZj8Vjf++7wXA8UNclGQcbA==}
     engines: {node: '>=0.10.0'}
 
   react@19.0.0-rc-de68d2f4-20241204:
@@ -28914,13 +28899,6 @@ snapshots:
       react: 19.0.0-rc-de68d2f4-20241204
       scheduler: 0.25.0-rc-de68d2f4-20241204
 
-  react-dom@17.0.2(react@19.0.0-rc-de68d2f4-20241204):
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
-      react: 19.0.0-rc-de68d2f4-20241204
-      scheduler: 0.25.0-rc-de68d2f4-20241204
-
   react-dom@19.0.0-rc-de68d2f4-20241204(react@19.0.0-rc-de68d2f4-20241204):
     dependencies:
       react: 19.0.0-rc-de68d2f4-20241204
@@ -29045,11 +29023,6 @@ snapshots:
       react-lifecycles-compat: 3.0.4
 
   react@0.0.0-experimental-de68d2f4-20241204: {}
-
-  react@17.0.2:
-    dependencies:
-      loose-envify: 1.4.0
-      object-assign: 4.1.1
 
   react@19.0.0-rc-de68d2f4-20241204: {}
 
