@@ -174,7 +174,7 @@ pub async fn follow_reexports(
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
             let result = get_all_export_names(*module).await?;
             if let Some(m) = result.esm_exports.get(&export_name) {
-                module = m.to_resolved().await?;
+                module = *m;
                 continue;
             }
             return match &result.dynamic_exporting_modules[..] {

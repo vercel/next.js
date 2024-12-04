@@ -192,14 +192,8 @@ pub async fn make_chunk_group(
         chunks.extend(async_loader_chunks.iter().copied());
     }
 
-    let resolved_chunks = chunks
-        .into_iter()
-        .map(|chunk| chunk.to_resolved())
-        .try_join()
-        .await?;
-
     Ok(MakeChunkGroupResult {
-        chunks: resolved_chunks,
+        chunks,
         availability_info,
     })
 }

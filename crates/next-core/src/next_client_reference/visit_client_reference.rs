@@ -354,9 +354,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
             let referenced_modules = primary_referenced_modules(*parent_module).await?;
 
             let referenced_modules = referenced_modules.iter().map(|module| async move {
-                let module = module.to_resolved().await?;
                 if let Some(client_reference_module) =
-                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
+                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                        .await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: node.state,
@@ -385,7 +385,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
 
                 if let Some(css_client_reference_asset) =
-                    ResolvedVc::try_downcast_type::<CssModuleAsset>(module).await?
+                    ResolvedVc::try_downcast_type::<CssModuleAsset>(*module).await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: node.state,
@@ -407,7 +407,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
 
                 if let Some(server_component_asset) =
-                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(module).await?
+                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module).await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: VisitClientReferenceNodeState::InServerComponent {
@@ -425,7 +425,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         return Ok(VisitClientReferenceNode {
                             state: VisitClientReferenceNodeState::InServerUtil,
                             ty: VisitClientReferenceNodeType::ServerUtilEntry(
-                                module,
+                                *module,
                                 module.ident().to_string().await?,
                             ),
                         });
@@ -435,7 +435,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 Ok(VisitClientReferenceNode {
                     state: node.state,
                     ty: VisitClientReferenceNodeType::Internal(
-                        module,
+                        *module,
                         module.ident().to_string().await?,
                     ),
                 })
