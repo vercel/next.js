@@ -10,22 +10,22 @@ function Wrapper() {
 }
 
 function Inner() {
-  helper()
+  foo()
   return null
 }
 
-function helper() {
-  unstable_after(async () => {
-    await setTimeout(500)
-    nestedHelper()
-  })
+async function foo() {
+  await setTimeout(0)
+  unstable_after(bar())
+}
+async function bar() {
+  await setTimeout(0)
+  unstable_after(zap())
 }
 
-function nestedHelper() {
-  unstable_after(async () => {
-    await setTimeout(500)
-    throws()
-  })
+async function zap() {
+  await setTimeout(0)
+  throws()
 }
 
 function throws() {
