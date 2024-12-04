@@ -30,8 +30,8 @@ export type ImageProps = Omit<
 > & {
   src: string | StaticImport
   alt: string
-  width?: number | `${number}`
-  height?: number | `${number}`
+  width: number | `${number}`
+  height: number | `${number}`
   fill?: boolean
   loader?: ImageLoader
   quality?: number | `${number}`
