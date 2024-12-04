@@ -2,6 +2,7 @@ use std::{
     collections::{HashMap, HashSet},
     future::Future,
     hash::Hash,
+    ops::Deref,
 };
 
 use anyhow::{Context, Result};
@@ -17,8 +18,9 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
+    debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
-    trace::TraceRawVcs,
+    trace::{TraceRawVcs, TraceRawVcsContext},
     CollectiblesSource, FxIndexMap, ReadRef, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt,
     ValueToString, Vc,
 };
@@ -61,13 +63,41 @@ impl SingleModuleGraphNode {
     }
 }
 
+#[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
+struct TracedDiGraph<N: TraceRawVcs, E: TraceRawVcs>(DiGraph<N, E>);
+impl<N: TraceRawVcs, E: TraceRawVcs> Default for TracedDiGraph<N, E> {
+    fn default() -> Self {
+        Self(Default::default())
+    }
+}
+impl<N: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for TracedDiGraph<N, E> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        for node in self.0.node_weights() {
+            node.trace_raw_vcs(trace_context);
+        }
+        for edge in self.0.edge_weights() {
+            edge.trace_raw_vcs(trace_context);
+        }
+    }
+}
+impl<N: TraceRawVcs, E: TraceRawVcs> Deref for TracedDiGraph<N, E> {
+    type Target = DiGraph<N, E>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Default)]
 pub struct SingleModuleGraph {
-    #[turbo_tasks(trace_ignore)]
-    graph: DiGraph<SingleModuleGraphNode, ()>,
+    graph: TracedDiGraph<SingleModuleGraphNode, ()>,
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
+    //
+    // HashMaps have nondeterministic order, but this map is only used for lookups (in `get_entry`)
+    // and not iteration.
+    //
+    // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
     entries: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
@@ -269,7 +299,7 @@ impl SingleModuleGraph {
         });
 
         Ok(SingleModuleGraph {
-            graph,
+            graph: TracedDiGraph(graph),
             entries: entries
                 .iter()
                 .map(|e| (*e, *modules.get(e).unwrap()))
@@ -302,8 +332,8 @@ impl SingleModuleGraph {
     ) -> Result<()> {
         let entry_node = self.get_entry(entry)?;
 
-        let mut dfs = Dfs::new(&self.graph, entry_node);
-        while let Some(nx) = dfs.next(&self.graph) {
+        let mut dfs = Dfs::new(&*self.graph, entry_node);
+        while let Some(nx) = dfs.next(&*self.graph) {
             let weight = self.graph.node_weight(nx).unwrap();
             weight.emit_issues();
             visitor(weight);
