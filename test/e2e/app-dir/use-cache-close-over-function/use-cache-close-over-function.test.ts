@@ -7,7 +7,7 @@ import {
 } from 'next-test-utils'
 
 describe('use-cache-close-over-function', () => {
-  const { next, isNextDev, skipped } = nextTestSetup({
+  const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true,
     skipStart: process.env.NEXT_TEST_MODE !== 'dev',
@@ -43,6 +43,21 @@ describe('use-cache-close-over-function', () => {
           10 |     return Math.random() + fn()
           11 |   }"
       `)
+
+      if (isTurbopack) {
+        expect(next.cliOutput).toInclude(`
+ ⨯ Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+  [function fn]
+   ^^^^^^^^^^^
+    at createCachedFn (./app/client/page.tsx:8:3)`)
+      } else {
+        // TODO(veil): line:column is wrong with Webpack.
+        expect(next.cliOutput).toInclude(`
+ ⨯ Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+  [function fn]
+   ^^^^^^^^^^^
+    at createCachedFn (./app/client/page.tsx:25:132)`)
+      }
     })
 
     it('should show the error overlay for server-side usage', async () => {
@@ -70,6 +85,21 @@ describe('use-cache-close-over-function', () => {
           8 |     return Math.random() + fn()
           9 |   }"
       `)
+
+      if (isTurbopack) {
+        expect(next.cliOutput).toInclude(`
+ ⨯ Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+  [function fn]
+   ^^^^^^^^^^^
+    at createCachedFn (./app/server/page.tsx:6:3)`)
+      } else {
+        // TODO(veil): line:column is wrong with Webpack.
+        expect(next.cliOutput).toInclude(`
+ ⨯ Error: Functions cannot be passed directly to Client Components unless you explicitly expose it by marking it with "use server". Or maybe you meant to call this function rather than return it.
+  [function fn]
+   ^^^^^^^^^^^
+    at createCachedFn (./app/server/page.tsx:23:132)`)
+      }
     })
   } else {
     it('should fail the build with an error', async () => {
