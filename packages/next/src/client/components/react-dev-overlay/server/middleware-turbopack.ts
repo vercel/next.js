@@ -19,6 +19,7 @@ import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { isAbsolute } from 'node:path'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -235,10 +236,7 @@ async function nativeTraceSource(
           '<unknown>',
         column: (originalPosition.column ?? 0) + 1,
         file: originalPosition.source?.startsWith('file://')
-          ? path.relative(
-              process.cwd(),
-              url.fileURLToPath(originalPosition.source)
-            )
+          ? relativeToCwd(originalPosition.source)
           : originalPosition.source,
         lineNumber: originalPosition.line ?? 0,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
@@ -254,6 +252,17 @@ async function nativeTraceSource(
   }
 
   return undefined
+}
+
+function relativeToCwd(file: string): string {
+  const relPath = path.relative(process.cwd(), url.fileURLToPath(file))
+  if (isAbsolute(relPath)) {
+    return relPath
+  }
+  if (relPath.startsWith('../')) {
+    return relPath
+  }
+  return './' + relPath
 }
 
 export async function createOriginalStackFrame(
