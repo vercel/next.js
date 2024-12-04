@@ -15,7 +15,10 @@ use turbopack::css::CssModuleAsset;
 use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
 use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
-use crate::next_server_component::server_component_module::NextServerComponentModule;
+use crate::{
+    next_server_component::server_component_module::NextServerComponentModule,
+    next_server_utility::server_utility_module::NextServerUtilityModule,
+};
 
 #[derive(
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
@@ -149,11 +152,8 @@ pub async fn client_reference_graph(
                                     server_component: *server_component,
                                 }
                             } else {
-                                let entry_path = module.ident().path().resolve().await?;
-                                if entry_path.await?.file_name() == "edge-wrapper.js" {
-                                    VisitClientReferenceNodeState::EdgeEntry { entry_path }
-                                } else {
-                                    VisitClientReferenceNodeState::Entry { entry_path }
+                                VisitClientReferenceNodeState::Entry {
+                                    entry_path: module.ident().path().resolve().await?,
                                 }
                             },
                             ty: VisitClientReferenceNodeType::Internal(
@@ -229,13 +229,7 @@ pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<V
         .skip_duplicates()
         .visit(
             vec![VisitClientReferenceNode {
-                state: {
-                    if entry_path.await?.file_name() == "edge-wrapper.js" {
-                        VisitClientReferenceNodeState::EdgeEntry { entry_path }
-                    } else {
-                        VisitClientReferenceNodeState::Entry { entry_path }
-                    }
-                },
+                state: { VisitClientReferenceNodeState::Entry { entry_path } },
                 ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
             }],
             VisitClientReference {
@@ -285,9 +279,6 @@ struct VisitClientReferenceNode {
     Clone, Copy, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 enum VisitClientReferenceNodeState {
-    EdgeEntry {
-        entry_path: Vc<FileSystemPath>,
-    },
     Entry {
         entry_path: Vc<FileSystemPath>,
     },
@@ -299,7 +290,6 @@ enum VisitClientReferenceNodeState {
 impl VisitClientReferenceNodeState {
     fn server_component(&self) -> Option<Vc<NextServerComponentModule>> {
         match self {
-            VisitClientReferenceNodeState::EdgeEntry { .. } => None,
             VisitClientReferenceNodeState::Entry { .. } => None,
             VisitClientReferenceNodeState::InServerComponent { server_component } => {
                 Some(*server_component)
@@ -422,39 +412,17 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                     });
                 }
 
-                // TODO have a cleaner way to check for template modules
-                // e.g. edge-wrapper.js -> edge-ssr-app.js -> app-page.js
-
-                // Skip over edge-wrapper.js -> edge-ssr-app.js and properly detect server utils
-                if let VisitClientReferenceNodeState::EdgeEntry { entry_path } = &node.state {
-                    let module_path = module.ident().path().resolve().await?;
-                    let module_path_ref = &module_path.await?.path;
-                    if module_path != *entry_path
-                        && !module_path_ref
-                            .ends_with("next/dist/esm/build/templates/edge-ssr-app.js")
-                    {
-                        return Ok(VisitClientReferenceNode {
-                            state: VisitClientReferenceNodeState::Entry {
-                                entry_path: module_path,
-                            },
-                            ty: VisitClientReferenceNodeType::Internal(
-                                *module,
-                                module.ident().to_string().await?,
-                            ),
-                        });
-                    }
-                }
-
-                if let VisitClientReferenceNodeState::Entry { entry_path } = &node.state {
-                    if module.ident().path().resolve().await? != *entry_path {
-                        return Ok(VisitClientReferenceNode {
-                            state: VisitClientReferenceNodeState::InServerUtil,
-                            ty: VisitClientReferenceNodeType::ServerUtilEntry(
-                                *module,
-                                module.ident().to_string().await?,
-                            ),
-                        });
-                    }
+                if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                    .await?
+                    .is_some()
+                {
+                    return Ok(VisitClientReferenceNode {
+                        state: VisitClientReferenceNodeState::InServerUtil,
+                        ty: VisitClientReferenceNodeType::ServerUtilEntry(
+                            *module,
+                            module.ident().to_string().await?,
+                        ),
+                    });
                 }
 
                 Ok(VisitClientReferenceNode {

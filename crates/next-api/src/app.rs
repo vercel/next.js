@@ -30,6 +30,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    next_server_utility::NextServerUtilityTransition,
     parse_segment_config_from_source,
     util::NextRuntime,
 };
@@ -334,6 +335,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -379,6 +384,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -422,6 +431,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -463,6 +476,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
         .into_iter()
