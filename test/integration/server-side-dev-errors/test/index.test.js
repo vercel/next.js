@@ -66,9 +66,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toStartWith(
-          ' ⨯ test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps' +
-            '\n ⨯ test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps'
+          ' ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps'
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
@@ -119,9 +120,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toStartWith(
-          ' ⨯ test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps' +
-            '\n ⨯ test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps'
+          ' ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps'
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
@@ -172,9 +174,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toStartWith(
-          ' ⨯ test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps' +
-            '\n ⨯ test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps'
+          ' ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps'
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
@@ -225,9 +228,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toStartWith(
-          ' ⨯ test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler' +
-            '\n ⨯ test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler'
+          ' ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler'
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
@@ -280,9 +284,10 @@ describe('server-side dev errors', () => {
       // FIXME(veil): error repeated
       // FIXME(veil): codeframe repeated after " ⨯ unhandledRejection: Error: catch this rejection"
       if (isTurbopack) {
+        // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
         expect(stderrOutput).toStartWith(
-          ' ⨯ test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler' +
-            '\n ⨯ test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler'
+          ' ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler'
         )
         expect(stderrOutput).toContain(
           '\n ⨯ Error: missingVar is not defined' +
@@ -328,6 +333,7 @@ describe('server-side dev errors', () => {
     // FIXME(veil): codeframe repeated after " ⨯ unhandledRejection: Error: catch this rejection"
     if (isTurbopack) {
       // TODO(veil): digest: undefined should be omitted?
+      // FIXME(veil): Paths include root twice. Bug in generated Turbopack sourcemaps.
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this rejection
             at Timeout._onTimeout (../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
@@ -338,8 +344,8 @@ describe('server-side dev errors', () => {
            8 |   }, 10)
            9 |   return {
           10 |     props: {},
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-rejection.js (7:20) @ Timeout._onTimeout
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-rejection.js (7:20) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-rejection.js (7:20) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-rejection.js (7:20) @ Timeout._onTimeout
          ⨯ unhandledRejection: Error: catch this rejection
             at Timeout._onTimeout (./test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20) {
           digest: undefined
@@ -438,8 +444,8 @@ describe('server-side dev errors', () => {
            8 |   }, 10)
            9 |   return {
           10 |     props: {},
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js (7:20) @ Timeout._onTimeout
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js (7:20) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js (7:20) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js (7:20) @ Timeout._onTimeout
          ⨯ unhandledRejection: Error: 
             at Timeout._onTimeout (./test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20) {
           digest: undefined
@@ -537,8 +543,8 @@ describe('server-side dev errors', () => {
            8 |   }, 10)
            9 |   return {
           10 |     props: {},
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-exception.js (7:11) @ Timeout._onTimeout
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-exception.js (7:11) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-exception.js (7:11) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-exception.js (7:11) @ Timeout._onTimeout
          ⨯ uncaughtException: Error: catch this exception
             at Timeout._onTimeout (./test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11) {
           digest: undefined
@@ -636,8 +642,8 @@ describe('server-side dev errors', () => {
            8 |   }, 10)
            9 |   return {
           10 |     props: {},
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js (7:11) @ Timeout._onTimeout
-         ⨯ test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js (7:11) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js (7:11) @ Timeout._onTimeout
+         ⨯ ../../test/integration/server-side-dev-errors/test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js (7:11) @ Timeout._onTimeout
          ⨯ uncaughtException: Error: 
             at Timeout._onTimeout (./test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11) {
           digest: undefined
