@@ -1,16 +1,13 @@
-// app/page.tsx
-"use client";
-
-import React from "react";
 import { Alert, Illustration } from "@kiwicom/orbit-components";
 
-export default function Home() {
+export default function HomePage() {
   return (
-    <React.Fragment>
+    <div>
       <Alert type="success" spaceAfter="large">
         It Works!
       </Alert>
       <Illustration name="Success" />
-    </React.Fragment>
+    </div>
   );
 }
+  
