@@ -19,6 +19,7 @@ import { StaticGenBailoutError } from '../../client/components/static-generation
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
+import { isRequestAPICallableInsideAfter } from './utils'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -57,7 +58,11 @@ export function headers(): Promise<ReadonlyHeaders> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
-    if (workUnitStore && workUnitStore.phase === 'after') {
+    if (
+      workUnitStore &&
+      workUnitStore.phase === 'after' &&
+      !isRequestAPICallableInsideAfter()
+    ) {
       throw new Error(
         `Route ${workStore.route} used "headers" inside "unstable_after(...)". This is not supported. If you need this data inside an "unstable_after" callback, use "headers" outside of the callback. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/unstable_after`
       )
