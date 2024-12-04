@@ -12,6 +12,9 @@ export type AfterTaskStackInfo = Pick<
   'rootTaskReactOwnerStack' | 'rootTaskCallerStack' | 'nestedTaskCallerStacks'
 >
 
+/** An error that's only used for capturing stack traces. */
+export class CaptureStackTrace extends Error {}
+
 export function stitchAfterCallstack(
   error: Error,
   stackInfo: AfterTaskStackInfo
