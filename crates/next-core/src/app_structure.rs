@@ -1145,7 +1145,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
     // Pass down layouts from each tree to apply segment config when adding route.
     let root_layouts = if let Some(layout) = modules.layout {
         let mut layouts = root_layouts.await?.clone_value();
-        layouts.push(layout.to_resolved().await?);
+        layouts.push(layout);
         ResolvedVc::cell(layouts)
     } else {
         root_layouts
@@ -1168,10 +1168,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Page)?,
-            loader_tree
-                .context("loader tree should be created for a page/default")?
-                .to_resolved()
-                .await?,
+            loader_tree.context("loader tree should be created for a page/default")?,
         );
     }
 
@@ -1180,7 +1177,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             app_dir,
             &mut result,
             app_page.complete(PageType::Route)?,
-            route.to_resolved().await?,
+            route,
             root_layouts,
         );
     }
@@ -1352,9 +1349,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             &mut result,
                             page.clone(),
                             loader_tree
-                                .context("loader tree should be created for a page/default")?
-                                .to_resolved()
-                                .await?,
+                                .context("loader tree should be created for a page/default")?,
                         );
                     }
                 }

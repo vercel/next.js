@@ -191,10 +191,9 @@ pub async fn referenced_modules_and_affecting_sources(
                 .await?,
         );
     }
-    let mut resolved_modules = FxIndexSet::default();
-    for module in modules {
-        resolved_modules.insert(module.to_resolved().await?);
-    }
+
+    let resolved_modules: FxIndexSet<_> = modules.into_iter().collect();
+
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
 
