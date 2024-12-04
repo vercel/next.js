@@ -177,7 +177,8 @@ pub async fn referenced_modules_and_affecting_sources(
         .map(|r| r.resolve_reference())
         .try_join()
         .await?;
-    for resolve_result in resolve_results {
+    let mut modules = Vec::new();
+    for resolve_result in resolved_references {
         modules.extend(resolve_result.primary_modules_raw_iter());
         modules.extend(
             resolve_result
