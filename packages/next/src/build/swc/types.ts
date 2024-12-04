@@ -206,7 +206,8 @@ export interface Project {
   getSourceMap(filePath: string): Promise<string | null>
 
   traceSource(
-    stackFrame: TurbopackStackFrame
+    stackFrame: TurbopackStackFrame,
+    currentDirectoryFileUrl: string
   ): Promise<TurbopackStackFrame | null>
 
   updateInfoSubscribe(
