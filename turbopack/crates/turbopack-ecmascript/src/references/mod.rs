@@ -285,34 +285,26 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let mut references: Vec<_> = self.references.into_iter().collect();
-        for r in references.iter_mut() {
-            *r = r.to_resolved().await?;
-        }
-        let mut local_references: Vec<_> = track_reexport_references
+        let references: Vec<_> = self.references.into_iter().collect();
+
+        let local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-        for r in local_references.iter_mut() {
-            *r = r.to_resolved().await?;
-        }
-        let mut reexport_references: Vec<_> = track_reexport_references
+
+        let reexport_references: Vec<_> = track_reexport_references
             .then(|| self.reexport_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-        for r in reexport_references.iter_mut() {
-            *r = r.to_resolved().await?;
-        }
-        let mut evaluation_references: Vec<_> = track_reexport_references
+
+        let evaluation_references: Vec<_> = track_reexport_references
             .then(|| self.evaluation_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-        for r in evaluation_references.iter_mut() {
-            *r = r.to_resolved().await?;
-        }
+
         for c in self.code_gens.iter_mut() {
             match c {
                 CodeGen::CodeGenerateable(c) => {

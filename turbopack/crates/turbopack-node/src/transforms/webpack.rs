@@ -278,12 +278,7 @@ impl WebpackLoadersProcessedAsset {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
         };
-        let assets = emitted_assets_to_virtual_sources(processed.assets)
-            .await?
-            .into_iter()
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?;
+        let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
 
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();

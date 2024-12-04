@@ -138,9 +138,7 @@ impl ModuleOptions {
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(
-                env.to_resolved().await?,
-            ));
+            transforms.push(EcmascriptInputTransform::PresetEnv(env));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {

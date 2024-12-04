@@ -5,7 +5,7 @@ export default async function Page() {
     <form
       action={async () => {
         'use server'
-        testRequestAPIs()
+        testRequestAPIs('/request-apis/server-action')
       }}
     >
       <button type="submit">Submit</button>

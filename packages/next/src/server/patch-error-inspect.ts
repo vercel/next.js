@@ -42,9 +42,6 @@ type SourceMapCache = Map<
   { map: SyncSourceMapConsumer; payload: ModernSourceMapPayload }
 >
 
-// TODO: Implement for Edge runtime
-const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
-
 function frameToString(frame: StackFrame): string {
   let sourceLocation = frame.lineNumber !== null ? `:${frame.lineNumber}` : ''
   if (frame.column !== null && sourceLocation !== '') {
@@ -287,36 +284,46 @@ function parseAndSourceMap(error: Error): string {
   )
 }
 
-export function patchErrorInspect() {
-  Error.prepareStackTrace = prepareUnsourcemappedStackTrace
+function sourceMapError(this: void, error: Error): Error {
+  // Create a new Error object with the source mapping applied and then use native
+  // Node.js formatting on the result.
+  const newError =
+    error.cause !== undefined
+      ? // Setting an undefined `cause` would print `[cause]: undefined`
+        new Error(error.message, { cause: error.cause })
+      : new Error(error.message)
+
+  // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
+  newError.stack = parseAndSourceMap(error)
+
+  for (const key in error) {
+    if (!Object.prototype.hasOwnProperty.call(newError, key)) {
+      // @ts-expect-error -- We're copying all enumerable properties.
+      // So they definitely exist on `this` and obviously have no type on `newError` (yet)
+      newError[key] = error[key]
+    }
+  }
+
+  return newError
+}
+
+export function patchErrorInspectNodeJS(
+  errorConstructor: ErrorConstructor
+): void {
+  const inspectSymbol = Symbol.for('nodejs.util.inspect.custom')
+
+  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
 
   // @ts-expect-error -- TODO upstream types
   // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
-  Error.prototype[inspectSymbol] = function (
+  errorConstructor.prototype[inspectSymbol] = function (
     depth: number,
     inspectOptions: util.InspectOptions,
     inspect: typeof util.inspect
   ): string {
     // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
     return workUnitAsyncStorage.exit(() => {
-      // Create a new Error object with the source mapping applied and then use native
-      // Node.js formatting on the result.
-      const newError =
-        this.cause !== undefined
-          ? // Setting an undefined `cause` would print `[cause]: undefined`
-            new Error(this.message, { cause: this.cause })
-          : new Error(this.message)
-
-      // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
-      newError.stack = parseAndSourceMap(this)
-
-      for (const key in this) {
-        if (!Object.prototype.hasOwnProperty.call(newError, key)) {
-          // @ts-expect-error -- We're copying all enumerable properties.
-          // So they definitely exist on `this` and obviously have no type on `newError` (yet)
-          newError[key] = this[key]
-        }
-      }
+      const newError = sourceMapError(this)
 
       const originalCustomInspect = (newError as any)[inspectSymbol]
       // Prevent infinite recursion.
@@ -334,6 +341,40 @@ export function patchErrorInspect() {
               // Default in Node.js
               2) - depth,
         })
+      } finally {
+        ;(newError as any)[inspectSymbol] = originalCustomInspect
+      }
+    })
+  }
+}
+
+export function patchErrorInspectEdgeLite(
+  errorConstructor: ErrorConstructor
+): void {
+  const inspectSymbol = Symbol.for('edge-runtime.inspect.custom')
+
+  errorConstructor.prepareStackTrace = prepareUnsourcemappedStackTrace
+
+  // @ts-expect-error -- TODO upstream types
+  // eslint-disable-next-line no-extend-native -- We're not extending but overriding.
+  errorConstructor.prototype[inspectSymbol] = function ({
+    format,
+  }: {
+    format: (...args: unknown[]) => string
+  }): string {
+    // avoid false-positive dynamic i/o warnings e.g. due to usage of `Math.random` in `source-map`.
+    return workUnitAsyncStorage.exit(() => {
+      const newError = sourceMapError(this)
+
+      const originalCustomInspect = (newError as any)[inspectSymbol]
+      // Prevent infinite recursion.
+      Object.defineProperty(newError, inspectSymbol, {
+        value: undefined,
+        enumerable: false,
+        writable: true,
+      })
+      try {
+        return format(newError)
       } finally {
         ;(newError as any)[inspectSymbol] = originalCustomInspect
       }
