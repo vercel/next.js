@@ -53,6 +53,7 @@ interface Window {
 interface NextFetchRequestConfig {
   revalidate?: number | false
   tags?: string[]
+  disableHeaders?: true | string[]
 }
 
 interface RequestInit {
