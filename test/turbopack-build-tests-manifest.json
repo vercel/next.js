@@ -15613,19 +15613,19 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
-      "passed": [
+      "passed": [],
+      "failed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
-      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
