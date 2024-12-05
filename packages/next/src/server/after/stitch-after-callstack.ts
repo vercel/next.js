@@ -4,6 +4,20 @@ import {
 } from '../../client/components/react-dev-overlay/server/middleware-webpack'
 import { replaceErrorStack } from '../../client/components/react-dev-overlay/internal/helpers/node-stack-frames'
 import type { AfterTaskStore } from '../app-render/after-task-async-storage.external'
+import { inspect } from 'node:util'
+
+export const STITCH_CALLSTACKS =
+  process.env.STITCH_CALLSTACKS !== undefined
+    ? !!JSON.parse(process.env.STITCH_CALLSTACKS)
+    : true
+export const SKIP_PROMISES =
+  process.env.SKIP_PROMISES !== undefined
+    ? !!JSON.parse(process.env.SKIP_PROMISES)
+    : true
+export const ADD_ASYNC_PLACEHOLDER =
+  process.env.ADD_ASYNC_PLACEHOLDER !== undefined
+    ? !!JSON.parse(process.env.ADD_ASYNC_PLACEHOLDER)
+    : true
 
 export const AFTER_CALLBACK_MARKER_FRAME = 'next-after-callback-marker-frame'
 export const AFTER_PROMISE_MARKER_FRAME = 'next-after-promise-marker-frame'
@@ -76,66 +90,85 @@ function getStitchedAfterCallstack(
 ): StackFrame[] | undefined {
   const errorFrames = parseStack(error.stack)
 
-  const userFramesFromError = stripFramesOutsideCallback(errorFrames)
-  if (!userFramesFromError) {
-    // If we didn't find a marker frame, we're almost certainly in a `unstable_after(promise)` call
-    // or something like `setTimeout(() => unstable_after(...))`.
-    //
-    // If it's a promise, we can't guarantee that we'll attach all the caller stacks that we should,
-    // because `unstable_after(promise)` cannot affect the promise's ALS context,
-    // so e.g. this won't include `foo` and its callers -- `rootTaskCallerStack` will start at `bar`:
-    //
-    //   async function foo() {
-    //     await setTimeout(0);
-    //     unstable_after(bar());
-    //   }
-    //   async function bar() {
-    //     await setTimeout(0);
-    //     unstable_after(zap());
-    //   }
-    //
-    //   async function zap() {
-    //     await setTimeout(0);
-    //     throw new Error('kaboom');
-    //   }
-    //
-    //   foo();
-    //
-    // (omitting `setTimeout(0)` seems to make it work -- I guess it's different if it's just microtasks?)
-    //
-    // Honestly, maybe I'm missing something here, but the above example
-    // is stubbornly missing `foo` no matter what I do, which results in a confusing callstack.
-    // Bailing out here prevents that, so I'm sticking with it.
-    return
+  let userFramesFromError = stripFramesOutsideCallback(errorFrames)
+  if (SKIP_PROMISES) {
+    if (!userFramesFromError) {
+      // If we didn't find a marker frame, we're almost certainly in a `unstable_after(promise)` call
+      // or something like `setTimeout(() => unstable_after(...))`.
+      //
+      // If it's a promise, we can't guarantee that we'll attach all the caller stacks that we should,
+      // because `unstable_after(promise)` cannot affect the promise's ALS context,
+      // so e.g. this won't include `foo` and its callers -- `rootTaskCallerStack` will start at `bar`:
+      //
+      //   async function foo() {
+      //     await setTimeout(0);
+      //     unstable_after(bar());
+      //   }
+      //   async function bar() {
+      //     await setTimeout(0);
+      //     unstable_after(zap());
+      //   }
+      //
+      //   async function zap() {
+      //     await setTimeout(0);
+      //     throw new Error('kaboom');
+      //   }
+      //
+      //   foo();
+      //
+      // (omitting `setTimeout(0)` seems to make it work -- I guess it's different if it's just microtasks?)
+      //
+      // Honestly, maybe I'm missing something here, but the above example
+      // is stubbornly missing `foo` no matter what I do, which results in a confusing callstack.
+      // Bailing out here prevents that, so I'm sticking with it.
+      return
+    }
+  } else {
+    userFramesFromError ??= errorFrames
   }
 
   // the callers of each nested `unstable_after`
   let userFramesFromTaskCallers: StackFrame[] = []
   if (nestedTaskCallerStacks) {
     for (let i = 0; i < nestedTaskCallerStacks.length; i++) {
-      const frames = stripFramesOutsideCallback(
-        parseStack(nestedTaskCallerStacks[i].stack)
-      )
-      if (!frames) {
-        // same as the error frame above -- no marker found, so we bail out.
-        return
+      const rawFrames = parseStack(nestedTaskCallerStacks[i].stack)
+      let frames = stripFramesOutsideCallback(rawFrames)
+      if (SKIP_PROMISES) {
+        if (!frames) {
+          // same as the error frame above -- no marker found, so we bail out.
+          return
+        }
+        if (hasPromiseMarkerFrame(frames)) {
+          return
+        }
+
+        if (ADD_ASYNC_PLACEHOLDER) {
+          addAsyncPlaceholderFrame(frames)
+        }
+        userFramesFromTaskCallers = userFramesFromTaskCallers.concat(frames)
+      } else {
+        frames ??= rawFrames
+        addAsyncPlaceholderFrame(frames)
+        userFramesFromTaskCallers = userFramesFromTaskCallers.concat(frames)
       }
-      if (hasPromiseMarkerFrame(frames)) {
-        return
-      }
-      userFramesFromTaskCallers = userFramesFromTaskCallers.concat(frames)
     }
   }
 
   // the caller of the root `unstable_after`
   const rootCallerFrames = parseStack(rootTaskCallerStack.stack)
 
-  if (hasPromiseMarkerFrame(rootCallerFrames)) {
-    // this stack of afters started from a promise passed to after: `unstable_after(foo())`
-    // (where `foo` called the after whose error we're handling now)
-    // we cannot trust that the root stack is attacheable to the react owner stack,
-    // so bail out.
-    return
+  if (SKIP_PROMISES) {
+    if (hasPromiseMarkerFrame(rootCallerFrames)) {
+      // this stack of afters started from a promise passed to after: `unstable_after(foo())`
+      // (where `foo` called the after whose error we're handling now)
+      // we cannot trust that the root stack is attacheable to the react owner stack,
+      // so bail out.
+      return
+    }
+  }
+
+  if (ADD_ASYNC_PLACEHOLDER) {
+    addAsyncPlaceholderFrame(rootCallerFrames)
   }
 
   const reactBottomFrameIndex = rootCallerFrames.findIndex(
@@ -159,6 +192,16 @@ function getStitchedAfterCallstack(
     userFramesFromRootCaller,
     framesFromReactOwner
   )
+}
+
+function addAsyncPlaceholderFrame(frames: StackFrame[]) {
+  frames.unshift({
+    methodName: '<async execution of unstable_after>',
+    file: '<anonymous>',
+    lineNumber: null,
+    column: null,
+    arguments: [],
+  })
 }
 
 function hasPromiseMarkerFrame(frames: StackFrame[]) {

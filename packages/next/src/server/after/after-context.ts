@@ -21,6 +21,8 @@ import {
   AFTER_PROMISE_MARKER_FRAME,
   type AfterTaskStackInfo,
   type CaptureStackTrace,
+  SKIP_PROMISES,
+  STITCH_CALLSTACKS,
 } from './stitch-after-callstack'
 
 export type AfterContextOpts = {
@@ -66,36 +68,62 @@ export class AfterContext {
         errorWaitUntilNotAvailable()
       }
 
-      const wrapper = {
-        [AFTER_PROMISE_MARKER_FRAME]: async () => {
-          try {
-            await task
-          } catch (error) {
-            let stackInfo: AfterTaskStackInfo
-            const afterTaskStore = afterTaskAsyncStorage.getStore()
-            if (!afterTaskStore) {
-              // topmost after
-              stackInfo = {
-                rootTaskReactOwnerStack: callerInfo.reactOwnerStack,
-                rootTaskCallerStack: callerInfo.callerStack,
-                nestedTaskCallerStacks: undefined,
+      if (SKIP_PROMISES) {
+        const wrapper = {
+          [AFTER_PROMISE_MARKER_FRAME]: async () => {
+            try {
+              await task
+            } catch (error) {
+              let stackInfo: AfterTaskStackInfo
+              const afterTaskStore = afterTaskAsyncStorage.getStore()
+              if (!afterTaskStore) {
+                // topmost after
+                stackInfo = {
+                  rootTaskReactOwnerStack: callerInfo.reactOwnerStack,
+                  rootTaskCallerStack: callerInfo.callerStack,
+                  nestedTaskCallerStacks: undefined,
+                }
+              } else {
+                // nested after
+                stackInfo = {
+                  ...afterTaskStore,
+                  nestedTaskCallerStacks: [
+                    callerInfo.callerStack,
+                    ...(afterTaskStore.nestedTaskCallerStacks ?? []),
+                  ],
+                }
               }
-            } else {
-              // nested after
-              stackInfo = {
-                ...afterTaskStore,
-                nestedTaskCallerStacks: [
-                  callerInfo.callerStack,
-                  ...(afterTaskStore.nestedTaskCallerStacks ?? []),
-                ],
-              }
+              this.reportTaskError('promise', error, stackInfo)
             }
-            this.reportTaskError('promise', error, stackInfo)
+          },
+        }[AFTER_PROMISE_MARKER_FRAME]
+        this.waitUntil(wrapper())
+      } else {
+        const promise = task.catch((error) => {
+          let stackInfo: AfterTaskStackInfo
+          const afterTaskStore = afterTaskAsyncStorage.getStore()
+          if (!afterTaskStore) {
+            // topmost after
+            stackInfo = {
+              rootTaskReactOwnerStack: callerInfo.reactOwnerStack,
+              rootTaskCallerStack: callerInfo.callerStack,
+              nestedTaskCallerStacks: undefined,
+            }
+          } else {
+            // nested after
+            stackInfo = {
+              ...afterTaskStore,
+              nestedTaskCallerStacks: [
+                callerInfo.callerStack,
+                ...(afterTaskStore.nestedTaskCallerStacks ?? []),
+              ],
+            }
           }
-        },
-      }[AFTER_PROMISE_MARKER_FRAME]
+          this.reportTaskError('promise', error, stackInfo)
+        })
 
-      this.waitUntil(wrapper())
+        this.waitUntil(promise)
+      }
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task, callerInfo)
@@ -202,7 +230,7 @@ export class AfterContext {
     error: unknown,
     stackInfo: AfterTaskStackInfo
   ) {
-    if (stackInfo && isError(error)) {
+    if (STITCH_CALLSTACKS && stackInfo && isError(error)) {
       try {
         error = stitchAfterCallstack(error, stackInfo)
       } catch (stitchError) {
