@@ -9,20 +9,22 @@ function Wrapper() {
   return <Inner />
 }
 
-function Inner() {
-  foo()
+async function Inner() {
+  await foo()
   return null
 }
-
-// this should bail out, otherwise it'll likely be incorrect
 
 async function foo() {
   await setTimeout(0)
   unstable_after(bar())
 }
+
 async function bar() {
   await setTimeout(0)
-  unstable_after(zap())
+  // TODO(after): it looks like `aboveZap` is not in the stack if `zap` does `setTimeout(0)`?
+  unstable_after(function aboveZap() {
+    return zap()
+  })
 }
 
 async function zap() {

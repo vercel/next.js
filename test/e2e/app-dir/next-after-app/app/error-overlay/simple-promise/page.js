@@ -15,17 +15,13 @@ function Inner() {
 }
 
 function helper() {
-  unstable_after(async function aboveNestedHelper() {
-    await setTimeout(500)
-    nestedHelper()
-  })
+  const promise = throwsAsync()
+  unstable_after(promise)
 }
 
-function nestedHelper() {
-  unstable_after(async function aboveThrows() {
-    await setTimeout(500)
-    throws()
-  })
+async function throwsAsync() {
+  await setTimeout(0)
+  throws()
 }
 
 function throws() {
