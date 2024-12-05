@@ -301,7 +301,7 @@ export function getOverlayMiddleware(project: Project) {
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {
-        return internalServerError(res, e.message)
+        return internalServerError(res, e.stack)
       }
 
       if (!originalStackFrame) {
