@@ -47,6 +47,7 @@ describe('getDynamicHTMLPostponedState', () => {
           "cache": Map {
             "1" => Promise {},
           },
+          "encryptedBoundArgs": Map {},
           "fetch": Map {},
         },
         "type": 2,
