@@ -10,19 +10,26 @@ function Wrapper() {
 }
 
 function Inner() {
-  bar()
+  helper()
   return null
 }
 
-function bar() {
-  after(function aboveZap() {
-    return zap()
-  })
+function helper() {
+  after(
+    (async () => {
+      await setTimeout(0)
+      nestedHelper()
+    })()
+  )
 }
 
-async function zap() {
-  await setTimeout(0)
-  throws()
+function nestedHelper() {
+  after(
+    (async () => {
+      await setTimeout(0)
+      throws()
+    })()
+  )
 }
 
 function throws() {

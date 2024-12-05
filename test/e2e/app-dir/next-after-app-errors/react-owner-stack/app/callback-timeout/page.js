@@ -9,19 +9,19 @@ function Wrapper() {
   return <Inner />
 }
 
-async function Inner() {
-  await foo()
+function Inner() {
+  foo()
   return null
 }
 
-async function foo() {
-  await setTimeout(0)
-  after(function aboveBar() {
+function foo() {
+  after(() => {
     return bar()
   })
 }
 
 async function bar() {
+  await setTimeout(0)
   throws()
 }
 

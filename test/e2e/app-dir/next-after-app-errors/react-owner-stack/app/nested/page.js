@@ -16,14 +16,14 @@ function Inner() {
 
 function helper() {
   after(async function aboveNestedHelper() {
-    await setTimeout(500)
+    await setTimeout(0)
     nestedHelper()
   })
 }
 
 function nestedHelper() {
   after(async function aboveThrows() {
-    await setTimeout(500)
+    await setTimeout(0)
     throws()
   })
 }

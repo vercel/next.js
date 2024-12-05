@@ -10,26 +10,24 @@ function Wrapper() {
 }
 
 function Inner() {
-  helper()
+  foo()
   return null
 }
 
-function helper() {
-  after(
-    (async () => {
-      await setTimeout(500)
-      nestedHelper()
-    })()
-  )
+function foo() {
+  after(bar())
 }
 
-function nestedHelper() {
-  after(
-    (async () => {
-      await setTimeout(500)
-      throws()
-    })()
-  )
+async function bar() {
+  // TODO(after): it looks like `aboveZap` is not in the stack if `zap` does `setTimeout(0)`?
+  after(function aboveZap() {
+    return zap()
+  })
+}
+
+async function zap() {
+  await setTimeout(0)
+  throws()
 }
 
 function throws() {

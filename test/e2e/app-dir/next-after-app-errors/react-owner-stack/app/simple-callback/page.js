@@ -16,14 +16,11 @@ function Inner() {
 
 function helper() {
   after(async () => {
-    // TODO(after): this delay is load-bearing, otherwise
-    // the client-side won't have booted yet and our `HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR`
-    // will be dropped on the floor, so we won't display anything
-    await setTimeout(1000)
+    await setTimeout(0)
     throws()
   })
 }
 
 function throws() {
-  // throw new Error('kaboom')
+  throw new Error('kaboom')
 }
