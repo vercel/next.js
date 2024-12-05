@@ -31,4 +31,16 @@ describe('dynamic-io', () => {
       await assertNoRedbox(browser)
     }
   })
+
+  it('should prerender pages with inline server actions', async () => {
+    let $ = await next.render$('/server-action-inline', {})
+
+    if (isNextDev) {
+      expect($('#layout').text()).toBe('at runtime')
+      expect($('#page').text()).toBe('at runtime')
+    } else {
+      expect($('#layout').text()).toBe('at buildtime')
+      expect($('#page').text()).toBe('at buildtime')
+    }
+  })
 })

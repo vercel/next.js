@@ -1,6 +1,7 @@
 'use client'
 
 import { useActionState } from 'react'
+import { getSentinelValue } from '../getSentinelValue'
 
 export function Form({ action }) {
   const [result, formAction] = useActionState(action, 'initial')
@@ -10,6 +11,7 @@ export function Form({ action }) {
       <h1>Inline Server Action with Dynamic IO</h1>
       <button>Submit</button>
       <p>{result}</p>
+      <div id="page">{getSentinelValue()}</div>
     </form>
   )
 }
