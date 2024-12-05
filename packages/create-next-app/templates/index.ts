@@ -212,8 +212,8 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       typescript: "^5",
       "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
     };
   }
 
