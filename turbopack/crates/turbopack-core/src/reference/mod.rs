@@ -170,14 +170,15 @@ impl SingleOutputAssetReference {
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
-    let references_set = module.references().await?;
-    let mut modules = FxIndexSet::default();
-    let resolve_results = references_set
+    let references = module.references().await?;
+
+    let resolved_references = references
         .iter()
         .map(|r| r.resolve_reference())
         .try_join()
         .await?;
-    for resolve_result in resolve_results {
+    let mut modules = Vec::new();
+    for resolve_result in resolved_references {
         modules.extend(resolve_result.primary_modules_raw_iter());
         modules.extend(
             resolve_result

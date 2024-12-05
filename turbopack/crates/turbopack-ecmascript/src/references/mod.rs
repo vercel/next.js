@@ -726,8 +726,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             EsmExport::Error => {}
         }
     }
-    for &reference in esm_star_exports.iter() {
-        let reference = reference.to_resolved().await?;
+    for reference in esm_star_exports
+        .iter()
+        .map(|r| r.to_resolved())
+        .try_join()
+        .await?
+    {
         analysis.add_reexport_reference(reference);
         analysis.add_import_reference(reference);
     }

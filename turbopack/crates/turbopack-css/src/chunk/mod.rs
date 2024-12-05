@@ -311,13 +311,19 @@ impl OutputAsset for CssChunk {
         let this = self.await?;
         let content = this.content.await?;
         let mut references = content.referenced_output_assets.await?.clone_value();
-        for item in content.chunk_items.iter() {
-            references.push(ResolvedVc::upcast(
-                SingleItemCssChunk::new(*this.chunking_context, **item)
-                    .to_resolved()
-                    .await?,
-            ));
-        }
+        references.extend(
+            content
+                .chunk_items
+                .iter()
+                .map(|item| async {
+                    SingleItemCssChunk::new(*this.chunking_context, **item)
+                        .to_resolved()
+                        .await
+                        .map(ResolvedVc::upcast)
+                })
+                .try_join()
+                .await?,
+        );
         if *this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self))
