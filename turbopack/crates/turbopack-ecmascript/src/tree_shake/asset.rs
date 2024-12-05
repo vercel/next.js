@@ -184,8 +184,12 @@ impl EcmascriptModulePartAsset {
                 return Ok(*ResolvedVc::upcast(final_module));
             }
 
-            let side_effects_module =
-                SideEffectsModule::new(module, *part, *final_module, side_effects.to_vec());
+            let side_effects_module = SideEffectsModule::new(
+                module,
+                *part,
+                *final_module,
+                side_effects.iter().map(|v| **v).collect(),
+            );
 
             return Ok(Vc::upcast(side_effects_module));
         }
@@ -208,7 +212,7 @@ impl EcmascriptModulePartAsset {
 
 #[turbo_tasks::value]
 struct FollowExportsWithSideEffectsResult {
-    side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     result: ResolvedVc<FollowExportsResult>,
 }
 
@@ -228,7 +232,7 @@ async fn follow_reexports_with_side_effects(
             .await?;
 
         if !is_side_effect_free {
-            side_effects.push(only_effects(*current_module));
+            side_effects.push(only_effects(*current_module).to_resolved().await?);
         }
 
         // We ignore the side effect of the entry module here, because we need to proceed.

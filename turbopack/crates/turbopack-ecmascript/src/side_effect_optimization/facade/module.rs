@@ -238,10 +238,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                         ),
                     );
                 }
-                star_exports.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::exports(),
-                )));
+                star_exports.push(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::exports())
+                        .to_resolved()
+                        .await?,
+                ));
             }
             ModulePart::RenamedExport {
                 original_export,

@@ -26,7 +26,7 @@ pub(super) struct SideEffectsModule {
     /// The module that is the binding
     pub resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Side effects from the original module to the binding.
-    pub side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,7 +36,7 @@ impl SideEffectsModule {
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
         resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+        side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Vc<Self> {
         SideEffectsModule {
             module,
@@ -79,7 +79,7 @@ impl Module for SideEffectsModule {
         for &side_effect in self.side_effects.iter() {
             references.push(ResolvedVc::upcast(
                 SingleChunkableModuleReference::new(
-                    Vc::upcast(side_effect),
+                    *ResolvedVc::upcast(side_effect),
                     Vc::cell(RcStr::from("side effect")),
                 )
                 .to_resolved()
