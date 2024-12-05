@@ -269,6 +269,21 @@ describe('app dir - metadata', () => {
       })
     })
 
+    it('should support other custom tags', async () => {
+      const browser = await next.browser('/other')
+      const matchMultiDom = createMultiDomMatcher(browser)
+
+      await matchMultiDom('meta', 'name', 'content', {
+        custom: 'meta',
+        custom1: ['meta1', 'meta2'],
+        customName: 'customName',
+      })
+
+      await matchMultiDom('meta', 'property', 'content', {
+        customProperty: 'customProperty',
+      })
+    })
+
     it('should apply metadata when navigating client-side', async () => {
       const browser = await next.browser('/')
 
