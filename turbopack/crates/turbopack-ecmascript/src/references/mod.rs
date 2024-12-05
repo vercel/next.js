@@ -285,12 +285,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let references = self
-            .references
-            .iter()
-            .map(|v| async move { v.to_resolved().await })
-            .try_join()
-            .await?;
+        let references = self.references.into_iter().collect();
         let local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
