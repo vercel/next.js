@@ -52,7 +52,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-de68d2f4-20241204";
+const nextjsReactPeerVersion = "19.0.0-rc-1c9b1387-20241204";
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
