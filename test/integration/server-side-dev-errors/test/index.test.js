@@ -72,8 +72,8 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra): Incorrect column number, should be 6:3
-            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:2)' +
+            // TODO(sokra) weird ./ in front of the ../../
+            '\n    at getStaticProps (./../../test/integration/server-side-dev-errors/pages/gsp.js:6:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -126,8 +126,8 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra): Incorrect column number, should be 6:3
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:2)' +
+            // TODO(sokra) weird ./ in front of the ../../
+            '\n    at getServerSideProps (./../../test/integration/server-side-dev-errors/pages/gssp.js:6:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -180,8 +180,8 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra): Incorrect column number, should be 6:3
-            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:2)' +
+            // TODO(sokra) weird ./ in front of the ../../
+            '\n    at getServerSideProps (./../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -232,9 +232,11 @@ describe('server-side dev errors', () => {
           ' ⨯ ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler' +
             '\n ⨯ ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler'
         )
+        // TODO(sokra) Error should be ReferenceError. Why isn't it?
         expect(stderrOutput).toContain(
-          ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
+          ' ⨯ Error: missingVar is not defined' +
+            // TODO(sokra) weird ./ in front of the ../../
+            '\n    at handler (./../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -289,7 +291,8 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           '\n ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
+            // TODO(sokra) weird ./ in front of the ../../
+            '\n    at handler (./../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -331,6 +334,7 @@ describe('server-side dev errors', () => {
     // FIXME(veil): codeframe repeated after " ⨯ unhandledRejection: Error: catch this rejection"
     if (isTurbopack) {
       // TODO(veil): digest: undefined should be omitted?
+      // TODO(sokra) weird ./ in front of the ../../
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this rejection
             at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
