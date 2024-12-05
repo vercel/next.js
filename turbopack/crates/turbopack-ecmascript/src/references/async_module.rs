@@ -109,7 +109,7 @@ impl AsyncModule {
             .await?
             .iter()
             .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(**r).await? else {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
@@ -156,7 +156,8 @@ impl AsyncModule {
                     .await?
                     .iter()
                     .map(|r| async {
-                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
+                        let Some(referenced_asset) =
+                            get_inherit_async_referenced_asset(**r).await?
                         else {
                             return Ok(false);
                         };

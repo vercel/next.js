@@ -16,6 +16,7 @@ workspace = true
 default = []
 verify_serialization = []
 trace_aggregation_update = []
+trace_find_and_schedule = []
 lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]

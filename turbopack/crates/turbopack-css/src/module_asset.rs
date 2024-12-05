@@ -85,12 +85,15 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(
-                self.inner()
-                    .try_into_module()
-                    .await?
-                    .map(|inner| Vc::upcast(InternalCssAssetReference::new(*inner))),
-            )
+            .chain(match *self.inner().try_into_module().await? {
+                Some(inner) => Some(
+                    InternalCssAssetReference::new(*inner)
+                        .to_resolved()
+                        .await
+                        .map(ResolvedVc::upcast)?,
+                ),
+                None => None,
+            })
             .collect();
 
         Ok(Vc::cell(references))
@@ -222,7 +225,7 @@ impl ModuleCssAsset {
             for class_name in class_names {
                 match class_name {
                     ModuleCssClass::Import { from, .. } => {
-                        references.push(Vc::upcast(**from));
+                        references.push(ResolvedVc::upcast(*from));
                     }
                     ModuleCssClass::Local { .. } | ModuleCssClass::Global { .. } => {}
                 }
@@ -464,6 +467,8 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.message.clone()).resolved_cell(),
+        ))
     }
 }

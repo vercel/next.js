@@ -47,6 +47,10 @@ impl OutputAssets {
     pub fn empty() -> Vc<Self> {
         Self::new(vec![])
     }
+
+    pub fn empty_resolved() -> ResolvedVc<Self> {
+        ResolvedVc::cell(vec![])
+    }
 }
 
 /// A set of [OutputAsset]s

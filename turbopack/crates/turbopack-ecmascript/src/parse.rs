@@ -129,7 +129,7 @@ impl GenerateSourceMap for ParseResultSourceMap {
             input_map.as_deref(),
             InlineSourcesContentConfig {},
         );
-        Ok(Vc::cell(Some(SourceMap::new_regular(map).cell())))
+        Ok(Vc::cell(Some(SourceMap::new_regular(map).resolved_cell())))
     }
 }
 
@@ -494,7 +494,7 @@ impl Issue for ReadSourceIssue {
                 )
                 .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 

@@ -23,7 +23,7 @@ pub struct MakeChunkGroupResult {
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_group_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
     let ChunkContentResult {
@@ -144,6 +144,7 @@ pub async fn make_chunk_group(
     let async_loader_external_module_references = async_loader_references
         .iter()
         .flat_map(|references| references.iter().copied())
+        .map(|v| *v)
         .collect();
 
     let mut referenced_output_assets = references_to_output_assets(external_module_references)

@@ -561,7 +561,9 @@ impl Issue for PostCssTransformIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.description.clone()).resolved_cell(),
+        ))
     }
 
     #[turbo_tasks::function]

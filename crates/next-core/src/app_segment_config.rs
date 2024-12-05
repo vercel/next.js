@@ -203,13 +203,13 @@ impl Issue for NextSegmentConfigParsingIssue {
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.detail))
+        Vc::cell(Some(self.detail))
     }
 
     #[turbo_tasks::function]
@@ -221,8 +221,13 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source.resolve_source_map(self.ident.path())))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(Some(
+            self.source
+                .resolve_source_map(self.ident.path())
+                .to_resolved()
+                .await?,
+        )))
     }
 }
 

@@ -529,7 +529,7 @@ impl Module for EcmascriptModuleAsset {
                     asset.ident().to_resolved().await?,
                 );
             }
-            ident.add_modifier(modifier());
+            ident.add_modifier(modifier().to_resolved().await?);
             ident.layer = Some(self.asset_context.layer().to_resolved().await?);
             Ok(AssetIdent::new(Value::new(ident)))
         } else {
@@ -729,11 +729,11 @@ impl EcmascriptModuleContent {
         for r in references.await?.iter() {
             let r = r.resolve().await?;
             if let Some(code_gen) =
-                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
                 code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
             } else if let Some(code_gen) =
-                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
                 code_gens.push(code_gen.code_generation(chunking_context));
             }

@@ -69,19 +69,27 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let client_module = ResolvedVc::upcast(self.client_module);
         let ssr_module = ResolvedVc::upcast(self.ssr_module);
-        Vc::cell(vec![
-            Vc::upcast(SingleModuleReference::new(
-                *client_module,
-                ecmascript_client_reference_client_ref_modifier(),
-            )),
-            Vc::upcast(SingleModuleReference::new(
-                *ssr_module,
-                ecmascript_client_reference_ssr_ref_modifier(),
-            )),
-        ])
+        Ok(Vc::cell(vec![
+            ResolvedVc::upcast(
+                SingleModuleReference::new(
+                    *client_module,
+                    ecmascript_client_reference_client_ref_modifier(),
+                )
+                .to_resolved()
+                .await?,
+            ),
+            ResolvedVc::upcast(
+                SingleModuleReference::new(
+                    *ssr_module,
+                    ecmascript_client_reference_ssr_ref_modifier(),
+                )
+                .to_resolved()
+                .await?,
+            ),
+        ]))
     }
 }
 

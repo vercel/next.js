@@ -287,7 +287,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     async fn chunk_group(
         self: Vc<Self>,
         _ident: Vc<AssetIdent>,
-        module: Vc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!(
@@ -300,7 +300,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 availability_info,
             } = make_chunk_group(
                 Vc::upcast(self),
-                [Vc::upcast(module)],
+                [ResolvedVc::upcast(module)],
                 availability_info.into_value(),
             )
             .await?;
@@ -312,7 +312,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 .await?;
 
             Ok(ChunkGroupResult {
-                assets: Vc::cell(assets),
+                assets: ResolvedVc::cell(assets),
                 availability_info,
             }
             .cell())
@@ -328,7 +328,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     pub async fn entry_chunk_group(
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
-        module: Vc<Box<dyn Module>>,
+        module: ResolvedVc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         extra_chunks: Vc<OutputAssets>,
         availability_info: Value<AvailabilityInfo>,
@@ -344,7 +344,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 evaluatable_assets
                     .await?
                     .iter()
-                    .map(|&asset| Vc::upcast(asset)),
+                    .map(|&asset| ResolvedVc::upcast(asset)),
             ),
             availability_info,
         )
@@ -363,7 +363,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .collect();
 
-        let Some(module) = Vc::try_resolve_downcast(module).await? else {
+        let Some(module) = ResolvedVc::try_downcast(module).await? else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 
@@ -373,7 +373,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 self,
                 Vc::cell(other_chunks),
                 evaluatable_assets,
-                module,
+                *module,
             )
             .to_resolved()
             .await?,

@@ -249,7 +249,7 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, output_fs.root().join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join("_".into()));
     let project_dir = &project_dir;
     let entries = entry_requests
         .into_iter()
