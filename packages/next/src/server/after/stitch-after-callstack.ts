@@ -31,15 +31,37 @@ export function stitchAfterCallstack(
     replaceErrorStack(error, frames)
   }
 
-  console.log('AfterContext :: patchAfterCallstack', {
-    errorStack: origErrorStack,
-    nestedTaskCallerStacks: stackInfo.nestedTaskCallerStacks?.map(
+  console.log('='.repeat(60))
+  console.log('AfterContext :: stitchAfterCallstack')
+  const indent = (depth: number, str: string) =>
+    str
+      .split('\n')
+      .map((line) => ' '.repeat(depth) + line)
+      .join('\n')
+  const stackToStr = (str: string | null | undefined) =>
+    indent(4, !str ? inspect(str) : str)
+  console.log('  errorStack:')
+  console.log(stackToStr(origErrorStack))
+  console.log(
+    '  nestedTaskCallerStacks:',
+    ...(!stackInfo.nestedTaskCallerStacks
+      ? [stackInfo.nestedTaskCallerStacks]
+      : [])
+  )
+  if (stackInfo.nestedTaskCallerStacks) {
+    for (const stack of stackInfo.nestedTaskCallerStacks?.map(
       (e) => e?.stack
-    ),
-    rootTaskCallerStack: stackInfo.rootTaskCallerStack?.stack,
-    rootTaskReactOwnerStack: stackInfo.rootTaskReactOwnerStack,
-    finalStack: frames ? error.stack : '<unchanged>',
-  })
+    )) {
+      console.log(stackToStr(stack))
+    }
+  }
+  console.log('  rootTaskCallerStack:')
+  console.log(stackToStr(stackInfo.rootTaskCallerStack?.stack))
+  console.log('  rootTaskReactOwnerStack:')
+  console.log(stackToStr(stackInfo.rootTaskReactOwnerStack))
+  console.log('  finalStack:')
+  console.log(stackToStr(frames ? error.stack : '<unchanged>'))
+  console.log('='.repeat(60))
 
   return error
 }
