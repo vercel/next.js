@@ -9,24 +9,19 @@ function Wrapper() {
   return <Inner />
 }
 
-function Inner() {
-  foo()
+async function Inner() {
+  await foo()
   return null
 }
 
-// this should bail out, otherwise it'll likely be incorrect
-
 async function foo() {
   await setTimeout(0)
-  after(bar())
-}
-async function bar() {
-  await setTimeout(0)
-  after(zap())
+  after(function aboveBar() {
+    return bar()
+  })
 }
 
-async function zap() {
-  await setTimeout(0)
+async function bar() {
   throws()
 }
 

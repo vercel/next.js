@@ -14,19 +14,18 @@ function Inner() {
   return null
 }
 
-// this should bail out, otherwise it'll likely be incorrect
-
 async function foo() {
-  await setTimeout(0)
+  await setTimeout(0) // cut off async stack here, the rest should work like it was sync
   after(bar())
 }
+
 async function bar() {
-  await setTimeout(0)
-  after(zap())
+  after(function aboveZap() {
+    return zap()
+  })
 }
 
 async function zap() {
-  await setTimeout(0)
   throws()
 }
 

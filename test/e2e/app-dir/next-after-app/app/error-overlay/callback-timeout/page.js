@@ -10,19 +10,14 @@ function Wrapper() {
 }
 
 function Inner() {
-  foo()
+  bar()
   return null
 }
 
-// this should bail out, otherwise it'll likely be incorrect
-
-async function foo() {
-  await setTimeout(0)
-  after(bar())
-}
-async function bar() {
-  await setTimeout(0)
-  after(zap())
+function bar() {
+  after(function aboveZap() {
+    return zap()
+  })
 }
 
 async function zap() {

@@ -10,22 +10,16 @@ function Wrapper() {
 }
 
 function Inner() {
-  foo()
+  helper()
   return null
 }
 
-// this should bail out, otherwise it'll likely be incorrect
-
-async function foo() {
-  await setTimeout(0)
-  after(bar())
-}
-async function bar() {
-  await setTimeout(0)
-  after(zap())
+function helper() {
+  const promise = throwsAsync()
+  after(promise)
 }
 
-async function zap() {
+async function throwsAsync() {
   await setTimeout(0)
   throws()
 }
