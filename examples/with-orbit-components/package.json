@@ -12,15 +12,11 @@
     "postcss": "^8.4.49",
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
-    "styled-components": "^6.1.13",
     "tailwindcss": "^3.4.16"
   },
   "devDependencies": {
-    "@kiwicom/babel-plugin-orbit-components": "^5.1.24",
     "@types/node": "^22.10.1",
-    "@types/react": "^18.3.12",
-    "@types/styled-components": "^5.1.34",
-    "babel-plugin-styled-components": "^2.1.4",
+    "@types/react": "^18.3.13",
     "prettier": "^3.4.2",
     "prettier-check": "^2.0.0",
     "typescript": "^5.7.2"
