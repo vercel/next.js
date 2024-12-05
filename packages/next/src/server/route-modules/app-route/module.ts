@@ -82,7 +82,6 @@ import {
 } from '../../../client/components/http-access-fallback/http-access-fallback'
 import { RedirectStatusCode } from '../../../client/components/redirect-status-code'
 import { INFINITE_CACHE } from '../../../lib/constants'
-import { createPrerenderStore } from '../../async-storage/prerender-store'
 
 export class WrappedNextRouterError {
   constructor(
@@ -357,15 +356,22 @@ export class AppRouteRouteModule extends RouteModule<
           let dynamicTracking = createDynamicTrackingState(undefined)
 
           const prospectiveRoutePrerenderStore: PrerenderStore =
-            (prerenderStore = createPrerenderStore({
+            (prerenderStore = {
+              type: 'prerender',
               phase: 'action',
-              implicitTags,
+              implicitTags: implicitTags,
               renderSignal: prospectiveController.signal,
               controller: prospectiveController,
               cacheSignal,
+              // During prospective render we don't use a controller
+              // because we need to let all caches fill.
               dynamicTracking,
               revalidate: defaultRevalidate,
-            }))
+              expire: INFINITE_CACHE,
+              stale: INFINITE_CACHE,
+              tags: [...implicitTags],
+              prerenderResumeDataCache: null,
+            })
 
           let prospectiveResult
           try {
@@ -436,16 +442,20 @@ export class AppRouteRouteModule extends RouteModule<
           const finalController = new AbortController()
           dynamicTracking = createDynamicTrackingState(undefined)
 
-          const finalRoutePrerenderStore: PrerenderStore = (prerenderStore =
-            createPrerenderStore({
-              phase: 'action',
-              implicitTags,
-              renderSignal: finalController.signal,
-              controller: finalController,
-              cacheSignal: null,
-              dynamicTracking,
-              revalidate: defaultRevalidate,
-            }))
+          const finalRoutePrerenderStore: PrerenderStore = (prerenderStore = {
+            type: 'prerender',
+            phase: 'action',
+            implicitTags: implicitTags,
+            renderSignal: finalController.signal,
+            controller: finalController,
+            cacheSignal: null,
+            dynamicTracking,
+            revalidate: defaultRevalidate,
+            expire: INFINITE_CACHE,
+            stale: INFINITE_CACHE,
+            tags: [...implicitTags],
+            prerenderResumeDataCache: null,
+          })
 
           let responseHandled = false
           res = await new Promise((resolve, reject) => {

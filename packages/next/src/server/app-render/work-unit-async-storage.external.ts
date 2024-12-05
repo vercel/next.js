@@ -111,12 +111,6 @@ export type PrerenderStoreModern = {
    */
   prerenderResumeDataCache: PrerenderResumeDataCache | null
 
-  /**
-   * TODO
-   */
-  encryptedBoundArgsCache: Map<string, string> | null
-
-  // TODO: Is this property unused?
   // DEV ONLY
   // When used this flag informs certain APIs to skip logging because we're
   // not part of the primary render path and are just prerendering to produce
