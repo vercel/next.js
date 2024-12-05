@@ -10,22 +10,23 @@ function Wrapper() {
 }
 
 function Inner() {
-  helper()
+  foo()
   return null
 }
 
-function helper() {
-  unstable_after(async function aboveNestedHelper() {
-    await setTimeout(500)
-    nestedHelper()
+async function foo() {
+  await setTimeout(0) // cut off async stack here, the rest should work like it was sync
+  unstable_after(bar())
+}
+
+async function bar() {
+  unstable_after(function aboveZap() {
+    return zap()
   })
 }
 
-function nestedHelper() {
-  unstable_after(async function aboveThrows() {
-    await setTimeout(500)
-    throws()
-  })
+async function zap() {
+  throws()
 }
 
 function throws() {
