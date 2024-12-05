@@ -20,13 +20,13 @@ index 5ec4c37f0b..131f5b9f4a 100644
 +    "next": "15.0.4-canary.43",
 +    "react": "19.0.0",
 +    "react-dom": "19.0.0",
-+    "@types/react": "18.3.2",
-+    "@types/react-dom": "18.3.2"
++    "@types/react": "19.0.0",
++    "@types/react-dom": "19.0.0"
 +  },
 +  "pnpm": {
 +    "overrides": {
-+      "@types/react": "18.3.2",
-+      "@types/react-dom": "18.3.2"
++      "@types/react": "19.0.0",
++      "@types/react-dom": "19.0.0"
 +    }
    }
  }
