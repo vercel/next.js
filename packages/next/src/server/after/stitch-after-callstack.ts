@@ -6,6 +6,7 @@ import { replaceErrorStack } from '../../client/components/react-dev-overlay/int
 import type { AfterTaskStore } from '../app-render/after-task-async-storage.external'
 
 export const AFTER_CALLBACK_MARKER_FRAME = 'next-after-callback-marker-frame'
+export const AFTER_PROMISE_MARKER_FRAME = 'next-after-promise-marker-frame'
 
 export type AfterTaskStackInfo = Pick<
   AfterTaskStore,
@@ -91,10 +92,13 @@ function getStitchedAfterCallstack(
   if (nestedTaskCallerStacks) {
     for (let i = 0; i < nestedTaskCallerStacks.length; i++) {
       const frames = stripFramesOutsideCallback(
-        parseStack(nestedTaskCallerStacks[i]?.stack)
+        parseStack(nestedTaskCallerStacks[i].stack)
       )
       if (!frames) {
         // same as the error frame above -- no marker found, so we bail out.
+        return
+      }
+      if (hasPromiseMarkerFrame(frames)) {
         return
       }
       userFramesFromTaskCallers = userFramesFromTaskCallers.concat(frames)
@@ -103,6 +107,15 @@ function getStitchedAfterCallstack(
 
   // the caller of the root `after`
   const rootCallerFrames = parseStack(rootTaskCallerStack.stack)
+
+  if (hasPromiseMarkerFrame(rootCallerFrames)) {
+    // this stack of afters started from a promise passed to after: `after(foo())`
+    // (where `foo` called the after whose error we're handling now)
+    // we cannot trust that the root stack is attacheable to the react owner stack,
+    // so bail out.
+    return
+  }
+
   const reactBottomFrameIndex = rootCallerFrames.findIndex(
     (frame) => frame.methodName === 'react-stack-bottom-frame'
   )
@@ -126,14 +139,24 @@ function getStitchedAfterCallstack(
   )
 }
 
-const stripFramesOutsideCallback = (frames: StackFrame[]) => {
+function hasPromiseMarkerFrame(frames: StackFrame[]) {
+  return frames.some(isPromiseMarkerFrame)
+}
+
+function isPromiseMarkerFrame(frame: StackFrame) {
+  return frame.methodName.endsWith(AFTER_PROMISE_MARKER_FRAME) // it might be "async [name]"
+}
+
+function stripFramesOutsideCallback(frames: StackFrame[]) {
   // slice off everything above the user callback -- that's next.js internals
-  const topFrameIx = frames.findIndex(
-    (frame) => frame.methodName.endsWith(AFTER_CALLBACK_MARKER_FRAME) // it might be "async [name]"
-  )
+  const topFrameIx = frames.findIndex(isCallbackMarkerFrame)
   if (topFrameIx === -1) {
     return
   }
-  // last index is not included, so this also omits the wrapper we add in addCallback
+  // last index is not included, so this also omits the marker frame
   return frames.slice(0, topFrameIx)
+}
+
+function isCallbackMarkerFrame(frame: StackFrame) {
+  return frame.methodName.endsWith(AFTER_CALLBACK_MARKER_FRAME) // it might be "async [name]"
 }

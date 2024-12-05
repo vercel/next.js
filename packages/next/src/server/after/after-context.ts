@@ -18,6 +18,7 @@ import isError from '../../lib/is-error'
 import {
   stitchAfterCallstack,
   AFTER_CALLBACK_MARKER_FRAME,
+  AFTER_PROMISE_MARKER_FRAME,
   type AfterTaskStackInfo,
   type CaptureStackTrace,
 } from './stitch-after-callstack'
@@ -57,30 +58,36 @@ export class AfterContext {
         errorWaitUntilNotAvailable()
       }
 
-      this.waitUntil(
-        task.catch((error) => {
-          let stackInfo: AfterTaskStackInfo
-          const afterTaskStore = afterTaskAsyncStorage.getStore()
-          if (!afterTaskStore) {
-            // topmost after
-            stackInfo = {
-              rootTaskReactOwnerStack: callerInfo.reactOwnerStack,
-              rootTaskCallerStack: callerInfo.callerStack,
-              nestedTaskCallerStacks: undefined,
+      const wrapper = {
+        [AFTER_PROMISE_MARKER_FRAME]: async () => {
+          try {
+            await task
+          } catch (error) {
+            let stackInfo: AfterTaskStackInfo
+            const afterTaskStore = afterTaskAsyncStorage.getStore()
+            if (!afterTaskStore) {
+              // topmost after
+              stackInfo = {
+                rootTaskReactOwnerStack: callerInfo.reactOwnerStack,
+                rootTaskCallerStack: callerInfo.callerStack,
+                nestedTaskCallerStacks: undefined,
+              }
+            } else {
+              // nested after
+              stackInfo = {
+                ...afterTaskStore,
+                nestedTaskCallerStacks: [
+                  callerInfo.callerStack,
+                  ...(afterTaskStore.nestedTaskCallerStacks ?? []),
+                ],
+              }
             }
-          } else {
-            // nested after
-            stackInfo = {
-              ...afterTaskStore,
-              nestedTaskCallerStacks: [
-                callerInfo.callerStack,
-                ...(afterTaskStore.nestedTaskCallerStacks ?? []),
-              ],
-            }
+            this.reportTaskError('promise', error, stackInfo)
           }
-          this.reportTaskError('promise', error, stackInfo)
-        })
-      )
+        },
+      }[AFTER_PROMISE_MARKER_FRAME]
+
+      this.waitUntil(wrapper())
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task, callerInfo)
