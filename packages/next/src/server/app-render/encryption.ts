@@ -16,7 +16,11 @@ import {
   getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  getPrerenderResumeDataCache,
+  getRenderResumeDataCache,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -111,25 +115,36 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
 
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  const prerenderStore =
-    workUnitStore?.type === 'prerender' ? workUnitStore : undefined
+  const prerenderResumeDataCache = workUnitStore
+    ? getPrerenderResumeDataCache(workUnitStore)
+    : null
+
+  const renderResumeDataCache = workUnitStore
+    ? getRenderResumeDataCache(workUnitStore)
+    : null
+
+  const cacheKey = actionId + serialized
 
   const cachedEncrypted =
-    prerenderStore?.encryptedBoundArgsCache?.get(serialized)
+    prerenderResumeDataCache?.encryptedBoundArgs.get(cacheKey) ??
+    renderResumeDataCache?.encryptedBoundArgs.get(cacheKey)
 
   if (cachedEncrypted) {
     return cachedEncrypted
   }
 
-  prerenderStore?.cacheSignal?.beginRead()
+  const cacheSignal =
+    workUnitStore?.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+
+  cacheSignal?.beginRead()
 
   // Encrypt the serialized string with the action id as the salt.
   // Add a prefix to later ensure that the payload is correctly decrypted, similar
   // to a checksum.
   const encrypted = await encodeActionBoundArg(actionId, serialized)
 
-  prerenderStore?.cacheSignal?.endRead()
-  prerenderStore?.encryptedBoundArgsCache?.set(serialized, encrypted)
+  cacheSignal?.endRead()
+  prerenderResumeDataCache?.encryptedBoundArgs?.set(cacheKey, encrypted)
 
   return encrypted
 }

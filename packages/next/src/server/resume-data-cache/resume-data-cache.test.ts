@@ -41,7 +41,7 @@ describe('stringifyResumeDataCache', () => {
     ).toString('utf-8')
 
     expect(decompressed).toMatchInlineSnapshot(
-      `"{"store":{"fetch":{},"cache":{"key":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}}}}"`
+      `"{"store":{"fetch":{},"cache":{"key":{"value":"dmFsdWU=","tags":[],"stale":0,"timestamp":0,"expire":0,"revalidate":0}},"encryptedBoundArgs":{}}}"`
     )
   })
 })
