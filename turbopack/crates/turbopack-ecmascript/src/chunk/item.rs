@@ -155,6 +155,7 @@ impl EcmascriptChunkItemContent {
             match source_map {
                 Some(map) => fileify_source_map(map, *rewrite_source_path)
                     .await?
+                    .map(|v| *v)
                     .map(Vc::upcast),
                 None => None,
             }
@@ -265,11 +266,11 @@ async fn module_factory_with_code_generation_issue(
                 let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    path: chunk_item.asset_ident().path(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    path: chunk_item.asset_ident().path().to_resolved().await?,
                     title: StyledString::Text("Code generation for chunk item errored".into())
-                        .cell(),
-                    message: StyledString::Text(error_message).cell(),
+                        .resolved_cell(),
+                    message: StyledString::Text(error_message).resolved_cell(),
                 }
                 .cell()
                 .emit();

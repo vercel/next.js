@@ -1457,10 +1457,10 @@ impl AppEndpoint {
                 let evaluatable = ResolvedVc::try_sidecast(app_entry.rsc_entry)
                     .await?
                     .context("Entry module must be evaluatable")?;
-                evaluatable_assets.push(*evaluatable);
+                evaluatable_assets.push(evaluatable);
 
                 if let Some(server_action_manifest_loader) = server_action_manifest_loader {
-                    evaluatable_assets.push(server_action_manifest_loader);
+                    evaluatable_assets.push(server_action_manifest_loader.to_resolved().await?);
                 }
 
                 {
@@ -1483,7 +1483,7 @@ impl AppEndpoint {
                     this.app_project.rsc_runtime_entries().await?.clone_value();
 
                 if let Some(server_action_manifest_loader) = server_action_manifest_loader {
-                    evaluatable_assets.push(server_action_manifest_loader);
+                    evaluatable_assets.push(server_action_manifest_loader.to_resolved().await?);
                 }
 
                 let EntryChunkGroupResult {
@@ -1511,7 +1511,7 @@ impl AppEndpoint {
                                 .await?;
 
                             current_chunks = current_chunks
-                                .concatenate(chunk_group.assets)
+                                .concatenate(*chunk_group.assets)
                                 .resolve()
                                 .await?;
                             current_availability_info = chunk_group.availability_info;
@@ -1545,7 +1545,7 @@ impl AppEndpoint {
                                     .await?;
 
                                 current_chunks = current_chunks
-                                    .concatenate(chunk_group.assets)
+                                    .concatenate(*chunk_group.assets)
                                     .resolve()
                                     .await?;
                                 current_availability_info = chunk_group.availability_info;

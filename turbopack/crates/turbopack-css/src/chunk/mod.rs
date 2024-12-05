@@ -86,15 +86,15 @@ impl CssChunk {
                 match source_map {
                     Some(map) => {
                         (*(fileify_source_map(map, self.chunking_context().context_path()).await?))
-                            .map(Vc::upcast)
+                            .map(ResolvedVc::upcast)
                     }
                     None => None,
                 }
             } else {
-                content.source_map.map(ResolvedVc::upcast).map(|v| *v)
+                content.source_map.map(ResolvedVc::upcast)
             };
 
-            body.push_source(&content.inner_code, source_map);
+            body.push_source(&content.inner_code, source_map.map(|v| *v));
 
             writeln!(body, "{close}")?;
             writeln!(body)?;
@@ -194,8 +194,9 @@ impl OutputChunk for CssChunk {
         let entries_chunk_items = &content.chunk_items;
         let included_ids = entries_chunk_items
             .iter()
-            .map(|chunk_item| CssChunkItem::id(**chunk_item))
-            .collect();
+            .map(|chunk_item| CssChunkItem::id(**chunk_item).to_resolved())
+            .try_join()
+            .await?;
         let imports_chunk_items: Vec<_> = entries_chunk_items
             .iter()
             .map(|&chunk_item| async move {
@@ -288,11 +289,11 @@ impl OutputAsset for CssChunk {
 
         let ident = AssetIdent {
             path: if let Some((common_path, _)) = common_path {
-                *common_path
+                common_path
             } else {
-                *ServerFileSystem::new().root().to_resolved().await?
+                ServerFileSystem::new().root().to_resolved().await?
             },
-            query: Vc::<RcStr>::default(),
+            query: ResolvedVc::cell(RcStr::default()),
             fragment: None,
             assets,
             modifiers: Vec::new(),
@@ -451,7 +452,7 @@ impl Introspectable for CssChunk {
             .clone_value();
         for &chunk_item in self.await?.content.await?.chunk_items.iter() {
             children.insert((
-                entry_module_key(),
+                entry_module_key().to_resolved().await?,
                 IntrospectableModule::new(chunk_item.module()),
             ));
         }

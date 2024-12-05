@@ -39,7 +39,7 @@ where
             for item in chunk.chunk().chunk_items().await? {
                 // let name =
                 chunk_items
-                    .entry(*item)
+                    .entry(**item)
                     .or_default()
                     .insert(chunk_ident.clone().into());
             }

@@ -60,7 +60,7 @@ impl Module for SideEffectsModule {
             self.resolved_as.ident().to_resolved().await?,
         );
 
-        ident.add_modifier(Vc::cell(RcStr::from("side effects")));
+        ident.add_modifier(ResolvedVc::cell(RcStr::from("side effects")));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
@@ -77,16 +77,24 @@ impl Module for SideEffectsModule {
         let mut references = vec![];
 
         for &side_effect in self.side_effects.iter() {
-            references.push(Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(side_effect),
-                Vc::cell(RcStr::from("side effect")),
-            )));
+            references.push(ResolvedVc::upcast(
+                SingleChunkableModuleReference::new(
+                    Vc::upcast(side_effect),
+                    Vc::cell(RcStr::from("side effect")),
+                )
+                .to_resolved()
+                .await?,
+            ));
         }
 
-        references.push(Vc::upcast(SingleChunkableModuleReference::new(
-            *ResolvedVc::upcast(self.resolved_as),
-            Vc::cell(RcStr::from("resolved as")),
-        )));
+        references.push(ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                *ResolvedVc::upcast(self.resolved_as),
+                Vc::cell(RcStr::from("resolved as")),
+            )
+            .to_resolved()
+            .await?,
+        ));
 
         Ok(Vc::cell(references))
     }

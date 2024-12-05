@@ -3,7 +3,7 @@ use std::cmp::Ordering;
 use anyhow::Result;
 use async_trait::async_trait;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, Upcast, Vc};
+use turbo_tasks::{emit, CollectiblesSource, FxIndexMap, ResolvedVc, TryJoinIterExt, Upcast, Vc};
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Clone, Debug)]
@@ -101,7 +101,14 @@ where
 {
     async fn peek_diagnostics(self) -> Result<CapturedDiagnostics> {
         Ok(CapturedDiagnostics {
-            diagnostics: self.peek_collectibles(),
+            diagnostics: self
+                .peek_collectibles()
+                .into_iter()
+                .map(|v: Vc<Box<dyn Diagnostic>>| v.to_resolved())
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
         })
     }
 }
@@ -111,5 +118,5 @@ where
 #[derive(Debug)]
 #[turbo_tasks::value]
 pub struct CapturedDiagnostics {
-    pub diagnostics: auto_hash_map::AutoSet<Vc<Box<dyn Diagnostic>>>,
+    pub diagnostics: auto_hash_map::AutoSet<ResolvedVc<Box<dyn Diagnostic>>>,
 }

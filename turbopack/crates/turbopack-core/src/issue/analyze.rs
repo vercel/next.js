@@ -53,14 +53,19 @@ impl Issue for AnalyzeIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.message))
+        Vc::cell(Some(self.message))
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(
-            self.source
-                .map(|s| s.resolve_source_map(self.source_ident.path())),
-        )
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match self.source {
+            Some(source) => Some(
+                source
+                    .resolve_source_map(self.source_ident.path())
+                    .to_resolved()
+                    .await?,
+            ),
+            None => None,
+        }))
     }
 }

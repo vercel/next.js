@@ -1,6 +1,6 @@
 use anyhow::{Context, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -292,8 +292,8 @@ impl Module for EcmascriptModulePartAsset {
 
         // Facade depends on evaluation and re-exports
         if matches!(&*self.part.await?, ModulePart::Facade) {
-            references.push(part_dep(ModulePart::evaluation()));
-            references.push(part_dep(ModulePart::exports()));
+            references.push(part_dep(ModulePart::evaluation()).to_resolved().await?);
+            references.push(part_dep(ModulePart::exports()).to_resolved().await?);
             return Ok(Vc::cell(references));
         }
 
@@ -324,7 +324,9 @@ impl Module for EcmascriptModulePartAsset {
                         ),
                     }))
                 })
-                .collect::<Vec<_>>(),
+                .map(|v| async move { v.to_resolved().await })
+                .try_join()
+                .await?,
         );
 
         Ok(Vc::cell(references))

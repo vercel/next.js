@@ -173,7 +173,7 @@ impl Introspectable for EcmascriptDevChunk {
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         let chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
-        children.insert((Vc::cell("chunk".into()), *chunk));
+        children.insert((ResolvedVc::cell("chunk".into()), *chunk));
         Ok(Vc::cell(children))
     }
 }

@@ -85,10 +85,11 @@ impl Module for EcmascriptModuleFacadeModule {
                 let result = module.analyze().await?;
                 let references = result.evaluation_references;
                 let mut references = references.await?.clone_value();
-                references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                )));
+                references.push(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
+                        .to_resolved()
+                        .await?,
+                ));
                 references
             }
             ModulePart::Exports => {
@@ -103,29 +104,46 @@ impl Module for EcmascriptModuleFacadeModule {
                 let result = module.analyze().await?;
                 let references = result.reexport_references;
                 let mut references = references.await?.clone_value();
-                references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                )));
+                references.push(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
+                        .to_resolved()
+                        .await?,
+                ));
                 references
             }
             ModulePart::Facade => {
                 vec![
-                    Vc::upcast(EcmascriptModulePartReference::new_part(
-                        *self.module,
-                        ModulePart::evaluation(),
-                    )),
-                    Vc::upcast(EcmascriptModulePartReference::new_part(
-                        *self.module,
-                        ModulePart::exports(),
-                    )),
+                    ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::evaluation(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ),
+                    ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::exports(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ),
                 ]
             }
             ModulePart::RenamedNamespace { .. } => {
-                vec![Vc::upcast(EcmascriptModulePartReference::new(*self.module))]
+                vec![ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new(*self.module)
+                        .to_resolved()
+                        .await?,
+                )]
             }
             ModulePart::RenamedExport { .. } => {
-                vec![Vc::upcast(EcmascriptModulePartReference::new(*self.module))]
+                vec![ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new(*self.module)
+                        .to_resolved()
+                        .await?,
+                )]
             }
             _ => {
                 bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule");

@@ -89,7 +89,7 @@ impl Issue for InvalidImportModuleIssue {
                     .map(|v| StyledString::Text(format!("{}\n", v).into()))
                     .collect::<Vec<StyledString>>(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -252,7 +252,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
             })
-            .into(),
+            .resolved_cell(),
         )))
     }
 }
@@ -329,7 +329,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             ResolveResult::source(ResolvedVc::upcast(
                 FileSource::new(new_path).to_resolved().await?,
             ))
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -431,7 +431,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
             ResolveResult::source(ResolvedVc::upcast(
                 FileSource::new(new_path).to_resolved().await?,
             ))
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
