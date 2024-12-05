@@ -2,10 +2,9 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import {
   type UseCacheCacheStore,
   type FetchCacheStore,
-  stringifyFetchCacheStore,
-  stringifyUseCacheCacheStore,
+  type EncryptedBoundArgsCacheStore,
+  serializeUseCacheCacheStore,
   parseUseCacheCacheStore,
-  parseFetchCacheStore,
 } from './cache-store'
 
 /**
@@ -24,6 +23,12 @@ export interface RenderResumeDataCache {
    * The 'set' operation is omitted to enforce immutability.
    */
   readonly fetch: Omit<FetchCacheStore, 'set'>
+
+  /**
+   * A read-only Map store for encrypted bound args of inline server functions.
+   * The 'set' operation is omitted to enforce immutability.
+   */
+  readonly encryptedBoundArgs: Omit<EncryptedBoundArgsCacheStore, 'set'>
 }
 
 /**
@@ -33,15 +38,24 @@ export interface RenderResumeDataCache {
 export interface PrerenderResumeDataCache {
   /**
    * A mutable Map store for values cached by the 'use cache' React hook.
-   * Supports both get and set operations to build the cache during pre-rendering.
+   * Supports both 'get' and 'set' operations to build the cache during
+   * pre-rendering.
    */
   readonly cache: UseCacheCacheStore
 
   /**
    * A mutable Map store for cached fetch responses.
-   * Supports both get and set operations to build the cache during pre-rendering.
+   * Supports both 'get' and 'set' operations to build the cache during
+   * pre-rendering.
    */
   readonly fetch: FetchCacheStore
+
+  /**
+   * A mutable Map store for encrypted bound args of inline server functions.
+   * Supports both 'get' and 'set' operations to build the cache during
+   * pre-rendering.
+   */
+  readonly encryptedBoundArgs: EncryptedBoundArgsCacheStore
 }
 
 type ResumeStoreSerialized = {
@@ -52,15 +66,20 @@ type ResumeStoreSerialized = {
     fetch: {
       [key: string]: any
     }
+    encryptedBoundArgs: {
+      [key: string]: string
+    }
   }
 }
 
 /**
- * Serializes a resume data cache into a JSON string for storage or transmission.
- * Handles both 'use cache' values and fetch responses.
+ * Serializes a resume data cache into a JSON string for storage or
+ * transmission. Handles 'use cache' values, fetch responses, and encrypted
+ * bound args for inline server functions.
  *
  * @param resumeDataCache - The immutable cache to serialize
- * @returns A Promise that resolves to the serialized cache as a JSON string, or 'null' if empty
+ * @returns A Promise that resolves to the serialized cache as a JSON string, or
+ * 'null' if empty
  */
 export async function stringifyResumeDataCache(
   resumeDataCache: RenderResumeDataCache | PrerenderResumeDataCache
@@ -76,11 +95,12 @@ export async function stringifyResumeDataCache(
 
     const json: ResumeStoreSerialized = {
       store: {
-        fetch: Object.fromEntries(
-          stringifyFetchCacheStore(resumeDataCache.fetch.entries())
-        ),
+        fetch: Object.fromEntries(Array.from(resumeDataCache.fetch.entries())),
         cache: Object.fromEntries(
-          await stringifyUseCacheCacheStore(resumeDataCache.cache.entries())
+          await serializeUseCacheCacheStore(resumeDataCache.cache.entries())
+        ),
+        encryptedBoundArgs: Object.fromEntries(
+          Array.from(resumeDataCache.encryptedBoundArgs.entries())
         ),
       },
     }
@@ -104,6 +124,7 @@ export function createPrerenderResumeDataCache(): PrerenderResumeDataCache {
   return {
     cache: new Map(),
     fetch: new Map(),
+    encryptedBoundArgs: new Map(),
   }
 }
 
@@ -140,6 +161,7 @@ export function createRenderResumeDataCache(
       return {
         cache: new Map(),
         fetch: new Map(),
+        encryptedBoundArgs: new Map(),
       }
     }
 
@@ -156,7 +178,10 @@ export function createRenderResumeDataCache(
 
     return {
       cache: parseUseCacheCacheStore(Object.entries(json.store.cache)),
-      fetch: parseFetchCacheStore(Object.entries(json.store.fetch)),
+      fetch: new Map(Object.entries(json.store.fetch)),
+      encryptedBoundArgs: new Map(
+        Object.entries(json.store.encryptedBoundArgs)
+      ),
     }
   }
 }
