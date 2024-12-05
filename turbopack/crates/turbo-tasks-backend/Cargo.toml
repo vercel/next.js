@@ -15,7 +15,6 @@ workspace = true
 [features]
 default = []
 verify_serialization = []
-verify_task_access = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
 lmdb = ["dep:lmdb-rkv"]

@@ -204,7 +204,7 @@ where
             task,
             task_id,
             backend: self.backend,
-            #[cfg(feature = "verify_task_access")]
+            #[cfg(debug_assertions)]
             category,
         }
     }
@@ -260,14 +260,14 @@ where
                 task: task1,
                 task_id: task_id1,
                 backend: self.backend,
-                #[cfg(feature = "verify_task_access")]
+                #[cfg(debug_assertions)]
                 category,
             },
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 backend: self.backend,
-                #[cfg(feature = "verify_task_access")]
+                #[cfg(debug_assertions)]
                 category,
             },
         )
@@ -391,27 +391,28 @@ struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
     task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
     backend: &'a TurboTasksBackendInner<B>,
-    #[cfg(feature = "verify_task_access")]
+    #[cfg(debug_assertions)]
     category: TaskDataCategory,
 }
 
 impl<B: BackingStorage> TaskGuardImpl<'_, B> {
+    /// Verify that the task guard restored the correct category
+    /// before accessing the data.
     #[inline]
     fn check_access(&self, category: TaskDataCategory) {
-        #[cfg(feature = "verify_task_access")]
         {
             match category {
                 TaskDataCategory::All => {
                     // This category is used for non-persisted data
                 }
                 TaskDataCategory::Data => {
-                    assert!(
+                    debug_assert!(
                         self.category == TaskDataCategory::Data
                             || self.category == TaskDataCategory::All
                     );
                 }
                 TaskDataCategory::Meta => {
-                    assert!(
+                    debug_assert!(
                         self.category == TaskDataCategory::Meta
                             || self.category == TaskDataCategory::All
                     );
@@ -518,7 +519,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             task,
             task_id,
             backend,
-            #[cfg(feature = "verify_task_access")]
+            #[cfg(debug_assertions)]
                 category: _,
         } = self;
         let mut add_persisting_item = false;
