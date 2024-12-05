@@ -2,6 +2,6 @@
 module.exports = {
   experimental: {
     after: true,
-    testProxy: true,
+    reactOwnerStack: true,
   },
 }

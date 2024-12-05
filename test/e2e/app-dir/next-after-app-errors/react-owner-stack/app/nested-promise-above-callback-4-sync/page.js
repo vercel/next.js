@@ -1,5 +1,4 @@
 import { unstable_after } from 'next/server'
-import { setTimeout } from 'timers/promises'
 
 export default function Page() {
   return <Wrapper />
@@ -10,18 +9,21 @@ function Wrapper() {
 }
 
 function Inner() {
-  bar()
+  foo()
   return null
 }
 
-function bar() {
+function foo() {
+  unstable_after(bar())
+}
+
+async function bar() {
   unstable_after(function aboveZap() {
     return zap()
   })
 }
 
 async function zap() {
-  await setTimeout(0)
   throws()
 }
 
