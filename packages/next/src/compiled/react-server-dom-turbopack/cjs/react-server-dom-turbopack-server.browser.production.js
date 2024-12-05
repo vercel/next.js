@@ -961,11 +961,8 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
 }
 function emitHint(request, code, model) {
   model = stringify(model);
-  var id = request.nextChunkId++;
-  code = "H" + code;
-  code = id.toString(16) + ":" + code;
-  model = stringToChunk(code + model + "\n");
-  request.completedHintChunks.push(model);
+  code = stringToChunk(":H" + code + model + "\n");
+  request.completedHintChunks.push(code);
   enqueueFlush(request);
 }
 function readThenable(thenable) {
