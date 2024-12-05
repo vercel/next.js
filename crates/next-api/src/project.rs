@@ -1354,10 +1354,16 @@ async fn any_output_changed(
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)
             {
-                Ok(Some(content_changed(*ResolvedVc::upcast(m))))
+                anyhow::Ok(Some(content_changed(*ResolvedVc::upcast(m))))
             } else {
                 Ok(None)
             }
+        })
+        .map(|v| async move {
+            Ok(match v.await? {
+                Some(v) => Some(v.to_resolved().await?),
+                None => None,
+            })
         })
         .try_flat_join()
         .await?;
