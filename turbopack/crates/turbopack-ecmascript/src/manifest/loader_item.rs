@@ -100,24 +100,41 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
         let chunks = this.manifest.manifest_chunks();
 
-        let mut references: Vec<Vc<Box<dyn ModuleReference>>> = chunks
+        let mut references: Vec<ResolvedVc<Box<dyn ModuleReference>>> = chunks
             .await?
             .iter()
-            .map(|&chunk| {
-                Vc::upcast(SingleOutputAssetReference::new(
-                    *chunk,
-                    manifest_loader_chunk_reference_description(),
+            .map(|&chunk| async move {
+                Ok(ResolvedVc::upcast(
+                    SingleOutputAssetReference::new(
+                        *chunk,
+                        manifest_loader_chunk_reference_description(),
+                    )
+                    .to_resolved()
+                    .await?,
                 ))
             })
-            .collect();
+            .try_join()
+            .await?;
 
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleOutputAssetReference::new(
-                    *output_asset,
-                    chunk_data_reference_description(),
-                ))
-            }));
+            references.extend(
+                chunk_data
+                    .references()
+                    .await?
+                    .iter()
+                    .map(|&output_asset| async move {
+                        Ok(ResolvedVc::upcast(
+                            SingleOutputAssetReference::new(
+                                *output_asset,
+                                chunk_data_reference_description(),
+                            )
+                            .to_resolved()
+                            .await?,
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+            );
         }
 
         Ok(Vc::cell(references))

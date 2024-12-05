@@ -73,10 +73,41 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const { clientModules } = getClientReferenceManifestForRsc()
 
+  // Create an error before any asynchrounous calls, to capture the original
+  // call stack in case we need it when the serialization errors.
+  const error = new Error()
+  Error.captureStackTrace(error, encryptActionBoundArgs)
+
+  let didCatchError = false
+
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
-    renderToReadableStream(args, clientModules)
+    renderToReadableStream(args, clientModules, {
+      onError(err) {
+        // We're only reporting one error at a time, starting with the first.
+        if (didCatchError) {
+          return
+        }
+
+        didCatchError = true
+
+        // Use the original error message together with the previously created
+        // stack, because err.stack is a useless Flight Server call stack.
+        error.message = err instanceof Error ? err.message : String(err)
+      },
+    })
   )
+
+  if (didCatchError) {
+    if (process.env.NODE_ENV === 'development') {
+      // Logging the error is needed for server functions that are passed to the
+      // client where the decryption is not done during rendering. Console
+      // replaying allows us to still show the error dev overlay in this case.
+      console.error(error)
+    }
+
+    throw error
+  }
 
   // Encrypt the serialized string with the action id as the salt.
   // Add a prefix to later ensure that the payload is correctly decrypted, similar

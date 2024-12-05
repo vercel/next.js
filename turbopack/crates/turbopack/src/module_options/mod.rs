@@ -138,9 +138,7 @@ impl ModuleOptions {
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
 
         if let Some(env) = preset_env_versions {
-            transforms.push(EcmascriptInputTransform::PresetEnv(
-                env.to_resolved().await?,
-            ));
+            transforms.push(EcmascriptInputTransform::PresetEnv(env));
         }
 
         if let Some(enable_typeof_window_inlining) = enable_typeof_window_inlining {
@@ -414,17 +412,21 @@ impl ModuleOptions {
                 rules.push(ModuleRule::new(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        Vc::upcast(PostCssTransform::new(
-                            node_evaluate_asset_context(
+                        ResolvedVc::upcast(
+                            PostCssTransform::new(
+                                node_evaluate_asset_context(
+                                    *execution_context,
+                                    Some(import_map),
+                                    None,
+                                    "postcss".into(),
+                                    true,
+                                ),
                                 *execution_context,
-                                Some(import_map),
-                                None,
-                                "postcss".into(),
-                                true,
-                            ),
-                            *execution_context,
-                            options.config_location,
-                        )),
+                                options.config_location,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ),
                     ]))],
                 ));
             }
@@ -523,7 +525,11 @@ impl ModuleOptions {
                     RuleCondition::ResourcePathEndsWith(".mdx".to_string()),
                 ]),
                 vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                    Vc::upcast(MdxTransform::new(mdx_transform_options)),
+                    ResolvedVc::upcast(
+                        MdxTransform::new(mdx_transform_options)
+                            .to_resolved()
+                            .await?,
+                    ),
                 ]))],
             ));
         }
@@ -556,19 +562,23 @@ impl ModuleOptions {
                         RuleCondition::not(RuleCondition::ResourceIsVirtualSource),
                     ]),
                     vec![ModuleRuleEffect::SourceTransforms(ResolvedVc::cell(vec![
-                        Vc::upcast(WebpackLoaders::new(
-                            node_evaluate_asset_context(
+                        ResolvedVc::upcast(
+                            WebpackLoaders::new(
+                                node_evaluate_asset_context(
+                                    *execution_context,
+                                    Some(import_map),
+                                    None,
+                                    "webpack_loaders".into(),
+                                    false,
+                                ),
                                 *execution_context,
-                                Some(import_map),
-                                None,
-                                "webpack_loaders".into(),
-                                false,
-                            ),
-                            *execution_context,
-                            *rule.loaders,
-                            rule.rename_as.clone(),
-                            resolve_options_context,
-                        )),
+                                *rule.loaders,
+                                rule.rename_as.clone(),
+                                resolve_options_context,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ),
                     ]))],
                 ));
             }

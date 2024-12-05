@@ -296,7 +296,7 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             css: CssOptionsContext {
                 ..Default::default()
             },
-            preset_env_versions: Some(env.to_resolved().await?),
+            preset_env_versions: Some(env),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ModuleOptionsContext {
@@ -357,8 +357,8 @@ async fn run_test(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 project_root,
                 path,
                 path,
-                chunk_root_path.to_resolved().await?,
-                static_root_path.to_resolved().await?,
+                chunk_root_path,
+                static_root_path,
                 env,
                 options.runtime_type,
             )

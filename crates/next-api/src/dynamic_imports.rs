@@ -93,7 +93,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
         if let Some(module) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? {
             Ok(chunking_context.evaluated_chunk_group_assets(
                 module.ident(),
-                Vc::cell(vec![Vc::upcast(module)]),
+                Vc::cell(vec![ResolvedVc::upcast(module.to_resolved().await?)]),
                 Value::new(AvailabilityInfo::Root),
             ))
         } else {
@@ -236,7 +236,7 @@ async fn get_next_dynamic_edges(
             .iter()
             .map(|&referenced_module| async move {
                 Ok(NextDynamicVisitEntry::Module(
-                    referenced_module.to_resolved().await?,
+                    referenced_module,
                     referenced_module.ident().to_string().await?,
                 ))
             })
@@ -247,7 +247,7 @@ async fn get_next_dynamic_edges(
     if let Some(dynamic_imports_map) = *dynamic_imports_map.await? {
         edges.reserve_exact(1);
         edges.push(NextDynamicVisitEntry::DynamicImportsMap(
-            dynamic_imports_map.to_resolved().await?,
+            dynamic_imports_map,
         ));
     }
     Ok(Vc::cell(edges))

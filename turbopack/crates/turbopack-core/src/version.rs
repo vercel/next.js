@@ -12,7 +12,7 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use crate::asset::AssetContent;
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionVersionedContent(Option<Vc<Box<dyn VersionedContent>>>);
+pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
 
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]

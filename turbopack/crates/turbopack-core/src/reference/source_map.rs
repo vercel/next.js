@@ -61,7 +61,7 @@ impl GenerateSourceMap for SourceMapReference {
             return Ok(Vc::cell(None));
         };
         let source_map = SourceMap::new_from_file(file).await?;
-        Ok(Vc::cell(source_map.map(|m| m.cell())))
+        Ok(Vc::cell(source_map.map(|m| m.resolved_cell())))
     }
 }
 

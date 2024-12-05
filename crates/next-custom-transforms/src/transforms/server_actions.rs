@@ -2578,8 +2578,16 @@ fn collect_idents_in_pat(pat: &Pat, idents: &mut Vec<Ident>) {
 }
 
 fn collect_decl_idents_in_stmt(stmt: &Stmt, idents: &mut Vec<Ident>) {
-    if let Stmt::Decl(Decl::Var(var)) = &stmt {
-        collect_idents_in_var_decls(&var.decls, idents);
+    if let Stmt::Decl(decl) = stmt {
+        match decl {
+            Decl::Var(var) => {
+                collect_idents_in_var_decls(&var.decls, idents);
+            }
+            Decl::Fn(fn_decl) => {
+                idents.push(fn_decl.ident.clone());
+            }
+            _ => {}
+        }
     }
 }
 

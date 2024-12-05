@@ -10,6 +10,7 @@ import {
   workUnitAsyncStorage,
   type WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 export type AfterContextOpts = {
   isEnabled: boolean
@@ -48,7 +49,9 @@ export class AfterContext {
       if (!this.waitUntil) {
         errorWaitUntilNotAvailable()
       }
-      this.waitUntil(task.catch((error) => this.reportTaskError(error)))
+      this.waitUntil(
+        task.catch((error) => this.reportTaskError('promise', error))
+      )
     } else if (typeof task === 'function') {
       // TODO(after): implement tracing
       this.addCallback(task)
@@ -70,6 +73,16 @@ export class AfterContext {
       this.workUnitStores.add(workUnitStore)
     }
 
+    const afterTaskStore = afterTaskAsyncStorage.getStore()
+
+    // This is used for checking if request APIs can be called inside `after`.
+    // Note that we need to check the phase in which the *topmost* `after` was called (which should be "action"),
+    // not the current phase (which might be "after" if we're in a nested after).
+    // Otherwise, we might allow `after(() => headers())`, but not `after(() => after(() => headers()))`.
+    const rootTaskSpawnPhase = afterTaskStore
+      ? afterTaskStore.rootTaskSpawnPhase // nested after
+      : workUnitStore?.phase // topmost after
+
     // this should only happen once.
     if (!this.runCallbacksOnClosePromise) {
       this.runCallbacksOnClosePromise = this.runCallbacksOnClose()
@@ -83,9 +96,11 @@ export class AfterContext {
     //   await x()
     const wrappedCallback = bindSnapshot(async () => {
       try {
-        await callback()
+        await afterTaskAsyncStorage.run({ rootTaskSpawnPhase }, () =>
+          callback()
+        )
       } catch (error) {
-        this.reportTaskError(error)
+        this.reportTaskError('function', error)
       }
     })
 
@@ -115,11 +130,13 @@ export class AfterContext {
     })
   }
 
-  private reportTaskError(error: unknown) {
+  private reportTaskError(taskKind: 'promise' | 'function', error: unknown) {
     // TODO(after): this is fine for now, but will need better intergration with our error reporting.
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
-      'An error occurred in a function passed to `unstable_after()`:',
+      taskKind === 'promise'
+        ? `A promise passed to \`unstable_after()\` rejected:`
+        : `An error occurred in a function passed to \`unstable_after()\`:`,
       error
     )
     if (this.onTaskError) {

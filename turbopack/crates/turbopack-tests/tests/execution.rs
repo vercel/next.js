@@ -248,7 +248,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         path: path.to_resolved().await?,
         project_path: project_path.to_resolved().await?,
         tests_path: tests_path.to_resolved().await?,
-        project_root: project_root.to_resolved().await?,
+        project_root,
         options,
     }
     .cell())
@@ -320,7 +320,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env.to_resolved().await?),
+            preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),

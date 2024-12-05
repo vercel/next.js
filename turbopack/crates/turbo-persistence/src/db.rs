@@ -14,6 +14,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use byteorder::{ReadBytesExt, WriteBytesExt, BE};
 use lzzzz::lz4::decompress;
+use memmap2::Mmap;
 use parking_lot::{Mutex, RwLock};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 
@@ -23,9 +24,9 @@ use crate::{
         get_compaction_jobs, total_coverage, CompactConfig, Compactable, CompactionJobs,
     },
     constants::{
-        AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, INDEX_BLOCK_AVG_SIZE,
-        INDEX_BLOCK_CACHE_SIZE, KEY_BLOCK_AVG_SIZE, KEY_BLOCK_CACHE_SIZE,
-        MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE, VALUE_BLOCK_CACHE_SIZE,
+        AQMF_AVG_SIZE, AQMF_CACHE_SIZE, DATA_THRESHOLD_PER_COMPACTED_FILE, KEY_BLOCK_AVG_SIZE,
+        KEY_BLOCK_CACHE_SIZE, MAX_ENTRIES_PER_COMPACTED_FILE, VALUE_BLOCK_AVG_SIZE,
+        VALUE_BLOCK_CACHE_SIZE,
     },
     key::{hash_key, StoreKey},
     lookup_entry::LookupEntry,
@@ -34,7 +35,7 @@ use crate::{
         AqmfCache, BlockCache, LookupResult, StaticSortedFile, StaticSortedFileRange,
     },
     static_sorted_file_builder::StaticSortedFileBuilder,
-    write_batch::WriteBatch,
+    write_batch::{FinishResult, WriteBatch},
     QueryKey,
 };
 
@@ -77,7 +78,6 @@ impl CacheStatistics {
 #[derive(Debug)]
 pub struct Statistics {
     pub sst_files: usize,
-    pub index_block_cache: CacheStatistics,
     pub key_block_cache: CacheStatistics,
     pub value_block_cache: CacheStatistics,
     pub aqmf_cache: CacheStatistics,
@@ -115,8 +115,6 @@ pub struct TurboPersistence {
     active_write_operation: AtomicBool,
     /// A cache for deserialized AQMF filters.
     aqmf_cache: AqmfCache,
-    /// A cache for decompressed index blocks.
-    index_block_cache: BlockCache,
     /// A cache for decompressed key blocks.
     key_block_cache: BlockCache,
     /// A cache for decompressed value blocks.
@@ -151,13 +149,6 @@ impl TurboPersistence {
             aqmf_cache: AqmfCache::with(
                 AQMF_CACHE_SIZE as usize / AQMF_AVG_SIZE,
                 AQMF_CACHE_SIZE,
-                Default::default(),
-                Default::default(),
-                Default::default(),
-            ),
-            index_block_cache: BlockCache::with(
-                INDEX_BLOCK_CACHE_SIZE as usize / INDEX_BLOCK_AVG_SIZE,
-                INDEX_BLOCK_CACHE_SIZE,
                 Default::default(),
                 Default::default(),
                 Default::default(),
@@ -299,7 +290,7 @@ impl TurboPersistence {
         }
 
         sst_files.retain(|seq| !deleted_files.contains(seq));
-        sst_files.sort();
+        sst_files.sort_unstable();
         let sst_files = sst_files
             .into_iter()
             .map(|seq| self.open_sst(seq))
@@ -338,9 +329,16 @@ impl TurboPersistence {
     /// Reads and decompresses a blob file. This is not backed by any cache.
     fn read_blob(&self, seq: u32) -> Result<ArcSlice<u8>> {
         let path = self.path.join(format!("{:08}.blob", seq));
-        let compressed =
-            fs::read(path).with_context(|| format!("Unable to read blob file {:08}.blob", seq))?;
-        let mut compressed = &compressed[..];
+        let mmap = unsafe { Mmap::map(&File::open(&path)?)? };
+        #[cfg(unix)]
+        mmap.advise(memmap2::Advice::Sequential)?;
+        #[cfg(unix)]
+        mmap.advise(memmap2::Advice::WillNeed)?;
+        #[cfg(target_os = "linux")]
+        mmap.advise(memmap2::Advice::DontFork)?;
+        #[cfg(target_os = "linux")]
+        mmap.advise(memmap2::Advice::Unmergeable)?;
+        let mut compressed = &mmap[..];
         let uncompressed_length = compressed.read_u32::<BE>()? as usize;
 
         let buffer = Arc::new_zeroed_slice(uncompressed_length);
@@ -391,8 +389,12 @@ impl TurboPersistence {
         &self,
         mut write_batch: WriteBatch<K, FAMILIES>,
     ) -> Result<()> {
-        let (seq, new_sst_files) = write_batch.finish()?;
-        self.commit(new_sst_files, vec![], seq)?;
+        let FinishResult {
+            sequence_number,
+            new_sst_files,
+            new_blob_files,
+        } = write_batch.finish()?;
+        self.commit(new_sst_files, new_blob_files, vec![], sequence_number)?;
         self.active_write_operation.store(false, Ordering::Release);
         self.idle_write_batch.lock().replace((
             TypeId::of::<WriteBatch<K, FAMILIES>>(),
@@ -405,10 +407,13 @@ impl TurboPersistence {
     /// new files.
     fn commit(
         &self,
-        new_sst_files: Vec<(u32, File)>,
+        mut new_sst_files: Vec<(u32, File)>,
+        new_blob_files: Vec<File>,
         mut indicies_to_delete: Vec<usize>,
         mut seq: u32,
     ) -> Result<(), anyhow::Error> {
+        new_sst_files.sort_unstable_by_key(|(seq, _)| *seq);
+
         let mut new_sst_files = new_sst_files
             .into_iter()
             .map(|(seq, file)| {
@@ -416,6 +421,10 @@ impl TurboPersistence {
                 self.open_sst(seq)
             })
             .collect::<Result<Vec<_>>>()?;
+
+        for file in new_blob_files {
+            file.sync_all()?;
+        }
 
         if !indicies_to_delete.is_empty() {
             seq += 1;
@@ -426,7 +435,7 @@ impl TurboPersistence {
         {
             let mut inner = self.inner.write();
             inner.current_sequence_number = seq;
-            indicies_to_delete.sort();
+            indicies_to_delete.sort_unstable();
             removed_ssts = remove_indicies(&mut inner.static_sorted_files, &indicies_to_delete);
             inner.static_sorted_files.append(&mut new_sst_files);
         }
@@ -435,7 +444,7 @@ impl TurboPersistence {
             .into_iter()
             .map(|sst| sst.sequence_number())
             .collect::<Vec<_>>();
-        removed_ssts.sort();
+        removed_ssts.sort_unstable();
 
         if !indicies_to_delete.is_empty() {
             // Write *.del file, marking the selected files as to delete
@@ -505,6 +514,7 @@ impl TurboPersistence {
 
         self.commit(
             new_sst_files,
+            Vec::new(),
             indicies_to_delete,
             *sequence_number.get_mut(),
         )?;
@@ -739,14 +749,21 @@ impl TurboPersistence {
                     })
                     .collect::<Result<Vec<_>>>()?;
 
+                let move_jobs = move_jobs
+                    .into_iter()
+                    .map(|index| {
+                        let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
+                        (index, seq)
+                    })
+                    .collect::<Vec<_>>();
+
                 // Move SST files
                 let mut new_sst_files = move_jobs
                     .into_par_iter()
                     .with_min_len(1)
-                    .map(|index| {
+                    .map(|(index, seq)| {
                         let index = ssts_with_ranges[index].index;
                         let sst = &static_sorted_files[index];
-                        let seq = sequence_number.fetch_add(1, Ordering::SeqCst) + 1;
                         let src_path = self.path.join(format!("{:08}.sst", sst.sequence_number()));
                         let dst_path = self.path.join(format!("{:08}.sst", seq));
                         if fs::hard_link(&src_path, &dst_path).is_err() {
@@ -780,7 +797,6 @@ impl TurboPersistence {
                 hash,
                 key,
                 &self.aqmf_cache,
-                &self.index_block_cache,
                 &self.key_block_cache,
                 &self.value_block_cache,
             )? {
@@ -825,7 +841,6 @@ impl TurboPersistence {
         let inner = self.inner.read();
         Statistics {
             sst_files: inner.static_sorted_files.len(),
-            index_block_cache: CacheStatistics::new(&self.index_block_cache),
             key_block_cache: CacheStatistics::new(&self.key_block_cache),
             value_block_cache: CacheStatistics::new(&self.value_block_cache),
             aqmf_cache: CacheStatistics::new(&self.aqmf_cache),
@@ -839,9 +854,9 @@ impl TurboPersistence {
         }
     }
 
-    /// Shuts down the database. This will print statistics if the `stats` feature is enabled.
+    /// Shuts down the database. This will print statistics if the `print_stats` feature is enabled.
     pub fn shutdown(&self) -> Result<()> {
-        #[cfg(feature = "stats")]
+        #[cfg(feature = "print_stats")]
         println!("{:#?}", self.statistics());
         Ok(())
     }

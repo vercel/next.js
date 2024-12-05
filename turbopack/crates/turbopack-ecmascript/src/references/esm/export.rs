@@ -174,7 +174,7 @@ pub async fn follow_reexports(
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
             let result = get_all_export_names(*module).await?;
             if let Some(m) = result.esm_exports.get(&export_name) {
-                module = m.to_resolved().await?;
+                module = *m;
                 continue;
             }
             return match &result.dynamic_exporting_modules[..] {
@@ -417,7 +417,7 @@ fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    pub star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
+    pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
 /// The expanded version of [EsmExports], the `exports` field here includes all
@@ -455,7 +455,7 @@ impl EsmExports {
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
-                        EsmExport::ImportedBinding(Vc::upcast(esm_ref), export.clone(), false),
+                        EsmExport::ImportedBinding(Vc::upcast(*esm_ref), export.clone(), false),
                     );
                 }
             }

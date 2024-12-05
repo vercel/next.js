@@ -22,6 +22,7 @@ import UtilImplementation from 'node:util'
 import AsyncHooksImplementation from 'node:async_hooks'
 import { intervalsManager, timeoutsManager } from './resource-managers'
 import { createLocalRequestContext } from '../../after/builtin-request-context'
+import { patchErrorInspectEdgeLite } from '../../patch-error-inspect'
 
 interface ModuleContext {
   runtime: EdgeRuntime
@@ -477,6 +478,8 @@ Learn More: https://nextjs.org/docs/messages/edge-dynamic-code-evaluation`),
     'unhandledrejection',
     decorateUnhandledRejection
   )
+
+  patchErrorInspectEdgeLite(runtime.context.Error)
 
   return {
     runtime,

@@ -18,14 +18,14 @@ pub struct ChunkData {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkDataOption(Option<Vc<ChunkData>>);
+pub struct ChunkDataOption(Option<ResolvedVc<ChunkData>>);
 
 // NOTE(alexkirsz) Our convention for naming vector types is to add an "s" to
 // the end of the type name, but in this case it would be both gramatically
 // incorrect and clash with the variable names everywhere.
 // TODO(WEB-101) Should fix this.
 #[turbo_tasks::value(transparent)]
-pub struct ChunksData(Vec<Vc<ChunkData>>);
+pub struct ChunksData(Vec<ResolvedVc<ChunkData>>);
 
 #[turbo_tasks::function]
 fn module_chunk_reference_description() -> Vc<RcStr> {
@@ -59,7 +59,7 @@ impl ChunkData {
                     module_chunks: Vec::new(),
                     references: OutputAssets::empty().to_resolved().await?,
                 }
-                .cell(),
+                .resolved_cell(),
             )));
         };
 
@@ -114,7 +114,7 @@ impl ChunkData {
                 module_chunks,
                 references: ResolvedVc::cell(module_chunks_references),
             }
-            .cell(),
+            .resolved_cell(),
         )))
     }
 
