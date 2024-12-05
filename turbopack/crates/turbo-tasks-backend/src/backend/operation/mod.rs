@@ -406,12 +406,14 @@ impl<B: BackingStorage> TaskGuardImpl<'_, B> {
                     // This category is used for non-persisted data
                 }
                 TaskDataCategory::Data => {
+                    #[cfg(debug_assertions)]
                     debug_assert!(
                         self.category == TaskDataCategory::Data
                             || self.category == TaskDataCategory::All
                     );
                 }
                 TaskDataCategory::Meta => {
+                    #[cfg(debug_assertions)]
                     debug_assert!(
                         self.category == TaskDataCategory::Meta
                             || self.category == TaskDataCategory::All
