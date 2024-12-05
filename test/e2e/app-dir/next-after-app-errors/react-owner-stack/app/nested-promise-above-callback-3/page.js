@@ -15,13 +15,17 @@ async function Inner() {
 }
 
 async function foo() {
-  await setTimeout(0)
-  unstable_after(function aboveBar() {
-    return bar()
-  })
+  await setTimeout(0) // cut off async stack here, the rest should work like it was sync
+  unstable_after(bar())
 }
 
 async function bar() {
+  unstable_after(function aboveZap() {
+    return zap()
+  })
+}
+
+async function zap() {
   throws()
 }
 

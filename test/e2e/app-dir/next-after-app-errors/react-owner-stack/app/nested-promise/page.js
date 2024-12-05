@@ -17,7 +17,7 @@ function Inner() {
 function helper() {
   unstable_after(
     (async () => {
-      await setTimeout(500)
+      await setTimeout(0)
       nestedHelper()
     })()
   )
@@ -26,7 +26,7 @@ function helper() {
 function nestedHelper() {
   unstable_after(
     (async () => {
-      await setTimeout(500)
+      await setTimeout(0)
       throws()
     })()
   )

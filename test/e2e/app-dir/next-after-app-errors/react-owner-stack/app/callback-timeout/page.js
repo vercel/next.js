@@ -14,19 +14,13 @@ function Inner() {
   return null
 }
 
-async function foo() {
-  await setTimeout(0)
-  unstable_after(bar())
-}
-
-async function bar() {
-  // TODO(after): it looks like `aboveZap` is not in the stack if `zap` does `setTimeout(0)`?
-  unstable_after(function aboveZap() {
-    return zap()
+function foo() {
+  unstable_after(() => {
+    return bar()
   })
 }
 
-async function zap() {
+async function bar() {
   await setTimeout(0)
   throws()
 }
