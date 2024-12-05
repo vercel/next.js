@@ -51,6 +51,10 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
   return decrypted.slice(actionId.length)
 }
 
+/**
+ * Encrypt the serialized string with the action id as the salt. Add a prefix to
+ * later ensure that the payload is correctly decrypted, similar to a checksum.
+ */
 async function encodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (key === undefined) {
@@ -115,14 +119,12 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
 
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  const prerenderResumeDataCache = workUnitStore
-    ? getPrerenderResumeDataCache(workUnitStore)
-    : null
+  if (!workUnitStore) {
+    return encodeActionBoundArg(actionId, serialized)
+  }
 
-  const renderResumeDataCache = workUnitStore
-    ? getRenderResumeDataCache(workUnitStore)
-    : null
-
+  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
+  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
   const cacheKey = actionId + serialized
 
   const cachedEncrypted =
@@ -134,17 +136,14 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   }
 
   const cacheSignal =
-    workUnitStore?.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+    workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
 
   cacheSignal?.beginRead()
 
-  // Encrypt the serialized string with the action id as the salt.
-  // Add a prefix to later ensure that the payload is correctly decrypted, similar
-  // to a checksum.
   const encrypted = await encodeActionBoundArg(actionId, serialized)
 
   cacheSignal?.endRead()
-  prerenderResumeDataCache?.encryptedBoundArgs?.set(cacheKey, encrypted)
+  prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
 
   return encrypted
 }
