@@ -17,9 +17,7 @@ The `generateSitemaps` returns an array of objects with an `id` property.
 
 ## URLs
 
-In production, your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
-
-In development, you can view the generated sitemap on `/.../sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`. This difference is temporary and will follow the production format.
+Your generated sitemaps will be available at `/.../sitemap/[id].xml`. For example, `/product/sitemap/1.xml`.
 
 ## Example
 
@@ -72,3 +70,10 @@ export default async function sitemap({ id }) {
   }))
 }
 ```
+
+## Version History
+
+| Version      | Changes                                                                                                                                              |
+| ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------- | --- |
+| `v15.0.0-RC` | `generateSitemaps` now generates consistent URLs between development and production                                                                  |
+| `v13.3.2`    | `generateSitemaps` introduced. In development, you can view the generated sitemap on `/.../sitemap.xml/[id]`. For example, `/product/sitemap.xml/1`. |     |
