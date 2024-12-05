@@ -66,6 +66,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          ' ⨯ ../../test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/pages/gsp.js (6:3) @ getStaticProps'
+        )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
             // TODO(sokra): Incorrect column number, should be 6:3
@@ -116,6 +120,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          ' ⨯ ../../test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/pages/gssp.js (6:3) @ getServerSideProps'
+        )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
             // TODO(sokra): Incorrect column number, should be 6:3
@@ -166,6 +174,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          ' ⨯ ../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/pages/blog/[slug].js (6:3) @ getServerSideProps'
+        )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
             // TODO(sokra): Incorrect column number, should be 6:3
@@ -216,6 +228,10 @@ describe('server-side dev errors', () => {
 
       const stderrOutput = stripAnsi(stderr.slice(stderrIdx))
       if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          ' ⨯ ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/pages/api/hello.js (2:3) @ handler'
+        )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
@@ -267,6 +283,10 @@ describe('server-side dev errors', () => {
       // FIXME(veil): error repeated
       // FIXME(veil): codeframe repeated after " ⨯ unhandledRejection: Error: catch this rejection"
       if (isTurbopack) {
+        expect(stderrOutput).toStartWith(
+          ' ⨯ ../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler' +
+            '\n ⨯ ../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js (2:3) @ handler'
+        )
         expect(stderrOutput).toContain(
           '\n ⨯ ReferenceError: missingVar is not defined' +
             '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:2)' +
