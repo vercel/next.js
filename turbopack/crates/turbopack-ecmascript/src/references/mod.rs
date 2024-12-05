@@ -285,7 +285,8 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let references = references
+        let references = self
+            .references
             .iter()
             .map(|v| async move { v.to_resolved().await })
             .try_join()
