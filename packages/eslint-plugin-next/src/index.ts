@@ -21,6 +21,7 @@ module.exports = {
     'no-title-in-document-head': require('./rules/no-title-in-document-head'),
     'no-typos': require('./rules/no-typos'),
     'no-unwanted-polyfillio': require('./rules/no-unwanted-polyfillio'),
+    'no-not-found-in-try-block': require('./rules/no-not-found-in-try-block'),
   },
   configs: {
     recommended: {
@@ -49,6 +50,7 @@ module.exports = {
         '@next/next/no-duplicate-head': 'error',
         '@next/next/no-head-import-in-document': 'error',
         '@next/next/no-script-component-in-head': 'error',
+        '@next/next/no-not-found-in-try-block': 'error',
       },
     },
     'core-web-vitals': {
