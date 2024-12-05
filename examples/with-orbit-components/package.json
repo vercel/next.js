@@ -15,6 +15,7 @@
     "tailwindcss": "^3.4.16"
   },
   "devDependencies": {
+    "@kiwicom/babel-plugin-orbit-components": "^5.1.24",
     "@types/node": "^22.10.1",
     "@types/react": "^18.3.13",
     "prettier": "^3.4.2",

@@ -1,19 +1,6 @@
 "use client"
 import { getTokens } from "@kiwicom/orbit-components";
-import { ThemeProvider, createGlobalStyle } from "styled-components";
 import "./globals.css"; // Import TailwindCSS globals
-
-// Fetch Orbit tokens for consistent styling
-const tokens = getTokens();
-
-const GlobalStyle = createGlobalStyle`
-body {
-    width: 100vw;
-    height: 100vh;
-    margin: 0 auto;
-    background-color: ${({ theme }) => theme.orbit.paletteCloudLight};
-    }
-`;
 
 export default function RootLayout({ children }) {
   return (
@@ -26,10 +13,7 @@ export default function RootLayout({ children }) {
         />
       </head>
       <body>
-        <ThemeProvider theme={{ orbit: tokens }}>
-          <GlobalStyle />
           {children}
-        </ThemeProvider>
       </body>
     </html>
   );
