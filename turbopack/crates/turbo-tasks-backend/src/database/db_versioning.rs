@@ -87,7 +87,6 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
             }
         }
     } else {
-        let _ = remove_dir_all(base_path);
         path = base_path.join("temp");
     }
 
