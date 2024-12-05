@@ -129,7 +129,14 @@ pub fn create_turbo_tasks(
     Ok(if persistent_caching {
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
-                turbo_tasks_backend::BackendOptions::default(),
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                        turbo_tasks_backend::StorageMode::ReadOnly
+                    } else {
+                        turbo_tasks_backend::StorageMode::ReadWrite
+                    }),
+                    ..Default::default()
+                },
                 default_backing_storage(&output_path.join("cache/turbopack"))?,
             ),
         ))
