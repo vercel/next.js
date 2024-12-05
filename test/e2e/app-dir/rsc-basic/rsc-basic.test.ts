@@ -7,7 +7,6 @@ import cheerio from 'cheerio'
 // on experimental flags. For example, as a first step we could all the common
 // gates like this one into a single module.
 const isPPREnabledByDefault = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 async function resolveStreamResponse(response: any, onData?: any) {
   let result = ''
@@ -515,14 +514,7 @@ describe('app dir - rsc basics', () => {
       ]
 
       ssrPagesReactVersions.forEach((version) => {
-        if (isReact18 || isPPREnabledByDefault) {
-          expect(version).not.toMatch(bundledReactVersionPattern)
-        } else {
-          // TODO: Pages router only supports React 19 that is bundled
-          // Once we run with React 19 stable, this branch should be removed in
-          // favor of unconditional `not.toMatch`
-          expect(version).toMatch(bundledReactVersionPattern)
-        }
+        expect(version).not.toMatch(bundledReactVersionPattern)
       })
     })
     await Promise.all(promises)
@@ -556,24 +548,10 @@ describe('app dir - rsc basics', () => {
     `)
 
     browserPagesReactVersions.forEach((version) => {
-      if (isReact18 || isPPREnabledByDefault) {
-        expect(version).not.toMatch(bundledReactVersionPattern)
-      } else {
-        // TODO: Pages router only supports React 19 that is bundled
-        // Once we run with React 19 stable, this branch should be removed in
-        // favor of unconditional `not.toMatch`
-        expect(version).toMatch(bundledReactVersionPattern)
-      }
+      expect(version).not.toMatch(bundledReactVersionPattern)
     })
     browserEdgePagesReactVersions.forEach((version) => {
-      if (isReact18 || isPPREnabledByDefault) {
-        expect(version).not.toMatch(bundledReactVersionPattern)
-      } else {
-        // TODO: Pages router only supports React 19 that is bundled
-        // Once we run with React 19 stable, this branch should be removed in
-        // favor of unconditional `not.toMatch`
-        expect(version).toMatch(bundledReactVersionPattern)
-      }
+      expect(version).not.toMatch(bundledReactVersionPattern)
     })
   })
 

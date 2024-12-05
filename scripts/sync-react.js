@@ -19,7 +19,7 @@ const pullRequestReviewers = ['eps1lon']
  * Set to a specific version to override the Pages Router React version e.g. `^19.0.0`.
  * @type {string | null}
  */
-const pagesRouterReact = null
+const pagesRouterReact = '^19.0.0'
 
 const filesReferencingReactPeerDependencyVersion = [
   'run-tests.js',
@@ -371,13 +371,14 @@ Or, run this command with no arguments to use the most recently published versio
     const packageJsonPath = path.join(cwd, fileName)
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
+    // Need to specify last supported RC version to avoid breaking changes.
     if (manifest.peerDependencies['react']) {
       manifest.peerDependencies['react'] =
-        `^18.2.0 || ${pagesRouterReactVersion}`
+        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
     }
     if (manifest.peerDependencies['react-dom']) {
       manifest.peerDependencies['react-dom'] =
-        `^18.2.0 || ${pagesRouterReactVersion}`
+        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
     }
     await fsp.writeFile(
       packageJsonPath,
