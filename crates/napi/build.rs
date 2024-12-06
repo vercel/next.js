@@ -20,9 +20,6 @@ fn main() {
         println!("cargo:rustc-cdylib-link-arg=dynamic_lookup");
     }
 
-    // Workaround for "unexpected `cfg` condition value: `noop`" from napi-rs
-    println!("cargo::rustc-check-cfg=cfg(noop)");
-
     // Resolve a potential linker issue for unit tests on linux
     // https://github.com/napi-rs/napi-rs/issues/1782
     #[cfg(all(target_os = "linux", not(target_arch = "wasm32")))]
