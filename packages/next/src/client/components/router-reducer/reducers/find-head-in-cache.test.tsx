@@ -29,7 +29,7 @@ describe('findHeadInCache', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -42,7 +42,7 @@ describe('findHeadInCache', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
-                head: null,
+                head: [null, null],
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -53,7 +53,7 @@ describe('findHeadInCache', () => {
                         'about',
                         {
                           lazyData: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map([
@@ -69,11 +69,12 @@ describe('findHeadInCache', () => {
                                     prefetchHead: null,
                                     loading: null,
                                     parallelRoutes: new Map(),
-                                    head: (
+                                    head: [
+                                      null,
                                       <>
                                         <title>About page!</title>
-                                      </>
-                                    ),
+                                      </>,
+                                    ],
                                   },
                                 ],
                               ]),
@@ -107,7 +108,7 @@ describe('findHeadInCache', () => {
     expect(result).not.toBeNull()
 
     const [cacheNode, key] = result!
-    expect(cacheNode.head).toMatchObject(
+    expect(cacheNode.head[1]).toMatchObject(
       <>
         <title>About page!</title>
       </>

@@ -19,7 +19,7 @@ export type NormalizedFlightData = {
   segment: Segment
   tree: FlightRouterState
   seedData: CacheNodeSeedData | null
-  head: React.ReactNode | null
+  head: [React.ReactNode | null, React.ReactNode | null]
   isHeadPartial: boolean
   isRootRender: boolean
 }
@@ -31,10 +31,13 @@ export type NormalizedFlightData = {
 export function getFlightDataPartsFromPath(
   flightDataPath: FlightDataPath
 ): NormalizedFlightData {
+  // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, [viewport, metadata], isHeadPartial].
+  const flightDataPathLength = 4
   // tree, seedData, and head are *always* the last three items in the `FlightDataPath`.
-  const [tree, seedData, head, isHeadPartial] = flightDataPath.slice(-4)
+  const [tree, seedData, head, isHeadPartial] =
+    flightDataPath.slice(-flightDataPathLength)
   // The `FlightSegmentPath` is everything except the last three items. For a root render, it won't be present.
-  const segmentPath = flightDataPath.slice(0, -4)
+  const segmentPath = flightDataPath.slice(0, -flightDataPathLength)
 
   return {
     // TODO: Unify these two segment path helpers. We are inconsistently pushing an empty segment ("")
@@ -49,7 +52,7 @@ export function getFlightDataPartsFromPath(
     seedData,
     head,
     isHeadPartial,
-    isRootRender: flightDataPath.length === 4,
+    isRootRender: flightDataPath.length === flightDataPathLength,
   }
 }
 

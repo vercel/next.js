@@ -223,7 +223,8 @@ interface ParseRequestHeadersOptions {
   readonly isRoutePPREnabled: boolean
 }
 
-const flightDataPathHeadKey = 'h'
+const flightDataPathMetadataKey = 'h'
+const flightDataPathViewportKey = 'v'
 
 interface ParsedRequestHeaders {
   /**
@@ -445,21 +446,22 @@ async function generateDynamicRSCPayload(
     const preloadCallbacks: PreloadCallbacks = []
 
     const searchParams = createServerSearchParamsForMetadata(query, workStore)
-    const [MetadataTree, getMetadataReady] = createMetadataComponents({
-      tree: loaderTree,
-      searchParams,
-      metadataContext: createTrackedMetadataContext(
-        url.pathname,
-        ctx.renderOpts,
-        workStore
-      ),
-      getDynamicParamFromSegment,
-      appUsingSizeAdjustment,
-      createServerParamsForMetadata,
-      workStore,
-      MetadataBoundary,
-      ViewportBoundary,
-    })
+    const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
+      createMetadataComponents({
+        tree: loaderTree,
+        searchParams,
+        metadataContext: createTrackedMetadataContext(
+          url.pathname,
+          ctx.renderOpts,
+          workStore
+        ),
+        getDynamicParamFromSegment,
+        appUsingSizeAdjustment,
+        createServerParamsForMetadata,
+        workStore,
+        MetadataBoundary,
+        ViewportBoundary,
+      })
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
@@ -467,17 +469,23 @@ async function generateDynamicRSCPayload(
         parentParams: {},
         flightRouterState,
         // For flight, render metadata inside leaf page
-        rscPayloadHead: (
-          <React.Fragment key={flightDataPathHeadKey}>
+        rscHead: [
+          <React.Fragment key={flightDataPathViewportKey}>
+            {/* noindex needs to be blocking */}
             <NonIndex ctx={ctx} />
             {/* Adding requestId as react key to make metadata remount for each render */}
+            <ViewportTree key={requestId} />
+          </React.Fragment>,
+          <React.Fragment key={flightDataPathMetadataKey}>
+            {/* Adding requestId as react key to make metadata remount for each render */}
             <MetadataTree key={requestId} />
-          </React.Fragment>
-        ),
+          </React.Fragment>,
+        ],
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
         rootLayoutIncluded: false,
+        getViewportReady,
         getMetadataReady,
         preloadCallbacks,
       })
@@ -733,22 +741,23 @@ async function getRSCPayload(
   )
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const [MetadataTree, getMetadataReady] = createMetadataComponents({
-    tree,
-    errorType: is404 ? 'not-found' : undefined,
-    searchParams,
-    metadataContext: createTrackedMetadataContext(
-      url.pathname,
-      ctx.renderOpts,
-      workStore
-    ),
-    getDynamicParamFromSegment,
-    appUsingSizeAdjustment,
-    createServerParamsForMetadata,
-    workStore,
-    MetadataBoundary,
-    ViewportBoundary,
-  })
+  const { ViewportTree, MetadataTree, getViewportReady, getMetadataReady } =
+    createMetadataComponents({
+      tree,
+      errorType: is404 ? 'not-found' : undefined,
+      searchParams,
+      metadataContext: createTrackedMetadataContext(
+        url.pathname,
+        ctx.renderOpts,
+        workStore
+      ),
+      getDynamicParamFromSegment,
+      appUsingSizeAdjustment,
+      createServerParamsForMetadata,
+      workStore,
+      MetadataBoundary,
+      ViewportBoundary,
+    })
 
   const preloadCallbacks: PreloadCallbacks = []
 
@@ -760,6 +769,7 @@ async function getRSCPayload(
     injectedJS,
     injectedFontPreloadTags,
     rootLayoutIncluded: false,
+    getViewportReady,
     getMetadataReady,
     missingSlots,
     preloadCallbacks,
@@ -773,11 +783,17 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHead = (
-    <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
+  const initialHeadMetadata = (
+    <React.Fragment key={flightDataPathMetadataKey}>
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={ctx.requestId} />
+    </React.Fragment>
+  )
+
+  const initialHeadViewport = (
+    <React.Fragment key={flightDataPathViewportKey}>
+      <NonIndex ctx={ctx} />
+      <ViewportTree key={ctx.requestId} />
     </React.Fragment>
   )
 
@@ -804,7 +820,7 @@ async function getRSCPayload(
       [
         initialTree,
         seedData,
-        initialHead,
+        [initialHeadViewport, initialHeadMetadata],
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],
@@ -850,7 +866,7 @@ async function getErrorRSCPayload(
   } = ctx
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const [MetadataTree] = createMetadataComponents({
+  const { MetadataTree, ViewportTree } = createMetadataComponents({
     tree,
     searchParams,
     // We create an untracked metadata context here because we can't postpone
@@ -865,11 +881,17 @@ async function getErrorRSCPayload(
     ViewportBoundary,
   })
 
-  const initialHead = (
-    <React.Fragment key={flightDataPathHeadKey}>
-      <NonIndex ctx={ctx} />
+  const initialHeadMetadata = (
+    <React.Fragment key={flightDataPathMetadataKey}>
       {/* Adding requestId as react key to make metadata remount for each render */}
       <MetadataTree key={requestId} />
+    </React.Fragment>
+  )
+  const initialHeadViewport = (
+    <React.Fragment key={flightDataPathViewportKey}>
+      <NonIndex ctx={ctx} />
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <ViewportTree key={requestId} />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
@@ -911,7 +933,7 @@ async function getErrorRSCPayload(
       [
         initialTree,
         initialSeedData,
-        initialHead,
+        [initialHeadViewport, initialHeadMetadata],
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],

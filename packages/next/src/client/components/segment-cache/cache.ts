@@ -80,7 +80,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: null
+  head: [null, null]
   isHeadPartial: true
 }
 
@@ -89,7 +89,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: null
+  head: [null, null]
   isHeadPartial: true
 }
 
@@ -98,7 +98,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: null
   canonicalUrl: string
   tree: TreePrefetch
-  head: React.ReactNode | null
+  head: [React.ReactNode | null, React.ReactNode | null]
   isHeadPartial: boolean
 }
 
@@ -284,7 +284,7 @@ export function requestRouteCacheEntryFromCache(
     status: EntryStatus.Pending,
     blockedTasks: null,
     tree: null,
-    head: null,
+    head: [null, null],
     isHeadPartial: true,
     // If the request takes longer than a minute, a subsequent request should
     // retry instead of waiting for this one.
@@ -424,7 +424,7 @@ function pingBlockedTasks(entry: {
 function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
   tree: TreePrefetch,
-  head: React.ReactNode,
+  head: [React.ReactNode, React.ReactNode],
   isHeadPartial: boolean,
   staleAt: number,
   couldBeIntercepted: boolean,

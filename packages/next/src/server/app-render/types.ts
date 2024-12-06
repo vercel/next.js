@@ -104,7 +104,10 @@ export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head */ React.ReactNode | null,
+  /* head: [viewport, metadata] */ [
+    React.ReactNode | null,
+    React.ReactNode | null,
+  ],
   /* isHeadPartial */ boolean,
 ]
 
@@ -231,7 +234,7 @@ export type InitialRSCPayload = {
   c: string[]
   /** couldBeIntercepted */
   i: boolean
-  /** initialFlightData */
+  /** initialFlightData: [tree, seedData, [viewport, metadata]] */
   f: FlightDataPath[]
   /** missingSlots */
   m: Set<string> | undefined

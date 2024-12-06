@@ -67,20 +67,31 @@ export function createMetadataComponents({
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
   ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
-}): [React.ComponentType, () => Promise<void>] {
-  function MetadataRoot() {
+}): {
+  MetadataTree: React.ComponentType
+  ViewportTree: React.ComponentType
+  getMetadataReady: () => Promise<void>
+  getViewportReady: () => Promise<void>
+} {
+  function ViewportTree() {
     return (
       <>
-        <MetadataBoundary>
-          <Metadata />
-        </MetadataBoundary>
         <ViewportBoundary>
           <Viewport />
         </ViewportBoundary>
+        {/* This meta tag is for next/font which is still required to be blocking. */}
         {appUsingSizeAdjustment ? (
           <meta name="next-size-adjust" content="" />
         ) : null}
       </>
+    )
+  }
+
+  function MetadataTree() {
+    return (
+      <MetadataBoundary>
+        <Metadata />
+      </MetadataBoundary>
     )
   }
 
@@ -156,13 +167,23 @@ export function createMetadataComponents({
   }
   Metadata.displayName = METADATA_BOUNDARY_NAME
 
-  async function getMetadataAndViewportReady(): Promise<void> {
+  async function getMetadataReady(): Promise<void> {
     await viewport()
     await metadata()
     return undefined
   }
 
-  return [MetadataRoot, getMetadataAndViewportReady]
+  async function getViewportReady(): Promise<void> {
+    await viewport()
+    return undefined
+  }
+
+  return {
+    ViewportTree,
+    MetadataTree,
+    getViewportReady,
+    getMetadataReady,
+  }
 }
 
 const getResolvedMetadata = cache(getResolvedMetadataImpl)

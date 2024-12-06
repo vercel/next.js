@@ -54,7 +54,9 @@ export type LazyCacheNode = {
   lazyData: Promise<FetchServerResponseResult> | null
 
   prefetchHead: React.ReactNode
-  head: React.ReactNode
+
+  /** metadata cache nodes, [viewport, metadata] */
+  head: [React.ReactNode, React.ReactNode]
 
   loading: LoadingModuleData | Promise<LoadingModuleData>
 
@@ -96,7 +98,9 @@ export type ReadyCacheNode = {
    */
   lazyData: null
   prefetchHead: React.ReactNode
-  head: React.ReactNode
+
+  /** metadata cache nodes, [viewport, metadata] */
+  head: [React.ReactNode, React.ReactNode]
 
   loading: LoadingModuleData | Promise<LoadingModuleData>
 
