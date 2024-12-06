@@ -5,14 +5,10 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { createNext, nextTestSetup } from 'e2e-utils'
-import type { NextConfig } from 'next'
 
-describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
-])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
+const nextConfig = { basePath: '', assetPrefix: '/asset-prefix' }
+
+describe(`HMR - basic, nextConfig: ${JSON.stringify(nextConfig)}`, () => {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig,
