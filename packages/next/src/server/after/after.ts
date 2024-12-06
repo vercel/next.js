@@ -1,4 +1,5 @@
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import type { AsyncStackTask } from './after-context'
 
 export type AfterTask<T = unknown> = Promise<T> | AfterCallback<T>
 export type AfterCallback<T = unknown> = () => T | Promise<T>
@@ -23,5 +24,12 @@ export function unstable_after<T>(task: AfterTask<T>): void {
     )
   }
 
-  return afterContext.after(task)
+  // We want to create this outside of `AfterContext` so that it's hidden from the stack trace.
+  let asyncStackTask: AsyncStackTask | undefined
+  if (typeof task === 'function' && typeof console.createTask === 'function') {
+    asyncStackTask = console.createTask(
+      task.name || '<unstable_after callback>'
+    )
+  }
+  return afterContext.after(task, asyncStackTask)
 }

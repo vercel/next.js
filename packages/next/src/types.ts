@@ -293,6 +293,13 @@ export type InferGetServerSidePropsType<T extends (args: any) => any> = Awaited<
   Extract<Awaited<ReturnType<T>>, { props: any }>['props']
 >
 
+/** A value returned by `console.createTask`
+ * https://developer.chrome.com/blog/devtools-modern-web-debugging#linked_stack_traces
+ */
+interface Task {
+  run<T>(f: () => T): T
+}
+
 declare global {
   interface Crypto {
     readonly subtle: SubtleCrypto
@@ -313,6 +320,13 @@ declare global {
       array: T
     ): T
     randomUUID(): string
+  }
+
+  interface Console {
+    /** https://developer.chrome.com/blog/devtools-modern-web-debugging#linked_stack_traces
+     * Available since node 19
+     * */
+    createTask?: (name: string) => Task
   }
 
   var __NEXT_HTTP_AGENT_OPTIONS: { keepAlive?: boolean } | undefined
