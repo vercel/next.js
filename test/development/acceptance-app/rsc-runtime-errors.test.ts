@@ -27,9 +27,7 @@ describe('Error overlay - RSC runtime errors', () => {
 
     const browser = await next.browser('/server')
 
-    await assertHasRedbox(browser, {
-      fixmeStackFramesHaveBrokenSourcemaps: true,
-    })
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
     const errorDescription = await getRedboxDescription(browser)
 
     expect(errorDescription).toContain(
@@ -71,9 +69,7 @@ describe('Error overlay - RSC runtime errors', () => {
     )
 
     const browser = await next.browser('/server')
-    await assertHasRedbox(browser, {
-      fixmeStackFramesHaveBrokenSourcemaps: true,
-    })
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const errorDescription = await getRedboxDescription(browser)
 
@@ -91,9 +87,7 @@ describe('Error overlay - RSC runtime errors', () => {
         `
     )
     const browser = await next.browser('/server')
-    await assertHasRedbox(browser, {
-      fixmeStackFramesHaveBrokenSourcemaps: true,
-    })
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     const source = await getRedboxSource(browser)
     // Can show the original source code

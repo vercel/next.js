@@ -355,7 +355,9 @@ describe('Error overlay - RSC build errors', () => {
     // Empty file
     await session.patch('app/server-with-errors/error-file/error.js', '')
 
-    await session.assertHasRedbox()
+    await session.assertHasRedbox({
+      pageResponseCode: isTurbopack ? undefined : 500,
+    })
     await expect(session.getRedboxSource()).resolves.toMatch(
       /Add the "use client"/
     )

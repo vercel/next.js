@@ -18,9 +18,7 @@ describe('app dir - dynamic error trace', () => {
   it('should show the error trace', async () => {
     const browser = await next.browser('/')
 
-    await assertHasRedbox(browser, {
-      fixmeStackFramesHaveBrokenSourcemaps: true,
-    })
+    await assertHasRedbox(browser, { pageResponseCode: 500 })
 
     await expect(
       browser.hasElementByCssSelector(

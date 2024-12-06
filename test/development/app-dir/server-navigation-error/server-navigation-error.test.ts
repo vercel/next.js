@@ -82,7 +82,8 @@ describe('server-navigation-error', () => {
       // FIXME: the first request to middleware error load didn't show the redbox, need one more reload
       await browser.refresh()
       await assertHasRedbox(browser, {
-        fixmeStackFramesHaveBrokenSourcemaps: true,
+        // additional navigation due to refresh but why 3 instead of 2?
+        pageResponseCode: [500, 500, 500],
       })
       expect(await getRedboxDescription(browser)).toMatch(
         `Next.js navigation API is not allowed to be used in Middleware.`

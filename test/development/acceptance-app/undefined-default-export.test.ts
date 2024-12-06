@@ -61,7 +61,7 @@ describe('Undefined default export', () => {
     await browser.waitForElementByCss('#__next')
 
     await session.assertHasRedbox({
-      // TODO: really?
+      // Not actually broken. Just flaky 500 count
       fixmeStackFramesHaveBrokenSourcemaps: true,
     })
     expect(await session.getRedboxDescription()).toInclude(

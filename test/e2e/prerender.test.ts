@@ -20,6 +20,7 @@ import webdriver from 'next-webdriver'
 import stripAnsi from 'strip-ansi'
 
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+const isTurbopack = Boolean(process.env.TURBOPACK)
 
 describe('Prerender', () => {
   let next: NextInstance
@@ -1140,15 +1141,13 @@ describe('Prerender', () => {
             // we need to reload the page to trigger getStaticProps
             await browser.refresh()
 
-            return retry(async () => {
-              await assertHasRedbox(browser, {
-                fixmeStackFramesHaveBrokenSourcemaps: true,
-              })
-              const errOverlayContent = await getRedboxHeader(browser)
-              const errorMsg = /oops from getStaticProps/
-              expect(next.cliOutput).toMatch(errorMsg)
-              expect(errOverlayContent).toMatch(errorMsg)
+            await assertHasRedbox(browser, {
+              pageResponseCode: isTurbopack ? [500, 500, 500] : [500, 500],
             })
+            const errOverlayContent = await getRedboxHeader(browser)
+            const errorMsg = /oops from getStaticProps/
+            expect(next.cliOutput).toMatch(errorMsg)
+            expect(errOverlayContent).toMatch(errorMsg)
           }
         )
       })
@@ -1272,10 +1271,7 @@ describe('Prerender', () => {
         //   /Error serializing `.time` returned from `getStaticProps`/
         // )
 
-        // FIXME: disable this
-        await assertHasRedbox(browser, {
-          fixmeStackFramesHaveBrokenSourcemaps: true,
-        })
+        await assertHasRedbox(browser, { pageResponseCode: [500, 500, 500] })
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/
         )
@@ -1290,9 +1286,8 @@ describe('Prerender', () => {
         //   /Error serializing `.time` returned from `getStaticProps`/
         // )
 
-        // FIXME: disable this
         await assertHasRedbox(browser, {
-          fixmeStackFramesHaveBrokenSourcemaps: true,
+          pageResponseCode: [500, 500, 500, 500],
         })
         expect(await getRedboxHeader(browser)).toMatch(
           /Failed to load static props/

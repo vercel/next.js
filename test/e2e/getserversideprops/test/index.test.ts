@@ -759,9 +759,7 @@ const runTests = (isDev = false, isDeploy = false) => {
       const browser = await webdriver(next.url, '/')
       await browser.elementByCss('#non-json').click()
 
-      await assertHasRedbox(browser, {
-        fixmeStackFramesHaveBrokenSourcemaps: true,
-      })
+      await assertHasRedbox(browser, { pageResponseCode: [500, 500] })
       await expect(getRedboxHeader(browser)).resolves.toMatch(
         /Error serializing `.time` returned from `getServerSideProps`/
       )

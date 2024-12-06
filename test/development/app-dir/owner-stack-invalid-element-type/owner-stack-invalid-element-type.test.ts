@@ -64,9 +64,7 @@ const isOwnerStackEnabled =
     it('should catch invalid element from a rsc component', async () => {
       const browser = await next.browser('/rsc')
 
-      await assertHasRedbox(browser, {
-        fixmeStackFramesHaveBrokenSourcemaps: true,
-      })
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
 
@@ -108,9 +106,7 @@ const isOwnerStackEnabled =
     it('should catch invalid element from on ssr client component', async () => {
       const browser = await next.browser('/ssr')
 
-      await assertHasRedbox(browser, {
-        fixmeStackFramesHaveBrokenSourcemaps: true,
-      })
+      await assertHasRedbox(browser, { pageResponseCode: 500 })
 
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
