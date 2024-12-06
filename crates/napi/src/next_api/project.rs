@@ -318,7 +318,7 @@ pub async fn project_new(
 
         let subscriber = Registry::default();
 
-        let subscriber = subscriber.with(FilterLayer::try_new(trace).unwrap());
+        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);

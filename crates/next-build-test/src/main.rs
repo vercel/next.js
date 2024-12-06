@@ -101,7 +101,7 @@ fn main() {
 
                         let subscriber = Registry::default();
 
-                        let subscriber = subscriber.with(FilterLayer::try_new(trace).unwrap());
+                        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
                         let trace_file = "trace.log";
                         let trace_writer = std::fs::File::create(trace_file).unwrap();
                         let (trace_writer, guard) = TraceWriter::new(trace_writer);
