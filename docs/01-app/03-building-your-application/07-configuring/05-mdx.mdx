@@ -269,7 +269,7 @@ For example, you can have a dynamic route segment which loads MDX components fro
   └── package.json
 ```
 
-Dynamically import the MDX file inside the page and add a `generateStaticParams` to statically prerender the pages with the MDX content:
+[`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. By marking `dynamicParams` as `false`, accessing a route not defined in `generateStaticParams` will 404.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export default async function Page({
