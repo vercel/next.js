@@ -23,7 +23,7 @@ describe.each([
   'HMR - Error Recovery, nextConfig: %o',
   (nextConfig: Partial<NextConfig>) => {
     const { next } = nextTestSetup({
-      files: __dirname,
+      files: join(__dirname, '../../fixtures'),
       nextConfig,
       patchFileDelay: 500,
     })

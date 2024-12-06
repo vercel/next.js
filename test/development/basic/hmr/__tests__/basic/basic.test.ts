@@ -6,6 +6,7 @@ import {
 } from 'next-test-utils'
 import { createNext, nextTestSetup } from 'e2e-utils'
 import type { NextConfig } from 'next'
+import { join } from 'path'
 
 describe.each([
   { basePath: '', assetPrefix: '' },
@@ -14,7 +15,7 @@ describe.each([
   { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
   const { next } = nextTestSetup({
-    files: __dirname,
+    files: join(__dirname, '../../fixtures'),
     nextConfig,
     patchFileDelay: 500,
   })
@@ -105,7 +106,7 @@ describe.each([
     })
 
     const secondNext = await createNext({
-      files: __dirname,
+      files: join(__dirname, '../../fixtures'),
       nextConfig,
       forcedPort: next.appPort,
     })
