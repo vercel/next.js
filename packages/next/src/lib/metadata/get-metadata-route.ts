@@ -15,17 +15,17 @@ import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
  * /(post)/opengraph-image.tsx -> /opengraph-image-[0-9a-z]{6}
  *
  * Sitemap is an exception, it should not have a suffix.
- * As the generated urls are for indexer and usually one sitemap contains all the urls of the sub routes.
- * The sitemap should be unique in each level and not have a suffix.
+ * Each sitemap contains all the urls of sub routes, we don't have the case of duplicates `/(group)/sitemap.[ext]` and `/sitemap.[ext]` since they should be the same.
+ * Hence we always normalize the urls for sitemap and do not append hash suffix, and ensure user-land only contains one sitemap per pathname.
  *
  * /sitemap -> /sitemap
  * /(post)/sitemap -> /sitemap
  */
 function getMetadataRouteSuffix(page: string) {
   // Remove the last segment and get the parent pathname
-  // e.g. /parent/a/b/c -> /parent
-  // e.g. /parent/opengraph-image.tsx -> /parent
-  const parentPathname = page.slice(0, -(path.basename(page).length + 1))
+  // e.g. /parent/a/b/c -> /parent/a/b
+  // e.g. /parent/opengraph-image -> /parent
+  const parentPathname = path.dirname(page)
   // Only apply suffix to metadata routes except for sitemaps
   if (page.endsWith('/sitemap')) {
     return ''
@@ -33,10 +33,14 @@ function getMetadataRouteSuffix(page: string) {
 
   // Calculate the hash suffix based on the parent path
   let suffix = ''
+  // Check if there's any special characters in the parent pathname.
+  // e.g. /parent/(post) -> true
+  // e.g. /parent/@post -> true
   if (
     (parentPathname.includes('(') && parentPathname.includes(')')) ||
     parentPathname.includes('@')
   ) {
+    // Hash the parent path to get a unique suffix
     suffix = djb2Hash(parentPathname).toString(36).slice(0, 6)
   }
   return suffix
