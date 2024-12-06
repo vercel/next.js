@@ -28,9 +28,11 @@ export type Task = {
   // represents a brand new Cache Node tree, which way or may not need to be
   // filled with dynamic data from the server.
   node: CacheNode | null
-  // Whether anything in this tree contains dynamic holes that need to be filled
-  // by the server.
-  needsDynamicRequest: boolean
+  // The tree sent to the server during the dynamic request. This is the
+  // same as `route`, except with the `refetch` marker set on dynamic segments.
+  // If all the segments are static, then this will be null, and no server
+  // request is required.
+  dynamicRequestTree: FlightRouterState | null
   children: Map<string, Task> | null
 }
 
@@ -111,6 +113,16 @@ export function updateCacheNodeOnNavigation(
   // This starts off as `false`, and is set to `true` if any of the child
   // routes requires a dynamic request.
   let needsDynamicRequest = false
+  // As we traverse the children, we'll construct a FlightRouterState that can
+  // be sent to the server to request the dynamic data. If it turns out that
+  // nothing in the subtree is dynamic (i.e. needsDynamicRequest is false at the
+  // end), then this will be discarded.
+  // TODO: We can probably optimize the format of this data structure to only
+  // include paths that are dynamic. Instead of reusing the
+  // FlightRouterState type.
+  let dynamicRequestTreeChildren: {
+    [parallelRouteKey: string]: FlightRouterState
+  } = {}
 
   for (let parallelRouteKey in newRouterStateChildren) {
     const newRouterStateChild: FlightRouterState =
@@ -209,17 +221,24 @@ export function updateCacheNodeOnNavigation(
         prefetchParallelRoutes.set(parallelRouteKey, newSegmentMapChild)
       }
 
-      if (taskChild.needsDynamicRequest) {
-        needsDynamicRequest = true
-      }
-
       // The child tree's route state may be different from the prefetched
       // route sent by the server. We need to clone it as we traverse back up
       // the tree.
-      patchedRouterStateChildren[parallelRouteKey] = taskChild.route
+      const taskChildRoute = taskChild.route
+      patchedRouterStateChildren[parallelRouteKey] = taskChildRoute
+
+      const dynamicRequestTreeChild = taskChild.dynamicRequestTree
+      if (dynamicRequestTreeChild !== null) {
+        // Something in the child tree is dynamic.
+        needsDynamicRequest = true
+        dynamicRequestTreeChildren[parallelRouteKey] = dynamicRequestTreeChild
+      } else {
+        dynamicRequestTreeChildren[parallelRouteKey] = taskChildRoute
+      }
     } else {
       // The child didn't change. We can use the prefetched router state.
       patchedRouterStateChildren[parallelRouteKey] = newRouterStateChild
+      dynamicRequestTreeChildren[parallelRouteKey] = newRouterStateChild
     }
   }
 
@@ -253,7 +272,12 @@ export function updateCacheNodeOnNavigation(
       patchedRouterStateChildren
     ),
     node: newCacheNode,
-    needsDynamicRequest,
+    dynamicRequestTree: needsDynamicRequest
+      ? patchRouterStateWithNewChildren(
+          newRouterState,
+          dynamicRequestTreeChildren
+        )
+      : null,
     children: taskChildren,
   }
 }
@@ -312,6 +336,9 @@ function createCacheNodeOnNavigation(
   const prefetchDataChildren = prefetchData[2]
   const taskChildren = new Map()
   const cacheNodeChildren = new Map()
+  let dynamicRequestTreeChildren: {
+    [parallelRouteKey: string]: FlightRouterState
+  } = {}
   let needsDynamicRequest = false
   for (let parallelRouteKey in routerStateChildren) {
     const routerStateChild: FlightRouterState =
@@ -329,8 +356,13 @@ function createCacheNodeOnNavigation(
       isPrefetchHeadPartial
     )
     taskChildren.set(parallelRouteKey, taskChild)
-    if (taskChild.needsDynamicRequest) {
+    const dynamicRequestTreeChild = taskChild.dynamicRequestTree
+    if (dynamicRequestTreeChild !== null) {
+      // Something in the child tree is dynamic.
       needsDynamicRequest = true
+      dynamicRequestTreeChildren[parallelRouteKey] = dynamicRequestTreeChild
+    } else {
+      dynamicRequestTreeChildren[parallelRouteKey] = routerStateChild
     }
     const newCacheNodeChild = taskChild.node
     if (newCacheNodeChild !== null) {
@@ -343,6 +375,10 @@ function createCacheNodeOnNavigation(
   const rsc = prefetchData[1]
   const loading = prefetchData[3]
   return {
+    // Since we're inside a new route tree, unlike the
+    // `updateCacheNodeOnNavigation` path, the router state on the children
+    // tasks is always the same as the router state we pass in. So we don't need
+    // to clone/modify it.
     route: routerState,
     node: {
       lazyData: null,
@@ -355,7 +391,9 @@ function createCacheNodeOnNavigation(
       loading,
       parallelRoutes: cacheNodeChildren,
     },
-    needsDynamicRequest,
+    dynamicRequestTree: needsDynamicRequest
+      ? patchRouterStateWithNewChildren(routerState, dynamicRequestTreeChildren)
+      : null,
     children: taskChildren,
   }
 }
@@ -387,6 +425,15 @@ function spawnPendingTask(
   isPrefetchHeadPartial: boolean
 ): Task {
   // Create a task that will later be fulfilled by data from the server.
+
+  // Clone the prefetched route tree and the `refetch` marker to it. We'll send
+  // this to the server so it knows where to start rendering.
+  const dynamicRequestTree = patchRouterStateWithNewChildren(
+    routerState,
+    routerState[1]
+  )
+  dynamicRequestTree[3] = 'refetch'
+
   const newTask: Task = {
     route: routerState,
 
@@ -397,9 +444,9 @@ function spawnPendingTask(
       prefetchHead,
       isPrefetchHeadPartial
     ),
-    // Set this to true to indicate that this tree is missing data. This will
-    // be propagated to all the parent tasks.
-    needsDynamicRequest: true,
+    // Because this is non-null, and it gets propagated up through the parent
+    // tasks, the root task will know that it needs to perform a server request.
+    dynamicRequestTree,
     children: null,
   }
   return newTask
@@ -411,7 +458,7 @@ function spawnReusedTask(reusedRouterState: FlightRouterState): Task {
   return {
     route: reusedRouterState,
     node: null,
-    needsDynamicRequest: false,
+    dynamicRequestTree: null,
     children: null,
   }
 }
@@ -533,7 +580,7 @@ function finishTaskUsingDynamicDataPayload(
   dynamicData: CacheNodeSeedData,
   dynamicHead: React.ReactNode
 ) {
-  if (!task.needsDynamicRequest) {
+  if (task.dynamicRequestTree === null) {
     // Everything in this subtree is already complete. Bail out.
     return
   }
@@ -554,8 +601,8 @@ function finishTaskUsingDynamicDataPayload(
         dynamicData,
         dynamicHead
       )
-      // Set this to false to indicate that this task is now complete.
-      task.needsDynamicRequest = false
+      // Set this to null to indicate that this task is now complete.
+      task.dynamicRequestTree = null
     }
     return
   }
@@ -775,8 +822,8 @@ export function abortTask(task: Task, error: any): void {
     }
   }
 
-  // Set this to false to indicate that this task is now complete.
-  task.needsDynamicRequest = false
+  // Set this to null to indicate that this task is now complete.
+  task.dynamicRequestTree = null
 }
 
 function abortPendingCacheNode(

@@ -144,9 +144,10 @@ function navigateUsingPrefetchedRouteTree(
     isPrefetchHeadPartial
   )
   if (task !== null) {
-    if (task.needsDynamicRequest) {
+    const dynamicRequestTree = task.dynamicRequestTree
+    if (dynamicRequestTree !== null) {
       const promiseForDynamicServerResponse = fetchServerResponse(url, {
-        flightRouterState: currentFlightRouterState,
+        flightRouterState: dynamicRequestTree,
         nextUrl,
       })
       listenForDynamicRequest(task, promiseForDynamicServerResponse)
@@ -323,11 +324,20 @@ async function navigateDynamicallyWithNoPrefetch(
     isPrefetchHeadPartial
   )
   if (task !== null) {
-    if (task.needsDynamicRequest) {
+    // In this case, we've already sent the dynamic request, so we don't
+    // actually use the request tree created by `updateCacheNodeOnNavigation`,
+    // except to check if it contains dynamic holes.
+    //
+    // This is almost always true, but it could be false if all the segment data
+    // was present in the cache, but the route tree was not. E.g. navigating
+    // to a URL that was not prefetched but rewrites to a different URL
+    // that was.
+    const hasDynamicHoles = task.dynamicRequestTree !== null
+    if (hasDynamicHoles) {
       listenForDynamicRequest(task, promiseForDynamicServerResponse)
     } else {
       // The prefetched tree does not contain dynamic holes — it's
-      // fully static. We can skip the dynamic request.
+      // fully static. We don't need to process the server response further.
     }
     return navigationTaskToResult(task, currentCacheNode, canonicalUrl)
   }
