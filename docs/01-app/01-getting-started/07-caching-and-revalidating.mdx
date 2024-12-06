@@ -156,3 +156,12 @@ export async function getPostBySlug(slug: string) {
   return data.json()
 }
 ```
+
+## Revalidating
+
+Revalidation allows you to update cached content without having to rebuild your entire application. It's useful for content that _sometimes_ changes, but would benefit from being cached to improve performance.
+
+In Next.js, there are two types of revalidation:
+
+- **Time-based**: Based on a time interval (e.g. every hour).
+- **On-demand**: Triggered by a specific event (e.g. a CMS webhook).
