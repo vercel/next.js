@@ -1,4 +1,5 @@
 import type { NextConfig } from 'next'
+import { join } from 'path'
 import { getRedboxHeader, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
@@ -9,7 +10,7 @@ describe.each([
   { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])('HMR - Full Reload, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
   const { next } = nextTestSetup({
-    files: __dirname,
+    files: join(__dirname, '../../fixtures'),
     nextConfig,
     patchFileDelay: 500,
   })
