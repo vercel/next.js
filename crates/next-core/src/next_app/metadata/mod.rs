@@ -303,8 +303,8 @@ fn get_metadata_route_suffix(page: &str) -> Option<String> {
 
     // if any segment is group or parallel route segment, we should add a suffix.
     if segments.iter().any(|segment| {
-        (segment.starts_with('(') && segment.ends_with(')')
-            || segment.starts_with('@') && *segment != "@children")
+        segment.starts_with('(') && segment.ends_with(')')
+            || segment.starts_with('@') && *segment != "@children"
     }) {
         Some(format_radix(djb2_hash(parent_pathname), 36))
     } else {
