@@ -142,7 +142,6 @@ pub async fn get_app_client_references_chunks(
             }
             for client_reference in app_client_references.client_references.iter() {
                 if let Some(server_component) = client_reference.server_component() {
-                    let server_component = server_component.to_resolved().await?;
                     client_references_by_server_component
                         .entry(server_component)
                         .or_default()
@@ -260,7 +259,7 @@ pub async fn get_app_client_references_chunks(
                     let client_chunk_group = client_chunk_group.await?;
 
                     let client_chunks =
-                        current_client_chunks.concatenate(client_chunk_group.assets);
+                        current_client_chunks.concatenate(*client_chunk_group.assets);
                     let client_chunks = client_chunks.to_resolved().await?;
 
                     if is_layout {
@@ -268,8 +267,7 @@ pub async fn get_app_client_references_chunks(
                         current_client_chunks = client_chunks;
                     }
 
-                    layout_segment_client_chunks
-                        .insert(server_component.to_resolved().await?, client_chunks);
+                    layout_segment_client_chunks.insert(server_component, client_chunks);
 
                     for &client_reference_ty in client_reference_types.iter() {
                         if let ClientReferenceType::EcmascriptClientReference { .. } =
@@ -286,7 +284,7 @@ pub async fn get_app_client_references_chunks(
                 if let Some(ssr_chunk_group) = ssr_chunk_group {
                     let ssr_chunk_group = ssr_chunk_group.await?;
 
-                    let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
+                    let ssr_chunks = current_ssr_chunks.concatenate(*ssr_chunk_group.assets);
                     let ssr_chunks = ssr_chunks.to_resolved().await?;
 
                     if is_layout {

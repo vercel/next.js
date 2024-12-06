@@ -164,7 +164,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
-        Ok(Vc::cell(self.process().await?.source_map.map(|v| *v)))
+        Ok(Vc::cell(self.process().await?.source_map))
     }
 }
 
@@ -278,12 +278,7 @@ impl WebpackLoadersProcessedAsset {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
         };
-        let assets = emitted_assets_to_virtual_sources(processed.assets)
-            .await?
-            .into_iter()
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?;
+        let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
 
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
@@ -733,7 +728,7 @@ impl Issue for BuildDependencyIssue {
                         .into(),
                 ),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -823,7 +818,7 @@ impl Issue for EvaluateEmittedErrorIssue {
                     .await?
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -896,6 +891,6 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Vc::cell(Some(StyledString::Stack(lines).cell()))
+        Vc::cell(Some(StyledString::Stack(lines).resolved_cell()))
     }
 }

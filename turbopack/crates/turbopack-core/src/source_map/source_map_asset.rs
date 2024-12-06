@@ -45,7 +45,7 @@ impl Asset for SourceMapAsset {
             bail!("asset does not support generating source maps")
         };
         let sm = if let Some(sm) = &*generate_source_map.generate_source_map().await? {
-            *sm
+            **sm
         } else {
             SourceMap::empty()
         };
@@ -86,7 +86,7 @@ impl Introspectable for SourceMapAsset {
         let mut children = FxIndexSet::default();
         if let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.asset).await?
         {
-            children.insert((Vc::cell("asset".into()), *asset));
+            children.insert((ResolvedVc::cell("asset".into()), *asset));
         }
         Ok(Vc::cell(children))
     }

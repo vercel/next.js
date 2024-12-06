@@ -41,16 +41,15 @@ describe('app dir - dynamic error trace', () => {
     )
 
     const codeframe = await getRedboxSource(browser)
-    // TODO(NDX-115): column for "^"" marker is inconsistent between native, Webpack, and Turbopack
     expect(codeframe).toEqual(
       process.env.TURBOPACK
         ? outdent`
-            app/lib.js (4:12) @ Foo
+            app/lib.js (4:13) @ Foo
             
               2 |
               3 | export function Foo() {
             > 4 |   useHeaders()
-                |            ^
+                |             ^
               5 |   return 'foo'
               6 | }
               7 |

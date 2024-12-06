@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -120,13 +120,18 @@ impl Module for ManifestAsyncModule {
                 .await?
                 .iter()
                 .copied()
-                .map(|chunk| {
-                    Vc::upcast(SingleOutputAssetReference::new(
-                        *chunk,
-                        manifest_chunk_reference_description(),
+                .map(|chunk| async move {
+                    Ok(ResolvedVc::upcast(
+                        SingleOutputAssetReference::new(
+                            *chunk,
+                            manifest_chunk_reference_description(),
+                        )
+                        .to_resolved()
+                        .await?,
                     ))
                 })
-                .collect(),
+                .try_join()
+                .await?,
         ))
     }
 }

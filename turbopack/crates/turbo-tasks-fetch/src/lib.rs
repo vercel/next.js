@@ -202,12 +202,12 @@ impl Issue for FetchIssue {
                 }
                 FetchErrorKind::Other => format!("There was an issue requesting {}", url).into(),
             })
-            .cell(),
+            .resolved_cell(),
         )))
     }
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.detail))
+        Vc::cell(Some(self.detail))
     }
 }

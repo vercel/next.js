@@ -43,7 +43,7 @@ impl UpdateOutputOperation {
         output: Result<Result<RawVc>, Option<Cow<'static, str>>>,
         mut ctx: impl ExecuteContext,
     ) {
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         if let Some(InProgressState::InProgress { stale: true, .. }) = get!(task, InProgress) {
             // Skip updating the output when the task is stale
             return;
@@ -173,7 +173,7 @@ impl Operation for UpdateOutputOperation {
                     ref mut queue,
                 } => {
                     if let Some(child_id) = children.pop() {
-                        let mut child_task = ctx.task(child_id, TaskDataCategory::Data);
+                        let mut child_task = ctx.task(child_id, TaskDataCategory::Meta);
                         if !child_task.has_key(&CachedDataItemKey::Output {}) {
                             make_task_dirty_internal(
                                 &mut child_task,
