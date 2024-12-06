@@ -704,7 +704,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     pub is_esm: bool,
     // pub refresh: bool,
 }
@@ -829,12 +829,12 @@ async fn gen_content_with_code_gens(
 
             emitter.emit_program(&program)?;
 
-            let srcmap =
-                ParseResultSourceMap::new(source_map.clone(), mappings, original_src_map).cell();
+            let srcmap = ParseResultSourceMap::new(source_map.clone(), mappings, original_src_map)
+                .resolved_cell();
 
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
-                source_map: Some(Vc::upcast(srcmap)),
+                source_map: Some(ResolvedVc::upcast(srcmap)),
                 is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())

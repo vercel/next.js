@@ -127,7 +127,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
                 exports,
-                star_exports: vec![module_reference],
+                star_exports: vec![module_reference.to_resolved().await?],
             }
             .resolved_cell(),
         )

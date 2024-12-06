@@ -22,7 +22,7 @@ use crate::{
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
@@ -160,7 +160,7 @@ impl EcmascriptChunkItemContent {
                 None => None,
             }
         } else {
-            self.source_map
+            self.source_map.map(|v| *v)
         };
 
         code.push_source(&self.inner_code, source_map);
