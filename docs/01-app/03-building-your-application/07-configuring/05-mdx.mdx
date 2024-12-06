@@ -252,12 +252,9 @@ Navigating to the `/mdx-page` route should display your rendered MDX page.
 
 ### Using dynamic imports
 
-You can also dynamically import MDX in your pages. This is useful for:
+You can import dynamic MDX components instead of using filesystem routing for MDX files.
 
-- Programmatically rendering MDX.
-- Pairing it with dynamic route segments and [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params).
-
-Create a new dynamic page within the `/app` directory and add MDX files wherever you'd like:
+For example, you can have a dynamic route segment which loads MDX components from a separate directory:
 
 ```txt
   my-project
