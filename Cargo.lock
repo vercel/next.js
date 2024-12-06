@@ -1546,12 +1546,9 @@ dependencies = [
 
 [[package]]
 name = "crossbeam-utils"
-version = "0.8.16"
+version = "0.8.20"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5a22b2d63d4d1dc0b7f1b6b2747dd0088008a9be28b6ddf0b1e7d335e3037294"
-dependencies = [
- "cfg-if",
-]
+checksum = "22ec99545bb0ed0ea7bb9b8e1e9122ea386ff8a48c0922e43f36d45ab09e0e80"
 
 [[package]]
 name = "crossterm"
@@ -9260,10 +9257,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
+ "crossbeam-utils",
  "once_cell",
+ "parking_lot",
  "postcard",
  "rustc-hash 1.1.0",
  "serde",
+ "thread_local",
  "tokio",
  "tracing",
  "tracing-subscriber",

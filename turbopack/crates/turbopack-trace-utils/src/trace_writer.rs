@@ -1,11 +1,23 @@
-use std::{debug_assert, io::Write, thread::JoinHandle};
+use std::{debug_assert, io::Write, sync::Arc, thread::JoinHandle, time::Duration};
 
-use crossbeam_channel::{bounded, unbounded, Receiver, Sender, TryRecvError};
+use crossbeam_channel::{bounded, unbounded, Receiver, RecvTimeoutError, Sender, TryRecvError};
+use crossbeam_utils::CachePadded;
+use parking_lot::{Mutex, MutexGuard};
+use thread_local::ThreadLocal;
+
+type ThreadLocalState = CachePadded<Mutex<Option<Vec<u8>>>>;
+
+/// The amount of data that is accumulated in the thread local buffer before it is sent to the
+/// writer. The buffer might grow if a single write is larger than this size.
+const THEAD_LOCAL_INITIAL_BUFFER_SIZE: usize = 1024 * 1024;
+/// Data buffered by the write thread before issuing a filesystem write
+const WRITE_BUFFER_SIZE: usize = 100 * 1024 * 1024;
 
 #[derive(Clone, Debug)]
 pub struct TraceWriter {
     data_tx: Sender<Vec<u8>>,
     return_rx: Receiver<Vec<u8>>,
+    thread_locals: Arc<ThreadLocal<ThreadLocalState>>,
 }
 
 impl TraceWriter {
@@ -15,22 +27,51 @@ impl TraceWriter {
     /// * It allows writing an owned Vec<u8> instead of a reference, so avoiding additional
     ///   allocation.
     /// * It uses an unbounded channel to avoid slowing down the application at all (memory) cost.
-    /// * It issues less writes by buffering the data into chunks of ~1MB, when possible.
+    /// * It issues less writes by buffering the data into chunks of WRITE_BUFFER_SIZE, when
+    ///   possible.
     pub fn new<W: Write + Send + 'static>(mut writer: W) -> (Self, TraceWriterGuard) {
         let (data_tx, data_rx) = unbounded::<Vec<u8>>();
-        let (return_tx, return_rx) = bounded::<Vec<u8>>(1024 * 10);
+        let (return_tx, return_rx) = bounded::<Vec<u8>>(1024);
+        let thread_locals: Arc<ThreadLocal<ThreadLocalState>> = Default::default();
+
+        let trace_writer = Self {
+            data_tx: data_tx.clone(),
+            return_rx: return_rx.clone(),
+            thread_locals: thread_locals.clone(),
+        };
+
+        let data_tx_for_guard = data_tx.clone();
 
         let handle: std::thread::JoinHandle<()> = std::thread::spawn(move || {
             let _ = writer.write(b"TRACEv0");
-            let mut buf = Vec::with_capacity(1024 * 1024 * 1024);
+            let mut buf = Vec::with_capacity(WRITE_BUFFER_SIZE);
             'outer: loop {
                 if !buf.is_empty() {
                     let _ = writer.write_all(&buf);
                     let _ = writer.flush();
                     buf.clear();
                 }
-                let Ok(mut data) = data_rx.recv() else {
-                    break 'outer;
+                let mut data = match data_rx.recv_timeout(Duration::from_secs(1)) {
+                    Ok(data) => data,
+                    Err(e) => {
+                        // When we receive no data for a second or we want to exit we poll the
+                        // thread local buffers to steal some data. This
+                        // prevents unsend data if a thread is hanging or the
+                        // system just go into idle.
+                        for state in thread_locals.iter() {
+                            let mut buffer = state.lock();
+                            if let Some(buffer) = buffer.take() {
+                                let _ = data_tx.send(buffer);
+                            }
+                        }
+                        match e {
+                            RecvTimeoutError::Disconnected => {
+                                // The TraceWriteGuard has been dropped and we should exit.
+                                break 'outer;
+                            }
+                            RecvTimeoutError::Timeout => continue,
+                        }
+                    }
                 };
                 if data.is_empty() {
                     break 'outer;
@@ -44,7 +85,7 @@ impl TraceWriter {
                 let _ = return_tx.try_send(data);
                 loop {
                     match data_rx.try_recv() {
-                        Ok(data) => {
+                        Ok(mut data) => {
                             if data.is_empty() {
                                 break 'outer;
                             }
@@ -59,6 +100,8 @@ impl TraceWriter {
                             } else {
                                 buf.extend_from_slice(&data);
                             }
+                            data.clear();
+                            let _ = return_tx.try_send(data);
                         }
                         Err(TryRecvError::Disconnected) => {
                             break 'outer;
@@ -76,26 +119,24 @@ impl TraceWriter {
             drop(writer);
         });
 
-        (
-            Self {
-                data_tx: data_tx.clone(),
-                return_rx: return_rx.clone(),
-            },
-            TraceWriterGuard {
-                data_tx: Some(data_tx),
-                return_rx: Some(return_rx),
-                handle: Some(handle),
-            },
-        )
+        let guard = TraceWriterGuard {
+            data_tx: Some(data_tx_for_guard),
+            return_rx: Some(return_rx),
+            handle: Some(handle),
+        };
+        (trace_writer, guard)
     }
 
-    pub fn write(&self, data: Vec<u8>) {
+    fn send(&self, data: Vec<u8>) {
         debug_assert!(!data.is_empty());
         let _ = self.data_tx.send(data);
     }
 
-    pub fn try_get_buffer(&self) -> Option<Vec<u8>> {
-        self.return_rx.try_recv().ok()
+    #[inline(never)]
+    pub fn start_write(&self) -> WriteGuard<'_> {
+        let thread_local_buffer = self.thread_locals.get_or_default();
+        let buffer = thread_local_buffer.lock();
+        WriteGuard::new(buffer, self)
     }
 }
 
@@ -111,5 +152,89 @@ impl Drop for TraceWriterGuard {
         let return_rx = self.return_rx.take().unwrap();
         while return_rx.recv().is_ok() {}
         let _ = self.handle.take().unwrap().join();
+    }
+}
+
+pub struct WriteGuard<'l> {
+    // Safety: The buffer must not be None
+    buffer: MutexGuard<'l, Option<Vec<u8>>>,
+    start_len: usize,
+    trace_writer: &'l TraceWriter,
+}
+
+impl<'l> WriteGuard<'l> {
+    fn new(mut buffer: MutexGuard<'l, Option<Vec<u8>>>, trace_writer: &'l TraceWriter) -> Self {
+        // Safety: The buffer must not be None, so we initialize it here
+        let start_len = if let Some(buffer) = buffer.as_ref() {
+            buffer.len()
+        } else {
+            *buffer = Some(
+                trace_writer
+                    .return_rx
+                    .try_recv()
+                    .ok()
+                    .unwrap_or_else(|| Vec::with_capacity(THEAD_LOCAL_INITIAL_BUFFER_SIZE)),
+            );
+            0
+        };
+        Self {
+            start_len,
+            buffer,
+            trace_writer,
+        }
+    }
+
+    fn buffer(&mut self) -> &mut Vec<u8> {
+        // Safety: The struct invariant ensures that the buffer is not None
+        unsafe { self.buffer.as_mut().unwrap_unchecked() }
+    }
+
+    pub fn push(&mut self, data: u8) {
+        // self.check_flush(1);
+        self.buffer().push(data);
+    }
+
+    pub fn extend(&mut self, data: &[u8]) {
+        // self.check_flush(data.len());
+        self.buffer().extend_from_slice(data);
+    }
+
+    fn check_flush(&mut self, additional: usize) {
+        if self.start_len > 0 {
+            let buffer = self.buffer();
+            if buffer.capacity() - buffer.len() < additional {
+                self.flush();
+            }
+        }
+    }
+
+    fn flush(&mut self) {
+        let capacity = self.buffer().capacity();
+        let mut new_buffer = self.get_buffer(capacity);
+        let start_len = self.start_len;
+        new_buffer.extend_from_slice(&self.buffer()[start_len..]);
+        self.buffer().truncate(start_len);
+        self.start_len = 0;
+        let buffer = std::mem::replace(self.buffer(), new_buffer);
+        self.trace_writer.send(buffer);
+    }
+
+    fn get_buffer(&self, capacity: usize) -> Vec<u8> {
+        self.trace_writer
+            .return_rx
+            .try_recv()
+            .ok()
+            .unwrap_or_else(|| Vec::with_capacity(capacity))
+    }
+}
+
+impl Drop for WriteGuard<'_> {
+    fn drop(&mut self) {
+        if self.buffer().capacity() * 2 < self.buffer().len() * 3 {
+            let capacity = self.buffer().capacity();
+            let new_buffer = self.get_buffer(capacity);
+            let buffer = std::mem::replace(self.buffer(), new_buffer);
+            self.trace_writer.send(buffer);
+        }
     }
 }

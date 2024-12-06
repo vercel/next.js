@@ -8,10 +8,12 @@ use tracing_subscriber::{registry::LookupSpan, Layer};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
-    flavor::BufFlavor,
+    flavor::WriteGuardFlavor,
     trace_writer::TraceWriter,
     tracing::{TraceRow, TraceValue},
 };
+
+pub struct RawTraceLayerOptions {}
 
 /// A tracing layer that writes raw trace data to a writer. The data format is
 /// defined by [FullTraceRow].
@@ -32,10 +34,8 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> RawTraceLayer<S> {
 
     fn write(&self, data: TraceRow<'_>) {
         let start = TurboMalloc::allocation_counters();
-        // Buffer is recycled
-        let buf = self.trace_writer.try_get_buffer().unwrap_or_default();
-        let buf = postcard::serialize_with_flavor(&data, BufFlavor { buf }).unwrap();
-        self.trace_writer.write(buf);
+        let guard = self.trace_writer.start_write();
+        postcard::serialize_with_flavor(&data, WriteGuardFlavor { guard }).unwrap();
         TurboMalloc::reset_allocation_counters(start);
     }
 
