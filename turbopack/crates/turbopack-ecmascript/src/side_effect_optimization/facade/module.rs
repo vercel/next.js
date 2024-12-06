@@ -85,10 +85,11 @@ impl Module for EcmascriptModuleFacadeModule {
                 let result = module.analyze().await?;
                 let references = result.evaluation_references;
                 let mut references = references.await?.clone_value();
-                references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                )));
+                references.push(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
+                        .to_resolved()
+                        .await?,
+                ));
                 references
             }
             ModulePart::Exports => {
@@ -103,29 +104,46 @@ impl Module for EcmascriptModuleFacadeModule {
                 let result = module.analyze().await?;
                 let references = result.reexport_references;
                 let mut references = references.await?.clone_value();
-                references.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::locals(),
-                )));
+                references.push(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::locals())
+                        .to_resolved()
+                        .await?,
+                ));
                 references
             }
             ModulePart::Facade => {
                 vec![
-                    Vc::upcast(EcmascriptModulePartReference::new_part(
-                        *self.module,
-                        ModulePart::evaluation(),
-                    )),
-                    Vc::upcast(EcmascriptModulePartReference::new_part(
-                        *self.module,
-                        ModulePart::exports(),
-                    )),
+                    ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::evaluation(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ),
+                    ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new_part(
+                            *self.module,
+                            ModulePart::exports(),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ),
                 ]
             }
             ModulePart::RenamedNamespace { .. } => {
-                vec![Vc::upcast(EcmascriptModulePartReference::new(*self.module))]
+                vec![ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new(*self.module)
+                        .to_resolved()
+                        .await?,
+                )]
             }
             ModulePart::RenamedExport { .. } => {
-                vec![Vc::upcast(EcmascriptModulePartReference::new(*self.module))]
+                vec![ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new(*self.module)
+                        .to_resolved()
+                        .await?,
+                )]
             }
             _ => {
                 bail!("Unexpected ModulePart for EcmascriptModuleFacadeModule");
@@ -220,10 +238,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                         ),
                     );
                 }
-                star_exports.push(Vc::upcast(EcmascriptModulePartReference::new_part(
-                    *self.module,
-                    ModulePart::exports(),
-                )));
+                star_exports.push(ResolvedVc::upcast(
+                    EcmascriptModulePartReference::new_part(*self.module, ModulePart::exports())
+                        .to_resolved()
+                        .await?,
+                ));
             }
             ModulePart::RenamedExport {
                 original_export,
@@ -278,8 +297,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
     }
 
     #[turbo_tasks::function]
-    fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
-        Vc::cell(Some(self.async_module()))
+    async fn get_async_module(self: Vc<Self>) -> Result<Vc<OptionAsyncModule>> {
+        Ok(Vc::cell(Some(self.async_module().to_resolved().await?)))
     }
 }
 

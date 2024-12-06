@@ -82,7 +82,7 @@ export default async function Layout({ params }) {
 | `app/blog/[...slug]/layout.js`    | `/blog/1/2`    | `Promise<{ slug: ['1', '2'] }>`    |
 
 - Since the `params` prop is a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access the values.
-  - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
+  - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 
 ### Root Layouts
 
@@ -232,7 +232,11 @@ To use `params` in a Client Component (which cannot be `async`), you can use Rea
 
 import { use } from 'react'
 
-export function Page({ params }: { params: Promise<{ slug: string }> }) {
+export default function Page({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   const { slug } = use(params)
 }
 ```
@@ -242,7 +246,7 @@ export function Page({ params }: { params: Promise<{ slug: string }> }) {
 
 import { use } from 'react'
 
-export function Page({ params }) {
+export default function Page({ params }) {
   const { slug } = use(params)
 }
 ```

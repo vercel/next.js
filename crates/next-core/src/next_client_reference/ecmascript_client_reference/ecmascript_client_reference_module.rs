@@ -15,7 +15,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 /// indicate which client reference should appear in the client reference manifest.
 #[turbo_tasks::value]
 pub struct EcmascriptClientReferenceModule {
-    pub server_ident: Vc<AssetIdent>,
+    pub server_ident: ResolvedVc<AssetIdent>,
     pub client_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub ssr_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
@@ -32,7 +32,7 @@ impl EcmascriptClientReferenceModule {
     /// * `ssr_module` - The SSR module.
     #[turbo_tasks::function]
     pub fn new(
-        server_ident: Vc<AssetIdent>,
+        server_ident: ResolvedVc<AssetIdent>,
         client_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
         ssr_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Vc<EcmascriptClientReferenceModule> {
@@ -69,19 +69,27 @@ impl Module for EcmascriptClientReferenceModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let client_module = ResolvedVc::upcast(self.client_module);
         let ssr_module = ResolvedVc::upcast(self.ssr_module);
-        Vc::cell(vec![
-            Vc::upcast(SingleModuleReference::new(
-                *client_module,
-                ecmascript_client_reference_client_ref_modifier(),
-            )),
-            Vc::upcast(SingleModuleReference::new(
-                *ssr_module,
-                ecmascript_client_reference_ssr_ref_modifier(),
-            )),
-        ])
+        Ok(Vc::cell(vec![
+            ResolvedVc::upcast(
+                SingleModuleReference::new(
+                    *client_module,
+                    ecmascript_client_reference_client_ref_modifier(),
+                )
+                .to_resolved()
+                .await?,
+            ),
+            ResolvedVc::upcast(
+                SingleModuleReference::new(
+                    *ssr_module,
+                    ecmascript_client_reference_ssr_ref_modifier(),
+                )
+                .to_resolved()
+                .await?,
+            ),
+        ]))
     }
 }
 

@@ -8,7 +8,7 @@ use swc_core::{
     ecma::ast::{Decl, Expr, FnExpr, Ident, Program},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, TryJoinIterExt, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TryJoinIterExt, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     file_source::FileSource,
@@ -167,7 +167,7 @@ impl NextSegmentConfig {
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
     ident: Vc<AssetIdent>,
-    detail: Vc<StyledString>,
+    detail: ResolvedVc<StyledString>,
     source: Vc<IssueSource>,
 }
 
@@ -201,7 +201,7 @@ impl Issue for NextSegmentConfigParsingIssue {
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
@@ -219,8 +219,13 @@ impl Issue for NextSegmentConfigParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(self.source.resolve_source_map(self.ident.path())))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(Some(
+            self.source
+                .resolve_source_map(self.ident.path())
+                .to_resolved()
+                .await?,
+        )))
     }
 }
 
@@ -325,9 +330,12 @@ fn parse_config_value(
     let span = init.span();
     let invalid_config = |detail: &str, value: &JsValue| {
         let (explainer, hints) = value.explain(2, 0);
+        let detail =
+            StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).resolved_cell();
+
         NextSegmentConfigParsingIssue {
             ident: source.ident(),
-            detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+            detail,
             source: issue_source(source, span),
         }
         .cell()
@@ -501,7 +509,7 @@ pub async fn parse_segment_config_from_loader_tree_internal(
         .into_iter()
         .flatten()
     {
-        let source = Vc::upcast(FileSource::new(path));
+        let source = Vc::upcast(FileSource::new(*path));
         config.apply_parent_config(&*parse_segment_config_from_source(source).await?);
     }
 

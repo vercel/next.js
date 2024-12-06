@@ -17,7 +17,7 @@ use crate::EcmascriptAnalyzable;
 #[turbo_tasks::value]
 pub struct StaticEcmascriptCode {
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    asset: Vc<Box<dyn EcmascriptAnalyzable>>,
+    asset: ResolvedVc<Box<dyn EcmascriptAnalyzable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -33,8 +33,10 @@ impl StaticEcmascriptCode {
                 Vc::upcast(FileSource::new(*asset_path)),
                 Value::new(ReferenceType::Runtime),
             )
-            .module();
-        let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn EcmascriptAnalyzable>>(module).await?
+            .module()
+            .to_resolved()
+            .await?;
+        let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module).await?
         else {
             bail!("asset is not an Ecmascript module")
         };
@@ -52,7 +54,7 @@ impl StaticEcmascriptCode {
         let mut code = CodeBuilder::default();
         code.push_source(
             &runtime_base_content.inner_code,
-            runtime_base_content.source_map,
+            runtime_base_content.source_map.map(|v| *v),
         );
         Ok(Code::cell(code.build()))
     }

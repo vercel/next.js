@@ -42,6 +42,10 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
         T::lower_read_transaction(tx)
     }
 
+    fn is_empty(&self) -> bool {
+        self.fresh_db.load(Ordering::Acquire) || self.database.is_empty()
+    }
+
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {
         self.database.begin_read_transaction()
     }

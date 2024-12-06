@@ -2,7 +2,10 @@ import type { NextConfigComplete } from '../../../../server/config-shared'
 
 import type { DocumentType, AppType } from '../../../../shared/lib/utils'
 import type { BuildManifest } from '../../../../server/get-page-files'
-import type { ReactLoadableManifest } from '../../../../server/load-components'
+import type {
+  DynamicCssManifest,
+  ReactLoadableManifest,
+} from '../../../../server/load-components'
 import type { ClientReferenceManifest } from '../../plugins/flight-manifest-plugin'
 import type { NextFontManifest } from '../../plugins/next-font-manifest-plugin'
 import type { NextFetchEvent } from '../../../../server/web/spec-extension/fetch-event'
@@ -31,6 +34,7 @@ export function getRender({
   Document,
   buildManifest,
   reactLoadableManifest,
+  dynamicCssManifest,
   interceptionRouteRewrites,
   renderToHTML,
   clientReferenceManifest,
@@ -53,6 +57,7 @@ export function getRender({
   Document: DocumentType
   buildManifest: BuildManifest
   reactLoadableManifest: ReactLoadableManifest
+  dynamicCssManifest?: DynamicCssManifest
   subresourceIntegrityManifest?: Record<string, string>
   interceptionRouteRewrites?: ManifestRewriteRoute[]
   clientReferenceManifest?: ClientReferenceManifest
@@ -71,6 +76,7 @@ export function getRender({
     dev,
     buildManifest,
     reactLoadableManifest,
+    dynamicCssManifest,
     subresourceIntegrityManifest,
     Document,
     App: appMod?.default as AppType,
@@ -163,7 +169,7 @@ export function getRender({
     if (event?.waitUntil) {
       // TODO(after):
       // remove `internal_runWithWaitUntil` and the `internal-edge-wait-until` module
-      // when consumers switch to `unstable_after`.
+      // when consumers switch to `after`.
       const waitUntilPromise = internal_getCurrentFunctionWaitUntil()
       if (waitUntilPromise) {
         event.waitUntil(waitUntilPromise)

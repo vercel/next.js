@@ -67,7 +67,7 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: this is a test.*digest: "custom"/s
+            ? /Error: this is a test.*digest: 'custom'/s
             : /Error: this is a test.*digest: 'custom'/s
         )
       )
@@ -90,7 +90,7 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: An undefined error was thrown.*digest: "\d+"/s
+            ? /Error: An undefined error was thrown.*digest: '\d+'/s
             : /Error: undefined.*digest: '\d+'/s
         )
       )
@@ -113,7 +113,7 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: A null error was thrown.*digest: "\d+"/s
+            ? /Error: A null error was thrown.*digest: '\d+'/s
             : /Error: null.*digest: '\d+'/s
         )
       )
@@ -136,7 +136,7 @@ describe('app-dir - errors', () => {
       expect(stripAnsi(next.cliOutput)).toEqual(
         expect.stringMatching(
           isNextDev
-            ? /Error: this is a test.*digest: "\d+"/s
+            ? /Error: this is a test.*digest: '\d+'/s
             : /Error: An error occurred in the Server Components render.*digest: '\d+'/s
         )
       )

@@ -41,7 +41,7 @@ pub struct InstrumentationEndpoint {
     is_edge: bool,
 
     app_dir: Option<ResolvedVc<FileSystemPath>>,
-    ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+    ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,7 +53,7 @@ impl InstrumentationEndpoint {
         source: ResolvedVc<Box<dyn Source>>,
         is_edge: bool,
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     ) -> Vc<Self> {
         Self {
             project,
@@ -130,7 +130,7 @@ impl InstrumentationEndpoint {
         let Some(evaluatable) = ResolvedVc::try_sidecast(module).await? else {
             bail!("Entry module must be evaluatable");
         };
-        evaluatable_assets.push(*evaluatable);
+        evaluatable_assets.push(evaluatable);
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
 
@@ -250,7 +250,11 @@ impl Endpoint for InstrumentationEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            let _ = this
+                .project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .resolve()
+                .await?;
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();

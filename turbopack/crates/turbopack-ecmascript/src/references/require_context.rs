@@ -371,7 +371,9 @@ impl Module for RequireContextAsset {
 
         Ok(Vc::cell(
             map.iter()
-                .map(|(_, entry)| Vc::upcast(Vc::<ResolvedModuleReference>::cell(entry.result)))
+                .map(|(_, entry)| {
+                    ResolvedVc::upcast(ResolvedVc::<ResolvedModuleReference>::cell(entry.result))
+                })
                 .collect(),
         ))
     }

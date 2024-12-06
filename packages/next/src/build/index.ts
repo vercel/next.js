@@ -79,6 +79,7 @@ import {
   FUNCTIONS_CONFIG_MANIFEST,
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
+  DYNAMIC_CSS_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -1270,7 +1271,6 @@ export default async function build(
       )
 
       const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
-      const isAfterEnabled = Boolean(config.experimental.after)
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -2003,7 +2003,6 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               dynamicIO: isAppDynamicIOEnabled,
-              after: isAfterEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2228,7 +2227,6 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
-                            after: isAfterEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,
@@ -2611,6 +2609,12 @@ export default async function build(
                       SERVER_DIRECTORY,
                       SERVER_REFERENCE_MANIFEST + '.json'
                     ),
+                  ]
+                : []),
+              ...(pagesDir && !turboNextBuild
+                ? [
+                    DYNAMIC_CSS_MANIFEST + '.json',
+                    path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
                   ]
                 : []),
               REACT_LOADABLE_MANIFEST,

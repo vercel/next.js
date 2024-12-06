@@ -602,7 +602,7 @@ impl ReactServerComponentValidator {
 
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
 
-            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
+            invalid_client_lib_apis_mapping: [("next/server", vec!["after"])].into(),
             imports: ImportMap::default(),
         }
     }

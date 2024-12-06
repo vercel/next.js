@@ -15,7 +15,7 @@ use turbo_tasks::{Completion, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, File, FileContent, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
-    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt},
+    chunk::{availability_info::AvailabilityInfo, ChunkingContextExt, EvaluatableAsset},
     context::AssetContext,
     module::{Module, Modules},
     output::OutputAssets,
@@ -90,9 +90,7 @@ impl MiddlewareEndpoint {
             Value::new(ServerContextType::Middleware {
                 app_dir: self.app_dir,
                 ecmascript_client_reference_transition_name: self
-                    .ecmascript_client_reference_transition_name
-                    .as_deref()
-                    .copied(),
+                    .ecmascript_client_reference_transition_name,
             }),
             self.project.next_mode(),
         )
@@ -106,10 +104,10 @@ impl MiddlewareEndpoint {
             bail!("Entry module must be evaluatable");
         };
 
-        let evaluatable = Vc::try_resolve_sidecast(module)
+        let evaluatable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module)
             .await?
             .context("Entry module must be evaluatable")?;
-        evaluatable_assets.push(evaluatable);
+        evaluatable_assets.push(evaluatable.to_resolved().await?);
 
         let edge_chunking_context = self.project.edge_chunking_context(false);
 
@@ -277,7 +275,11 @@ impl Endpoint for MiddlewareEndpoint {
             let this = self.await?;
             let output_assets = self.output_assets();
             let _ = output_assets.resolve().await?;
-            let _ = this.project.emit_all_output_assets(Vc::cell(output_assets));
+            let _ = this
+                .project
+                .emit_all_output_assets(Vc::cell(output_assets))
+                .resolve()
+                .await?;
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();

@@ -70,10 +70,11 @@ impl WorkerAssetReference {
         let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
             CodeGenerationIssue {
-                severity: IssueSeverity::Bug.into(),
-                title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
-                message: StyledString::Text("asset is not placeable in ESM chunks".into()).cell(),
-                path: self.origin.origin_path(),
+                severity: IssueSeverity::Bug.resolved_cell(),
+                title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
+                message: StyledString::Text("asset is not placeable in ESM chunks".into())
+                    .resolved_cell(),
+                path: self.origin.origin_path().to_resolved().await?,
             }
             .cell()
             .emit();

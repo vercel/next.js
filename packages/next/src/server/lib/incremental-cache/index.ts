@@ -22,7 +22,7 @@ import {
 } from '../../../lib/constants'
 import { toRoute } from '../to-route'
 import { SharedRevalidateTimings } from './shared-revalidate-timings'
-import { workUnitAsyncStorage } from '../../app-render/work-unit-async-storage-instance'
+import { workUnitAsyncStorageInstance } from '../../app-render/work-unit-async-storage-instance'
 import {
   getPrerenderResumeDataCache,
   getRenderResumeDataCache,
@@ -405,7 +405,7 @@ export class IncrementalCache implements IncrementalCacheType {
     // unlike other caches if we have a cacheScope we use it even if
     // testmode would normally disable it or if requestHeaders say 'no-cache'.
     if (this.hasDynamicIO && ctx.kind === IncrementalCacheKind.FETCH) {
-      const workUnitStore = workUnitAsyncStorage.getStore()
+      const workUnitStore = workUnitAsyncStorageInstance.getStore()
       const resumeDataCache = workUnitStore
         ? getRenderResumeDataCache(workUnitStore)
         : null
@@ -550,7 +550,7 @@ export class IncrementalCache implements IncrementalCacheType {
     // is a transient in memory cache that populates caches ahead of a dynamic render in dev mode
     // to allow the RSC debug info to have the right environment associated to it.
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
-      const workUnitStore = workUnitAsyncStorage.getStore()
+      const workUnitStore = workUnitAsyncStorageInstance.getStore()
       const prerenderResumeDataCache = workUnitStore
         ? getPrerenderResumeDataCache(workUnitStore)
         : null

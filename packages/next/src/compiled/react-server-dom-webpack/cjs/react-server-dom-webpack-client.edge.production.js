@@ -431,7 +431,7 @@ function processReply(
       ) {
         if (void 0 === temporaryReferences)
           throw Error(
-            "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported."
+            "Only plain objects, and a few built-ins, can be passed to Server Functions. Classes or null prototypes are not supported."
           );
         return "$T";
       }
