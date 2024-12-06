@@ -3,6 +3,8 @@ title: How to create layouts and pages
 nav_title: Layouts and Pages
 description: Create your first pages and layouts, and link between them.
 related:
+  title: API Reference
+  description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
     - app/api-reference/file-conventions/layout
     - app/api-reference/file-conventions/page
@@ -168,7 +170,7 @@ export default function Page() {
 }
 ```
 
-> **Good to know**: Wrapping a folder name in square brackets (e.g. `[slug]`) creates a special **dynamic route segment** used to generate multiple pages from data. This is useful for blog posts, product pages, etc. Learn more about [dynamic segments](/docs/app/building-your-application/routing/dynamic-routes).
+> **Good to know**: Wrapping a folder name in square brackets (e.g. `[slug]`) creates a special [dynamic route segment](/docs/app/building-your-application/routing/dynamic-routes) used to generate multiple pages from data. This is useful for blog posts, product pages, etc.
 
 ## Nesting layouts
 
@@ -208,7 +210,7 @@ You can use the [`<Link>` component](/docs/app/api-reference/components/link) to
 
 For example, to generate a list of blog posts, import `<Link>` from `next/link` and pass a `href` prop to the component:
 
-```tsx filename="app/ui/post.tsx" highlight={1,6} switcher
+```tsx filename="app/ui/post.tsx" highlight={1,10} switcher
 import Link from 'next/link'
 
 export default async function Post({ post }) {
@@ -226,7 +228,7 @@ export default async function Post({ post }) {
 }
 ```
 
-```jsx filename="app/ui/post.js" highlight={1,6}  switcher
+```jsx filename="app/ui/post.js" highlight={1,10}  switcher
 import Link from 'next/link'
 
 export default async function Post({ post }) {

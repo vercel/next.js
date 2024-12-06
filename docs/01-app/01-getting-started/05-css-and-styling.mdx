@@ -3,6 +3,8 @@ title: How to use CSS in your application
 nav_title: CSS and Styling
 description: Learn about the different ways to add CSS to your application, including CSS Modules, Global CSS, Tailwind CSS, and more.
 related:
+  title: API Reference
+  description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
     - app/api-reference/config/next-config-js/sassOptions
     - architecture/nextjs-compiler
@@ -46,12 +48,6 @@ export default function Page({ children }) {
   return <main className={styles.blog}>{children}</main>
 }
 ```
-
-> **Good to know:**
->
-> - CSS Modules are only enabled for files with the `.module.css` and `.module.sass` extensions.
-> - In production, all CSS Module files will be automatically concatenated into minified and code-split `.css` files.
-> - These `.css` files represent hot execution paths in your application, ensuring the minimal amount of CSS is loaded for your application to paint.
 
 ## Global CSS
 
@@ -118,13 +114,12 @@ npx tailwindcss init -p
 
 Inside your Tailwind configuration file, add paths to the files that will use the Tailwind class names:
 
-```ts filename="tailwind.config.ts" switcher
+```ts filename="tailwind.config.ts" highlight={5-7} switcher
 import type { Config } from 'tailwindcss'
 
 const config: Config = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
     // Or if using `src` directory:
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
@@ -136,12 +131,11 @@ const config: Config = {
 export default config
 ```
 
-```js filename="tailwind.config.js" switcher
+```js filename="tailwind.config.js" highlight={4-6} switcher
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
-    './components/**/*.{js,ts,jsx,tsx,mdx}',
     // Or if using `src` directory:
     './src/**/*.{js,ts,jsx,tsx,mdx}',
   ],
@@ -152,11 +146,9 @@ module.exports = {
 }
 ```
 
-You do not need to modify `postcss.config.js`.
-
 ### Using Tailwind
 
-Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directives#directives) to your [Global Stylesheet](#global-css), for example:
+Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directives#directives) to your [Global Stylesheet](#global-css):
 
 ```css filename="app/globals.css"
 @tailwind base;
@@ -164,7 +156,7 @@ Add the [Tailwind directives](https://tailwindcss.com/docs/functions-and-directi
 @tailwind utilities;
 ```
 
-Then, import the styles in the root layout:
+Then, import the styles in the [root layout](/docs/app/api-reference/file-conventions/layout#root-layouts):
 
 ```tsx filename="app/layout.tsx" switcher
 import type { Metadata } from 'next'
@@ -208,7 +200,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Lastly, you can write Tailwind's utility classes in your application.
+Lastly, you can start writing Tailwind's utility classes in your application.
 
 ```tsx filename="app/page.tsx" switcher
 export default function Page() {
@@ -238,7 +230,7 @@ npm install --save-dev sass
 
 ### Customizing Sass options
 
-If you want to configure your Sass options, use `sassOptions` in `next.config.js`.
+If you want to configure your Sass options, use the [`sassOptions`](/docs/app/api-reference/config/next-config-js/sassOptions) option in `next.config.js`.
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
@@ -263,8 +255,6 @@ const nextConfig = {
 
 module.exports = nextConfig
 ```
-
-Learn more about the `sassOptions` configuration in the [API Reference](/docs/app/api-reference/config/next-config-js/sassOptions).
 
 ## CSS-in-JS
 
