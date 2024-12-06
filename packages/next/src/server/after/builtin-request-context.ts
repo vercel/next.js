@@ -8,7 +8,7 @@ export function getBuiltinRequestContext():
   return ctx?.get()
 }
 
-/** This should be considered unstable until `unstable_after` is stablized. */
+/** This should be considered unstable until `after` is stablized. */
 const NEXT_REQUEST_CONTEXT_SYMBOL = Symbol.for('@next/request-context')
 
 type GlobalThisWithRequestContext = typeof globalThis & {
@@ -16,7 +16,7 @@ type GlobalThisWithRequestContext = typeof globalThis & {
 }
 
 /** A request context provided by the platform.
- * It should be considered unstable until `unstable_after` is stablized. */
+ * It should be considered unstable until `after` is stablized. */
 export type BuiltinRequestContext = {
   get(): BuiltinRequestContextValue | undefined
 }

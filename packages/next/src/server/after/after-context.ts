@@ -48,14 +48,12 @@ export class AfterContext {
       // TODO(after): implement tracing
       this.addCallback(task)
     } else {
-      throw new Error(
-        '`unstable_after()`: Argument must be a promise or a function'
-      )
+      throw new Error('`after()`: Argument must be a promise or a function')
     }
   }
 
   private addCallback(callback: AfterCallback) {
-    // if something is wrong, throw synchronously, bubbling up to the `unstable_after` callsite.
+    // if something is wrong, throw synchronously, bubbling up to the `after` callsite.
     if (!this.waitUntil) {
       errorWaitUntilNotAvailable()
     }
@@ -127,8 +125,8 @@ export class AfterContext {
     // TODO(after): should we log this if we have a onTaskError callback?
     console.error(
       taskKind === 'promise'
-        ? `A promise passed to \`unstable_after()\` rejected:`
-        : `An error occurred in a function passed to \`unstable_after()\`:`,
+        ? `A promise passed to \`after()\` rejected:`
+        : `An error occurred in a function passed to \`after()\`:`,
       error
     )
     if (this.onTaskError) {
@@ -138,7 +136,7 @@ export class AfterContext {
       } catch (handlerError) {
         console.error(
           new InvariantError(
-            '`onTaskError` threw while handling an error thrown from an `unstable_after` task',
+            '`onTaskError` threw while handling an error thrown from an `after` task',
             {
               cause: handlerError,
             }
@@ -151,6 +149,6 @@ export class AfterContext {
 
 function errorWaitUntilNotAvailable(): never {
   throw new Error(
-    '`unstable_after()` will not work correctly, because `waitUntil` is not available in the current environment.'
+    '`after()` will not work correctly, because `waitUntil` is not available in the current environment.'
   )
 }

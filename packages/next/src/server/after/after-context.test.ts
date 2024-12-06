@@ -16,7 +16,7 @@ describe('AfterContext', () => {
   let workAsyncStorage: WASMod['workAsyncStorage']
   let workUnitAsyncStorage: WSMod['workUnitAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
-  let after: AfterMod['unstable_after']
+  let after: AfterMod['after']
 
   beforeAll(async () => {
     // @ts-expect-error
@@ -32,7 +32,7 @@ describe('AfterContext', () => {
     AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
-    after = AfterMod.unstable_after
+    after = AfterMod.after
   })
 
   const createRun =
