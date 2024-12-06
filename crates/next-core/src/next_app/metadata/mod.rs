@@ -299,10 +299,13 @@ fn get_metadata_route_suffix(page: &str) -> Option<String> {
 
     // Get the parent pathname of the page
     let parent_pathname = split_directory(page).0.unwrap_or_default();
+    let segments = parent_pathname.split('/').collect::<Vec<&str>>();
 
-    if (parent_pathname.contains('(') && parent_pathname.contains(')'))
-        || parent_pathname.contains('@')
-    {
+    // if any segment is group or parallel route segment, we should add a suffix.
+    if segments.iter().any(|segment| {
+        (segment.starts_with('(') && segment.ends_with(')')
+            || segment.starts_with('@') && *segment != "@children")
+    }) {
         Some(format_radix(djb2_hash(parent_pathname), 36))
     } else {
         None
