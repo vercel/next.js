@@ -5,6 +5,10 @@ import { getNamedRouteRegex } from '../../shared/lib/router/utils/route-regex'
 import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
+import {
+  isGroupSegment,
+  isParallelRouteSegment,
+} from '../../shared/lib/segment'
 
 /*
  * If there's special convention like (...) or @ in the page path,
@@ -34,11 +38,9 @@ function getMetadataRouteSuffix(page: string) {
   // Calculate the hash suffix based on the parent path
   let suffix = ''
   // Check if there's any special characters in the parent pathname.
-  // e.g. /parent/(post) -> true
-  // e.g. /parent/@post -> true
+  const segments = parentPathname.split('/')
   if (
-    (parentPathname.includes('(') && parentPathname.includes(')')) ||
-    parentPathname.includes('@')
+    segments.some((seg) => isGroupSegment(seg) || isParallelRouteSegment(seg))
   ) {
     // Hash the parent path to get a unique suffix
     suffix = djb2Hash(parentPathname).toString(36).slice(0, 6)
