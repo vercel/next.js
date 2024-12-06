@@ -1,13 +1,9 @@
-import type { NextConfig } from 'next'
 import { getRedboxHeader, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
-])('HMR - Full Reload, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
+const nextConfig = { basePath: '/docs', assetPrefix: '' }
+
+describe(`HMR - Full Reload, nextConfig: ${JSON.stringify(nextConfig)}`, () => {
   const { next } = nextTestSetup({
     files: __dirname,
     nextConfig,
@@ -63,7 +59,9 @@ describe.each([
       'Fast Refresh had to perform a full reload due to a runtime error.'
 
     await retry(async () => {
-      expect(await getRedboxHeader(browser)).toMatch(/whoops is not defined/)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /ReferenceError: whoops is not defined/
+      )
     })
     expect(next.cliOutput.slice(start)).not.toContain(cliWarning)
 
