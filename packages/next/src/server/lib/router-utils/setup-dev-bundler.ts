@@ -966,6 +966,11 @@ async function startWatcher(opts: SetupOpts) {
       }
     }
 
+    // TODO:
+    // 1. what if the client hasn't come online yet? we need to detect that, buffer these, and send them later
+    // 2. what if multiple clients are connected? we need to somehow know which one sent the request.
+    // we might not even have a session id yet because that's in-memory and they may have refreshed the tab.
+    // maybe we need to push that id to the client in a set-cookie or something.
     hotReloader.send({
       action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
       source: source,
