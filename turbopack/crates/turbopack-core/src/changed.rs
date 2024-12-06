@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{
     graph::{GraphTraversal, NonDeterministic},
-    Completion, Completions, ResolvedVc, Vc,
+    Completion, Completions, ResolvedVc, TryJoinIterExt, Vc,
 };
 
 use crate::{
@@ -40,7 +40,9 @@ pub async fn any_content_changed_of_module(
         .into_inner()
         .into_iter()
         .map(|m| content_changed(*ResolvedVc::upcast(m)))
-        .collect();
+        .map(|v| v.to_resolved())
+        .try_join()
+        .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
 }
@@ -59,7 +61,9 @@ pub async fn any_content_changed_of_output_asset(
         .into_inner()
         .into_iter()
         .map(|m| content_changed(*ResolvedVc::upcast(m)))
-        .collect();
+        .map(|v| v.to_resolved())
+        .try_join()
+        .await?;
 
     Ok(Vc::<Completions>::cell(completions).completed())
 }
@@ -75,7 +79,9 @@ pub async fn any_content_changed_of_output_assets(
             .await?
             .iter()
             .map(|&a| any_content_changed_of_output_asset(*a))
-            .collect(),
+            .map(|v| v.to_resolved())
+            .try_join()
+            .await?,
     )
     .completed())
 }

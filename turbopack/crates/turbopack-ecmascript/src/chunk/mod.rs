@@ -8,7 +8,7 @@ use std::fmt::Write;
 
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystem;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -110,11 +110,11 @@ impl Chunk for EcmascriptChunk {
 
         let ident = AssetIdent {
             path: if let Some((common_path, _)) = common_path {
-                *common_path
+                common_path
             } else {
-                *ServerFileSystem::new().root().to_resolved().await?
+                ServerFileSystem::new().root().to_resolved().await?
             },
-            query: *Vc::<RcStr>::default().to_resolved().await?,
+            query: ResolvedVc::cell(RcStr::default()),
             fragment: None,
             assets,
             modifiers: Vec::new(),
@@ -142,8 +142,9 @@ impl Chunk for EcmascriptChunk {
         Ok(ChunkItems(
             chunk_items
                 .iter()
-                .map(|(item, _)| Vc::upcast(*item))
-                .collect(),
+                .map(|(item, _)| async move { Ok(ResolvedVc::upcast(item.to_resolved().await?)) })
+                .try_join()
+                .await?,
         )
         .cell())
     }
@@ -222,7 +223,7 @@ impl Introspectable for EcmascriptChunk {
         let mut children = children_from_output_assets(self.references())
             .await?
             .clone_value();
-        let chunk_item_module_key = chunk_item_module_key();
+        let chunk_item_module_key = chunk_item_module_key().to_resolved().await?;
         for &(chunk_item, _) in self.await?.content.await?.chunk_items.iter() {
             children.insert((
                 chunk_item_module_key,

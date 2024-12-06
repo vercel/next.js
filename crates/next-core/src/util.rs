@@ -230,13 +230,13 @@ impl Issue for NextSourceConfigParsingIssue {
                  format from which some properties can be statically parsed at compiled-time."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 
     #[turbo_tasks::function]
     fn detail(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.detail))
+        Vc::cell(Some(self.detail))
     }
 }
 

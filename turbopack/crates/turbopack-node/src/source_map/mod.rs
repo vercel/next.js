@@ -225,7 +225,7 @@ async fn resolve_source_mapping(
     let Some(sm) = *generate_source_map.generate_source_map().await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::new(sm, line, column, name.map(|s| s.clone().into()))
+    let trace = SourceMapTrace::new(*sm, line, column, name.map(|s| s.clone().into()))
         .trace()
         .await?;
     match &*trace {

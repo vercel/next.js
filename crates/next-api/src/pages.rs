@@ -831,7 +831,7 @@ impl PageEndpoint {
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
-                let evaluatable = *ResolvedVc::try_sidecast(ssr_module)
+                let evaluatable = ResolvedVc::try_sidecast(ssr_module)
                     .await?
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);

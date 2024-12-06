@@ -85,7 +85,7 @@ impl ModuleId {
 
 /// A list of module ids.
 #[turbo_tasks::value(transparent, shared)]
-pub struct ModuleIds(Vec<Vc<ModuleId>>);
+pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
 #[turbo_tasks::value_trait]
@@ -220,7 +220,7 @@ pub struct ChunkContentResult {
 
 pub async fn chunk_content(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<ChunkContentResult> {
     chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
@@ -361,22 +361,18 @@ async fn graph_node_to_referenced_nodes(
         .map(|reference| async {
             let reference = *reference;
             let Some(chunkable_module_reference) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
             else {
                 return Ok(vec![ChunkGraphEdge {
                     key: None,
-                    node: ChunkContentGraphNode::ExternalModuleReference(
-                        reference.to_resolved().await?,
-                    ),
+                    node: ChunkContentGraphNode::ExternalModuleReference(reference),
                 }]);
             };
 
             let Some(chunking_type) = *chunkable_module_reference.chunking_type().await? else {
                 return Ok(vec![ChunkGraphEdge {
                     key: None,
-                    node: ChunkContentGraphNode::ExternalModuleReference(
-                        reference.to_resolved().await?,
-                    ),
+                    node: ChunkContentGraphNode::ExternalModuleReference(reference),
                 }]);
             };
 
@@ -614,15 +610,14 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 
 async fn chunk_content_internal_parallel(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<ChunkContentResult> {
     let root_edges = chunk_entries
         .into_iter()
         .map(|entry| async move {
-            let entry = entry.resolve().await?;
             let Some(chunkable_module) =
-                Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry).await?
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(entry).await?
             else {
                 return Ok(None);
             };
@@ -771,7 +766,7 @@ pub fn round_chunk_item_size(size: usize) -> usize {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkItems(pub Vec<Vc<Box<dyn ChunkItem>>>);
+pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
