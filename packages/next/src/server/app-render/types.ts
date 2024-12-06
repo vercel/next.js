@@ -181,7 +181,6 @@ export interface RenderOptsPartial {
     isRoutePPREnabled?: boolean
     expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
-    after: boolean
     dynamicIO: boolean
     inlineCss: boolean
     authInterrupts: boolean
