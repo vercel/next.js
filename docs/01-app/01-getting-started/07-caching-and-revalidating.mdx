@@ -16,9 +16,9 @@ related:
 
 ## Caching
 
-In Next.js, you can cache the output of a dynamic [component](#caching-the-render-output-of-a-component) or [function](#caching-the-return-value-of-a-function) to improve performance and reduce the need to re-execute work for every user request.
+In Next.js, you can cache the output of a [component](/docs/app/building-your-application/caching/caching-components) or [function](/docs/app/building-your-application/caching/caching-data) to reduce the need to re-execute work for every user request.
 
-Caching is useful for content that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and reuse the static result for all requests.
+Caching is useful for content that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and improve performance by reusing the static content for all requests.
 
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
