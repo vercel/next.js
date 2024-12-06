@@ -591,7 +591,6 @@ export default abstract class Server<
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
@@ -2476,7 +2475,6 @@ export default abstract class Server<
             prerenderManifest,
             renderOpts: {
               experimental: {
-                after: renderOpts.experimental.after,
                 dynamicIO: renderOpts.experimental.dynamicIO,
                 authInterrupts: renderOpts.experimental.authInterrupts,
               },
