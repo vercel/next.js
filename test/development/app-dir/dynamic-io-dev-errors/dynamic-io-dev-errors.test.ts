@@ -43,6 +43,21 @@ describe('Dynamic IO Dev Errors', () => {
     )
   })
 
+  it('should not log unhandled rejections for persistently thrown top-level errors', async () => {
+    const cliOutputLength = next.cliOutput.length
+    const res = await next.fetch('/top-level-error')
+    expect(res.status).toBe(500)
+
+    await retry(() => {
+      const cliOutput = next.cliOutput.slice(cliOutputLength)
+      expect(cliOutput).toContain('GET /top-level-error 500')
+    })
+
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'unhandledRejection'
+    )
+  })
+
   // NOTE: when update this snapshot, use `pnpm build` in packages/next to avoid next source code get mapped to source.
   it('should display error when component accessed data without suspense boundary', async () => {
     const outputIndex = next.cliOutput.length
