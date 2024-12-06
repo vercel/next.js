@@ -1,6 +1,7 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { join, extname } from 'path'
+import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -20,6 +21,7 @@ import type {
   Endpoint,
   WrittenEndpoint,
   TurbopackResult,
+  Project,
 } from '../../build/swc/types'
 import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -85,6 +87,10 @@ import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-de
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
 import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import {
+  setBundlerFindSourceMapImplementation,
+  type ModernSourceMapPayload,
+} from '../patch-error-inspect'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -95,6 +101,51 @@ const isTestMode = !!(
 )
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
+
+/**
+ * Replaces turbopack://[project] with the specified project in the `source` field.
+ */
+function rewriteTurbopackSources(
+  projectRoot: string,
+  sourceMap: ModernSourceMapPayload
+): void {
+  if ('sections' in sourceMap) {
+    for (const section of sourceMap.sections) {
+      rewriteTurbopackSources(projectRoot, section.map)
+    }
+  } else {
+    for (let i = 0; i < sourceMap.sources.length; i++) {
+      sourceMap.sources[i] = pathToFileURL(
+        join(
+          projectRoot,
+          sourceMap.sources[i].replace(/turbopack:\/\/\[project\]/, '')
+        )
+      ).toString()
+    }
+  }
+}
+
+function getSourceMapFromTurbopack(
+  project: Project,
+  projectRoot: string,
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  let sourceMapJson: string | null = null
+
+  try {
+    sourceMapJson = project.getSourceMapSync(sourceURL)
+  } catch (err) {}
+
+  if (sourceMapJson === null) {
+    return undefined
+  } else {
+    const payload: ModernSourceMapPayload = JSON.parse(sourceMapJson)
+    // The sourcemap from Turbopack is not yet written to disk so its `sources`
+    // are not absolute paths yet. We need to rewrite them to be absolute paths.
+    rewriteTurbopackSources(projectRoot, payload)
+    return payload
+  }
+}
 
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
@@ -185,7 +236,13 @@ export async function createHotReloaderTurbopack(
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
-  opts.onDevServerCleanup?.(() => project.onExit())
+  setBundlerFindSourceMapImplementation(
+    getSourceMapFromTurbopack.bind(null, project, dir)
+  )
+  opts.onDevServerCleanup?.(async () => {
+    setBundlerFindSourceMapImplementation(() => undefined)
+    await project.onExit()
+  })
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()

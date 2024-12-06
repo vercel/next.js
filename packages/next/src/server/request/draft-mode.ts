@@ -237,7 +237,7 @@ function trackDynamicDraftMode(expression: string) {
         )
       } else if (workUnitStore.phase === 'after') {
         throw new Error(
-          `Route ${store.route} used "${expression}" inside \`unstable_after\`. The enabled status of draftMode can be read inside \`unstable_after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_after`
+          `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
         )
       }
     }

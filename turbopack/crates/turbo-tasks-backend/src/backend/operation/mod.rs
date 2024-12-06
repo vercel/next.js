@@ -204,6 +204,8 @@ where
             task,
             task_id,
             backend: self.backend,
+            #[cfg(debug_assertions)]
+            category,
         }
     }
 
@@ -258,11 +260,15 @@ where
                 task: task1,
                 task_id: task_id1,
                 backend: self.backend,
+                #[cfg(debug_assertions)]
+                category,
             },
             TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 backend: self.backend,
+                #[cfg(debug_assertions)]
+                category,
             },
         )
     }
@@ -385,6 +391,37 @@ struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
     task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
     backend: &'a TurboTasksBackendInner<B>,
+    #[cfg(debug_assertions)]
+    category: TaskDataCategory,
+}
+
+impl<B: BackingStorage> TaskGuardImpl<'_, B> {
+    /// Verify that the task guard restored the correct category
+    /// before accessing the data.
+    #[inline]
+    fn check_access(&self, category: TaskDataCategory) {
+        {
+            match category {
+                TaskDataCategory::All => {
+                    // This category is used for non-persisted data
+                }
+                TaskDataCategory::Data => {
+                    #[cfg(debug_assertions)]
+                    debug_assert!(
+                        self.category == TaskDataCategory::Data
+                            || self.category == TaskDataCategory::All
+                    );
+                }
+                TaskDataCategory::Meta => {
+                    #[cfg(debug_assertions)]
+                    debug_assert!(
+                        self.category == TaskDataCategory::Meta
+                            || self.category == TaskDataCategory::All
+                    );
+                }
+            }
+        }
+    }
 }
 
 impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
@@ -408,6 +445,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     #[must_use]
     fn add(&mut self, item: CachedDataItem) -> bool {
+        self.check_access(item.category());
         if !self.backend.should_persist() || self.task_id.is_transient() || !item.is_persistent() {
             self.task.add(item)
         } else if self.task.add(item.clone()) {
@@ -424,11 +462,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn add_new(&mut self, item: CachedDataItem) {
+        self.check_access(item.category());
         let added = self.add(item);
         assert!(added, "Item already exists");
     }
 
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+        self.check_access(item.category());
         let (key, value) = item.into_key_and_value();
         if !self.backend.should_persist() || self.task_id.is_transient() || !key.is_persistent() {
             self.task
@@ -472,6 +512,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         key: &CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
+        self.check_access(key.category());
         if !self.backend.should_persist() || self.task_id.is_transient() || !key.is_persistent() {
             self.task.update(key, update);
             return;
@@ -480,6 +521,8 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             task,
             task_id,
             backend,
+            #[cfg(debug_assertions)]
+                category: _,
         } = self;
         let mut add_persisting_item = false;
         task.update(key, |old| {
@@ -519,6 +562,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
+        self.check_access(key.category());
         let old_value = self.task.remove(key);
         if let Some(value) = old_value {
             if self.backend.should_persist()
@@ -545,14 +589,17 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     }
 
     fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
+        self.check_access(key.category());
         self.task.get(key)
     }
 
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
+        self.check_access(key.category());
         self.task.get_mut(key)
     }
 
     fn has_key(&self, key: &CachedDataItemKey) -> bool {
+        self.check_access(key.category());
         self.task.has_key(key)
     }
 

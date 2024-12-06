@@ -76,6 +76,34 @@ describe('segment cache (basic tests)', () => {
       `"<div><div data-streaming-text-static="Static in nav">Static in nav</div><div data-streaming-text-dynamic="Dynamic in nav">Dynamic in nav</div></div>"`
     )
   })
+
+  it('prefetch interception route', async () => {
+    const interceptor = createRequestInterceptor()
+    const browser = await next.browser('/interception/feed', {
+      beforePageLoad(page: Page) {
+        page.route('**/*', async (route: Route) => {
+          await interceptor.interceptRoute(route)
+        })
+      },
+    })
+
+    // Rendering the link triggers a prefetch of the test page.
+    const link = await browser.elementByCss('a')
+
+    // Before navigating to the test page, block all navigation requests from
+    // resolving so we can simulate what happens on a slow connection when
+    // the cache has been populated with prefetched data.
+    const navigationsLock = interceptor.lockNavigations()
+
+    // Navigate to the test page
+    await link.click()
+
+    // The page should render immediately because it was prefetched
+    const div = await browser.elementById('intercepted-photo-page')
+    expect(await div.innerHTML()).toBe('Intercepted photo page')
+
+    navigationsLock.release()
+  })
 })
 
 function createRequestInterceptor() {

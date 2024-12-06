@@ -166,10 +166,8 @@ impl NextSegmentConfig {
 /// An issue that occurred while parsing the app segment config.
 #[turbo_tasks::value(shared)]
 pub struct NextSegmentConfigParsingIssue {
-    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
     ident: Vc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
-    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
     source: Vc<IssueSource>,
 }
 
