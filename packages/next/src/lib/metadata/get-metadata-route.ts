@@ -6,10 +6,6 @@ import { djb2Hash } from '../../shared/lib/hash'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { normalizePathSep } from '../../shared/lib/page-path/normalize-path-sep'
 
-function isSitemapRoute(page: string) {
-  return page.endsWith('/sitemap')
-}
-
 /*
  * If there's special convention like (...) or @ in the page path,
  * Give it a unique hash suffix to avoid conflicts
@@ -31,7 +27,7 @@ function getMetadataRouteSuffix(page: string) {
   // e.g. /parent/opengraph-image.tsx -> /parent
   const parentPathname = page.slice(0, -(path.basename(page).length + 1))
   // Only apply suffix to metadata routes except for sitemaps
-  if (isSitemapRoute(page)) {
+  if (page.endsWith('/sitemap')) {
     return ''
   }
 
