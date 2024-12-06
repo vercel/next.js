@@ -181,6 +181,7 @@ function readRenderSnapshotFromCache(
 
   let rsc: React.ReactNode | null = null
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
+  let isPartial: boolean = true
 
   const segmentEntry = readSegmentCacheEntry(now, tree.path)
   if (segmentEntry !== null) {
@@ -189,6 +190,7 @@ function readRenderSnapshotFromCache(
         // Happy path: a cache hit
         rsc = segmentEntry.rsc
         loading = segmentEntry.loading
+        isPartial = segmentEntry.isPartial
         break
       }
       case EntryStatus.Pending: {
@@ -202,6 +204,10 @@ function readRenderSnapshotFromCache(
         loading = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.loading : null
         )
+        // Since we don't know yet whether the segment is partial or fully
+        // static, we must assume it's partial; we can't skip the
+        // dynamic request.
+        isPartial = true
         break
       }
       case EntryStatus.Rejected:
@@ -225,7 +231,13 @@ function readRenderSnapshotFromCache(
       null,
       isRootLayout,
     ],
-    seedData: [flightRouterStateSegment, rsc, childSeedDatas, loading],
+    seedData: [
+      flightRouterStateSegment,
+      rsc,
+      childSeedDatas,
+      loading,
+      isPartial,
+    ],
   }
 }
 

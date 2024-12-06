@@ -10,7 +10,7 @@ const getFlightData = (): NormalizedFlightData[] => {
       segmentPath: ['children', 'linking', 'children', 'about'],
       segment: 'about',
       tree: ['about', { children: ['', {}] }],
-      seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null],
+      seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null, false],
       head: '<title>Head Injected!</title>',
       isRootRender: false,
     },
