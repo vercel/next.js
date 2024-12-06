@@ -21,7 +21,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{parse::ParseResult, resolve::esm_resolve, EcmascriptParsable};
 
-use crate::module_graph::SingleModuleGraph;
+use crate::module_graph::{SingleModuleGraph, SingleModuleGraphNode};
 
 async fn collect_chunk_group_inner<F, Fu>(
     dynamic_import_entries: &FxIndexMap<ResolvedVc<Box<dyn Module>>, DynamicImportedModules>,
@@ -284,15 +284,23 @@ pub async fn map_next_dynamic(
         .enumerate_nodes()
         .map(|(_, node)| {
             async move {
+                let SingleModuleGraphNode::Module {
+                    module,
+                    issues: _,
+                    layer,
+                } = node
+                else {
+                    return Ok(None);
+                };
+
                 // TODO: compare module contexts instead?
-                let is_browser = node
-                    .layer
+                let is_browser = layer
                     .as_ref()
                     .is_some_and(|layer| &**layer == "app-client" || &**layer == "client");
                 if !is_browser {
                     // Only collect in RSC and SSR
                     if let Some(v) =
-                        &*build_dynamic_imports_map_for_module(client_asset_context, *node.module)
+                        &*build_dynamic_imports_map_for_module(client_asset_context, **module)
                             .await?
                     {
                         return Ok(Some(v.await?.clone_value()));
