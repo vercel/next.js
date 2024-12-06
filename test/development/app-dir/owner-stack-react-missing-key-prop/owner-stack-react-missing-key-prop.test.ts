@@ -24,7 +24,7 @@ describe('app-dir - owner-stack-react-missing-key-prop', () => {
          at Page (app/rsc/page.tsx (6:13))"
         `)
       expect(source).toMatchInlineSnapshot(`
-         "app/rsc/page.tsx (7:9) @ <anonymous>
+         "app/rsc/page.tsx (7:9)
 
             5 |     <div>
             6 |       {list.map((item, index) => (

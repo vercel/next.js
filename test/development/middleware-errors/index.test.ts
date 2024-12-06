@@ -172,14 +172,14 @@ describe('middleware - development errors', () => {
       expect(stripAnsi(next.cliOutput)).toContain(
         isTurbopack
           ? '\n ⨯ Error [ReferenceError]: test is not defined' +
-              '\n    at eval (middleware.js:4:8)' +
+              '\n    at middleware.js:4:8' +
               '\n    at <unknown> (middleware.js:4:8)' +
               // TODO(veil): Should be sourcemapped
               '\n    at __TURBOPACK__default__export__ ('
           : '\n ⨯ Error [ReferenceError]: test is not defined' +
               // TODO(veil): Redundant and not clickable
-              '\n    at eval (file://webpack-internal:///(middleware)/./middleware.js)' +
-              '\n    at eval (middleware.js:4:8)' +
+              '\n    at file://webpack-internal:///(middleware)/./middleware.js' +
+              '\n    at middleware.js:4:8' +
               '\n    at default (middleware.js:4:8)' +
               "\n  2 |       import { NextResponse } from 'next/server'"
       )
@@ -205,7 +205,7 @@ describe('middleware - development errors', () => {
            "description": "ReferenceError: test is not defined",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (4:9) @ eval
+           "source": "middleware.js (4:9)
          > 4 |         eval('test')
              |         ^",
            "stack": [
@@ -268,12 +268,12 @@ describe('middleware - development errors', () => {
         isTurbopack
           ? '\n ⨯ Error: booooom!' +
               // TODO(veil): Should be sourcemapped
-              '\n    at Module.__TURBOPACK__module__evaluation__ (middleware.js:3:12)'
+              '\n    at middleware.js:3:12'
           : '\n ⨯ Error: booooom!' +
               // TODO: Should be anonymous method without a method name
               '\n    at <unknown> (middleware.js:3)' +
               // TODO: Should be ignore-listed
-              '\n    at eval (middleware.js:3:12)' +
+              '\n    at middleware.js:3:12' +
               '\n    at (middleware)/./middleware.js (.next/server/middleware.js:18:1)' +
               '\n    at __webpack_require__ '
       )
@@ -288,8 +288,7 @@ describe('middleware - development errors', () => {
            "description": "Error: booooom!",
            "environmentLabel": null,
            "label": "Runtime Error",
-           "source": "middleware.js (3:13) @ Module.
-         {module evaluation}
+           "source": "middleware.js (3:13)
          > 3 |       throw new Error('booooom!')
              |             ^",
            "stack": [

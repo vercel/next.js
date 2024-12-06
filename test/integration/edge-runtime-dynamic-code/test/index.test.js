@@ -117,7 +117,7 @@ describe.each([
                     '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:53)' +
                     // Next.js internal frame. Feel free to adjust.
                     // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-                    '\n    at eval (../packages/next/dist'
+                    '\n    at ../packages/next/dist'
             )
           } else {
             expect(output).toContain(

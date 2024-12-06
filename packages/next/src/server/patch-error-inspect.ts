@@ -11,6 +11,7 @@ import { parseStack } from '../client/components/react-dev-overlay/server/middle
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
+import { isHiddenMethodName } from '../shared/lib/stack-trace-utils'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -83,7 +84,7 @@ function frameToString(frame: StackFrame): string {
     fileLocation = frame.file
   }
 
-  return frame.methodName
+  return frame.methodName && !isHiddenMethodName(frame.methodName)
     ? `    at ${frame.methodName} (${fileLocation}${sourceLocation})`
     : `    at ${fileLocation}${sourceLocation}`
 }
