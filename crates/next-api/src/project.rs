@@ -823,6 +823,10 @@ impl Project {
             "skipTrailingSlashRedirect",
             *config.skip_trailing_slash_redirect().await?,
         );
+        emit_event(
+            "persistentCaching",
+            *config.persistent_caching_enabled().await?,
+        );
 
         let config = &config.await?;
 
