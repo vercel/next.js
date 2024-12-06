@@ -1180,12 +1180,8 @@ async function traceTurbopackErrorStack(
 
         if (f.file != null) {
           const file =
-            f.file.startsWith('/') ||
             // Built-in "filenames" like `<anonymous>` shouldn't be made relative
-            f.file.startsWith('<') ||
-            f.file.startsWith('node:')
-              ? f.file
-              : `./${f.file}`
+            /^(\/|\.\.\/|\.\/|<|node:)/.test(f.file) ? f.file : `./${f.file}`
 
           line += ` (${file}`
           if (f.lineNumber != null) {

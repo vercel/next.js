@@ -72,8 +72,7 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra) weird ./ in front of the ../../
-            '\n    at getStaticProps (./../../test/integration/server-side-dev-errors/pages/gsp.js:6:3)' +
+            '\n    at getStaticProps (../../test/integration/server-side-dev-errors/pages/gsp.js:6:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -126,8 +125,7 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra) weird ./ in front of the ../../
-            '\n    at getServerSideProps (./../../test/integration/server-side-dev-errors/pages/gssp.js:6:3)' +
+            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/gssp.js:6:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -180,8 +178,7 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra) weird ./ in front of the ../../
-            '\n    at getServerSideProps (./../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:3)' +
+            '\n    at getServerSideProps (../../test/integration/server-side-dev-errors/pages/blog/[slug].js:6:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -235,8 +232,7 @@ describe('server-side dev errors', () => {
         // TODO(sokra) Error should be ReferenceError. Why isn't it?
         expect(stderrOutput).toContain(
           ' ⨯ Error: missingVar is not defined' +
-            // TODO(sokra) weird ./ in front of the ../../
-            '\n    at handler (./../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -291,8 +287,7 @@ describe('server-side dev errors', () => {
         )
         expect(stderrOutput).toContain(
           '\n ⨯ ReferenceError: missingVar is not defined' +
-            // TODO(sokra) weird ./ in front of the ../../
-            '\n    at handler (./../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/blog/[slug].js:2:3)' +
             // TODO(veil): Should be sourcemapped
             '\n    at'
         )
@@ -334,7 +329,6 @@ describe('server-side dev errors', () => {
     // FIXME(veil): codeframe repeated after " ⨯ unhandledRejection: Error: catch this rejection"
     if (isTurbopack) {
       // TODO(veil): digest: undefined should be omitted?
-      // TODO(sokra) weird ./ in front of the ../../
       expect(stderrOutput).toMatchInlineSnapshot(`
         "Error: catch this rejection
             at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:19)
@@ -348,7 +342,7 @@ describe('server-side dev errors', () => {
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js (7:20) @ Timeout._onTimeout
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js (7:20) @ Timeout._onTimeout
          ⨯ unhandledRejection: Error: catch this rejection
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -359,7 +353,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ unhandledRejection: Error: catch this rejection
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-rejection.js:7:20) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -448,7 +442,7 @@ describe('server-side dev errors', () => {
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js (7:20) @ Timeout._onTimeout
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js (7:20) @ Timeout._onTimeout
          ⨯ unhandledRejection: Error: 
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -459,7 +453,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ unhandledRejection: Error: 
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-rejection.js:7:20) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -547,7 +541,7 @@ describe('server-side dev errors', () => {
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-exception.js (7:11) @ Timeout._onTimeout
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-exception.js (7:11) @ Timeout._onTimeout
          ⨯ uncaughtException: Error: catch this exception
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -558,7 +552,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ uncaughtException: Error: catch this exception
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-exception.js:7:11) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -646,7 +640,7 @@ describe('server-side dev errors', () => {
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js (7:11) @ Timeout._onTimeout
          ⨯ ../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js (7:11) @ Timeout._onTimeout
          ⨯ uncaughtException: Error: 
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
@@ -657,7 +651,7 @@ describe('server-side dev errors', () => {
            9 |   return {
           10 |     props: {},
          ⨯ uncaughtException: Error: 
-            at Timeout._onTimeout (./../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11) {
+            at Timeout._onTimeout (../../test/integration/server-side-dev-errors/pages/uncaught-empty-exception.js:7:11) {
           digest: undefined
         }
            5 | export async function getServerSideProps() {
