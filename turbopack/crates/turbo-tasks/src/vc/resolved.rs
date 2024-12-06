@@ -18,6 +18,7 @@ use std::{
     time::Duration,
 };
 
+use anyhow::Result;
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
 use serde::{Deserialize, Serialize};
@@ -36,7 +37,18 @@ pub struct ResolvedVc<T>
 where
     T: ?Sized,
 {
+    // no-resolved-vc(kdy1): This is a resolved Vc, so we don't need to resolve it again
     pub(crate) node: Vc<T>,
+}
+
+impl<T> ResolvedVc<T> {
+    /// This function exists to intercept calls to Vc::to_resolved through dereferencing
+    /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stress on
+    /// the turbo tasks engine.
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub async fn to_resolved(self) -> Result<Self> {
+        Ok(self)
+    }
 }
 
 impl<T> Copy for ResolvedVc<T> where T: ?Sized {}
@@ -78,6 +90,17 @@ where
 {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.node.hash(state);
+    }
+}
+
+impl<T, Inner, Repr> Default for ResolvedVc<T>
+where
+    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    Inner: Any + Send + Sync + Default,
+    Repr: VcValueType,
+{
+    fn default() -> Self {
+        Self::cell(Default::default())
     }
 }
 

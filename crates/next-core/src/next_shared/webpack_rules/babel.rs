@@ -65,16 +65,16 @@ pub async fn maybe_add_babel_loader(
                     && !*is_babel_loader_available(project_root).await?
                 {
                     BabelIssue {
-                        path: project_root,
+                        path: project_root.to_resolved().await?,
                         title: StyledString::Text(
                             "Unable to resolve babel-loader, but a babel config is present".into(),
                         )
-                        .cell(),
+                        .resolved_cell(),
                         description: StyledString::Text(
                             "Make sure babel-loader is installed via your package manager.".into(),
                         )
-                        .cell(),
-                        severity: IssueSeverity::Fatal.cell(),
+                        .resolved_cell(),
+                        severity: IssueSeverity::Fatal.resolved_cell(),
                     }
                     .cell()
                     .emit();
@@ -126,10 +126,10 @@ pub async fn is_babel_loader_available(project_path: Vc<FileSystemPath>) -> Resu
 
 #[turbo_tasks::value]
 struct BabelIssue {
-    path: Vc<FileSystemPath>,
-    title: Vc<StyledString>,
-    description: Vc<StyledString>,
-    severity: Vc<IssueSeverity>,
+    path: ResolvedVc<FileSystemPath>,
+    title: ResolvedVc<StyledString>,
+    description: ResolvedVc<StyledString>,
+    severity: ResolvedVc<IssueSeverity>,
 }
 
 #[turbo_tasks::value_impl]
@@ -141,17 +141,17 @@ impl Issue for BabelIssue {
 
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<StyledString> {
-        self.title
+        *self.title
     }
 
     #[turbo_tasks::function]

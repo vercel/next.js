@@ -9,7 +9,7 @@ import type { AfterContext } from '../after/after-context'
 import type { CacheLife } from '../use-cache/cache-life'
 
 // Share the instance module in the next-shared layer
-import { workAsyncStorage } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
+import { workAsyncStorageInstance } from './work-async-storage-instance' with { 'turbopack-transition': 'next-shared' }
 
 export interface WorkStore {
   readonly isStaticGeneration: boolean
@@ -45,7 +45,7 @@ export interface WorkStore {
   dynamicShouldError?: boolean
   pendingRevalidates?: Record<string, Promise<any>>
   pendingRevalidateWrites?: Array<Promise<void>> // This is like pendingRevalidates but isn't used for deduping.
-  readonly afterContext: AfterContext | undefined
+  readonly afterContext: AfterContext
 
   dynamicUsageDescription?: string
   dynamicUsageStack?: string
@@ -73,4 +73,4 @@ export interface WorkStore {
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>
 
-export { workAsyncStorage }
+export { workAsyncStorageInstance as workAsyncStorage }

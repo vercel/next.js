@@ -54,7 +54,7 @@ export default async function Page({ params }) {
 | `app/shop/[...slug]/page.js`         | `/shop/1/2` | `Promise<{ slug: ['1', '2'] }>`         |
 
 - Since the `params` prop is a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access the values.
-  - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
+  - In version 14 and earlier, `params` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 
 #### `searchParams` (optional)
 
@@ -83,7 +83,7 @@ export default async function Page({ searchParams }) {
 | `/shop?a=1&a=2` | `Promise<{ a: ['1', '2'] }>`  |
 
 - Since the `searchParams` prop is a promise. You must use `async/await` or React's [`use`](https://react.dev/reference/react/use) function to access the values.
-  - In version 14 and earlier, `searchParams` was a synchronous prop. To help with backwards compatability, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
+  - In version 14 and earlier, `searchParams` was a synchronous prop. To help with backwards compatibility, you can still access it synchronously in Next.js 15, but this behavior will be deprecated in the future.
 - `searchParams` is a **[Dynamic API](/docs/app/building-your-application/rendering/server-components#server-rendering-strategies#dynamic-apis)** whose values cannot be known ahead of time. Using it will opt the page into **[dynamic rendering](/docs/app/building-your-application/rendering/server-components#dynamic-rendering)** at request time.
 - `searchParams` is a plain JavaScript object, not a `URLSearchParams` instance.
 
@@ -158,7 +158,7 @@ To use `searchParams` and `params` in a Client Component (which cannot be `async
 
 import { use } from 'react'
 
-export function Page({
+export default function Page({
   params,
   searchParams,
 }: {
@@ -175,7 +175,7 @@ export function Page({
 
 import { use } from 'react'
 
-export function Page({ params, searchParams }) {
+export default function Page({ params, searchParams }) {
   const { slug } = use(params)
   const { query } = use(searchParams)
 }

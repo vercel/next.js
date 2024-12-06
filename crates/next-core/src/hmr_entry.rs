@@ -30,14 +30,17 @@ fn modifier() -> Vc<RcStr> {
 
 #[turbo_tasks::value(shared)]
 pub struct HmrEntryModule {
-    pub ident: Vc<AssetIdent>,
-    pub module: Vc<Box<dyn ChunkableModule>>,
+    pub ident: ResolvedVc<AssetIdent>,
+    pub module: ResolvedVc<Box<dyn ChunkableModule>>,
 }
 
 #[turbo_tasks::value_impl]
 impl HmrEntryModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, module: Vc<Box<dyn ChunkableModule>>) -> Vc<Self> {
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Vc<Self> {
         Self { ident, module }.cell()
     }
 }
@@ -50,10 +53,12 @@ impl Module for HmrEntryModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        Vc::cell(vec![Vc::upcast(HmrEntryModuleReference::new(Vc::upcast(
-            self.module,
-        )))])
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            HmrEntryModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
     }
 }
 
@@ -61,8 +66,8 @@ impl Module for HmrEntryModule {
 impl ChunkableModule for HmrEntryModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             HmrEntryChunkItem {
@@ -133,15 +138,15 @@ impl ChunkableModuleReference for HmrEntryModuleReference {}
 /// The chunk item for [`HmrEntryModule`].
 #[turbo_tasks::value]
 struct HmrEntryChunkItem {
-    module: Vc<HmrEntryModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<HmrEntryModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -161,7 +166,7 @@ impl ChunkItem for HmrEntryChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 }
 
@@ -169,14 +174,14 @@ impl ChunkItem for HmrEntryChunkItem {
 impl EcmascriptChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.module.await?;
         let module = this.module;
-        let chunk_item = module.as_chunk_item(self.chunking_context);
+        let chunk_item = module.as_chunk_item(*self.chunking_context);
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();

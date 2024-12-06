@@ -93,20 +93,20 @@ pub enum ServerContextType {
     },
     AppRSC {
         app_dir: ResolvedVc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
-        client_transition: Option<Vc<Box<dyn Transition>>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
+        client_transition: Option<ResolvedVc<Box<dyn Transition>>>,
     },
     AppRoute {
         app_dir: ResolvedVc<FileSystemPath>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     },
     Middleware {
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     },
     Instrumentation {
         app_dir: Option<ResolvedVc<FileSystemPath>>,
-        ecmascript_client_reference_transition_name: Option<Vc<RcStr>>,
+        ecmascript_client_reference_transition_name: Option<ResolvedVc<RcStr>>,
     },
 }
 
@@ -724,7 +724,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        ecmascript_client_reference_transition_name,
+                        *ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -800,7 +800,7 @@ pub async fn get_server_module_options_context(
             {
                 common_next_server_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        ecmascript_client_reference_transition_name,
+                        *ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,
@@ -878,7 +878,7 @@ pub async fn get_server_module_options_context(
             {
                 custom_source_transform_rules.push(get_ecma_transform_rule(
                     Box::new(ClientDirectiveTransformer::new(
-                        ecmascript_client_reference_transition_name,
+                        *ecmascript_client_reference_transition_name,
                     )),
                     enable_mdx_rs.is_some(),
                     true,

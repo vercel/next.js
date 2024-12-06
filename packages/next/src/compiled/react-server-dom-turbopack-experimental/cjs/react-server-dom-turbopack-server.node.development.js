@@ -586,9 +586,8 @@
               1
             );
             request.pendingChunks++;
-            var id = request.nextChunkId++,
-              owner = resolveOwner();
-            emitConsoleChunk(request, id, methodName, owner, stack, arguments);
+            var owner = resolveOwner();
+            emitConsoleChunk(request, methodName, owner, stack, arguments);
           }
           return originalMethod.apply(this, arguments);
         };
@@ -1014,9 +1013,7 @@
     }
     function emitHint(request, code, model) {
       model = stringify(model);
-      var id = request.nextChunkId++;
-      code = serializeRowHeader("H" + code, id) + model + "\n";
-      request.completedHintChunks.push(code);
+      request.completedHintChunks.push(":H" + code + model + "\n");
       enqueueFlush(request);
     }
     function readThenable(thenable) {
@@ -1504,9 +1501,6 @@
             ? "$-Infinity"
             : "$NaN";
     }
-    function serializeRowHeader(tag, id) {
-      return id.toString(16) + ":" + tag;
-    }
     function encodeReferenceChunk(request, id, reference) {
       request = stringify(reference);
       return id.toString(16) + ":" + request + "\n";
@@ -1557,7 +1551,7 @@
         request.pendingChunks++;
         var importId = request.nextChunkId++,
           json = stringify(clientReferenceMetadata),
-          processedChunk = serializeRowHeader("I", importId) + json + "\n";
+          processedChunk = importId.toString(16) + ":I" + json + "\n";
         request.completedImportChunks.push(processedChunk);
         writtenClientReferences.set(clientReferenceKey, importId);
         return parent[0] === REACT_ELEMENT_TYPE && "1" === parentPropertyName
@@ -2154,7 +2148,8 @@
         stack = [];
       }
       id =
-        serializeRowHeader("P", id) +
+        id.toString(16) +
+        ":P" +
         stringify({ reason: reason, stack: stack, env: env }) +
         "\n";
       request.completedErrorChunks.push(id);
@@ -2200,7 +2195,7 @@
           (stack = []);
       }
       digest = { digest: digest, message: message, stack: stack, env: env };
-      id = serializeRowHeader("E", id) + stringify(digest) + "\n";
+      id = id.toString(16) + ":E" + stringify(digest) + "\n";
       request.completedErrorChunks.push(id);
     }
     function emitSymbolChunk(request, id, name) {
@@ -2222,7 +2217,7 @@
           value
         );
       });
-      id = serializeRowHeader("D", id) + debugInfo + "\n";
+      id = id.toString(16) + ":D" + debugInfo + "\n";
       request.completedRegularChunks.push(id);
     }
     function outlineComponentInfo(request, componentInfo) {
@@ -2501,14 +2496,7 @@
       request.completedRegularChunks.push(json);
       return model;
     }
-    function emitConsoleChunk(
-      request,
-      id,
-      methodName,
-      owner,
-      stackTrace,
-      args
-    ) {
+    function emitConsoleChunk(request, methodName, owner, stackTrace, args) {
       function replacer(parentPropertyName, value) {
         try {
           return renderConsoleValue(
@@ -2545,8 +2533,7 @@
           replacer
         );
       }
-      id = serializeRowHeader("W", id) + json + "\n";
-      request.completedRegularChunks.push(id);
+      request.completedRegularChunks.push(":W" + json + "\n");
     }
     function forwardDebugInfo(request, id, debugInfo) {
       for (var i = 0; i < debugInfo.length; i++)
@@ -3924,7 +3911,7 @@
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       SuspenseException = Error(
-        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
       suspendedThenable = null,
       currentRequest$1 = null,
@@ -4220,12 +4207,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_147 = [];
+        var JSCompiler_object_inline_chunks_146 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_147.push(chunk);
+          JSCompiler_object_inline_chunks_146.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_147, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_146, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

@@ -92,12 +92,12 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.await?.clone_value();
-        ident.add_modifier(modifier());
+        ident.add_modifier(modifier().to_resolved().await?);
 
         match self.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
-                ident.add_modifier(dynamic_modifier());
+                ident.add_modifier(dynamic_modifier().to_resolved().await?);
             }
         }
 

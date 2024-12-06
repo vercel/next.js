@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -15,15 +15,18 @@ use crate::{
 /// Next.js apps.
 #[turbo_tasks::value]
 pub struct ProxiedAsset {
-    asset: Vc<Box<dyn OutputAsset>>,
-    path: Vc<FileSystemPath>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl ProxiedAsset {
     /// Creates a new [`ProxiedAsset`] from an [`Asset`] and a path.
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+        path: ResolvedVc<FileSystemPath>,
+    ) -> Vc<Self> {
         ProxiedAsset { asset, path }.cell()
     }
 }
@@ -32,7 +35,7 @@ impl ProxiedAsset {
 impl OutputAsset for ProxiedAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+        AssetIdent::from_path(*self.path)
     }
 
     #[turbo_tasks::function]

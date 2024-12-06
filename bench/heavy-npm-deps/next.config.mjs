@@ -8,7 +8,7 @@ const nextConfig = {
   },
   experimental: {
     turbo: {
-      unstablePersistentCaching: process.env.TURBO_CACHE ? true : false,
+      unstablePersistentCaching: process.env.TURBO_CACHE === '1',
     },
   },
 }

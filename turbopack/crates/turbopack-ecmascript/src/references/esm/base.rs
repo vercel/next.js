@@ -116,7 +116,7 @@ impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
         let mut origin = *self.origin;
         if let Some(transition) = self.annotations.transition() {
-            origin = origin.with_transition(transition.into());
+            origin = self.origin.with_transition(transition.into());
         }
         origin
     }
@@ -460,7 +460,7 @@ impl Issue for InvalidExport {
                         .into(),
                 ),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 
@@ -479,12 +479,12 @@ impl Issue for InvalidExport {
                         .into(),
                 ),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 
     #[turbo_tasks::function]
     fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(Some(*self.source))
+        Vc::cell(Some(self.source))
     }
 }

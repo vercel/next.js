@@ -191,12 +191,12 @@ fn modifier() -> Vc<RcStr> {
 
 #[derive(Clone)]
 pub struct EcmascriptModuleAssetBuilder {
-    source: Vc<Box<dyn Source>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
+    source: ResolvedVc<Box<dyn Source>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
     ty: EcmascriptModuleAssetType,
-    transforms: Vc<EcmascriptInputTransforms>,
-    options: Vc<EcmascriptOptions>,
-    compile_time_info: Vc<CompileTimeInfo>,
+    transforms: ResolvedVc<EcmascriptInputTransforms>,
+    options: ResolvedVc<EcmascriptOptions>,
+    compile_time_info: ResolvedVc<CompileTimeInfo>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
 }
 
@@ -214,22 +214,22 @@ impl EcmascriptModuleAssetBuilder {
     pub fn build(self) -> Vc<EcmascriptModuleAsset> {
         if let Some(inner_assets) = self.inner_assets {
             EcmascriptModuleAsset::new_with_inner_assets(
-                self.source,
-                self.asset_context,
+                *self.source,
+                *self.asset_context,
                 Value::new(self.ty),
-                self.transforms,
-                self.options,
-                self.compile_time_info,
+                *self.transforms,
+                *self.options,
+                *self.compile_time_info,
                 *inner_assets,
             )
         } else {
             EcmascriptModuleAsset::new(
-                self.source,
-                self.asset_context,
+                *self.source,
+                *self.asset_context,
                 Value::new(self.ty),
-                self.transforms,
-                self.options,
-                self.compile_time_info,
+                *self.transforms,
+                *self.options,
+                *self.compile_time_info,
             )
         }
     }
@@ -275,11 +275,11 @@ pub trait EcmascriptAnalyzable {
 
 impl EcmascriptModuleAsset {
     pub fn builder(
-        source: Vc<Box<dyn Source>>,
-        asset_context: Vc<Box<dyn AssetContext>>,
-        transforms: Vc<EcmascriptInputTransforms>,
-        options: Vc<EcmascriptOptions>,
-        compile_time_info: Vc<CompileTimeInfo>,
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
+        options: ResolvedVc<EcmascriptOptions>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
     ) -> EcmascriptModuleAssetBuilder {
         EcmascriptModuleAssetBuilder {
             source,
@@ -394,7 +394,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             *analyze.references,
             *analyze.code_generation,
             *analyze.async_module,
-            analyze.source_map,
+            *analyze.source_map,
             *analyze.exports,
             async_module_info,
         ))
@@ -529,7 +529,7 @@ impl Module for EcmascriptModuleAsset {
                     asset.ident().to_resolved().await?,
                 );
             }
-            ident.add_modifier(modifier());
+            ident.add_modifier(modifier().to_resolved().await?);
             ident.layer = Some(self.asset_context.layer().to_resolved().await?);
             Ok(AssetIdent::new(Value::new(ident)))
         } else {
@@ -704,7 +704,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 #[turbo_tasks::value]
 pub struct EcmascriptModuleContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     pub is_esm: bool,
     // pub refresh: bool,
 }
@@ -714,14 +714,14 @@ impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
     #[turbo_tasks::function]
     pub async fn new(
-        parsed: Vc<ParseResult>,
-        ident: Vc<AssetIdent>,
+        parsed: ResolvedVc<ParseResult>,
+        ident: ResolvedVc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
         async_module: Vc<OptionAsyncModule>,
-        source_map: Vc<OptionSourceMap>,
+        source_map: ResolvedVc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
@@ -729,11 +729,11 @@ impl EcmascriptModuleContent {
         for r in references.await?.iter() {
             let r = r.resolve().await?;
             if let Some(code_gen) =
-                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
                 code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
             } else if let Some(code_gen) =
-                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
                 code_gens.push(code_gen.code_generation(chunking_context));
             }
@@ -775,22 +775,22 @@ impl EcmascriptModuleContent {
         specified_module_type: SpecifiedModuleType,
     ) -> Result<Vc<Self>> {
         gen_content_with_code_gens(
-            parsed,
-            ident,
+            parsed.to_resolved().await?,
+            ident.to_resolved().await?,
             specified_module_type,
             &[],
-            OptionSourceMap::none(),
+            OptionSourceMap::none().to_resolved().await?,
         )
         .await
     }
 }
 
 async fn gen_content_with_code_gens(
-    parsed: Vc<ParseResult>,
-    ident: Vc<AssetIdent>,
+    parsed: ResolvedVc<ParseResult>,
+    ident: ResolvedVc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: &[&CodeGeneration],
-    original_src_map: Vc<OptionSourceMap>,
+    original_src_map: ResolvedVc<OptionSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
 
@@ -829,12 +829,12 @@ async fn gen_content_with_code_gens(
 
             emitter.emit_program(&program)?;
 
-            let srcmap =
-                ParseResultSourceMap::new(source_map.clone(), mappings, original_src_map).cell();
+            let srcmap = ParseResultSourceMap::new(source_map.clone(), mappings, original_src_map)
+                .resolved_cell();
 
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
-                source_map: Some(Vc::upcast(srcmap)),
+                source_map: Some(ResolvedVc::upcast(srcmap)),
                 is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())

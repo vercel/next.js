@@ -16,18 +16,21 @@ use turbopack_core::{
 /// Assets inside the given client root are rebased to the given client output
 /// path.
 #[turbo_tasks::function]
-pub fn emit_all_assets(
+pub async fn emit_all_assets(
     assets: Vc<OutputAssets>,
     node_root: Vc<FileSystemPath>,
     client_relative_path: Vc<FileSystemPath>,
     client_output_path: Vc<FileSystemPath>,
-) {
+) -> Result<()> {
     let _ = emit_assets(
         all_assets_from_entries(assets),
         node_root,
         client_relative_path,
         client_output_path,
-    );
+    )
+    .resolve()
+    .await?;
+    Ok(())
 }
 
 /// Emits all assets transitively reachable from the given chunks, that are
@@ -72,8 +75,13 @@ pub async fn emit_assets(
 }
 
 #[turbo_tasks::function]
-fn emit(asset: Vc<Box<dyn OutputAsset>>) {
-    let _ = asset.content().write(asset.ident().path());
+async fn emit(asset: Vc<Box<dyn OutputAsset>>) -> Result<()> {
+    let _ = asset
+        .content()
+        .write(asset.ident().path())
+        .resolve()
+        .await?;
+    Ok(())
 }
 
 #[turbo_tasks::function]
@@ -84,7 +92,12 @@ async fn emit_rebase(
 ) -> Result<()> {
     let path = rebase(asset.ident().path(), from, to);
     let content = asset.content();
-    let _ = content.resolve().await?.write(path.resolve().await?);
+    let _ = content
+        .resolve()
+        .await?
+        .write(path.resolve().await?)
+        .resolve()
+        .await?;
     Ok(())
 }
 

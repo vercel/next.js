@@ -140,7 +140,9 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path)
+            .resolve()
+            .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             path_to_asset: entries.into_iter().collect(),
@@ -153,9 +155,10 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionVersionedContent>> {
-        Ok(Vc::cell(
-            (*self.get_asset(path).await?).map(|a| a.versioned_content()),
-        ))
+        Ok(Vc::cell(match *self.get_asset(path).await? {
+            Some(asset) => Some(asset.versioned_content().to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -169,8 +172,7 @@ impl VersionedContentMap {
         };
 
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset.to_resolved().await?)
-                .await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section)

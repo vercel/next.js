@@ -7,14 +7,12 @@ import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-fi
 import { launchEditor } from '../internal/helpers/launchEditor'
 import {
   badRequest,
-  findSourcePackage,
   getOriginalCodeFrame,
   internalServerError,
   json,
   noContent,
   type OriginalStackFrameResponse,
 } from './shared'
-import { NEXT_PROJECT_ROOT } from '../../../../build/next-dir-paths'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
 export { getSourceMapFromFile }
@@ -247,11 +245,10 @@ export async function createOriginalStackFrame({
   return {
     originalStackFrame: traced,
     originalCodeFrame: getOriginalCodeFrame(traced, sourceContent),
-    sourcePackage: findSourcePackage(traced),
   }
 }
 
-export async function getSourceMapFromCompilation(
+async function getSourceMapFromCompilation(
   id: string,
   compilation: webpack.Compilation
 ): Promise<RawSourceMap | undefined> {
@@ -313,7 +310,6 @@ async function getSource(
   const modulePath = moduleId.replace(/^(\(.*\)\/?)/, '')
 
   for (const compilation of getCompilations()) {
-    // TODO: `ignoreList`
     const sourceMap = await getSourceMapFromCompilation(moduleId, compilation)
     const ignoreList = []
     const moduleFilenames = sourceMap?.sources ?? []
@@ -364,18 +360,8 @@ export function getOverlayMiddleware(options: {
       const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
       const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
       const frame = createStackFrame(searchParams)
-      const formattedFilePath = formatFrameSourceFile(frame.file)
-      const filePath = path.join(rootDirectory, formattedFilePath)
-      const isNextjsSource = filePath.startsWith(NEXT_PROJECT_ROOT)
 
-      let sourcePackage = findSourcePackage(frame)
       let source: Source | undefined
-
-      if (isNextjsSource) {
-        sourcePackage = 'next'
-        return json(res, { sourcePackage })
-      }
-
       try {
         source = await getSource(frame.file, {
           getCompilations: () => {
@@ -425,9 +411,21 @@ export function getOverlayMiddleware(options: {
         return internalServerError(res)
       }
 
+      // This stack frame is used for the one that couldn't locate the source or source mapped frame
+      const defaultStackFrame: IgnorableStackFrame = {
+        file: frame.file,
+        lineNumber: frame.lineNumber,
+        column: frame.column ?? 1,
+        methodName: frame.methodName,
+        ignored: shouldIgnorePath(frame.file),
+        arguments: [],
+      }
       if (!source) {
-        if (sourcePackage) return json(res, { sourcePackage })
-        return noContent(res)
+        // return original stack frame with no source map
+        return json(res, {
+          originalStackFrame: defaultStackFrame,
+          originalCodeFrame: null,
+        })
       }
 
       try {
@@ -438,8 +436,10 @@ export function getOverlayMiddleware(options: {
         })
 
         if (!originalStackFrameResponse) {
-          if (sourcePackage) return json(res, { sourcePackage })
-          return noContent(res)
+          return json(res, {
+            originalStackFrame: defaultStackFrame,
+            originalCodeFrame: null,
+          })
         }
 
         return json(res, originalStackFrameResponse)

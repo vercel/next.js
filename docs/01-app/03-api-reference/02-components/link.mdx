@@ -1092,7 +1092,7 @@ It's common to use [Middleware](/docs/app/building-your-application/routing/midd
 
 For example, if you want to serve a `/dashboard` route that has authenticated and visitor views, you can add the following in your Middleware to redirect the user to the correct page:
 
-```ts filename="middleware.ts"
+```ts filename="middleware.ts" switcher
 import { NextResponse } from 'next/server'
 
 export function middleware(request: Request) {
@@ -1107,7 +1107,7 @@ export function middleware(request: Request) {
 }
 ```
 
-```js filename="middleware.js"
+```js filename="middleware.js" switcher
 import { NextResponse } from 'next/server'
 
 export function middleware(request) {

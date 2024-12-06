@@ -85,9 +85,21 @@ impl ChunkItem for ManifestChunkItem {
         let key = Vc::cell("chunk data reference".into());
 
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleOutputAssetReference::new(*output_asset, key))
-            }));
+            references.extend(
+                chunk_data
+                    .references()
+                    .await?
+                    .iter()
+                    .map(|&output_asset| async move {
+                        Ok(ResolvedVc::upcast(
+                            SingleOutputAssetReference::new(*output_asset, key)
+                                .to_resolved()
+                                .await?,
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+            );
         }
 
         Ok(Vc::cell(references))
