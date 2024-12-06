@@ -1144,7 +1144,7 @@ pub async fn project_trace_source(
                 (
                     get_relative_path_to(
                         &current_directory_file_url,
-                        &format!("{}/{}", project_root_uri, source_file),
+                        &format!("{}{}", project_root_uri, source_file),
                     )
                     // TODO(sokra) remove this to include a ./ here to make it a relative path
                     .trim_start_matches("./")
