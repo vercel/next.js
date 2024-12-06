@@ -140,7 +140,11 @@ export async function walkTreeWithFlightRouterState({
           overriddenSegment,
           routerState,
           null,
+          // TODO: It's possible that all the segment data was prefetched during
+          // a navigation, but the head was not. Should we send it down
+          // here anyway?
           null,
+          false,
         ] satisfies FlightDataSegment,
       ]
     } else {
@@ -170,6 +174,7 @@ export async function walkTreeWithFlightRouterState({
           routerState,
           seedData,
           rscPayloadHead,
+          false,
         ] satisfies FlightDataSegment,
       ]
     }

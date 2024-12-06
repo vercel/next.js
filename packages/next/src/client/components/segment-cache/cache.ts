@@ -80,6 +80,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   canonicalUrl: null
   tree: null
   head: null
+  isHeadPartial: true
 }
 
 type RejectedRouteCacheEntry = RouteCacheEntryShared & {
@@ -88,6 +89,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   canonicalUrl: null
   tree: null
   head: null
+  isHeadPartial: true
 }
 
 export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
@@ -96,6 +98,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   canonicalUrl: string
   tree: TreePrefetch
   head: React.ReactNode | null
+  isHeadPartial: boolean
 }
 
 export type RouteCacheEntry =
@@ -281,6 +284,7 @@ export function requestRouteCacheEntryFromCache(
     blockedTasks: null,
     tree: null,
     head: null,
+    isHeadPartial: true,
     // If the request takes longer than a minute, a subsequent request should
     // retry instead of waiting for this one.
     //
@@ -420,6 +424,7 @@ function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
   tree: TreePrefetch,
   head: React.ReactNode,
+  isHeadPartial: boolean,
   staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string
@@ -428,6 +433,7 @@ function fulfillRouteCacheEntry(
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
   fulfilledEntry.head = head
+  fulfilledEntry.isHeadPartial = isHeadPartial
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
@@ -532,6 +538,7 @@ async function fetchRouteOnCacheMiss(
       entry,
       serverData.tree,
       serverData.head,
+      serverData.isHeadPartial,
       Date.now() + serverData.staleTime,
       couldBeIntercepted,
       canonicalUrl
