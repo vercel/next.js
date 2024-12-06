@@ -56,19 +56,17 @@ function getMetadataRouteSuffix(page: string) {
 export function fillMetadataSegment(
   segment: string,
   params: any,
-  imageSegment: string
+  lastSegment: string
 ) {
   const pathname = normalizeAppPath(segment)
   const routeRegex = getNamedRouteRegex(pathname, false)
   const route = interpolateDynamicPath(pathname, params, routeRegex)
-  const { name, ext } = path.parse(imageSegment)
-  // pagePath is pathname without suffix and extension
-  const pagePath = normalizePathSep(path.join(route, name))
-  // Only apply suffix to metadata routes except for sitemaps.
+  const { name, ext } = path.parse(lastSegment)
+  const pagePath = path.posix.join(segment, name)
   const suffix = getMetadataRouteSuffix(pagePath)
   const routeSuffix = suffix ? `-${suffix}` : ''
 
-  return `${pagePath}${routeSuffix}${ext}`
+  return normalizePathSep(path.join(route, `${name}${routeSuffix}${ext}`))
 }
 
 /**
