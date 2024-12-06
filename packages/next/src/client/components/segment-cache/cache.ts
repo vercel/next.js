@@ -125,7 +125,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: null
+  head: [null, null]
   isHeadPartial: true
   isPPREnabled: boolean
 }

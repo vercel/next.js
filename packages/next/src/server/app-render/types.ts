@@ -259,7 +259,7 @@ export type InitialRSCPayload = {
   c: string[]
   /** couldBeIntercepted */
   i: boolean
-  /** initialFlightData */
+  /** initialFlightData: [tree, seedData, [viewport, metadata]] */
   f: FlightDataPath[]
   /** missingSlots */
   m: Set<string> | undefined
