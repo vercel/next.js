@@ -1,29 +1,36 @@
 use std::{collections::HashMap, str::FromStr};
 
-use anyhow::{Context, Result};
+use anyhow::Result;
 use tracing::{level_filters::LevelFilter, Subscriber};
 use tracing_subscriber::Layer;
 
 pub struct FilterLayer {
     config: HashMap<String, LevelFilter>,
+    global_level: LevelFilter,
 }
 
 impl FilterLayer {
-    pub fn try_new(config: &str) -> Result<Self> {
-        let mut map = HashMap::new();
-        for entry in config.split(',') {
+    pub fn try_new(input: &str) -> Result<Self> {
+        let mut config = HashMap::new();
+        let mut global_level = LevelFilter::OFF;
+        for entry in input.split(',') {
             if entry.is_empty() {
                 continue;
             }
             let mut parts = entry.splitn(2, '=');
             let target = parts.next().unwrap();
-            let level = parts
-                .next()
-                .context("Invalid filter syntax, expected `target=level`")?;
+            let level = parts.next().unwrap_or("trace");
             let level = LevelFilter::from_str(level).unwrap();
-            map.insert(target.to_string(), level);
+            if target == "*" {
+                global_level = level;
+            } else {
+                config.insert(target.to_string(), level);
+            }
         }
-        Ok(Self { config: map })
+        Ok(Self {
+            config,
+            global_level,
+        })
     }
 }
 
@@ -33,10 +40,11 @@ impl<S: Subscriber> Layer<S> for FilterLayer {
         metadata: &tracing::Metadata<'_>,
         _ctx: tracing_subscriber::layer::Context<'_, S>,
     ) -> bool {
+        if self.config.is_empty() {
+            return true;
+        }
         let target = metadata.target().split("::").next().unwrap();
-        let Some(filter) = self.config.get(target) else {
-            return false;
-        };
+        let filter = self.config.get(target).unwrap_or(&self.global_level);
         let level = metadata.level();
         return level <= filter;
     }
