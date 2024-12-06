@@ -38,7 +38,7 @@ packages/next-codemod/**/*.d.ts
 packages/next-env/**/*.d.ts
 
 test/**/out/**
-test/development/basic/hmr/components/parse-error.js
+test/development/basic/hmr/fixtures/components/parse-error.js
 
 bench/nested-deps/pages/**/*
 bench/nested-deps/components/**/*
