@@ -100,7 +100,7 @@ impl<'l, 'e, E: ExecuteContext<'e>> TaskDirtyCauseInContext<'l, 'e, E> {
     }
 }
 
-impl<'l, 'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'l, 'e, E> {
+impl<'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'_, 'e, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.cause {
             TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
