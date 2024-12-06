@@ -1,3 +1,4 @@
+import { join } from 'path'
 import {
   assertHasRedbox,
   getBrowserBodyText,
@@ -5,15 +6,10 @@ import {
   waitFor,
 } from 'next-test-utils'
 import { createNext, nextTestSetup } from 'e2e-utils'
-import type { NextConfig } from 'next'
-import { join } from 'path'
 
-describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
-])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
+const nextConfig = { basePath: '/docs', assetPrefix: '/asset-prefix' }
+
+describe(`HMR - basic, nextConfig: ${JSON.stringify(nextConfig)}`, () => {
   const { next } = nextTestSetup({
     files: join(__dirname, '../../fixtures'),
     nextConfig,
