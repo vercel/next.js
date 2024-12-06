@@ -637,11 +637,6 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let (content_1, content_2) = (
-        content_1.to_resolved().await?,
-        content_2.to_resolved().await?,
-    );
-
     if content_1 != content_2 {
         return Ok(None);
     }
