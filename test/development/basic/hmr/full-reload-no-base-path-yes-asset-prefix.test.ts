@@ -1,14 +1,10 @@
-import type { NextConfig } from 'next'
 import { join } from 'path'
 import { getRedboxHeader, retry } from 'next-test-utils'
 import { nextTestSetup } from 'e2e-utils'
 
-describe.each([
-  { basePath: '', assetPrefix: '' },
-  { basePath: '', assetPrefix: '/asset-prefix' },
-  { basePath: '/docs', assetPrefix: '' },
-  { basePath: '/docs', assetPrefix: '/asset-prefix' },
-])('HMR - Full Reload, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
+const nextConfig = { basePath: '', assetPrefix: '/asset-prefix' }
+
+describe(`HMR - Full Reload, nextConfig: ${JSON.stringify(nextConfig)}`, () => {
   const { next } = nextTestSetup({
     files: join(__dirname, '../../fixtures'),
     nextConfig,
