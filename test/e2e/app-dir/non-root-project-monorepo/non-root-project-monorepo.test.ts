@@ -66,7 +66,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "./app/source-maps-rsc/page.tsx (9:28) @ innerArrowFunction
+            "app/source-maps-rsc/page.tsx (9:28) @ innerArrowFunction
 
                7 | }
                8 |
@@ -82,9 +82,9 @@ describe('non-root-project-monorepo', () => {
             "<unknown>
             [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_8d1c0a._.js (7:7)
             innerFunction
-            ./app/source-maps-rsc/page.tsx (6:3)
+            app/source-maps-rsc/page.tsx (6:3)
             Page
-            ./app/source-maps-rsc/page.tsx (2:3)"
+            app/source-maps-rsc/page.tsx (2:3)"
           `)
         } else {
           // TODO the function name is incorrect
@@ -120,7 +120,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "./app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+            "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
 
             > 1 | throw new Error('Expected error')
                 |       ^
@@ -129,11 +129,11 @@ describe('non-root-project-monorepo', () => {
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
             "innerArrowFunction
-            ./app/source-maps-ssr/page.tsx (11:28)
+            app/source-maps-ssr/page.tsx (11:28)
             innerFunction
-            ./app/source-maps-ssr/page.tsx (8:3)
+            app/source-maps-ssr/page.tsx (8:3)
             Page
-            ./app/source-maps-ssr/page.tsx (4:3)"
+            app/source-maps-ssr/page.tsx (4:3)"
           `)
         } else {
           // TODO the function name should be hidden
@@ -173,7 +173,7 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "./app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+            "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
 
             > 1 | throw new Error('Expected error')
                 |       ^
@@ -182,11 +182,11 @@ describe('non-root-project-monorepo', () => {
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
             "innerArrowFunction
-            ./app/source-maps-client/page.tsx (16:28)
+            app/source-maps-client/page.tsx (16:28)
             innerFunction
-            ./app/source-maps-client/page.tsx (13:3)
+            app/source-maps-client/page.tsx (13:3)
             effectCallback
-            ./app/source-maps-client/page.tsx (7:5)"
+            app/source-maps-client/page.tsx (7:5)"
           `)
         } else {
           // TODO the function name should be hidden
