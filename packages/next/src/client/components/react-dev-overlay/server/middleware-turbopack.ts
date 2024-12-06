@@ -19,7 +19,6 @@ import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
-import { isAbsolute } from 'node:path'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -256,13 +255,8 @@ async function nativeTraceSource(
 
 function relativeToCwd(file: string): string {
   const relPath = path.relative(process.cwd(), url.fileURLToPath(file))
-  if (isAbsolute(relPath)) {
-    return relPath
-  }
-  if (relPath.startsWith('../')) {
-    return relPath
-  }
-  return './' + relPath
+  // TODO(sokra) include a ./ here to make it a relative path
+  return relPath
 }
 
 async function createOriginalStackFrame(
