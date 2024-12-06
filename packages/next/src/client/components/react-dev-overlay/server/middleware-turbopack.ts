@@ -252,7 +252,7 @@ async function nativeTraceSource(
   return undefined
 }
 
-export async function createOriginalStackFrame(
+async function createOriginalStackFrame(
   project: Project,
   frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
