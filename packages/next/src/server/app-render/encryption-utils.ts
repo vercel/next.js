@@ -9,7 +9,9 @@ import { workAsyncStorage } from './work-async-storage.external'
 
 let __next_loaded_action_key: CryptoKey
 
-export function arrayBufferToString(buffer: ArrayBuffer) {
+export function arrayBufferToString(
+  buffer: ArrayBuffer | Uint8Array<ArrayBufferLike>
+) {
   const bytes = new Uint8Array(buffer)
   const len = bytes.byteLength
 

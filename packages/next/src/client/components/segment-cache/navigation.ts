@@ -86,18 +86,9 @@ export function navigate(
 ): AsyncNavigationResult | SuccessfulNavigationResult | NoOpNavigationResult {
   const now = Date.now()
 
-  // TODO: Interception routes not yet implemented in Segment Cache. Pass a
-  // Next-URL to createCacheKey.
-  const cacheKey = createCacheKey(url.href, null)
+  const cacheKey = createCacheKey(url.href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
-  if (
-    route !== null &&
-    route.status === EntryStatus.Fulfilled &&
-    // TODO: Prefetching interception routes is not support yet by the Segment
-    // Cache. For now, treat this as a cache miss and fallthrough to a full
-    // dynamic navigation.
-    !route.couldBeIntercepted
-  ) {
+  if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
     const snapshot = readRenderSnapshotFromCache(now, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
