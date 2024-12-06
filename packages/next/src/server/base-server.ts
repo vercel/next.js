@@ -591,7 +591,6 @@ export default abstract class Server<
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
@@ -1765,7 +1764,7 @@ export default abstract class Server<
     if (builtinRequestContext) {
       // the platform provided a request context.
       // use the `waitUntil` from there, whether actually present or not --
-      // if not present, `unstable_after` will error.
+      // if not present, `after` will error.
 
       // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
       return builtinRequestContext.waitUntil
@@ -1775,7 +1774,7 @@ export default abstract class Server<
       // we're built for a serverless environment, and `waitUntil` is not available,
       // but using a noop would likely lead to incorrect behavior,
       // because we have no way of keeping the invocation alive.
-      // return nothing, and `unstable_after` will error if used.
+      // return nothing, and `after` will error if used.
       //
       // NOTE: for edge functions, `NextWebServer` always runs in minimal mode.
       //
@@ -2476,7 +2475,6 @@ export default abstract class Server<
             prerenderManifest,
             renderOpts: {
               experimental: {
-                after: renderOpts.experimental.after,
                 dynamicIO: renderOpts.experimental.dynamicIO,
                 authInterrupts: renderOpts.experimental.authInterrupts,
               },

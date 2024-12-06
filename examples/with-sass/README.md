@@ -13,15 +13,15 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), or [pnpm](https://pnpm.io) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-next-sass with-next-sass-app
+npx create-next-app --example with-sass with-sass-app
 ```
 
 ```bash
-yarn create next-app --example with-next-sass with-next-sass-app
+yarn create next-app --example with-sass with-sass-app
 ```
 
 ```bash
-pnpm create next-app --example with-next-sass with-next-sass-app
+pnpm create next-app --example with-sass with-sass-app
 ```
 
 Run production build with:
