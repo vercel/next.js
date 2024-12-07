@@ -246,7 +246,11 @@ import { createContext } from 'react'
 //  createContext is not supported in Server Components
 export const ThemeContext = createContext({})
 
-export default function RootLayout({ children }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
   return (
     <html>
       <body>

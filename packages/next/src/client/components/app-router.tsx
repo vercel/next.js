@@ -280,7 +280,7 @@ function Router({
           ? // Unlike the old implementation, the Segment Cache doesn't store its
             // data in the router reducer state; it writes into a global mutable
             // cache. So we don't need to dispatch an action.
-            prefetchWithSegmentCache
+            (href) => prefetchWithSegmentCache(href, actionQueue.state.nextUrl)
           : (href, options) => {
               // Use the old prefetch implementation.
               const url = createPrefetchURL(href)
@@ -329,7 +329,7 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch, navigate])
+  }, [actionQueue, dispatch, navigate])
 
   useEffect(() => {
     // Exists for debugging purposes. Don't use in application code.
