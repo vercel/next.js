@@ -2142,7 +2142,9 @@ export declare function Bad_Script<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'cyrillic' | 'latin'>
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Bagel_Fat_One<
   T extends CssVariable | undefined = undefined,
@@ -8786,6 +8788,24 @@ export declare function Hind_Madurai<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tamil'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Hind_Mysuru<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight:
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | Array<'300' | '400' | '500' | '600' | '700'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'kannada' | 'latin' | 'latin-ext'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Hind_Siliguri<
   T extends CssVariable | undefined = undefined,
 >(options: {
@@ -10008,7 +10028,7 @@ export declare function Jomhuria<
   preload?: boolean
   fallback?: string[]
   adjustFontFallback?: boolean
-  subsets?: Array<'arabic' | 'latin' | 'latin-ext'>
+  subsets?: Array<'latin' | 'latin-ext'>
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Jomolhari<
   T extends CssVariable | undefined = undefined,
@@ -13578,6 +13598,33 @@ export declare function Montserrat_Subrayada<
   fallback?: string[]
   adjustFontFallback?: boolean
   subsets?: Array<'latin'>
+}): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Montserrat_Underline<
+  T extends CssVariable | undefined = undefined,
+>(options?: {
+  weight?:
+    | '100'
+    | '200'
+    | '300'
+    | '400'
+    | '500'
+    | '600'
+    | '700'
+    | '800'
+    | '900'
+    | 'variable'
+    | Array<
+        '100' | '200' | '300' | '400' | '500' | '600' | '700' | '800' | '900'
+      >
+  style?: 'normal' | 'italic' | Array<'normal' | 'italic'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<
+    'cyrillic' | 'cyrillic-ext' | 'latin' | 'latin-ext' | 'vietnamese'
+  >
 }): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Moo_Lah_Lah<
   T extends CssVariable | undefined = undefined,

@@ -1319,7 +1319,7 @@
   "Bad Script": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["cyrillic", "latin"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Bagel Fat One": {
     "weights": ["400"],
@@ -5072,6 +5072,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "tamil"]
   },
+  "Hind Mysuru": {
+    "weights": ["300", "400", "500", "600", "700"],
+    "styles": ["normal"],
+    "subsets": ["kannada", "latin", "latin-ext"]
+  },
   "Hind Siliguri": {
     "weights": ["300", "400", "500", "600", "700"],
     "styles": ["normal"],
@@ -5702,7 +5707,7 @@
   "Jomhuria": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["arabic", "latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext"]
   },
   "Jomolhari": {
     "weights": ["400"],
@@ -7640,6 +7645,30 @@
     "weights": ["400", "700"],
     "styles": ["normal"],
     "subsets": ["latin"]
+  },
+  "Montserrat Underline": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
   },
   "Moo Lah Lah": {
     "weights": ["400"],
