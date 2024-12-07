@@ -47,7 +47,7 @@ impl<S: Subscriber> Layer<S> for FilterLayer {
         let target = metadata.target().split("::").next().unwrap();
         let filter = self.config.get(target).unwrap_or(&self.global_level);
         let level = metadata.level();
-        return level <= filter;
+       level <= filter
     }
 
     fn max_level_hint(&self) -> Option<LevelFilter> {
