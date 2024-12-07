@@ -54,9 +54,8 @@ describe('after - error stacks', () => {
     await next.render('/nested')
     const loggedError = await waitForLoggedError()
 
-    expect(loggedError).toEqual(
-      outdent`
-      An error occurred in a function passed to \`after()\`: Error: kaboom
+    expect(loggedError).toMatchInlineSnapshot(`
+      "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at aboveThrows (_.js:0:0)
           at nestedHelper (_.js:0:0)
@@ -65,25 +64,24 @@ describe('after - error stacks', () => {
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
           at Page (_.js:0:0)
-      ` + '\n'
-    )
+      "
+    `)
   })
 
   it('simple-callback', async () => {
     await next.render('/simple-callback')
     const loggedError = await waitForLoggedError()
 
-    expect(loggedError).toEqual(
-      outdent`
-      An error occurred in a function passed to \`after()\`: Error: kaboom
+    expect(loggedError).toMatchInlineSnapshot(`
+      "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at <unknown> (_.js:0:0)
           at helper (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
           at Page (_.js:0:0)
-      ` + '\n'
-    )
+      "
+    `)
   })
 
   it.failing('callback-timeout', async () => {
@@ -91,6 +89,7 @@ describe('after - error stacks', () => {
     const loggedError = await waitForLoggedError()
 
     // FIXME: <unknown>, the callback, is omitted
+    // (not a snapshot so that we don't auto-update it to the wrong output)
     expect(loggedError).toEqual(
       outdent`
       An error occurred in a function passed to \`after()\`: Error: kaboom
@@ -109,9 +108,8 @@ describe('after - error stacks', () => {
     await next.render('/callback-timeout-2')
     const loggedError = await waitForLoggedError()
 
-    expect(loggedError).toEqual(
-      outdent`
-      An error occurred in a function passed to \`after()\`: Error: kaboom
+    expect(loggedError).toMatchInlineSnapshot(`
+      "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at bar (_.js:0:0)
           at <unknown> (_.js:0:0)
@@ -119,8 +117,8 @@ describe('after - error stacks', () => {
           at async Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
           at Page (_.js:0:0)
-      ` + '\n'
-    )
+      "
+    `)
   })
 
   describe('promises', () => {
@@ -129,13 +127,12 @@ describe('after - error stacks', () => {
       const loggedError = await waitForLoggedError()
 
       // no extra context stitched onto the error
-      expect(loggedError).toEqual(
-        outdent`
-        A promise passed to \`after()\` rejected: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "A promise passed to \`after()\` rejected: Error: kaboom
             at throws (_.js:0:0)
             at throwsAsync (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
 
     it('nested-promise', async () => {
@@ -143,13 +140,12 @@ describe('after - error stacks', () => {
       const loggedError = await waitForLoggedError()
 
       // no extra context stitched onto the error
-      expect(loggedError).toEqual(
-        outdent`
-        A promise passed to \`after()\` rejected: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "A promise passed to \`after()\` rejected: Error: kaboom
             at throws (_.js:0:0)
             at <unknown> (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
 
     it('nested-promise-2', async () => {
@@ -157,13 +153,12 @@ describe('after - error stacks', () => {
       const loggedError = await waitForLoggedError()
 
       // no extra context stitched onto the error
-      expect(loggedError).toEqual(
-        outdent`
-        A promise passed to \`after()\` rejected: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "A promise passed to \`after()\` rejected: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
   })
 
@@ -173,13 +168,12 @@ describe('after - error stacks', () => {
       const loggedError = await waitForLoggedError()
 
       // no extra context stitched onto the error
-      expect(loggedError).toEqual(
-        outdent`
-        An error occurred in a function passed to \`after()\`: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
 
     it.failing('nested-promise-above-callback-2', async () => {
@@ -187,6 +181,7 @@ describe('after - error stacks', () => {
       const loggedError = await waitForLoggedError()
 
       // FIXME: why aren't we catching `after(bar())` as a promise and bailing out?
+      // (not a snapshot so that we don't auto-update it to the wrong output)
       expect(loggedError).toEqual(
         outdent`
         An error occurred in a function passed to \`after()\`: Error: kaboom
@@ -201,6 +196,7 @@ describe('after - error stacks', () => {
       const loggedError = await waitForLoggedError()
 
       // FIXME: why aren't we catching `after(bar())` as a promise and bailing out?
+      // (not a snapshot so that we don't auto-update it to the wrong output)
       expect(loggedError).toEqual(
         outdent`
         An error occurred in a function passed to \`after()\`: Error: kaboom
@@ -214,9 +210,8 @@ describe('after - error stacks', () => {
       await next.render('/nested-promise-above-callback-3')
       const loggedError = await waitForLoggedError()
 
-      expect(loggedError).toEqual(
-        outdent`
-        An error occurred in a function passed to \`after()\`: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
@@ -225,17 +220,16 @@ describe('after - error stacks', () => {
             at async Inner (_.js:0:0)
             at Wrapper (_.js:0:0)
             at Page (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
 
     it('nested-promise-above-callback-4', async () => {
       await next.render('/nested-promise-above-callback-4')
       const loggedError = await waitForLoggedError()
 
-      expect(loggedError).toEqual(
-        outdent`
-        An error occurred in a function passed to \`after()\`: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
@@ -244,17 +238,16 @@ describe('after - error stacks', () => {
             at Inner (_.js:0:0)
             at Wrapper (_.js:0:0)
             at Page (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
 
     it('nested-promise-above-callback-4-sync', async () => {
       await next.render('/nested-promise-above-callback-4-sync')
       const loggedError = await waitForLoggedError()
 
-      expect(loggedError).toEqual(
-        outdent`
-        An error occurred in a function passed to \`after()\`: Error: kaboom
+      expect(loggedError).toMatchInlineSnapshot(`
+        "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
@@ -263,8 +256,8 @@ describe('after - error stacks', () => {
             at Inner (_.js:0:0)
             at Wrapper (_.js:0:0)
             at Page (_.js:0:0)
-        ` + '\n'
-      )
+        "
+      `)
     })
   })
 })
