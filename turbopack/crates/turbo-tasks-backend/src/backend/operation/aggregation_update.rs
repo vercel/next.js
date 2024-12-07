@@ -84,7 +84,7 @@ pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
 /// A job in the job queue for updating something in the aggregated graph.
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AggregationUpdateJob {
-    /// Update the aggregation number of a task. This might return in balancing needed to update
+    /// Update the aggregation number of a task. This might result in balancing needed to update
     /// "upper" and "follower" edges.
     UpdateAggregationNumber {
         task_id: TaskId,
