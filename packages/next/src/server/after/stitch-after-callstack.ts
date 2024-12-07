@@ -124,6 +124,7 @@ function getStitchedAfterCallstack(
       if (hasPromiseMarkerFrame(frames)) {
         return
       }
+      frames.unshift(createAsyncPlaceholderFrame())
       userFramesFromTaskCallers = userFramesFromTaskCallers.concat(frames)
     }
   }
@@ -138,6 +139,8 @@ function getStitchedAfterCallstack(
     // so bail out.
     return
   }
+
+  rootCallerFrames.unshift(createAsyncPlaceholderFrame())
 
   const reactBottomFrameIndex = rootCallerFrames.findIndex(
     (frame) => frame.methodName === 'react-stack-bottom-frame'
@@ -160,6 +163,16 @@ function getStitchedAfterCallstack(
     userFramesFromRootCaller,
     framesFromReactOwner
   )
+}
+
+function createAsyncPlaceholderFrame() {
+  return {
+    methodName: '<async execution of unstable_after>',
+    file: '<anonymous>',
+    lineNumber: null,
+    column: null,
+    arguments: [],
+  }
 }
 
 function hasPromiseMarkerFrame(frames: StackFrame[]) {

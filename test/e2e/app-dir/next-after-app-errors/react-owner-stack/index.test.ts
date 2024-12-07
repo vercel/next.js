@@ -58,8 +58,10 @@ describe('after - error stacks', () => {
       "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at aboveThrows (_.js:0:0)
+          at <async execution of unstable_after> (<anonymous>)
           at nestedHelper (_.js:0:0)
           at aboveNestedHelper (_.js:0:0)
+          at <async execution of unstable_after> (<anonymous>)
           at helper (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -76,6 +78,7 @@ describe('after - error stacks', () => {
       "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at <unknown> (_.js:0:0)
+          at <async execution of unstable_after> (<anonymous>)
           at helper (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -96,6 +99,7 @@ describe('after - error stacks', () => {
           at throws (_.js:0:0)
           at bar (_.js:0:0)
           at <unknown> (_.js:0:0)
+          at <async execution of unstable_after> (<anonymous>)
           at foo (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -113,6 +117,7 @@ describe('after - error stacks', () => {
           at throws (_.js:0:0)
           at bar (_.js:0:0)
           at <unknown> (_.js:0:0)
+          at <async execution of unstable_after> (<anonymous>)
           at foo (_.js:0:0)
           at async Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -187,6 +192,7 @@ describe('after - error stacks', () => {
         An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
+            at <async execution of unstable_after> (<anonymous>)
         ` + '\n'
       )
     })
@@ -202,6 +208,7 @@ describe('after - error stacks', () => {
         An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
+            at <async execution of unstable_after> (<anonymous>)
         ` + '\n'
       )
     })
@@ -215,6 +222,7 @@ describe('after - error stacks', () => {
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
+            at <async execution of unstable_after> (<anonymous>)
             at bar (_.js:0:0)
             at foo (_.js:0:0)
             at async Inner (_.js:0:0)
@@ -233,6 +241,7 @@ describe('after - error stacks', () => {
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
+            at <async execution of unstable_after> (<anonymous>)
             at bar (_.js:0:0)
             at foo (_.js:0:0)
             at Inner (_.js:0:0)
@@ -251,6 +260,7 @@ describe('after - error stacks', () => {
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
+            at <async execution of unstable_after> (<anonymous>)
             at bar (_.js:0:0)
             at foo (_.js:0:0)
             at Inner (_.js:0:0)
@@ -288,7 +298,7 @@ const errorLogPrefixPattern = new RegExp(
 const errorLogPattern = new RegExp(
   errorLogPrefixPattern.source +
     /[^\n]+\n/.source +
-    /(?:\s+at .*? \(.*?:\d+:\d+\)\n)+/.source
+    /(?:\s+at .*? \(.*?(?:\d+:\d+\))?\n)+/.source
 )
 
 /** Replace "(/some/file:123:456)" with "(/some/file/0:0)" */
