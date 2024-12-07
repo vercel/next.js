@@ -12,7 +12,7 @@ pub use super::{
 };
 use crate::{
     debug::ValueDebugFormatString, shrink_to_fit::ShrinkToFit, task::TaskOutput, NonLocalValue,
-    OperationValue, RawVc, TaskInput, TaskPersistence, Vc,
+    RawVc, TaskInput, TaskPersistence, Vc,
 };
 
 #[inline(never)]
@@ -52,7 +52,7 @@ where
 {
 }
 
-pub fn assert_argument_is_operation_value<Argument: OperationValue>() {}
+pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}
 
 #[macro_export]
 macro_rules! stringify_path {

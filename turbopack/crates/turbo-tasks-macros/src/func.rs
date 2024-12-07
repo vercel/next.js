@@ -301,7 +301,13 @@ impl TurboFn<'_> {
                         subpat: None,
                     })),
                     colon_token: Default::default(),
-                    ty: Box::new(expand_task_input_type(&input.ty).into_owned()),
+                    ty: if self.operation {
+                        // operations shouldn't have their arguments rewritten, they require all
+                        // arguments are explicitly `NonLocalValue`s
+                        Box::new(input.ty.clone())
+                    } else {
+                        Box::new(expand_task_input_type(&input.ty).into_owned())
+                    },
                 })
             })
             .collect();
@@ -349,6 +355,11 @@ impl TurboFn<'_> {
             .map(|(idx, arg)| match arg {
                 FnArg::Receiver(_) => (arg.clone(), None),
                 FnArg::Typed(pat_type) => {
+                    if self.operation {
+                        // operations shouldn't have their arguments rewritten, they require all
+                        // arguments are explicitly `NonLocalValue`s
+                        return (arg.clone(), None);
+                    }
                     let Cow::Owned(expanded_ty) = expand_task_input_type(&pat_type.ty) else {
                         // common-case: skip if no type conversion is needed
                         return (arg.clone(), None);
@@ -530,7 +541,7 @@ impl TurboFn<'_> {
                         let ty = &pat_type.ty;
                         assertions.push(quote_spanned! {
                             ty.span() =>
-                            turbo_tasks::macro_helpers::assert_argument_is_operation_value::<#ty>();
+                            turbo_tasks::macro_helpers::assert_argument_is_non_local_value::<#ty>();
                         });
                     }
                 }
