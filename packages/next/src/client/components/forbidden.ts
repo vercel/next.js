@@ -19,7 +19,7 @@ import {
 
 const DIGEST = `${HTTP_ERROR_FALLBACK_ERROR_CODE};403`
 
-export function forbidden(): never {
+export function forbidden(cause?: Error): never {
   if (!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS) {
     throw new Error(
       `\`forbidden()\` is experimental and only allowed to be enabled when \`experimental.authInterrupts\` is enabled.`
@@ -27,7 +27,7 @@ export function forbidden(): never {
   }
 
   // eslint-disable-next-line no-throw-literal
-  const error = new Error(DIGEST) as HTTPAccessFallbackError
+  const error = new Error(DIGEST, { cause }) as HTTPAccessFallbackError
   ;(error as HTTPAccessFallbackError).digest = DIGEST
   throw error
 }
