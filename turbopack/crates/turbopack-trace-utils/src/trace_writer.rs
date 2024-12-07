@@ -148,12 +148,12 @@ impl TraceWriter {
                                 let _ = writer.write_all(&buf);
                                 buf.clear();
                                 if data_buffer.len() > buf.capacity() {
-                                    let _ = writer.write_all(&data_buffer);
+                                    let _ = writer.write_all(data_buffer);
                                 } else {
-                                    buf.extend_from_slice(&data_buffer);
+                                    buf.extend_from_slice(data_buffer);
                                 }
                             } else {
-                                buf.extend_from_slice(&data_buffer);
+                                buf.extend_from_slice(data_buffer);
                             }
                             data.clear();
                             let _ = return_tx.try_send(data);

@@ -25,7 +25,7 @@ fn get_id<S: Subscriber + for<'a> LookupSpan<'a>>(
     ctx: tracing_subscriber::layer::Context<'_, S>,
     id: &span::Id,
 ) -> u64 {
-    ctx.span(&id)
+    ctx.span(id)
         .unwrap()
         .extensions()
         .get::<RawTraceLayerExtension>()
@@ -93,9 +93,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
             ts,
             id: external_id,
             parent: if attrs.is_contextual() {
-                ctx.current_span().id().map(|p| get_id(ctx, &p))
+                ctx.current_span().id().map(|p| get_id(ctx, p))
             } else {
-                attrs.parent().map(|p| get_id(ctx, &p))
+                attrs.parent().map(|p| get_id(ctx, p))
             },
             name: attrs.metadata().name().into(),
             target: attrs.metadata().target().into(),
@@ -140,9 +140,9 @@ impl<S: Subscriber + for<'a> LookupSpan<'a>> Layer<S> for RawTraceLayer<S> {
         self.write(TraceRow::Event {
             ts,
             parent: if event.is_contextual() {
-                ctx.current_span().id().map(|p| get_id(ctx, &p))
+                ctx.current_span().id().map(|p| get_id(ctx, p))
             } else {
-                event.parent().map(|p| get_id(ctx, &p))
+                event.parent().map(|p| get_id(ctx, p))
             },
             values: values.values,
         });
