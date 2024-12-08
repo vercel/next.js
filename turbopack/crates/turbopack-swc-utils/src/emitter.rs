@@ -6,7 +6,7 @@ use swc_core::common::{
     SourceMap,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,
@@ -17,7 +17,7 @@ pub struct IssueEmitter {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub source_map: Arc<SourceMap>,
     pub title: Option<RcStr>,
-    pub emitted_issues: Vec<ResolvedVc<AnalyzeIssue>>,
+    pub emitted_issues: Vec<Vc<AnalyzeIssue>>,
 }
 
 impl IssueEmitter {
@@ -83,15 +83,14 @@ impl Emitter for IssueEmitter {
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
-        let issue = AnalyzeIssue {
-            severity,
-            source_ident: self.source.ident(),
-            title: ResolvedVc::cell(title),
-            message: StyledString::Text(message.into()).resolved_cell(),
+        let issue = AnalyzeIssue::new(
+            *severity,
+            self.source.ident(),
+            Vc::cell(title),
+            StyledString::Text(message.into()).cell(),
             code,
             source,
-        }
-        .resolved_cell();
+        );
 
         self.emitted_issues.push(issue);
 

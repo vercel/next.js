@@ -401,15 +401,14 @@ pub async fn expand_star_exports(
 }
 
 fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
-    AnalyzeIssue {
-        code: None,
-        message: StyledString::Text(message).resolved_cell(),
+    AnalyzeIssue::new(
+        IssueSeverity::Warning.cell(),
         source_ident,
-        severity: IssueSeverity::Warning.resolved_cell(),
-        source: None,
-        title: ResolvedVc::cell("unexpected export *".into()),
-    }
-    .cell()
+        Vc::cell("unexpected export *".into()),
+        StyledString::Text(message).cell(),
+        None,
+        None,
+    )
     .emit();
 }
 
