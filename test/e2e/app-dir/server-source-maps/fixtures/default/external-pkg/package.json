@@ -1,5 +1,5 @@
 {
-  "name": "internal-pkg",
+  "name": "external-pkg",
   "private": true,
   "type": "module",
   "exports": {
