@@ -111,10 +111,14 @@ describe('app-dir - server source maps', () => {
               "Module not found: Can't resolve 'internal-pkg'"
             : '\nError: Boom' +
                 '\n    at logError (app/ssr-error-log-ignore-listed/page.js:8:16)' +
-                // TODO(veil): Method name should be "Page"
+                // TODO(veil): Method name should be "runWithExternalSourceMapped"
                 '\n    at logError (app/ssr-error-log-ignore-listed/page.js:17:10)' +
-                // TODO(veil): Should be ignore-listed
-                '\n    at run (node_modules'
+                '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:16:32)' +
+                '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:15:18)' +
+                '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:14:28)' +
+                '\n    at Page (app/ssr-error-log-ignore-listed/page.js:13:14)' +
+                '\n   6 |' +
+                '\n'
         )
       } else {
         // TODO: Test `next build` with `--enable-source-maps`.
@@ -142,10 +146,14 @@ describe('app-dir - server source maps', () => {
               "Module not found: Can't resolve 'internal-pkg'"
             : '\nError: Boom' +
                 '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:16)' +
-                // TODO(veil): Method name should be "Page"
+                // TODO(veil): Method name should be "runWithExternalSourceMapped"
                 '\n    at logError (app/rsc-error-log-ignore-listed/page.js:19:10)' +
-                // TODO(veil): Should be ignore-listed
-                '\n    at run (node_modules'
+                '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:18:32)' +
+                '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:18)' +
+                '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:16:28)' +
+                '\n    at Page (app/rsc-error-log-ignore-listed/page.js:15:14)' +
+                '\n   6 |' +
+                '\n'
         )
       } else {
         // TODO: Test `next build` with `--enable-source-maps`.

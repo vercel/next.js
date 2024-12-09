@@ -108,8 +108,12 @@ function prepareUnsourcemappedStackTrace(
   return stack
 }
 
-function shouldIgnoreListByDefault(file: string): boolean {
-  return file.startsWith('node:')
+function shouldIgnoreListGeneratedFrame(file: string): boolean {
+  return file.startsWith('node:') || file.includes('node_modules')
+}
+
+function shouldIgnoreListOriginalFrame(file: string): boolean {
+  return file.includes('node_modules')
 }
 
 /**
@@ -143,18 +147,23 @@ function findApplicableSourceMapPayload(
   }
 }
 
+interface SourcemappableStackFrame extends StackFrame {
+  file: NonNullable<StackFrame['file']>
+}
+
+/**
+ * @param frame
+ * @param sourceMapCache
+ * @returns The original frame if not sourcemapped.
+ */
 function getSourcemappedFrameIfPossible(
-  frame: StackFrame,
+  frame: SourcemappableStackFrame,
   sourceMapCache: SourceMapCache
 ): {
   stack: IgnoreableStackFrame
   // DEV only
   code: string | null
-} | null {
-  if (frame.file === null) {
-    return null
-  }
-
+} {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
   let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
@@ -170,7 +179,17 @@ function getSourcemappedFrameIfPossible(
       nativeFindSourceMap(sourceURL)?.payload ??
       bundlerFindSourceMapPayload(sourceURL)
     if (maybeSourceMapPayload === undefined) {
-      return null
+      return {
+        stack: {
+          arguments: frame.arguments,
+          column: frame.column,
+          file: frame.file,
+          lineNumber: frame.lineNumber,
+          methodName: frame.methodName,
+          ignored: shouldIgnoreListGeneratedFrame(frame.file),
+        },
+        code: null,
+      }
     }
     sourceMapPayload = maybeSourceMapPayload
     sourceMapConsumer = new SyncSourceMapConsumer(
@@ -192,7 +211,17 @@ function getSourcemappedFrameIfPossible(
   })
 
   if (sourcePosition.source === null) {
-    return null
+    return {
+      stack: {
+        arguments: frame.arguments,
+        column: frame.column,
+        file: frame.file,
+        lineNumber: frame.lineNumber,
+        methodName: frame.methodName,
+        ignored: shouldIgnoreListGeneratedFrame(frame.file),
+      },
+      code: null,
+    }
   }
 
   const sourceContent: string | null =
@@ -209,6 +238,14 @@ function getSourcemappedFrameIfPossible(
   let ignored = false
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
+  } else if (shouldIgnoreListOriginalFrame(sourcePosition.source)) {
+    // Externals may be libraries that don't ship ignoreLists.
+    // This is really taking control away from libraries.
+    // They should still ship `ignoreList` so that attached debuggers ignore-list their frames.
+    // TODO: Maybe only ignore library sourcemaps if `ignoreList` is absent?
+    // Though keep in mind that Turbopack omits empty `ignoreList`.
+    // So if we establish this convention, we should communicate it to the ecosystem.
+    ignored = true
   } else {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
     const sourceIndex = applicableSourceMap.sources.indexOf(
@@ -271,34 +308,28 @@ function parseAndSourceMap(error: Error): string {
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
       sourceMappedStack += '\n' + frameToString(frame)
-    } else if (!shouldIgnoreListByDefault(frame.file)) {
+    } else {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
-        frame,
+        // We narrowed this earlier by bailing if `frame.file` is null.
+        frame as SourcemappableStackFrame,
         sourceMapCache
       )
 
-      if (sourcemappedFrame === null) {
-        sourceMappedStack += '\n' + frameToString(frame)
-      } else {
-        if (
-          process.env.NODE_ENV !== 'production' &&
-          sourcemappedFrame.code !== null &&
-          sourceFrameDEV === null &&
-          // TODO: Is this the right choice?
-          !sourcemappedFrame.stack.ignored
-        ) {
-          sourceFrameDEV = sourcemappedFrame.code
-        }
-        if (!sourcemappedFrame.stack.ignored) {
-          // TODO: Consider what happens if every frame is ignore listed.
-          sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
-        } else if (showIgnoreListed) {
-          sourceMappedStack +=
-            '\n' + dim(frameToString(sourcemappedFrame.stack))
-        }
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        sourcemappedFrame.code !== null &&
+        sourceFrameDEV === null &&
+        // TODO: Is this the right choice?
+        !sourcemappedFrame.stack.ignored
+      ) {
+        sourceFrameDEV = sourcemappedFrame.code
       }
-    } else if (showIgnoreListed) {
-      sourceMappedStack += '\n' + dim(frameToString(frame))
+      if (!sourcemappedFrame.stack.ignored) {
+        // TODO: Consider what happens if every frame is ignore listed.
+        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+      } else if (showIgnoreListed) {
+        sourceMappedStack += '\n' + dim(frameToString(sourcemappedFrame.stack))
+      }
     }
   }
 
