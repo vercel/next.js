@@ -265,12 +265,15 @@ impl OptionIssueProcessingPathItems {
 }
 
 #[turbo_tasks::value]
-struct RootIssueProcessingPath(Vc<Box<dyn Issue>>);
+struct RootIssueProcessingPath(ResolvedVc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
 impl IssueProcessingPath for RootIssueProcessingPath {
     #[turbo_tasks::function]
-    fn shortest_path(&self, issue: Vc<Box<dyn Issue>>) -> Vc<OptionIssueProcessingPathItems> {
+    fn shortest_path(
+        &self,
+        issue: ResolvedVc<Box<dyn Issue>>,
+    ) -> Vc<OptionIssueProcessingPathItems> {
         if self.0 == issue {
             Vc::cell(Some(Vec::new()))
         } else {
@@ -341,15 +344,15 @@ pub trait IssueExt {
     fn emit(self);
 }
 
-impl<T> IssueExt for Vc<T>
+impl<T> IssueExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = Vc::upcast::<Box<dyn Issue>>(self);
+        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
         emit(issue);
-        emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-            RootIssueProcessingPath::cell(RootIssueProcessingPath(issue)),
+        emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+            RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),
         ))
     }
 }
@@ -911,8 +914,8 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
                                 file_path: match file_path.into() {
@@ -950,8 +953,8 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
                                 file_path: match file_path.into() {
