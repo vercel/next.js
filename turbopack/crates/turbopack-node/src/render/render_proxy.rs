@@ -125,7 +125,7 @@ async fn proxy_error(
         message: StyledString::Text(message.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     }
-    .cell()
+    .resolved_cell()
     .emit();
 
     Ok((status_code, body))

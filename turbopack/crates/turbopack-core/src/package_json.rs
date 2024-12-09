@@ -48,7 +48,7 @@ pub async fn read_package_json(path: ResolvedVc<FileSystemPath>) -> Result<Vc<Op
                 error_message: message.into(),
                 path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(OptionPackageJson(None).cell())
         }

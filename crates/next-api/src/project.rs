@@ -785,7 +785,7 @@ impl Project {
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
         let emit_event = |feature_name: &str, enabled: bool| {
             NextFeatureTelemetry::new(feature_name.into(), enabled)
-                .cell()
+                .resolved_cell()
                 .emit();
         };
 
@@ -898,7 +898,7 @@ impl Project {
                         .resolved_cell(),
                         severity: IssueSeverity::Error.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     *entry.get_mut() = Route::Conflict;
                 }

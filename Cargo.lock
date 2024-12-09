@@ -9176,6 +9176,8 @@ dependencies = [
 name = "turbopack-swc-utils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "parking_lot",
  "swc_core",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9262,6 +9264,7 @@ dependencies = [
  "crossbeam-channel",
  "once_cell",
  "postcard",
+ "rustc-hash 1.1.0",
  "serde",
  "tokio",
  "tracing",

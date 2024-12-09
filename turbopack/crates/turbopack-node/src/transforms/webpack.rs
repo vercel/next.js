@@ -454,7 +454,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 .to_resolved()
                 .await?,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         Ok(())
     }
@@ -478,7 +478,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     context_ident: self.context_ident_for_issue,
                     path: self.cwd.join(path).to_resolved().await?,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             InfoMessage::DirDependency { path, glob } => {
@@ -504,7 +504,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         .to_resolved()
                         .await?,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             InfoMessage::Log(log) => {
@@ -600,7 +600,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     .to_resolved()
                     .await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
         Ok(())
