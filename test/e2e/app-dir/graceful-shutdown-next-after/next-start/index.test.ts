@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('unstable_after during server shutdown - next start', () => {
+describe('after during server shutdown - next start', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipDeployment: true, // the tests use cli logs
@@ -24,7 +24,7 @@ describe('unstable_after during server shutdown - next start', () => {
     // `next dev` shuts down the child process that runs the server without waiting for cleanups,
     // so `after` callbacks won't have the chance to complete
     it.each(['SIGINT', 'SIGTERM'] as const)(
-      'does not wait for unstable_after callbacks when the server receives %s',
+      'does not wait for after callbacks when the server receives %s',
       async (signal) => {
         await next.render('/')
         await retry(async () => {
@@ -38,7 +38,7 @@ describe('unstable_after during server shutdown - next start', () => {
 
   if (!isNextDev) {
     it.each(['SIGINT', 'SIGTERM'] as const)(
-      'waits for unstable_after callbacks when the server receives %s',
+      'waits for after callbacks when the server receives %s',
       async (signal) => {
         await next.render('/')
         await retry(async () => {

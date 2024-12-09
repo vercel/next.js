@@ -13,6 +13,9 @@ use anyhow::Result;
 const MAX_OTHER_DB_VERSIONS: usize = 2;
 
 pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
+    if let Ok(version) = env::var("TURBO_ENGINE_VERSION") {
+        return Ok(base_path.join(version));
+    }
     // Database versioning. Pass `TURBO_ENGINE_IGNORE_DIRTY` at runtime to ignore a
     // dirty git repository. Pass `TURBO_ENGINE_DISABLE_VERSIONING` at runtime to disable
     // versioning and always use the same database.
@@ -87,7 +90,6 @@ pub fn handle_db_versioning(base_path: &Path) -> Result<PathBuf> {
             }
         }
     } else {
-        let _ = remove_dir_all(base_path);
         path = base_path.join("temp");
     }
 

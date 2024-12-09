@@ -54,7 +54,7 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
         .iter()
         .map(|reference| async move {
             let async_loader =
-                if Vc::try_resolve_downcast_type::<EsmAsyncAssetReference>(*reference)
+                if ResolvedVc::try_downcast_type::<EsmAsyncAssetReference>(*reference)
                     .await?
                     .is_some()
                 {

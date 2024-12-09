@@ -30,22 +30,7 @@ npm i next@latest react@rc react-dom@rc eslint-config-next@latest
 - `useFormStatus` now includes additional keys like `data`, `method`, and `action`. If you are not using React 19, only the `pending` key is available. [Learn more](https://react.dev/reference/react-dom/hooks/useFormStatus).
 - Read more in the [React 19 upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide).
 
-### Updating types for react 19
-
-If you are using TypeScript, you'll need to temporarily override the React types. Below is an example of the necessary type overrides needed in your `package.json`. See the [React 19 RC upgrade guide](https://react.dev/blog/2024/04/25/react-19-upgrade-guide#installing) for more information.
-
-```json
-{
-  "dependencies": {
-    "@types/react": "npm:types-react@rc",
-    "@types/react-dom": "npm:types-react-dom@rc"
-  },
-  "overrides": {
-    "@types/react": "npm:types-react@rc",
-    "@types/react-dom": "npm:types-react-dom@rc"
-  }
-}
-```
+> **Good to know:** If you are using TypeScript, ensure you also upgrade `@types/react` and `@types/react-dom` to their latest versions.
 
 ## Async Request APIs (Breaking change)
 

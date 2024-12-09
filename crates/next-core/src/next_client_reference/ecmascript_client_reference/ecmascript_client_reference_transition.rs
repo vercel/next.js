@@ -74,7 +74,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                     .replace("next/dist/esm/", "next/dist/")
                     .into(),
             );
-            Vc::upcast(FileSource::new_with_query(path, ident_ref.query))
+            Vc::upcast(FileSource::new_with_query(path, *ident_ref.query))
         } else {
             source
         };

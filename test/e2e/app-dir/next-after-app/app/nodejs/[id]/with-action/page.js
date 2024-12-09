@@ -1,4 +1,4 @@
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 import { cache } from 'react'
 import { cliLog } from '../../../../utils/log'
 

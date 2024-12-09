@@ -501,7 +501,7 @@ impl Issue for ExternalizeIssue {
                 ]),
                 StyledString::Line(self.reason.clone()),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }

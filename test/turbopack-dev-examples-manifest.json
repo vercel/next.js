@@ -157,7 +157,6 @@
   "with-polyfills": true,
   "with-portals": true,
   "with-portals-ssr": true,
-  "with-postgres": true,
   "with-prefetching": true,
   "with-quill-js": true,
   "with-rbx-bulma-pro": true,

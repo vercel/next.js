@@ -401,15 +401,14 @@ pub async fn expand_star_exports(
 }
 
 fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
-    AnalyzeIssue {
-        code: None,
-        message: StyledString::Text(message).resolved_cell(),
+    AnalyzeIssue::new(
+        IssueSeverity::Warning.cell(),
         source_ident,
-        severity: IssueSeverity::Warning.resolved_cell(),
-        source: None,
-        title: ResolvedVc::cell("unexpected export *".into()),
-    }
-    .cell()
+        Vc::cell("unexpected export *".into()),
+        StyledString::Text(message).cell(),
+        None,
+        None,
+    )
     .emit();
 }
 
@@ -417,7 +416,7 @@ fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    pub star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
+    pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
 /// The expanded version of [EsmExports], the `exports` field here includes all
@@ -455,7 +454,7 @@ impl EsmExports {
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
-                        EsmExport::ImportedBinding(Vc::upcast(esm_ref), export.clone(), false),
+                        EsmExport::ImportedBinding(Vc::upcast(*esm_ref), export.clone(), false),
                     );
                 }
             }

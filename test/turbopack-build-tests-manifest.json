@@ -2383,30 +2383,30 @@
     },
     "test/e2e/app-dir/next-after-app/index.test.ts": {
       "passed": [
-        "unstable_after() in edge runtime does not allow modifying cookies in a callback",
-        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
-        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
-        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
-        "unstable_after() in edge runtime only runs callbacks after the response is fully sent",
-        "unstable_after() in edge runtime runs callbacks from nested unstable_after calls",
-        "unstable_after() in edge runtime runs in dynamic pages",
-        "unstable_after() in edge runtime runs in dynamic route handlers",
-        "unstable_after() in edge runtime runs in generateMetadata()",
-        "unstable_after() in edge runtime runs in middleware",
-        "unstable_after() in edge runtime runs in server actions",
-        "unstable_after() in edge runtime uses waitUntil from request context if available",
-        "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
-        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
-        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
-        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
-        "unstable_after() in nodejs runtime only runs callbacks after the response is fully sent",
-        "unstable_after() in nodejs runtime runs callbacks from nested unstable_after calls",
-        "unstable_after() in nodejs runtime runs in dynamic pages",
-        "unstable_after() in nodejs runtime runs in dynamic route handlers",
-        "unstable_after() in nodejs runtime runs in generateMetadata()",
-        "unstable_after() in nodejs runtime runs in middleware",
-        "unstable_after() in nodejs runtime runs in server actions",
-        "unstable_after() in nodejs runtime uses waitUntil from request context if available"
+        "after() in edge runtime does not allow modifying cookies in a callback",
+        "after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "after() in edge runtime only runs callbacks after the response is fully sent",
+        "after() in edge runtime runs callbacks from nested after calls",
+        "after() in edge runtime runs in dynamic pages",
+        "after() in edge runtime runs in dynamic route handlers",
+        "after() in edge runtime runs in generateMetadata()",
+        "after() in edge runtime runs in middleware",
+        "after() in edge runtime runs in server actions",
+        "after() in edge runtime uses waitUntil from request context if available",
+        "after() in nodejs runtime does not allow modifying cookies in a callback",
+        "after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "after() in nodejs runtime only runs callbacks after the response is fully sent",
+        "after() in nodejs runtime runs callbacks from nested after calls",
+        "after() in nodejs runtime runs in dynamic pages",
+        "after() in nodejs runtime runs in dynamic route handlers",
+        "after() in nodejs runtime runs in generateMetadata()",
+        "after() in nodejs runtime runs in middleware",
+        "after() in nodejs runtime runs in server actions",
+        "after() in nodejs runtime uses waitUntil from request context if available"
       ],
       "failed": [],
       "pending": [],
@@ -2417,10 +2417,10 @@
       "passed": [],
       "failed": [],
       "pending": [
-        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
-        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
-        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
-        "unstable_after() - pages runs in middleware"
+        "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
+        "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
+        "after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
+        "after() - pages runs in middleware"
       ],
       "flakey": [],
       "runtimeError": false
@@ -15604,37 +15604,37 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - basic should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
-      "passed": [],
+      "passed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
       "failed": [
-        "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest",
-        "actions-tree-shaking - reexport should not have the unused action in the manifest",
         "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
@@ -15642,10 +15642,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
-      "passed": [],
+      "passed": [
+        "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
       "failed": [
-        "actions-tree-shaking - reexport should not tree-shake namespace exports the manifest",
-        "actions-tree-shaking - reexport should not have the unused action in the manifest",
         "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
@@ -15653,19 +15653,19 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15689,10 +15689,10 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

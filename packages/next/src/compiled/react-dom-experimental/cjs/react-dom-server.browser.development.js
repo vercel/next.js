@@ -8193,11 +8193,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-experimental-b01722d5-20241114" !== isomorphicReactPackageVersion)
+      if ("19.0.0-experimental-7283a213-20241206" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-experimental-b01722d5-20241114\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.0.0-experimental-7283a213-20241206\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -9539,7 +9539,7 @@
       log = Math.log,
       LN2 = Math.LN2,
       SuspenseException = Error(
-        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
       suspendedThenable = null,
       objectIs = "function" === typeof Object.is ? Object.is : is,
@@ -9977,5 +9977,5 @@
         startWork(request);
       });
     };
-    exports.version = "19.0.0-experimental-b01722d5-20241114";
+    exports.version = "19.0.0-experimental-7283a213-20241206";
   })();
