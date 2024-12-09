@@ -1,6 +1,6 @@
 # Ionic with TypeScript Example
 
-Example app using Next.js with [Ionic](https://ionicframework.com/) and [TypeScript](https://www.typescriptlang.org/). You can learn more about Ionic in the [documentation](https://ionicframework.com/docs).
+Example app using Next.js with [Ionic](https://ionicframework.com/). You can learn more about Ionic in the [documentation](https://ionicframework.com/docs).
 
 ## Deploy your own
 
