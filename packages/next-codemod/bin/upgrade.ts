@@ -53,6 +53,8 @@ async function loadHighestNPMVersionMatching(query: string) {
   // npm-view returns an array if there are multiple versions matching the query.
   if (Array.isArray(versionOrVersions)) {
     // The last entry will be the latest version published.
+    // But we want the highest version.
+    versionOrVersions.sort(compareVersions)
     return versionOrVersions[versionOrVersions.length - 1]
   }
   return versionOrVersions

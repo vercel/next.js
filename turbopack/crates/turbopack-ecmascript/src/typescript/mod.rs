@@ -60,7 +60,11 @@ impl Module for TsConfigModuleAsset {
         )
         .await?;
         for (_, config_asset) in configs[1..].iter() {
-            references.push(Vc::upcast(TsExtendsReference::new(**config_asset)));
+            references.push(ResolvedVc::upcast(
+                TsExtendsReference::new(**config_asset)
+                    .to_resolved()
+                    .await?,
+            ));
         }
         // ts-node options
         {
@@ -74,10 +78,11 @@ impl Module for TsConfigModuleAsset {
                 .map(|(_, c)| c)
                 .unwrap_or_else(|| "typescript".to_string())
                 .into();
-            references.push(Vc::upcast(CompilerReference::new(
-                *self.origin,
-                Request::parse(Value::new(compiler.into())),
-            )));
+            references.push(ResolvedVc::upcast(
+                CompilerReference::new(*self.origin, Request::parse(Value::new(compiler.into())))
+                    .to_resolved()
+                    .await?,
+            ));
             let require = read_from_tsconfigs(&configs, |json, source| {
                 if let JsonValue::Array(array) = &json["ts-node"]["require"] {
                     Some(
@@ -93,10 +98,14 @@ impl Module for TsConfigModuleAsset {
             .await?;
             if let Some(require) = require {
                 for (_, request) in require {
-                    references.push(Vc::upcast(TsNodeRequireReference::new(
-                        *self.origin,
-                        Request::parse(Value::new(request.into())),
-                    )));
+                    references.push(ResolvedVc::upcast(
+                        TsNodeRequireReference::new(
+                            *self.origin,
+                            Request::parse(Value::new(request.into())),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ));
                 }
             }
         }
@@ -143,15 +152,19 @@ impl Module for TsConfigModuleAsset {
                 all_types
             };
             for (_, name) in types {
-                references.push(Vc::upcast(TsConfigTypesReference::new(
-                    *self.origin,
-                    Request::module(
-                        name,
-                        Value::new(RcStr::default().into()),
-                        Vc::<RcStr>::default(),
-                        Vc::<RcStr>::default(),
-                    ),
-                )));
+                references.push(ResolvedVc::upcast(
+                    TsConfigTypesReference::new(
+                        *self.origin,
+                        Request::module(
+                            name,
+                            Value::new(RcStr::default().into()),
+                            Vc::<RcStr>::default(),
+                            Vc::<RcStr>::default(),
+                        ),
+                    )
+                    .to_resolved()
+                    .await?,
+                ));
             }
         }
         Ok(Vc::cell(references))

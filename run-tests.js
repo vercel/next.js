@@ -20,7 +20,7 @@ const { getTestFilter } = require('./test/get-test-filter')
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-b01722d5-20241114";
+const nextjsReactPeerVersion = "^19.0.0";
 
 let argv = require('yargs/yargs')(process.argv.slice(2))
   .string('type')
@@ -451,12 +451,7 @@ ${ENDGROUP}`)
       const start = new Date().getTime()
       let outputChunks = []
 
-      const shouldRecordTestWithReplay = process.env.RECORD_REPLAY && isRetry
-
       const args = [
-        ...(shouldRecordTestWithReplay
-          ? [`--config=jest.replay.config.js`]
-          : []),
         ...(process.env.CI ? ['--ci'] : []),
         '--runInBand',
         '--forceExit',
@@ -489,8 +484,6 @@ ${ENDGROUP}`)
           ? {}
           : {
               IS_RETRY: isRetry ? 'true' : undefined,
-              RECORD_REPLAY: shouldRecordTestWithReplay,
-
               TRACE_PLAYWRIGHT:
                 process.env.NEXT_TEST_MODE === 'deploy' ? undefined : 'true',
               CIRCLECI: '',

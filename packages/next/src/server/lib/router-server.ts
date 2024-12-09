@@ -12,6 +12,7 @@ import path from 'path'
 import loadConfig from '../config'
 import { serveStatic } from '../serve-static'
 import setupDebug from 'next/dist/compiled/debug'
+import * as Log from '../../build/output/log'
 import { DecodeError } from '../../shared/lib/utils'
 import { findPagesDir } from '../../lib/find-pages-dir'
 import { setupFsCheck } from './router-utils/filesystem'
@@ -47,6 +48,7 @@ import {
 import { normalizedAssetPrefix } from '../../shared/lib/normalized-asset-prefix'
 import { NEXT_PATCH_SYMBOL } from './patch-fetch'
 import type { ServerInitResult } from './render-server'
+import { filterInternalHeaders } from './server-ipc/utils'
 
 const debug = setupDebug('next:router-server:main')
 const isNextFont = (pathname: string | null) =>
@@ -164,6 +166,11 @@ export async function initialize(opts: {
     require('./render-server') as typeof import('./render-server')
 
   const requestHandlerImpl: WorkerRequestHandler = async (req, res) => {
+    // internal headers should not be honored by the request handler
+    if (!process.env.NEXT_PRIVATE_TEST_HEADERS) {
+      filterInternalHeaders(req.headers)
+    }
+
     if (
       !opts.minimalMode &&
       config.i18n &&
@@ -642,7 +649,11 @@ export async function initialize(opts: {
       // not really errors. They're just part of rendering.
       return
     }
-    await developmentBundler?.logErrorWithOriginalStack(err, type)
+    if (type === 'unhandledRejection') {
+      Log.error('unhandledRejection: ', err)
+    } else if (type === 'uncaughtException') {
+      Log.error('uncaughtException: ', err)
+    }
   }
 
   process.on('uncaughtException', logError.bind(null, 'uncaughtException'))

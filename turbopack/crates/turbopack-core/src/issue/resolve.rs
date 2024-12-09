@@ -87,7 +87,7 @@ impl Issue for ResolvingIssue {
             }
         }
         Ok(Vc::cell(Some(
-            StyledString::Text(description.into()).cell(),
+            StyledString::Text(description.into()).resolved_cell(),
         )))
     }
 
@@ -115,12 +115,22 @@ impl Issue for ResolvingIssue {
             "Type of request: {request_type}",
             request_type = self.request_type,
         )?;
-        Ok(Vc::cell(Some(StyledString::Text(detail.into()).cell())))
+        Ok(Vc::cell(Some(
+            StyledString::Text(detail.into()).resolved_cell(),
+        )))
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(*self.file_path)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match self.source {
+            Some(source) => Some(
+                source
+                    .resolve_source_map(*self.file_path)
+                    .to_resolved()
+                    .await?,
+            ),
+            None => None,
+        }))
     }
 
     // TODO add sub_issue for a description of resolve_options

@@ -186,14 +186,18 @@ impl Module for EcmascriptClientReferenceProxyModule {
             .await?
             .iter()
             .copied()
-            .chain(once(Vc::upcast(SingleModuleReference::new(
-                Vc::upcast(EcmascriptClientReferenceModule::new(
-                    **server_module_ident,
-                    **client_module,
-                    **ssr_module,
-                )),
-                client_reference_description(),
-            ))))
+            .chain(once(ResolvedVc::upcast(
+                SingleModuleReference::new(
+                    Vc::upcast(EcmascriptClientReferenceModule::new(
+                        **server_module_ident,
+                        **client_module,
+                        **ssr_module,
+                    )),
+                    client_reference_description(),
+                )
+                .to_resolved()
+                .await?,
+            )))
             .collect();
 
         Ok(Vc::cell(references))

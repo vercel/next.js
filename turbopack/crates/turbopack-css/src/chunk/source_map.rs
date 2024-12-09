@@ -38,7 +38,7 @@ impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let sm = if let Some(sm) = *self.chunk.generate_source_map().await? {
-            sm
+            *sm
         } else {
             SourceMap::empty()
         };

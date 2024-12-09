@@ -58,7 +58,7 @@ pub enum SourceMap {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionSourceMap(Option<Vc<SourceMap>>);
+pub struct OptionSourceMap(Option<ResolvedVc<SourceMap>>);
 
 #[turbo_tasks::value_impl]
 impl OptionSourceMap {
@@ -92,8 +92,8 @@ pub enum Token {
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct TokenWithSource {
-    pub token: Vc<Token>,
-    pub source_content: Option<Vc<Box<dyn Source>>>,
+    pub token: ResolvedVc<Token>,
+    pub source_content: Option<ResolvedVc<Box<dyn Source>>>,
 }
 
 /// A SyntheticToken represents a region of the generated file that was created
@@ -349,8 +349,11 @@ impl SourceMap {
             .lookup_token_and_source_internal(line, column, true)
             .await?;
         Ok(TokenWithSource {
-            token,
-            source_content: content,
+            token: token.to_resolved().await?,
+            source_content: match content {
+                Some(v) => Some(v.to_resolved().await?),
+                None => None,
+            },
         }
         .cell())
     }
@@ -492,11 +495,15 @@ impl SourceMap {
             Self::Sectioned(m) => {
                 let mut sections = Vec::with_capacity(m.sections.len());
                 for section in &m.sections {
-                    let map = section.map.with_resolved_sources(origin);
+                    let map = section
+                        .map
+                        .with_resolved_sources(origin)
+                        .to_resolved()
+                        .await?;
                     sections.push(SourceMapSection::new(section.offset, map));
                 }
                 for section in &mut sections {
-                    section.map = section.map.resolve().await?;
+                    section.map = section.map.to_resolved().await?;
                 }
                 SourceMap::new_sectioned(sections)
             }
@@ -595,7 +602,7 @@ impl SourceMap {
 
                     if need_source_content {
                         let result = map.lookup_token_and_source(l, c).await?;
-                        return Ok((result.token, result.source_content));
+                        return Ok((*result.token, result.source_content.map(|v| *v)));
                     } else {
                         return Ok((map.lookup_token(l, c), None));
                     }
@@ -615,7 +622,7 @@ impl SourceMap {
 #[turbo_tasks::value_impl]
 impl GenerateSourceMap for SourceMap {
     #[turbo_tasks::function]
-    fn generate_source_map(self: Vc<Self>) -> Vc<OptionSourceMap> {
+    fn generate_source_map(self: ResolvedVc<Self>) -> Vc<OptionSourceMap> {
         Vc::cell(Some(self))
     }
 
@@ -755,11 +762,11 @@ impl SectionedSourceMap {
 #[derive(Eq, PartialEq, Debug, Serialize, Deserialize)]
 pub struct SourceMapSection {
     offset: SourcePos,
-    map: Vc<SourceMap>,
+    map: ResolvedVc<SourceMap>,
 }
 
 impl SourceMapSection {
-    pub fn new(offset: SourcePos, map: Vc<SourceMap>) -> Self {
+    pub fn new(offset: SourcePos, map: ResolvedVc<SourceMap>) -> Self {
         Self { offset, map }
     }
 
@@ -780,5 +787,10 @@ pub async fn convert_to_turbopack_source_map(
     let Some(source_map) = *source_map.await? else {
         return Ok(Vc::cell(None));
     };
-    Ok(Vc::cell(Some(source_map.with_resolved_sources(origin))))
+    Ok(Vc::cell(Some(
+        source_map
+            .with_resolved_sources(origin)
+            .to_resolved()
+            .await?,
+    )))
 }

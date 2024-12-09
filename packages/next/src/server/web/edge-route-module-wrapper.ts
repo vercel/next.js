@@ -85,8 +85,6 @@ export class EdgeRouteModuleWrapper {
       searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
-    const isAfterEnabled = !!process.env.__NEXT_AFTER
-
     const waitUntil = evt.waitUntil.bind(evt)
     const closeController = new CloseController()
 
@@ -109,7 +107,6 @@ export class EdgeRouteModuleWrapper {
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
         experimental: {
-          after: isAfterEnabled,
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
@@ -127,25 +124,21 @@ export class EdgeRouteModuleWrapper {
     }
     evt.waitUntil(Promise.all(waitUntilPromises))
 
-    if (closeController) {
-      const _closeController = closeController // TS annoyance - "possibly undefined" in callbacks
-
-      if (!res.body) {
-        // we can delay running it until a bit later --
-        // if it's needed, we'll have a `waitUntil` lock anyway.
-        setTimeout(() => _closeController.dispatchClose(), 0)
-      } else {
-        // NOTE: if this is a streaming response, onClose may be called later,
-        // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
-        const trackedBody = trackStreamConsumed(res.body, () =>
-          _closeController.dispatchClose()
-        )
-        res = new Response(trackedBody, {
-          status: res.status,
-          statusText: res.statusText,
-          headers: res.headers,
-        })
-      }
+    if (!res.body) {
+      // we can delay running it until a bit later --
+      // if it's needed, we'll have a `waitUntil` lock anyway.
+      setTimeout(() => closeController.dispatchClose(), 0)
+    } else {
+      // NOTE: if this is a streaming response, onClose may be called later,
+      // so we can't rely on `closeController.listeners` -- it might be 0 at this point.
+      const trackedBody = trackStreamConsumed(res.body, () =>
+        closeController.dispatchClose()
+      )
+      res = new Response(trackedBody, {
+        status: res.status,
+        statusText: res.statusText,
+        headers: res.headers,
+      })
     }
 
     return res

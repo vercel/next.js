@@ -204,9 +204,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .try_join()
                         .await?,
                 ),
-                ImportMapping::Dynamic(replacement) => {
-                    ReplacedImportMapping::Dynamic(replacement.to_resolved().await?)
-                }
+                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
             }
             .resolved_cell())
         })

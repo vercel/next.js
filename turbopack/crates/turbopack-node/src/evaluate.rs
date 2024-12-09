@@ -143,7 +143,7 @@ async fn emit_evaluate_pool_assets(
             bail!("Internal module is not evaluatable");
         };
 
-        let mut entries = vec![globals_module];
+        let mut entries = vec![globals_module.to_resolved().await?];
         if let Some(runtime_entries) = runtime_entries {
             for &entry in &*runtime_entries.await? {
                 entries.push(entry)
@@ -702,7 +702,7 @@ impl Issue for EvaluationIssue {
                     .await?
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
