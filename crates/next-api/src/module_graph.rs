@@ -243,7 +243,7 @@ impl SingleModuleGraph {
 
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         {
-            let _span = tracing::info_span!("build petgraph").entered();
+            let _span = tracing::info_span!("build module graph").entered();
             for (parent, current) in children_modules_iter.into_breadth_first_edges() {
                 let parent_idx =
                     parent.map(|parent| *modules.get(&parent.module().unwrap()).unwrap());
