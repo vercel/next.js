@@ -196,8 +196,16 @@ impl ValueDefault for NextSourceConfig {
 /// An issue that occurred while parsing the page config.
 #[turbo_tasks::value(shared)]
 pub struct NextSourceConfigParsingIssue {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
     detail: ResolvedVc<StyledString>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextSourceConfigParsingIssue {
+    #[turbo_tasks::function]
+    pub fn new(ident: ResolvedVc<AssetIdent>, detail: ResolvedVc<StyledString>) -> Vc<Self> {
+        Self { ident, detail }.cell()
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -242,13 +250,11 @@ impl Issue for NextSourceConfigParsingIssue {
 
 fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
     let (explainer, hints) = value.explain(2, 0);
-    NextSourceConfigParsingIssue {
+    NextSourceConfigParsingIssue::new(
         ident,
-        detail: StyledString::Text(format!("{detail} Got {explainer}.{hints}").into())
-            .resolved_cell(),
-    }
-    .resolved_cell()
-    .emit()
+        StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
+    )
+    .emit();
 }
 
 fn parse_route_matcher_from_js_value(
@@ -409,17 +415,16 @@ pub async fn parse_config_from_source(
                                     Ok(parse_config_from_js_value(*module, &value).cell())
                                 });
                             } else {
-                                NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
-                                    detail: StyledString::Text(
+                                NextSourceConfigParsingIssue::new(
+                                    module.ident(),
+                                    StyledString::Text(
                                         "The exported config object must contain an variable \
                                          initializer."
                                             .into(),
                                     )
-                                    .resolved_cell(),
-                                }
-                                .resolved_cell()
-                                .emit()
+                                    .cell(),
+                                )
+                                .emit();
                             }
                         }
                         // Or, check if there is segment runtime option
@@ -428,15 +433,14 @@ pub async fn parse_config_from_source(
                             .map(|ident| &*ident.sym == "runtime")
                             .unwrap_or_default()
                         {
-                            let runtime_value_issue = NextSourceConfigParsingIssue {
-                                ident: module.ident(),
-                                detail: StyledString::Text(
+                            let runtime_value_issue = NextSourceConfigParsingIssue::new(
+                                module.ident(),
+                                StyledString::Text(
                                     "The runtime property must be either \"nodejs\" or \"edge\"."
                                         .into(),
                                 )
-                                .resolved_cell(),
-                            }
-                            .resolved_cell();
+                                .cell(),
+                            );
                             if let Some(init) = decl.init.as_ref() {
                                 // skipping eval and directly read the expr's value, as we know it
                                 // should be a const string
@@ -461,17 +465,16 @@ pub async fn parse_config_from_source(
                                     runtime_value_issue.emit();
                                 }
                             } else {
-                                NextSourceConfigParsingIssue {
-                                    ident: module.ident(),
-                                    detail: StyledString::Text(
+                                NextSourceConfigParsingIssue::new(
+                                    module.ident(),
+                                    StyledString::Text(
                                         "The exported segment runtime option must contain an \
                                          variable initializer."
                                             .into(),
                                     )
-                                    .resolved_cell(),
-                                }
-                                .resolved_cell()
-                                .emit()
+                                    .cell(),
+                                )
+                                .emit();
                             }
                         }
                     }

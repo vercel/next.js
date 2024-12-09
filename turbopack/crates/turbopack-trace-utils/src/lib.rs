@@ -6,6 +6,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod exit;
+pub mod filter_layer;
 mod flavor;
 pub mod raw_trace;
 pub mod trace_writer;
