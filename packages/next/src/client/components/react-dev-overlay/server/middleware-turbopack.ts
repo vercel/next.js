@@ -19,6 +19,7 @@ import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import { relativeToCwd } from '../../../../server/lib/stack-trace-utils'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -262,9 +263,7 @@ async function nativeTraceSource(
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
             ?.replace('__webpack_exports__.', '') || '<unknown>',
         column: (originalPosition.column ?? 0) + 1,
-        file: originalPosition.source?.startsWith('file://')
-          ? relativeToCwd(originalPosition.source)
-          : originalPosition.source,
+        file: relativeToCwd(originalPosition.source),
         lineNumber: originalPosition.line ?? 0,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
         arguments: [],
@@ -279,12 +278,6 @@ async function nativeTraceSource(
   }
 
   return undefined
-}
-
-function relativeToCwd(file: string): string {
-  const relPath = path.relative(process.cwd(), url.fileURLToPath(file))
-  // TODO(sokra) include a ./ here to make it a relative path
-  return relPath
 }
 
 async function createOriginalStackFrame(

@@ -2,7 +2,6 @@ import {
   findSourceMap as nativeFindSourceMap,
   type SourceMapPayload,
 } from 'module'
-import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
 import { SourceMapConsumer as SyncSourceMapConsumer } from 'next/dist/compiled/source-map'
@@ -11,6 +10,7 @@ import { parseStack } from '../client/components/react-dev-overlay/server/middle
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
+import { relativeToCwd } from './lib/stack-trace-utils'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -66,22 +66,11 @@ function frameToString(frame: StackFrame): string {
     sourceLocation += `:${frame.column}`
   }
 
-  let fileLocation: string | null
-  if (
-    frame.file !== null &&
-    frame.file.startsWith('file://') &&
-    URL.canParse(frame.file)
-  ) {
-    // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
-    // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
-    // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
-    // since relative to cwd is both the shortest and snappiest.
-    fileLocation = path.relative(process.cwd(), url.fileURLToPath(frame.file))
-  } else if (frame.file !== null && frame.file.startsWith('/')) {
-    fileLocation = path.relative(process.cwd(), frame.file)
-  } else {
-    fileLocation = frame.file
-  }
+  // If not relative to CWD, the path is ambiguous to IDEs and clicking will prompt to select the file first.
+  // In a multi-app repo, this leads to potentially larger file names but will make clicking snappy.
+  // There's no tradeoff for the cases where `dir` in `next dev [dir]` is omitted
+  // since relative to cwd is both the shortest and snappiest.
+  let fileLocation = relativeToCwd(frame.file)
 
   return frame.methodName
     ? `    at ${frame.methodName} (${fileLocation}${sourceLocation})`
