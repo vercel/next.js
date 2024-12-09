@@ -3,7 +3,7 @@ use next_core::{all_assets_from_entries, next_manifests::AssetBinding};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TryFlatJoinIterExt, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -11,7 +11,7 @@ use turbopack_core::{
 };
 
 /// A reference to a server file with content hash for change detection
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub struct ServerPath {
     /// Relative to the root_path
     pub path: String,

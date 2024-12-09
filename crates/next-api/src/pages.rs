@@ -32,7 +32,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, TaskInput, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -631,7 +632,17 @@ struct PageEndpoint {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum PageEndpointType {
     Api,
@@ -641,7 +652,17 @@ enum PageEndpointType {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum SsrChunkType {
     Page,

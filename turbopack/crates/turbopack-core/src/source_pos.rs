@@ -1,5 +1,5 @@
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, TaskInput};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 use turbo_tasks_hash::DeterministicHash;
 
 /// LINE FEED (LF), one of the basic JS line terminators.
@@ -22,6 +22,7 @@ const U8_CR: u8 = 0x0D;
     Serialize,
     Deserialize,
     DeterministicHash,
+    NonLocalValue,
 )]
 pub struct SourcePos {
     /// The line, 0-indexed.

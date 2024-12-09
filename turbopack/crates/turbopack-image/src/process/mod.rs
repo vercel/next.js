@@ -17,7 +17,7 @@ use image::{
 use mime::Mime;
 use serde::{Deserialize, Serialize};
 use serde_with::{serde_as, DisplayFromStr};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
 use turbopack_core::{
     error::PrettyPrintError,
@@ -28,7 +28,7 @@ use turbopack_core::{
 use self::svg::calculate;
 
 /// Small placeholder version of the image.
-#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct BlurPlaceholder {
     pub data_url: String,
     pub width: u32,

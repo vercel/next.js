@@ -25,8 +25,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Upcast, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -50,7 +50,7 @@ use crate::{
 };
 
 /// A module id, which can be a number or string
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, non_local)]
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
 #[serde(untagged)]
 pub enum ModuleId {
@@ -234,7 +234,9 @@ pub async fn chunk_content(
     chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue,
+)]
 enum InheritAsyncEdge {
     /// The chunk item is in the current chunk group and async module info need
     /// to be computed for it

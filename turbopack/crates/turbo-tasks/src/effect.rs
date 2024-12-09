@@ -4,14 +4,16 @@ use anyhow::{anyhow, Result};
 use auto_hash_map::AutoSet;
 use parking_lot::Mutex;
 use tracing::{Instrument, Span};
-use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
 use crate::{
-    self as turbo_tasks, emit,
+    self as turbo_tasks,
+    debug::ValueDebugFormat,
+    emit,
     event::{Event, EventListener},
     manager::turbo_tasks_future_scope,
+    trace::TraceRawVcs,
     util::SharedError,
-    CollectiblesSource, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
+    CollectiblesSource, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
 };
 
 /// A trait to emit a task effect as collectible. This trait only has one
@@ -218,7 +220,7 @@ pub async fn get_effects(source: impl CollectiblesSource) -> Result<Effects> {
 
 /// Captured effects from an operation. This struct can be used to return Effects from a turbo-tasks
 /// function and apply them later.
-#[derive(TraceRawVcs, Default, ValueDebugFormat)]
+#[derive(TraceRawVcs, Default, ValueDebugFormat, NonLocalValue)]
 pub struct Effects {
     #[turbo_tasks(trace_ignore, debug_ignore)]
     effects: Vec<ReadRef<EffectInstance>>,
