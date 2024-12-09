@@ -4,7 +4,6 @@ import webdriver from 'next-webdriver'
 import {
   assertHasRedbox,
   assertNoRedbox,
-  check,
   getBrowserBodyText,
   getRedboxHeader,
   getRedboxDescription,
@@ -47,9 +46,9 @@ describe.each([
       basePath + '/auto-export-is-ready?hello=world'
     )
 
-    await check(async () => {
-      return browser.elementByCss('#ready').text()
-    }, 'yes')
+    await retry(async () => {
+      expect(await browser.elementByCss('#ready').text()).toBe('yes')
+    })
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       hello: 'world',
     })
@@ -63,9 +62,9 @@ describe.each([
 
     browser = await webdriver(next.url, basePath + '/gsp-is-ready?hello=world')
 
-    await check(async () => {
-      return browser.elementByCss('#ready').text()
-    }, 'yes')
+    await retry(async () => {
+      expect(await browser.elementByCss('#ready').text()).toBe('yes')
+    })
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({
       hello: 'world',
     })
@@ -85,19 +84,21 @@ describe.each([
           // Rename the file to mimic a deleted page
           await next.renameFile(contactPagePath, newContactPagePath)
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This page could not be found/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This page could not be found/
+            )
+          })
 
           // Rename the file back to the original filename
           await next.renameFile(newContactPagePath, contactPagePath)
 
           // wait until the page comes back
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the contact page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the contact page/
+            )
+          })
 
           expect(next.cliOutput).toContain('Compiled /_error')
         } finally {
@@ -130,16 +131,19 @@ describe.each([
           // change the content
           try {
             await next.patchFile(aboutPagePath, editedContent)
-            await check(() => getBrowserBodyText(browser), /COOL page/)
+            await retry(async () => {
+              expect(await getBrowserBodyText(browser)).toMatch(/COOL page/)
+            })
           } finally {
             // add the original content
             await next.patchFile(aboutPagePath, originalContent)
           }
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         } finally {
           if (browser) {
             await browser.close()
@@ -173,7 +177,9 @@ describe.each([
             await next.patchFile(aboutPagePath, editedContent)
 
             // Check whether the this page has reloaded or not.
-            await check(() => browser.elementByCss('p').text(), /COUNT: 2/)
+            await retry(async () => {
+              expect(await browser.elementByCss('p').text()).toMatch(/COUNT: 2/)
+            })
           } finally {
             // restore the about page content.
             await next.patchFile(aboutPagePath, originalContent)
@@ -206,10 +212,10 @@ describe.each([
 
           try {
             // Check whether the this page has reloaded or not.
-            await check(async () => {
+            await retry(async () => {
               const editedPTag = await browser.elementByCss('.hmr-style-page p')
-              return editedPTag.getComputedCss('font-size')
-            }, /200px/)
+              expect(await editedPTag.getComputedCss('font-size')).toBe('200px')
+            })
           } finally {
             // Finally is used so that we revert the content back to the original regardless of the test outcome
             // restore the about page content.
@@ -243,10 +249,10 @@ describe.each([
           await next.patchFile(pagePath, editedContent)
 
           // Check whether the this page has reloaded or not.
-          await check(async () => {
+          await retry(async () => {
             const editedPTag = await browser.elementByCss('.hmr-style-page p')
-            return editedPTag.getComputedCss('font-size')
-          }, /200px/)
+            expect(await editedPTag.getComputedCss('font-size')).toBe('200px')
+          })
         } finally {
           if (browser) {
             await browser.close()
@@ -386,14 +392,17 @@ describe.each([
           'export default () => (<div id="new-page">the-new-page</div>)'
         )
 
-        await check(() => getBrowserBodyText(browser), /the-new-page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/the-new-page/)
+        })
 
         await next.deleteFile(newPage)
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This page could not be found/
-        )
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This page could not be found/
+          )
+        })
 
         expect(next.cliOutput).toContain('Compiled /_error')
       } catch (err) {
@@ -423,14 +432,17 @@ describe.each([
           'export default () => (<div id="new-page">the-new-page</div>)'
         )
 
-        await check(() => getBrowserBodyText(browser), /the-new-page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/the-new-page/)
+        })
 
         await next.deleteFile(newPage)
 
-        await check(
-          () => getBrowserBodyText(browser),
-          /This page could not be found/
-        )
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This page could not be found/
+          )
+        })
 
         expect(next.cliOutput).toContain('Compiled /_error')
       } catch (err) {
@@ -442,9 +454,8 @@ describe.each([
         }
       }
     })
-
-    // this test fails frequently with turbopack
     ;(process.env.TURBOPACK ? it.skip : it)(
+      // this test fails frequently with turbopack
       'should not continously poll a custom error page',
       async () => {
         const errorPage = join('pages', '_error.js')
@@ -477,7 +488,10 @@ describe.each([
           // navigate to a 404 page
           await webdriver(next.url, basePath + '/does-not-exist')
 
-          await check(() => next.cliOutput, /getInitialProps called/)
+          await retry(() => {
+            // eslint-disable-next-line jest/no-standalone-expect
+            expect(next.cliOutput).toMatch(/getInitialProps called/)
+          })
 
           const outputIndex = next.cliOutput.length
 
@@ -615,17 +629,19 @@ describe.each([
 
           await next.patchFile(aboutPage, aboutContent)
 
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the contact page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the contact page/
+            )
+          })
         } catch (err) {
           await next.patchFile(aboutPage, aboutContent)
           if (browser) {
-            await check(
-              () => getBrowserBodyText(browser),
-              /This is the contact page/
-            )
+            await retry(async () => {
+              expect(await getBrowserBodyText(browser)).toMatch(
+                /This is the contact page/
+              )
+            })
           }
 
           throw err
@@ -643,7 +659,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.url, basePath + '/hmr/about3')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -655,7 +675,11 @@ describe.each([
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
       } finally {
         await next.patchFile(aboutPage, aboutContent)
         if (browser) {
@@ -670,7 +694,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.url, basePath + '/hmr/about4')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -685,14 +713,19 @@ describe.each([
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
         if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         }
 
         throw err
@@ -709,7 +742,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.url, basePath + '/hmr/about5')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -726,15 +763,20 @@ describe.each([
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
 
         if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         }
 
         throw err
@@ -751,7 +793,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.url, basePath + '/hmr/about6')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -769,15 +815,20 @@ describe.each([
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
 
         if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         }
 
         throw err
@@ -795,7 +846,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.url, basePath + '/hmr/about7')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -812,16 +867,21 @@ describe.each([
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
         await assertNoRedbox(browser)
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
 
         if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         }
 
         throw err
@@ -839,7 +899,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.appPort, basePath + '/hmr/about8')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -878,16 +942,21 @@ describe.each([
         }
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
         await assertNoRedbox(browser)
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
 
         if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         }
 
         throw err
@@ -905,7 +974,11 @@ describe.each([
       const aboutContent = await next.readFile(aboutPage)
       try {
         browser = await webdriver(next.appPort, basePath + '/hmr/about9')
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
 
         await next.patchFile(
           aboutPage,
@@ -957,16 +1030,21 @@ describe.each([
 
         await next.patchFile(aboutPage, aboutContent)
 
-        await check(() => getBrowserBodyText(browser), /This is the about page/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(
+            /This is the about page/
+          )
+        })
         await assertNoRedbox(browser)
       } catch (err) {
         await next.patchFile(aboutPage, aboutContent)
 
         if (browser) {
-          await check(
-            () => getBrowserBodyText(browser),
-            /This is the about page/
-          )
+          await retry(async () => {
+            expect(await getBrowserBodyText(browser)).toMatch(
+              /This is the about page/
+            )
+          })
         }
       } finally {
         if (browser) {
@@ -993,19 +1071,23 @@ describe.each([
           errorContent.replace('throw error', 'return {}')
         )
 
-        await check(() => getBrowserBodyText(browser), /Hello/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/Hello/)
+        })
 
         await next.patchFile(erroredPage, errorContent)
 
-        await check(async () => {
+        await retry(async () => {
           await browser.refresh()
           await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
             throw new Error('waiting')
           }
-          return getRedboxSource(browser)
-        }, /an-expected-error-in-gip/)
+          return expect(await getRedboxSource(browser)).toMatch(
+            /an-expected-error-in-gip/
+          )
+        })
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)
 
@@ -1036,19 +1118,23 @@ describe.each([
           errorContent.replace('throw error', 'return {}')
         )
 
-        await check(() => getBrowserBodyText(browser), /Hello/)
+        await retry(async () => {
+          expect(await getBrowserBodyText(browser)).toMatch(/Hello/)
+        })
 
         await next.patchFile(erroredPage, errorContent)
 
-        await check(async () => {
+        await retry(async () => {
           await browser.refresh()
           await waitFor(2000)
           const text = await getBrowserBodyText(browser)
           if (text.includes('Hello')) {
             throw new Error('waiting')
           }
-          return getRedboxSource(browser)
-        }, /an-expected-error-in-gip/)
+          return expect(await getRedboxSource(browser)).toMatch(
+            /an-expected-error-in-gip/
+          )
+        })
       } catch (err) {
         await next.patchFile(erroredPage, errorContent)
 
@@ -1110,10 +1196,11 @@ describe.each([
       const cliWarning =
         'Fast Refresh had to perform a full reload due to a runtime error.'
 
-      await check(
-        () => getRedboxHeader(browser),
-        /ReferenceError: whoops is not defined/
-      )
+      await retry(async () => {
+        expect(await getRedboxHeader(browser)).toMatch(
+          /ReferenceError: whoops is not defined/
+        )
+      })
       expect(next.cliOutput.slice(start)).not.toContain(cliWarning)
 
       const currentFileContent = await next.readFile(
@@ -1171,7 +1258,9 @@ describe.each([
       await assertHasRedbox(browser)
       await waitFor(3000)
       await next.patchFile(pageName, originalContent)
-      await check(() => next.cliOutput.substring(outputLength), /Compiled.*?/i)
+      await retry(async () => {
+        expect(next.cliOutput.substring(outputLength)).toMatch(/Compiled.*?/i)
+      })
       const compileTimeStr = next.cliOutput.substring(outputLength)
 
       const matches = [
@@ -1193,7 +1282,11 @@ describe.each([
     const browser = await webdriver(next.url, basePath + '/hmr/about', {
       headless: false,
     })
-    await check(() => getBrowserBodyText(browser), /This is the about page/)
+    await retry(async () => {
+      expect(await getBrowserBodyText(browser)).toMatch(
+        /This is the about page/
+      )
+    })
 
     await next.destroy()
 

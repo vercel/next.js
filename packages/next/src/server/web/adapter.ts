@@ -222,10 +222,6 @@ export async function adapter(
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
 
-      const isAfterEnabled =
-        params.request.nextConfig?.experimental?.after ??
-        !!process.env.__NEXT_AFTER
-
       const waitUntil = event.waitUntil.bind(event)
       const closeController = new CloseController()
 
@@ -260,7 +256,6 @@ export async function adapter(
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
                 experimental: {
-                  after: isAfterEnabled,
                   isRoutePPREnabled: false,
                   dynamicIO: false,
                   authInterrupts:

@@ -12,15 +12,15 @@ use crate::resolve::ModulePart;
 #[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
-    pub path: Vc<FileSystemPath>,
+    pub path: ResolvedVc<FileSystemPath>,
     /// The query string of the asset (e.g. `?foo=bar`)
-    pub query: Vc<RcStr>,
+    pub query: ResolvedVc<RcStr>,
     /// The fragment of the asset (e.g. `#foo`)
     pub fragment: Option<ResolvedVc<RcStr>>,
     /// The assets that are nested in this asset
     pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
-    pub modifiers: Vec<Vc<RcStr>>,
+    pub modifiers: Vec<ResolvedVc<RcStr>>,
     /// The parts of the asset that are (ECMAScript) modules
     pub parts: Vec<ResolvedVc<ModulePart>>,
     /// The asset layer the asset was created from.
@@ -28,7 +28,7 @@ pub struct AssetIdent {
 }
 
 impl AssetIdent {
-    pub fn add_modifier(&mut self, modifier: Vc<RcStr>) {
+    pub fn add_modifier(&mut self, modifier: ResolvedVc<RcStr>) {
         self.modifiers.push(modifier);
     }
 
@@ -41,7 +41,7 @@ impl AssetIdent {
         let path = self.path.await?;
         self.path = root
             .join(pattern.replace('*', &path.path).into())
-            .resolve()
+            .to_resolved()
             .await?;
         Ok(())
     }
@@ -120,10 +120,10 @@ impl AssetIdent {
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
-    pub fn from_path(path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::new(Value::new(AssetIdent {
             path,
-            query: Vc::<RcStr>::default(),
+            query: ResolvedVc::cell(RcStr::default()),
             fragment: None,
             assets: Vec::new(),
             modifiers: Vec::new(),
@@ -133,14 +133,14 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_query(&self, query: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_query(&self, query: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
         Self::new(Value::new(this))
@@ -154,7 +154,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_path(&self, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
         Self::new(Value::new(this))
@@ -176,12 +176,12 @@ impl AssetIdent {
 
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     pub fn query(&self) -> Vc<RcStr> {
-        self.query
+        *self.query
     }
 
     /// Computes a unique output asset name for the given asset identifier.

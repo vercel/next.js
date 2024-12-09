@@ -130,7 +130,7 @@ impl InstrumentationEndpoint {
         let Some(evaluatable) = ResolvedVc::try_sidecast(module).await? else {
             bail!("Entry module must be evaluatable");
         };
-        evaluatable_assets.push(*evaluatable);
+        evaluatable_assets.push(evaluatable);
 
         let edge_chunking_context = this.project.edge_chunking_context(false);
 

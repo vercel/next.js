@@ -259,7 +259,7 @@ pub async fn get_app_client_references_chunks(
                     let client_chunk_group = client_chunk_group.await?;
 
                     let client_chunks =
-                        current_client_chunks.concatenate(client_chunk_group.assets);
+                        current_client_chunks.concatenate(*client_chunk_group.assets);
                     let client_chunks = client_chunks.to_resolved().await?;
 
                     if is_layout {
@@ -284,7 +284,7 @@ pub async fn get_app_client_references_chunks(
                 if let Some(ssr_chunk_group) = ssr_chunk_group {
                     let ssr_chunk_group = ssr_chunk_group.await?;
 
-                    let ssr_chunks = current_ssr_chunks.concatenate(ssr_chunk_group.assets);
+                    let ssr_chunks = current_ssr_chunks.concatenate(*ssr_chunk_group.assets);
                     let ssr_chunks = ssr_chunks.to_resolved().await?;
 
                     if is_layout {

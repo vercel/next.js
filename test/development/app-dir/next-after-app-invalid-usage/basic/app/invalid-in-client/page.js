@@ -1,6 +1,6 @@
 'use client'
 
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 import { cliLog } from '../../utils/log'
 
 export const dynamic = 'force-dynamic'

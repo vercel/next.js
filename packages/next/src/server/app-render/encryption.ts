@@ -16,7 +16,11 @@ import {
   getServerModuleMap,
   stringToUint8Array,
 } from './encryption-utils'
-import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import {
+  getPrerenderResumeDataCache,
+  getRenderResumeDataCache,
+  workUnitAsyncStorage,
+} from './work-unit-async-storage.external'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -47,6 +51,10 @@ async function decodeActionBoundArg(actionId: string, arg: string) {
   return decrypted.slice(actionId.length)
 }
 
+/**
+ * Encrypt the serialized string with the action id as the salt. Add a prefix to
+ * later ensure that the payload is correctly decrypted, similar to a checksum.
+ */
 async function encodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (key === undefined) {
@@ -73,33 +81,32 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const { clientModules } = getClientReferenceManifestForRsc()
 
-  // An error stack that's created here looks like this:
-  // Error:
-  //     at encryptActionBoundArg
-  //     at <actual userland call site>
-  const stack = new Error().stack!.split('\n').slice(2).join('\n')
+  // Create an error before any asynchrounous calls, to capture the original
+  // call stack in case we need it when the serialization errors.
+  const error = new Error()
+  Error.captureStackTrace(error, encryptActionBoundArgs)
 
-  let error: Error | undefined
+  let didCatchError = false
 
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
     renderToReadableStream(args, clientModules, {
       onError(err) {
         // We're only reporting one error at a time, starting with the first.
-        if (error) {
+        if (didCatchError) {
           return
         }
 
-        // Use the original error message...
-        error = err instanceof Error ? err : new Error(String(err))
-        // ...and attach the previously created stack, because err.stack is a
-        // useless Flight Server call stack.
-        error.stack = stack
+        didCatchError = true
+
+        // Use the original error message together with the previously created
+        // stack, because err.stack is a useless Flight Server call stack.
+        error.message = err instanceof Error ? err.message : String(err)
       },
     })
   )
 
-  if (error) {
+  if (didCatchError) {
     if (process.env.NODE_ENV === 'development') {
       // Logging the error is needed for server functions that are passed to the
       // client where the decryption is not done during rendering. Console
@@ -110,10 +117,33 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
     throw error
   }
 
-  // Encrypt the serialized string with the action id as the salt.
-  // Add a prefix to later ensure that the payload is correctly decrypted, similar
-  // to a checksum.
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  if (!workUnitStore) {
+    return encodeActionBoundArg(actionId, serialized)
+  }
+
+  const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
+  const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+  const cacheKey = actionId + serialized
+
+  const cachedEncrypted =
+    prerenderResumeDataCache?.encryptedBoundArgs.get(cacheKey) ??
+    renderResumeDataCache?.encryptedBoundArgs.get(cacheKey)
+
+  if (cachedEncrypted) {
+    return cachedEncrypted
+  }
+
+  const cacheSignal =
+    workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+
+  cacheSignal?.beginRead()
+
   const encrypted = await encodeActionBoundArg(actionId, serialized)
+
+  cacheSignal?.endRead()
+  prerenderResumeDataCache?.encryptedBoundArgs.set(cacheKey, encrypted)
 
   return encrypted
 }

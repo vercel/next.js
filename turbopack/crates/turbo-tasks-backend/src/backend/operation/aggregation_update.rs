@@ -9,7 +9,10 @@ use indexmap::map::Entry;
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-#[cfg(feature = "trace_aggregation_update")]
+#[cfg(any(
+    feature = "trace_aggregation_update",
+    feature = "trace_find_and_schedule"
+))]
 use tracing::{span::Span, trace_span};
 use turbo_tasks::{FxIndexMap, SessionId, TaskId, TraitTypeId};
 
@@ -230,32 +233,34 @@ impl AggregatedDataUpdate {
                 }
             );
 
-            let dirty_state = get!(task, Dirty).copied();
-            let task_id = task.id();
-            update!(task, AggregatedDirtyContainerCount, |old: Option<
-                DirtyContainerCount,
-            >| {
-                let mut new = old.unwrap_or_default();
-                if let Some(dirty_state) = dirty_state {
-                    new.update_with_dirty_state(&dirty_state);
-                }
-                let aggregated_update = new.update_count(&aggregated_update);
-                if let Some(dirty_state) = dirty_state {
-                    new.undo_update_with_dirty_state(&dirty_state);
-                }
-                if !aggregated_update.is_zero() {
-                    result.dirty_container_update = Some((task_id, aggregated_update));
-                }
-                (!new.is_zero()).then_some(new)
-            });
-            if let Some((_, count)) = result.dirty_container_update.as_ref() {
-                if count.get(session_id) < 0 {
-                    // When the current task is no longer dirty, we need to fire the aggregate root
-                    // events and do some cleanup
-                    if let Some(root_state) = get!(task, AggregateRoot) {
-                        root_state.all_clean_event.notify(usize::MAX);
-                        if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
-                            task.remove(&CachedDataItemKey::AggregateRoot {});
+            if !aggregated_update.is_zero() {
+                let dirty_state = get!(task, Dirty).copied();
+                let task_id = task.id();
+                update!(task, AggregatedDirtyContainerCount, |old: Option<
+                    DirtyContainerCount,
+                >| {
+                    let mut new = old.unwrap_or_default();
+                    if let Some(dirty_state) = dirty_state {
+                        new.update_with_dirty_state(&dirty_state);
+                    }
+                    let aggregated_update = new.update_count(&aggregated_update);
+                    if let Some(dirty_state) = dirty_state {
+                        new.undo_update_with_dirty_state(&dirty_state);
+                    }
+                    if !aggregated_update.is_zero() {
+                        result.dirty_container_update = Some((task_id, aggregated_update));
+                    }
+                    (!new.is_zero()).then_some(new)
+                });
+                if let Some((_, count)) = result.dirty_container_update.as_ref() {
+                    if count.get(session_id) < 0 {
+                        // When the current task is no longer dirty, we need to fire the aggregate
+                        // root events and do some cleanup
+                        if let Some(root_state) = get!(task, AggregateRoot) {
+                            root_state.all_clean_event.notify(usize::MAX);
+                            if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
+                                task.remove(&CachedDataItemKey::AggregateRoot {});
+                            }
                         }
                     }
                 }
@@ -359,8 +364,8 @@ impl AggregationUpdateJobItem {
         }
     }
 
-    fn entered(self) -> AggregationUpdatejobGuard {
-        AggregationUpdatejobGuard {
+    fn entered(self) -> AggregationUpdateJobGuard {
+        AggregationUpdateJobGuard {
             job: self.job,
             #[cfg(feature = "trace_aggregation_update")]
             _guard: self.span.map(|s| s.entered()),
@@ -368,7 +373,7 @@ impl AggregationUpdateJobItem {
     }
 }
 
-struct AggregationUpdatejobGuard {
+struct AggregationUpdateJobGuard {
     job: AggregationUpdateJob,
     #[cfg(feature = "trace_aggregation_update")]
     _guard: Option<tracing::span::EnteredSpan>,
@@ -441,12 +446,45 @@ impl PartialEq for OptimizeJob {
 
 impl Eq for OptimizeJob {}
 
+/// A job to find and schedule dirty tasks that is enqueued. See `find_and_schedule_dirty`.
+#[derive(Serialize, Deserialize, Clone)]
+struct FindAndScheduleJob {
+    task_id: TaskId,
+    #[cfg(feature = "trace_find_and_schedule")]
+    #[serde(skip, default)]
+    span: Option<Span>,
+}
+
+impl FindAndScheduleJob {
+    fn new(task: TaskId) -> Self {
+        Self {
+            task_id: task,
+            #[cfg(feature = "trace_find_and_schedule")]
+            span: Some(Span::current()),
+        }
+    }
+}
+
+impl Hash for FindAndScheduleJob {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.task_id.hash(state);
+    }
+}
+
+impl PartialEq for FindAndScheduleJob {
+    fn eq(&self, other: &Self) -> bool {
+        self.task_id == other.task_id
+    }
+}
+
+impl Eq for FindAndScheduleJob {}
+
 #[derive(Default, Serialize, Deserialize, Clone)]
 pub struct AggregationUpdateQueue {
     jobs: VecDeque<AggregationUpdateJobItem>,
     number_updates: FxIndexMap<TaskId, AggregationNumberUpdate>,
     done_number_updates: FxHashMap<TaskId, AggregationNumberUpdate>,
-    find_and_schedule: DequeSet<TaskId>,
+    find_and_schedule: DequeSet<FindAndScheduleJob>,
     done_find_and_schedule: FxHashSet<TaskId>,
     balance_queue: DequeSet<BalanceJob>,
     optimize_queue: DequeSet<OptimizeJob>,
@@ -535,7 +573,8 @@ impl AggregationUpdateQueue {
 
     pub fn push_find_and_schedule_dirty(&mut self, task_id: TaskId) {
         if !self.done_find_and_schedule.contains(&task_id) {
-            self.find_and_schedule.insert_back(task_id);
+            self.find_and_schedule
+                .insert_back(FindAndScheduleJob::new(task_id));
         }
     }
 
@@ -543,7 +582,8 @@ impl AggregationUpdateQueue {
         self.find_and_schedule.extend(
             task_ids
                 .into_iter()
-                .filter(|task_id| !self.done_find_and_schedule.contains(task_id)),
+                .filter(|task_id| !self.done_find_and_schedule.contains(task_id))
+                .map(FindAndScheduleJob::new),
         );
     }
 
@@ -753,7 +793,14 @@ impl AggregationUpdateQueue {
         } else if !self.find_and_schedule.is_empty() {
             let mut remaining = MAX_COUNT_BEFORE_YIELD;
             while remaining > 0 {
-                if let Some(task_id) = self.find_and_schedule.pop_front() {
+                if let Some(FindAndScheduleJob {
+                    task_id,
+                    #[cfg(feature = "trace_find_and_schedule")]
+                    span,
+                }) = self.find_and_schedule.pop_front()
+                {
+                    #[cfg(feature = "trace_find_and_schedule")]
+                    let _guard = span.map(|s| s.entered());
                     self.find_and_schedule_dirty(task_id, ctx);
                     remaining -= 1;
                 } else {
@@ -902,6 +949,13 @@ impl AggregationUpdateQueue {
     }
 
     fn find_and_schedule_dirty(&mut self, task_id: TaskId, ctx: &mut impl ExecuteContext) {
+        #[cfg(feature = "trace_find_and_schedule")]
+        let _span = trace_span!(
+            "find and schedule",
+            %task_id,
+            name = ctx.get_task_description(task_id)
+        )
+        .entered();
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         let session_id = ctx.session_id();
         // Task need to be scheduled if it's dirty or doesn't have output
@@ -917,11 +971,14 @@ impl AggregationUpdateQueue {
             // if it has an `AggregateRoot` we can skip visiting the nested nodes since
             // this would already be scheduled by the `AggregateRoot`
             if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                task.insert(CachedDataItem::AggregateRoot {
-                    value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
-                });
-                let dirty_containers = iter_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
-                self.find_and_schedule.extend(dirty_containers);
+                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
+                if !dirty_containers.is_empty() || dirty {
+                    task.insert(CachedDataItem::AggregateRoot {
+                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
+                    });
+
+                    self.extend_find_and_schedule_dirty(dirty_containers);
+                }
             }
         }
     }
@@ -1346,7 +1403,7 @@ impl AggregationUpdateQueue {
             }
         }
         if is_aggregate_root {
-            self.find_and_schedule.extend(
+            self.extend_find_and_schedule_dirty(
                 followers_with_aggregation_number
                     .into_iter()
                     .map(|(id, _)| id),
@@ -1378,7 +1435,7 @@ impl AggregationUpdateQueue {
 
         let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
         if upper.has_key(&CachedDataItemKey::AggregateRoot {}) {
-            self.find_and_schedule.insert_back(new_follower_id);
+            self.push_find_and_schedule_dirty(new_follower_id);
         }
         // decide if it should be an inner or follower
         let upper_aggregation_number = get_aggregation_number(&upper);

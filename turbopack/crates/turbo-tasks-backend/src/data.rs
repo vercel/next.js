@@ -496,6 +496,42 @@ impl CachedDataItem {
             listener,
         )
     }
+
+    pub fn category(&self) -> TaskDataCategory {
+        match self {
+            Self::Collectible { .. }
+            | Self::Child { .. }
+            | Self::ChildrenCount { .. }
+            | Self::CellData { .. }
+            | Self::CellTypeMaxIndex { .. }
+            | Self::OutputDependency { .. }
+            | Self::CellDependency { .. }
+            | Self::CollectiblesDependency { .. }
+            | Self::OutputDependent { .. }
+            | Self::CellDependent { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+
+            Self::Output { .. }
+            | Self::AggregationNumber { .. }
+            | Self::Dirty { .. }
+            | Self::Follower { .. }
+            | Self::Upper { .. }
+            | Self::PersistentUpperCount { .. }
+            | Self::AggregatedDirtyContainer { .. }
+            | Self::AggregatedCollectible { .. }
+            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+
+            Self::OutdatedCollectible { .. }
+            | Self::OutdatedOutputDependency { .. }
+            | Self::OutdatedCellDependency { .. }
+            | Self::OutdatedCollectiblesDependency { .. }
+            | Self::OutdatedChild { .. }
+            | Self::InProgressCell { .. }
+            | Self::InProgress { .. }
+            | Self::Error { .. }
+            | Self::AggregateRoot { .. } => TaskDataCategory::All,
+        }
+    }
 }
 
 impl CachedDataItemKey {
@@ -543,36 +579,37 @@ impl CachedDataItemKey {
 
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            CachedDataItemKey::Collectible { .. }
-            | CachedDataItemKey::Child { .. }
-            | CachedDataItemKey::ChildrenCount { .. }
-            | CachedDataItemKey::CellData { .. }
-            | CachedDataItemKey::CellTypeMaxIndex { .. }
-            | CachedDataItemKey::OutputDependency { .. }
-            | CachedDataItemKey::CellDependency { .. }
-            | CachedDataItemKey::CollectiblesDependency { .. }
-            | CachedDataItemKey::OutputDependent { .. }
-            | CachedDataItemKey::CellDependent { .. }
-            | CachedDataItemKey::CollectiblesDependent { .. }
-            | CachedDataItemKey::InProgress { .. }
-            | CachedDataItemKey::InProgressCell { .. }
-            | CachedDataItemKey::OutdatedCollectible { .. }
-            | CachedDataItemKey::OutdatedOutputDependency { .. }
-            | CachedDataItemKey::OutdatedCellDependency { .. }
-            | CachedDataItemKey::OutdatedCollectiblesDependency { .. }
-            | CachedDataItemKey::OutdatedChild { .. }
-            | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
+            Self::Collectible { .. }
+            | Self::Child { .. }
+            | Self::ChildrenCount { .. }
+            | Self::CellData { .. }
+            | Self::CellTypeMaxIndex { .. }
+            | Self::OutputDependency { .. }
+            | Self::CellDependency { .. }
+            | Self::CollectiblesDependency { .. }
+            | Self::OutputDependent { .. }
+            | Self::CellDependent { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
 
-            CachedDataItemKey::Output { .. }
-            | CachedDataItemKey::AggregationNumber { .. }
-            | CachedDataItemKey::Dirty { .. }
-            | CachedDataItemKey::Follower { .. }
-            | CachedDataItemKey::Upper { .. }
-            | CachedDataItemKey::PersistentUpperCount { .. }
-            | CachedDataItemKey::AggregatedDirtyContainer { .. }
-            | CachedDataItemKey::AggregatedCollectible { .. }
-            | CachedDataItemKey::AggregatedDirtyContainerCount { .. }
-            | CachedDataItemKey::AggregateRoot { .. } => TaskDataCategory::Meta,
+            Self::Output { .. }
+            | Self::AggregationNumber { .. }
+            | Self::Dirty { .. }
+            | Self::Follower { .. }
+            | Self::Upper { .. }
+            | Self::PersistentUpperCount { .. }
+            | Self::AggregatedDirtyContainer { .. }
+            | Self::AggregatedCollectible { .. }
+            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+
+            Self::OutdatedCollectible { .. }
+            | Self::OutdatedOutputDependency { .. }
+            | Self::OutdatedCellDependency { .. }
+            | Self::OutdatedCollectiblesDependency { .. }
+            | Self::OutdatedChild { .. }
+            | Self::InProgressCell { .. }
+            | Self::InProgress { .. }
+            | Self::Error { .. }
+            | Self::AggregateRoot { .. } => TaskDataCategory::All,
         }
     }
 }

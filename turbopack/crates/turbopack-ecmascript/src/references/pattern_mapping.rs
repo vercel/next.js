@@ -322,11 +322,11 @@ async fn to_single_pattern_mapping(
         | ModuleResolveResultItem::Custom(_) => {
             // TODO implement mapping
             CodeGenerationIssue {
-                severity: IssueSeverity::Bug.into(),
+                severity: IssueSeverity::Bug.resolved_cell(),
                 title: StyledString::Text(
                     "pattern mapping is not implemented for this result".into(),
                 )
-                .cell(),
+                .resolved_cell(),
                 message: StyledString::Text(
                     format!(
                         "the reference resolves to a non-trivial result, which is not supported \
@@ -335,8 +335,8 @@ async fn to_single_pattern_mapping(
                     )
                     .into(),
                 )
-                .cell(),
-                path: origin.origin_path(),
+                .resolved_cell(),
+                path: origin.origin_path().to_resolved().await?,
             }
             .cell()
             .emit();
@@ -360,13 +360,13 @@ async fn to_single_pattern_mapping(
         }
     }
     CodeGenerationIssue {
-        severity: IssueSeverity::Bug.into(),
-        title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
+        severity: IssueSeverity::Bug.resolved_cell(),
+        title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
         message: StyledString::Text(
             "asset is not placeable in ESM chunks, so it doesn't have a module id".into(),
         )
-        .cell(),
-        path: origin.origin_path(),
+        .resolved_cell(),
+        path: origin.origin_path().to_resolved().await?,
     }
     .cell()
     .emit();

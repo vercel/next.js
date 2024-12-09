@@ -126,13 +126,15 @@ impl ChunkItem for WorkerLoaderChunkItem {
                 .await?
                 .iter()
                 .copied()
-                .map(|chunk| {
-                    Vc::upcast(SingleOutputAssetReference::new(
-                        *chunk,
-                        chunk_reference_description(),
+                .map(|chunk| async move {
+                    Ok(ResolvedVc::upcast(
+                        SingleOutputAssetReference::new(*chunk, chunk_reference_description())
+                            .to_resolved()
+                            .await?,
                     ))
                 })
-                .collect(),
+                .try_join()
+                .await?,
         ))
     }
 

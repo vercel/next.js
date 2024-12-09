@@ -1,4 +1,7 @@
-import { findSourceMap, type SourceMapPayload } from 'module'
+import {
+  findSourceMap as nativeFindSourceMap,
+  type SourceMapPayload,
+} from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -8,6 +11,21 @@ import { parseStack } from '../client/components/react-dev-overlay/server/middle
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
+
+type FindSourceMapPayload = (
+  sourceURL: string
+) => ModernSourceMapPayload | undefined
+// Find a source map using the bundler's API.
+// This is only a fallback for when Node.js fails to due to bugs e.g. https://github.com/nodejs/node/issues/52102
+// TODO: Remove once all supported Node.js versions are fixed.
+// TODO(veil): Set from Webpack as well
+let bundlerFindSourceMapPayload: FindSourceMapPayload = () => undefined
+
+export function setBundlerFindSourceMapImplementation(
+  findSourceMapImplementation: FindSourceMapPayload
+): void {
+  bundlerFindSourceMapPayload = findSourceMapImplementation
+}
 
 /**
  * https://tc39.es/source-map/#index-map
@@ -31,7 +49,7 @@ interface ModernRawSourceMap extends SourceMapPayload {
   ignoreList?: number[]
 }
 
-type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
+export type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
 
 interface IgnoreableStackFrame extends StackFrame {
   ignored: boolean
@@ -138,28 +156,37 @@ function getSourcemappedFrameIfPossible(
   }
 
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
-  let sourceMap: SyncSourceMapConsumer
+  let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    const moduleSourceMap = findSourceMap(frame.file)
-    if (moduleSourceMap === undefined) {
+    let sourceURL = frame.file
+    // e.g. "/APP/.next/server/chunks/ssr/[root of the server]__2934a0._.js"
+    // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root%20of%20the%20server]__2934a0._.js".
+    // This is likely caused by `callsite.toString()` in `Error.prepareStackTrace converting file URLs to paths.
+    if (sourceURL.startsWith('/')) {
+      sourceURL = url.pathToFileURL(frame.file).toString()
+    }
+    const maybeSourceMapPayload =
+      nativeFindSourceMap(sourceURL)?.payload ??
+      bundlerFindSourceMapPayload(sourceURL)
+    if (maybeSourceMapPayload === undefined) {
       return null
     }
-    sourceMapPayload = moduleSourceMap.payload
-    sourceMap = new SyncSourceMapConsumer(
+    sourceMapPayload = maybeSourceMapPayload
+    sourceMapConsumer = new SyncSourceMapConsumer(
       // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
       sourceMapPayload
     )
     sourceMapCache.set(frame.file, {
-      map: sourceMap,
+      map: sourceMapConsumer,
       payload: sourceMapPayload,
     })
   } else {
-    sourceMap = sourceMapCacheEntry.map
+    sourceMapConsumer = sourceMapCacheEntry.map
     sourceMapPayload = sourceMapCacheEntry.payload
   }
 
-  const sourcePosition = sourceMap.originalPositionFor({
+  const sourcePosition = sourceMapConsumer.originalPositionFor({
     column: frame.column ?? 0,
     line: frame.lineNumber ?? 1,
   })
@@ -169,7 +196,7 @@ function getSourcemappedFrameIfPossible(
   }
 
   const sourceContent: string | null =
-    sourceMap.sourceContentFor(
+    sourceMapConsumer.sourceContentFor(
       sourcePosition.source,
       /* returnNullOnMissing */ true
     ) ?? null

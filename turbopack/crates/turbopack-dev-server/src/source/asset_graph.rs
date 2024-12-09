@@ -317,9 +317,9 @@ impl Introspectable for AssetGraphContentSource {
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let this = self.await?;
-        let key = Vc::cell("root".into());
-        let inner_key = Vc::cell("inner".into());
-        let expanded_key = Vc::cell("expanded".into());
+        let key = ResolvedVc::cell("root".into());
+        let inner_key = ResolvedVc::cell("inner".into());
+        let expanded_key = ResolvedVc::cell("expanded".into());
 
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets.iter().map(|&asset| {
@@ -375,7 +375,7 @@ impl Introspectable for FullyExpaned {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let source = self.0.await?;
-        let key = Vc::cell("asset".into());
+        let key = ResolvedVc::cell("asset".into());
 
         let expanded_assets =
             expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
