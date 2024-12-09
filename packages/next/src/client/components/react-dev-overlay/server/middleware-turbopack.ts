@@ -19,13 +19,28 @@ import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
 import { pathToFileURL } from 'node:url'
+import isError from '../../../../lib/is-error'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
     modulePath.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist')
+    modulePath.includes('next/dist') ||
+    modulePath.startsWith('node:')
   )
+}
+
+function createIgnoredStackFrame(
+  frame: TurbopackStackFrame
+): IgnorableStackFrame {
+  return {
+    file: frame.file,
+    lineNumber: frame.line ?? 0,
+    column: frame.column ?? 0,
+    methodName: frame.methodName ?? '<unknown>',
+    ignored: shouldIgnorePath(frame.file),
+    arguments: [],
+  }
 }
 
 type IgnorableStackFrame = StackFrame & { ignored: boolean }
@@ -46,14 +61,7 @@ export async function batchedTraceSource(
   const sourceFrame = await project.traceSource(frame, currentDirectoryFileUrl)
   if (!sourceFrame) {
     return {
-      frame: {
-        file,
-        lineNumber: frame.line ?? 0,
-        column: frame.column ?? 0,
-        methodName: frame.methodName ?? '<unknown>',
-        ignored: shouldIgnorePath(frame.file),
-        arguments: [],
-      },
+      frame: createIgnoredStackFrame(frame),
       source: null,
     }
   }
@@ -80,19 +88,7 @@ export async function batchedTraceSource(
   }
 
   // TODO: get ignoredList from turbopack source map
-  const ignorableFrame = {
-    file: sourceFrame.file,
-    lineNumber: sourceFrame.line ?? 0,
-    column: sourceFrame.column ?? 0,
-    methodName:
-      // We ignore the sourcemapped name since it won't be the correct name.
-      // The callsite will point to the column of the variable name instead of the
-      // name of the enclosing function.
-      // TODO(NDX-531): Spy on prepareStackTrace to get the enclosing line number for method name mapping.
-      frame.methodName ?? '<unknown>',
-    ignored,
-    arguments: [],
-  }
+  const ignorableFrame = createIgnoredStackFrame(frame)
 
   return {
     frame: ignorableFrame,
@@ -268,18 +264,33 @@ async function createOriginalStackFrame(
   project: Project,
   frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
-  const traced =
-    (await nativeTraceSource(frame)) ??
-    // TODO(veil): When would the bundler know more than native?
-    // If it's faster, try the bundler first and fall back to native later.
-    (await batchedTraceSource(project, frame))
-  if (!traced) {
-    return null
-  }
+  try {
+    const traced =
+      (await nativeTraceSource(frame)) ??
+      // TODO(veil): When would the bundler know more than native?
+      // If it's faster, try the bundler first and fall back to native later.
+      (await batchedTraceSource(project, frame))
+    if (!traced) {
+      return null
+    }
 
-  return {
-    originalStackFrame: traced.frame,
-    originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
+    return {
+      originalStackFrame: traced.frame,
+      originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),
+    }
+  } catch (e) {
+    // FIXME: avoid the error [Error: Unknown url scheme] { code: 'GenericFailure' }
+    if (
+      isError(e) &&
+      e.message === 'Unknown url scheme' &&
+      (e as any).code === 'GenericFailure'
+    ) {
+      return {
+        originalStackFrame: createIgnoredStackFrame(frame),
+        originalCodeFrame: null,
+      }
+    }
+    throw e
   }
 }
 

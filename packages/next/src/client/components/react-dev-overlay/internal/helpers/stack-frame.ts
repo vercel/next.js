@@ -60,7 +60,6 @@ function getOriginalStackFrame(
   // TODO: merge this section into ignoredList handling
   if (
     source.file === 'file://' ||
-    source.file?.match(/^node:/) ||
     source.file?.match(/https?:\/\//)
   ) {
     return Promise.resolve({
