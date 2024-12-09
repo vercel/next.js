@@ -6519,11 +6519,11 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/yarn-pnp/test/with-next-sass.test.ts": {
+    "test/e2e/yarn-pnp/test/with-sass.test.ts": {
       "passed": [],
       "failed": [],
       "pending": [
-        "yarn PnP should compile and serve the index page correctly with-next-sass"
+        "yarn PnP should compile and serve the index page correctly with-sass"
       ],
       "flakey": [],
       "runtimeError": false
