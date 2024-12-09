@@ -121,7 +121,7 @@ export async function POST(request) {
 }
 ```
 
-However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/building-your-application/rendering/server-components). This is because `after` runs after React's rendering lifecycle. Accessing the request APIs would interfer with [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering) and [Streaming](/docs/app/getting-started/data-fetching-and-streaming#streaming).
+However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/building-your-application/rendering/server-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), but `after` runs after React's rendering lifecycle.
 
 | Version History | Description                  |
 | --------------- | ---------------------------- |
