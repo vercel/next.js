@@ -303,6 +303,9 @@ importers:
       execa:
         specifier: 2.0.3
         version: 2.0.3
+      expect:
+        specifier: 29.7.0
+        version: 29.7.0
       expect-type:
         specifier: 0.14.2
         version: 0.14.2
@@ -372,6 +375,9 @@ importers:
       jest-junit:
         specifier: 16.0.0
         version: 16.0.0
+      jest-snapshot:
+        specifier: 30.0.0-alpha.6
+        version: 30.0.0-alpha.6
       json5:
         specifier: 2.2.3
         version: 2.2.3
@@ -21925,7 +21931,7 @@ snapshots:
 
   '@types/jest@29.5.5':
     dependencies:
-      expect: 29.5.0
+      expect: 29.7.0
       pretty-format: 29.5.0
 
   '@types/jscodeshift@0.11.0':

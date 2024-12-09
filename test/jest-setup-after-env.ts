@@ -1,6 +1,7 @@
 // @ts-ignore
 import * as matchers from 'jest-extended'
 import '@testing-library/jest-dom'
+import './lib/add-redbox-matchers'
 expect.extend(matchers)
 
 // A default max-timeout of 90 seconds is allowed
