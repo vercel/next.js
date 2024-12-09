@@ -142,7 +142,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
             // styled-jsx specific resolve error has its own message
             skip_context_message: self.invalid_import == "styled-jsx",
         }
-        .cell()
+        .resolved_cell()
         .emit();
 
         ResolveResultOption::some(
@@ -383,7 +383,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
 
                 if let Some(sub_path) = sub_path {
                     ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
-                        .cell()
+                        .resolved_cell()
                         .emit();
                 }
             }
