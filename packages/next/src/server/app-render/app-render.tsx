@@ -10,6 +10,7 @@ import type {
   RSCPayload,
   FlightData,
   InitialRSCPayload,
+  FlightDataPath,
 } from './types'
 import {
   workAsyncStorage,
@@ -79,6 +80,7 @@ import {
   createHTMLErrorHandler,
   type DigestedError,
   isUserLandError,
+  getDigestForWellKnownError,
 } from './create-error-handler'
 import {
   getShortDynamicParamType,
@@ -151,6 +153,7 @@ import { getRevalidateReason } from '../instrumentation/utils'
 import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import type { FallbackRouteParams } from '../request/fallback-params'
 import { DynamicServerError } from '../../client/components/hooks-server-context'
+import { ServerPrerenderStreamResult } from './app-render-prerender-utils'
 import {
   type ReactServerPrerenderResult,
   ReactServerResult,
@@ -569,7 +572,7 @@ async function generateDynamicFlightRenderResult(
       ctx.clientReferenceManifest,
       ctx.workStore.route,
       requestStore
-    )
+    ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
   }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
@@ -780,6 +783,16 @@ async function getRSCPayload(
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
 
+  // Assume the head we're rendering contains only partial data if PPR is
+  // enabled and this is a statically generated response. This is used by the
+  // client Segment Cache after a prefetch to determine if it can skip the
+  // second request to fill in the dynamic data.
+  //
+  // See similar comment in create-component-tree.tsx for more context.
+  const isPossiblyPartialHead =
+    workStore.isStaticGeneration &&
+    ctx.renderOpts.experimental.isRoutePPREnabled === true
+
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
@@ -787,7 +800,14 @@ async function getRSCPayload(
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
-    f: [[initialTree, seedData, initialHead]],
+    f: [
+      [
+        initialTree,
+        seedData,
+        initialHead,
+        isPossiblyPartialHead,
+      ] as FlightDataPath,
+    ],
     m: missingSlots,
     G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
@@ -872,9 +892,14 @@ async function getErrorRSCPayload(
     </html>,
     {},
     null,
+    false,
   ]
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
+
+  const isPossiblyPartialHead =
+    workStore.isStaticGeneration &&
+    ctx.renderOpts.experimental.isRoutePPREnabled === true
 
   return {
     b: ctx.renderOpts.buildId,
@@ -882,7 +907,14 @@ async function getErrorRSCPayload(
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
     i: false,
-    f: [[initialTree, initialSeedData, initialHead]],
+    f: [
+      [
+        initialTree,
+        initialSeedData,
+        initialHead,
+        isPossiblyPartialHead,
+      ] as FlightDataPath,
+    ],
     G: [GlobalError, globalErrorStyles],
     s: typeof ctx.renderOpts.postponed === 'string',
     S: workStore.isStaticGeneration,
@@ -1663,7 +1695,7 @@ async function renderToStream(
         clientReferenceManifest,
         workStore.route,
         requestStore
-      )
+      ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
 
       reactServerResult = new ReactServerResult(reactServerStream)
     } else {
@@ -2058,7 +2090,13 @@ async function spawnDynamicValidationInDev(
       firstAttemptRSCPayload,
       clientReferenceManifest.clientModules,
       {
-        onError: (err: unknown) => {
+        onError: (err) => {
+          const digest = getDigestForWellKnownError(err)
+
+          if (digest) {
+            return digest
+          }
+
           if (
             initialServerPrerenderController.signal.aborted ||
             initialServerRenderController.signal.aborted
@@ -2116,7 +2154,13 @@ async function spawnDynamicValidationInDev(
       />,
       {
         signal: initialClientController.signal,
-        onError: (err: unknown, _errorInfo: ErrorInfo) => {
+        onError: (err) => {
+          const digest = getDigestForWellKnownError(err)
+
+          if (digest) {
+            return digest
+          }
+
           if (initialClientController.signal.aborted) {
             // These are expected errors that might error the prerender. we ignore them.
           } else if (
@@ -2209,12 +2253,15 @@ async function spawnDynamicValidationInDev(
         finalServerPayload,
         clientReferenceManifest.clientModules,
         {
-          onError: (err: unknown) => {
-            if (finalServerController.signal.aborted) {
-              if (isPrerenderInterruptedError(err)) {
-                return err.digest
-              }
+          onError: (err) => {
+            if (
+              finalServerController.signal.aborted &&
+              isPrerenderInterruptedError(err)
+            ) {
+              return err.digest
             }
+
+            return getDigestForWellKnownError(err)
           },
           signal: finalServerController.signal,
         }
@@ -2242,15 +2289,14 @@ async function spawnDynamicValidationInDev(
           />,
           {
             signal: finalClientController.signal,
-            onError: (err: unknown, errorInfo: ErrorInfo) => {
+            onError: (err, errorInfo) => {
               if (
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
               ) {
                 requestStore.usedDynamic = true
 
-                const componentStack: string | undefined = (errorInfo as any)
-                  .componentStack
+                const componentStack = errorInfo.componentStack
                 if (typeof componentStack === 'string') {
                   trackAllowedDynamicAccess(
                     route,
@@ -2262,6 +2308,8 @@ async function spawnDynamicValidationInDev(
                 }
                 return
               }
+
+              return getDigestForWellKnownError(err)
             },
           }
         ),
@@ -2414,7 +2462,10 @@ async function prerenderToStream(
     onHTMLRenderSSRError
   )
 
-  let reactServerPrerenderResult: null | ReactServerPrerenderResult = null
+  let reactServerPrerenderResult:
+    | null
+    | ReactServerPrerenderResult
+    | ServerPrerenderStreamResult = null
   const setHeader = (name: string, value: string | string[]) => {
     res.setHeader(name, value)
 
@@ -2495,7 +2546,13 @@ async function prerenderToStream(
           initialServerPayload,
           clientReferenceManifest.clientModules,
           {
-            onError: (err: unknown) => {
+            onError: (err) => {
+              const digest = getDigestForWellKnownError(err)
+
+              if (digest) {
+                return digest
+              }
+
               if (initialServerPrerenderController.signal.aborted) {
                 // The render aborted before this error was handled which indicates
                 // the error is caused by unfinished components within the render
@@ -2582,7 +2639,13 @@ async function prerenderToStream(
                 />,
                 {
                   signal: initialClientController.signal,
-                  onError: (err: unknown, _errorInfo: ErrorInfo) => {
+                  onError: (err) => {
+                    const digest = getDigestForWellKnownError(err)
+
+                    if (digest) {
+                      return digest
+                    }
+
                     if (initialClientController.signal.aborted) {
                       // These are expected errors that might error the prerender. we ignore them.
                     } else if (
@@ -2969,7 +3032,13 @@ async function prerenderToStream(
             firstAttemptRSCPayload,
             clientReferenceManifest.clientModules,
             {
-              onError: (err: unknown) => {
+              onError: (err) => {
+                const digest = getDigestForWellKnownError(err)
+
+                if (digest) {
+                  return digest
+                }
+
                 if (
                   initialServerPrerenderController.signal.aborted ||
                   initialServerRenderController.signal.aborted
@@ -3027,7 +3096,13 @@ async function prerenderToStream(
             />,
             {
               signal: initialClientController.signal,
-              onError: (err: unknown, _errorInfo: ErrorInfo) => {
+              onError: (err) => {
+                const digest = getDigestForWellKnownError(err)
+
+                if (digest) {
+                  return digest
+                }
+
                 if (initialClientController.signal.aborted) {
                   // These are expected errors that might error the prerender. we ignore them.
                 } else if (
@@ -3125,33 +3200,34 @@ async function prerenderToStream(
           res.statusCode === 404
         )
 
-        const serverPrerenderStreamResult = await prerenderServerWithPhases(
-          finalServerController.signal,
-          () =>
-            workUnitAsyncStorage.run(
-              finalServerPrerenderStore,
-              ComponentMod.renderToReadableStream,
-              finalServerPayload,
-              clientReferenceManifest.clientModules,
-              {
-                onError: (err: unknown) => {
-                  if (finalServerController.signal.aborted) {
-                    serverIsDynamic = true
-                    if (isPrerenderInterruptedError(err)) {
-                      return err.digest
+        const serverPrerenderStreamResult = (reactServerPrerenderResult =
+          await prerenderServerWithPhases(
+            finalServerController.signal,
+            () =>
+              workUnitAsyncStorage.run(
+                finalServerPrerenderStore,
+                ComponentMod.renderToReadableStream,
+                finalServerPayload,
+                clientReferenceManifest.clientModules,
+                {
+                  onError: (err: unknown) => {
+                    if (finalServerController.signal.aborted) {
+                      serverIsDynamic = true
+                      if (isPrerenderInterruptedError(err)) {
+                        return err.digest
+                      }
+                      return getDigestForWellKnownError(err)
                     }
-                    return
-                  }
 
-                  return serverComponentsErrorHandler(err)
-                },
-                signal: finalServerController.signal,
-              }
-            ),
-          () => {
-            finalServerController.abort()
-          }
-        )
+                    return serverComponentsErrorHandler(err)
+                  },
+                  signal: finalServerController.signal,
+                }
+              ),
+            () => {
+              finalServerController.abort()
+            }
+          ))
 
         let htmlStream
         const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
@@ -3734,6 +3810,14 @@ async function prerenderToStream(
       }
 
       const validateRootLayout = renderOpts.dev
+
+      // This is intentionally using the readable datastream from the main
+      // render rather than the flight data from the error page render
+      const flightStream =
+        reactServerPrerenderResult instanceof ServerPrerenderStreamResult
+          ? reactServerPrerenderResult.asStream()
+          : reactServerPrerenderResult.consumeAsStream()
+
       return {
         // Returning the error that was thrown so it can be used to handle
         // the response in the caller.
@@ -3741,10 +3825,7 @@ async function prerenderToStream(
         ssrErrors: allCapturedErrors,
         stream: await continueFizzStream(fizzStream, {
           inlinedDataStream: createInlinedDataReadableStream(
-            // This is intentionally using the readable datastream from the
-            // main render rather than the flight data from the error page
-            // render
-            reactServerPrerenderResult.consumeAsStream(),
+            flightStream,
             ctx.nonce,
             formState
           ),

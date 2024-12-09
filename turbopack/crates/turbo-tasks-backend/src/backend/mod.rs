@@ -1592,7 +1592,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
-            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);

@@ -24,7 +24,7 @@ impl<T, B: BuildHasher + Default> Default for DequeSet<T, B> {
     fn default() -> Self {
         Self {
             set: Default::default(),
-            queue: Default::default(),
+            queue: VecDeque::with_capacity(0),
         }
     }
 }

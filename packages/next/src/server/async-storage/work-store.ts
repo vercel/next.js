@@ -33,7 +33,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'after' | 'dynamicIO' | 'authInterrupts'
+      'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts'
     >
 
     /**
@@ -127,16 +127,10 @@ export function createWorkStore({
   return store
 }
 
-function createAfterContext(
-  renderOpts: RequestLifecycleOpts & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-  }
-): AfterContext {
-  const isEnabled = renderOpts?.experimental?.after ?? false
+function createAfterContext(renderOpts: RequestLifecycleOpts): AfterContext {
   const { waitUntil, onClose, onAfterTaskError } = renderOpts
   return new AfterContext({
     waitUntil,
-    isEnabled,
     onClose,
     onTaskError: onAfterTaskError,
   })

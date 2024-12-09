@@ -83,7 +83,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
                  platform."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }

@@ -126,7 +126,7 @@ impl ConnectChildOperation {
             drop(parent_task);
 
             {
-                let mut task = ctx.task(child_task_id, TaskDataCategory::Data);
+                let mut task = ctx.task(child_task_id, TaskDataCategory::Meta);
                 if !task.has_key(&CachedDataItemKey::Output {}) {
                     let description = ctx.get_task_desc_fn(child_task_id);
                     let should_schedule = task.add(CachedDataItem::new_scheduled(description));

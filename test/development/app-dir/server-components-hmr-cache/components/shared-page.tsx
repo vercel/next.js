@@ -1,5 +1,5 @@
 import Link from 'next/link'
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 import React from 'react'
 import { fetchRandomValue } from '../lib/fetch-random-value'
 import { RefreshButton } from './refresh-button'

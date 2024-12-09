@@ -4,7 +4,8 @@
 
 use anyhow::Result;
 use turbo_tasks::{
-    debug::ValueDebug, test_helpers::current_task_for_testing, ResolvedValue, ValueDefault, Vc,
+    debug::ValueDebug, test_helpers::current_task_for_testing, ResolvedValue, ResolvedVc,
+    ValueDefault, Vc,
 };
 use turbo_tasks_testing::{register, run, Registration};
 
@@ -111,7 +112,7 @@ async fn test_get_task_id() -> Result<()> {
 struct Untracked {
     #[turbo_tasks(debug_ignore, trace_ignore)]
     #[serde(skip)]
-    cell: Vc<u32>,
+    cell: ResolvedVc<u32>,
 }
 
 unsafe impl ResolvedValue for Untracked {}
@@ -126,11 +127,13 @@ impl Eq for Untracked {}
 
 #[turbo_tasks::function(local_cells)]
 async fn get_untracked_local_cell() -> Vc<Untracked> {
-    Untracked { cell: Vc::cell(42) }
-        .cell()
-        .resolve()
-        .await
-        .unwrap()
+    Untracked {
+        cell: ResolvedVc::cell(42),
+    }
+    .cell()
+    .resolve()
+    .await
+    .unwrap()
 }
 
 #[ignore]
@@ -155,7 +158,7 @@ async fn test_panics_on_local_cell_escape_read() {
 #[should_panic(expected = "Local Vcs must only be accessed within their own task")]
 async fn test_panics_on_local_cell_escape_get_task_id() {
     run(&REGISTRATION, || async {
-        Vc::into_raw(get_untracked_local_cell().await.unwrap().cell).get_task_id();
+        Vc::into_raw(*get_untracked_local_cell().await.unwrap().cell).get_task_id();
         Ok(())
     })
     .await

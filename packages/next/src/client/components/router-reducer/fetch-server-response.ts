@@ -278,7 +278,7 @@ export function createFromNextReadableStream(
   })
 }
 
-export function createUnclosingPrefetchStream(
+function createUnclosingPrefetchStream(
   originalFlightStream: ReadableStream<Uint8Array>
 ): ReadableStream<Uint8Array> {
   // When PPR is enabled, prefetch streams may contain references that never

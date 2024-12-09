@@ -143,14 +143,14 @@ describe('Error Overlay for server components compiler errors in pages', () => {
     }
   })
 
-  test("importing unstable_after from 'next/server' in pages", async () => {
+  test("importing after from 'next/server' in pages", async () => {
     await using sandbox = await createSandbox(next, initialFiles)
     const { session } = sandbox
 
     await next.patchFile(
       'components/Comp.js',
       outdent`
-        import { unstable_after } from 'next/server'
+        import { after } from 'next/server'
 
         export default function Page() {
           return 'hello world'
@@ -168,13 +168,13 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         .toMatchInlineSnapshot(`
         "./components/Comp.js:1:10
         Ecmascript file had an error
-        > 1 | import { unstable_after } from 'next/server'
-            |          ^^^^^^^^^^^^^^
+        > 1 | import { after } from 'next/server'
+            |          ^^^^^
           2 |
           3 | export default function Page() {
           4 |   return 'hello world'
 
-        You're importing a component that needs "unstable_after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
+        You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components"
       `)
     } else {
       expect(
@@ -184,13 +184,13 @@ describe('Error Overlay for server components compiler errors in pages', () => {
         )
       ).toMatchInlineSnapshot(`
         "./components/Comp.js
-        Error:   x You're importing a component that needs "unstable_after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-
-          | your-application/rendering/server-components
+        Error:   x You're importing a component that needs "after". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-
+          | application/rendering/server-components
           | 
           | 
            ,-[1:1]
-         1 | import { unstable_after } from 'next/server'
-           :          ^^^^^^^^^^^^^^
+         1 | import { after } from 'next/server'
+           :          ^^^^^
          2 | 
          3 | export default function Page() {
          4 |   return 'hello world'

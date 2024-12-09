@@ -53,8 +53,8 @@ impl Module for IncludeModulesModule {
             self.modules
                 .iter()
                 .map(|&module| async move {
-                    Ok(Vc::upcast(
-                        IncludedModuleReference::new(*module).resolve().await?,
+                    Ok(ResolvedVc::upcast(
+                        IncludedModuleReference::new(*module).to_resolved().await?,
                     ))
                 })
                 .try_join()

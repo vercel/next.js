@@ -70,15 +70,15 @@ const isOwnerStackEnabled =
 
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at Page (app/rsc/page.js (11:7))"`
+          `"at Page (app/rsc/page.js (11:8))"`
         )
         expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.js (5:10) @ Inner
+          "app/rsc/page.js (5:11) @ Inner
 
             3 | // Intermediate component for testing owner stack
             4 | function Inner() {
           > 5 |   return <Foo />
-              |          ^
+              |           ^
             6 | }
             7 |
             8 | export default function Page() {"
