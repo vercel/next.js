@@ -28,6 +28,7 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
+    analyzer::graph::EvalContext,
     chunk::{EcmascriptChunkPlaceable, EcmascriptExports},
     code_gen::{CodeGeneration, CodeGenerationHoistedStmt},
     magic_identifier,
@@ -431,6 +432,8 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
     pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    #[turbo_tasks(debug_ignore, trace_ignore)]
+    pub eval_context: EvalContext,
 }
 
 /// The expanded version of [`EsmExports`], the `exports` field here includes all exports that could
