@@ -43,18 +43,16 @@ pub async fn module_references(
                 runtime,
                 transforms,
             };
-            let handler = Handler::with_emitter(
-                true,
-                false,
-                Box::new(IssueEmitter::new(
-                    source,
-                    source_map.clone(),
-                    Some("Parsing webpack bundle failed".into()),
-                )),
+            let (emitter, collector) = IssueEmitter::new(
+                source,
+                source_map.clone(),
+                Some("Parsing webpack bundle failed".into()),
             );
+            let handler = Handler::with_emitter(true, false, Box::new(emitter));
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
+            collector.emit().await?;
             Ok(Vc::cell(references))
         }
         ParseResult::Unparseable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),

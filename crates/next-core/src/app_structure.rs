@@ -565,7 +565,7 @@ fn conflict_issue(
         .resolved_cell(),
         severity: IssueSeverity::Error.resolved_cell(),
     }
-    .cell()
+    .resolved_cell()
     .emit();
 }
 
@@ -803,7 +803,7 @@ async fn check_duplicate(
                     app_dir: app_dir.to_resolved().await?,
                     page: loader_tree.page.clone(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }

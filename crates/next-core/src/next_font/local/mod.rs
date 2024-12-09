@@ -119,7 +119,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                                 origin_path: lookup_path,
                                 font_path: ResolvedVc::cell(font_path.clone()),
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
 
                             return Ok(ResolveResultOption::some(
