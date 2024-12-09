@@ -1,16 +1,15 @@
-// app/page.tsx
-import IonicLayout from "./components/IonicLayout";
-import CardComponent from "./components/CardComponent";
+import IonicLayout from "@/_components/IonicLayout";
+import CardComponent from "@/_components/Card";
 
-const Home = () => {
-
+export default function Home() {
   const destinations = new Array(8).fill({
-    imageSrc: "/cat.jpg",
+    imageSrc: "/img/cat.jpg",
     title: "Madison, WI",
     subtitle: "Destination",
     content:
       "Keep close to Nature's heart... and break clear away, once in awhile, and climb a mountain or spend a week in the woods. Wash your spirit clean.",
   });
+
   return (
     <IonicLayout>
       <ion-grid>
@@ -29,6 +28,4 @@ const Home = () => {
       </ion-grid>
     </IonicLayout>
   );
-};
-
-export default Home;
+}

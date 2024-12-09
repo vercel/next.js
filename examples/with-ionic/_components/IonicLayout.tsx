@@ -1,11 +1,13 @@
-// components/IonicLayout.tsx
 "use client";
 
 import React, { useEffect } from "react";
 import { defineCustomElements as ionDefineCustomElements } from "@ionic/core/loader";
 
-// Define Ionic custom elements on client-side
-const IonicLayout = ({ children }: { children: React.ReactNode }) => {
+export default function IonicLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   useEffect(() => {
     ionDefineCustomElements(window);
   }, []);
@@ -17,9 +19,7 @@ const IonicLayout = ({ children }: { children: React.ReactNode }) => {
           <ion-title>Next.js with Ionic</ion-title>
         </ion-toolbar>
       </ion-header>
-
       <ion-content fullscreen>{children}</ion-content>
-
       <ion-footer>
         <ion-toolbar>
           <ion-title>Footer</ion-title>
@@ -27,6 +27,4 @@ const IonicLayout = ({ children }: { children: React.ReactNode }) => {
       </ion-footer>
     </ion-app>
   );
-};
-
-export default IonicLayout;
+}

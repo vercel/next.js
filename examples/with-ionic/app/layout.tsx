@@ -1,5 +1,3 @@
-"use client"
-import React from "react";
 import "@ionic/core/css/core.css";
 import "@ionic/core/css/normalize.css";
 import "@ionic/core/css/structure.css";
@@ -13,12 +11,12 @@ import "@ionic/core/css/display.css";
 
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode;
-}) {
+}>) {
   return (
     <html lang="en">
-    <body>{children}</body>
-  </html>
+      <body>{children}</body>
+    </html>
   );
 }
