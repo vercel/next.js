@@ -44,7 +44,7 @@ jobs:
           any-of-labels: 'please verify canary'
           close-issue-message: 'This issue has been automatically closed due to 14 days of inactivity and the absence of testing against next@canary. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a reproduction. Thank you.'
           days-before-issue-close: 1
-          days-before-issue-stale: 30
+          days-before-issue-stale: 14
           days-before-pr-close: -1
           days-before-pr-stale: -1
           exempt-issue-labels: 'blocked,must,should,keep'
