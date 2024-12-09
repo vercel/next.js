@@ -399,6 +399,28 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
+export function parseHostHeader(headers: IncomingHttpHeaders) {
+  const forwardedHostHeader = headers['x-forwarded-host']
+  const forwardedHostHeaderValue =
+    forwardedHostHeader && Array.isArray(forwardedHostHeader)
+      ? forwardedHostHeader[0]
+      : forwardedHostHeader
+  const hostHeader = headers['host']
+  const host = forwardedHostHeaderValue
+    ? {
+        type: HostType.XForwardedHost,
+        value: forwardedHostHeaderValue,
+      }
+    : hostHeader
+      ? {
+          type: HostType.Host,
+          value: hostHeader,
+        }
+      : undefined
+
+  return host
+}
+
 type ServerModuleMap = Record<
   string,
   {
@@ -487,24 +509,7 @@ export async function handleAction({
     typeof req.headers['origin'] === 'string'
       ? new URL(req.headers['origin']).host
       : undefined
-
-  const forwardedHostHeader = req.headers['x-forwarded-host']
-  const forwardedHostHeaderValue =
-    forwardedHostHeader && Array.isArray(forwardedHostHeader)
-      ? forwardedHostHeader[0]
-      : forwardedHostHeader
-  const hostHeader = req.headers['host']
-  const host: Host = forwardedHostHeaderValue
-    ? {
-        type: HostType.XForwardedHost,
-        value: forwardedHostHeaderValue,
-      }
-    : hostHeader
-      ? {
-          type: HostType.Host,
-          value: hostHeader,
-        }
-      : undefined
+  const host = parseHostHeader(req.headers)
 
   let warning: string | undefined = undefined
 
