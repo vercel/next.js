@@ -527,11 +527,6 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
-   * Enables `unstable_after`
-   */
-  after?: boolean
-
-  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -1168,7 +1163,6 @@ export const defaultConfig: NextConfig = {
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
-    after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,

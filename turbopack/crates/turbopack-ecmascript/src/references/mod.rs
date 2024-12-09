@@ -590,11 +590,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
-    );
+    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph =
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
@@ -776,7 +773,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 path: source.ident().path().to_resolved().await?,
                 specified_type,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
@@ -798,7 +795,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     path: source.ident().path().to_resolved().await?,
                     specified_type,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 EcmascriptExports::EsmExports(
@@ -848,16 +845,16 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .resolved_cell();
         analysis.set_async_module(async_module);
     } else if let Some(span) = top_level_await_span {
-        AnalyzeIssue {
-            code: None,
-            message: StyledString::Text("top level await is only supported in ESM modules.".into())
-                .resolved_cell(),
-            source_ident: source.ident(),
-            severity: IssueSeverity::Error.resolved_cell(),
-            source: Some(issue_source(*source, span)),
-            title: ResolvedVc::cell("unexpected top level await".into()),
-        }
-        .cell()
+        AnalyzeIssue::new(
+            IssueSeverity::Error.cell(),
+            source.ident(),
+            Vc::cell("unexpected top level await".into()),
+            StyledString::Text("top level await is only supported in ESM modules.".into()).cell(),
+            None,
+            Some(issue_source(*source, span)),
+        )
+        .to_resolved()
+        .await?
         .emit();
     }
 
@@ -1255,6 +1252,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     }
 
     analysis.set_successful(true);
+
+    collector.emit().await?;
 
     analysis
         .build(matches!(

@@ -609,7 +609,7 @@ async fn process_default_internal(
                                     )
                                     .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 Some(module_type)
                             }
@@ -625,7 +625,7 @@ async fn process_default_internal(
                                     )
                                     .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 None
                             }

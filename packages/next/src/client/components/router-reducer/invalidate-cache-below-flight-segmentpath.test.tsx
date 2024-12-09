@@ -13,6 +13,7 @@ const getFlightData = (): NormalizedFlightData[] => {
       tree: ['about', { children: ['', {}] }],
       seedData: ['about', <h1>About Page!</h1>, {}, null, false],
       head: '<title>About page!</title>',
+      isHeadPartial: false,
       isRootRender: false,
     },
   ]

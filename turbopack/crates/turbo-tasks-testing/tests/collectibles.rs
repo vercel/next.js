@@ -209,8 +209,10 @@ async fn my_transitive_emitting_function_with_child_scope(
 #[turbo_tasks::function]
 async fn my_emitting_function(_key: RcStr) -> Result<()> {
     sleep(Duration::from_millis(100)).await;
-    emit(Vc::upcast::<Box<dyn ValueToString>>(Thing::new(123)));
-    emit(Vc::upcast::<Box<dyn ValueToString>>(Thing::new(42)));
+    emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(Thing::new(
+        123,
+    )));
+    emit(ResolvedVc::upcast::<Box<dyn ValueToString>>(Thing::new(42)));
     Ok(())
 }
 
@@ -218,8 +220,8 @@ async fn my_emitting_function(_key: RcStr) -> Result<()> {
 struct Thing(u32);
 
 impl Thing {
-    fn new(v: u32) -> Vc<Self> {
-        Self::cell(Thing(v))
+    fn new(v: u32) -> ResolvedVc<Self> {
+        Self::resolved_cell(Thing(v))
     }
 }
 

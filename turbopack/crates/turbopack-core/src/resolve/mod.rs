@@ -1124,7 +1124,7 @@ async fn exports_field(
                 path: package_json_path,
                 error_message: err.to_string().into(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(ExportsFieldResult::None.cell())
         }
@@ -1165,7 +1165,7 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
                 path: *package_json_path,
                 error_message: err.to_string().into(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(ImportsFieldResult::None.cell())
         }
@@ -1845,7 +1845,7 @@ async fn resolve_internal_inline(
                         ),
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
 
@@ -1871,7 +1871,7 @@ async fn resolve_internal_inline(
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
 
@@ -1929,7 +1929,7 @@ async fn resolve_internal_inline(
                         error_message: None,
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
                 ResolveResult::unresolvable().into()
@@ -2336,7 +2336,7 @@ async fn apply_in_package(
             error_message: Some(format!("invalid alias field value: {}", value)),
             source: None,
         }
-        .cell()
+        .resolved_cell()
         .emit();
 
         return Ok(Some(
@@ -2844,7 +2844,7 @@ async fn resolve_package_internal_with_imports_field(
             error_message: None,
             source: None,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok(ResolveResult::unresolvable().into());
     }
@@ -2979,7 +2979,7 @@ async fn emit_resolve_error_issue(
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(())
 }
@@ -3006,7 +3006,7 @@ async fn emit_unresolvable_issue(
         error_message: None,
         source,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(())
 }

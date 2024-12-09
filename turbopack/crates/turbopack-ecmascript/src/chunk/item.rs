@@ -272,7 +272,7 @@ async fn module_factory_with_code_generation_issue(
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 let mut code = CodeBuilder::default();
                 code += "(() => {{\n\n";

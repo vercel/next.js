@@ -1,4 +1,4 @@
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 
 export function middleware(
   /** @type {import ('next/server').NextRequest} */ request

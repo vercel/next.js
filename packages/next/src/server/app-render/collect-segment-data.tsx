@@ -25,6 +25,7 @@ export type RootTreePrefetch = {
   buildId: string
   tree: TreePrefetch
   head: React.ReactNode | null
+  isHeadPartial: boolean
   staleTime: number
 }
 
@@ -194,6 +195,8 @@ async function PrefetchTreeData({
     segmentTasks
   )
 
+  const isHeadPartial = await isPartialRSCData(head, clientModules)
+
   // Notify the abort controller that we're done processing the route tree.
   // Anything async that happens after this point must be due to hanging
   // promises in the original stream.
@@ -204,6 +207,7 @@ async function PrefetchTreeData({
     buildId,
     tree,
     head,
+    isHeadPartial,
     staleTime,
   }
   return treePrefetch

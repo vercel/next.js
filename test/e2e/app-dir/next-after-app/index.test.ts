@@ -8,7 +8,7 @@ import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
-describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
+describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
@@ -82,7 +82,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     // TODO: server seems to close before the response fully returns?
   })
 
-  it('runs callbacks from nested unstable_after calls', async () => {
+  it('runs callbacks from nested after calls', async () => {
     await next.browser(pathPrefix + '/nested-after')
 
     await retry(() => {
@@ -244,7 +244,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
 
   it('does not allow modifying cookies in a callback', async () => {
     const EXPECTED_ERROR =
-      /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+      /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
     const browser = await next.browser(pathPrefix + '/123/setting-cookies')
     // after() from render

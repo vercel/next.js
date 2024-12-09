@@ -105,6 +105,7 @@ export type FlightDataSegment = [
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
   /* head */ React.ReactNode | null,
+  /* isHeadPartial */ boolean,
 ]
 
 export type FlightDataPath =
@@ -181,7 +182,6 @@ export interface RenderOptsPartial {
     isRoutePPREnabled?: boolean
     expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
-    after: boolean
     dynamicIO: boolean
     inlineCss: boolean
     authInterrupts: boolean

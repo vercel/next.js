@@ -251,8 +251,6 @@ function assignDefaults(
       throw new CanaryOnlyError('experimental.dynamicIO')
     } else if (result.experimental?.turbo?.unstablePersistentCaching) {
       throw new CanaryOnlyError('experimental.turbo.unstablePersistentCaching')
-    } else if (result.experimental?.inlineCss) {
-      throw new CanaryOnlyError('experimental.inlineCss')
     }
   }
 
@@ -453,7 +451,14 @@ function assignDefaults(
   warnOptionHasBeenDeprecated(
     result,
     'experimental.instrumentationHook',
-    '`experimental.instrumentationHook` is no longer needed to be configured in Next.js',
+    `\`experimental.instrumentationHook\` is no longer needed, because \`instrumentation.js\` is available by default. You can remove it from ${configFileName}.`,
+    silent
+  )
+
+  warnOptionHasBeenDeprecated(
+    result,
+    'experimental.after',
+    `\`experimental.after\` is no longer needed, because \`after\` is available by default. You can remove it from ${configFileName}.`,
     silent
   )
 
