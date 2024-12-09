@@ -25,7 +25,7 @@
   },
   "devDependencies": {
     "@types/node": "22.9.0",
-    "@types/react": "^18.3.12",
+    "@types/react": "18.3.13",
     "@types/react-dom": "18.3.1",
     "postcss": "8.4.49",
     "tailwind-merge": "^2.5.2",
