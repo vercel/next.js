@@ -232,3 +232,13 @@ jobs:
           path: |
             test/traces
           if-no-files-found: ignore
+
+      # Upload logs from unexpected Turbopack errors
+      - name: Upload test report artifacts
+        uses: actions/upload-artifact@v4
+        if: ${{ inputs.afterBuild && always() }}
+        with:
+          name: turbopack-panic-logs
+          # TODO: We should configure a well-known path for these. Temp dir is likely different on MacOS.
+          path: /tmp/next-panic-*.log
+          if-no-files-found: ignore
