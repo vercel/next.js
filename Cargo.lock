@@ -9262,6 +9262,7 @@ dependencies = [
  "crossbeam-channel",
  "once_cell",
  "postcard",
+ "rustc-hash 1.1.0",
  "serde",
  "tokio",
  "tracing",
