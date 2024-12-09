@@ -123,7 +123,7 @@ describe('app-dir with middleware', () => {
     })
   })
 
-  it('keeps a link header from the middleware', async () => {
+  it('keeps a link response header from the middleware', async () => {
     const res = await next.fetch('/preloads')
     expect(res.headers.get('link')).toContain(
       '<https://example.com/page>; rel="alternate"; hreflang="en"'
