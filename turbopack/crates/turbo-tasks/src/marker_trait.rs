@@ -12,7 +12,8 @@
 macro_rules! impl_auto_marker_trait {
     ($trait:ident) => {
         $crate::marker_trait::impl_marker_trait!(
-            $trait: i8, u8, i16, u16, i32, u32, i64, u64, f32, f64, char, bool, usize,
+            $trait:
+            i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64, char, bool,
         );
         $crate::marker_trait::impl_marker_trait!(
             $trait:
