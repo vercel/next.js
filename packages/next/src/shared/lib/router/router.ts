@@ -1095,13 +1095,6 @@ export default class Router implements BaseRouter {
       const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
         [{ as }, { as: resolvedAs }]
 
-      if (process.env.__NEXT_FLYING_SHUTTLE) {
-        // if existing page changed we hard navigate to
-        // avoid runtime conflict with new page
-        // TODO: check buildManifest files instead?
-        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
-      }
-
       for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {
           const asNoSlash = removeTrailingSlash(
