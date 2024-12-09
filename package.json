@@ -74,6 +74,7 @@
     "@babel/generator": "7.22.5",
     "@babel/parser": "7.22.5",
     "@babel/plugin-proposal-object-rest-spread": "7.20.7",
+    "@babel/plugin-syntax-explicit-resource-management": "7.25.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
     "@edge-runtime/jest-environment": "4.0.0",
