@@ -106,7 +106,7 @@ async fn item_code(
                         .resolved_cell(),
                     message: StyledString::Text(error_message.into()).resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 let mut code = CodeBuilder::default();
                 code += "(() => {{\n\n";

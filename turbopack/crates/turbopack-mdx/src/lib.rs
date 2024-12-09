@@ -230,7 +230,7 @@ impl MdxTransformedAsset {
                     mdx_rule_id: *err.rule_id,
                     mdx_source: *err.source,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 Ok(MdxTransformResult {

@@ -428,7 +428,7 @@ async fn process_content(
                                 msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                             return Ok(ParseCssResult::Unparseable.cell());
                         }
@@ -461,7 +461,7 @@ async fn process_content(
                     msg: ResolvedVc::cell(e.to_string().into()),
                     source,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 return Ok(ParseCssResult::Unparseable.cell());
             }
@@ -524,7 +524,7 @@ impl CssError {
                     ),
                     source: None,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
