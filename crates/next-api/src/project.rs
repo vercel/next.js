@@ -705,11 +705,11 @@ impl Project {
                     html_endpoint,
                     data_endpoint,
                 } => {
-                    add_endpoint(*html_endpoint, &mut modules).await?;
-                    add_endpoint(*data_endpoint, &mut modules).await?;
+                    add_endpoint(**html_endpoint, &mut modules).await?;
+                    add_endpoint(**data_endpoint, &mut modules).await?;
                 }
                 Route::PageApi { endpoint } => {
-                    add_endpoint(*endpoint, &mut modules).await?;
+                    add_endpoint(**endpoint, &mut modules).await?;
                 }
                 Route::AppPage(page_routes) => {
                     for page_route in page_routes {
@@ -721,7 +721,7 @@ impl Project {
                     original_name: _,
                     endpoint,
                 } => {
-                    add_endpoint(*endpoint, &mut modules).await?;
+                    add_endpoint(**endpoint, &mut modules).await?;
                 }
                 Route::Conflict => {
                     tracing::info!("WARN: conflict");
