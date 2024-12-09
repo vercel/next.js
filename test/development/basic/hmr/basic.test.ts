@@ -1,13 +1,10 @@
-import { join } from 'path'
-import webdriver from 'next-webdriver'
 import {
   assertHasRedbox,
   getBrowserBodyText,
   retry,
   waitFor,
 } from 'next-test-utils'
-import { createNext } from 'e2e-utils'
-import { NextInstance } from 'e2e-utils'
+import { createNext, nextTestSetup } from 'e2e-utils'
 import type { NextConfig } from 'next'
 
 describe.each([
@@ -16,28 +13,20 @@ describe.each([
   { basePath: '/docs', assetPrefix: '' },
   { basePath: '/docs', assetPrefix: '/asset-prefix' },
 ])('basic HMR, nextConfig: %o', (nextConfig: Partial<NextConfig>) => {
-  const { basePath } = nextConfig
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: join(__dirname, 'hmr'),
-      nextConfig,
-      patchFileDelay: 500,
-    })
+  const { next } = nextTestSetup({
+    files: __dirname,
+    nextConfig,
+    patchFileDelay: 500,
   })
-  afterAll(() => next.destroy())
+  const { basePath } = nextConfig
 
   it('should have correct router.isReady for auto-export page', async () => {
-    let browser = await webdriver(next.url, basePath + '/auto-export-is-ready')
+    let browser = await next.browser(basePath + '/auto-export-is-ready')
 
     expect(await browser.elementByCss('#ready').text()).toBe('yes')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
 
-    browser = await webdriver(
-      next.url,
-      basePath + '/auto-export-is-ready?hello=world'
-    )
+    browser = await next.browser(basePath + '/auto-export-is-ready?hello=world')
 
     await retry(async () => {
       expect(await browser.elementByCss('#ready').text()).toBe('yes')
@@ -48,12 +37,12 @@ describe.each([
   })
 
   it('should have correct router.isReady for getStaticProps page', async () => {
-    let browser = await webdriver(next.url, basePath + '/gsp-is-ready')
+    let browser = await next.browser(basePath + '/gsp-is-ready')
 
     expect(await browser.elementByCss('#ready').text()).toBe('yes')
     expect(JSON.parse(await browser.elementByCss('#query').text())).toEqual({})
 
-    browser = await webdriver(next.url, basePath + '/gsp-is-ready?hello=world')
+    browser = await next.browser(basePath + '/gsp-is-ready?hello=world')
 
     await retry(async () => {
       expect(await browser.elementByCss('#ready').text()).toBe('yes')
@@ -68,10 +57,7 @@ describe.each([
     const originalContent = await next.readFile(pageName)
 
     try {
-      const browser = await webdriver(
-        next.url,
-        basePath + '/auto-export-is-ready'
-      )
+      const browser = await next.browser(basePath + '/auto-export-is-ready')
       const outputLength = next.cliOutput.length
       await next.patchFile(
         pageName,
@@ -101,9 +87,7 @@ describe.each([
   })
 
   it('should reload the page when the server restarts', async () => {
-    const browser = await webdriver(next.url, basePath + '/hmr/about', {
-      headless: false,
-    })
+    const browser = await next.browser(basePath + '/hmr/about')
     await retry(async () => {
       expect(await getBrowserBodyText(browser)).toMatch(
         /This is the about page/
@@ -120,12 +104,13 @@ describe.each([
       })
     })
 
-    next = await createNext({
-      files: join(__dirname, 'hmr'),
+    const secondNext = await createNext({
+      files: __dirname,
       nextConfig,
       forcedPort: next.appPort,
     })
 
     await reloadPromise
+    await secondNext.destroy()
   })
 })
