@@ -47,7 +47,8 @@ describe('use-cache-without-dynamic-io', () => {
 
 
 
-              at <unknown> (./app/page.tsx:1:1)"
+              at <unknown> (./app/page.tsx:1:1)
+          "
         `)
       } else {
         expect(buildOutput).toMatchInlineSnapshot(`

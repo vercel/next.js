@@ -50,7 +50,8 @@ describe('use-cache-unknown-cache-kind', () => {
 
 
 
-              at <unknown> (./app/page.tsx:1:1)"
+              at <unknown> (./app/page.tsx:1:1)
+          "
         `)
       } else {
         expect(buildOutput).toMatchInlineSnapshot(`
