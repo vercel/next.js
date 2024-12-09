@@ -1215,7 +1215,6 @@ export async function buildAppStaticPaths({
   page,
   distDir,
   dynamicIO,
-  after,
   authInterrupts,
   configFileName,
   segments,
@@ -1233,7 +1232,6 @@ export async function buildAppStaticPaths({
   dir: string
   page: string
   dynamicIO: boolean
-  after: boolean
   authInterrupts: boolean
   configFileName: string
   segments: AppSegment[]
@@ -1317,7 +1315,6 @@ export async function buildAppStaticPaths({
       supportsDynamicResponse: true,
       isRevalidate: false,
       experimental: {
-        after,
         dynamicIO,
         authInterrupts,
       },
@@ -1500,7 +1497,6 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   dynamicIO,
-  after,
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
@@ -1516,7 +1512,6 @@ export async function isPageStatic({
   page: string
   distDir: string
   dynamicIO: boolean
-  after: boolean
   authInterrupts: boolean
   configFileName: string
   runtimeEnvConfig: any
@@ -1659,7 +1654,6 @@ export async function isPageStatic({
               dir,
               page,
               dynamicIO,
-              after,
               authInterrupts,
               configFileName,
               segments,

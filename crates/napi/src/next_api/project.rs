@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
-    bindgen_prelude::External,
+    bindgen_prelude::{within_runtime_if_available, External},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, Status,
 };
@@ -529,14 +529,14 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                data_endpoint: convert_endpoint(data_endpoint),
+                html_endpoint: convert_endpoint(*html_endpoint),
+                data_endpoint: convert_endpoint(*data_endpoint),
                 ..Default::default()
             },
             Route::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::AppPage(pages) => NapiRoute {
@@ -561,7 +561,7 @@ impl NapiRoute {
                 pathname,
                 original_name: Some(original_name),
                 r#type: "app-route",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::Conflict => NapiRoute {
@@ -1202,6 +1202,16 @@ pub async fn project_get_source_map(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(source_map)
+}
+
+#[napi]
+pub fn project_get_source_map_sync(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    within_runtime_if_available(|| {
+        tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
+    })
 }
 
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.

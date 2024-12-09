@@ -85,8 +85,6 @@ export class EdgeRouteModuleWrapper {
       searchParamsToUrlQuery(request.nextUrl.searchParams)
     )
 
-    const isAfterEnabled = !!process.env.__NEXT_AFTER
-
     const waitUntil = evt.waitUntil.bind(evt)
     const closeController = new CloseController()
 
@@ -109,7 +107,6 @@ export class EdgeRouteModuleWrapper {
         onClose: closeController.onClose.bind(closeController),
         onAfterTaskError: undefined,
         experimental: {
-          after: isAfterEnabled,
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },

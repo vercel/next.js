@@ -55,7 +55,7 @@ The `src` property can be a [local](#local-images) or [remote](#remote-images) i
 
 To use a local image, `import` your `.jpg`, `.png`, or `.webp` image files from your [`public` folder](#handling-static-assets).
 
-```tsx filename="app/page.ts" switcher
+```tsx filename="app/page.tsx" switcher
 import Image from 'next/image'
 import profilePic from './me.png'
 
@@ -131,7 +131,7 @@ Since Next.js does not have access to remote files during the build process, you
 
 Then, to safely allow images from remote servers, you need to define a list of supported URL patterns in `next.config.js`. Be as specific as possible to prevent malicious usage. For example, the following configuration will only allow images from a specific AWS S3 bucket:
 
-```ts filename="next.config.js" switcher
+```ts filename="next.config.ts" switcher
 import { NextConfig } from 'next'
 
 const config: NextConfig = {

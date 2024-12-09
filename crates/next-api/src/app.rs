@@ -711,24 +711,24 @@ pub fn app_entry_point_to_route(
             root_layouts,
         } => Route::AppRoute {
             original_name: page.to_string(),
-            endpoint: Vc::upcast(
+            endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path, root_layouts },
                     app_project,
                     page,
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         },
         AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
             original_name: page.to_string(),
-            endpoint: Vc::upcast(
+            endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
                     app_project,
                     page,
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         },
     }
