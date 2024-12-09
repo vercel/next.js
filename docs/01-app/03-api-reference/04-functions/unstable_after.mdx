@@ -54,18 +54,74 @@ export default function Layout({ children }) {
 
 - `unstable_after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.
 - You can use React `cache` to deduplicate functions called inside `unstable_after`.
-- [`cookies`](/docs/app/api-reference/functions/cookies) cannot be set inside `unstable_after` since the response has already been sent.
-- [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) cannot be called within `unstable_after`. Call them outside of `unstable_after` and use the object they returned.
 - `unstable_after` can be nested inside other `unstable_after` calls, for example, you can create utility functions that wrap `unstable_after` calls to add additional functionality.
 
 ## Alternatives
 
-The use case for `unstable_after` is to process secondary tasks without blocking the primary response. It's similar to using the platform's [`waitUntil()`](https://vercel.com/docs/functions/functions-api-reference) or removing `await` from a promise, but with the following differences:
+The use case for `unstable_after` is to process secondary tasks without blocking the primary response. It's similar to using the platform's [`waitUntil`](https://vercel.com/docs/functions/functions-api-reference) or removing `await` from a promise, but with the following differences:
 
-- **`waitUntil()`**: accepts a promise and enqueues a task to be executed during the lifecycle of the request, whereas `unstable_after` accepts a callback that will be executed **after** the response is finished.
+- **`waitUntil`**: accepts a promise and enqueues a task to be executed during the lifecycle of the request, whereas `unstable_after` accepts a callback that will be executed **after** the response is finished.
 - **Removing `await`**: starts executing during the response, which uses resources. It's also not reliable in serverless environments as the function stops computation immediately after the response is sent, potentially interrupting the task.
 
 We recommend using `unstable_after` as it has been designed to consider other Next.js APIs and contexts.
+
+## Examples
+
+### With request APIs
+
+You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
+
+```tsx filename="app/api/route.ts" highlight={2,7-9} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  // ...
+
+  // Log user activity for analytics
+  after(async () => {
+    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const sessionCookie =
+      (await cookies().get('session-id'))?.value || 'anonymous'
+
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+```jsx filename="app/api/route.js" highlight={2,7-9} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request) {
+  // Perform mutation
+  // ...
+
+  // Log user activity for analytics
+  after(async () => {
+    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const sessionCookie =
+      (await cookies().get('session-id'))?.value || 'anonymous'
+
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/building-your-application/rendering/server-components). This is because `after` runs after React's rendering lifecycle. Accessing the request APIs would interfer with [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering) and [Streaming](/docs/app/getting-started/data-fetching-and-streaming#streaming).
 
 | Version History | Description                  |
 | --------------- | ---------------------------- |
