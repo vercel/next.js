@@ -45,8 +45,8 @@ use crate::{
     trait_helpers::get_trait_method,
     util::StaticOrArc,
     vc::ReadVcFuture,
-    Completion, FunctionMeta, InvalidationReason, InvalidationReasonSet, SharedReference, TaskId,
-    TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    Completion, FunctionMeta, InvalidationReason, InvalidationReasonSet, ResolvedVc,
+    SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -1748,8 +1748,11 @@ pub fn notify_scheduled_tasks() {
     with_turbo_tasks(|tt| tt.notify_scheduled_tasks())
 }
 
-pub fn emit<T: VcValueTrait + ?Sized>(collectible: Vc<T>) {
-    with_turbo_tasks(|tt| tt.emit_collectible(T::get_trait_type_id(), collectible.node))
+pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
+    with_turbo_tasks(|tt| {
+        let raw_vc = collectible.node.node;
+        tt.emit_collectible(T::get_trait_type_id(), raw_vc)
+    })
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {

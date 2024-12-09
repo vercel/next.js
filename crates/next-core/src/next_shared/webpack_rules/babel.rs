@@ -76,7 +76,7 @@ pub async fn maybe_add_babel_loader(
                         .resolved_cell(),
                         severity: IssueSeverity::Fatal.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
 
                     has_emitted_babel_resolve_issue = true;
