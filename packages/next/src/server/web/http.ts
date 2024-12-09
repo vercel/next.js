@@ -10,6 +10,10 @@ export const HTTP_METHODS = [
   'PUT',
   'DELETE',
   'PATCH',
+  'PROPFIND',
+  'PROPPATCH',
+  'REPORT',
+  'MKCOL',
 ] as const
 
 /**
