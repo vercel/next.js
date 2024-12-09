@@ -404,7 +404,7 @@ export function parseHostHeader(headers: IncomingHttpHeaders) {
   const forwardedHostHeaderValue =
     forwardedHostHeader && Array.isArray(forwardedHostHeader)
       ? forwardedHostHeader[0]
-      : forwardedHostHeader
+      : forwardedHostHeader?.split(',')?.[0]?.trim()
   const hostHeader = headers['host']
   const host = forwardedHostHeaderValue
     ? {
