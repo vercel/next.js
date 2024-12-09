@@ -590,11 +590,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
-    );
+    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph =
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
@@ -776,7 +773,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 path: source.ident().path().to_resolved().await?,
                 specified_type,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
@@ -798,7 +795,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     path: source.ident().path().to_resolved().await?,
                     specified_type,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 EcmascriptExports::EsmExports(
@@ -856,6 +853,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             None,
             Some(issue_source(*source, span)),
         )
+        .to_resolved()
+        .await?
         .emit();
     }
 
@@ -1253,6 +1252,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     }
 
     analysis.set_successful(true);
+
+    collector.emit().await?;
 
     analysis
         .build(matches!(

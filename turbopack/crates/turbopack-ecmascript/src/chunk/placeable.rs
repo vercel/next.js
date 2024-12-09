@@ -69,7 +69,7 @@ async fn side_effects_from_package_json(
                                     .resolved_cell(),
                                 ),
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                             None
                         }
@@ -91,7 +91,7 @@ async fn side_effects_from_package_json(
                                         .resolved_cell(),
                                     ),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 Ok(None)
                             }
@@ -116,7 +116,7 @@ async fn side_effects_from_package_json(
                         .resolved_cell(),
                     ),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
