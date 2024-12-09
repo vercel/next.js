@@ -233,7 +233,7 @@ impl CssChunkItem for CssModuleChunkItem {
                             Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
                         {
                             imports.push(CssImport::Internal(
-                                import_ref.to_resolved().await?,
+                                import_ref,
                                 css_item.to_resolved().await?,
                             ));
                         }
