@@ -18,18 +18,15 @@ export function isWebpackInternalResource(file: string) {
 
 /**
  * Format the webpack internal id to original file path
+ *
  * webpack-internal:///./src/hello.tsx => ./src/hello.tsx
  * rsc://React/Server/webpack-internal:///(rsc)/./src/hello.tsx?42 => ./src/hello.tsx
  * rsc://React/Server/webpack:///app/indirection.tsx?14cb?0 => app/indirection.tsx
  * webpack://_N_E/./src/hello.tsx => ./src/hello.tsx
  * webpack://./src/hello.tsx => ./src/hello.tsx
  * webpack:///./src/hello.tsx => ./src/hello.tsx
- *
- * <anonymous> => ''
  */
 export function formatFrameSourceFile(file: string) {
-  if (file === '<anonymous>') return ''
-
   for (const regex of replacementRegExes) {
     file = file.replace(regex, '')
   }
