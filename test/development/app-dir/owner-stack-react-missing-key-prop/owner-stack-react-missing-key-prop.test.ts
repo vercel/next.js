@@ -29,12 +29,12 @@ const isOwnerStackEnabled =
           `"at Page (app/rsc/page.tsx (6:13))"`
         )
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.tsx (7:9) @ <anonymous>
+        "app/rsc/page.tsx (7:10) @ <anonymous>
 
            5 |     <div>
            6 |       {list.map((item, index) => (
         >  7 |         <span>{item}</span>
-             |         ^
+             |          ^
            8 |       ))}
            9 |     </div>
           10 |   )"

@@ -6,7 +6,7 @@ import { setTimeout } from 'timers/promises'
 // This test relies on next.build() so it can't work in dev mode.
 const _describe = isNextDev ? describe.skip : describe
 
-_describe('unstable_after() in static pages', () => {
+_describe('after() in static pages', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     skipDeployment: true, // reading CLI logs to observe after
@@ -32,7 +32,7 @@ _describe('unstable_after() in static pages', () => {
     currentCliOutputIndex = next.cliOutput.length
   }
 
-  it('runs unstable_after during build', async () => {
+  it('runs after during build', async () => {
     const buildResult = await next.build()
     expect(buildResult?.exitCode).toBe(0)
 

@@ -154,7 +154,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description.map(|v| *v))
+        Vc::cell(self.description)
     }
 }
 

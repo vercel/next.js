@@ -93,6 +93,17 @@ where
     }
 }
 
+impl<T, Inner, Repr> Default for ResolvedVc<T>
+where
+    T: VcValueType<Read = VcTransparentRead<T, Inner, Repr>>,
+    Inner: Any + Send + Sync + Default,
+    Repr: VcValueType,
+{
+    fn default() -> Self {
+        Self::cell(Default::default())
+    }
+}
+
 macro_rules! into_future {
     ($ty:ty) => {
         impl<T> IntoFuture for $ty

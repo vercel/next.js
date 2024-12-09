@@ -53,10 +53,12 @@ impl Module for HmrEntryModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        Vc::cell(vec![Vc::upcast(HmrEntryModuleReference::new(Vc::upcast(
-            *self.module,
-        )))])
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            HmrEntryModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
     }
 }
 

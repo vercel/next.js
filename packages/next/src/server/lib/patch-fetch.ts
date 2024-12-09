@@ -25,6 +25,7 @@ import {
   type CachedFetchData,
 } from '../response-cache'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
+import { cloneResponse } from './clone-response'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -676,20 +677,25 @@ export function createPatchedFetcher(
                   statusText: res.statusText,
                 })
               } else {
+                // We're cloning the response using this utility because there
+                // exists a bug in the undici library around response cloning.
+                // See the following pull request for more details:
+                // https://github.com/vercel/next.js/pull/73274
+                const [cloned1, cloned2] = cloneResponse(res)
+
                 // We are dynamically rendering including dev mode. We want to return
                 // the response to the caller as soon as possible because it might stream
                 // over a very long time.
-                res
-                  .clone()
+                cloned1
                   .arrayBuffer()
                   .then(async (arrayBuffer) => {
                     const bodyBuffer = Buffer.from(arrayBuffer)
 
                     const fetchedData = {
-                      headers: Object.fromEntries(res.headers.entries()),
+                      headers: Object.fromEntries(cloned1.headers.entries()),
                       body: bodyBuffer.toString('base64'),
-                      status: res.status,
-                      url: res.url,
+                      status: cloned1.status,
+                      url: cloned1.url,
                     }
 
                     requestStore?.serverComponentsHmrCache?.set(
@@ -720,7 +726,7 @@ export function createPatchedFetcher(
                   )
                   .finally(handleUnlock)
 
-                return res
+                return cloned2
               }
             }
 
@@ -788,14 +794,23 @@ export function createPatchedFetcher(
                 if (entry.isStale) {
                   workStore.pendingRevalidates ??= {}
                   if (!workStore.pendingRevalidates[cacheKey]) {
-                    workStore.pendingRevalidates[cacheKey] = doOriginalFetch(
-                      true
-                    )
-                      .catch(console.error)
+                    const pendingRevalidate = doOriginalFetch(true)
+                      .then(async (response) => ({
+                        body: await response.arrayBuffer(),
+                        headers: response.headers,
+                        status: response.status,
+                        statusText: response.statusText,
+                      }))
                       .finally(() => {
                         workStore.pendingRevalidates ??= {}
                         delete workStore.pendingRevalidates[cacheKey || '']
                       })
+
+                    // Attach the empty catch here so we don't get a "unhandled
+                    // promise rejection" warning.
+                    pendingRevalidate.catch(console.error)
+
+                    workStore.pendingRevalidates[cacheKey] = pendingRevalidate
                   }
                 }
 
@@ -895,7 +910,7 @@ export function createPatchedFetcher(
         if (cacheKey && isForegroundRevalidate) {
           const pendingRevalidateKey = cacheKey
           workStore.pendingRevalidates ??= {}
-          const pendingRevalidate =
+          let pendingRevalidate =
             workStore.pendingRevalidates[pendingRevalidateKey]
 
           if (pendingRevalidate) {
@@ -914,27 +929,27 @@ export function createPatchedFetcher(
 
           // We used to just resolve the Response and clone it however for
           // static generation with dynamicIO we need the response to be able to
-          // be resolved in a microtask and Response#clone() will never have a
-          // body that can resolve in a microtask in node (as observed through
+          // be resolved in a microtask and cloning the response will never have
+          // a body that can resolve in a microtask in node (as observed through
           // experimentation) So instead we await the body and then when it is
           // available we construct manually cloned Response objects with the
           // body as an ArrayBuffer. This will be resolvable in a microtask
           // making it compatible with dynamicIO.
           const pendingResponse = doOriginalFetch(true, cacheReasonOverride)
+            // We're cloning the response using this utility because there
+            // exists a bug in the undici library around response cloning.
+            // See the following pull request for more details:
+            // https://github.com/vercel/next.js/pull/73274
+            .then(cloneResponse)
 
-          const nextRevalidate = pendingResponse
-            .then(async (response) => {
-              // Clone the response here. It'll run first because we attached
-              // the resolve before we returned below. We have to clone it
-              // because the original response is going to be consumed by
-              // at a later point in time.
-              const clonedResponse = response.clone()
-
+          pendingRevalidate = pendingResponse
+            .then(async (responses) => {
+              const response = responses[0]
               return {
-                body: await clonedResponse.arrayBuffer(),
-                headers: clonedResponse.headers,
-                status: clonedResponse.status,
-                statusText: clonedResponse.statusText,
+                body: await response.arrayBuffer(),
+                headers: response.headers,
+                status: response.status,
+                statusText: response.statusText,
               }
             })
             .finally(() => {
@@ -949,11 +964,11 @@ export function createPatchedFetcher(
 
           // Attach the empty catch here so we don't get a "unhandled promise
           // rejection" warning
-          nextRevalidate.catch(() => {})
+          pendingRevalidate.catch(() => {})
 
-          workStore.pendingRevalidates[pendingRevalidateKey] = nextRevalidate
+          workStore.pendingRevalidates[pendingRevalidateKey] = pendingRevalidate
 
-          return pendingResponse
+          return pendingResponse.then((responses) => responses[1])
         } else {
           return doOriginalFetch(false, cacheReasonOverride)
         }

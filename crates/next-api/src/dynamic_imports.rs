@@ -93,7 +93,7 @@ pub(crate) async fn collect_evaluated_chunk_group(
         if let Some(module) = Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await? {
             Ok(chunking_context.evaluated_chunk_group_assets(
                 module.ident(),
-                Vc::cell(vec![Vc::upcast(module)]),
+                Vc::cell(vec![ResolvedVc::upcast(module.to_resolved().await?)]),
                 Value::new(AvailabilityInfo::Root),
             ))
         } else {

@@ -322,6 +322,22 @@ async function createComponentTreeInternal({
 
   const isStaticGeneration = workStore.isStaticGeneration
 
+  // Assume the segment we're rendering contains only partial data if PPR is
+  // enabled and this is a statically generated response. This is used by the
+  // client Segment Cache after a prefetch to determine if it can skip the
+  // second request to fill in the dynamic data.
+  //
+  // It's OK for this to be `true` when the data is actually fully static, but
+  // it's not OK for this to be `false` when the data possibly contains holes.
+  // Although the value here is overly pessimistic, for prefetches, it will be
+  // replaced by a more specific value when the data is later processed into
+  // per-segment responses (see collect-segment-data.tsx)
+  //
+  // For dynamic requests, this must always be `false` because dynamic responses
+  // are never partial.
+  const isPossiblyPartialResponse =
+    isStaticGeneration && experimental.isRoutePPREnabled === true
+
   // If there's a dynamic usage error attached to the store, throw it.
   if (workStore.dynamicUsageErr) {
     throw workStore.dynamicUsageErr
@@ -548,6 +564,7 @@ async function createComponentTreeInternal({
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      isPossiblyPartialResponse,
     ]
   }
 
@@ -580,6 +597,7 @@ async function createComponentTreeInternal({
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      true,
     ]
   }
 
@@ -650,6 +668,7 @@ async function createComponentTreeInternal({
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      isPossiblyPartialResponse,
     ]
   } else {
     const SegmentComponent = Component
@@ -829,6 +848,7 @@ async function createComponentTreeInternal({
       segmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      isPossiblyPartialResponse,
     ]
   }
 }
