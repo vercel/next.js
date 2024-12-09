@@ -502,9 +502,6 @@ impl SourceMap {
                         .await?;
                     sections.push(SourceMapSection::new(section.offset, map));
                 }
-                for section in &mut sections {
-                    section.map = section.map.to_resolved().await?;
-                }
                 SourceMap::new_sectioned(sections)
             }
         }

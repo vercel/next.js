@@ -5,11 +5,12 @@ use std::path::Path;
 
 use anyhow::{Context, Result};
 use clap::Parser;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_tasks_malloc::TurboMalloc;
 use turbopack_cli::{arguments::Arguments, register};
 use turbopack_trace_utils::{
     exit::ExitHandler,
+    filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
     tracing_presets::{
@@ -55,7 +56,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
 
         let subscriber = Registry::default();
 
-        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
 
         let internal_dir = args
             .dir()
