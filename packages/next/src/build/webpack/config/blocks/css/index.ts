@@ -619,7 +619,7 @@ export const css = curry(async function css(
           insert: function (linkTag: HTMLLinkElement) {
             if (typeof _N_E_STYLE_LOAD === 'function') {
               const { href, onload, onerror } = linkTag
-              _N_E_STYLE_LOAD(new URL(href).toString()).then(
+              _N_E_STYLE_LOAD(href).then(
                 () => onload?.call(linkTag, { type: 'load' } as Event),
                 () => onerror?.call(linkTag, {} as Event)
               )
