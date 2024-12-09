@@ -488,14 +488,16 @@ export async function handleAction({
       ? new URL(req.headers['origin']).host
       : undefined
 
-  const forwardedHostHeader = req.headers['x-forwarded-host'] as
-    | string
-    | undefined
+  const forwardedHostHeader = req.headers['x-forwarded-host']
+  const forwardedHostHeaderValue =
+    forwardedHostHeader && Array.isArray(forwardedHostHeader)
+      ? forwardedHostHeader[0]
+      : forwardedHostHeader
   const hostHeader = req.headers['host']
-  const host: Host = forwardedHostHeader
+  const host: Host = forwardedHostHeaderValue
     ? {
         type: HostType.XForwardedHost,
-        value: forwardedHostHeader,
+        value: forwardedHostHeaderValue,
       }
     : hostHeader
       ? {
