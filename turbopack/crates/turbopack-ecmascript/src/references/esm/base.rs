@@ -201,7 +201,7 @@ impl ModuleReference for EsmAssetReference {
                                 module,
                                 source: self.issue_source,
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                         }
                     }

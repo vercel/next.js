@@ -76,7 +76,7 @@ impl CustomTransformer for NextPageStaticInfo {
                         ],
                         severity: IssueSeverity::Warning,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
             }
@@ -105,7 +105,7 @@ impl CustomTransformer for NextPageStaticInfo {
                         messages,
                         severity: IssueSeverity::Warning,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
             }
@@ -119,7 +119,7 @@ impl CustomTransformer for NextPageStaticInfo {
                     messages: vec![format!(r#"Page "{}" cannot use both "use client" and export function "generateStaticParams()"."#, ctx.file_path_str)],
                     severity: IssueSeverity::Error,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }

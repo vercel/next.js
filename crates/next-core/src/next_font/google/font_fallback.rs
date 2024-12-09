@@ -92,7 +92,7 @@ pub(super) async fn get_font_fallback(
                         .resolved_cell(),
                         severity: IssueSeverity::Warning.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     FontFallback::Error.cell()
                 }
