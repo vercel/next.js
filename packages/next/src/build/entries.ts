@@ -381,6 +381,9 @@ export function getEdgeServerEntry(opts: {
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      cacheHandlers: JSON.stringify(
+        opts.config.experimental.cacheHandlers || {}
+      ),
     }
 
     return {

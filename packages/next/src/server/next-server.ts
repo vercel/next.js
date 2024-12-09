@@ -108,6 +108,7 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
+import DefaultCacheHandler from './lib/cache-handlers/default'
 
 export * from './base-server'
 
@@ -389,6 +390,10 @@ export default class NextNodeServer extends BaseServer<
           )
         }
       }
+      
+      if (!cacheHandlers.default) {
+        ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
+      }
     }
 
     // incremental-cache is request specific
@@ -404,7 +409,6 @@ export default class NextNodeServer extends BaseServer<
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
-      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk:

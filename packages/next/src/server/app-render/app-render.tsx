@@ -199,6 +199,7 @@ export type AppRenderContext = {
   componentMod: AppPageModule
   renderOpts: RenderOpts
   parsedRequestHeaders: ParsedRequestHeaders
+  originalHeaders: Record<string, undefined | string | string[]>
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   query: NextParsedUrlQuery
   isPrefetch: boolean
@@ -1165,6 +1166,7 @@ async function renderToHTMLOrFlightImpl(
     renderOpts,
     workStore,
     parsedRequestHeaders,
+    originalHeaders: req.headers,
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRequest,

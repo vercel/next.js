@@ -112,10 +112,13 @@ async function createComponentTreeInternal({
     getDynamicParamFromSegment,
     isPrefetch,
     query,
+    originalHeaders
   } = ctx
 
   const { page, layoutOrPagePath, segment, modules, parallelRoutes } =
     parseLoaderTree(tree)
+  
+  console.log('create component tree', originalHeaders['x-next-stale-tags']);
 
   const {
     layout,

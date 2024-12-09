@@ -36,12 +36,15 @@ export default class FileSystemCache implements CacheHandler {
   private serverDistDir: FileSystemCacheContext['serverDistDir']
   private revalidatedTags: string[]
   private debug: boolean
+  private requestHeaders: Record<string, string | string[] | undefined>
 
   constructor(ctx: FileSystemCacheContext) {
     this.fs = ctx.fs
     this.flushToDisk = ctx.flushToDisk
     this.serverDistDir = ctx.serverDistDir
     this.revalidatedTags = ctx.revalidatedTags
+    this.requestHeaders = ctx._requestHeaders
+    
     this.debug = !!process.env.NEXT_PRIVATE_DEBUG_CACHE
 
     if (ctx.maxMemoryCacheSize) {
@@ -300,18 +303,20 @@ export default class FileSystemCache implements CacheHandler {
       }
 
       if (cacheTags?.length) {
-        const isStale = cacheTags.some((tag) => {
+        const staleTags = cacheTags.filter((tag) => {
           return (
             tagsManifest?.items[tag]?.revalidatedAt &&
             tagsManifest?.items[tag].revalidatedAt >=
               (data?.lastModified || Date.now())
           )
         })
+        this.requestHeaders['x-next-stale-tags'] = staleTags.join(',')
+        console.log({ staleTags });
 
         // we trigger a blocking validation if an ISR page
         // had a tag revalidated, if we want to be a background
         // revalidation instead we return data.lastModified = -1
-        if (isStale) {
+        if (staleTags.length) {
           return null
         }
       }

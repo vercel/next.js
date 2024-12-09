@@ -1352,37 +1352,48 @@ export default abstract class Server<
         } catch {}
 
         const incrementalCache = await this.getIncrementalCache({
-          requestHeaders: Object.assign({}, req.headers),
+          requestHeaders: req.headers,
           requestProtocol: protocol.substring(0, protocol.length - 1) as
             | 'http'
             | 'https',
         })
 
-        const _globalThis: typeof globalThis & {
-          __nextCacheHandlers?: Record<
-            string,
-            import('./lib/cache-handlers/types').CacheHandler
-          >
-        } = globalThis
-
-        if (_globalThis.__nextCacheHandlers) {
-          const expiredTags: string[] =
-            (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-              ','
-            ) || []
-
-          for (const handler of Object.values(
-            _globalThis.__nextCacheHandlers
-          )) {
-            if (typeof handler.receiveExpiredTags === 'function') {
-              await handler.receiveExpiredTags(...expiredTags)
-            }
-          }
-        }
-
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      const _globalThis: typeof globalThis & {
+        __nextCacheHandlers?: Record<
+          string,
+          import('./lib/cache-handlers/types').CacheHandler
+        >
+      } = globalThis
+
+      if (_globalThis.__nextCacheHandlers) {
+        const expiredTags: string[] =
+          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
+            ','
+          ) || []
+
+        console.log(
+          'calling receiveExpiredTags for cache handlers',
+          _globalThis.__nextCacheHandlers
+        )
+
+        for (const [handlerName, handler] of Object.entries(
+          _globalThis.__nextCacheHandlers
+        )) {
+          if (typeof handler.receiveExpiredTags === 'function') {
+            console.log('calling receiveExpiredTags', {
+              expiredTags,
+              handlerName,
+            })
+            await handler.receiveExpiredTags(...expiredTags)
+          }
+        }
+      } else {
+        console.log('no global __nextCacheHandlers!!', req.url)
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -2337,7 +2348,7 @@ export default abstract class Server<
     const incrementalCache: import('./lib/incremental-cache').IncrementalCache =
       (globalThis as any).__incrementalCache ||
       (await this.getIncrementalCache({
-        requestHeaders: Object.assign({}, req.headers),
+        requestHeaders: req.headers,
         requestProtocol: protocol.substring(0, protocol.length - 1) as
           | 'http'
           | 'https',

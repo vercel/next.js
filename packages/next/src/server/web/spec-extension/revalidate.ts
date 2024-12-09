@@ -27,7 +27,7 @@ export function revalidateTag(tag: string) {
  */
 export function unstable_expirePath(
   originalPath: string,
-  type?: 'layout' | 'page'
+  type?: 'layout' | 'page' | '*'
 ) {
   if (originalPath.length > NEXT_CACHE_SOFT_TAG_MAX_LENGTH) {
     console.warn(
@@ -45,6 +45,8 @@ export function unstable_expirePath(
       `Warning: a dynamic page path "${originalPath}" was passed to "expirePath", but the "type" parameter is missing. This has no effect by default, see more info here https://nextjs.org/docs/app/api-reference/functions/unstable_expirePath`
     )
   }
+
+  console.log('expirePath', { originalPath, type, normalizedPath })
   return revalidate([normalizedPath], `unstable_expirePath ${originalPath}`)
 }
 

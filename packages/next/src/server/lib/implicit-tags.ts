@@ -15,11 +15,18 @@ const getDerivedTags = (pathname: string): string[] => {
       if (curPathname) {
         // all derived tags other than the page are layout tags
         if (!curPathname.endsWith('/page') && !curPathname.endsWith('/route')) {
-          curPathname = `${curPathname}${
+          const layoutPathname = `${curPathname}${
             !curPathname.endsWith('/') ? '/' : ''
           }layout`
+          
+          const globPathname =  `${curPathname}${
+            !curPathname.endsWith('/') ? '/' : ''
+          }*`
+          derivedTags.push(layoutPathname)
+          derivedTags.push(globPathname)
+        } else {
+          derivedTags.push(curPathname)
         }
-        derivedTags.push(curPathname)
       }
     }
   }
@@ -40,7 +47,8 @@ export function getImplicitTags(
     fallbackRouteParams && fallbackRouteParams.size > 0
 
   // Add the derived tags from the page.
-  const derivedTags = getDerivedTags(page)
+  const derivedTags = [...getDerivedTags(page), ...getDerivedTags(url.pathname)]
+  
   for (let tag of derivedTags) {
     tag = `${NEXT_CACHE_IMPLICIT_TAG_ID}${tag}`
     newTags.push(tag)
