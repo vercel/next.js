@@ -404,9 +404,7 @@ async fn graph_node_to_referenced_nodes(
                         return Ok((
                             Some(ChunkGraphEdge {
                                 key: None,
-                                node: ChunkContentGraphNode::ExternalModuleReference(
-                                    reference.to_resolved().await?,
-                                ),
+                                node: ChunkContentGraphNode::ExternalModuleReference(reference),
                             }),
                             None,
                         ));
@@ -622,7 +620,7 @@ async fn chunk_content_internal_parallel(
                 return Ok(None);
             };
             Ok(Some(ChunkGraphEdge {
-                key: Some(entry.to_resolved().await?),
+                key: Some(entry),
                 node: ChunkContentGraphNode::ChunkItem {
                     item: chunkable_module.as_chunk_item(chunking_context),
                     ident: chunkable_module.ident().to_string().await?,

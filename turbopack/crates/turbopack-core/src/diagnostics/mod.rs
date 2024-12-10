@@ -76,12 +76,12 @@ pub trait DiagnosticExt {
     fn emit(self);
 }
 
-impl<T> DiagnosticExt for Vc<T>
+impl<T> DiagnosticExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Diagnostic>>,
 {
     fn emit(self) {
-        let diagnostic = Vc::upcast::<Box<dyn Diagnostic>>(self);
+        let diagnostic = ResolvedVc::upcast::<Box<dyn Diagnostic>>(self);
         emit(diagnostic);
     }
 }

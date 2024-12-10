@@ -426,7 +426,7 @@ async function suggestTurbopack(
   packageJson: any,
   targetNextVersion: string
 ): Promise<void> {
-  const devScript: string = packageJson.scripts['dev']
+  const devScript: string | undefined = packageJson.scripts?.['dev']
   // Turbopack flag was changed from `--turbo` to `--turbopack` in v15.0.1-canary.3
   // PR: https://github.com/vercel/next.js/pull/71657
   // Release: https://github.com/vercel/next.js/releases/tag/v15.0.1-canary.3

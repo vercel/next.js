@@ -263,12 +263,12 @@ impl AssetGraphGetContentSourceContent {
 impl GetContentSourceContent for AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         _path: RcStr,
         _data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let this = self.await?;
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(ContentSourceContent::static_content(
             this.asset.versioned_content(),
         ))

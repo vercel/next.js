@@ -16,6 +16,7 @@ anyhow = { workspace = true }
 crossbeam-channel = { workspace = true }
 once_cell = { workspace = true }
 postcard = { workspace = true, features = ["alloc", "use-std"] }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["macros", "signal", "sync", "rt"] }
 tracing = { workspace = true }
