@@ -1382,6 +1382,7 @@ export async function buildAppStaticPaths({
     }
   )
 
+  let lastDynamicSegmentHadGenerateStaticParams = false
   for (const segment of segments) {
     // Check to see if there are any missing params for segments that have
     // dynamicParams set to false.
@@ -1401,6 +1402,15 @@ export async function buildAppStaticPaths({
           `Segment "${relative}" exports "dynamicParams: false" but the param "${segment.param}" is missing from the generated route params.`
         )
       }
+    }
+
+    if (
+      segment.isDynamicSegment &&
+      typeof segment.generateStaticParams !== 'function'
+    ) {
+      lastDynamicSegmentHadGenerateStaticParams = false
+    } else if (typeof segment.generateStaticParams === 'function') {
+      lastDynamicSegmentHadGenerateStaticParams = true
     }
   }
 
@@ -1437,7 +1447,9 @@ export async function buildAppStaticPaths({
 
   let result: PartialStaticPathsResult = {
     fallbackMode,
-    prerenderedRoutes: undefined,
+    prerenderedRoutes: lastDynamicSegmentHadGenerateStaticParams
+      ? []
+      : undefined,
   }
 
   if (hadAllParamsGenerated && fallbackMode) {

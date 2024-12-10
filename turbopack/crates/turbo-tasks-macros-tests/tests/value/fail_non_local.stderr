@@ -1,0 +1,22 @@
+error[E0277]: the trait bound `Vc<i32>: NonLocalValue` is not satisfied
+ --> tests/value/fail_non_local.rs:8:12
+  |
+8 |     value: Vc<i32>,
+  |            ^^^^^^^ the trait `NonLocalValue` is not implemented for `Vc<i32>`
+  |
+  = help: the following other types implement trait `NonLocalValue`:
+            &T
+            &mut T
+            ()
+            (A, Z, Y, X, W, V, U, T)
+            (B, A, Z, Y, X, W, V, U, T)
+            (C, B, A, Z, Y, X, W, V, U, T)
+            (D, C, B, A, Z, Y, X, W, V, U, T)
+            (E, D, C, B, A, Z, Y, X, W, V, U, T)
+          and $N others
+note: required by a bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
+ --> tests/value/fail_non_local.rs:6:22
+  |
+6 | #[turbo_tasks::value(non_local)]
+  |                      ^^^^^^^^^ required by this bound in `DeriveNonLocalValueAssertion::assert_impl_NonLocalValue`
+  = note: this error originates in the derive macro `turbo_tasks::NonLocalValue` (in Nightly builds, run with -Z macro-backtrace for more info)
