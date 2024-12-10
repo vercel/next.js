@@ -194,14 +194,14 @@ export default class FileSystemCache implements CacheHandler {
             )
           } catch {}
 
-          let maybeSegmentData: { [segmentPath: string]: string } | undefined
+          let maybeSegmentData: Map<string, Buffer> | undefined
           if (meta?.segmentPaths) {
             // Collect all the segment data for this page.
             // TODO: To optimize file system reads, we should consider creating
             // separate cache entries for each segment, rather than storing them
             // all on the page's entry. Though the behavior is
             // identical regardless.
-            const segmentData: { [segmentPath: string]: string } = {}
+            const segmentData: Map<string, Buffer> = new Map()
             maybeSegmentData = segmentData
             const segmentsDir = key + RSC_SEGMENTS_DIR_SUFFIX
             await Promise.all(
@@ -213,9 +213,9 @@ export default class FileSystemCache implements CacheHandler {
                   IncrementalCacheKind.APP_PAGE
                 )
                 try {
-                  segmentData[segmentPath] = await this.fs.readFile(
-                    segmentDataFilePath,
-                    'utf8'
+                  segmentData.set(
+                    segmentPath,
+                    await this.fs.readFile(segmentDataFilePath)
                   )
                 } catch {
                   // This shouldn't happen, but if for some reason we fail to
