@@ -23,7 +23,7 @@ pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
-    operation::OperationVc,
+    operation::{OperationValue, OperationVc},
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
     resolved::{ResolvedValue, ResolvedVc},
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},

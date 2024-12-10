@@ -3,6 +3,7 @@
 #![feature(allow_internal_unstable)]
 #![feature(box_patterns)]
 
+mod assert_fields;
 mod derive;
 mod func;
 mod function_macro;
@@ -30,6 +31,11 @@ pub fn derive_shrink_to_fit(input: TokenStream) -> TokenStream {
 #[proc_macro_derive(ResolvedValue, attributes(turbo_tasks))]
 pub fn derive_resolved_value_attr(input: TokenStream) -> TokenStream {
     derive::derive_resolved_value(input)
+}
+
+#[proc_macro_derive(OperationValue, attributes(turbo_tasks))]
+pub fn derive_operation_value_attr(input: TokenStream) -> TokenStream {
+    derive::derive_operation_value(input)
 }
 
 #[proc_macro_derive(ValueDebug, attributes(turbo_tasks))]
