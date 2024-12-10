@@ -53,8 +53,6 @@ export default function Layout({ children }) {
 
 - `after` will be executed even if the response didn't complete successfully. Including when an error is thrown or when `notFound` or `redirect` is called.
 - You can use React `cache` to deduplicate functions called inside `after`.
-- [`cookies`](/docs/app/api-reference/functions/cookies) cannot be set inside `after` since the response has already been sent.
-- [Dynamic APIs](/docs/app/building-your-application/rendering/server-components#dynamic-apis) cannot be called within `after`. Call them outside of `after` and use the object they returned.
 - `after` can be nested inside other `after` calls, for example, you can create utility functions that wrap `after` calls to add additional functionality.
 
 ## Alternatives
@@ -65,6 +63,64 @@ The use case for `after` is to process secondary tasks without blocking the prim
 - **Removing `await`**: starts executing during the response, which uses resources. It's also not reliable in serverless environments as the function stops computation immediately after the response is sent, potentially interrupting the task.
 
 We recommend using `after` as it has been designed to consider other Next.js APIs and contexts.
+
+## Examples
+
+### With request APIs
+
+You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
+
+```tsx filename="app/api/route.ts" highlight={2,7-9} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request: Request) {
+  // Perform mutation
+  // ...
+
+  // Log user activity for analytics
+  after(async () => {
+    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const sessionCookie =
+      (await cookies().get('session-id'))?.value || 'anonymous'
+
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+```jsx filename="app/api/route.js" highlight={2,7-9} switcher
+import { after } from 'next/server'
+import { cookies, headers } from 'next/headers'
+import { logUserAction } from '@/app/utils'
+
+export async function POST(request) {
+  // Perform mutation
+  // ...
+
+  // Log user activity for analytics
+  after(async () => {
+    const userAgent = (await headers().get('user-agent')) || 'unknown'
+    const sessionCookie =
+      (await cookies().get('session-id'))?.value || 'anonymous'
+
+    logUserAction({ sessionCookie, userAgent })
+  })
+
+  return new Response(JSON.stringify({ status: 'success' }), {
+    status: 200,
+    headers: { 'Content-Type': 'application/json' },
+  })
+}
+```
+
+However, you cannot use these request APIs inside `after` in [Server Components](/docs/app/building-your-application/rendering/server-components). This is because Next.js needs to know which part of the tree access the request APIs to support [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), but `after` runs after React's rendering lifecycle.
 
 | Version History | Description                  |
 | --------------- | ---------------------------- |
