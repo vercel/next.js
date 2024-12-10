@@ -7,6 +7,28 @@ import {
   REDIRECT_ERROR_CODE,
 } from './redirect-error'
 
+/**
+ * Utility to extract fields from the RedirectError digest.
+ * @param error - The RedirectError object
+ * @param index - The index of the field in the digest
+ */
+function getDigestField(error: RedirectError, index: number): string {
+  if (!isRedirectError(error)) {
+    throw new Error('Provided error is not a RedirectError.')
+  }
+  const digestParts = error.digest.split(';')
+  if (index < 0 || index >= digestParts.length) {
+    throw new Error('Invalid digest index.')
+  }
+  return digestParts[index]
+}
+
+/**
+ * Generates a RedirectError object with the specified parameters.
+ * @param url - The URL to redirect to
+ * @param type - The type of redirect (push or replace)
+ * @param statusCode - The HTTP status code for the redirect
+ */
 export function getRedirectError(
   url: string,
   type: RedirectType,
@@ -18,19 +40,12 @@ export function getRedirectError(
 }
 
 /**
- * This function allows you to redirect the user to another URL. It can be used in
- * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
- * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
- * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
- *
- * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
- * - In a Route Handler or Server Action, it will serve a 307/303 to the caller.
- * - In a Server Action, type defaults to 'push' and 'replace' elsewhere.
- *
- * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
+ * Performs a temporary redirect.
+ * This function works in Server Components, Route Handlers, and Server Actions.
+ * @param url - The URL to redirect to
+ * @param type - The type of redirect (push or replace). Defaults to context-based.
  */
 export function redirect(
-  /** The URL to redirect to */
   url: string,
   type?: RedirectType
 ): never {
@@ -45,18 +60,12 @@ export function redirect(
 }
 
 /**
- * This function allows you to redirect the user to another URL. It can be used in
- * [Server Components](https://nextjs.org/docs/app/building-your-application/rendering/server-components),
- * [Route Handlers](https://nextjs.org/docs/app/building-your-application/routing/route-handlers), and
- * [Server Actions](https://nextjs.org/docs/app/building-your-application/data-fetching/server-actions-and-mutations).
- *
- * - In a Server Component, this will insert a meta tag to redirect the user to the target page.
- * - In a Route Handler or Server Action, it will serve a 308/303 to the caller.
- *
- * Read more: [Next.js Docs: `redirect`](https://nextjs.org/docs/app/api-reference/functions/redirect)
+ * Performs a permanent redirect.
+ * This function works in Server Components, Route Handlers, and Server Actions.
+ * @param url - The URL to redirect to
+ * @param type - The type of redirect (push or replace). Defaults to 'replace'.
  */
 export function permanentRedirect(
-  /** The URL to redirect to */
   url: string,
   type: RedirectType = RedirectType.replace
 ): never {
@@ -64,33 +73,31 @@ export function permanentRedirect(
 }
 
 /**
- * Returns the encoded URL from the error if it's a RedirectError, null
- * otherwise. Note that this does not validate the URL returned.
- *
- * @param error the error that may be a redirect error
- * @return the url if the error was a redirect error
+ * Extracts the encoded URL from a RedirectError.
+ * @param error - The error object to parse
+ * @returns The redirect URL or null if the error is not a RedirectError.
  */
-export function getURLFromRedirectError(error: RedirectError): string
 export function getURLFromRedirectError(error: unknown): string | null {
   if (!isRedirectError(error)) return null
-
-  // Slices off the beginning of the digest that contains the code and the
-  // separating ';'.
-  return error.digest.split(';').slice(2, -2).join(';')
+  return getDigestField(error as RedirectError, 2) // URL is the third field
 }
 
+/**
+ * Extracts the redirect type (push or replace) from a RedirectError.
+ * @param error - The RedirectError object
+ * @returns The redirect type (push or replace)
+ */
 export function getRedirectTypeFromError(error: RedirectError): RedirectType {
-  if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
-  }
-
-  return error.digest.split(';', 2)[1] as RedirectType
+  return getDigestField(error, 1) as RedirectType
 }
 
+/**
+ * Extracts the status code from a RedirectError.
+ * @param error - The RedirectError object
+ * @returns The HTTP status code as a number
+ */
 export function getRedirectStatusCodeFromError(error: RedirectError): number {
-  if (!isRedirectError(error)) {
-    throw new Error('Not a redirect error')
-  }
-
-  return Number(error.digest.split(';').at(-2))
+  const statusCode = getDigestField(error, -2) // Status code is the second-to-last field
+  return Number(statusCode)
 }
+

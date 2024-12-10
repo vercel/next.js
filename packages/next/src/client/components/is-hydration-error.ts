@@ -1,68 +1,85 @@
-import isError from '../../lib/is-error'
+'use client'
 
-const hydrationErrorRegex =
-  /hydration failed|while hydrating|content does not match|did not match|HTML didn't match/i
+import type { ParsedUrlQuery } from 'querystring'
+import { InvariantError } from '../../shared/lib/invariant-error'
+import type { Params } from '../../server/request/params'
 
-const reactUnifiedMismatchWarning = `Hydration failed because the server rendered HTML didn't match the client. As a result this tree will be regenerated on the client. This can happen if a SSR-ed Client Component used`
+/**
+ * Utility to handle client-side or server-side parameter wrapping.
+ * Handles searchParams and params transformation with proper context.
+ */
+function getClientParamsAndSearchParams(
+  searchParams: ParsedUrlQuery,
+  params: Params,
+  store?: any,
+  isServer: boolean = true
+) {
+  if (isServer) {
+    const { createSearchParamsFromClient } =
+      require('../../server/request/search-params') as typeof import('../../server/request/search-params')
+    const { createParamsFromClient } =
+      require('../../server/request/params') as typeof import('../../server/request/params')
 
-const reactHydrationStartMessages = [
-  reactUnifiedMismatchWarning,
-  `A tree hydrated but some attributes of the server rendered HTML didn't match the client properties. This won't be patched up. This can happen if a SSR-ed Client Component used:`,
-]
+    const clientSearchParams = createSearchParamsFromClient(searchParams, store)
+    const clientParams = createParamsFromClient(params, store)
 
-const reactHydrationErrorDocLink = 'https://react.dev/link/hydration-mismatch'
-
-export const getDefaultHydrationErrorMessage = () => {
-  return reactUnifiedMismatchWarning
-}
-
-export function isHydrationError(error: unknown): boolean {
-  return isError(error) && hydrationErrorRegex.test(error.message)
-}
-
-export function isReactHydrationErrorMessage(msg: string): boolean {
-  return reactHydrationStartMessages.some((prefix) => msg.startsWith(prefix))
-}
-
-export function getHydrationErrorStackInfo(rawMessage: string): {
-  message: string | null
-  link?: string
-  stack?: string
-  diff?: string
-} {
-  rawMessage = rawMessage.replace(/^Error: /, '')
-  if (!isReactHydrationErrorMessage(rawMessage)) {
-    return { message: null }
-  }
-  const firstLineBreak = rawMessage.indexOf('\n')
-  rawMessage = rawMessage.slice(firstLineBreak + 1).trim()
-
-  const [message, trailing] = rawMessage.split(`${reactHydrationErrorDocLink}`)
-  const trimmedMessage = message.trim()
-  // React built-in hydration diff starts with a newline, checking if length is > 1
-  if (trailing && trailing.length > 1) {
-    const stacks: string[] = []
-    const diffs: string[] = []
-    trailing.split('\n').forEach((line) => {
-      if (line.trim() === '') return
-      if (line.trim().startsWith('at ')) {
-        stacks.push(line)
-      } else {
-        diffs.push(line)
-      }
-    })
-
-    return {
-      message: trimmedMessage,
-      link: reactHydrationErrorDocLink,
-      diff: diffs.join('\n'),
-      stack: stacks.join('\n'),
-    }
+    return { clientSearchParams, clientParams }
   } else {
-    return {
-      message: trimmedMessage,
-      link: reactHydrationErrorDocLink,
-      stack: trailing, // without hydration diff
-    }
+    const { createRenderSearchParamsFromClient } =
+      require('../../server/request/search-params.browser') as typeof import('../../server/request/search-params.browser')
+    const { createRenderParamsFromClient } =
+      require('../../server/request/params.browser') as typeof import('../../server/request/params.browser')
+
+    const clientSearchParams = createRenderSearchParamsFromClient(searchParams)
+    const clientParams = createRenderParamsFromClient(params)
+
+    return { clientSearchParams, clientParams }
   }
 }
+
+/**
+ * When the Page is a client component, we send the params and searchParams to this client wrapper
+ * where they are turned into dynamically tracked values before being passed to the actual Page component.
+ */
+export function ClientPageRoot({
+  Component,
+  searchParams,
+  params,
+  promises,
+}: {
+  Component: React.ComponentType<any>
+  searchParams: ParsedUrlQuery
+  params: Params
+  promises?: Array<Promise<void>>
+}) {
+  if (typeof window === 'undefined') {
+    const { workAsyncStorage } =
+      require('../../server/app-render/work-async-storage.external') as typeof import('../../server/app-render/work-async-storage.external')
+
+    const store = workAsyncStorage.getStore()
+    if (!store) {
+      throw new InvariantError(
+        'Expected workStore to exist when handling searchParams in a client Page.'
+      )
+    }
+
+    const { clientSearchParams, clientParams } = getClientParamsAndSearchParams(
+      searchParams,
+      params,
+      store,
+      true
+    )
+
+    return <Component params={clientParams} searchParams={clientSearchParams} />
+  } else {
+    const { clientSearchParams, clientParams } = getClientParamsAndSearchParams(
+      searchParams,
+      params,
+      undefined,
+      false
+    )
+
+    return <Component params={clientParams} searchParams={clientSearchParams} />
+  }
+}
+
