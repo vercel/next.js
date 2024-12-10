@@ -106,7 +106,7 @@ async fn test_spawns_detached_changing() -> anyhow::Result<()> {
     .await
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 struct ChangingInput {
     state: State<u32>,
 }
