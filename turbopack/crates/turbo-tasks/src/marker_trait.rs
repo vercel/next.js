@@ -72,6 +72,7 @@ macro_rules! impl_auto_marker_trait {
             T: $crate::VcValueType,
             <<T as $crate::VcValueType>::Read as $crate::VcRead<T>>::Target: $trait
         {}
+        unsafe impl<T: $trait> $trait for $crate::State<T> {}
 
         unsafe impl<T: $trait + ?Sized> $trait for &T {}
         unsafe impl<T: $trait + ?Sized> $trait for &mut T {}

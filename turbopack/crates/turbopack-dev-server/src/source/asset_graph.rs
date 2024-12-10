@@ -27,7 +27,7 @@ struct OutputAssetsMap(FxIndexMap<RcStr, ResolvedVc<Box<dyn OutputAsset>>>);
 
 type ExpandedState = State<HashSet<RcStr>>;
 
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", local)]
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct AssetGraphContentSource {
     root_path: ResolvedVc<FileSystemPath>,
     root_assets: ResolvedVc<OutputAssetsSet>,

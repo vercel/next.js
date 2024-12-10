@@ -21,7 +21,7 @@ use crate::source::{ContentSourceContent, ContentSources};
 /// pages. Here HTML and "other assets" are in different content sources. So we
 /// use this source to only serve (and process) "other assets" when the HTML was
 /// served once.
-#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new", local)]
+#[turbo_tasks::value(serialization = "none", eq = "manual", cell = "new")]
 pub struct ConditionalContentSource {
     activator: ResolvedVc<Box<dyn ContentSource>>,
     action: ResolvedVc<Box<dyn ContentSource>>,
