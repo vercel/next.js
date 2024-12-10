@@ -2,7 +2,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import escapeStringRegexp from 'escape-string-regexp'
 import { retry } from 'next-test-utils'
-import { outdent } from 'outdent'
 
 describe('after - error stacks', () => {
   const { next, skipped, isNextStart } = nextTestSetup({
@@ -58,10 +57,10 @@ describe('after - error stacks', () => {
       "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at aboveThrows (_.js:0:0)
-          at <async execution of unstable_after> (<anonymous>)
+          at <async execution of after callback> (_.js:0:0)
           at nestedHelper (_.js:0:0)
           at aboveNestedHelper (_.js:0:0)
-          at <async execution of unstable_after> (<anonymous>)
+          at <async execution of after callback> (_.js:0:0)
           at helper (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -78,7 +77,7 @@ describe('after - error stacks', () => {
       "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at <unknown> (_.js:0:0)
-          at <async execution of unstable_after> (<anonymous>)
+          at <async execution of after callback> (_.js:0:0)
           at helper (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -87,25 +86,22 @@ describe('after - error stacks', () => {
     `)
   })
 
-  it.failing('callback-timeout', async () => {
+  it('callback-timeout', async () => {
     await next.render('/callback-timeout')
     const loggedError = await waitForLoggedError()
 
-    // FIXME: <unknown>, the callback, is omitted
-    // (not a snapshot so that we don't auto-update it to the wrong output)
-    expect(loggedError).toEqual(
-      outdent`
-      An error occurred in a function passed to \`after()\`: Error: kaboom
+    // the `<unknown>` callback is omitted because of async stack traces
+    expect(loggedError).toMatchInlineSnapshot(`
+      "An error occurred in a function passed to \`after()\`: Error: kaboom
           at throws (_.js:0:0)
           at bar (_.js:0:0)
-          at <unknown> (_.js:0:0)
-          at <async execution of unstable_after> (<anonymous>)
+          at <async execution of after callback> (_.js:0:0)
           at foo (_.js:0:0)
           at Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
           at Page (_.js:0:0)
-      ` + '\n'
-    )
+      "
+    `)
   })
 
   it('callback-timeout-2', async () => {
@@ -117,7 +113,7 @@ describe('after - error stacks', () => {
           at throws (_.js:0:0)
           at bar (_.js:0:0)
           at <unknown> (_.js:0:0)
-          at <async execution of unstable_after> (<anonymous>)
+          at <async execution of after callback> (_.js:0:0)
           at foo (_.js:0:0)
           at async Inner (_.js:0:0)
           at Wrapper (_.js:0:0)
@@ -131,11 +127,15 @@ describe('after - error stacks', () => {
       await next.render('/simple-promise')
       const loggedError = await waitForLoggedError()
 
-      // no extra context stitched onto the error
       expect(loggedError).toMatchInlineSnapshot(`
         "A promise passed to \`after()\` rejected: Error: kaboom
             at throws (_.js:0:0)
             at throwsAsync (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at helper (_.js:0:0)
+            at Inner (_.js:0:0)
+            at Wrapper (_.js:0:0)
+            at Page (_.js:0:0)
         "
       `)
     })
@@ -144,11 +144,17 @@ describe('after - error stacks', () => {
       await next.render('/nested-promise')
       const loggedError = await waitForLoggedError()
 
-      // no extra context stitched onto the error
+      // TODO(after): is it acceptable that `Inner` is missing here?
       expect(loggedError).toMatchInlineSnapshot(`
         "A promise passed to \`after()\` rejected: Error: kaboom
             at throws (_.js:0:0)
             at <unknown> (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at nestedHelper (_.js:0:0)
+            at <unknown> (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at Wrapper (_.js:0:0)
+            at Page (_.js:0:0)
         "
       `)
     })
@@ -157,11 +163,16 @@ describe('after - error stacks', () => {
       await next.render('/nested-promise-2')
       const loggedError = await waitForLoggedError()
 
-      // no extra context stitched onto the error
+      // TODO(after): is it acceptable that `Inner` is missing here?
       expect(loggedError).toMatchInlineSnapshot(`
         "A promise passed to \`after()\` rejected: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at bar (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at Wrapper (_.js:0:0)
+            at Page (_.js:0:0)
         "
       `)
     })
@@ -172,45 +183,56 @@ describe('after - error stacks', () => {
       await next.render('/nested-promise-above-callback-1')
       const loggedError = await waitForLoggedError()
 
-      // no extra context stitched onto the error
+      // TODO(after): is it acceptable that `Inner` is missing here?
       expect(loggedError).toMatchInlineSnapshot(`
         "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at bar (_.js:0:0)
+            at <async execution of after callback> (_.js:0:0)
+            at Wrapper (_.js:0:0)
+            at Page (_.js:0:0)
         "
       `)
     })
 
-    it.failing('nested-promise-above-callback-2', async () => {
+    it('nested-promise-above-callback-2', async () => {
       await next.render('/nested-promise-above-callback-2')
       const loggedError = await waitForLoggedError()
 
-      // FIXME: why aren't we catching `after(bar())` as a promise and bailing out?
-      // (not a snapshot so that we don't auto-update it to the wrong output)
-      expect(loggedError).toEqual(
-        outdent`
-        An error occurred in a function passed to \`after()\`: Error: kaboom
+      // the `aboveZap` callback is omitted because of async stack traces
+      expect(loggedError).toMatchInlineSnapshot(`
+        "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
-            at <async execution of unstable_after> (<anonymous>)
-        ` + '\n'
-      )
+            at <async execution of after callback> (_.js:0:0)
+            at bar (_.js:0:0)
+            at foo (_.js:0:0)
+            at async Inner (_.js:0:0)
+            at Wrapper (_.js:0:0)
+            at Page (_.js:0:0)
+        "
+      `)
     })
 
-    it.failing('nested-promise-above-callback-2-sync', async () => {
+    it('nested-promise-above-callback-2-sync', async () => {
       await next.render('/nested-promise-above-callback-2-sync')
       const loggedError = await waitForLoggedError()
 
-      // FIXME: why aren't we catching `after(bar())` as a promise and bailing out?
-      // (not a snapshot so that we don't auto-update it to the wrong output)
-      expect(loggedError).toEqual(
-        outdent`
-        An error occurred in a function passed to \`after()\`: Error: kaboom
+      // the `aboveZap` callback is omitted because of async stack traces
+      expect(loggedError).toMatchInlineSnapshot(`
+        "An error occurred in a function passed to \`after()\`: Error: kaboom
             at throws (_.js:0:0)
             at zap (_.js:0:0)
-            at <async execution of unstable_after> (<anonymous>)
-        ` + '\n'
-      )
+            at <async execution of after callback> (_.js:0:0)
+            at bar (_.js:0:0)
+            at foo (_.js:0:0)
+            at Inner (_.js:0:0)
+            at Wrapper (_.js:0:0)
+            at Page (_.js:0:0)
+        "
+      `)
     })
 
     it('nested-promise-above-callback-3', async () => {
@@ -222,7 +244,7 @@ describe('after - error stacks', () => {
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
-            at <async execution of unstable_after> (<anonymous>)
+            at <async execution of after callback> (_.js:0:0)
             at bar (_.js:0:0)
             at foo (_.js:0:0)
             at async Inner (_.js:0:0)
@@ -241,7 +263,7 @@ describe('after - error stacks', () => {
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
-            at <async execution of unstable_after> (<anonymous>)
+            at <async execution of after callback> (_.js:0:0)
             at bar (_.js:0:0)
             at foo (_.js:0:0)
             at Inner (_.js:0:0)
@@ -260,7 +282,7 @@ describe('after - error stacks', () => {
             at throws (_.js:0:0)
             at zap (_.js:0:0)
             at aboveZap (_.js:0:0)
-            at <async execution of unstable_after> (<anonymous>)
+            at <async execution of after callback> (_.js:0:0)
             at bar (_.js:0:0)
             at foo (_.js:0:0)
             at Inner (_.js:0:0)
@@ -298,13 +320,13 @@ const errorLogPrefixPattern = new RegExp(
 const errorLogPattern = new RegExp(
   errorLogPrefixPattern.source +
     /[^\n]+\n/.source +
-    /(?:\s+at .*? \(.*?(?:\d+:\d+\))?\n)+/.source
+    /(?:\s+at .*? \(.*?(?::\d+:\d+)?\)\n)+/.source
 )
 
 /** Replace "(/some/file:123:456)" with "(/some/file/0:0)" */
 function stripLocations(errorStack: string) {
   return errorStack.replaceAll(
-    /(\s+at .*?) \((.*?):\d+:\d+\)\n/g,
+    /(\s+at .*?) \((.*?)(?::\d+:\d+)?\)\n/g,
     '$1 (_.js:0:0)\n'
   )
 }

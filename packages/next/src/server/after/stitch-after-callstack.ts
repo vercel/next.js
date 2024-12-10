@@ -77,36 +77,9 @@ function getStitchedAfterCallstack(
 ): StackFrame[] | undefined {
   const errorFrames = parseStack(error.stack)
 
-  const userFramesFromError = stripFramesOutsideCallback(errorFrames)
+  const userFramesFromError = transformMarkedFrames(errorFrames)
   if (!userFramesFromError) {
-    // If we didn't find a marker frame, we're almost certainly in a `after(promise)` call
-    // or something like `setTimeout(() => after(...))`.
-    //
-    // If it's a promise, we can't guarantee that we'll attach all the caller stacks that we should,
-    // because `after(promise)` cannot affect the promise's ALS context,
-    // so e.g. this won't include `foo` and its callers -- `rootTaskCallerStack` will start at `bar`:
-    //
-    //   async function foo() {
-    //     await setTimeout(0);
-    //     after(bar());
-    //   }
-    //   async function bar() {
-    //     await setTimeout(0);
-    //     after(zap());
-    //   }
-    //
-    //   async function zap() {
-    //     await setTimeout(0);
-    //     throw new Error('kaboom');
-    //   }
-    //
-    //   foo();
-    //
-    // (omitting `setTimeout(0)` seems to make it work -- I guess it's different if it's just microtasks?)
-    //
-    // Honestly, maybe I'm missing something here, but the above example
-    // is stubbornly missing `foo` no matter what I do, which results in a confusing callstack.
-    // Bailing out here prevents that, so I'm sticking with it.
+    // something weird is going on, bail out
     return
   }
 
@@ -114,34 +87,24 @@ function getStitchedAfterCallstack(
   let userFramesFromTaskCallers: StackFrame[] = []
   if (nestedTaskCallerStacks) {
     for (let i = 0; i < nestedTaskCallerStacks.length; i++) {
-      const frames = stripFramesOutsideCallback(
+      const frames = transformMarkedFrames(
         parseStack(nestedTaskCallerStacks[i].stack)
       )
       if (!frames) {
         // same as the error frame above -- no marker found, so we bail out.
         return
       }
-      if (hasPromiseMarkerFrame(frames)) {
-        return
-      }
-      frames.unshift(createAsyncPlaceholderFrame())
       userFramesFromTaskCallers = userFramesFromTaskCallers.concat(frames)
     }
   }
 
   // the caller of the root `after`
-  const rootCallerFrames = parseStack(rootTaskCallerStack.stack)
+  let rootCallerFrames = parseStack(rootTaskCallerStack.stack)
 
-  if (hasPromiseMarkerFrame(rootCallerFrames)) {
-    // this stack of afters started from a promise passed to after: `after(foo())`
-    // (where `foo` called the after whose error we're handling now)
-    // we cannot trust that the root stack is attacheable to the react owner stack,
-    // so bail out.
-    return
-  }
+  // if the root caller was a promise, it might be marked too, but it doesn't have to be
+  rootCallerFrames = transformMarkedFrames(rootCallerFrames) ?? rootCallerFrames
 
-  rootCallerFrames.unshift(createAsyncPlaceholderFrame())
-
+  // (is only added in dev)
   const reactBottomFrameIndex = rootCallerFrames.findIndex(
     (frame) => frame.methodName === 'react-stack-bottom-frame'
   )
@@ -151,9 +114,10 @@ function getStitchedAfterCallstack(
       : rootCallerFrames
 
   // the owner stack above the caller of the root `after`
+  // (is only available in dev)
   const framesFromReactOwner = rootTaskReactOwnerStack
     ? parseStack(
-        // hack: parseStack expects the first like to be an error message
+        // hack: parseStack expects the first line to be an error message
         'FakeError: ' + rootTaskReactOwnerStack
       )
     : []
@@ -165,34 +129,39 @@ function getStitchedAfterCallstack(
   )
 }
 
-function createAsyncPlaceholderFrame() {
+function getAsyncPlaceholderFrame(): StackFrame {
   return {
-    methodName: '<async execution of unstable_after>',
-    file: '<anonymous>',
-    lineNumber: null,
-    column: null,
+    methodName: '<async execution of after callback>',
     arguments: [],
+    file: '<anonymous>',
+    column: null,
+    lineNumber: null,
   }
 }
 
-function hasPromiseMarkerFrame(frames: StackFrame[]) {
-  return frames.some(isPromiseMarkerFrame)
+function transformMarkedFrames(frames: StackFrame[]) {
+  const newFrames = stripFramesOutsideMarker(frames)
+  if (!newFrames) return undefined
+  return [...newFrames, getAsyncPlaceholderFrame()]
 }
 
-function isPromiseMarkerFrame(frame: StackFrame) {
-  return frame.methodName.endsWith(AFTER_PROMISE_MARKER_FRAME) // it might be "async [name]"
-}
-
-function stripFramesOutsideCallback(frames: StackFrame[]) {
+function stripFramesOutsideMarker(frames: StackFrame[]) {
   // slice off everything above the user callback -- that's next.js internals
-  const topFrameIx = frames.findIndex(isCallbackMarkerFrame)
+  const topFrameIx = frames.findIndex(isAnyMarkerFrame)
   if (topFrameIx === -1) {
-    return
+    return undefined
   }
   // last index is not included, so this also omits the marker frame
   return frames.slice(0, topFrameIx)
 }
 
+function isAnyMarkerFrame(frame: StackFrame) {
+  return isCallbackMarkerFrame(frame) || isPromiseMarkerFrame(frame)
+}
+
+function isPromiseMarkerFrame(frame: StackFrame) {
+  return frame.methodName.endsWith(AFTER_PROMISE_MARKER_FRAME) // it might be "async [name]"
+}
 function isCallbackMarkerFrame(frame: StackFrame) {
   return frame.methodName.endsWith(AFTER_CALLBACK_MARKER_FRAME) // it might be "async [name]"
 }

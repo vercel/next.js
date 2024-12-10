@@ -21,7 +21,7 @@ async function foo() {
 
 async function bar() {
   await setTimeout(0)
-  // TODO(after): it looks like `aboveZap` is not in the stack if `zap` does `setTimeout(0)`?
+  // `aboveZap` is not in the stack if `zap` does `setTimeout(0)`
   after(function aboveZap() {
     return zap()
   })
