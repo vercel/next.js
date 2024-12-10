@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     collections::{HashMap, HashSet},
     future::Future,
     hash::Hash,
@@ -9,6 +10,7 @@ use anyhow::{Context, Result};
 use next_core::{
     mode::NextMode,
     next_client_reference::{find_server_entries, ServerEntries},
+    next_manifests::ActionLayer,
 };
 use petgraph::{
     graph::{DiGraph, NodeIndex},
@@ -35,6 +37,7 @@ use turbopack_core::{
 use crate::{
     dynamic_imports::{map_next_dynamic, DynamicImports},
     project::Project,
+    server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
 };
 
 #[turbo_tasks::value(transparent)]
@@ -316,6 +319,12 @@ impl SingleModuleGraph {
             .context("Couldn't find entry module in graph")
     }
 
+    /// Iterate over all nodes in the graph (potentially in the whole app!).
+    pub fn iter_nodes(&self) -> impl Iterator<Item = &'_ SingleModuleGraphNode> + '_ {
+        self.graph.node_weights()
+    }
+
+    /// Enumerate over all nodes in the graph (potentially in the whole app!).
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
@@ -533,6 +542,90 @@ impl NextDynamicGraph {
     }
 }
 
+#[turbo_tasks::value]
+pub struct ServerActionsGraph {
+    is_single_page: bool,
+    graph: ResolvedVc<SingleModuleGraph>,
+    /// (Layer, RSC or Browser module) -> list of actions
+    data: ResolvedVc<AllModuleActions>,
+}
+
+#[turbo_tasks::value_impl]
+impl ServerActionsGraph {
+    #[turbo_tasks::function]
+    pub async fn new_with_entries(
+        graph: ResolvedVc<SingleModuleGraph>,
+        is_single_page: bool,
+    ) -> Result<Vc<Self>> {
+        let mapped = map_server_actions(*graph);
+
+        // TODO shrink graph here
+
+        Ok(ServerActionsGraph {
+            is_single_page,
+            graph,
+            data: mapped.to_resolved().await?,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_server_actions_for_endpoint(
+        &self,
+        entry: ResolvedVc<Box<dyn Module>>,
+        rsc_asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<AllActions>> {
+        let span = tracing::info_span!("collect server actions for endpoint");
+        async move {
+            let data = &*self.data.await?;
+            let data = if self.is_single_page {
+                // The graph contains the page (= `entry`) only, no need to filter.
+                Cow::Borrowed(data)
+            } else {
+                // The graph contains the whole app, traverse and collect all reachable imports.
+                let graph = &*self.graph.await?;
+
+                let mut result = HashMap::new();
+                graph.traverse_from_entry(entry, |node| {
+                    if let Some(node_data) = data.get(&node.module) {
+                        result.insert(node.module, *node_data);
+                    }
+                })?;
+                Cow::Owned(result)
+            };
+
+            let actions = data
+                .iter()
+                .map(|(module, (layer, actions))| async move {
+                    actions
+                        .await?
+                        .iter()
+                        .map(|(hash, name)| async move {
+                            Ok((
+                                hash.to_string(),
+                                (
+                                    *layer,
+                                    name.to_string(),
+                                    if *layer == ActionLayer::Rsc {
+                                        *module
+                                    } else {
+                                        to_rsc_context(**module, rsc_asset_context).await?
+                                    },
+                                ),
+                            ))
+                        })
+                        .try_join()
+                        .await
+                })
+                .try_flat_join()
+                .await?;
+            Ok(Vc::cell(actions.into_iter().collect()))
+        }
+        .instrument(span)
+        .await
+    }
+}
+
 /// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
 /// by the accessor functions, but
 /// - In dev, contains information about the modules of the current endpoint only
@@ -540,6 +633,7 @@ impl NextDynamicGraph {
 #[turbo_tasks::value]
 pub struct ReducedGraphs {
     next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
+    server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
     // TODO add other graphs
 }
 
@@ -568,6 +662,38 @@ impl ReducedGraphs {
                             .map(|(k, v)| (*k, v.clone()))
                             // TODO remove this collect and return an iterator instead
                             .collect::<Vec<_>>())
+                    })
+                    .try_flat_join()
+                    .await?;
+
+                Ok(Vc::cell(result.into_iter().collect()))
+            }
+        }
+        .instrument(span)
+        .await
+    }
+
+    /// Returns the server actions for the given page.
+    #[turbo_tasks::function]
+    pub async fn get_server_actions_for_endpoint(
+        &self,
+        entry: Vc<Box<dyn Module>>,
+        rsc_asset_context: Vc<Box<dyn AssetContext>>,
+    ) -> Result<Vc<AllActions>> {
+        let span = tracing::info_span!("collect all server actions for endpoint");
+        async move {
+            if let [graph] = &self.server_actions[..] {
+                // Just a single graph, no need to merge results
+                Ok(graph.get_server_actions_for_endpoint(entry, rsc_asset_context))
+            } else {
+                let result = self
+                    .server_actions
+                    .iter()
+                    .map(|graph| async move {
+                        Ok(graph
+                            .get_server_actions_for_endpoint(entry, rsc_asset_context)
+                            .await?
+                            .clone_value())
                     })
                     .try_flat_join()
                     .await?;
@@ -609,7 +735,7 @@ async fn get_reduced_graphs_for_endpoint_inner(
         ),
     };
 
-    let next_dynamic = async move {
+    let next_dynamic = async {
         graphs
             .iter()
             .map(|graph| {
@@ -622,7 +748,23 @@ async fn get_reduced_graphs_for_endpoint_inner(
     .instrument(tracing::info_span!("generating next/dynamic graphs"))
     .await?;
 
-    Ok(ReducedGraphs { next_dynamic }.cell())
+    let server_actions = async {
+        graphs
+            .iter()
+            .map(|graph| {
+                ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
+            })
+            .try_join()
+            .await
+    }
+    .instrument(tracing::info_span!("generating server actions graphs"))
+    .await?;
+
+    Ok(ReducedGraphs {
+        next_dynamic,
+        server_actions,
+    }
+    .cell())
 }
 
 /// Generates a [ReducedGraph] for the given project and endpoint containing information that is
