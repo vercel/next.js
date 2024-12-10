@@ -397,8 +397,8 @@ pub struct AllModuleActions(HashMap<ResolvedVc<Box<dyn Module>>, LayerAndActions
 pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllModuleActions>> {
     let actions = graph
         .await?
-        .enumerate_nodes()
-        .map(|(_, node)| {
+        .iter_nodes()
+        .map(|node| {
             async move {
                 // TODO: compare module contexts instead?
                 let layer = match &node.layer {

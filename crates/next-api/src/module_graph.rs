@@ -319,6 +319,12 @@ impl SingleModuleGraph {
             .context("Couldn't find entry module in graph")
     }
 
+    /// Iterate over all nodes in the graph (potentially in the whole app!).
+    pub fn iter_nodes(&self) -> impl Iterator<Item = &'_ SingleModuleGraphNode> + '_ {
+        self.graph.node_weights()
+    }
+
+    /// Enumerate over all nodes in the graph (potentially in the whole app!).
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
