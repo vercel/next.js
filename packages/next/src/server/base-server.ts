@@ -1357,31 +1357,29 @@ export default abstract class Server<
             | 'https',
         })
 
-        const _globalThis: typeof globalThis & {
-          __nextCacheHandlers?: Record<
-            string,
-            import('./lib/cache-handlers/types').CacheHandler
-          >
-        } = globalThis
-
-        if (_globalThis.__nextCacheHandlers) {
-          const expiredTags: string[] =
-            (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-              ','
-            ) || []
-
-          for (const handler of Object.values(
-            _globalThis.__nextCacheHandlers
-          )) {
-            if (typeof handler.receiveExpiredTags === 'function') {
-              await handler.receiveExpiredTags(...expiredTags)
-            }
-          }
-        }
-
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      const _globalThis: typeof globalThis & {
+        __nextCacheHandlers?: Record<
+          string,
+          import('./lib/cache-handlers/types').CacheHandler
+        >
+      } = globalThis
+
+      if (_globalThis.__nextCacheHandlers) {
+        const expiredTags: string[] =
+          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
+            ','
+          ) || []
+
+        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
+          if (typeof handler.receiveExpiredTags === 'function') {
+            await handler.receiveExpiredTags(...expiredTags)
+          }
+        }
       }
 
       // set server components HMR cache to request meta so it can be passed
