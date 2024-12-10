@@ -66,7 +66,7 @@ macro_rules! stringify_path {
 /// implement [`ShrinkToFit`].
 ///
 /// This is used by the derive macro for [`ShrinkToFit`], which is called by the
-/// [turbo_tasks::value][crate::value] macro.
+/// [turbo_tasks::value][macro@crate::value] macro.
 ///
 /// [autoderef]: http://lukaskalbertodt.github.io/2019/12/05/generalized-autoref-based-specialization.html
 pub struct ShrinkToFitDerefSpecialization<'a, T> {
