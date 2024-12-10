@@ -205,7 +205,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_str: request_str.clone(),
                     reason,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             Ok(ResolveResultOption::none())

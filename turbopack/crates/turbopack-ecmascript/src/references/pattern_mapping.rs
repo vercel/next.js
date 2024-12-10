@@ -338,7 +338,7 @@ async fn to_single_pattern_mapping(
                 .resolved_cell(),
                 path: origin.origin_path().to_resolved().await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             return Ok(SinglePatternMapping::Invalid);
         }
@@ -368,7 +368,7 @@ async fn to_single_pattern_mapping(
         .resolved_cell(),
         path: origin.origin_path().to_resolved().await?,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(SinglePatternMapping::Invalid)
 }

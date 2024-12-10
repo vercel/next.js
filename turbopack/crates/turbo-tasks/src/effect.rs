@@ -11,7 +11,7 @@ use crate::{
     event::{Event, EventListener},
     manager::turbo_tasks_future_scope,
     util::SharedError,
-    CollectiblesSource, ReadRef, TryJoinIterExt, Vc,
+    CollectiblesSource, ReadRef, ResolvedVc, TryJoinIterExt, Vc,
 };
 
 /// A trait to emit a task effect as collectible. This trait only has one
@@ -138,7 +138,9 @@ impl Effect for EffectInstance {}
 /// Order of execution of multiple effects is not defined. You must not use mutliple conflicting
 /// effects to avoid non-deterministic behavior.
 pub fn effect(future: impl Future<Output = Result<()>> + Send + Sync + 'static) {
-    emit::<Box<dyn Effect>>(Vc::upcast(EffectInstance::new(future).cell()));
+    emit::<Box<dyn Effect>>(ResolvedVc::upcast(
+        EffectInstance::new(future).resolved_cell(),
+    ));
 }
 
 /// Applies all effects that have been emitted by an operations.
