@@ -21,7 +21,13 @@ const context = {
   logs: { output: '', stdout: '', stderr: '' },
   api: new File(join(__dirname, '../pages/api/route.js')),
   middleware: new File(join(__dirname, '../middleware.js')),
-  lib: new File(join(__dirname, '../lib/index.js')),
+  lib: new File(
+    join(
+      __dirname,
+      // Simulated .pnpm node_modules path:
+      '../node_modules/.pnpm/test/node_modules/lib/index.js'
+    )
+  ),
 }
 const appOption = {
   env: { __NEXT_TEST_WITH_DEVTOOL: 1 },
@@ -74,7 +80,7 @@ describe('Edge runtime configurable guards', () => {
         }
         export const config = {
           runtime: 'edge',
-          unstable_allowDynamic: '/lib/**'
+          unstable_allowDynamic: '**/node_modules/lib/**'
         }
       `)
       await waitFor(500)
@@ -167,14 +173,14 @@ describe('Edge runtime configurable guards', () => {
       url: routeUrl,
       init() {
         context.api.write(`
-          import { hasDynamic } from '../../lib'
+          import { hasDynamic } from 'lib'
           export default async function handler(request) {
             await hasDynamic()
             return Response.json({ result: true })
           }
           export const config = {
             runtime: 'edge',
-            unstable_allowDynamic: '/lib/**'
+            unstable_allowDynamic: '**/node_modules/lib/**'
           }
         `)
         context.lib.write(`
@@ -190,7 +196,7 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-          import { hasDynamic } from './lib'
+          import { hasDynamic } from 'lib'
 
           // populated with tests
           export default async function () {
@@ -198,7 +204,7 @@ describe('Edge runtime configurable guards', () => {
             return NextResponse.next()
           }
           export const config = {
-            unstable_allowDynamic: '/lib/**'
+            unstable_allowDynamic: '**/node_modules/lib/**'
           }
         `)
         context.lib.write(`
@@ -265,14 +271,14 @@ describe('Edge runtime configurable guards', () => {
       url: routeUrl,
       init() {
         context.api.write(`
-          import { hasUnusedDynamic } from '../../lib'
+          import { hasUnusedDynamic } from 'lib'
           export default async function handler(request) {
             await hasUnusedDynamic()
             return Response.json({ result: true })
           }
           export const config = {
             runtime: 'edge',
-            unstable_allowDynamic: '/lib/**'
+            unstable_allowDynamic: '**/node_modules/lib/**'
           }
         `)
         context.lib.write(`
@@ -290,14 +296,14 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-          import { hasUnusedDynamic } from './lib'
+          import { hasUnusedDynamic } from 'lib'
           // populated with tests
           export default async function () {
             await hasUnusedDynamic()
             return NextResponse.next()
           }
           export const config = {
-            unstable_allowDynamic: '/lib/**'
+            unstable_allowDynamic: '**/node_modules/lib/**'
           }
         `)
         context.lib.write(`
@@ -356,7 +362,7 @@ describe('Edge runtime configurable guards', () => {
       url: routeUrl,
       init() {
         context.api.write(`
-          import { hasDynamic } from '../../lib'
+          import { hasDynamic } from 'lib'
           export default async function handler(request) {
             await hasDynamic()
             return Response.json({ result: true })
@@ -379,7 +385,7 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-          import { hasDynamic } from './lib'
+          import { hasDynamic } from 'lib'
           export default async function () {
             await hasDynamic()
             return NextResponse.next()
@@ -446,7 +452,7 @@ describe('Edge runtime configurable guards', () => {
       init() {
         context.middleware.write(`
           import { NextResponse } from 'next/server'
-          import { returnTrue } from './lib'
+          import { returnTrue } from 'lib'
           export default async function () {
             (() => {}) instanceof Function
             return NextResponse.next()
