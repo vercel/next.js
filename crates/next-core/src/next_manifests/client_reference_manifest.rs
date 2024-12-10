@@ -67,7 +67,7 @@ impl ClientReferenceManifest {
 
             // An client component need to be emitted into the client reference manifest
             if let ClientReferenceType::EcmascriptClientReference {
-                parent_module,
+                parent_module: rsc_module,
                 module: ecmascript_client_reference,
             } = app_client_reference_ty
             {
@@ -75,10 +75,9 @@ impl ClientReferenceManifest {
 
                 let server_path = ecmascript_client_reference.server_ident.to_string().await?;
 
-                let client_chunk_item = ecmascript_client_reference
-                    .client_module
-                    .as_chunk_item(Vc::upcast(client_chunking_context));
-
+                let client_module = ecmascript_client_reference.client_module;
+                let client_chunk_item =
+                    client_module.as_chunk_item(Vc::upcast(client_chunking_context));
                 let client_module_id = client_chunk_item.id().await?;
 
                 let (client_chunks_paths, client_is_async) =
@@ -106,7 +105,8 @@ impl ClientReferenceManifest {
                             .collect::<Vec<_>>();
 
                         let is_async =
-                            is_item_async(client_availability_info, client_chunk_item).await?;
+                            is_item_async(client_availability_info, Vc::upcast(*client_module))
+                                .await?;
 
                         (chunk_paths, is_async)
                     } else {
@@ -114,9 +114,8 @@ impl ClientReferenceManifest {
                     };
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
-                    let ssr_chunk_item = ecmascript_client_reference
-                        .ssr_module
-                        .as_chunk_item(Vc::upcast(ssr_chunking_context));
+                    let ssr_module = ecmascript_client_reference.ssr_module;
+                    let ssr_chunk_item = ssr_module.as_chunk_item(Vc::upcast(ssr_chunking_context));
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
                     let rsc_chunk_item: Vc<Box<dyn ChunkItem>> =
@@ -155,7 +154,8 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async = is_item_async(ssr_availability_info, ssr_chunk_item).await?;
+                        let is_async =
+                            is_item_async(ssr_availability_info, Vc::upcast(*ssr_module)).await?;
 
                         (chunk_paths, is_async)
                     } else {
@@ -182,9 +182,11 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async =
-                            is_item_async(&rsc_app_entry_chunks_availability, rsc_chunk_item)
-                                .await?;
+                        let is_async = is_item_async(
+                            &rsc_app_entry_chunks_availability,
+                            Vc::upcast(*rsc_module),
+                        )
+                        .await?;
 
                         (chunk_paths, is_async)
                     };
@@ -362,13 +364,13 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
 
 async fn is_item_async(
     availability_info: &AvailabilityInfo,
-    chunk_item: Vc<Box<dyn ChunkItem>>,
+    module: Vc<Box<dyn ChunkableModule>>,
 ) -> Result<bool> {
     let Some(available_chunk_items) = availability_info.available_chunk_items() else {
         return Ok(false);
     };
 
-    let Some(info) = &*available_chunk_items.get(chunk_item).await? else {
+    let Some(info) = &*available_chunk_items.get(module).await? else {
         return Ok(false);
     };
 

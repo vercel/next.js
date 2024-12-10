@@ -6,7 +6,8 @@ use turbo_tasks::{
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
-use super::ChunkItem;
+use super::ChunkableModule;
+use crate::module::Module;
 
 #[derive(
     PartialEq, Eq, TraceRawVcs, Copy, Clone, Serialize, Deserialize, ValueDebugFormat, NonLocalValue,
@@ -19,24 +20,24 @@ pub struct AvailableChunkItemInfo {
 pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
 
 #[turbo_tasks::value(transparent)]
-pub struct AvailableChunkItemInfoMap(
-    FxIndexMap<ResolvedVc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>,
+pub struct AvailableModuleInfoMap(
+    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableChunkItemInfo>,
 );
 
 /// Allows to gather information about which assets are already available.
 /// Adding more roots will form a linked list like structure to allow caching
 /// `include` queries.
 #[turbo_tasks::value]
-pub struct AvailableChunkItems {
-    parent: Option<ResolvedVc<AvailableChunkItems>>,
-    chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
+pub struct AvailableModules {
+    parent: Option<ResolvedVc<AvailableModules>>,
+    chunk_items: ResolvedVc<AvailableModuleInfoMap>,
 }
 
 #[turbo_tasks::value_impl]
-impl AvailableChunkItems {
+impl AvailableModules {
     #[turbo_tasks::function]
-    pub fn new(chunk_items: ResolvedVc<AvailableChunkItemInfoMap>) -> Vc<Self> {
-        AvailableChunkItems {
+    pub fn new(chunk_items: ResolvedVc<AvailableModuleInfoMap>) -> Vc<Self> {
+        AvailableModules {
             parent: None,
             chunk_items,
         }
@@ -46,21 +47,17 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn with_chunk_items(
         self: ResolvedVc<Self>,
-        chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
+        chunk_items: ResolvedVc<AvailableModuleInfoMap>,
     ) -> Result<Vc<Self>> {
         let chunk_items = chunk_items
             .await?
             .into_iter()
-            .map(|(&chunk_item, &info)| async move {
-                Ok(self
-                    .get(*chunk_item)
-                    .await?
-                    .is_none()
-                    .then_some((chunk_item, info)))
+            .map(|(&module, &info)| async move {
+                Ok(self.get(*module).await?.is_none().then_some((module, info)))
             })
             .try_flat_join()
             .await?;
-        Ok(AvailableChunkItems {
+        Ok(AvailableModules {
             parent: Some(self),
             chunk_items: ResolvedVc::cell(chunk_items.into_iter().collect()),
         }
@@ -79,7 +76,7 @@ impl AvailableChunkItems {
             .chunk_items
             .await?
             .iter()
-            .map(|(&chunk_item, _)| chunk_item.asset_ident().to_string())
+            .map(|(&module, _)| module.ident().to_string())
             .try_join()
             .await?;
         for ident in item_idents {
@@ -91,13 +88,13 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn get(
         &self,
-        chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
     ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
-        if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
+        if let Some(&info) = self.chunk_items.await?.get(&module) {
             return Ok(Vc::cell(Some(info)));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(*chunk_item));
+            return Ok(parent.get(*module));
         }
         Ok(Vc::cell(None))
     }

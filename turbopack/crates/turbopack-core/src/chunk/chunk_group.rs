@@ -1,14 +1,14 @@
 use std::collections::HashSet;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use auto_hash_map::AutoSet;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
 
 use super::{
-    availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
-    chunk_content, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem,
+    availability_info::AvailabilityInfo, available_modules::AvailableChunkItemInfo, chunk_content,
+    chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult, ChunkItem, ChunkableModule,
     ChunkingContext,
 };
 use crate::{
@@ -111,7 +111,11 @@ pub async fn make_chunk_group(
             .iter()
             .map(|(&chunk_item, async_info)| async move {
                 Ok((
-                    chunk_item.to_resolved().await?,
+                    Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(chunk_item.module())
+                        .await?
+                        .context("Expected ChunkableModule")?
+                        .to_resolved()
+                        .await?,
                     AvailableChunkItemInfo {
                         is_async: async_info.is_some(),
                     },

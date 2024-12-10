@@ -34,17 +34,7 @@ impl AsyncLoaderChunkItem {
     pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
         if let Some(chunk_items) = module.availability_info.available_chunk_items() {
-            if chunk_items
-                .get(
-                    module
-                        .inner
-                        .as_chunk_item(*ResolvedVc::upcast(self.chunking_context))
-                        .resolve()
-                        .await?,
-                )
-                .await?
-                .is_some()
-            {
+            if chunk_items.get(*module.inner).await?.is_some() {
                 return Ok(Vc::cell(vec![]));
             }
         }

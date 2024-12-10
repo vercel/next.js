@@ -65,16 +65,7 @@ impl ManifestAsyncModule {
     pub async fn manifest_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_chunk_items() {
-            if chunk_items
-                .get(
-                    this.inner
-                        .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
-                        .resolve()
-                        .await?,
-                )
-                .await?
-                .is_some()
-            {
+            if chunk_items.get(*this.inner).await?.is_some() {
                 return Ok(Vc::cell(vec![]));
             }
         }

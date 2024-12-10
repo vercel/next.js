@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 
-use super::available_chunk_items::{AvailableChunkItemInfoMap, AvailableChunkItems};
+use super::available_modules::{AvailableModuleInfoMap, AvailableModules};
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Hash, Clone, Copy, Debug)]
@@ -12,12 +12,12 @@ pub enum AvailabilityInfo {
     Root,
     /// There are modules already available.
     Complete {
-        available_chunk_items: ResolvedVc<AvailableChunkItems>,
+        available_chunk_items: ResolvedVc<AvailableModules>,
     },
 }
 
 impl AvailabilityInfo {
-    pub fn available_chunk_items(&self) -> Option<Vc<AvailableChunkItems>> {
+    pub fn available_chunk_items(&self) -> Option<Vc<AvailableModules>> {
         match self {
             Self::Untracked => None,
             Self::Root => None,
@@ -28,14 +28,11 @@ impl AvailabilityInfo {
         }
     }
 
-    pub async fn with_chunk_items(
-        self,
-        chunk_items: Vc<AvailableChunkItemInfoMap>,
-    ) -> Result<Self> {
+    pub async fn with_chunk_items(self, chunk_items: Vc<AvailableModuleInfoMap>) -> Result<Self> {
         Ok(match self {
             AvailabilityInfo::Untracked => AvailabilityInfo::Untracked,
             AvailabilityInfo::Root => AvailabilityInfo::Complete {
-                available_chunk_items: AvailableChunkItems::new(chunk_items).to_resolved().await?,
+                available_chunk_items: AvailableModules::new(chunk_items).to_resolved().await?,
             },
             AvailabilityInfo::Complete {
                 available_chunk_items,

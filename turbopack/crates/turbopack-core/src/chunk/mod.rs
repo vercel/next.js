@@ -1,5 +1,5 @@
 pub mod availability_info;
-pub mod available_chunk_items;
+pub mod available_modules;
 pub mod chunk_group;
 pub mod chunking;
 pub(crate) mod chunking_context;
@@ -31,7 +31,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use self::{availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItems};
+use self::{availability_info::AvailabilityInfo, available_modules::AvailableModules};
 pub use self::{
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingContext, ChunkingContextExt,
@@ -253,12 +253,12 @@ enum InheritAsyncEdge {
 enum ChunkContentGraphNode {
     // A chunk item not placed in the current chunk, but whose references we will
     // follow to find more graph nodes.
-    PassthroughChunkItem {
-        item: Vc<Box<dyn ChunkItem>>,
+    PassthroughModule {
+        item: Vc<Box<dyn ChunkableModule>>,
     },
     // Chunk items that are placed into the current chunk group
-    ChunkItem {
-        item: Vc<Box<dyn ChunkItem>>,
+    Module {
+        item: Vc<Box<dyn ChunkableModule>>,
         ident: ReadRef<RcStr>,
     },
     // Async module that is referenced from the chunk group
@@ -274,15 +274,15 @@ enum ChunkContentGraphNode {
     /// A list of directly referenced chunk items from which `is_async_module`
     /// will be inherited.
     InheritAsyncInfo {
-        item: Vc<Box<dyn ChunkItem>>,
-        references: Vec<(ResolvedVc<Box<dyn ChunkItem>>, InheritAsyncEdge)>,
+        item: Vc<Box<dyn ChunkableModule>>,
+        references: Vec<(ResolvedVc<Box<dyn ChunkableModule>>, InheritAsyncEdge)>,
     },
 }
 
 #[derive(Debug, Clone, Copy, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum ChunkGraphNodeToReferences {
-    PassthroughChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
-    ChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
+    PassthroughModule(ResolvedVc<Box<dyn ChunkableModule>>),
+    Module(ResolvedVc<Box<dyn ChunkableModule>>),
 }
 
 #[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TraceRawVcs)]
@@ -299,12 +299,12 @@ struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
 async fn graph_node_to_referenced_nodes_with_available_chunk_items(
     node: ChunkGraphNodeToReferences,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Vc<AvailableChunkItems>,
+    available_chunk_items: Vc<AvailableModules>,
 ) -> Result<Vc<ChunkGraphEdges>> {
     let edges = graph_node_to_referenced_nodes(node, chunking_context);
     let edges_ref = edges.await?;
     for (unchanged, edge) in edges_ref.iter().enumerate() {
-        if let ChunkContentGraphNode::ChunkItem { item, .. } = edge.node {
+        if let ChunkContentGraphNode::Module { item, .. } = edge.node {
             if let Some(info) = *available_chunk_items.get(item).await? {
                 let mut new_edges = Vec::with_capacity(edges_ref.len());
                 new_edges.extend(edges_ref[0..unchanged].iter().cloned());
@@ -312,7 +312,7 @@ async fn graph_node_to_referenced_nodes_with_available_chunk_items(
                 available_chunk_item_info.insert(item, info);
                 for edge in edges_ref[unchanged + 1..].iter() {
                     match edge.node {
-                        ChunkContentGraphNode::ChunkItem { item, .. } => {
+                        ChunkContentGraphNode::Module { item, .. } => {
                             if let Some(info) = *available_chunk_items.get(item).await? {
                                 available_chunk_item_info.insert(item, info);
                                 continue;
@@ -362,8 +362,8 @@ async fn graph_node_to_referenced_nodes(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGraphEdges>> {
     let (parent, references) = match &node {
-        ChunkGraphNodeToReferences::PassthroughChunkItem(item) => (None, item.references()),
-        ChunkGraphNodeToReferences::ChunkItem(item) => (Some(*item), item.references()),
+        ChunkGraphNodeToReferences::PassthroughModule(item) => (None, item.references()),
+        ChunkGraphNodeToReferences::Module(item) => (Some(*item), item.references()),
     };
 
     let references = references.await?;
@@ -422,70 +422,44 @@ async fn graph_node_to_referenced_nodes(
                     };
 
                     match chunking_type {
-                        ChunkingType::Parallel => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: Some(module),
-                                    node: ChunkContentGraphNode::ChunkItem {
-                                        item: chunk_item,
-                                        ident: module.ident().to_string().await?,
-                                    },
-                                }),
-                                None,
-                            ))
-                        }
-                        ChunkingType::ParallelInheritAsync => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: Some(module),
-                                    node: ChunkContentGraphNode::ChunkItem {
-                                        item: chunk_item,
-                                        ident: module.ident().to_string().await?,
-                                    },
-                                }),
-                                Some((
-                                    chunk_item.to_resolved().await?,
-                                    InheritAsyncEdge::LocalModule,
-                                )),
-                            ))
-                        }
-                        ChunkingType::Passthrough => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: None,
-                                    node: ChunkContentGraphNode::PassthroughChunkItem {
-                                        item: chunk_item,
-                                    },
-                                }),
-                                None,
-                            ))
-                        }
+                        ChunkingType::Parallel => Ok((
+                            Some(ChunkGraphEdge {
+                                key: Some(module),
+                                node: ChunkContentGraphNode::Module {
+                                    item: *chunkable_module,
+                                    ident: module.ident().to_string().await?,
+                                },
+                            }),
+                            None,
+                        )),
+                        ChunkingType::ParallelInheritAsync => Ok((
+                            Some(ChunkGraphEdge {
+                                key: Some(module),
+                                node: ChunkContentGraphNode::Module {
+                                    item: *chunkable_module,
+                                    ident: module.ident().to_string().await?,
+                                },
+                            }),
+                            Some((chunkable_module, InheritAsyncEdge::LocalModule)),
+                        )),
+                        ChunkingType::Passthrough => Ok((
+                            Some(ChunkGraphEdge {
+                                key: None,
+                                node: ChunkContentGraphNode::PassthroughModule {
+                                    item: *chunkable_module,
+                                },
+                            }),
+                            None,
+                        )),
                         ChunkingType::Async => {
                             let chunk_loading =
                                 chunking_context.environment().chunk_loading().await?;
                             if matches!(*chunk_loading, ChunkLoading::Edge) {
-                                let chunk_item = chunkable_module
-                                    .as_chunk_item(chunking_context)
-                                    .resolve()
-                                    .await?;
                                 Ok((
                                     Some(ChunkGraphEdge {
                                         key: Some(module),
-                                        node: ChunkContentGraphNode::ChunkItem {
-                                            item: chunk_item,
+                                        node: ChunkContentGraphNode::Module {
+                                            item: *chunkable_module,
                                             ident: module.ident().to_string().await?,
                                         },
                                     }),
@@ -548,7 +522,7 @@ async fn graph_node_to_referenced_nodes(
 
 struct ChunkContentVisit {
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Option<Vc<AvailableChunkItems>>,
+    available_chunk_items: Option<Vc<AvailableModules>>,
     processed_modules: HashSet<Vc<Box<dyn Module>>>,
 }
 
@@ -564,7 +538,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
     fn visit(&mut self, edge: ChunkGraphEdge) -> VisitControlFlow<ChunkContentGraphNode, ()> {
         let ChunkGraphEdge { key, node } = edge;
         let Some(module) = key else {
-            if matches!(node, ChunkContentGraphNode::PassthroughChunkItem { .. }) {
+            if matches!(node, ChunkContentGraphNode::PassthroughModule { .. }) {
                 return VisitControlFlow::Continue(node);
             } else {
                 // All other types don't have edges
@@ -587,11 +561,11 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 
         async move {
             let node = match node {
-                ChunkContentGraphNode::PassthroughChunkItem { item } => {
-                    ChunkGraphNodeToReferences::PassthroughChunkItem(item.to_resolved().await?)
+                ChunkContentGraphNode::PassthroughModule { item } => {
+                    ChunkGraphNodeToReferences::PassthroughModule(item.to_resolved().await?)
                 }
-                ChunkContentGraphNode::ChunkItem { item, .. } => {
-                    ChunkGraphNodeToReferences::ChunkItem(item.to_resolved().await?)
+                ChunkContentGraphNode::Module { item, .. } => {
+                    ChunkGraphNodeToReferences::Module(item.to_resolved().await?)
                 }
                 _ => {
                     return Ok(None.into_iter().flatten());
@@ -613,7 +587,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
     }
 
     fn span(&mut self, node: &ChunkContentGraphNode) -> Span {
-        if let ChunkContentGraphNode::ChunkItem { ident, .. } = node {
+        if let ChunkContentGraphNode::Module { ident, .. } = node {
             info_span!("chunking module", name = display(ident))
         } else {
             Span::current()
@@ -636,8 +610,8 @@ async fn chunk_content_internal_parallel(
             };
             Ok(Some(ChunkGraphEdge {
                 key: Some(entry),
-                node: ChunkContentGraphNode::ChunkItem {
-                    item: chunkable_module.as_chunk_item(chunking_context),
+                node: ChunkContentGraphNode::Module {
+                    item: *chunkable_module,
                     ident: chunkable_module.ident().to_string().await?,
                 },
             }))
@@ -669,13 +643,13 @@ async fn chunk_content_internal_parallel(
 
     for graph_node in graph_nodes {
         match graph_node {
-            ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
+            ChunkContentGraphNode::PassthroughModule { .. } => {}
             ChunkContentGraphNode::TracedModule { module } => {
                 let module = module.to_resolved().await?;
                 traced_modules.insert(module);
             }
-            ChunkContentGraphNode::ChunkItem { item, .. } => {
-                chunk_items.insert(*item.to_resolved().await?);
+            ChunkContentGraphNode::Module { item, .. } => {
+                chunk_items.insert(item.as_chunk_item(chunking_context).resolve().await?);
             }
             ChunkContentGraphNode::AsyncModule { module } => {
                 let module = module.to_resolved().await?;
@@ -686,24 +660,31 @@ async fn chunk_content_internal_parallel(
                 external_module_references.insert(*reference);
             }
             ChunkContentGraphNode::InheritAsyncInfo { item, references } => {
+                let chunk_item = item.as_chunk_item(chunking_context).resolve().await?;
+                let mut chunk_item_references = Vec::with_capacity(references.len());
+
                 for &(reference, ty) in &references {
+                    let chunk_item_reference =
+                        reference.as_chunk_item(chunking_context).resolve().await?;
+                    chunk_item_references.push(chunk_item_reference);
+
                     match ty {
                         InheritAsyncEdge::LocalModule => local_back_edges_inherit_async
-                            .entry(*reference)
+                            .entry(chunk_item_reference)
                             .or_insert_with(Vec::new)
-                            .push(item),
+                            .push(chunk_item),
                         InheritAsyncEdge::AvailableAsyncModule => {
                             available_async_modules_back_edges_inherit_async
-                                .entry(*reference)
+                                .entry(chunk_item_reference)
                                 .or_insert_with(Vec::new)
-                                .push(item)
+                                .push(chunk_item)
                         }
                     }
                 }
                 forward_edges_inherit_async
-                    .entry(item)
+                    .entry(chunk_item)
                     .or_insert_with(Vec::new)
-                    .extend(references.into_iter().map(|(r, _)| *r));
+                    .extend(chunk_item_references);
             }
         }
     }
