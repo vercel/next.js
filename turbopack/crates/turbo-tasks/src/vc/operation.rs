@@ -3,7 +3,10 @@ use std::{fmt::Debug, hash::Hash};
 use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
-use crate::{trace::TraceRawVcs, CollectiblesSource, RawVc, TaskInput, Upcast, Vc, VcValueTrait};
+use crate::{
+    marker_trait::impl_auto_marker_trait, trace::TraceRawVcs, CollectiblesSource, RawVc, TaskInput,
+    Upcast, Vc, VcValueTrait,
+};
 
 #[must_use]
 pub struct OperationVc<T>
@@ -156,3 +159,18 @@ where
         self.node.node.peek_collectibles()
     }
 }
+
+/// Indicates that a type does not contain any instances of [`Vc`] or
+/// [`ResolvedVc`][crate::ResolvedVc]. It may contain [`OperationVc`].
+///
+/// # Safety
+///
+/// This trait is marked as unsafe. You should not derive it yourself, but instead you should rely
+/// on [`#[derive(OperationValue)]`][macro@OperationValue] to do it for you.
+pub unsafe trait OperationValue {}
+
+unsafe impl<T: ?Sized + Send> OperationValue for OperationVc<T> {}
+
+impl_auto_marker_trait!(OperationValue);
+
+pub use turbo_tasks_macros::OperationValue;
