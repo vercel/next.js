@@ -2,7 +2,7 @@ export default function Page() {
   return (
     <>
       <p>hello world</p>
-      <main>Timestamp</main>
+      <main suppressHydrationWarning>Timestamp</main>
     </>
   )
 }
