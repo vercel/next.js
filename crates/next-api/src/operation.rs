@@ -101,13 +101,13 @@ fn wrap(
     OperationVc::new(wrap_endpoint(endpoint, op))
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct InstrumentationOperation {
     pub node_js: OperationVc<Box<dyn Endpoint>>,
     pub edge: OperationVc<Box<dyn Endpoint>>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct MiddlewareOperation {
     pub endpoint: OperationVc<Box<dyn Endpoint>>,
 }
@@ -130,7 +130,17 @@ pub enum RouteOperation {
     Conflict,
 }
 
-#[derive(TraceRawVcs, Serialize, Deserialize, PartialEq, Eq, ValueDebugFormat, Clone, Debug)]
+#[derive(
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    ValueDebugFormat,
+    Clone,
+    Debug,
+    NonLocalValue,
+)]
 pub struct AppPageRouteOperation {
     pub original_name: String,
     pub html_endpoint: OperationVc<Box<dyn Endpoint>>,

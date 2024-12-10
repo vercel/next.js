@@ -18,7 +18,7 @@ use turbo_tasks_fs::{
     LinkContent, LinkType,
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input")]
+#[turbo_tasks::value(shared, serialization = "auto_for_input", non_local)]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
