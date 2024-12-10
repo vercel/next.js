@@ -305,11 +305,11 @@ If you don't need a mix of both static and dynamic components, you can make your
 
 `after` is fully supported in `next start`.
 
-  Note that when you want to stop the server, you should allow it to gracefully shutdown by sending `SIGINT`/`SIGTERM` and waiting. This will allow the server to wait for any pending callbacks/promises passed to `after` to finish.
+Note that when you want to stop the server, you should allow it to gracefully shutdown by sending `SIGINT`/`SIGTERM` and waiting. This will allow the server to wait for any pending callbacks/promises passed to `after` to finish.
 
 #### Serverless hosting
 
-`after` is fully supported on Vercel. If you're using another serverless deployment platform, check if your provider supports `after`. 
+`after` is fully supported on Vercel. If you're using another serverless deployment platform, check if your provider supports `after`.
 
 > **For platform providers**: see the [supporting `after` section](#for-providers-supporting-after-on-your-serverless-platform) for more information.
 
@@ -380,11 +380,7 @@ type NextRequestContextValue = {
 }
 ```
 
-### Examples
-
-Depending on your requirements, this can be implemented in multiple ways.
-
-#### Example: A wrapper around an [`AsyncLocalStorage`](https://nodejs.org/api/async_context.html#class-asynclocalstorage)
+### Example
 
 ```tsx
 import { AsyncLocalStorage } from 'node:async_hooks'
@@ -403,23 +399,6 @@ const handler = (req, res) => {
   const contextValue = { waitUntil: YOUR_WAITUNTIL }
   // Provide the value
   return RequestContextStorage.run(contextValue, () => nextJsHandler(req, res))
-}
-```
-
-#### A global object
-
-Note that this may not be appropriate depending on how concurrency is handled on your platform.
-
-```tsx
-const RequestContext: NextRequestContext = {
-  get() {
-    return { waitUntil: YOUR_WAITUNTIL }
-  },
-}
-globalThis[Symbol.for('@next/request-context')] = RequestContext
-
-const handler = (req, res) => {
-  return nextJsHandler(req, res)
 }
 ```
 
