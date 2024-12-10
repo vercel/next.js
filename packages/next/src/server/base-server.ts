@@ -3044,49 +3044,55 @@ export default abstract class Server<
       }
     )
 
-    if (
-      isRoutePPREnabled &&
-      isPrefetchRSCRequest &&
-      typeof segmentPrefetchHeader === 'string'
-    ) {
-      if (cacheEntry?.value?.kind === CachedRouteKind.APP_PAGE) {
-        // This is a prefetch request for an individual segment's static data.
-        // Unless the segment is fully dynamic, the data should have already been
-        // loaded into the cache, when the page itself was generated. So we should
-        // always either return the cache entry. If no cache entry is available,
-        // it's a 404 — either the segment is fully dynamic, or an invalid segment
-        // path was requested.
-        if (cacheEntry.value.segmentData) {
-          const matchedSegment = cacheEntry.value.segmentData.get(
-            segmentPrefetchHeader
-          )
-          if (matchedSegment !== undefined) {
-            return {
-              type: 'rsc',
-              body: RenderResult.fromStatic(matchedSegment),
-              // TODO: Eventually this should use revalidate time of the
-              // individual segment, not the whole page.
-              revalidate: cacheEntry.revalidate,
-            }
+    if (isPrefetchRSCRequest && typeof segmentPrefetchHeader === 'string') {
+      // This is a prefetch request issued by the client Segment Cache. These
+      // should never reach the application layer (lambda). We should either
+      // respond from the cache (HIT) or respond with 204 No Content (MISS).
+      if (
+        cacheEntry !== null &&
+        // This is always true at runtime but is needed to refine the type
+        // of cacheEntry.value to CachedAppPageValue, because the outer
+        // ResponseCacheEntry is not a discriminated union.
+        cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
+        cacheEntry.value.segmentData
+      ) {
+        const matchedSegment = cacheEntry.value.segmentData.get(
+          segmentPrefetchHeader
+        )
+        if (matchedSegment !== undefined) {
+          // Cache hit
+          return {
+            type: 'rsc',
+            body: RenderResult.fromStatic(matchedSegment),
+            // TODO: Eventually this should use revalidate time of the
+            // individual segment, not the whole page.
+            revalidate: cacheEntry.revalidate,
           }
         }
-        // If the segment is not found, return a 404. Since this is an RSC
-        // request, there's no reason to render a 404 page; just return an
-        // empty response.
-        res.statusCode = 404
-        return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(''),
-          revalidate: cacheEntry.revalidate,
-        }
-      } else {
-        // Segment prefetches should never reach the application layer. If
-        // there's no cache entry for this page, it's a 404.
-        res.statusCode = 404
-        return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(''),
-        }
+      }
+
+      // Cache miss. Either a cache entry for this route has not been generated,
+      // or there's no match for the requested segment. Regardless, respond with
+      // a 204 No Content. We don't bother to respond with 404 in cases where
+      // the segment does not exist, because these requests are only issued by
+      // the client cache.
+      // TODO: If this is a request for the route tree (the special /_tree
+      // segment), we should *always* respond with a tree, even if PPR
+      // is disabled.
+      res.statusCode = 204
+      if (isRoutePPREnabled) {
+        // Set a header to indicate that PPR is enabled for this route. This
+        // lets the client distinguish between a regular cache miss and a cache
+        // miss due to PPR being disabled.
+        // NOTE: Theoretically, when PPR is enabled, there should *never* be
+        // a cache miss because we should generate a fallback route. So this
+        // is mostly defensive.
+        res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
+      }
+      return {
+        type: 'rsc',
+        body: RenderResult.fromStatic(''),
+        revalidate: cacheEntry?.revalidate,
       }
     }
 
