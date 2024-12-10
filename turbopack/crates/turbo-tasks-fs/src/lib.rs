@@ -173,7 +173,7 @@ pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     })
 }
 
-#[turbo_tasks::value_trait(non_local)]
+#[turbo_tasks::value_trait]
 pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     fn root(self: Vc<Self>) -> Vc<FileSystemPath> {
@@ -348,7 +348,7 @@ impl DiskFileSystemInner {
     }
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual", non_local)]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
 }
@@ -944,7 +944,7 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
-#[turbo_tasks::value(non_local)]
+#[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -2100,7 +2100,7 @@ impl FileContent {
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none", non_local)]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
     Content(Value),
     Unparseable(Box<UnparseableJson>),
@@ -2279,7 +2279,7 @@ impl DirectoryContent {
     }
 }
 
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
