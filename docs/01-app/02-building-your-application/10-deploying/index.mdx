@@ -305,12 +305,13 @@ If you don't need a mix of both static and dynamic components, you can make your
 
 `after` is fully supported in `next start`.
 
-Note that when you want to stop the server, you should give it a chance to gracefully shutdown by sending `SIGINT`/`SIGTERM` and waiting.
-This will allow the server to wait for any pending callbacks/promises passed to `after` to finish.
+  Note that when you want to stop the server, you should allow it to gracefully shutdown by sending `SIGINT`/`SIGTERM` and waiting. This will allow the server to wait for any pending callbacks/promises passed to `after` to finish.
 
 #### Serverless hosting
 
-`after` is fully supported on Vercel. If you're using another serverless deployment platform, `after` may or may not work depending on platform support.
+`after` is fully supported on Vercel. If you're using another serverless deployment platform, check if your provider supports `after`. 
+
+> **For platform providers**: see the [supporting `after` section](#for-providers-supporting-after-on-your-serverless-platform) for more information.
 
 </AppOnly>
 
@@ -353,16 +354,9 @@ if (process.env.NEXT_MANUAL_SIG_HANDLE) {
 
 ## For providers: supporting `after` on your serverless platform
 
-If you’re a hosting provider and want your users to be able to use `after` on your platform, this section applies to you.
+Using `after` in a serverless context requires waiting for asynchronous tasks to finish after the response has been sent. In Next.js and Vercel, this is achieved using a primitive called `waitUntil(promise)`, which extends the lifetime of a serverless invocation until all promises passed to [`waitUntil`](https://vercel.com/docs/functions/functions-api-reference#waituntil) have settled.
 
-### Background
-
-Using `after` in a serverless context requires a way to wait for asynchronous tasks to finish after the response has been sent.
-We achieve this using a primitive called `waitUntil(promise)`, which extends the lifetime of a serverless invocation
-until all promises passed to `waitUntil` have settled.
-On Vercel, this is done via [https://vercel.com/docs/functions/functions-api-reference#waituntil](https://vercel.com/docs/functions/functions-api-reference#waituntil).
-
-If you want your users to be able to run `after`, you will have to provide you own implementation of `waitUntil` that behaves in an analogous way.
+If you want your users to be able to run `after`, you will have to provide your implementation of `waitUntil` that behaves in an analogous way.
 
 ### Interface
 
@@ -386,7 +380,7 @@ type NextRequestContextValue = {
 }
 ```
 
-### Examples - providing `waitUntil` to Next.js
+### Examples
 
 Depending on your requirements, this can be implemented in multiple ways.
 
@@ -412,7 +406,7 @@ const handler = (req, res) => {
 }
 ```
 
-#### Example: A global object
+#### A global object
 
 Note that this may not be appropriate depending on how concurrency is handled on your platform.
 
