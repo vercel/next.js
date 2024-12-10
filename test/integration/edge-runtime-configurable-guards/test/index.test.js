@@ -213,15 +213,19 @@ describe('Edge runtime configurable guards', () => {
           }
         `)
       },
+      // TODO: Re-enable when Turbopack applies the middleware dynamic code
+      // evaluation transforms also to code in node_modules.
+      skip: Boolean(process.env.TURBOPACK),
     },
-  ])('$title with allowed, used dynamic code', ({ init, url }) => {
+  ])('$title with allowed, used dynamic code', ({ init, url, skip }) => {
     beforeEach(() => init())
-
-    it('still warns in dev at runtime', async () => {
+    ;(skip ? it.skip : it)('still warns in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       await waitFor(500)
+      // eslint-disable-next-line jest/no-standalone-expect
       expect(res.status).toBe(200)
+      // eslint-disable-next-line jest/no-standalone-expect
       expect(context.logs.output).toContain(
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
@@ -378,6 +382,9 @@ describe('Edge runtime configurable guards', () => {
           }
         `)
       },
+      // TODO: Re-enable when Turbopack applies the edge runtime transforms also
+      // to code in node_modules.
+      skip: Boolean(process.env.TURBOPACK),
     },
     {
       title: 'Middleware using lib',
@@ -400,20 +407,24 @@ describe('Edge runtime configurable guards', () => {
           }
         `)
       },
+      // TODO: Re-enable when Turbopack applies the middleware dynamic code
+      // evaluation transforms also to code in node_modules.
+      skip: Boolean(process.env.TURBOPACK),
     },
-  ])('$title with unallowed, used dynamic code', ({ init, url }) => {
+  ])('$title with unallowed, used dynamic code', ({ init, url, skip }) => {
     beforeEach(() => init())
-
-    it('warns in dev at runtime', async () => {
+    ;(skip ? it.skip : it)('warns in dev at runtime', async () => {
       context.app = await launchApp(context.appDir, context.appPort, appOption)
       const res = await fetchViaHTTP(context.appPort, url)
       await waitFor(500)
+      // eslint-disable-next-line jest/no-standalone-expect
       expect(res.status).toBe(200)
+      // eslint-disable-next-line jest/no-standalone-expect
       expect(context.logs.output).toContain(
         `Dynamic Code Evaluation (e. g. 'eval', 'new Function') not allowed in Edge Runtime`
       )
     })
-    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    ;(skip || process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('fails to build because of dynamic code evaluation', async () => {
