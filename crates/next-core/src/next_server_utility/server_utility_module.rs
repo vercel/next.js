@@ -67,7 +67,7 @@ impl Module for NextServerUtilityModule {
 impl Asset for NextServerUtilityModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("Next.js server component module has no content")
+        bail!("Next.js server utility module has no content")
     }
 }
 
