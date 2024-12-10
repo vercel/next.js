@@ -39,6 +39,7 @@ const nextBuildWorkflow =
         HOSTNAME: process.env.HOSTNAME,
         PWD: process.env.PWD,
         NEXT_TRACE_UPLOAD_DISABLED: 'true',
+        NEXT_PRIVATE_SKIP_CANARY_CHECK: 'true',
       }
 
       const serverEnv = {

@@ -16,7 +16,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -107,7 +108,7 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum FoundExportType {
     Found,
     Dynamic,
