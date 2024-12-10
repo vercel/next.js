@@ -408,7 +408,7 @@ impl ContentSourceDataVary {
 }
 
 /// A source of content that the dev server uses to respond to http requests.
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait ContentSource {
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree>;
 
@@ -500,7 +500,7 @@ pub enum RewriteType {
 
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
 /// update its parsed url, path, and queries with this new information.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Debug)]
 pub struct Rewrite {
     pub ty: RewriteType,
