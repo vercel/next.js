@@ -423,21 +423,27 @@ async fn get_module_graph_for_endpoint(
         server_component_entries,
     } = &*find_server_entries(*entry).await?;
 
-    let graph = SingleModuleGraph::new_with_entries_visited(
-        *entry,
-        server_utils.iter().map(|m| **m).collect(),
-        Vc::cell(Default::default()),
-    )
-    .to_resolved()
-    .await?;
-    let mut visited_modules: HashSet<_> = graph
-        .await?
-        .graph
-        .node_weights()
-        .map(|n| n.module)
-        .collect();
+    let mut graphs = vec![];
 
-    let mut graphs = vec![graph];
+    let mut visited_modules = if !server_utils.is_empty() {
+        let graph = SingleModuleGraph::new_with_entries_visited(
+            *entry,
+            server_utils.iter().map(|m| **m).collect(),
+            Vc::cell(Default::default()),
+        )
+        .to_resolved()
+        .await?;
+        graphs.push(graph);
+        graph
+            .await?
+            .iter_nodes()
+            .map(|n| n.module)
+            .collect::<HashSet<_>>()
+    } else {
+        HashSet::new()
+    };
+
+    // ast-grep-ignore: to-resolved-in-loop
     for module in server_component_entries
         .iter()
         .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
@@ -449,9 +455,12 @@ async fn get_module_graph_for_endpoint(
         )
         .to_resolved()
         .await?;
-        visited_modules.extend(graph.await?.graph.node_weights().map(|n| n.module));
+        visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
         graphs.push(graph);
     }
+
+    // The previous iterations above (might) have added the entry node, but not actually visited it.
+    visited_modules.remove(&entry);
     let graph = SingleModuleGraph::new_with_entries_visited(
         *entry,
         vec![*entry],
