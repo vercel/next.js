@@ -144,8 +144,8 @@ describe('segment cache (basic tests)', () => {
   it('skips dynamic request if prefetched data is fully static', async () => {
     const interceptor = createRequestInterceptor()
     const browser = await next.browser('/fully-static', {
-      beforePageLoad(page: Page) {
-        page.route('**/*', async (route: Route) => {
+      beforePageLoad(page: Playwright.Page) {
+        page.route('**/*', async (route: Playwright.Route) => {
           await interceptor.interceptRoute(route)
         })
       },
