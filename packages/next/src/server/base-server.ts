@@ -2749,7 +2749,7 @@ export default abstract class Server<
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: res.statusCode,
-            segmentData: undefined,
+            segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -3057,8 +3057,9 @@ export default abstract class Server<
         // it's a 404 — either the segment is fully dynamic, or an invalid segment
         // path was requested.
         if (cacheEntry.value.segmentData) {
-          const matchedSegment =
-            cacheEntry.value.segmentData[segmentPrefetchHeader]
+          const matchedSegment = cacheEntry.value.segmentData.get(
+            segmentPrefetchHeader
+          )
           if (matchedSegment !== undefined) {
             return {
               type: 'rsc',
