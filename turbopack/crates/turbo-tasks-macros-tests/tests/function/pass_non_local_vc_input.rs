@@ -41,7 +41,7 @@ impl ExampleStruct {
     fn non_turbo_method_with_resolved_vc_self(self: ResolvedVc<Self>) {}
 }
 
-#[turbo_tasks::value(, transparent)]
+#[turbo_tasks::value(transparent)]
 struct MaybeExampleStruct(Option<ExampleStruct>);
 
 #[turbo_tasks::function]
