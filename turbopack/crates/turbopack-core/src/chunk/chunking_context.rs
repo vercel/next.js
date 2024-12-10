@@ -22,8 +22,6 @@ use crate::{
     Copy,
     PartialEq,
     Eq,
-    PartialOrd,
-    Ord,
     Hash,
     Serialize,
     Deserialize,
@@ -34,6 +32,24 @@ pub enum MinifyType {
     #[default]
     Minify,
     NoMinify,
+}
+
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+)]
+pub enum ChunkGroupType {
+    Entry,
+    Evaluated,
 }
 
 #[turbo_tasks::value(shared)]

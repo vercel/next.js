@@ -3951,9 +3951,11 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "futures",
  "indexmap 2.5.0",
  "next-core",
+ "petgraph",
  "regex",
  "serde",
  "serde_json",
@@ -4633,6 +4635,8 @@ checksum = "4dd7d28ee937e54fe3080c91faa1c3a46c06de6252988a7f4592ba2310ef22a4"
 dependencies = [
  "fixedbitset",
  "indexmap 1.9.3",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
