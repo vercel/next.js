@@ -23,8 +23,12 @@ use crate::database::{
 
 #[cfg(feature = "lmdb")]
 pub type LmdbBackingStorage = KeyValueDatabaseBackingStorage<
-    ReadTransactionCache<
-        StartupCacheLayer<FreshDbOptimization<crate::database::lmdb::LmbdKeyValueDatabase>>,
+    database::read_transaction_cache::ReadTransactionCache<
+        database::startup_cache::StartupCacheLayer<
+            database::fresh_db_optimization::FreshDbOptimization<
+                crate::database::lmdb::LmbdKeyValueDatabase,
+            >,
+        >,
     >,
 >;
 

@@ -7,12 +7,14 @@ use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkGroupType, ChunkItem, ChunkType, ChunkableModule, ChunkingContext,
+    },
     code_builder::CodeBuilder,
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReferences, SingleModuleReference},
+    reference::ModuleReferences,
     reference_type::ReferenceType,
     virtual_source::VirtualSource,
 };
@@ -24,7 +26,10 @@ use turbopack_ecmascript::{
     utils::StringifyJs,
 };
 
-use super::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
+use crate::next_client_reference::{
+    ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReference,
+    EcmascriptClientReferenceModule,
+};
 
 /// A [`EcmascriptClientReferenceProxyModule`] is used in RSC to represent
 /// a client or SSR asset.
@@ -186,13 +191,18 @@ impl Module for EcmascriptClientReferenceProxyModule {
             .await?
             .iter()
             .copied()
+            // TODO this will break once ChunkingType::Isolated is properly implemented.
+            //
+            // We should instead merge EcmascriptClientReferenceProxyModule and
+            // EcmascriptClientReferenceModule into a single module
             .chain(once(ResolvedVc::upcast(
-                SingleModuleReference::new(
+                EcmascriptClientReference::new(
                     Vc::upcast(EcmascriptClientReferenceModule::new(
                         **server_module_ident,
                         **client_module,
                         **ssr_module,
                     )),
+                    ChunkGroupType::Entry,
                     client_reference_description(),
                 )
                 .to_resolved()

@@ -4,7 +4,7 @@ import ViewSource from "@/components/view-source";
 export default function LayoutFixed() {
   return (
     <div>
-      <ViewSource pathname="pages/layout-fixed.tsx" />
+      <ViewSource pathname="app/layout-fixed/page.tsx" />
       <h1>Image Component With Layout Fixed</h1>
       <Image
         alt="Mountains"

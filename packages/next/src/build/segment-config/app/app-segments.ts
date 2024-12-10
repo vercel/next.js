@@ -21,6 +21,7 @@ import {
 import { isClientReference } from '../../../lib/client-reference'
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
 import { getLayoutOrPageModule } from '../../../server/lib/app-dir-module'
+import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
 
@@ -75,13 +76,16 @@ export type AppSegment = {
 async function collectAppPageSegments(routeModule: AppPageRouteModule) {
   const segments: AppSegment[] = []
 
-  let current = routeModule.userland.loaderTree
-  while (current) {
-    const [name, parallelRoutes] = current
-    const { mod: userland, filePath } = await getLayoutOrPageModule(current)
+  // Helper function to process a loader tree path
+  async function processLoaderTree(
+    loaderTree: any,
+    currentSegments: AppSegment[] = []
+  ): Promise<void> {
+    const [name, parallelRoutes] = loaderTree
+    const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
 
     const isClientComponent: boolean = userland && isClientReference(userland)
-    const isDynamicSegment = /^\[.*\]$/.test(name)
+    const isDynamicSegment = /\[.*\]$/.test(name)
     const param = isDynamicSegment ? getSegmentParam(name)?.param : undefined
 
     const segment: AppSegment = {
@@ -100,12 +104,22 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       attach(segment, userland, routeModule.definition.pathname)
     }
 
-    segments.push(segment)
+    currentSegments.push(segment)
 
-    // Use this route's parallel route children as the next segment.
-    current = parallelRoutes.children
+    // If this is a page segment, we know we've reached a leaf node associated with the
+    // page we're collecting segments for. We can add the collected segments to our final result.
+    if (name === PAGE_SEGMENT_KEY) {
+      segments.push(...currentSegments)
+    }
+
+    // Recursively process parallel routes
+    for (const parallelRouteKey in parallelRoutes) {
+      const parallelRoute = parallelRoutes[parallelRouteKey]
+      await processLoaderTree(parallelRoute, [...currentSegments])
+    }
   }
 
+  await processLoaderTree(routeModule.userland.loaderTree)
   return segments
 }
 

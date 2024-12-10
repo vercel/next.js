@@ -83,7 +83,7 @@ async fn get_inherit_async_referenced_asset(
     let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
         return Ok(None);
     };
-    let Some(ty) = *r.chunking_type().await? else {
+    let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
     if !matches!(ty, ChunkingType::ParallelInheritAsync) {
