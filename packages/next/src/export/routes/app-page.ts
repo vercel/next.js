@@ -146,7 +146,7 @@ export async function exportAppPage(
       postponed,
       fetchTags,
       fetchMetrics,
-      segmentFlightData,
+      segmentData,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -200,7 +200,7 @@ export async function exportAppPage(
           flightData
         )
 
-        if (segmentFlightData) {
+        if (segmentData) {
           // Emit the per-segment prefetch data. We emit them as separate files
           // so that the cache handler has the option to treat each as a
           // separate entry.
@@ -210,7 +210,7 @@ export async function exportAppPage(
             RSC_SEGMENTS_DIR_SUFFIX
           )
           const tasks = []
-          for (const [segmentPath, buffer] of segmentFlightData.entries()) {
+          for (const [segmentPath, buffer] of segmentData) {
             segmentPaths.push(segmentPath)
             const segmentDataFilePath =
               segmentPath === '/'

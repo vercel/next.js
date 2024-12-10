@@ -675,7 +675,6 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
-              flyingShuttle: Boolean(config.experimental.flyingShuttle),
               nextConfigExperimentalUseEarlyImport: config.experimental
                 .useEarlyImport
                 ? true
@@ -741,7 +740,6 @@ export async function createEntrypoints(
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
                 nextConfigOutput: config.output,
-                flyingShuttle: Boolean(config.experimental.flyingShuttle),
                 // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
                 // Still passing it here for consistency.
                 preferredRegion: staticInfo.preferredRegion,

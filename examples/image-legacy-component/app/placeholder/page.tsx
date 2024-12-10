@@ -5,7 +5,7 @@ import mountains from "@/public/mountains.jpg";
 export default function Placeholder() {
   return (
     <div>
-      <ViewSource pathname="pages/placeholder.tsx" />
+      <ViewSource pathname="app/placeholder/page.tsx" />
       <h1>Image Component With Placeholder Blur</h1>
       <Image
         alt="Mountains"
