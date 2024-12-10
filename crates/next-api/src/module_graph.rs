@@ -14,7 +14,6 @@ use next_core::{
         ServerEntries, VisitedClientReferenceGraphNodes,
     },
     next_manifests::ActionLayer,
-    next_server_component::server_component_module::NextServerComponentModule,
 };
 use petgraph::{
     graph::{DiGraph, NodeIndex},
@@ -62,6 +61,7 @@ pub struct SingleModuleGraphNode {
     pub module: ResolvedVc<Box<dyn Module>>,
     pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
     pub layer: Option<ReadRef<RcStr>>,
+    // pub ident: ReadRef<RcStr>,
 }
 impl SingleModuleGraphNode {
     fn emit_issues(&self) {
@@ -217,6 +217,7 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
 impl SingleModuleGraph {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
+    /// The resulting graph's outgoing edges are in reverse order.
     /// If passed, `root` is connected to the entries and include in `self.entries`.
     async fn new_inner(
         root: Option<ResolvedVc<Box<dyn Module>>>,
@@ -271,6 +272,7 @@ impl SingleModuleGraph {
                                 module,
                                 issues: Default::default(),
                                 layer,
+                                // ident,
                             });
                             modules.insert(module, idx);
                             if let Some(parent_idx) = parent_idx {
@@ -290,21 +292,25 @@ impl SingleModuleGraph {
             }
         }
 
-        let root_idx = root.and_then(|root| {
-            if !modules.contains_key(&root) {
-                let root_idx = graph.add_node(SingleModuleGraphNode {
-                    module: root,
-                    issues: Default::default(),
-                    layer: None,
-                });
-                for entry in entries {
-                    graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
+        let root_idx = match root {
+            Some(root) => {
+                if !modules.contains_key(&root) {
+                    let root_idx = graph.add_node(SingleModuleGraphNode {
+                        module: root,
+                        issues: Default::default(),
+                        layer: None,
+                        // ident: root.ident().to_string().await?,
+                    });
+                    for entry in entries {
+                        graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
+                    }
+                    Some((root, root_idx))
+                } else {
+                    None
                 }
-                Some((root, root_idx))
-            } else {
-                None
             }
-        });
+            None => None,
+        };
 
         Ok(SingleModuleGraph {
             graph: TracedDiGraph(graph),
@@ -358,9 +364,7 @@ impl SingleModuleGraph {
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
     /// target.
     ///
-    /// This means that target nodes can be revisited (but not recursively).
-    ///
-    /// Edges are traversed in reverse order, so recently added edges are added last.
+    /// This means that target nodes can be revisited (once per incoming edge).
     pub fn traverse_edges_from_entry<'a>(
         &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
@@ -380,11 +384,78 @@ impl SingleModuleGraph {
         while let Some(node) = stack.pop() {
             let node_weight = graph.node_weight(node).unwrap();
             if discovered.visit(node) {
-                for succ in graph.neighbors(node).collect::<Vec<_>>().into_iter().rev() {
+                for succ in graph.neighbors(node).collect::<Vec<_>>() {
                     let succ_weight = graph.node_weight(succ).unwrap();
                     let action = visitor((Some(node_weight), succ_weight));
                     if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Traverses all reachable edges in reverse topological order (from leaves to the entry), the
+    /// preorder visitor can be used to forward state down the graph, and to skip subgraphs
+    ///
+    /// Target nodes can be revisited (once per incoming edge).
+    /// Edges are traversed in normal order, so should correspond to reference order.
+    pub fn traverse_edges_from_entry_reverse_topological<'a, S>(
+        &'a self,
+        entry: ResolvedVc<Box<dyn Module>>,
+        state: &mut S,
+        mut visit_preorder: impl FnMut(
+            (Option<&'a SingleModuleGraphNode>, &'a SingleModuleGraphNode),
+            &mut S,
+        ) -> GraphTraversalAction,
+        mut visit_postorder: impl FnMut(
+            (Option<&'a SingleModuleGraphNode>, &'a SingleModuleGraphNode),
+            &mut S,
+        ),
+    ) -> Result<()> {
+        let graph = &self.graph;
+        let entry_node = self.get_entry(entry)?;
+
+        enum ReverseTopologicalPass {
+            Visit,
+            ExpandAndVisit,
+        }
+
+        let mut stack: Vec<(ReverseTopologicalPass, Option<NodeIndex>, NodeIndex)> =
+            vec![(ReverseTopologicalPass::ExpandAndVisit, None, entry_node)];
+        let mut expanded = HashSet::new();
+        while let Some((pass, parent, current)) = stack.pop() {
+            match pass {
+                ReverseTopologicalPass::Visit => {
+                    visit_postorder(
+                        (
+                            parent.map(|parent| graph.node_weight(parent).unwrap()),
+                            graph.node_weight(current).unwrap(),
+                        ),
+                        state,
+                    );
+                }
+                ReverseTopologicalPass::ExpandAndVisit => {
+                    let action = visit_preorder(
+                        (
+                            parent.map(|parent| graph.node_weight(parent).unwrap()),
+                            graph.node_weight(current).unwrap(),
+                        ),
+                        state,
+                    );
+                    stack.push((ReverseTopologicalPass::Visit, parent, current));
+                    if expanded.insert(current) && action == GraphTraversalAction::Continue {
+                        stack.extend(
+                            graph
+                                .neighbors(current)
+                                // .collect::<Vec<_>>()
+                                // .rev()
+                                .map(|child| {
+                                    (ReverseTopologicalPass::ExpandAndVisit, Some(current), child)
+                                }),
+                        );
                     }
                 }
             }
@@ -685,74 +756,75 @@ impl ClientReferencesGraph {
             let mut client_references_by_server_component =
                 FxIndexMap::from_iter([(None, Vec::new())]);
 
-            #[derive(Clone, PartialEq, Eq)]
-            enum VisitState {
-                Entry,
-                InServerComponent(ResolvedVc<NextServerComponentModule>),
-            }
+            graph.traverse_edges_from_entry_reverse_topological(
+                entry,
+                // state_map is `module -> Option< the current so parent server component >`
+                &mut HashMap::new(),
+                |(parent_node, node), state_map| {
+                    let module = node.module;
+                    let Some(parent_node) = parent_node else {
+                        state_map.insert(module, None);
+                        return GraphTraversalAction::Continue;
+                    };
+                    let module = node.module;
+                    let module_type = data.get(&module);
 
-            // module -> the parent server component (if any)
-            let mut state_map = HashMap::new();
-            graph.traverse_edges_from_entry(entry, |(parent_node, node)| {
-                let module = node.module;
-                let Some(parent_node) = parent_node else {
-                    state_map.insert(module, VisitState::Entry);
-                    return GraphTraversalAction::Continue;
-                };
-                let parent_module = parent_node.module;
-
-                let module_type = data.get(&module);
-                let parent_state = state_map.get(&parent_module).unwrap().clone();
-                let parent_server_component =
-                    if let Some(ClientReferenceMapType::ServerComponent(module)) = module_type {
+                    let current_server_component = if let Some(
+                        ClientReferenceMapType::ServerComponent(module),
+                    ) = module_type
+                    {
                         Some(*module)
-                    } else if let VisitState::InServerComponent(module) = parent_state {
-                        Some(module)
                     } else {
-                        None
+                        *state_map.get(&parent_node.module).unwrap()
                     };
 
-                match module_type {
-                    Some(ClientReferenceMapType::EcmascriptClientReference {
-                        module: module_ref,
-                        ssr_module,
-                    }) => {
-                        let client_reference: ClientReference = ClientReference {
-                            server_component: parent_server_component,
-                            ty: ClientReferenceType::EcmascriptClientReference {
-                                parent_module,
-                                module: *module_ref,
-                            },
-                        };
-                        client_references.insert(client_reference);
-                        client_references_by_server_component
-                            .entry(parent_server_component)
-                            .or_insert_with(Vec::new)
-                            .push(*ssr_module);
+                    state_map.insert(module, current_server_component);
 
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Skip
+                    match module_type {
+                        Some(
+                            ClientReferenceMapType::EcmascriptClientReference { .. }
+                            | ClientReferenceMapType::CssClientReference { .. },
+                        ) => GraphTraversalAction::Skip,
+                        _ => GraphTraversalAction::Continue,
                     }
-                    Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
-                        let client_reference = ClientReference {
-                            server_component: parent_server_component,
-                            ty: ClientReferenceType::CssClientReference(*module_ref),
-                        };
-                        client_references.insert(client_reference);
+                },
+                |(parent_node, node), state_map| {
+                    let Some(parent_node) = parent_node else {
+                        return;
+                    };
+                    let parent_module = parent_node.module;
 
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Skip
-                    }
-                    Some(ClientReferenceMapType::ServerComponent(server_component)) => {
-                        state_map.insert(module, VisitState::InServerComponent(*server_component));
-                        GraphTraversalAction::Continue
-                    }
-                    None => {
-                        state_map.insert(module, parent_state);
-                        GraphTraversalAction::Continue
-                    }
-                }
-            })?;
+                    let parent_server_component = *state_map.get(&parent_module).unwrap();
+
+                    match data.get(&node.module) {
+                        Some(ClientReferenceMapType::EcmascriptClientReference {
+                            module: module_ref,
+                            ssr_module,
+                        }) => {
+                            let client_reference: ClientReference = ClientReference {
+                                server_component: parent_server_component,
+                                ty: ClientReferenceType::EcmascriptClientReference {
+                                    parent_module,
+                                    module: *module_ref,
+                                },
+                            };
+                            client_references.insert(client_reference);
+                            client_references_by_server_component
+                                .entry(parent_server_component)
+                                .or_insert_with(Vec::new)
+                                .push(*ssr_module);
+                        }
+                        Some(ClientReferenceMapType::CssClientReference(module_ref)) => {
+                            let client_reference = ClientReference {
+                                server_component: parent_server_component,
+                                ty: ClientReferenceType::CssClientReference(*module_ref),
+                            };
+                            client_references.insert(client_reference);
+                        }
+                        _ => {}
+                    };
+                },
+            )?;
 
             Ok(ClientReferenceGraphResult {
                 client_references: client_references.into_iter().collect(),
