@@ -60,7 +60,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -173,7 +173,7 @@ pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     })
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(non_local)]
 pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     fn root(self: Vc<Self>) -> Vc<FileSystemPath> {
@@ -188,7 +188,7 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
@@ -348,7 +348,7 @@ impl DiskFileSystemInner {
     }
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual")]
+#[turbo_tasks::value(cell = "new", eq = "manual", non_local)]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
 }
@@ -944,7 +944,7 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(non_local)]
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -2100,7 +2100,7 @@ impl FileContent {
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none")]
+#[turbo_tasks::value(shared, serialization = "none", non_local)]
 pub enum FileJsonContent {
     Content(Value),
     Unparseable(Box<UnparseableJson>),
@@ -2167,7 +2167,7 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum InternalDirectoryEntry {
     File(RcStr),
     Directory(RcStr),
@@ -2176,7 +2176,9 @@ pub enum InternalDirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum DirectoryEntry {
     File(ResolvedVc<FileSystemPath>),
     Directory(ResolvedVc<FileSystemPath>),
@@ -2277,7 +2279,7 @@ impl DirectoryContent {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, non_local)]
 pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]

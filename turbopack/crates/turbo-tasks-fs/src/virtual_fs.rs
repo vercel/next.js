@@ -4,7 +4,7 @@ use turbo_tasks::{Completion, ValueDefault, ValueToString, Vc};
 
 use super::{DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(non_local)]
 pub struct VirtualFileSystem {
     pub name: RcStr,
 }

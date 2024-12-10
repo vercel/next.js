@@ -2716,11 +2716,12 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
+        let prerenderIsPending = true
         const reactServerResult = (reactServerPrerenderResult =
           await createReactServerPrerenderResult(
             prerenderAndAbortInSequentialTasks(
-              () =>
-                workUnitAsyncStorage.run(
+              async () => {
+                const prerenderResult = await workUnitAsyncStorage.run(
                   // The store to scope
                   finalRenderPrerenderStore,
                   // The function to run
@@ -2730,8 +2731,9 @@ async function prerenderToStream(
                   clientReferenceManifest.clientModules,
                   {
                     onError: (err: unknown) => {
+                      // TODO we can remove this once https://github.com/facebook/react/pull/31715 lands
+                      // because we won't have onError calls when halting the prerender
                       if (finalServerController.signal.aborted) {
-                        serverIsDynamic = true
                         return
                       }
 
@@ -2739,8 +2741,23 @@ async function prerenderToStream(
                     },
                     signal: finalServerController.signal,
                   }
-                ),
+                )
+                prerenderIsPending = false
+                return prerenderResult
+              },
               () => {
+                if (finalServerController.signal.aborted) {
+                  // If the server controller is already aborted we must have called something
+                  // that required aborting the prerender synchronously such as with new Date()
+                  serverIsDynamic = true
+                  return
+                }
+
+                if (prerenderIsPending) {
+                  // If prerenderIsPending then we have blocked for longer than a Task and we assume
+                  // there is something unfinished.
+                  serverIsDynamic = true
+                }
                 finalServerController.abort()
               }
             )

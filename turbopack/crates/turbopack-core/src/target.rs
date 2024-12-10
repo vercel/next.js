@@ -1,7 +1,7 @@
 use std::fmt::Display;
 
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, Vc};
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Hash, Debug, Copy, Clone)]
@@ -172,7 +172,9 @@ impl CompileTarget {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Arch {
@@ -213,7 +215,9 @@ impl Display for Arch {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 #[non_exhaustive]
 pub enum Platform {
@@ -250,7 +254,9 @@ impl Display for Platform {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 pub enum Endianness {
     Big,
@@ -272,7 +278,9 @@ impl Display for Endianness {
     }
 }
 
-#[derive(PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    PartialEq, Eq, Hash, Debug, Copy, Clone, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[repr(u8)]
 pub enum Libc {
     Glibc,

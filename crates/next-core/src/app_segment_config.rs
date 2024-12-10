@@ -9,7 +9,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, ResolvedVc, TryJoinIterExt, ValueDefault, Vc,
+    trace::TraceRawVcs, util::WrapFuture, NonLocalValue, ResolvedVc, TryJoinIterExt, ValueDefault,
+    Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
@@ -29,7 +30,9 @@ use turbopack_ecmascript::{
 
 use crate::{app_structure::AppPageLoaderTree, util::NextRuntime};
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentDynamic {
     #[default]
@@ -39,7 +42,9 @@ pub enum NextSegmentDynamic {
     ForceStatic,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum NextSegmentFetchCache {
     #[default]
@@ -52,7 +57,9 @@ pub enum NextSegmentFetchCache {
     ForceNoStore,
 }
 
-#[derive(Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Default, PartialEq, Eq, Clone, Copy, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum NextRevalidate {
     #[default]
     Never,
