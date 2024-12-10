@@ -43,13 +43,3 @@ export const extractNextErrorCode = (error: unknown): string | undefined => {
 
   return undefined
 }
-
-export const removeNextErrorCode = (error: unknown): void => {
-  if (
-    typeof error === 'object' &&
-    error !== null &&
-    '__NEXT_ERROR_CODE' in error
-  ) {
-    delete (error as any).__NEXT_ERROR_CODE
-  }
-}

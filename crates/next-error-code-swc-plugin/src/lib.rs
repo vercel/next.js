@@ -60,7 +60,8 @@ impl VisitMut for TransformVisitor {
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         let mut error_message: Option<String> = None;
 
-        // The first arg to `Object.assign(..., { __NEXT_ERROR_CODE: "$code" })`
+        // The first arg to `Object.defineProperty(new Error(...), "__NEXT_ERROR_CODE", { value:
+        // "$code", enumerable: false })`
         let mut new_error_expr: Option<NewExpr> = None;
 
         // Find expressions like `new Error(...)` or `Error(...)`
@@ -135,7 +136,8 @@ impl VisitMut for TransformVisitor {
         } else {
             let code = format!("E{}", code.unwrap());
 
-            // Mutate to Object.assign($new_error_expr, { __NEXT_ERROR_CODE: "$code" })
+            // Mutate to Object.defineProperty(new Error(...), "__NEXT_ERROR_CODE", { value:
+            // "$code", enumerable: false })
             *expr = Expr::Call(CallExpr {
                 span: new_error_expr.span,
                 callee: Callee::Expr(Box::new(Expr::Member(MemberExpr {
@@ -145,28 +147,43 @@ impl VisitMut for TransformVisitor {
                         new_error_expr.span,
                         Default::default(),
                     ))),
-                    prop: MemberProp::Ident("assign".into()),
-                }))), // Object.assign(
+                    prop: MemberProp::Ident("defineProperty".into()),
+                }))), // Object.defineProperty(
                 args: vec![
                     ExprOrSpread {
                         spread: None,
-                        expr: Box::new(Expr::New(new_error_expr.clone())), // $new_error_expr,
+                        expr: Box::new(Expr::New(new_error_expr.clone())), // new Error(...)
+                    },
+                    ExprOrSpread {
+                        spread: None,
+                        expr: Box::new(Expr::Lit(Lit::Str(Str {
+                            span: new_error_expr.span,
+                            value: "__NEXT_ERROR_CODE".into(),
+                            raw: None,
+                        }))), // "__NEXT_ERROR_CODE"
                     },
                     ExprOrSpread {
                         spread: None,
                         expr: Box::new(Expr::Object(ObjectLit {
                             span: new_error_expr.span,
-                            props: vec![PropOrSpread::Prop(Box::new(Prop::KeyValue(
-                                KeyValueProp {
-                                    key: PropName::Ident("__NEXT_ERROR_CODE".into()),
+                            props: vec![
+                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                    key: PropName::Ident("value".into()),
                                     value: Box::new(Expr::Lit(Lit::Str(Str {
                                         span: new_error_expr.span,
                                         value: code.into(),
                                         raw: None,
                                     }))),
-                                },
-                            )))],
-                        })), // { __NEXT_ERROR_CODE: "$code" } }
+                                }))),
+                                PropOrSpread::Prop(Box::new(Prop::KeyValue(KeyValueProp {
+                                    key: PropName::Ident("enumerable".into()),
+                                    value: Box::new(Expr::Lit(Lit::Bool(Bool {
+                                        span: new_error_expr.span,
+                                        value: false,
+                                    }))),
+                                }))),
+                            ],
+                        })), // { value: "$code", enumerable: false }
                     },
                 ],
                 type_args: None,
@@ -243,34 +260,39 @@ async function fetchUserData(userId) {
     try {
         const response = await fetch(`/api/users/${userId}`);
         if (!response.ok) {
-            throw Object.assign(new Error(`Failed to fetch user ${userId}: ${response.statusText}`), {
-                __NEXT_ERROR_CODE: "E1"
+            throw Object.defineProperty(new Error(`Failed to fetch user ${userId}: ${response.statusText}`), "__NEXT_ERROR_CODE", {
+                value: "E1",
+                enumerable: false
             });
         }
         return await response.json();
     } catch (err) {
-        throw Object.assign(new Error(`Request failed: ${err.message}`), {
-            __NEXT_ERROR_CODE: "E2"
+        throw Object.defineProperty(new Error(`Request failed: ${err.message}`), "__NEXT_ERROR_CODE", {
+            value: "E2",
+            enumerable: false
         });
     }
 }
 function test1() {
-    throw Object.assign(new Error("Generic error"), {
-        __NEXT_ERROR_CODE: "E3"
+    throw Object.defineProperty(new Error("Generic error"), "__NEXT_ERROR_CODE", {
+        value: "E3",
+        enumerable: false
     });
 }
 function test2() {
     throw Error();
 }
 function test3() {
-    throw Object.assign(new Error("Generic error"), {
-        __NEXT_ERROR_CODE: "E3"
+    throw Object.defineProperty(new Error("Generic error"), "__NEXT_ERROR_CODE", {
+        value: "E3",
+        enumerable: false
     });
 }
 function test4() {
     throw new Error();
-    throw Object.assign(new Error("Pattern should define hostname but found\n" + JSON.stringify(pattern)), {
-        __NEXT_ERROR_CODE: "E5"
+    throw Object.defineProperty(new Error("Pattern should define hostname but found\n" + JSON.stringify(pattern)), "__NEXT_ERROR_CODE", {
+        value: "E5",
+        enumerable: false
     });
 }
 "#

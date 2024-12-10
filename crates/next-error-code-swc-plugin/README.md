@@ -4,7 +4,7 @@
 
 This plugin transforms Next.js source code by:
 
-- Rewriting `new Error` or `Error` to include an additional property: `Object.assign(error, { __NEXT_ERROR_CODE: $code })`.
+- Rewriting `new Error` or `Error` to include an additional property: `Object.defineProperty(new Error(...), "__NEXT_ERROR_CODE", { value: $code, enumerable: false })`. The `enumerable: false` ensures the error code won't show up in console logs while still being accessible for telemetry.
 - This enables anonymous error code reporting for user feedback while keeping the message private.
 
 ## Error Code Mapping
@@ -27,11 +27,6 @@ This plugin transforms Next.js source code by:
      - Inspired by React's [error mapping mechanism](https://github.com/facebook/react/tree/main/scripts/error-codes).
 
 - **Concurrency Handling:** The two-pass system ensures reliable ordering of inserted error codes during concurrent builds.
-
-## Utility Function
-
-- **`removeNextErrorCode`:** Strips the `__NEXT_ERROR_CODE` property from error objects at runtime.
-  - **Use Case:** Avoid displaying the code in console logs if unnecessary.
 
 ## Modifying the Plugin
 

@@ -75,7 +75,6 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
-import { removeNextErrorCode } from '../../../lib/error-telemetry-utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -934,8 +933,6 @@ async function startWatcher(opts: SetupOpts) {
     err: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
   ) {
-    removeNextErrorCode(err) // to avoid printing __NEXT_ERROR_CODE to the console
-
     if (err instanceof ModuleBuildError) {
       // Errors that may come from issues from the user's code
       Log.error(err.message)
