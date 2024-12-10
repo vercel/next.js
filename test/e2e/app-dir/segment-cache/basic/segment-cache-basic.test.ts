@@ -140,6 +140,33 @@ describe('segment cache (basic tests)', () => {
 
     navigationsLock.release()
   })
+
+  it('skips dynamic request if prefetched data is fully static', async () => {
+    const interceptor = createRequestInterceptor()
+    const browser = await next.browser('/fully-static', {
+      beforePageLoad(page: Page) {
+        page.route('**/*', async (route: Route) => {
+          await interceptor.interceptRoute(route)
+        })
+      },
+    })
+
+    // Rendering the link triggers a prefetch of the test page.
+    const link = await browser.elementByCss(
+      'a[href="/fully-static/target-page"]'
+    )
+    const navigationsLock = interceptor.lockNavigations()
+    await link.click()
+
+    // The page should render immediately because it was prefetched.
+    const div = await browser.elementById('target-page')
+    expect(await div.innerHTML()).toBe('Target')
+
+    // We should have skipped the navigation request because all the data was
+    // fully static.
+    const numberOfNavigationRequests = (await navigationsLock.release()).size
+    expect(numberOfNavigationRequests).toBe(0)
+  })
 })
 
 function createRequestInterceptor() {
