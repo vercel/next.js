@@ -6,7 +6,7 @@ import type {
 
 import './globals'
 
-import { adapter, type AdapterOptions } from './adapter'
+import { adapter, type AdapterOptions, type HandlerExtraOpts } from './adapter'
 import { IncrementalCache } from '../lib/incremental-cache'
 import { RouteMatcher } from '../route-matchers/route-matcher'
 import type { NextFetchEvent } from './spec-extension/fetch-event'
@@ -57,7 +57,7 @@ export class EdgeRouteModuleWrapper {
     const wrapper = new EdgeRouteModuleWrapper(routeModule, options.nextConfig)
 
     // Return the wrapping function.
-    return (opts: AdapterOptions) => {
+    return (opts: Omit<AdapterOptions, 'handler' | 'IncrementalCache'>) => {
       return adapter({
         ...opts,
         IncrementalCache,
@@ -69,7 +69,8 @@ export class EdgeRouteModuleWrapper {
 
   private async handler(
     request: NextRequest,
-    evt: NextFetchEvent
+    evt: NextFetchEvent,
+    extraOpts?: HandlerExtraOpts
   ): Promise<Response> {
     const utils = getUtils({
       pageIsDynamic: this.matcher.isDynamic,
@@ -105,7 +106,7 @@ export class EdgeRouteModuleWrapper {
         supportsDynamicResponse: true,
         waitUntil,
         onClose: closeController.onClose.bind(closeController),
-        onAfterTaskError: undefined,
+        onAfterTaskError: extraOpts?.onAfterTaskError,
         experimental: {
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,

@@ -26,6 +26,8 @@ export interface RequestData {
   signal: AbortSignal
   /** passed in when running in edge runtime sandbox */
   waitUntil?: (promise: Promise<any>) => void
+  /** passed in when running in edge runtime sandbox */
+  onAfterTaskError?: (error: unknown) => void
 }
 
 export type NodejsRequestData = Omit<RequestData, 'body'> & {

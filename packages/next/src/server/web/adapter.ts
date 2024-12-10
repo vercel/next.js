@@ -57,8 +57,13 @@ const headersGetter: TextMapGetter<Headers> = {
   get: (headers, key) => headers.get(key) ?? undefined,
 }
 
+export type HandlerExtraOpts = { onAfterTaskError?: (error: unknown) => void }
 export type AdapterOptions = {
-  handler: (req: NextRequestHint, event: NextFetchEvent) => Promise<Response>
+  handler: (
+    req: NextRequestHint,
+    event: NextFetchEvent,
+    extraOpts?: HandlerExtraOpts
+  ) => Promise<Response>
   page: string
   request: RequestData
   IncrementalCache?: typeof import('../lib/incremental-cache').IncrementalCache
@@ -212,6 +217,8 @@ export async function adapter(
   let response
   let cookiesFromResponse
 
+  const onAfterTaskError = params.request.onAfterTaskError
+
   response = await propagator(request, () => {
     // we only care to make async storage available for middleware
     const isMiddleware =
@@ -265,7 +272,7 @@ export async function adapter(
                 supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
-                onAfterTaskError: undefined,
+                onAfterTaskError,
               },
               requestEndedState: { ended: false },
               isPrefetchRequest: request.headers.has(
@@ -278,7 +285,8 @@ export async function adapter(
                 requestStore,
                 params.handler,
                 request,
-                event
+                event,
+                { onAfterTaskError }
               )
             )
           } finally {
@@ -293,7 +301,7 @@ export async function adapter(
         }
       )
     }
-    return params.handler(request, event)
+    return params.handler(request, event, { onAfterTaskError })
   })
 
   // check if response is a Response object

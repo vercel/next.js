@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
+  ACTION_AFTER_ERROR,
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
+  type AfterErrorAction,
   type UnhandledErrorAction,
   type UnhandledRejectionAction,
 } from '../../shared'
@@ -38,7 +40,7 @@ import {
 
 export type SupportedErrorEvent = {
   id: number
-  event: UnhandledErrorAction | UnhandledRejectionAction
+  event: UnhandledErrorAction | UnhandledRejectionAction | AfterErrorAction
 }
 export type ErrorsProps = {
   isAppDir: boolean
@@ -98,6 +100,7 @@ function ErrorDescription({
 function getErrorSignature(ev: SupportedErrorEvent): string {
   const { event } = ev
   switch (event.type) {
+    case ACTION_AFTER_ERROR:
     case ACTION_UNHANDLED_ERROR:
     case ACTION_UNHANDLED_REJECTION: {
       return `${event.reason.name}::${event.reason.message}::${event.reason.stack}`

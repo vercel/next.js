@@ -21,7 +21,11 @@ import { normalizeAppPath } from '../../../../shared/lib/router/utils/app-paths'
 import type { SizeLimit } from '../../../../types'
 import { internal_getCurrentFunctionWaitUntil } from '../../../../server/web/internal-edge-wait-until'
 import type { PAGE_TYPES } from '../../../../lib/page-types'
-import type { NextRequestHint } from '../../../../server/web/adapter'
+import type {
+  HandlerExtraOpts,
+  NextRequestHint,
+} from '../../../../server/web/adapter'
+import { InvariantError } from '../../../../shared/lib/invariant-error'
 
 export function getRender({
   dev,
@@ -157,10 +161,30 @@ export function getRender({
 
   return async function render(
     request: NextRequestHint,
-    event?: NextFetchEvent
+    event?: NextFetchEvent,
+    extraOpts?: HandlerExtraOpts
   ) {
     const extendedReq = new WebNextRequest(request)
     const extendedRes = new WebNextResponse(undefined)
+
+    if (dev) {
+      if (extraOpts) {
+        const { onAfterTaskError } = extraOpts
+        // in practice `onAfterTaskError` should be constant, so it's fine to set it like this
+        // but double check that it's not changing across request to prevent future bugs
+        if (
+          server['afterTaskErrorHandler'] &&
+          onAfterTaskError &&
+          server['afterTaskErrorHandler'] !== onAfterTaskError
+        ) {
+          throw new InvariantError(
+            'Expected `extraOpts.afterTaskErrorHandler` to not change'
+          )
+        }
+
+        server['afterTaskErrorHandler'] = onAfterTaskError
+      }
+    }
 
     handler(extendedReq, extendedRes)
     const result = await extendedRes.toResponse()

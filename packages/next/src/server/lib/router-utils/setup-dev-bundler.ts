@@ -75,6 +75,9 @@ import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
+import { type ErrorSourceType } from '../../../shared/lib/error-source'
+import { stringifyError } from '../../../shared/lib/utils'
+import isError from '../../../lib/is-error'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
@@ -950,11 +953,37 @@ async function startWatcher(opts: SetupOpts) {
     }
   }
 
+  async function reportAfterTaskError(error: unknown, source: ErrorSourceType) {
+    const serializeErrorToJSON = (err: unknown) => {
+      if (isError(err)) {
+        return stringifyError(err)
+      }
+
+      try {
+        return JSON.stringify(err)
+      } catch (_) {
+        return '<unknown>'
+      }
+    }
+
+    // TODO:
+    // 1. what if the client hasn't come online yet? we need to detect that, buffer these, and send them later
+    // 2. what if multiple clients are connected? we need to somehow know which one sent the request.
+    // we might not even have a session id yet because that's in-memory and they may have refreshed the tab.
+    // maybe we need to push that id to the client in a set-cookie or something.
+    hotReloader.send({
+      action: HMR_ACTIONS_SENT_TO_BROWSER.AFTER_ERROR,
+      source: source,
+      errorJSON: serializeErrorToJSON(error),
+    })
+  }
+
   return {
     serverFields,
     hotReloader,
     requestHandler,
     logErrorWithOriginalStack,
+    reportAfterTaskError,
 
     async ensureMiddleware(requestUrl?: string) {
       if (!serverFields.actualMiddlewareFile) return
