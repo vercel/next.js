@@ -1,6 +1,7 @@
 pub(crate) mod cast;
 mod cell_mode;
 pub(crate) mod default;
+mod local;
 pub(crate) mod operation;
 mod read;
 pub(crate) mod resolved;
@@ -23,9 +24,10 @@ pub use self::{
     cast::{VcCast, VcValueTraitCast, VcValueTypeCast},
     cell_mode::{VcCellMode, VcCellNewMode, VcCellSharedMode},
     default::ValueDefault,
+    local::NonLocalValue,
     operation::{OperationValue, OperationVc},
     read::{ReadVcFuture, VcDefaultRead, VcRead, VcTransparentRead},
-    resolved::{ResolvedValue, ResolvedVc},
+    resolved::ResolvedVc,
     traits::{Dynamic, TypedForInput, Upcast, VcValueTrait, VcValueType},
 };
 use crate::{

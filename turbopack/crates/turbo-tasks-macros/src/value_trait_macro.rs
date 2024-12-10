@@ -14,7 +14,7 @@ use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let ValueTraitArguments {
         debug,
-        resolved,
+        non_local,
         operation,
     } = parse_macro_input!(args as ValueTraitArguments);
 
@@ -200,9 +200,9 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     };
 
     let mut extended_supertraits = vec![quote!(::std::marker::Send), quote!(::std::marker::Sync)];
-    if let Some(span) = resolved {
+    if let Some(span) = non_local {
         extended_supertraits.push(quote_spanned! {
-            span => turbo_tasks::ResolvedValue
+            span => turbo_tasks::NonLocalValue
         });
     }
     if let Some(span) = operation {

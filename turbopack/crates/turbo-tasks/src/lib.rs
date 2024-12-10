@@ -121,7 +121,7 @@ pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, Ta
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
-    Dynamic, OperationValue, OperationVc, ResolvedValue, ResolvedVc, TypedForInput, Upcast,
+    Dynamic, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TypedForInput, Upcast,
     ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
     VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
@@ -259,13 +259,13 @@ macro_rules! fxindexset {
 ///
 /// [repr-transparent]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent
 ///
-/// ## `resolved`
+/// ## `non_local`
 ///
-/// Applies the [`#[derive(ResolvedValue)]`][macro@ResolvedValue] macro.
+/// Applies the [`#[derive(NonLocalValue)]`][macro@NonLocalValue] macro.
 ///
-/// Indicates that this struct has no fields containing [`Vc`] by implementing the [`ResolvedValue`]
-/// marker trait. In order to safely implement [`ResolvedValue`], this inserts compile-time
-/// assertions that every field in this struct has a type that is also a [`ResolvedValue`].
+/// Indicates that this struct has no fields containing [`Vc`] by implementing the [`NonLocalValue`]
+/// marker trait. In order to safely implement [`NonLocalValue`], this inserts compile-time
+/// assertions that every field in this struct has a type that is also a [`NonLocalValue`].
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
 
