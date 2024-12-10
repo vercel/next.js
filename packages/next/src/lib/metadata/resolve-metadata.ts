@@ -327,11 +327,11 @@ function mergeViewport({
   }
 }
 
-async function getDefinedViewport(
+function getDefinedViewport(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<Viewport | ViewportResolver | null> {
+): Viewport | ViewportResolver | null {
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingViewport) =>
@@ -349,11 +349,11 @@ async function getDefinedViewport(
   return mod.viewport || null
 }
 
-async function getDefinedMetadata(
+function getDefinedMetadata(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<Metadata | MetadataResolver | null> {
+): Metadata | MetadataResolver | null {
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
@@ -382,6 +382,8 @@ async function collectStaticImagesFiles(
     async (imageModule: (p: any) => Promise<MetadataImageModule[]>) =>
       interopDefault(await imageModule(props))
   )
+
+  console.log('iconPromises.length', iconPromises.length)
 
   return iconPromises?.length > 0
     ? (await Promise.all(iconPromises))?.flat()
@@ -449,23 +451,19 @@ async function collectMetadata({
   }
 
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
-  const metadataExport = mod
-    ? await getDefinedMetadata(mod, props, { route })
-    : null
+  const metadataExport = mod ? getDefinedMetadata(mod, props, { route }) : null
 
-  const viewportExport = mod
-    ? await getDefinedViewport(mod, props, { route })
-    : null
+  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
 
   metadataItems.push([metadataExport, staticFilesMetadata, viewportExport])
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
     const errorViewportExport = errorMod
-      ? await getDefinedViewport(errorMod, props, { route })
+      ? getDefinedViewport(errorMod, props, { route })
       : null
     const errorMetadataExport = errorMod
-      ? await getDefinedMetadata(errorMod, props, { route })
+      ? getDefinedMetadata(errorMod, props, { route })
       : null
 
     errorMetadataItem[0] = errorMetadataExport
