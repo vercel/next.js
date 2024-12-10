@@ -2844,7 +2844,7 @@ async function prerenderToStream(
 
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           finalRenderPrerenderStore,
           ComponentMod,
@@ -3323,7 +3323,7 @@ async function prerenderToStream(
           serverPrerenderStreamResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           finalClientPrerenderStore,
           ComponentMod,
@@ -3455,7 +3455,7 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
@@ -3647,7 +3647,7 @@ async function prerenderToStream(
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
@@ -3801,7 +3801,7 @@ async function prerenderToStream(
           reactServerPrerenderResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,

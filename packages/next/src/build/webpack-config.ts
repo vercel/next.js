@@ -707,10 +707,6 @@ export default async function getBaseWebpackConfig(
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
   }
-  // we don't want to modify the outputs naming if we're
-  // in store-only mode
-  const { flyingShuttle } = config.experimental
-  const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
 
   // Packages which will be split into the 'framework' chunk.
   // Only top-level packages are included, e.g. nested copies like
@@ -954,7 +950,7 @@ export default async function getBaseWebpackConfig(
 
         if (isNodeServer || isEdgeServer) {
           return {
-            filename: `${isEdgeServer ? `edge-chunks${isFullFlyingShuttle ? `-${buildId}` : ''}/` : ''}[name].js`,
+            filename: `${isEdgeServer ? `edge-chunks/` : ''}[name].js`,
             chunks: 'all',
             minChunks: 2,
           }
@@ -1131,35 +1127,6 @@ export default async function getBaseWebpackConfig(
       webassemblyModuleFilename: 'static/wasm/[modulehash].wasm',
       hashFunction: 'xxhash64',
       hashDigestLength: 16,
-
-      ...(isFullFlyingShuttle
-        ? {
-            // ensure we only use contenthash as it's more deterministic
-            filename: (p) => {
-              if (isNodeOrEdgeCompilation) {
-                // runtime chunk needs hash so it can be isolated
-                // across builds
-                const isRuntimeChunk = p.chunk?.name?.match(
-                  /webpack-(api-runtime|runtime)/
-                )
-                return `${isEdgeServer ? '' : '../'}[name]${isRuntimeChunk ? `-${buildId}` : ''}.js`
-              }
-              // client filename
-              return `static/chunks/[name]-[contenthash].js`
-            },
-
-            path:
-              !dev && isNodeServer
-                ? path.join(outputPath, `chunks-${buildId}`)
-                : outputPath,
-
-            chunkFilename: isNodeOrEdgeCompilation
-              ? `[name].js`
-              : `static/chunks/[contenthash].js`,
-
-            webassemblyModuleFilename: 'static/wasm/[contenthash].wasm',
-          }
-        : {}),
     },
     performance: false,
     resolve: resolveConfig,
@@ -1795,7 +1762,7 @@ export default async function getBaseWebpackConfig(
           dev,
         }),
       (isClient || isEdgeServer) && new DropClientPage(),
-      (isNodeServer || (flyingShuttle && isEdgeServer)) &&
+      isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(
@@ -1808,7 +1775,6 @@ export default async function getBaseWebpackConfig(
             appDirEnabled: hasAppDir,
             optOutBundlingPackages,
             traceIgnores: [],
-            flyingShuttle: Boolean(flyingShuttle),
             compilerType,
             swcLoaderConfig: swcDefaultLoader,
           }
@@ -2101,7 +2067,6 @@ export default async function getBaseWebpackConfig(
     imageLoaderFile: config.images.loaderFile,
     clientTraceMetadata: config.experimental.clientTraceMetadata,
     serverSourceMaps: config.experimental.serverSourceMaps,
-    flyingShuttle: config.experimental.flyingShuttle,
     serverReferenceHashSalt: encryptionKey,
   })
 
@@ -2281,11 +2246,6 @@ export default async function getBaseWebpackConfig(
       )
     }
   }
-
-  if (isFullFlyingShuttle && !dev) {
-    webpack5Config.cache = false
-  }
-
   const rules = webpackConfig.module?.rules || []
 
   const customSvgRule = rules.find(

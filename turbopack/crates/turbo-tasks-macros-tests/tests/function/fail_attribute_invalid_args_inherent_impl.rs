@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, Vc};
 #[turbo_tasks::value]
 struct ExampleStruct;
 
-#[turbo_tasks::value(transparent, resolved)]
+#[turbo_tasks::value(transparent, non_local)]
 struct IntegersVec(Vec<ResolvedVc<u32>>);
 
 #[turbo_tasks::value_impl]

@@ -5,7 +5,6 @@ import {
   TRACE_IGNORES,
   type BuildTraceContext,
   getFilesMapFromReasons,
-  getHash,
 } from './webpack/plugins/next-trace-entrypoints-plugin'
 
 import path from 'path'
@@ -23,8 +22,6 @@ import type { NodeFileTraceReasons } from '@vercel/nft'
 import type { RoutesUsingEdgeRuntime } from './utils'
 
 const debug = debugOriginal('next:build:build-traces')
-
-const hashCache: Record<string, string> = {}
 
 function shouldIgnore(
   file: string,
@@ -85,13 +82,11 @@ export async function collectBuildTraces({
   hasSsrAmpPages,
   buildTraceContext,
   outputFileTracingRoot,
-  isFlyingShuttle,
 }: {
   dir: string
   distDir: string
   staticPages: string[]
   hasSsrAmpPages: boolean
-  isFlyingShuttle?: boolean
   outputFileTracingRoot: string
   // pageInfos is serialized when this function runs in a worker.
   edgeRuntimeRoutes: RoutesUsingEdgeRuntime
@@ -421,7 +416,7 @@ export async function collectBuildTraces({
             // pages as they don't have server bundles, note there is
             // the caveat with flying shuttle mode as it needs this for
             // detecting changed entries
-            if (staticPages.includes(route) && !isFlyingShuttle) {
+            if (staticPages.includes(route)) {
               return
             }
             const entryOutputPath = path.join(
@@ -439,8 +434,6 @@ export async function collectBuildTraces({
             }
             const traceOutputDir = path.dirname(traceOutputPath)
             const curTracedFiles = new Set<string>()
-            const curFileHashes: Record<string, string> =
-              existingTrace.fileHashes
 
             for (const file of [...entryNameFiles, entryOutputPath]) {
               const curFiles = [
@@ -462,19 +455,6 @@ export async function collectBuildTraces({
                     .relative(traceOutputDir, filePath)
                     .replace(/\\/g, '/')
                   curTracedFiles.add(outputFile)
-
-                  if (isFlyingShuttle) {
-                    try {
-                      let hash = hashCache[filePath]
-
-                      if (!hash) {
-                        hash = getHash(await fs.readFile(filePath))
-                      }
-                      curFileHashes[outputFile] = hash
-                    } catch (err: any) {
-                      // handle symlink errors or similar
-                    }
-                  }
                 }
               }
             }
@@ -488,11 +468,6 @@ export async function collectBuildTraces({
               JSON.stringify({
                 ...existingTrace,
                 files: [...curTracedFiles].sort(),
-                ...(isFlyingShuttle
-                  ? {
-                      fileHashes: curFileHashes,
-                    }
-                  : {}),
               })
             )
           })
