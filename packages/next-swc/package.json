@@ -12,9 +12,9 @@
     "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
     "cache-build-native": "[ -d native ] && echo $(ls native)",
     "rust-check-fmt": "cd ../..; cargo fmt -- --check",
-    "rust-check-clippy": "cargo clippy --workspace --all-targets -- -D warnings -A deprecated",
+    "rust-check-clippy": "cargo clippy --exclude next-error-code-swc-plugin --workspace --all-targets -- -D warnings -A deprecated",
     "rust-check-napi": "cargo check -p next-swc-napi",
-    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --release --no-fail-fast"
+    "test-cargo-unit": "cargo nextest run --workspace --exclude next-swc-napi --exclude next-error-code-swc-plugin --release --no-fail-fast"
   },
   "napi": {
     "name": "next-swc",

@@ -12,6 +12,7 @@ members = [
   "crates/next-custom-transforms",
   "turbopack/crates/*",
   "turbopack/xtask",
+  "crates/next-error-code-swc-plugin",
 ]
 
 [workspace.lints.clippy]

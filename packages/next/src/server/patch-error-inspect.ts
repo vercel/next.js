@@ -11,6 +11,7 @@ import { parseStack } from '../client/components/react-dev-overlay/server/middle
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
+import { removeNextErrorCode } from '../lib/error-telemetry-utils'
 
 type FindSourceMapPayload = (
   sourceURL: string
@@ -350,6 +351,8 @@ function sourceMapError(this: void, error: Error): Error {
       ? // Setting an undefined `cause` would print `[cause]: undefined`
         new Error(error.message, { cause: error.cause })
       : new Error(error.message)
+
+  removeNextErrorCode(newError) // to avoid printing __NEXT_ERROR_CODE to the console
 
   // TODO: Ensure `class MyError extends Error {}` prints `MyError` as the name
   newError.stack = parseAndSourceMap(error)
