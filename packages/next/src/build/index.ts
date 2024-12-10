@@ -2153,10 +2153,7 @@ export default async function build(
                             })
                           }
 
-                          if (
-                            workerResult.prerenderedRoutes &&
-                            workerResult.prerenderedRoutes.length > 0
-                          ) {
+                          if (workerResult.prerenderedRoutes) {
                             staticPaths.set(
                               originalAppPath,
                               workerResult.prerenderedRoutes
