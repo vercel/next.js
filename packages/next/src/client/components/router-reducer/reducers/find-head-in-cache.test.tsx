@@ -23,7 +23,7 @@ describe('findHeadInCache', () => {
       undefined,
       undefined,
       true,
-    ]
+    ] 
 
     const cache: CacheNode = {
       lazyData: null,
