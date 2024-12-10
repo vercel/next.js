@@ -409,7 +409,7 @@ function getMiddlewareConfig(
       : [config.unstable_allowDynamic]
     for (const glob of result.unstable_allowDynamicGlobs ?? []) {
       try {
-        picomatch(glob)
+        picomatch(glob, { dot: true })
       } catch (err) {
         throw new Error(
           `${pageFilePath} exported 'config.unstable_allowDynamic' contains invalid pattern '${glob}': ${
