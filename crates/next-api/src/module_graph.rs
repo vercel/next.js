@@ -450,20 +450,6 @@ async fn get_module_graph_for_endpoint(
     Ok(Vc::cell(graphs))
 }
 
-#[turbo_tasks::function]
-async fn get_module_graph_for_app_without_issues(
-    entries: Vc<Modules>,
-) -> Result<Vc<SingleModuleGraph>> {
-    let vc = SingleModuleGraph::new_with_entries(entries);
-    let graph = vc.resolve_strongly_consistent().await?;
-    let _issues = vc.take_collectibles::<Box<dyn Issue>>();
-    // println!(
-    //     "taking {:?}",
-    //     _issues.iter().map(|i| i.dbg()).try_join().await?
-    // );
-    Ok(graph)
-}
-
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
     is_single_page: bool,
@@ -547,7 +533,7 @@ impl NextDynamicGraph {
     }
 }
 
-/// The consumers of this shoudln't need to care about the exact contents since it's abstracted away
+/// The consumers of this shouldn't need to care about the exact contents since it's abstracted away
 /// by the accessor functions, but
 /// - In dev, contains information about the modules of the current endpoint only
 /// - In prod, there is a single `ReducedGraphs` for the whole app, containing all pages
@@ -613,7 +599,7 @@ async fn get_reduced_graphs_for_endpoint_inner(
             false,
             vec![
                 async move {
-                    get_module_graph_for_app_without_issues(project.get_all_entries())
+                    SingleModuleGraph::new_with_entries(project.get_all_entries())
                         .to_resolved()
                         .await
                 }

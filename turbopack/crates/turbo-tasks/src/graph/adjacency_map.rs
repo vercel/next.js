@@ -88,7 +88,7 @@ where
         }
     }
 
-    /// Returns an owned iterator over the nodes in reverse topological order,
+    /// Returns an owned iterator over all edges (node pairs) in breadth first order,
     /// starting from the roots.
     pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T> {
         IntoBreadthFirstEdges {
@@ -212,7 +212,7 @@ where
             return Some((parent, current));
         };
 
-        if !self.visited.contains(&current) {
+        if self.visited.insert(current.clone()) {
             self.stack.extend(
                 neighbors
                     .iter()
@@ -220,7 +220,6 @@ where
                     .map(|neighbor| (Some(current.clone()), neighbor.clone())),
             );
         }
-        self.visited.insert(current.clone());
 
         Some((parent, current))
     }

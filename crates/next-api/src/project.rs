@@ -68,7 +68,7 @@ use crate::{
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
-    route::{Endpoint, Route},
+    route::{AppPageRoute, Endpoint, Route},
     versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
 };
 
@@ -703,18 +703,21 @@ impl Project {
             match route {
                 Route::Page {
                     html_endpoint,
-                    data_endpoint,
+                    data_endpoint: _,
                 } => {
                     add_endpoint(**html_endpoint, &mut modules).await?;
-                    add_endpoint(**data_endpoint, &mut modules).await?;
                 }
                 Route::PageApi { endpoint } => {
                     add_endpoint(**endpoint, &mut modules).await?;
                 }
                 Route::AppPage(page_routes) => {
-                    for page_route in page_routes {
-                        add_endpoint(page_route.html_endpoint, &mut modules).await?;
-                        add_endpoint(page_route.rsc_endpoint, &mut modules).await?;
+                    for AppPageRoute {
+                        original_name: _,
+                        html_endpoint,
+                        rsc_endpoint: _,
+                    } in page_routes
+                    {
+                        add_endpoint(*html_endpoint, &mut modules).await?;
                     }
                 }
                 Route::AppRoute {
