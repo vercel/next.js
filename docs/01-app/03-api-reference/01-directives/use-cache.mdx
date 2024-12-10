@@ -59,7 +59,7 @@ export async function getData() {
 
 - `use cache` is an experimental Next.js feature, and not a native React feature like [`use client`](/docs/app/api-reference/directives/use-client) or [`use server`](/docs/app/api-reference/directives/use-server).
 - Any [serializable](https://react.dev/reference/rsc/use-server#serializable-parameters-and-return-values) arguments (or props) passed to the cached function, as well as any serializable values it reads from the parent scope, will be converted to a format like JSON and automatically become a part of the cache key.
-- Any non-serializable arguments, props, or closed-over values will turn into opaque references inside the cached function, and can be only passed through and not inspected nor modified. These non-serializable values will be filled in at the request time and won't become a part of the cache key.
+- Any non-serializable arguments, props, or closed-over values will turn into opaque references inside the cached function, and can be only passed through and not inspected or modified. These non-serializable values will be filled in at the request time and won't become a part of the cache key.
   - For example, a cached function can take in JSX as a `children` prop and return `<div>{children}</div>`, but it won't be able to introspect the actual `children` object.
 - The return value of the cacheable function must also be serializable. This ensures that the cached data can be stored and retrieved correctly.
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
