@@ -86,18 +86,9 @@ export function navigate(
 ): AsyncNavigationResult | SuccessfulNavigationResult | NoOpNavigationResult {
   const now = Date.now()
 
-  // TODO: Interception routes not yet implemented in Segment Cache. Pass a
-  // Next-URL to createCacheKey.
-  const cacheKey = createCacheKey(url.href, null)
+  const cacheKey = createCacheKey(url.href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
-  if (
-    route !== null &&
-    route.status === EntryStatus.Fulfilled &&
-    // TODO: Prefetching interception routes is not support yet by the Segment
-    // Cache. For now, treat this as a cache miss and fallthrough to a full
-    // dynamic navigation.
-    !route.couldBeIntercepted
-  ) {
+  if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
     const snapshot = readRenderSnapshotFromCache(now, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
@@ -190,6 +181,7 @@ function readRenderSnapshotFromCache(
 
   let rsc: React.ReactNode | null = null
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
+  let isPartial: boolean = true
 
   const segmentEntry = readSegmentCacheEntry(now, tree.path)
   if (segmentEntry !== null) {
@@ -198,6 +190,7 @@ function readRenderSnapshotFromCache(
         // Happy path: a cache hit
         rsc = segmentEntry.rsc
         loading = segmentEntry.loading
+        isPartial = segmentEntry.isPartial
         break
       }
       case EntryStatus.Pending: {
@@ -211,6 +204,10 @@ function readRenderSnapshotFromCache(
         loading = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.loading : null
         )
+        // Since we don't know yet whether the segment is partial or fully
+        // static, we must assume it's partial; we can't skip the
+        // dynamic request.
+        isPartial = true
         break
       }
       case EntryStatus.Rejected:
@@ -234,7 +231,13 @@ function readRenderSnapshotFromCache(
       null,
       isRootLayout,
     ],
-    seedData: [flightRouterStateSegment, rsc, childSeedDatas, loading],
+    seedData: [
+      flightRouterStateSegment,
+      rsc,
+      childSeedDatas,
+      loading,
+      isPartial,
+    ],
   }
 }
 

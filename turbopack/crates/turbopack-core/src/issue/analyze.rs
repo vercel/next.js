@@ -12,11 +12,34 @@ use crate::ident::AssetIdent;
 #[turbo_tasks::value(shared)]
 pub struct AnalyzeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
-    pub source_ident: Vc<AssetIdent>,
+    pub source_ident: ResolvedVc<AssetIdent>,
     pub title: ResolvedVc<RcStr>,
     pub message: ResolvedVc<StyledString>,
     pub code: Option<RcStr>,
-    pub source: Option<Vc<IssueSource>>,
+    pub source: Option<ResolvedVc<IssueSource>>,
+}
+
+#[turbo_tasks::value_impl]
+impl AnalyzeIssue {
+    #[turbo_tasks::function]
+    pub fn new(
+        severity: ResolvedVc<IssueSeverity>,
+        source_ident: ResolvedVc<AssetIdent>,
+        title: ResolvedVc<RcStr>,
+        message: ResolvedVc<StyledString>,
+        code: Option<RcStr>,
+        source: Option<ResolvedVc<IssueSource>>,
+    ) -> Vc<Self> {
+        Self {
+            severity,
+            source_ident,
+            title,
+            message,
+            code,
+            source,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]

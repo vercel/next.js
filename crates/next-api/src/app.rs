@@ -40,8 +40,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, ResolvedVc, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
 use turbo_tasks_fs::{File, FileContent, FileSystemPath};
@@ -69,12 +69,10 @@ use turbopack_core::{
 use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
-    dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        VisitedDynamicImportModules,
-    },
+    dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -711,24 +709,24 @@ pub fn app_entry_point_to_route(
             root_layouts,
         } => Route::AppRoute {
             original_name: page.to_string(),
-            endpoint: Vc::upcast(
+            endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path, root_layouts },
                     app_project,
                     page,
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         },
         AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
             original_name: page.to_string(),
-            endpoint: Vc::upcast(
+            endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
                     app_project,
                     page,
                 }
-                .cell(),
+                .resolved_cell(),
             ),
         },
     }
@@ -912,7 +910,7 @@ impl AppEndpoint {
             None
         };
 
-        let (client_dynamic_imports, client_references, client_references_chunks) =
+        let (next_dynamic_imports, client_references, client_references_chunks) =
             if process_client_components {
                 let client_shared_chunk_group = get_app_client_shared_chunk_group(
                     AssetIdent::from_path(this.app_project.project().project_path())
@@ -932,6 +930,15 @@ impl AppEndpoint {
                     }
                 }
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
+
+                let reduced_graphs = get_reduced_graphs_for_endpoint(
+                    this.app_project.project(),
+                    *rsc_entry,
+                    Vc::upcast(this.app_project.client_module_context()),
+                );
+                let next_dynamic_imports = reduced_graphs
+                    .get_next_dynamic_imports_for_endpoint(*rsc_entry)
+                    .await?;
 
                 let client_references = {
                     let ServerEntries {
@@ -960,32 +967,6 @@ impl AppEndpoint {
                     client_references
                 };
                 let client_references_cell = client_references.clone().cell();
-
-                let client_dynamic_imports = {
-                    let mut client_dynamic_imports = FxIndexMap::default();
-                    let mut visited_modules = VisitedDynamicImportModules::empty();
-
-                    for refs in client_references
-                        .client_references_by_server_component
-                        .values()
-                    {
-                        let result = collect_next_dynamic_imports(
-                            refs.iter().map(|v| **v).collect(),
-                            Vc::upcast(this.app_project.client_module_context()),
-                            visited_modules,
-                        )
-                        .await?;
-                        client_dynamic_imports.extend(
-                            result
-                                .client_dynamic_imports
-                                .iter()
-                                .map(|(k, v)| (*k, v.clone())),
-                        );
-                        visited_modules = *result.visited_modules;
-                    }
-
-                    client_dynamic_imports
-                };
 
                 let client_references_chunks = get_app_client_references_chunks(
                     client_references_cell,
@@ -1130,7 +1111,7 @@ impl AppEndpoint {
                 }
 
                 (
-                    Some(client_dynamic_imports),
+                    Some(next_dynamic_imports),
                     Some(client_references_cell),
                     Some(client_references_chunks),
                 )
@@ -1310,19 +1291,11 @@ impl AppEndpoint {
                             .await?;
                     server_assets.insert(app_paths_manifest_output);
 
-                    // create react-loadable-manifest for next/dynamic
-                    let mut dynamic_import_modules = collect_next_dynamic_imports(
-                        vec![*ResolvedVc::upcast(app_entry.rsc_entry)],
-                        Vc::upcast(this.app_project.client_module_context()),
-                        VisitedDynamicImportModules::empty(),
-                    )
-                    .await?
-                    .client_dynamic_imports
-                    .clone();
-                    dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                     let dynamic_import_entries = collect_evaluated_chunk_group(
                         Vc::upcast(client_chunking_context),
-                        dynamic_import_modules,
+                        next_dynamic_imports
+                            .as_deref()
+                            .unwrap_or(&Default::default()),
                     )
                     .await?;
                     let loadable_manifest_output = create_react_loadable_manifest(
@@ -1369,18 +1342,11 @@ impl AppEndpoint {
 
                     // create react-loadable-manifest for next/dynamic
                     let availability_info = Value::new(AvailabilityInfo::Root);
-                    let mut dynamic_import_modules = collect_next_dynamic_imports(
-                        vec![*ResolvedVc::upcast(app_entry.rsc_entry)],
-                        Vc::upcast(this.app_project.client_module_context()),
-                        VisitedDynamicImportModules::empty(),
-                    )
-                    .await?
-                    .client_dynamic_imports
-                    .clone();
-                    dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
                     let dynamic_import_entries = collect_chunk_group(
                         Vc::upcast(client_chunking_context),
-                        dynamic_import_modules,
+                        next_dynamic_imports
+                            .as_deref()
+                            .unwrap_or(&Default::default()),
                         availability_info,
                     )
                     .await?;

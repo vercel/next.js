@@ -356,7 +356,6 @@ async function exportAppImpl(
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
-      after: nextConfig.experimental.after ?? false,
       dynamicIO: nextConfig.experimental.dynamicIO ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,

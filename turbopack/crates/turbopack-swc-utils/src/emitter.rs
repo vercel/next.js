@@ -1,23 +1,67 @@
-use std::sync::Arc;
+use std::{mem::take, sync::Arc};
 
+use anyhow::Result;
+use parking_lot::Mutex;
 use swc_core::common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::SmallPos,
     SourceMap,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,
 };
 
-#[derive(Clone)]
+pub struct IssueCollector {
+    inner: Arc<Mutex<IssueCollectorInner>>,
+}
+
+impl IssueCollector {
+    pub async fn emit(self) -> Result<()> {
+        let issues = {
+            let mut inner = self.inner.lock();
+            if inner.emitted {
+                return Ok(());
+            }
+            inner.emitted = true;
+            take(&mut inner.emitted_issues)
+        };
+
+        for issue in issues {
+            issue.to_resolved().await?.emit();
+        }
+        Ok(())
+    }
+
+    pub fn last_emitted_issue(&self) -> Option<Vc<AnalyzeIssue>> {
+        let inner = self.inner.lock();
+        inner.emitted_issues.last().copied()
+    }
+}
+
+struct IssueCollectorInner {
+    emitted_issues: Vec<Vc<AnalyzeIssue>>,
+    emitted: bool,
+}
+
+impl Drop for IssueCollectorInner {
+    fn drop(&mut self) {
+        if !self.emitted {
+            panic!(
+                "IssueCollector and IssueEmitter were dropped without calling \
+                 `collector.emit().await?`"
+            );
+        }
+    }
+}
+
 pub struct IssueEmitter {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub source_map: Arc<SourceMap>,
     pub title: Option<RcStr>,
-    pub emitted_issues: Vec<ResolvedVc<AnalyzeIssue>>,
+    inner: Arc<Mutex<IssueCollectorInner>>,
 }
 
 impl IssueEmitter {
@@ -25,13 +69,20 @@ impl IssueEmitter {
         source: ResolvedVc<Box<dyn Source>>,
         source_map: Arc<SourceMap>,
         title: Option<RcStr>,
-    ) -> Self {
-        Self {
-            source,
-            source_map,
-            title,
+    ) -> (Self, IssueCollector) {
+        let inner = Arc::new(Mutex::new(IssueCollectorInner {
             emitted_issues: vec![],
-        }
+            emitted: false,
+        }));
+        (
+            Self {
+                source,
+                source_map,
+                title,
+                inner: inner.clone(),
+            },
+            IssueCollector { inner },
+        )
     }
 }
 
@@ -83,18 +134,17 @@ impl Emitter for IssueEmitter {
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
-        let issue = AnalyzeIssue {
-            severity,
-            source_ident: self.source.ident(),
-            title: ResolvedVc::cell(title),
-            message: StyledString::Text(message.into()).resolved_cell(),
+        let issue = AnalyzeIssue::new(
+            *severity,
+            self.source.ident(),
+            Vc::cell(title),
+            StyledString::Text(message.into()).cell(),
             code,
             source,
-        }
-        .resolved_cell();
+        );
 
-        self.emitted_issues.push(issue);
-
-        issue.emit();
+        let mut inner = self.inner.lock();
+        inner.emitted = false;
+        inner.emitted_issues.push(issue);
     }
 }

@@ -243,7 +243,6 @@ export interface ExperimentalConfig {
   }
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -525,11 +524,6 @@ export interface ExperimentalConfig {
    * compiler will be enabled.
    */
   reactCompiler?: boolean | ReactCompilerOptions
-
-  /**
-   * Enables `unstable_after`
-   */
-  after?: boolean
 
   /**
    * The number of times to retry static generation (per page) before giving up.
@@ -1092,12 +1086,7 @@ export const defaultConfig: NextConfig = {
     },
     cssChunking: true,
     multiZoneDraftMode: false,
-    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
-      ? {
-          mode: 'full',
-        }
-      : undefined,
+    appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
@@ -1168,7 +1157,6 @@ export const defaultConfig: NextConfig = {
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
-    after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,

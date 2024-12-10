@@ -6,7 +6,7 @@ import {
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
 } from './cache'
-import type { RouteCacheKey, RouteCacheKeyId } from './cache-key'
+import type { RouteCacheKey } from './cache-key'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -50,9 +50,9 @@ export type PrefetchTask = {
    * True if the prefetch is blocked by network data. We remove tasks from the
    * queue once they are blocked, and add them back when they receive data.
    *
-   * isBlocked also indicates whether the task is currently in the queue;
-   * tasks are removed from the queue (but not the map) when they are blocked.
-   * Use this to avoid queueing the same task multiple times.
+   * isBlocked also indicates whether the task is currently in the queue; tasks
+   * are removed from the queue when they are blocked. Use this to avoid
+   * queueing the same task multiple times.
    */
   isBlocked: boolean
 
@@ -88,7 +88,6 @@ const enum PrefetchTaskExitStatus {
 }
 
 const taskHeap: Array<PrefetchTask> = []
-const taskMap: Map<RouteCacheKeyId, PrefetchTask> = new Map()
 
 // This is intentionally low so that when a navigation happens, the browser's
 // internal network queue is not already saturated with prefetch requests.
@@ -108,24 +107,6 @@ let didScheduleMicrotask = false
  * @param key The RouteCacheKey to prefetch.
  */
 export function schedulePrefetchTask(key: RouteCacheKey): void {
-  const existingTask = taskMap.get(key.id)
-  if (existingTask !== undefined) {
-    // A task for this URL already exists, but we should bump it to the top of
-    // the queue by assigning a new sortId. However, if it already has the
-    // highest sortId that's been assigned, then we can bail out.
-    //
-    // Note that this check is not equivalent to checking if it's at the front
-    // of the queue, because there could be tasks that have a higher sortId but
-    // are not currently queued (because they are blocked).
-    if (existingTask.sortId === sortIdCounter) {
-      // No-op
-      return
-    }
-    existingTask.sortId = sortIdCounter++
-    heapSift(taskHeap, existingTask)
-    return
-  }
-
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
@@ -134,7 +115,6 @@ export function schedulePrefetchTask(key: RouteCacheKey): void {
     _heapIndex: -1,
   }
   heapPush(taskHeap, task)
-  taskMap.set(key.id, task)
 
   // Schedule an async task to process the queue.
   //
@@ -187,6 +167,17 @@ export function trackPrefetchRequestBandwidth(
   )
 }
 
+const noop = () => {}
+
+export function spawnPrefetchSubtask(promise: Promise<any>) {
+  // When the scheduler spawns an async task, we don't await its result
+  // directly. Instead, the async task writes its result directly into the
+  // cache, then pings the scheduler to continue.
+  //
+  // This function only exists to prevent warnings about unhandled promises.
+  promise.then(noop, noop)
+}
+
 function onPrefetchRequestCompletion(): void {
   inProgressRequests--
 
@@ -200,15 +191,8 @@ function onPrefetchRequestCompletion(): void {
  * prefetch. The corresponding task will be added back to the queue (unless the
  * task has been canceled in the meantime).
  */
-export function pingPrefetchTask(key: RouteCacheKey) {
+export function pingPrefetchTask(task: PrefetchTask) {
   // "Ping" a prefetch that's already in progress to notify it of new data.
-  const task = taskMap.get(key.id)
-  if (task === undefined) {
-    // There's no matching prefetch task, which means it must have either
-    // already completed or been canceled. This can also happen if an entry is
-    // read from the cache outside the context of a prefetch.
-    return
-  }
   if (!task.isBlocked) {
     // Prefetch is already queued.
     return
@@ -243,15 +227,13 @@ function processQueueInMicrotask() {
         task.isBlocked = true
 
         // Continue to the next task
-        task = heapPop(taskHeap)
+        heapPop(taskHeap)
+        task = heapPeek(taskHeap)
         continue
       case PrefetchTaskExitStatus.Done:
-        // The prefetch is complete. Remove the task from the map so it can be
-        // garbage collected.
-        taskMap.delete(task.key.id)
-
-        // Continue to the next task
-        task = heapPop(taskHeap)
+        // The prefetch is complete. Continue to the next task.
+        heapPop(taskHeap)
+        task = heapPeek(taskHeap)
         continue
       default: {
         const _exhaustiveCheck: never = exitStatus
@@ -270,6 +252,12 @@ function pingRouteTree(
     case EntryStatus.Pending: {
       // Still pending. We can't start prefetching the segments until the route
       // tree has loaded.
+      const blockedTasks = route.blockedTasks
+      if (blockedTasks === null) {
+        route.blockedTasks = new Set([task])
+      } else {
+        blockedTasks.add(task)
+      }
       return PrefetchTaskExitStatus.Blocked
     }
     case EntryStatus.Rejected: {
@@ -364,20 +352,22 @@ function heapPop(heap: Array<PrefetchTask>): PrefetchTask | null {
   return first
 }
 
-function heapSift(heap: Array<PrefetchTask>, node: PrefetchTask) {
-  const index = node._heapIndex
-  if (index !== -1) {
-    const parentIndex = (index - 1) >>> 1
-    const parent = heap[parentIndex]
-    if (compareQueuePriority(parent, node) > 0) {
-      // The parent is larger. Sift up.
-      heapSiftUp(heap, node, index)
-    } else {
-      // The parent is smaller (or equal). Sift down.
-      heapSiftDown(heap, node, index)
-    }
-  }
-}
+// Not currently used, but will be once we add the ability to update a
+// task's priority.
+// function heapSift(heap: Array<PrefetchTask>, node: PrefetchTask) {
+//   const index = node._heapIndex
+//   if (index !== -1) {
+//     const parentIndex = (index - 1) >>> 1
+//     const parent = heap[parentIndex]
+//     if (compareQueuePriority(parent, node) > 0) {
+//       // The parent is larger. Sift up.
+//       heapSiftUp(heap, node, index)
+//     } else {
+//       // The parent is smaller (or equal). Sift down.
+//       heapSiftDown(heap, node, index)
+//     }
+//   }
+// }
 
 function heapSiftUp(
   heap: Array<PrefetchTask>,

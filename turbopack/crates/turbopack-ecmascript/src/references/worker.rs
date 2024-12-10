@@ -76,7 +76,7 @@ impl WorkerAssetReference {
                     .resolved_cell(),
                 path: self.origin.origin_path().to_resolved().await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             return Ok(None);
         };
