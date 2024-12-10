@@ -33,8 +33,8 @@ pub async fn map_client_references(
 ) -> Result<Vc<ClientReferencesSet>> {
     let actions = graph
         .await?
-        .enumerate_nodes()
-        .map(|(_, node)| async move {
+        .iter_nodes()
+        .map(|node| async move {
             let module = node.module;
             if let Some(client_reference_module) =
                 ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
