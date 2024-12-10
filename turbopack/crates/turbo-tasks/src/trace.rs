@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     marker::PhantomData,
@@ -74,7 +75,7 @@ ignore!(
 );
 ignore!((), str, String, Duration, anyhow::Error, RcStr);
 ignore!(Path, PathBuf);
-ignore!(serde_json::Value);
+ignore!(serde_json::Value, serde_json::Map<String, serde_json::Value>);
 
 impl<T: ?Sized> TraceRawVcs for PhantomData<T> {
     fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
@@ -203,6 +204,12 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Box<T> {
 }
 
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&**self, trace_context);
+    }
+}
+
+impl<B: TraceRawVcs + ToOwned + ?Sized> TraceRawVcs for Cow<'_, B> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&**self, trace_context);
     }

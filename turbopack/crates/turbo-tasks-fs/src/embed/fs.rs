@@ -9,7 +9,7 @@ use crate::{
     LinkContent,
 };
 
-#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
+#[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual", non_local)]
 pub struct EmbeddedFileSystem {
     name: RcStr,
     #[turbo_tasks(trace_ignore)]

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Upcast, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -27,6 +27,7 @@ use crate::{
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
+    NonLocalValue,
 )]
 pub enum MinifyType {
     #[default]
@@ -46,6 +47,7 @@ pub enum MinifyType {
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
+    NonLocalValue,
 )]
 pub enum ChunkGroupType {
     Entry,
