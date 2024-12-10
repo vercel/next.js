@@ -78,6 +78,7 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       {
         nextConfig: stringifiedConfig,
       },
+      {},
       {
         cacheHandlers,
       }
