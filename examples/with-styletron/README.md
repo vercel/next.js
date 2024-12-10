@@ -2,7 +2,7 @@
 
 This example features how yo use a different styling solution than [styled-jsx](https://github.com/vercel/styled-jsx) that also supports universal styles. That means we can serve the required styles for the first render within the HTML and then load the rest in the client. In this case we are using [styletron](https://github.com/rtsao/styletron).
 
-For this purpose we are extending the `<Document />` and injecting the server side rendered styles into the `<head>`.
+For this purpose we wrap the root layout with the [`Provider`](https://styletron.org/api-reference#provider).
 
 ## Deploy your own
 
