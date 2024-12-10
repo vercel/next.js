@@ -146,7 +146,7 @@ describe('segment cache (basic tests)', () => {
     const browser = await next.browser('/fully-static', {
       beforePageLoad(page: Playwright.Page) {
         page.route('**/*', async (route: Playwright.Route) => {
-          await interceptor.interceptRoute(route)
+          await interceptor.interceptRoute(page, route)
         })
       },
     })
