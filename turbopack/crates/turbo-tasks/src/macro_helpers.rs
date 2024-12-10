@@ -11,8 +11,8 @@ pub use super::{
     manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
 };
 use crate::{
-    debug::ValueDebugFormatString, shrink_to_fit::ShrinkToFit, task::TaskOutput, RawVc,
-    ResolvedValue, TaskInput, TaskPersistence, Vc,
+    debug::ValueDebugFormatString, shrink_to_fit::ShrinkToFit, task::TaskOutput, NonLocalValue,
+    RawVc, TaskInput, TaskPersistence, Vc,
 };
 
 #[inline(never)]
@@ -45,10 +45,10 @@ pub fn get_non_local_persistence_from_inputs_and_this(
     }
 }
 
-pub fn assert_returns_resolved_value<ReturnType, Rv>()
+pub fn assert_returns_non_local_value<ReturnType, Rv>()
 where
     ReturnType: TaskOutput<Return = Vc<Rv>>,
-    Rv: ResolvedValue + Send,
+    Rv: NonLocalValue + Send,
 {
 }
 

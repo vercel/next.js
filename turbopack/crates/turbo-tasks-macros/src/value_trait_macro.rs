@@ -12,7 +12,11 @@ use turbo_tasks_macros_shared::{
 use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
-    let ValueTraitArguments { debug, resolved } = parse_macro_input!(args as ValueTraitArguments);
+    let ValueTraitArguments {
+        debug,
+        non_local,
+        operation,
+    } = parse_macro_input!(args as ValueTraitArguments);
 
     let item = parse_macro_input!(input as ItemTrait);
 
@@ -195,14 +199,17 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let mut extended_supertraits = Vec::new();
-    if let Some(span) = resolved {
+    let mut extended_supertraits = vec![quote!(::std::marker::Send), quote!(::std::marker::Sync)];
+    if let Some(span) = non_local {
         extended_supertraits.push(quote_spanned! {
-            span => turbo_tasks::ResolvedValue
+            span => turbo_tasks::NonLocalValue
         });
     }
-    extended_supertraits.push(quote!(::std::marker::Send));
-    extended_supertraits.push(quote!(::std::marker::Sync));
+    if let Some(span) = operation {
+        extended_supertraits.push(quote_spanned! {
+            span => turbo_tasks::OperationValue
+        });
+    }
     if debug {
         extended_supertraits.push(quote!(turbo_tasks::debug::ValueDebug));
     }

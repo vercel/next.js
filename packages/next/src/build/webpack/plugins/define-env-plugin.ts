@@ -207,9 +207,6 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
-    'process.env.__NEXT_FLYING_SHUTTLE': Boolean(
-      config.experimental.flyingShuttle
-    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
@@ -303,22 +300,7 @@ export function getDefineEnv({
     defineEnv[key] = userDefines[key]
   }
 
-  const serializedDefineEnv = serializeDefineEnv(defineEnv)
-
-  if (!dev && Boolean(config.experimental.flyingShuttle)) {
-    // we delay inlining these values until after the build
-    // with flying shuttle enabled so we can update them
-    // without invalidating entries
-    for (const key in nextPublicEnv) {
-      serializedDefineEnv[key] = key
-    }
-
-    for (const key in nextConfigEnv) {
-      serializedDefineEnv[key] = key
-    }
-  }
-
-  return serializedDefineEnv
+  return serializeDefineEnv(defineEnv)
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

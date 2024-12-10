@@ -36,9 +36,15 @@ describe('app dir - dynamic error trace', () => {
         .join('\n')
 
     // TODO: Show useful stack
-    expect(normalizeStackTrace(stackFramesContent)).toMatchInlineSnapshot(
-      isReactExperimental ? `""` : `""`
-    )
+    const normalizedStack = normalizeStackTrace(stackFramesContent)
+    if (isReactExperimental) {
+      expect(normalizedStack).toMatchInlineSnapshot(`
+        "Array.map
+        <anonymous>"
+      `)
+    } else {
+      expect(normalizedStack).toMatchInlineSnapshot(`""`)
+    }
 
     const codeframe = await getRedboxSource(browser)
     expect(codeframe).toEqual(

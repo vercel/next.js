@@ -1,3 +1,5 @@
+use std::future::Future;
+
 use anyhow::{bail, Context, Result};
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use swc_core::{
@@ -6,8 +8,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, ValueDefault, ValueToString,
-    Vc,
+    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput,
+    ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
@@ -248,19 +250,26 @@ impl Issue for NextSourceConfigParsingIssue {
     }
 }
 
-fn emit_invalid_config_warning(ident: Vc<AssetIdent>, detail: &str, value: &JsValue) {
+async fn emit_invalid_config_warning(
+    ident: Vc<AssetIdent>,
+    detail: &str,
+    value: &JsValue,
+) -> Result<()> {
     let (explainer, hints) = value.explain(2, 0);
     NextSourceConfigParsingIssue::new(
         ident,
         StyledString::Text(format!("{detail} Got {explainer}.{hints}").into()).cell(),
     )
+    .to_resolved()
+    .await?
     .emit();
+    Ok(())
 }
 
-fn parse_route_matcher_from_js_value(
+async fn parse_route_matcher_from_js_value(
     ident: Vc<AssetIdent>,
     value: &JsValue,
-) -> Option<Vec<MiddlewareMatcherKind>> {
+) -> Result<Option<Vec<MiddlewareMatcherKind>>> {
     let parse_matcher_kind_matcher = |value: &JsValue| {
         let mut route_has = vec![];
         if let JsValue::Array { items, .. } = value {
@@ -326,7 +335,8 @@ fn parse_route_matcher_from_js_value(
                     ident,
                     "The matcher property must be a string or array of strings",
                     value,
-                );
+                )
+                .await?;
             }
         }
         JsValue::Array { items, .. } => {
@@ -362,22 +372,26 @@ fn parse_route_matcher_from_js_value(
                         ident,
                         "The matcher property must be a string or array of strings",
                         value,
-                    );
+                    )
+                    .await?;
                 }
             }
         }
-        _ => emit_invalid_config_warning(
-            ident,
-            "The matcher property must be a string or array of strings",
-            value,
-        ),
+        _ => {
+            emit_invalid_config_warning(
+                ident,
+                "The matcher property must be a string or array of strings",
+                value,
+            )
+            .await?
+        }
     }
 
-    if matchers.is_empty() {
+    Ok(if matchers.is_empty() {
         None
     } else {
         Some(matchers)
-    }
+    })
 }
 
 #[turbo_tasks::function]
@@ -410,10 +424,16 @@ pub async fn parse_config_from_source(
                             .unwrap_or_default()
                         {
                             if let Some(init) = decl.init.as_ref() {
-                                return GLOBALS.set(globals, || {
-                                    let value = eval_context.eval(init);
-                                    Ok(parse_config_from_js_value(*module, &value).cell())
-                                });
+                                return WrapFuture::new(
+                                    async {
+                                        let value = eval_context.eval(init);
+                                        Ok(parse_config_from_js_value(*module, &value)
+                                            .await?
+                                            .cell())
+                                    },
+                                    |f, ctx| GLOBALS.set(globals, || f.poll(ctx)),
+                                )
+                                .await;
                             } else {
                                 NextSourceConfigParsingIssue::new(
                                     module.ident(),
@@ -424,6 +444,8 @@ pub async fn parse_config_from_source(
                                     )
                                     .cell(),
                                 )
+                                .to_resolved()
+                                .await?
                                 .emit();
                             }
                         }
@@ -440,7 +462,9 @@ pub async fn parse_config_from_source(
                                         .into(),
                                 )
                                 .cell(),
-                            );
+                            )
+                            .to_resolved()
+                            .await?;
                             if let Some(init) = decl.init.as_ref() {
                                 // skipping eval and directly read the expr's value, as we know it
                                 // should be a const string
@@ -474,6 +498,8 @@ pub async fn parse_config_from_source(
                                     )
                                     .cell(),
                                 )
+                                .to_resolved()
+                                .await?
                                 .emit();
                             }
                         }
@@ -485,17 +511,23 @@ pub async fn parse_config_from_source(
     Ok(Default::default())
 }
 
-fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> NextSourceConfig {
+async fn parse_config_from_js_value(
+    module: Vc<Box<dyn Module>>,
+    value: &JsValue,
+) -> Result<NextSourceConfig> {
     let mut config = NextSourceConfig::default();
 
     if let JsValue::Object { parts, .. } = value {
         for part in parts {
             match part {
-                ObjectPart::Spread(_) => emit_invalid_config_warning(
-                    module.ident(),
-                    "Spread properties are not supported in the config export.",
-                    value,
-                ),
+                ObjectPart::Spread(_) => {
+                    emit_invalid_config_warning(
+                        module.ident(),
+                        "Spread properties are not supported in the config export.",
+                        value,
+                    )
+                    .await?
+                }
                 ObjectPart::KeyValue(key, value) => {
                     if let Some(key) = key.as_str() {
                         match key {
@@ -515,7 +547,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                     "The runtime property must be either \
                                                      \"nodejs\" or \"edge\".",
                                                     value,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                     }
@@ -524,12 +557,14 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                         module.ident(),
                                         "The runtime property must be a constant string.",
                                         value,
-                                    );
+                                    )
+                                    .await?;
                                 }
                             }
                             "matcher" => {
                                 config.matcher =
-                                    parse_route_matcher_from_js_value(module.ident(), value);
+                                    parse_route_matcher_from_js_value(module.ident(), value)
+                                        .await?;
                             }
                             "regions" => {
                                 config.regions = match value {
@@ -552,7 +587,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                                     "Values of the `config.regions` array need to \
                                                      static strings",
                                                     item,
-                                                );
+                                                )
+                                                .await?;
                                             }
                                         }
                                         Some(regions)
@@ -563,7 +599,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                                             "`config.regions` needs to be a static string or \
                                              array of static strings",
                                             value,
-                                        );
+                                        )
+                                        .await?;
                                         None
                                     }
                                 };
@@ -575,7 +612,8 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
                             module.ident(),
                             "The exported config object must not contain non-constant strings.",
                             key,
-                        );
+                        )
+                        .await?;
                     }
                 }
             }
@@ -585,10 +623,11 @@ fn parse_config_from_js_value(module: Vc<Box<dyn Module>>, value: &JsValue) -> N
             module.ident(),
             "The exported config object must be a valid object literal.",
             value,
-        );
+        )
+        .await?;
     }
 
-    config
+    Ok(config)
 }
 
 /// Loads a next.js template, replaces `replacements` and `injections` and makes

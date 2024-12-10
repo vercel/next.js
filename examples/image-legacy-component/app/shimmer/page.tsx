@@ -23,7 +23,7 @@ const toBase64 = (str: string) =>
 export default function Shimmer() {
   return (
     <div>
-      <ViewSource pathname="pages/shimmer.tsx" />
+      <ViewSource pathname="app/shimmer/page.tsx" />
       <h1>Image Component With Shimmer Data URL</h1>
       <Image
         alt="Mountains"
