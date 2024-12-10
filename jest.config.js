@@ -21,8 +21,6 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
-  // Re-add support for inline snapshots using prettier v2:
-  prettierPath: require.resolve('prettier-2'),
 }
 
 // Check if the environment variable is set to enable test report,

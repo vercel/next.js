@@ -5,7 +5,7 @@ import styles from "@/styles/styles.module.css";
 export default function Background() {
   return (
     <div>
-      <ViewSource pathname="pages/background.tsx" />
+      <ViewSource pathname="app/background/page.tsx" />
       <div className={styles.bgWrap}>
         <Image
           alt="Mountains"
