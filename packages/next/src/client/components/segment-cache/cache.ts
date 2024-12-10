@@ -5,6 +5,7 @@ import type {
 } from '../../../server/app-render/collect-segment-data'
 import type { LoadingModuleData } from '../../../shared/lib/app-router-context.shared-runtime'
 import {
+  NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
@@ -507,6 +508,11 @@ async function fetchRouteOnCacheMiss(
       // PPR is enabled, because we always respond to route tree requests, even
       // if it needs to be blockingly generated on demand.
       response.status === 204 ||
+      // This checks whether the response was served from the per-segment cache,
+      // rather than the old prefetching flow. If it fails, it implies that PPR
+      // is disabled on this route.
+      // TODO: Add support for non-PPR routes.
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
       !response.body
     ) {
       // Server responded with an error, or with a miss. We should still cache
@@ -607,6 +613,12 @@ async function fetchSegmentEntryOnCacheMiss(
       !response ||
       !response.ok ||
       response.status === 204 || // Cache miss
+      // This checks whether the response was served from the per-segment cache,
+      // rather than the old prefetching flow. If it fails, it implies that PPR
+      // is disabled on this route. Theoretically this should never happen
+      // because we only issue requests for segments once we've verified that
+      // the route supports PPR.
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
       !response.body
     ) {
       // Server responded with an error, or with a miss. We should still cache
