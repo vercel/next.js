@@ -22,7 +22,7 @@ use crate::{
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
     pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
@@ -155,11 +155,12 @@ impl EcmascriptChunkItemContent {
             match source_map {
                 Some(map) => fileify_source_map(map, *rewrite_source_path)
                     .await?
+                    .map(|v| *v)
                     .map(Vc::upcast),
                 None => None,
             }
         } else {
-            self.source_map
+            self.source_map.map(|v| *v)
         };
 
         code.push_source(&self.inner_code, source_map);
@@ -265,13 +266,13 @@ async fn module_factory_with_code_generation_issue(
                 let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    path: chunk_item.asset_ident().path(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    path: chunk_item.asset_ident().path().to_resolved().await?,
                     title: StyledString::Text("Code generation for chunk item errored".into())
-                        .cell(),
-                    message: StyledString::Text(error_message).cell(),
+                        .resolved_cell(),
+                    message: StyledString::Text(error_message).resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 let mut code = CodeBuilder::default();
                 code += "(() => {{\n\n";

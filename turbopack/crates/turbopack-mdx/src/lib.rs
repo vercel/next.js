@@ -230,7 +230,7 @@ impl MdxTransformedAsset {
                     mdx_rule_id: *err.rule_id,
                     mdx_source: *err.source,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 Ok(MdxTransformResult {
@@ -269,8 +269,11 @@ impl Issue for MdxIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.loc.map(|s| s.resolve_source_map(*self.path)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match &self.loc {
+            Some(loc) => Some(loc.resolve_source_map(*self.path).to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -285,7 +288,9 @@ impl Issue for MdxIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.reason.clone().into()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.reason.clone().into()).resolved_cell(),
+        ))
     }
 }
 

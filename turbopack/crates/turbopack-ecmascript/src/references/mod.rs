@@ -285,26 +285,22 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             self.add_code_gen(bindings);
         }
 
-        let references: Vec<_> = self.references.into_iter().collect();
-
+        let references = self.references.into_iter().collect();
         let local_references: Vec<_> = track_reexport_references
             .then(|| self.local_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-
         let reexport_references: Vec<_> = track_reexport_references
             .then(|| self.reexport_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-
         let evaluation_references: Vec<_> = track_reexport_references
             .then(|| self.evaluation_references.into_iter())
             .into_iter()
             .flatten()
             .collect();
-
         for c in self.code_gens.iter_mut() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
@@ -321,18 +317,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         };
         Ok(AnalyzeEcmascriptModuleResult::cell(
             AnalyzeEcmascriptModuleResult {
-                // TODO(ResolvedVc): this is messy because I don't want to
-                //                   touch core while KDY is working on it
-                references: ResolvedVc::cell(references.into_iter().map(|rvc| *rvc).collect()),
-                local_references: ResolvedVc::cell(
-                    local_references.into_iter().map(|rvc| *rvc).collect(),
-                ),
-                reexport_references: ResolvedVc::cell(
-                    reexport_references.into_iter().map(|rvc| *rvc).collect(),
-                ),
-                evaluation_references: ResolvedVc::cell(
-                    evaluation_references.into_iter().map(|rvc| *rvc).collect(),
-                ),
+                references: ResolvedVc::cell(references),
+                local_references: ResolvedVc::cell(local_references),
+                reexport_references: ResolvedVc::cell(reexport_references),
+                evaluation_references: ResolvedVc::cell(evaluation_references),
                 code_generation: ResolvedVc::cell(self.code_gens),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
@@ -602,11 +590,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
-    );
+    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph =
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
@@ -726,8 +711,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             EsmExport::Error => {}
         }
     }
-    for &reference in esm_star_exports.iter() {
-        let reference = reference.to_resolved().await?;
+    for reference in esm_star_exports
+        .iter()
+        .map(|r| r.to_resolved())
+        .try_join()
+        .await?
+    {
         analysis.add_reexport_reference(reference);
         analysis.add_import_reference(reference);
     }
@@ -784,13 +773,17 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 path: source.ident().path().to_resolved().await?,
                 specified_type,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
         let esm_exports = EsmExports {
             exports: esm_exports,
-            star_exports: esm_star_exports,
+            star_exports: esm_star_exports
+                .into_iter()
+                .map(|v| v.to_resolved())
+                .try_join()
+                .await?,
         }
         .cell();
 
@@ -802,7 +795,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     path: source.ident().path().to_resolved().await?,
                     specified_type,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 EcmascriptExports::EsmExports(
@@ -852,16 +845,16 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .resolved_cell();
         analysis.set_async_module(async_module);
     } else if let Some(span) = top_level_await_span {
-        AnalyzeIssue {
-            code: None,
-            message: StyledString::Text("top level await is only supported in ESM modules.".into())
-                .resolved_cell(),
-            source_ident: source.ident(),
-            severity: IssueSeverity::Error.resolved_cell(),
-            source: Some(issue_source(*source, span)),
-            title: ResolvedVc::cell("unexpected top level await".into()),
-        }
-        .cell()
+        AnalyzeIssue::new(
+            IssueSeverity::Error.cell(),
+            source.ident(),
+            Vc::cell("unexpected top level await".into()),
+            StyledString::Text("top level await is only supported in ESM modules.".into()).cell(),
+            None,
+            Some(issue_source(*source, span)),
+        )
+        .to_resolved()
+        .await?
         .emit();
     }
 
@@ -1259,6 +1252,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     }
 
     analysis.set_successful(true);
+
+    collector.emit().await?;
 
     analysis
         .build(matches!(
@@ -3371,7 +3366,7 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
 #[turbo_tasks::function]
 fn maybe_decode_data_url(url: RcStr) -> Vc<OptionSourceMap> {
     if let Ok(map) = decode_data_url(&url) {
-        Vc::cell(Some(SourceMap::new_decoded(map).cell()))
+        Vc::cell(Some(SourceMap::new_decoded(map).resolved_cell()))
     } else {
         Vc::cell(None)
     }

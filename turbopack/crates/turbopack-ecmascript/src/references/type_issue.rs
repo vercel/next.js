@@ -66,7 +66,7 @@ impl Issue for SpecifiedModuleTypeIssue {
                                                    format of the source code."
                     .into(),
             })
-            .cell(),
+            .resolved_cell(),
         ))
     }
 

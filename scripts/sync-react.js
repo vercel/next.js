@@ -14,6 +14,12 @@ const repoOwner = 'vercel'
 const repoName = 'next.js'
 const pullRequestLabels = ['type: react-sync']
 const pullRequestReviewers = ['eps1lon']
+/**
+ * Set to `null` to automatically sync the React version of Pages Router with App Router React version.
+ * Set to a specific version to override the Pages Router React version e.g. `^19.0.0`.
+ * @type {string | null}
+ */
+const pagesRouterReact = '^19.0.0'
 
 const filesReferencingReactPeerDependencyVersion = [
   'run-tests.js',
@@ -187,7 +193,14 @@ async function main() {
 
   async function commitEverything(message) {
     await execa('git', ['add', '-A'])
-    await execa('git', ['commit', '--message', message, '--no-verify'])
+    await execa('git', [
+      'commit',
+      '--message',
+      message,
+      '--no-verify',
+      // Some steps can be empty, e.g. when we don't sync Pages router
+      '--allow-empty',
+    ])
   }
 
   if (createPull && !actor) {
@@ -306,22 +319,29 @@ Or, run this command with no arguments to use the most recently published versio
     )
   }
 
+  const syncPagesRouterReact = pagesRouterReact === null
+  const pagesRouterReactVersion = syncPagesRouterReact
+    ? newVersionStr
+    : pagesRouterReact
   const { sha: baseSha, dateString: baseDateString } = baseVersionInfo
-  for (const fileName of filesReferencingReactPeerDependencyVersion) {
-    const filePath = path.join(cwd, fileName)
-    const previousSource = await fsp.readFile(filePath, 'utf-8')
-    const updatedSource = previousSource.replace(
-      `const nextjsReactPeerVersion = "${baseVersionStr}";`,
-      `const nextjsReactPeerVersion = "${newVersionStr}";`
-    )
-    if (updatedSource === previousSource) {
-      errors.push(
-        new Error(
-          `${fileName}: Failed to update ${baseVersionStr} to ${newVersionStr}. Is this file still referencing the React peer dependency version?`
-        )
+
+  if (syncPagesRouterReact) {
+    for (const fileName of filesReferencingReactPeerDependencyVersion) {
+      const filePath = path.join(cwd, fileName)
+      const previousSource = await fsp.readFile(filePath, 'utf-8')
+      const updatedSource = previousSource.replace(
+        `const nextjsReactPeerVersion = "${baseVersionStr}";`,
+        `const nextjsReactPeerVersion = "${pagesRouterReactVersion}";`
       )
-    } else {
-      await fsp.writeFile(filePath, updatedSource)
+      if (pagesRouterReact === null && updatedSource === previousSource) {
+        errors.push(
+          new Error(
+            `${fileName}: Failed to update ${baseVersionStr} to ${pagesRouterReactVersion}. Is this file still referencing the React peer dependency version?`
+          )
+        )
+      } else {
+        await fsp.writeFile(filePath, updatedSource)
+      }
     }
   }
 
@@ -330,10 +350,10 @@ Or, run this command with no arguments to use the most recently published versio
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
     if (manifest.dependencies['react']) {
-      manifest.dependencies['react'] = newVersionStr
+      manifest.dependencies['react'] = pagesRouterReactVersion
     }
     if (manifest.dependencies['react-dom']) {
-      manifest.dependencies['react-dom'] = newVersionStr
+      manifest.dependencies['react-dom'] = pagesRouterReactVersion
     }
     await fsp.writeFile(
       packageJsonPath,
@@ -351,11 +371,14 @@ Or, run this command with no arguments to use the most recently published versio
     const packageJsonPath = path.join(cwd, fileName)
     const packageJson = await fsp.readFile(packageJsonPath, 'utf-8')
     const manifest = JSON.parse(packageJson)
+    // Need to specify last supported RC version to avoid breaking changes.
     if (manifest.peerDependencies['react']) {
-      manifest.peerDependencies['react'] = `^18.2.0 || ${newVersionStr}`
+      manifest.peerDependencies['react'] =
+        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
     }
     if (manifest.peerDependencies['react-dom']) {
-      manifest.peerDependencies['react-dom'] = `^18.2.0 || ${newVersionStr}`
+      manifest.peerDependencies['react-dom'] =
+        `^18.2.0 || 19.0.0-rc-de68d2f4-20241204 || ${pagesRouterReactVersion}`
     }
     await fsp.writeFile(
       packageJsonPath,
@@ -417,7 +440,10 @@ Or, run this command with no arguments to use the most recently published versio
     console.log()
   }
 
-  let prDescription = `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${newVersionStr}\`**\n\n`
+  let prDescription = ''
+  if (syncPagesRouterReact) {
+    prDescription += `**breaking change for canary users: Bumps peer dependency of React from \`${baseVersionStr}\` to \`${pagesRouterReactVersion}\`**\n\n`
+  }
 
   // Fetch the changelog from GitHub and print it to the console.
   prDescription += `[diff facebook/react@${baseSha}...${newSha}](https://github.com/facebook/react/compare/${baseSha}...${newSha})\n\n`

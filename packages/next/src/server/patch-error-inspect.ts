@@ -1,4 +1,7 @@
-import { findSourceMap, type SourceMapPayload } from 'module'
+import {
+  findSourceMap as nativeFindSourceMap,
+  type SourceMapPayload,
+} from 'module'
 import * as path from 'path'
 import * as url from 'url'
 import type * as util from 'util'
@@ -8,6 +11,21 @@ import { parseStack } from '../client/components/react-dev-overlay/server/middle
 import { getOriginalCodeFrame } from '../client/components/react-dev-overlay/server/shared'
 import { workUnitAsyncStorage } from './app-render/work-unit-async-storage.external'
 import { dim } from '../lib/picocolors'
+
+type FindSourceMapPayload = (
+  sourceURL: string
+) => ModernSourceMapPayload | undefined
+// Find a source map using the bundler's API.
+// This is only a fallback for when Node.js fails to due to bugs e.g. https://github.com/nodejs/node/issues/52102
+// TODO: Remove once all supported Node.js versions are fixed.
+// TODO(veil): Set from Webpack as well
+let bundlerFindSourceMapPayload: FindSourceMapPayload = () => undefined
+
+export function setBundlerFindSourceMapImplementation(
+  findSourceMapImplementation: FindSourceMapPayload
+): void {
+  bundlerFindSourceMapPayload = findSourceMapImplementation
+}
 
 /**
  * https://tc39.es/source-map/#index-map
@@ -31,7 +49,7 @@ interface ModernRawSourceMap extends SourceMapPayload {
   ignoreList?: number[]
 }
 
-type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
+export type ModernSourceMapPayload = ModernRawSourceMap | IndexSourceMap
 
 interface IgnoreableStackFrame extends StackFrame {
   ignored: boolean
@@ -90,8 +108,12 @@ function prepareUnsourcemappedStackTrace(
   return stack
 }
 
-function shouldIgnoreListByDefault(file: string): boolean {
-  return file.startsWith('node:')
+function shouldIgnoreListGeneratedFrame(file: string): boolean {
+  return file.startsWith('node:') || file.includes('node_modules')
+}
+
+function shouldIgnoreListOriginalFrame(file: string): boolean {
+  return file.includes('node_modules')
 }
 
 /**
@@ -125,51 +147,85 @@ function findApplicableSourceMapPayload(
   }
 }
 
+interface SourcemappableStackFrame extends StackFrame {
+  file: NonNullable<StackFrame['file']>
+}
+
+/**
+ * @param frame
+ * @param sourceMapCache
+ * @returns The original frame if not sourcemapped.
+ */
 function getSourcemappedFrameIfPossible(
-  frame: StackFrame,
+  frame: SourcemappableStackFrame,
   sourceMapCache: SourceMapCache
 ): {
   stack: IgnoreableStackFrame
   // DEV only
   code: string | null
-} | null {
-  if (frame.file === null) {
-    return null
-  }
-
+} {
   const sourceMapCacheEntry = sourceMapCache.get(frame.file)
-  let sourceMap: SyncSourceMapConsumer
+  let sourceMapConsumer: SyncSourceMapConsumer
   let sourceMapPayload: ModernSourceMapPayload
   if (sourceMapCacheEntry === undefined) {
-    const moduleSourceMap = findSourceMap(frame.file)
-    if (moduleSourceMap === undefined) {
-      return null
+    let sourceURL = frame.file
+    // e.g. "/APP/.next/server/chunks/ssr/[root of the server]__2934a0._.js"
+    // will be keyed by Node.js as "file:///APP/.next/server/chunks/ssr/[root%20of%20the%20server]__2934a0._.js".
+    // This is likely caused by `callsite.toString()` in `Error.prepareStackTrace converting file URLs to paths.
+    if (sourceURL.startsWith('/')) {
+      sourceURL = url.pathToFileURL(frame.file).toString()
     }
-    sourceMapPayload = moduleSourceMap.payload
-    sourceMap = new SyncSourceMapConsumer(
+    const maybeSourceMapPayload =
+      nativeFindSourceMap(sourceURL)?.payload ??
+      bundlerFindSourceMapPayload(sourceURL)
+    if (maybeSourceMapPayload === undefined) {
+      return {
+        stack: {
+          arguments: frame.arguments,
+          column: frame.column,
+          file: frame.file,
+          lineNumber: frame.lineNumber,
+          methodName: frame.methodName,
+          ignored: shouldIgnoreListGeneratedFrame(frame.file),
+        },
+        code: null,
+      }
+    }
+    sourceMapPayload = maybeSourceMapPayload
+    sourceMapConsumer = new SyncSourceMapConsumer(
       // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
       sourceMapPayload
     )
     sourceMapCache.set(frame.file, {
-      map: sourceMap,
+      map: sourceMapConsumer,
       payload: sourceMapPayload,
     })
   } else {
-    sourceMap = sourceMapCacheEntry.map
+    sourceMapConsumer = sourceMapCacheEntry.map
     sourceMapPayload = sourceMapCacheEntry.payload
   }
 
-  const sourcePosition = sourceMap.originalPositionFor({
+  const sourcePosition = sourceMapConsumer.originalPositionFor({
     column: frame.column ?? 0,
     line: frame.lineNumber ?? 1,
   })
 
   if (sourcePosition.source === null) {
-    return null
+    return {
+      stack: {
+        arguments: frame.arguments,
+        column: frame.column,
+        file: frame.file,
+        lineNumber: frame.lineNumber,
+        methodName: frame.methodName,
+        ignored: shouldIgnoreListGeneratedFrame(frame.file),
+      },
+      code: null,
+    }
   }
 
   const sourceContent: string | null =
-    sourceMap.sourceContentFor(
+    sourceMapConsumer.sourceContentFor(
       sourcePosition.source,
       /* returnNullOnMissing */ true
     ) ?? null
@@ -182,6 +238,14 @@ function getSourcemappedFrameIfPossible(
   let ignored = false
   if (applicableSourceMap === undefined) {
     console.error('No applicable source map found in sections for frame', frame)
+  } else if (shouldIgnoreListOriginalFrame(sourcePosition.source)) {
+    // Externals may be libraries that don't ship ignoreLists.
+    // This is really taking control away from libraries.
+    // They should still ship `ignoreList` so that attached debuggers ignore-list their frames.
+    // TODO: Maybe only ignore library sourcemaps if `ignoreList` is absent?
+    // Though keep in mind that Turbopack omits empty `ignoreList`.
+    // So if we establish this convention, we should communicate it to the ecosystem.
+    ignored = true
   } else {
     // TODO: O(n^2). Consider moving `ignoreList` into a Set
     const sourceIndex = applicableSourceMap.sources.indexOf(
@@ -244,34 +308,28 @@ function parseAndSourceMap(error: Error): string {
   for (const frame of unsourcemappedStack) {
     if (frame.file === null) {
       sourceMappedStack += '\n' + frameToString(frame)
-    } else if (!shouldIgnoreListByDefault(frame.file)) {
+    } else {
       const sourcemappedFrame = getSourcemappedFrameIfPossible(
-        frame,
+        // We narrowed this earlier by bailing if `frame.file` is null.
+        frame as SourcemappableStackFrame,
         sourceMapCache
       )
 
-      if (sourcemappedFrame === null) {
-        sourceMappedStack += '\n' + frameToString(frame)
-      } else {
-        if (
-          process.env.NODE_ENV !== 'production' &&
-          sourcemappedFrame.code !== null &&
-          sourceFrameDEV === null &&
-          // TODO: Is this the right choice?
-          !sourcemappedFrame.stack.ignored
-        ) {
-          sourceFrameDEV = sourcemappedFrame.code
-        }
-        if (!sourcemappedFrame.stack.ignored) {
-          // TODO: Consider what happens if every frame is ignore listed.
-          sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
-        } else if (showIgnoreListed) {
-          sourceMappedStack +=
-            '\n' + dim(frameToString(sourcemappedFrame.stack))
-        }
+      if (
+        process.env.NODE_ENV !== 'production' &&
+        sourcemappedFrame.code !== null &&
+        sourceFrameDEV === null &&
+        // TODO: Is this the right choice?
+        !sourcemappedFrame.stack.ignored
+      ) {
+        sourceFrameDEV = sourcemappedFrame.code
       }
-    } else if (showIgnoreListed) {
-      sourceMappedStack += '\n' + dim(frameToString(frame))
+      if (!sourcemappedFrame.stack.ignored) {
+        // TODO: Consider what happens if every frame is ignore listed.
+        sourceMappedStack += '\n' + frameToString(sourcemappedFrame.stack)
+      } else if (showIgnoreListed) {
+        sourceMappedStack += '\n' + dim(frameToString(sourcemappedFrame.stack))
+      }
     }
   }
 

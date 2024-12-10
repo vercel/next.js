@@ -117,10 +117,16 @@ impl ChunkItem for RawModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
-            Vc::upcast(*self.wasm_asset),
-            Vc::cell(format!("wasm(url) {}", self.wasm_asset.ident().to_string().await?).into()),
-        ))]))
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            SingleOutputAssetReference::new(
+                Vc::upcast(*self.wasm_asset),
+                Vc::cell(
+                    format!("wasm(url) {}", self.wasm_asset.ident().to_string().await?).into(),
+                ),
+            )
+            .to_resolved()
+            .await?,
+        )]))
     }
 
     #[turbo_tasks::function]

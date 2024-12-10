@@ -413,6 +413,7 @@ pub struct ExperimentalTurboConfig {
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
+    pub unstable_persistent_caching: Option<bool>,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
@@ -1042,6 +1043,17 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn persistent_caching_enabled(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.experimental
+                .turbo
+                .as_ref()
+                .and_then(|t| t.unstable_persistent_caching)
+                .unwrap_or_default(),
+        ))
+    }
+
+    #[turbo_tasks::function]
     pub fn resolve_alias_options(&self) -> Result<Vc<ResolveAliasMap>> {
         let Some(resolve_alias) = self
             .experimental
@@ -1364,6 +1376,8 @@ impl Issue for OutdatedConfigIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.description.clone()).resolved_cell(),
+        ))
     }
 }

@@ -523,7 +523,7 @@ impl Issue for ConflictIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.description))
+        Vc::cell(Some(self.description))
     }
 }
 
@@ -785,7 +785,7 @@ impl Project {
     async fn collect_project_feature_telemetry(self: Vc<Self>) -> Result<Vc<()>> {
         let emit_event = |feature_name: &str, enabled: bool| {
             NextFeatureTelemetry::new(feature_name.into(), enabled)
-                .cell()
+                .resolved_cell()
                 .emit();
         };
 
@@ -822,6 +822,10 @@ impl Project {
         emit_event(
             "skipTrailingSlashRedirect",
             *config.skip_trailing_slash_redirect().await?,
+        );
+        emit_event(
+            "persistentCaching",
+            *config.persistent_caching_enabled().await?,
         );
 
         let config = &config.await?;
@@ -894,7 +898,7 @@ impl Project {
                         .resolved_cell(),
                         severity: IssueSeverity::Error.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     *entry.get_mut() = Route::Conflict;
                 }
@@ -1354,10 +1358,16 @@ async fn any_output_changed(
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)
             {
-                Ok(Some(content_changed(*ResolvedVc::upcast(m))))
+                anyhow::Ok(Some(content_changed(*ResolvedVc::upcast(m))))
             } else {
                 Ok(None)
             }
+        })
+        .map(|v| async move {
+            Ok(match v.await? {
+                Some(v) => Some(v.to_resolved().await?),
+                None => None,
+            })
         })
         .try_flat_join()
         .await?;

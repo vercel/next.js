@@ -112,7 +112,7 @@ fn result_to_issue<T>(path: ResolvedVc<FileSystemPath>, result: Result<T>) -> Op
                 issue_severity: None,
                 title: None,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             None
         }
@@ -174,7 +174,7 @@ fn load_image_internal(
             title: Some(StyledString::Text("AVIF image not supported".into()).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
     }
@@ -192,7 +192,7 @@ fn load_image_internal(
             title: Some(StyledString::Text("WEBP image not supported".into()).resolved_cell()),
             issue_severity: Some(IssueSeverity::Warning.resolved_cell()),
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok((ImageBuffer::Raw(bytes.to_vec()), format));
     }
@@ -219,7 +219,7 @@ fn compute_blur_data(
                 issue_severity: None,
                 title: None,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Some(BlurPlaceholder::fallback())
         }
@@ -520,6 +520,6 @@ impl Issue for ImageProcessingIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.message))
+        Vc::cell(Some(self.message))
     }
 }

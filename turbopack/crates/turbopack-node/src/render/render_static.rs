@@ -173,7 +173,7 @@ async fn static_error(
         status: status.and_then(|status| status.code()),
     };
 
-    issue.cell().emit();
+    issue.resolved_cell().emit();
 
     let html = fallback_page.with_body(body.into());
 
