@@ -120,7 +120,7 @@
   "with-http2": true,
   "with-i18n-next-intl": true,
   "with-i18n-rosetta": true,
-  "with-ionic-typescript": true,
+  "with-ionic": true,
   "with-iron-session": true,
   "with-jest": true,
   "with-jest-babel": true,
