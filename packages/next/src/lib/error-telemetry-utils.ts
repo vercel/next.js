@@ -1,3 +1,5 @@
+const ERROR_CODE_DELIMITER = '@'
+
 /**
  * Augments the digest field of errors thrown in React Server Components (RSC) with an error code.
  * Since RSC errors can only be serialized through the digest field, this provides a way to include
@@ -6,7 +8,7 @@
  * The error code is appended to the digest string with a semicolon separator, allowing it to be
  * parsed out later while preserving the original digest value.
  */
-export const appendErrorCodeToDigest = (
+export const createDigestWithErrorCode = (
   thrownValue: unknown,
   originalDigest: string
 ): string => {
@@ -15,7 +17,7 @@ export const appendErrorCodeToDigest = (
     thrownValue !== null &&
     '__NEXT_ERROR_CODE' in thrownValue
   ) {
-    return `${originalDigest};${thrownValue.__NEXT_ERROR_CODE}`
+    return `${originalDigest}${ERROR_CODE_DELIMITER}${thrownValue.__NEXT_ERROR_CODE}`
   }
   return originalDigest
 }
@@ -25,9 +27,9 @@ export const extractNextErrorCode = (error: unknown): string | undefined => {
     typeof error === 'object' &&
     error !== null &&
     '__NEXT_ERROR_CODE' in error &&
-    typeof (error as any).__NEXT_ERROR_CODE === 'string'
+    typeof error.__NEXT_ERROR_CODE === 'string'
   ) {
-    return (error as any).__NEXT_ERROR_CODE
+    return error.__NEXT_ERROR_CODE
   }
 
   if (
@@ -36,7 +38,7 @@ export const extractNextErrorCode = (error: unknown): string | undefined => {
     'digest' in error &&
     typeof error.digest === 'string'
   ) {
-    const segments = error.digest.split(';')
+    const segments = error.digest.split(ERROR_CODE_DELIMITER)
     const errorCode = segments.find((segment) => segment.startsWith('E'))
     return errorCode
   }
