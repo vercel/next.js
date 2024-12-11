@@ -1,7 +1,7 @@
 ---
-title: How to cache and revalidate content
+title: How to cache and revalidate components and functions
 nav_title: Caching and Revalidating
-description: Learn how to cache and revalidate functions and components in your Next.js application.
+description: Learn how to cache and revalidate components and functions in your Next.js application.
 related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
@@ -10,6 +10,8 @@ related:
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/cacheTag
+    - app/api-reference/functions/unstable_expireTag
+    - app/api-reference/functions/unstable_expirePath
 ---
 
 > **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. This option was introduced in Next.js 15 canary.
@@ -170,12 +172,12 @@ In Next.js, there are two types of revalidation:
 
 You can use the [`cacheLife` function](/docs/app/api-reference/functions/cacheLife) to define a time interval for how long a cached value should remain stale before it's revalidated.
 
-`cacheLife` comes with [default cache profiles](/docs/app/api-reference/functions/cacheLife#default-cache-profiles) such as `'hour'`, `'day'`, and `'week'` which can be [customized](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles), if needed.
+`cacheLife` comes with [default cache profiles](/docs/app/api-reference/functions/cacheLife#default-cache-profiles) such as `'hour'`, `'day'`, and `'week'`. These profiles can be [customized](/docs/app/api-reference/functions/cacheLife#custom-cache-profiles), if needed.
 
-To use `cacheLife`, import it from `next/cache` and nest it within the scope of the `'use cache'` directive and a function. For example, to cache the blog page for one hour:
+To use `cacheLife`, import it from `next/cache` and nest it within the **scope** of the `'use cache'` directive and the function. For example, to revalidate the blog page after one hour:
 
 ```tsx filename="app/blog/page.tsx" highlight={3,6} switcher
-'use cache'
+'use cache'o/>:.
 
 import { cacheLife } from 'next/cache'
 
