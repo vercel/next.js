@@ -292,24 +292,23 @@ impl SingleModuleGraph {
             }
         }
 
-        let root_idx = match root {
-            Some(root) => {
-                if !modules.contains_key(&root) {
-                    let root_idx = graph.add_node(SingleModuleGraphNode {
-                        module: root,
-                        issues: Default::default(),
-                        layer: None,
-                        // ident: root.ident().to_string().await?,
-                    });
-                    for entry in entries {
-                        graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
-                    }
-                    Some((root, root_idx))
-                } else {
-                    None
+        let root_idx = if let Some(root) = root {
+            if !modules.contains_key(&root) {
+                let root_idx = graph.add_node(SingleModuleGraphNode {
+                    module: root,
+                    issues: Default::default(),
+                    layer: None,
+                    // ident: root.ident().to_string().await?,
+                });
+                for entry in entries {
+                    graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
                 }
+                Some((root, root_idx))
+            } else {
+                None
             }
-            None => None,
+        } else {
+            None
         };
 
         Ok(SingleModuleGraph {
@@ -397,12 +396,14 @@ impl SingleModuleGraph {
         Ok(())
     }
 
-    /// Traverses all reachable edges in reverse topological order (from leaves to the entry), the
-    /// preorder visitor can be used to forward state down the graph, and to skip subgraphs
+    /// Traverses all reachable edges in topological order. The preorder visitor can be used to
+    /// forward state down the graph, and to skip subgraphs
+    ///
+    /// Use this to collect modules in evaluation order.
     ///
     /// Target nodes can be revisited (once per incoming edge).
     /// Edges are traversed in normal order, so should correspond to reference order.
-    pub fn traverse_edges_from_entry_reverse_topological<'a, S>(
+    pub fn traverse_edges_from_entry_topological<'a, S>(
         &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
         state: &mut S,
@@ -756,7 +757,7 @@ impl ClientReferencesGraph {
             let mut client_references_by_server_component =
                 FxIndexMap::from_iter([(None, Vec::new())]);
 
-            graph.traverse_edges_from_entry_reverse_topological(
+            graph.traverse_edges_from_entry_topological(
                 entry,
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut HashMap::new(),
