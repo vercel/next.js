@@ -60,8 +60,8 @@ pub use transform::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{rope::Rope, FileJsonContent, FileSystemPath};
 use turbopack_core::{
@@ -117,6 +117,7 @@ pub enum SpecifiedModuleType {
     Serialize,
     Deserialize,
     TraceRawVcs,
+    NonLocalValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {

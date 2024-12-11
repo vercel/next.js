@@ -919,7 +919,7 @@ export function getRedboxHeader(browser: BrowserInterface) {
 
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
   const header = (await getRedboxHeader(browser)) || ''
-  return parseInt(header.match(/\d+ of (\d+) error/)?.[1], 10)
+  return parseInt(header.match(/\d+ of (\d+) issue/)?.[1], 10)
 }
 
 export function getRedboxSource(browser: BrowserInterface) {

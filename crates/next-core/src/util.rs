@@ -8,8 +8,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput,
-    ValueDefault, ValueToString, Vc,
+    trace::TraceRawVcs, util::WrapFuture, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc,
+    TaskInput, ValueDefault, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
@@ -151,6 +151,7 @@ pub async fn foreign_code_context_condition(
     PartialOrd,
     Ord,
     TaskInput,
+    NonLocalValue,
 )]
 #[serde(rename_all = "lowercase")]
 pub enum NextRuntime {

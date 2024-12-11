@@ -736,20 +736,20 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     // Unhandled error and rejection in setTimeout
     expect(
       await browser.waitForElementByCss('.nextjs-toast-errors').text()
-    ).toBe('2 errors')
+    ).toBe('2 issues')
 
     // Unhandled error in event handler
     await browser.elementById('unhandled-error').click()
     await check(
       () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /3 errors/
+      /3 issues/
     )
 
     // Unhandled rejection in event handler
     await browser.elementById('unhandled-rejection').click()
     await check(
       () => browser.elementByCss('.nextjs-toast-errors').text(),
-      /4 errors/
+      /4 issues/
     )
     await session.assertNoRedbox()
 
