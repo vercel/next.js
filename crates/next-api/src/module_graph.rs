@@ -26,8 +26,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CollectiblesSource, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    CollectiblesSource, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::ChunkingType,
@@ -56,7 +56,7 @@ pub enum GraphTraversalAction {
     Skip,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub struct SingleModuleGraphNode {
     pub module: ResolvedVc<Box<dyn Module>>,
     pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
