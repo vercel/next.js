@@ -16,7 +16,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -107,7 +108,7 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum FoundExportType {
     Found,
     Dynamic,
@@ -352,27 +353,33 @@ pub async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => emit_star_exports_issue(
-                asset.ident(),
-                format!(
-                    "export * used with module {} which has no exports\nTypescript only: Did you \
-                     want to export only types with `export type * from \"...\"`?\nNote: Using \
-                     `export type` is more efficient than `export *` as it won't emit any runtime \
-                     code.",
-                    asset.ident().to_string().await?
+            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => {
+                emit_star_exports_issue(
+                    asset.ident(),
+                    format!(
+                        "export * used with module {} which has no exports\nTypescript only: Did \
+                         you want to export only types with `export type * from \"...\"`?\nNote: \
+                         Using `export type` is more efficient than `export *` as it won't emit \
+                         any runtime code.",
+                        asset.ident().to_string().await?
+                    )
+                    .into(),
                 )
-                .into(),
-            ),
-            EcmascriptExports::Value => emit_star_exports_issue(
-                asset.ident(),
-                format!(
-                    "export * used with module {} which only has a default export (default export \
-                     is not exported with export *)\nDid you want to use `export {{ default }} \
-                     from \"...\";` instead?",
-                    asset.ident().to_string().await?
+                .await?
+            }
+            EcmascriptExports::Value => {
+                emit_star_exports_issue(
+                    asset.ident(),
+                    format!(
+                        "export * used with module {} which only has a default export (default \
+                         export is not exported with export *)\nDid you want to use `export {{ \
+                         default }} from \"...\";` instead?",
+                        asset.ident().to_string().await?
+                    )
+                    .into(),
                 )
-                .into(),
-            ),
+                .await?
+            }
             EcmascriptExports::CommonJs => {
                 has_dynamic_exports = true;
                 emit_star_exports_issue(
@@ -385,7 +392,8 @@ pub async fn expand_star_exports(
                         asset.ident().to_string().await?
                     )
                     .into(),
-                );
+                )
+                .await?;
             }
             EcmascriptExports::DynamicNamespace => {
                 has_dynamic_exports = true;
@@ -400,17 +408,19 @@ pub async fn expand_star_exports(
     .cell())
 }
 
-fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
-    AnalyzeIssue {
-        code: None,
-        message: StyledString::Text(message).resolved_cell(),
+async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -> Result<()> {
+    AnalyzeIssue::new(
+        IssueSeverity::Warning.cell(),
         source_ident,
-        severity: IssueSeverity::Warning.resolved_cell(),
-        source: None,
-        title: ResolvedVc::cell("unexpected export *".into()),
-    }
-    .cell()
+        Vc::cell("unexpected export *".into()),
+        StyledString::Text(message).cell(),
+        None,
+        None,
+    )
+    .to_resolved()
+    .await?
     .emit();
+    Ok(())
 }
 
 #[turbo_tasks::value(shared)]

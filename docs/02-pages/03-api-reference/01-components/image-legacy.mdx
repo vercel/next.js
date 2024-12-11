@@ -313,8 +313,9 @@ const Example = () => {
 
 ### unoptimized
 
-When true, the source image will be served as-is instead of changing quality,
-size, or format. Defaults to `false`.
+When true, the source image will be served as-is from the `src` instead of changing quality, size, or format. Defaults to `false`.
+
+This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
 
 ```js
 import Image from 'next/image'

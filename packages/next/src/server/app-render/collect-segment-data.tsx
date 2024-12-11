@@ -25,6 +25,7 @@ export type RootTreePrefetch = {
   buildId: string
   tree: TreePrefetch
   head: React.ReactNode | null
+  isHeadPartial: boolean
   staleTime: number
 }
 
@@ -59,6 +60,7 @@ export type SegmentPrefetch = {
   buildId: string
   rsc: React.ReactNode | null
   loading: LoadingModuleData | Promise<LoadingModuleData>
+  isPartial: boolean
 }
 
 export async function collectSegmentData(
@@ -193,6 +195,8 @@ async function PrefetchTreeData({
     segmentTasks
   )
 
+  const isHeadPartial = await isPartialRSCData(head, clientModules)
+
   // Notify the abort controller that we're done processing the route tree.
   // Anything async that happens after this point must be due to hanging
   // promises in the original stream.
@@ -203,6 +207,7 @@ async function PrefetchTreeData({
     buildId,
     tree,
     head,
+    isHeadPartial,
     staleTime,
   }
   return treePrefetch
@@ -308,6 +313,7 @@ async function renderSegmentPrefetch(
     buildId,
     rsc,
     loading,
+    isPartial: await isPartialRSCData(rsc, clientModules),
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
@@ -340,6 +346,30 @@ async function renderSegmentPrefetch(
     const fullPath = `${segmentPathStr}.${accessToken}`
     return [fullPath, segmentBuffer]
   }
+}
+
+async function isPartialRSCData(
+  rsc: React.ReactNode,
+  clientModules: ManifestNode
+): Promise<boolean> {
+  // We can determine if a segment contains only partial data if it takes longer
+  // than a task to encode, because dynamic data is encoded as an infinite
+  // promise. We must do this in a separate Flight prerender from the one that
+  // actually generates the prefetch stream because we need to include
+  // `isPartial` in the stream itself.
+  let isPartial = false
+  const abortController = new AbortController()
+  waitAtLeastOneReactRenderTask().then(() => {
+    // If we haven't yet finished the outer task, then it must be because we
+    // accessed dynamic data.
+    isPartial = true
+    abortController.abort()
+  })
+  await prerender(rsc, clientModules, {
+    signal: abortController.signal,
+    onError() {},
+  })
+  return isPartial
 }
 
 // TODO: Consider updating or unifying this encoding logic for segments with

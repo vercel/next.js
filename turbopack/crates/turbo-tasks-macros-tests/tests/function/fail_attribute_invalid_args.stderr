@@ -1,4 +1,4 @@
-error: unexpected token, expected one of: "fs", "network", "resolved", "local_cells"
+error: unexpected token, expected one of: "fs", "network", "non_local_return", "local_cells"
  --> tests/function/fail_attribute_invalid_args.rs:9:25
   |
 9 | #[turbo_tasks::function(invalid_argument)]

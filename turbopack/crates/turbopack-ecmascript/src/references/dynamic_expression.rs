@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
@@ -10,7 +10,7 @@ use crate::{
     create_visitor,
 };
 
-#[derive(PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat)]
+#[derive(PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat, NonLocalValue)]
 enum DynamicExpressionType {
     Promise,
     Normal,

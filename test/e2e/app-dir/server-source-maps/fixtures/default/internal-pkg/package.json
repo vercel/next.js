@@ -5,6 +5,9 @@
   "exports": {
     ".": {
       "default": "./index.js"
+    },
+    "./sourcemapped": {
+      "default": "./sourcemapped.js"
     }
   }
 }

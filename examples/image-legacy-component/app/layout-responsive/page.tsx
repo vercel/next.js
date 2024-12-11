@@ -4,7 +4,7 @@ import ViewSource from "@/components/view-source";
 export default function LayoutResponsive() {
   return (
     <div>
-      <ViewSource pathname="pages/layout-responsive.tsx" />
+      <ViewSource pathname="app/layout-responsive/page.tsx" />
       <h1>Image Component With Layout Responsive</h1>
       <Image
         alt="Mountains"

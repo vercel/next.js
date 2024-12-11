@@ -112,7 +112,6 @@ import { Telemetry } from '../telemetry/storage'
 import { hadUnsupportedValue } from './analysis/get-page-static-info'
 import {
   createPagesMapping,
-  getPageFromPath,
   getStaticInfoIncludingLayouts,
   sortByPageExts,
 } from './entries'
@@ -180,7 +179,6 @@ import {
   recordFrameworkVersion,
   updateBuildDiagnostics,
   recordFetchMetrics,
-  updateIncrementalBuildMetrics,
 } from '../diagnostics/build-diagnostics'
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
@@ -207,13 +205,6 @@ import {
   checkIsAppPPREnabled,
   checkIsRoutePPREnabled,
 } from '../server/lib/experimental/ppr'
-import {
-  detectChangedEntries,
-  type DetectedEntriesResult,
-} from './flying-shuttle/detect-changed-entries'
-import { storeShuttle } from './flying-shuttle/store-shuttle'
-import { stitchBuilds } from './flying-shuttle/stitch-builds'
-import { inlineStaticEnv } from './flying-shuttle/inline-static-env'
 import { FallbackMode, fallbackModeToFallbackField } from '../lib/fallback'
 import { RenderingMode } from './rendering-mode'
 import { getParamKeys } from '../server/request/fallback-params'
@@ -829,27 +820,6 @@ export default async function build(
       )
       NextBuildContext.buildId = buildId
 
-      const { flyingShuttle } = config.experimental
-      const isFullFlyingShuttle = flyingShuttle?.mode === 'full'
-      const isStoreOnlyFlyingShuttle = flyingShuttle?.mode === 'store-only'
-
-      const shuttleDir = path.join(distDir, 'cache', 'shuttle')
-
-      if (flyingShuttle) {
-        await fs.mkdir(shuttleDir, {
-          recursive: true,
-        })
-
-        // since inlining comes after static generation we need
-        // to ensure this value is assigned to process env so it
-        // can still be accessed
-        for (const key in config.env) {
-          if (!process.env[key]) {
-            process.env[key] = config.env[key]
-          }
-        }
-      }
-
       const customRoutes: CustomRoutes = await nextBuildSpan
         .traceChild('load-custom-routes')
         .traceAsyncFn(() => loadCustomRoutes(config))
@@ -1006,32 +976,6 @@ export default async function build(
             )
           : []
 
-      let changedPagePathsResult:
-        | undefined
-        | {
-            changed: DetectedEntriesResult
-            unchanged: DetectedEntriesResult
-          }
-
-      if (pagesPaths && isFullFlyingShuttle) {
-        await nextBuildSpan
-          .traceChild('detect-changed-entries', { type: 'pages' })
-          .traceAsyncFn(async () => {
-            changedPagePathsResult = await detectChangedEntries({
-              pagesPaths,
-              pageExtensions: config.pageExtensions,
-              distDir,
-              shuttleDir,
-              config,
-            })
-            await updateIncrementalBuildMetrics({
-              changedPagePaths: changedPagePathsResult.changed.pages,
-              unchangedPagePaths: changedPagePathsResult.unchanged.pages,
-            })
-            pagesPaths = changedPagePathsResult.changed.pages
-          })
-      }
-
       const middlewareDetectionRegExp = new RegExp(
         `^${MIDDLEWARE_FILENAME}\\.(?:${config.pageExtensions.join('|')})$`
       )
@@ -1085,12 +1029,6 @@ export default async function build(
 
       let mappedAppPages: MappedPages | undefined
       let denormalizedAppPages: string[] | undefined
-      let changedAppPathsResult:
-        | undefined
-        | {
-            changed: DetectedEntriesResult
-            unchanged: DetectedEntriesResult
-          }
 
       if (appDir) {
         const providedAppPaths: string[] = JSON.parse(
@@ -1111,25 +1049,6 @@ export default async function build(
                   ignorePartFilter: (part) => part.startsWith('_'),
                 })
               )
-
-        if (appPaths && isFullFlyingShuttle) {
-          await nextBuildSpan
-            .traceChild('detect-changed-entries', { type: 'app' })
-            .traceAsyncFn(async () => {
-              changedAppPathsResult = await detectChangedEntries({
-                appPaths,
-                pageExtensions: config.pageExtensions,
-                distDir,
-                shuttleDir,
-                config,
-              })
-              await updateIncrementalBuildMetrics({
-                changedAppPaths: changedAppPathsResult.changed.app,
-                unchangedAppPaths: changedAppPathsResult.unchanged.app,
-              })
-              appPaths = changedAppPathsResult.changed.app
-            })
-        }
 
         mappedAppPages = await nextBuildSpan
           .traceChild('create-app-mapping')
@@ -1271,7 +1190,6 @@ export default async function build(
       )
 
       const isAppDynamicIOEnabled = Boolean(config.experimental.dynamicIO)
-      const isAfterEnabled = Boolean(config.experimental.after)
       const isAuthInterruptsEnabled = Boolean(
         config.experimental.authInterrupts
       )
@@ -1358,28 +1276,8 @@ export default async function build(
         const nonInternalRedirects = (config._originalRedirects || []).filter(
           (r: any) => !r.internal
         )
-        const filterPaths: string[] = []
-
-        if (isFullFlyingShuttle) {
-          filterPaths.push(
-            ...[
-              // client filter always has all app paths
-              ...(changedAppPathsResult?.unchanged?.app || []),
-              ...(changedAppPathsResult?.changed?.app || []),
-            ].map((entry) =>
-              normalizeAppPath(getPageFromPath(entry, config.pageExtensions))
-            ),
-            ...(changedPagePathsResult?.unchanged.pages.length
-              ? changedPagePathsResult.changed?.pages || []
-              : []
-            ).map((item) => getPageFromPath(item, config.pageExtensions))
-          )
-        } else {
-          filterPaths.push(...appPaths)
-        }
-
         clientRouterFilters = createClientRouterFilter(
-          filterPaths,
+          [...appPaths],
           config.experimental.clientRouterFilterRedirects
             ? nonInternalRedirects
             : [],
@@ -1797,7 +1695,6 @@ export default async function build(
                     hasSsrAmpPages: false,
                     buildTraceContext,
                     outputFileTracingRoot,
-                    isFlyingShuttle: Boolean(flyingShuttle),
                   })
                   .catch((err) => {
                     console.error(err)
@@ -1875,29 +1772,6 @@ export default async function build(
       }
 
       const postCompileSpinner = createSpinner('Collecting page data')
-
-      if (isFullFlyingShuttle) {
-        // we need to copy the chunks from the shuttle folder
-        // to the distDir (we copy all server split chunks currently)
-        // this has to come before we require any page chunks as webpack
-        // cache could reference previous runtimes/chunks
-        if (await fileExists(path.join(shuttleDir, 'server'))) {
-          await recursiveCopy(
-            path.join(shuttleDir, 'server'),
-            path.join(distDir, 'server'),
-            {
-              filter(item) {
-                // we copy page chunks separately to not copy stale entries
-                return (
-                  !item.startsWith('/middleware.js') &&
-                  !item.match(/^[/\\](pages|app)[/\\]/)
-                )
-              },
-              overwrite: false,
-            }
-          )
-        }
-      }
 
       const buildManifestPath = path.join(distDir, BUILD_MANIFEST)
       const appBuildManifestPath = path.join(distDir, APP_BUILD_MANIFEST)
@@ -2004,7 +1878,6 @@ export default async function build(
               configFileName,
               runtimeEnvConfig,
               dynamicIO: isAppDynamicIOEnabled,
-              after: isAfterEnabled,
               authInterrupts: isAuthInterruptsEnabled,
               httpAgentOptions: config.httpAgentOptions,
               locales: config.i18n?.locales,
@@ -2229,7 +2102,6 @@ export default async function build(
                             edgeInfo,
                             pageType,
                             dynamicIO: isAppDynamicIOEnabled,
-                            after: isAfterEnabled,
                             authInterrupts: isAuthInterruptsEnabled,
                             cacheHandler: config.cacheHandler,
                             cacheHandlers: config.experimental.cacheHandlers,
@@ -2281,10 +2153,7 @@ export default async function build(
                             })
                           }
 
-                          if (
-                            workerResult.prerenderedRoutes &&
-                            workerResult.prerenderedRoutes.length > 0
-                          ) {
+                          if (workerResult.prerenderedRoutes) {
                             staticPaths.set(
                               originalAppPath,
                               workerResult.prerenderedRoutes
@@ -2663,7 +2532,6 @@ export default async function build(
           hasSsrAmpPages,
           buildTraceContext,
           outputFileTracingRoot,
-          isFlyingShuttle: Boolean(flyingShuttle),
         }).catch((err) => {
           console.error(err)
           process.exit(1)
@@ -2764,76 +2632,6 @@ export default async function build(
       const middlewareManifest: MiddlewareManifest = await readManifest(
         path.join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       )
-
-      if (!isGenerateMode) {
-        if (flyingShuttle) {
-          await buildTracesPromise
-
-          if (isStoreOnlyFlyingShuttle) {
-            console.log('skipping stitching builds due to store-only mode')
-          } else {
-            console.log('stitching builds...')
-            await nextBuildSpan
-              .traceChild('stitch-incremental-builds')
-              .traceAsyncFn(async () => {
-                const stitchResult = await stitchBuilds(
-                  {
-                    config,
-                    buildId,
-                    distDir,
-                    shuttleDir,
-                    rewrites,
-                    redirects,
-                    edgePreviewProps: {
-                      __NEXT_PREVIEW_MODE_ID:
-                        NextBuildContext.previewProps!.previewModeId,
-                      __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
-                        NextBuildContext.previewProps!.previewModeEncryptionKey,
-                      __NEXT_PREVIEW_MODE_SIGNING_KEY:
-                        NextBuildContext.previewProps!.previewModeSigningKey,
-                    },
-                    encryptionKey,
-                    allowedErrorRate:
-                      config.experimental.clientRouterFilterAllowedRate,
-                  },
-                  {
-                    changed: {
-                      pages: changedPagePathsResult?.changed.pages || [],
-                      app: changedAppPathsResult?.changed.app || [],
-                    },
-                    unchanged: {
-                      pages: changedPagePathsResult?.unchanged.pages || [],
-                      app: changedAppPathsResult?.unchanged.app || [],
-                    },
-                    pageExtensions: config.pageExtensions,
-                  }
-                )
-                // reload pagesManifest since it's been updated on disk
-                if (stitchResult.pagesManifest) {
-                  pagesManifest = stitchResult.pagesManifest
-                }
-              })
-          }
-
-          console.log('storing shuttle')
-          await nextBuildSpan
-            .traceChild('store-cache-shuttle')
-            .traceAsyncFn(async () => {
-              await storeShuttle({
-                config,
-                distDir,
-                shuttleDir,
-              })
-            })
-
-          console.log('inlining static env')
-          await nextBuildSpan
-            .traceChild('inline-static-env')
-            .traceAsyncFn(async () => {
-              await inlineStaticEnv({ config, distDir })
-            })
-        }
-      }
 
       const prerenderManifest: PrerenderManifest = {
         version: 4,
