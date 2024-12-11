@@ -16,16 +16,16 @@ use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
 use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 use crate::{
-    next_client_reference::ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
     next_server_component::server_component_module::NextServerComponentModule,
+    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 
 #[derive(
     Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
 )]
 pub struct ClientReference {
-    server_component: Option<ResolvedVc<NextServerComponentModule>>,
-    ty: ClientReferenceType,
+    pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
+    pub ty: ClientReferenceType,
 }
 
 impl ClientReference {
@@ -43,7 +43,8 @@ impl ClientReference {
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference {
-        parent_module: ResolvedVc<EcmascriptClientReferenceProxyModule>,
+        /// should be the EcmascriptClientReferenceProxyModule
+        parent_module: ResolvedVc<Box<dyn Module>>,
         module: ResolvedVc<EcmascriptClientReferenceModule>,
     },
     CssClientReference(ResolvedVc<CssModuleAsset>),
@@ -223,15 +224,12 @@ pub struct ServerEntries {
 
 #[turbo_tasks::function]
 pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
+    let entry_path = entry.ident().path().resolve().await?;
     let graph = AdjacencyMap::new()
         .skip_duplicates()
         .visit(
             vec![VisitClientReferenceNode {
-                state: {
-                    VisitClientReferenceNodeState::Entry {
-                        entry_path: entry.ident().path().resolve().await?,
-                    }
-                },
+                state: { VisitClientReferenceNodeState::Entry { entry_path } },
                 ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
             }],
             VisitClientReference {
@@ -369,13 +367,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                     None => None,
                                 },
                                 ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module: ResolvedVc::try_downcast_type::<
-                                        EcmascriptClientReferenceProxyModule,
-                                    >(
-                                        parent_module
-                                    )
-                                    .await?
-                                    .unwrap(),
+                                    parent_module,
                                     module: client_reference_module,
                                 },
                             },
@@ -420,16 +412,17 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                     });
                 }
 
-                if let VisitClientReferenceNodeState::Entry { entry_path } = &node.state {
-                    if module.ident().path().resolve().await? != *entry_path {
-                        return Ok(VisitClientReferenceNode {
-                            state: VisitClientReferenceNodeState::InServerUtil,
-                            ty: VisitClientReferenceNodeType::ServerUtilEntry(
-                                *module,
-                                module.ident().to_string().await?,
-                            ),
-                        });
-                    }
+                if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                    .await?
+                    .is_some()
+                {
+                    return Ok(VisitClientReferenceNode {
+                        state: VisitClientReferenceNodeState::InServerUtil,
+                        ty: VisitClientReferenceNodeType::ServerUtilEntry(
+                            *module,
+                            module.ident().to_string().await?,
+                        ),
+                    });
                 }
 
                 Ok(VisitClientReferenceNode {

@@ -1407,7 +1407,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
                 let args = linked_args(args).await?;
-                if let [url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
+                if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
                     let pat = js_value_to_pattern(url);
                     if !pat.has_constant_parts() {
                         let (args, hints) = explain_args(&args);

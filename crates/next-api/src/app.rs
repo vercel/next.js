@@ -18,10 +18,7 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{
-        client_reference_graph, find_server_entries, ClientReferenceGraphResult,
-        NextEcmascriptClientReferenceTransition, ServerEntries, VisitedClientReferenceGraphNodes,
-    },
+    next_client_reference::{ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition},
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -33,6 +30,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    next_server_utility::NextServerUtilityTransition,
     parse_segment_config_from_source,
     util::NextRuntime,
 };
@@ -337,6 +335,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -382,6 +384,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -425,6 +431,10 @@ impl AppProject {
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
             ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -466,6 +476,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
         .into_iter()
@@ -940,33 +954,8 @@ impl AppEndpoint {
                     .get_next_dynamic_imports_for_endpoint(*rsc_entry)
                     .await?;
 
-                let client_references = {
-                    let ServerEntries {
-                        server_component_entries,
-                        server_utils,
-                    } = &*find_server_entries(*rsc_entry).await?;
-
-                    let mut client_references = client_reference_graph(
-                        server_utils.iter().map(|&v| *v).collect(),
-                        VisitedClientReferenceGraphNodes::empty(),
-                    )
-                    .await?
-                    .clone_value();
-
-                    for module in server_component_entries
-                        .iter()
-                        .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
-                        .chain(std::iter::once(rsc_entry))
-                    {
-                        let current_client_references =
-                            client_reference_graph(vec![*module], *client_references.visited_nodes)
-                                .await?;
-
-                        client_references.extend(&current_client_references);
-                    }
-                    client_references
-                };
-                let client_references_cell = client_references.clone().cell();
+                let client_references_cell =
+                    reduced_graphs.get_client_references_for_endpoint(*rsc_entry);
 
                 let client_references_chunks = get_app_client_references_chunks(
                     client_references_cell,
