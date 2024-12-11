@@ -16,15 +16,15 @@ related:
 
 ## Caching
 
-In Next.js, you can cache the output of a [component](/docs/app/building-your-application/caching/caching-components) or [function](/docs/app/building-your-application/caching/caching-data) to reduce the need to re-execute work for every user request.
+In Next.js, you can cache the output of a [component](#components) or [function](#functions) to reduce the need to re-execute work for every user request.
 
-Caching is useful for content that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and improve performance by reusing the static content for all requests.
+Caching is useful for content that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and reuse the static content for all requests.
 
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
-## Caching the render output of a component
+### Components
 
-You can cache the render output of an **asynchronous** [Server Component](https://react.dev/reference/rsc/server-components) by adding the `'use cache'` directive inside the component body:
+You can add `'use cache'` to an **asynchronous** [Server Component](https://react.dev/reference/rsc/server-components) to cache the **component's render output**:
 
 ```tsx filename="app/blog/page.tsx" highlight={4} switcher
 import { getPosts } from '@/app/lib/data'
@@ -105,7 +105,7 @@ async function Posts({ posts }) {
 }
 ```
 
-## Caching the return value of a function
+### Functions
 
 You can cache the return value of an **asynchronous** function, including data requests, by adding the `'use cache'` directive inside the function body:
 
@@ -125,9 +125,9 @@ export async function getPosts(slug) {
 }
 ```
 
-By adding `'use cache'` to the function body, you can reuse the function throughout your code and the same cache entry will be reused as long as the arguments are the same.
+With the approach above, you can call the function throughout your application and the same cache entry will be reused as long as the arguments are the same.
 
-You can also cache all functions within a file by adding the `'use cache'` directive at the top of the file:
+Alternatively, you can also cache all functions within a file by adding the `'use cache'` directive at the top of the file:
 
 ```ts filename="app/lib/data.ts" switcher
 'use cache'
@@ -159,7 +159,7 @@ export async function getPostBySlug(slug: string) {
 
 ## Revalidating
 
-Revalidation allows you to update cached content without having to rebuild your entire application. It's useful for content that _sometimes_ changes, but would benefit from being cached to improve performance.
+Revalidation allows you to update cached content without having to rebuild your entire application. It's useful for content that _sometimes_ changes, but would benefit from being cached to improve your application'sperformance.
 
 In Next.js, there are two types of revalidation:
 
