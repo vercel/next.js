@@ -20,13 +20,13 @@ related:
 
 In Next.js, you can cache the output of a [component](#components) or [function](#functions) to reduce the need to re-execute work for every user request.
 
-Caching is useful for content that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and reuse the static content for all requests.
+Caching is useful for data that doesn't change often or is shared across multiple users, as you can **prerender** at build time, and reuse the static content for all requests.
 
 To mark a function or component as cacheable, you can use the [`'use cache'`](/docs/app/api-reference/directives/use-cache) directive.
 
 ### Components
 
-You can add `'use cache'` to an **asynchronous** [Server Component](https://react.dev/reference/rsc/server-components) to cache the **component's render output**:
+You can add `'use cache'` to an **asynchronous** [Server Component](https://react.dev/reference/rsc/server-components) to cache the component's render output:
 
 ```tsx filename="app/blog/page.tsx" highlight={4} switcher
 import { getPosts } from '@/app/lib/data'
@@ -127,7 +127,7 @@ export async function getPosts(slug) {
 }
 ```
 
-With the approach above, you can call the function throughout your application and the same cache entry will be reused as long as the arguments are the same.
+With the approach above, you can call the function throughout your application code and the same cache entry will be reused as long as the arguments are the same.
 
 Alternatively, you can also cache all functions within a file by adding the `'use cache'` directive at the top of the file:
 
@@ -165,8 +165,8 @@ Revalidation allows you to update cached content without having to rebuild your 
 
 In Next.js, there are two types of revalidation:
 
-- **Time-based**: Based on a time interval (e.g. every hour).
-- **On-demand**: Triggered by a specific event (e.g. a CMS webhook).
+- [Time-based](#time-based-revalidation): Based on a time interval (e.g. every hour).
+- [On-demand](#on-demand-revalidation): Triggered by a specific event (e.g. a CMS webhook).
 
 ## Time-based Revalidation
 
@@ -200,7 +200,7 @@ export default async function Page() {
 
 ## On-demand Revalidation
 
-You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be purged using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function in another part of your application such a [Server Action](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be revalidated using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function in another part of your application, such as a [Server Action](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 For example, to update the list of blog posts once a new post is created, add the `cacheTag` function to the component that renders the list of posts:
 
@@ -238,7 +238,7 @@ export function Posts({ posts }) {
 }
 ```
 
-Then, in the Server Action to create a new post, call `revalidateTag` to purge the cache entry:
+Then, in the Server Action to create a new post, call `revalidateTag` using the same tag to purge the cache entry:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
