@@ -299,19 +299,62 @@ If you don't need a mix of both static and dynamic components, you can make your
 
 <AppOnly>
 
-### Using `after`
+### `after`
 
-#### Self-hosting
+[`after`](/docs/app/api-reference/functions/after) is fully supported when self-hosting with `next start`.
 
-`after` is fully supported in `next start`.
+When stopping the server, ensure a graceful shutdown by sending `SIGINT` or `SIGTERM` signals and waiting. This allows the Next.js server to wait until after pending callback functions or promises used inside `after` have finished.
 
-Note that when you want to stop the server, you should allow it to gracefully shutdown by sending `SIGINT`/`SIGTERM` and waiting. This will allow the server to wait for any pending callbacks/promises passed to `after` to finish.
+If you want to use `after` on custom infrastructure, check your provider documentation to view support for `after`.
 
-#### Serverless hosting
-
-`after` is fully supported on Vercel. If you're using another serverless deployment platform, check if your provider supports `after`.
-
-> **For platform providers**: see the [supporting `after` section](#for-providers-supporting-after-on-your-serverless-platform) for more information.
+<details id="after-serverless">
+  <summary>Reference: supporting `after` for serverless platforms</summary>
+  Using `after` in a serverless context requires waiting for asynchronous tasks to finish after the response has been sent. In Next.js and Vercel, this is achieved using a primitive called `waitUntil(promise)`, which extends the lifetime of a serverless invocation until all promises passed to [`waitUntil`](https://vercel.com/docs/functions/functions-api-reference#waituntil) have settled.
+  
+  If you want your users to be able to run `after`, you will have to provide your implementation of `waitUntil` that behaves in an analogous way.
+  
+  When `after` is called, Next.js will access `waitUntil` like this:
+  
+  ```jsx
+  const RequestContext = globalThis[Symbol.for('@next/request-context')]
+  const contextValue = RequestContext?.get()
+  const waitUntil = context?.waitUntil
+  ```
+  
+  Which means that `globalThis[Symbol.for('@next/request-context')]` is expected to contain an object like this:
+  
+  ```tsx
+  type NextRequestContext = {
+    get(): NextRequestContextValue | undefined
+  }
+  
+  type NextRequestContextValue = {
+    waitUntil?: (promise: Promise<any>) => void
+  }
+  ```
+  
+  Here is an example of the implementation.
+  
+  ```tsx
+  import { AsyncLocalStorage } from 'node:async_hooks'
+  
+  const RequestContextStorage = new AsyncLocalStorage<NextRequestContextValue>()
+  
+  // Define and inject the accessor that next.js will use
+  const RequestContext: NextRequestContext = {
+    get() {
+      return RequestContextStorage.getStore()
+    },
+  }
+  globalThis[Symbol.for('@next/request-context')] = RequestContext
+  
+  const handler = (req, res) => {
+    const contextValue = { waitUntil: YOUR_WAITUNTIL }
+    // Provide the value
+    return RequestContextStorage.run(contextValue, () => nextJsHandler(req, res))
+  }
+  ```
+</details>
 
 </AppOnly>
 
@@ -349,57 +392,3 @@ if (process.env.NEXT_MANUAL_SIG_HANDLE) {
 ```
 
 </PagesOnly>
-
-<AppOnly>
-
-## For providers: supporting `after` on your serverless platform
-
-Using `after` in a serverless context requires waiting for asynchronous tasks to finish after the response has been sent. In Next.js and Vercel, this is achieved using a primitive called `waitUntil(promise)`, which extends the lifetime of a serverless invocation until all promises passed to [`waitUntil`](https://vercel.com/docs/functions/functions-api-reference#waituntil) have settled.
-
-If you want your users to be able to run `after`, you will have to provide your implementation of `waitUntil` that behaves in an analogous way.
-
-### Interface
-
-When `after` is called, Next.js will access `waitUntil` like this:
-
-```jsx
-const RequestContext = globalThis[Symbol.for('@next/request-context')]
-const contextValue = RequestContext?.get()
-const waitUntil = context?.waitUntil
-```
-
-Which means that `globalThis[Symbol.for('@next/request-context')]` is expected to contain an object like this:
-
-```tsx
-type NextRequestContext = {
-  get(): NextRequestContextValue | undefined
-}
-
-type NextRequestContextValue = {
-  waitUntil?: (promise: Promise<any>) => void
-}
-```
-
-### Example
-
-```tsx
-import { AsyncLocalStorage } from 'node:async_hooks'
-
-const RequestContextStorage = new AsyncLocalStorage<NextRequestContextValue>()
-
-// Define and inject the accessor that next.js will use
-const RequestContext: NextRequestContext = {
-  get() {
-    return RequestContextStorage.getStore()
-  },
-}
-globalThis[Symbol.for('@next/request-context')] = RequestContext
-
-const handler = (req, res) => {
-  const contextValue = { waitUntil: YOUR_WAITUNTIL }
-  // Provide the value
-  return RequestContextStorage.run(contextValue, () => nextJsHandler(req, res))
-}
-```
-
-</AppOnly>
