@@ -28,8 +28,8 @@ use turbo_tasks::{
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, ReadRef, ResolvedVc, State, TaskInput,
-    TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, State,
+    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -47,7 +47,7 @@ use turbopack_core::{
     diagnostics::DiagnosticExt,
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
-    module::Modules,
+    module::{Module, Modules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionSourceMap,
@@ -68,11 +68,13 @@ use crate::{
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
-    route::{Endpoint, Route},
+    route::{AppPageRoute, Endpoint, Route},
     versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
 };
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
     pub preview_mode_id: RcStr,
@@ -81,7 +83,18 @@ pub struct DraftModeOptions {
 }
 
 #[derive(
-    Debug, Default, Serialize, Deserialize, Copy, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    Copy,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WatchOptions {
@@ -93,7 +106,9 @@ pub struct WatchOptions {
     pub poll_interval: Option<Duration>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
@@ -135,7 +150,9 @@ pub struct ProjectOptions {
     pub browserslist_query: RcStr,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct PartialProjectOptions {
     /// A root path from which all files must be nested under. Trying to access
@@ -174,7 +191,9 @@ pub struct PartialProjectOptions {
     pub preview_props: Option<DraftModeOptions>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs)]
+#[derive(
+    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+)]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
     pub client: Vec<(RcStr, RcStr)>,
@@ -664,6 +683,75 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn client_compile_time_info(&self) -> Vc<CompileTimeInfo> {
         get_client_compile_time_info(self.browserslist_query.clone(), self.define_env.client())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn get_all_entries(self: Vc<Self>) -> Result<Vc<Modules>> {
+        let mut modules = Vec::new();
+
+        async fn add_endpoint(
+            endpoint: Vc<Box<dyn Endpoint>>,
+            modules: &mut Vec<ResolvedVc<Box<dyn Module>>>,
+        ) -> Result<()> {
+            let root_modules = endpoint.root_modules().await?;
+            modules.extend(root_modules.iter().copied());
+            Ok(())
+        }
+
+        modules.extend(self.client_main_modules().await?.iter().copied());
+
+        let entrypoints = self.entrypoints().await?;
+
+        modules.extend(self.client_main_modules().await?.iter().copied());
+        add_endpoint(*entrypoints.pages_error_endpoint, &mut modules).await?;
+        add_endpoint(*entrypoints.pages_app_endpoint, &mut modules).await?;
+        add_endpoint(*entrypoints.pages_document_endpoint, &mut modules).await?;
+
+        if let Some(middleware) = &entrypoints.middleware {
+            add_endpoint(middleware.endpoint, &mut modules).await?;
+        }
+
+        if let Some(instrumentation) = &entrypoints.instrumentation {
+            let node_js = instrumentation.node_js;
+            let edge = instrumentation.edge;
+            add_endpoint(node_js, &mut modules).await?;
+            add_endpoint(edge, &mut modules).await?;
+        }
+
+        for (_, route) in entrypoints.routes.iter() {
+            match route {
+                Route::Page {
+                    html_endpoint,
+                    data_endpoint: _,
+                } => {
+                    add_endpoint(**html_endpoint, &mut modules).await?;
+                }
+                Route::PageApi { endpoint } => {
+                    add_endpoint(**endpoint, &mut modules).await?;
+                }
+                Route::AppPage(page_routes) => {
+                    for AppPageRoute {
+                        original_name: _,
+                        html_endpoint,
+                        rsc_endpoint: _,
+                    } in page_routes
+                    {
+                        add_endpoint(*html_endpoint, &mut modules).await?;
+                    }
+                }
+                Route::AppRoute {
+                    original_name: _,
+                    endpoint,
+                } => {
+                    add_endpoint(**endpoint, &mut modules).await?;
+                }
+                Route::Conflict => {
+                    tracing::info!("WARN: conflict");
+                }
+            }
+        }
+
+        Ok(Vc::cell(modules))
     }
 
     #[turbo_tasks::function]
