@@ -1943,7 +1943,8 @@
       null === debugInfo.owner && null != response._debugRootOwner
         ? ((debugInfo.owner = response._debugRootOwner),
           (debugInfo.debugStack = response._debugRootStack))
-        : initializeFakeStack(response, debugInfo);
+        : void 0 !== debugInfo.stack &&
+          initializeFakeStack(response, debugInfo);
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }
@@ -2079,6 +2080,7 @@
         case 84:
           resolveText(response, id, row);
           break;
+        case 78:
         case 68:
           tag = new ReactPromise("resolved_model", row, null, response);
           initializeModelChunk(tag);
@@ -2465,10 +2467,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-7283a213-20241206",
+      version: "19.0.0-rc-79ddf5b5-20241210",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-7283a213-20241206",
+      reconcilerVersion: "19.0.0-rc-79ddf5b5-20241210",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

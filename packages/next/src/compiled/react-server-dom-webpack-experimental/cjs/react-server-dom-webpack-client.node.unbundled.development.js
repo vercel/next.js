@@ -1709,6 +1709,7 @@
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
       this._tempRefs = temporaryReferences;
+      this._timeOrigin = 0;
       this._debugRootOwner = bundlerConfig =
         void 0 === ReactSharedInteralsServer ||
         null === ReactSharedInteralsServer.A
@@ -2207,15 +2208,20 @@
           initializeFakeStack(response, debugInfo.owner));
     }
     function resolveDebugInfo(response, id, debugInfo) {
-      initializeFakeTask(
-        response,
-        debugInfo,
-        void 0 === debugInfo.env ? response._rootEnvironmentName : debugInfo.env
-      );
+      var env =
+        void 0 === debugInfo.env
+          ? response._rootEnvironmentName
+          : debugInfo.env;
+      void 0 !== debugInfo.stack &&
+        initializeFakeTask(response, debugInfo, env);
       null === debugInfo.owner && null != response._debugRootOwner
-        ? ((debugInfo.owner = response._debugRootOwner),
-          (debugInfo.debugStack = response._debugRootStack))
-        : initializeFakeStack(response, debugInfo);
+        ? ((env = debugInfo),
+          (env.owner = response._debugRootOwner),
+          (env.debugStack = response._debugRootStack))
+        : void 0 !== debugInfo.stack &&
+          initializeFakeStack(response, debugInfo);
+      "number" === typeof debugInfo.time &&
+        (debugInfo = { time: debugInfo.time + response._timeOrigin });
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }
@@ -2402,6 +2408,9 @@
           break;
         case 84:
           resolveText(response, id, row);
+          break;
+        case 78:
+          response._timeOrigin = +row - performance.timeOrigin;
           break;
         case 68:
           tag = new ReactPromise("resolved_model", row, null, response);
