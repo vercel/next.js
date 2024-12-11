@@ -43,6 +43,6 @@ This plugin transforms Next.js source code by:
   cd "$NEXT_JS_ROOT/crates/next-error-code-swc-plugin"
   rustup target add wasm32-wasip1
   CARGO_PROFILE_RELEASE_STRIP=true CARGO_PROFILE_RELEASE_LTO=true cargo build --target wasm32-wasip1 --release
-  mv "$NEXT_JS_ROOT/target/wasm32-wasip1/release/next_error_code_swc_plugin.wasm" "$NEXT_JS_ROOT/packages/next/"
+  mv "$NEXT_JS_ROOT/crates/next-error-code-swc-plugin/target/wasm32-wasip1/release/next_error_code_swc_plugin.wasm" "$NEXT_JS_ROOT/packages/next/"
   echo "✨ Successfully built and moved WASM plugin! 🚀"
   ```

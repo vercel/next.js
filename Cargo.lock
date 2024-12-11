@@ -3667,12 +3667,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "md5"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "490cc448043f947bae3cbee9c203358d62dbee0db12107a74be5c30ccfd09771"
-
-[[package]]
 name = "mdxjs"
 version = "0.2.13"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4113,16 +4107,6 @@ dependencies = [
  "turbo-rcstr",
  "turbopack-ecmascript-plugins",
  "walkdir",
-]
-
-[[package]]
-name = "next-error-code-swc-plugin"
-version = "0.1.0"
-dependencies = [
- "md5",
- "serde",
- "serde_json",
- "swc_core",
 ]
 
 [[package]]
@@ -6546,7 +6530,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92086975747587872715a20f78fc51e7047bac58f3a6a17d4ed5a9643f3fd0a2"
 dependencies = [
  "binding_macros",
- "once_cell",
  "swc",
  "swc_allocator",
  "swc_atoms",
@@ -6571,8 +6554,6 @@ dependencies = [
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_nodejs_common",
- "swc_plugin",
- "swc_plugin_macro",
  "swc_plugin_proxy",
  "swc_plugin_runner",
  "testing",
@@ -7534,15 +7515,6 @@ dependencies = [
  "serde_json",
  "tracing",
  "tracing-subscriber",
-]
-
-[[package]]
-name = "swc_plugin"
-version = "1.0.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6b45099a38ed45528bef939d0eac1a0c1347749d0c67d3dd744d545316c5fd05"
-dependencies = [
- "once_cell",
 ]
 
 [[package]]

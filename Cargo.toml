@@ -12,6 +12,9 @@ members = [
   "crates/next-custom-transforms",
   "turbopack/crates/*",
   "turbopack/xtask",
+]
+
+exclude = [
   "crates/next-error-code-swc-plugin",
 ]
 
