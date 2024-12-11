@@ -1,9 +1,12 @@
 import { useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
-import { isNextRouterError } from '../is-next-router-error'
-import { isKnownHydrationWarning, storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
-import { formatConsoleArgs } from '../../lib/console'
-import isError from '../../../lib/is-error'
+import { isNextRouterError } from '../../../is-next-router-error'
+import {
+  isKnownHydrationWarning,
+  storeHydrationErrorStateFromConsoleArgs,
+} from './hydration-error-info'
+import { formatConsoleArgs } from '../../../../lib/console'
+import isError from '../../../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
 import { getReactStitchedError } from './stitched-error'
@@ -25,31 +28,23 @@ export function handleClientError(
   capturedFromConsole: boolean = false
 ) {
   let error: Error
-  const hydrationErrorState = storeHydrationErrorStateFromConsoleArgs(...consoleErrorArgs)
+  const hydrationErrorState = storeHydrationErrorStateFromConsoleArgs(
+    ...consoleErrorArgs
+  )
   if (!originError || !isError(originError)) {
     // If it's not an error, format the args into an error
     const formattedErrorMessage = formatConsoleArgs(consoleErrorArgs)
     error = createUnhandledError(formattedErrorMessage)
-    
   } else {
     error = capturedFromConsole
       ? createUnhandledError(originError)
       : originError
   }
   if (isHydrationError(error) || isKnownHydrationWarning(consoleErrorArgs[0])) {
-    console.log('isHydrationError', isHydrationError(error), isKnownHydrationWarning(consoleErrorArgs[0]), hydrationErrorState)
-    if (hydrationErrorState) {
-      attachHydrationErrorState(error, hydrationErrorState)
-    }
+    attachHydrationErrorState(error, hydrationErrorState)
   }
-  console.log('error details', (error as any).details)
-  error = getReactStitchedError(error)
 
-  
-  // if (isHydrationError(error)) {
-  //   attachHydrationErrorState(error)
-  // }
-  // attachHydrationErrorState(error)
+  error = getReactStitchedError(error)
 
   enqueueConsecutiveDedupedError(errorQueue, error)
   for (const handler of errorHandlers) {

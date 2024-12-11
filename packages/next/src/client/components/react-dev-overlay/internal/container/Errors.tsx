@@ -296,23 +296,23 @@ export function Errors({
         .replace(/^Error: /, '')
     : null
 
-
-  const diffContent = (errorDetails.componentStack || '') 
+  const diffContent = (errorDetails.reactOutputComponentDiff || '')
     .trim()
     .replace(/\.\.\.\s*/, '')
   const showHydrationDiff = Boolean(
     hydrationWarning &&
-    (activeError.componentStackFrames?.length || !!diffContent)
+      (activeError.componentStackFrames?.length || !!diffContent)
   )
-  console.log(
-    'hydrationErrorType', hydrationErrorType
-    // 'showHydrationDiff', showHydrationDiff,
-    // 'hydrationWarning', hydrationWarning,
-    // 'activeError.componentStackFrames', activeError.componentStackFrames,
-    // 'diffContent', diffContent,
-    // 'errorDetails', errorDetails
-  )
-  
+  // console.log('hydrationErrorType', hydrationErrorType)
+  // console.log('hydrationWarning', hydrationWarning)
+  // console.log('diffContent', diffContent)
+  // console.log('errorDetails', errorDetails)
+  // 'showHydrationDiff', showHydrationDiff,
+  // 'hydrationWarning', hydrationWarning,
+  // 'activeError.componentStackFrames', activeError.componentStackFrames,
+  // 'diffContent', diffContent,
+  // 'errorDetails', errorDetails
+
   return (
     <Overlay>
       <Dialog

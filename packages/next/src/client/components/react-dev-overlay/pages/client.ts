@@ -26,10 +26,9 @@ function handleError(error: unknown) {
     return
   }
 
-  // attachHydrationErrorState(error)
+  attachHydrationErrorState(error, null)
 
-  const componentStackTrace =
-    (error as any)._componentStack // || hydrationErrorState.componentStack
+  const componentStackTrace = (error as any)._componentStack // || hydrationErrorState.componentStack
   const componentStackFrames =
     typeof componentStackTrace === 'string'
       ? parseComponentStack(componentStackTrace)

@@ -13,7 +13,7 @@ export type HydrationErrorState = {
 
 type NullableText = string | null | undefined
 
-export const hydrationErrorState: HydrationErrorState = {}
+// export const hydrationErrorState: HydrationErrorState = {}
 
 // https://github.com/facebook/react/blob/main/packages/react-dom/src/__tests__/ReactDOMHydrationDiff-test.js used as a reference
 const htmlTagsWarnings = new Set([
@@ -77,7 +77,7 @@ export const isKnownHydrationWarning = (message: NullableText) => {
 export const getReactHydrationDiffSegments = (msg: NullableText) => {
   if (msg) {
     const { message, diff } = getHydrationErrorStackInfo(msg)
-    if (message) return [message, diff]
+    if (message) return [message, diff] as const
   }
   return undefined
 }
@@ -89,22 +89,32 @@ export const getReactHydrationDiffSegments = (msg: NullableText) => {
  * This results in a more helpful error message in the error overlay.
  */
 
-export function storeHydrationErrorStateFromConsoleArgs(...args: any[]) {
-  const [msg, serverContent, clientContent, componentStack] = args
+export function storeHydrationErrorStateFromConsoleArgs(...args: any[]): {
+  warning: [string, string, string]
+  reactOutputComponentDiff: string
+  serverContent: string
+  clientContent: string
+  // componentStack: string
+} | null {
+  const [msg, serverContent, clientContent, ...rest] = args
   if (isKnownHydrationWarning(msg)) {
+    // Some hydration warnings has 4 arguments, some has 3, fallback to the last argument
+    // when the 3rd argument is not the component stack but an empty string
+    const componentStack = msg.endsWith('%s') ? rest[rest.length - 1] : rest[0]
     const warning: [string, string, string] = [
       // remove the last %s from the message
       msg,
       serverContent,
       clientContent,
     ]
-    hydrationErrorState.warning = warning
-    hydrationErrorState.componentStack = componentStack
-    hydrationErrorState.serverContent = serverContent
-    hydrationErrorState.clientContent = clientContent
+    // hydrationErrorState.warning = warning
+    // hydrationErrorState.componentStack = componentStack.trim()
+    // hydrationErrorState.serverContent = serverContent
+    // hydrationErrorState.clientContent = clientContent
     return {
       warning,
-      componentStack,
+      // componentStack,
+      reactOutputComponentDiff: componentStack,
       serverContent,
       clientContent,
     }

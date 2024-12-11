@@ -17,9 +17,7 @@ export const getDefaultHydrationErrorMessage = () => {
 }
 
 export function isHydrationError(error: unknown): boolean {
-  return isError(error) && (
-    hydrationErrorRegex.test(error.message)
-  )
+  return isError(error) && hydrationErrorRegex.test(error.message)
 }
 
 export function isReactHydrationErrorMessage(msg: string): boolean {
@@ -28,13 +26,18 @@ export function isReactHydrationErrorMessage(msg: string): boolean {
 
 export function getHydrationErrorStackInfo(rawMessage: string): {
   message: string | null
-  link?: string
-  stack?: string
-  diff?: string
+  link: string
+  stack: string
+  diff: string
 } {
   rawMessage = rawMessage.replace(/^Error: /, '')
   if (!isReactHydrationErrorMessage(rawMessage)) {
-    return { message: null }
+    return {
+      message: null,
+      link: '',
+      stack: rawMessage,
+      diff: '',
+    }
   }
   const firstLineBreak = rawMessage.indexOf('\n')
   rawMessage = rawMessage.slice(firstLineBreak + 1).trim()
@@ -64,6 +67,7 @@ export function getHydrationErrorStackInfo(rawMessage: string): {
     return {
       message: trimmedMessage,
       link: reactHydrationErrorDocLink,
+      diff: '',
       stack: trailing, // without hydration diff
     }
   }
