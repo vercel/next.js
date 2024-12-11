@@ -45,12 +45,12 @@ jobs:
       - name: Build benchmarks for tests
         timeout-minutes: 120
         run: |
-          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi --no-run
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi --exclude next-error-code-swc-plugin --no-run
 
       - name: Run cargo test on benchmarks
         timeout-minutes: 120
         run: |
-          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi
+          cargo test --benches --workspace --release --no-fail-fast --exclude turbopack-bench --exclude next-swc-napi --exclude next-error-code-swc-plugin
 
       - name: Build benchmarks for tests for other bundlers
         if: inputs.all

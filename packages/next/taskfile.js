@@ -7,6 +7,7 @@ const fs = require('fs/promises')
 // eslint-disable-next-line import/no-extraneous-dependencies
 const resolveFrom = require('resolve-from')
 const execa = require('execa')
+const process = require('process')
 
 export async function next__polyfill_nomodule(task, opts) {
   await task
@@ -2700,13 +2701,29 @@ export async function diagnostics(task, opts) {
 }
 
 export async function build(task, opts) {
-  await task.serial(['precompile', 'compile', 'generate_types'], opts)
+  await task.serial(
+    ['precompile', 'compile', 'check_error_codes', 'generate_types'],
+    opts
+  )
 }
 
 export async function generate_types(task, opts) {
   await execa.command('pnpm run types', {
     stdio: 'inherit',
   })
+}
+
+export async function check_error_codes(task, opts) {
+  try {
+    await execa.command('pnpm -w run check-error-codes', {
+      stdio: 'inherit',
+    })
+  } catch (err) {
+    if (process.env.CI) {
+      process.exit(1)
+    }
+    await task.start('compile', opts)
+  }
 }
 
 export default async function (task) {
