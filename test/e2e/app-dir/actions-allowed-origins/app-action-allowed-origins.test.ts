@@ -8,8 +8,8 @@ createNextDescribe(
     files: join(__dirname, 'safe-origins'),
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '^18.2.0',
+      'react-dom': '^18.2.0',
       'server-only': 'latest',
     },
     // An arbitrary & random port.

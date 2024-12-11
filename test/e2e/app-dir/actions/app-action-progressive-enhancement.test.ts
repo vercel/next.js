@@ -8,9 +8,9 @@ createNextDescribe(
   {
     files: __dirname,
     dependencies: {
-      react: 'latest',
+      react: '^18.2.0',
       nanoid: 'latest',
-      'react-dom': 'latest',
+      'react-dom': '^18.2.0',
       'server-only': 'latest',
     },
   },

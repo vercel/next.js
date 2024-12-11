@@ -93,8 +93,8 @@ describe('eslint plugin deps', () => {
         'eslint-plugin-import': 'latest',
         'eslint-plugin-react': 'latest',
         '@types/node': 'latest',
-        '@types/react': 'latest',
-        '@types/react-dom': 'latest',
+        '@types/react': '^18.2.0',
+        '@types/react-dom': '^18.2.0',
         // Use minimum peer dep version instead of v9 of eslint to avoid breaking changes
         eslint: '8.56.0',
         'eslint-config-next': 'latest',

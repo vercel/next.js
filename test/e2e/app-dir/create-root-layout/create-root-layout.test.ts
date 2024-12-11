@@ -74,8 +74,8 @@ import stripAnsi from 'strip-ansi'
                 ),
               },
               dependencies: {
-                react: 'latest',
-                'react-dom': 'latest',
+                react: '^18.2.0',
+                'react-dom': '^18.2.0',
               },
             })
           })
@@ -128,8 +128,8 @@ import stripAnsi from 'strip-ansi'
                 ),
               },
               dependencies: {
-                react: 'latest',
-                'react-dom': 'latest',
+                react: '^18.2.0',
+                'react-dom': '^18.2.0',
               },
             })
           })
@@ -237,8 +237,8 @@ import stripAnsi from 'strip-ansi'
               ),
             },
             dependencies: {
-              react: 'latest',
-              'react-dom': 'latest',
+              react: '^18.2.0',
+              'react-dom': '^18.2.0',
             },
           })
 
