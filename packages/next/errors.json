@@ -523,6 +523,5 @@
   "522": "invariant did not get entry from image response cache",
   "523": "[%s]: experimental.useLightningcss does not work with postcss plugins. Please remove 'useLightningcss: true' from your configuration.",
   "524": "A default cacheLife profile must always be provided. This is a bug in Next.js.",
-  "525": "cache: 'no-store' used on fetch for %s with 'export const fetchCache = 'only-cache'",
-  "526": "Invariant: did not expect response writer to be written to for upgrade request"
+  "525": "cache: 'no-store' used on fetch for %s with 'export const fetchCache = 'only-cache'"
 }
