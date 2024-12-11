@@ -500,8 +500,17 @@ async function fetchRouteOnCacheMiss(
   const nextUrl = key.nextUrl
   try {
     const response = await fetchSegmentPrefetchResponse(href, '/_tree', nextUrl)
-    if (!response || !response.ok || !response.body) {
-      // Received an unexpected response.
+    if (
+      !response ||
+      !response.ok ||
+      // 204 is a Cache miss. Though theoretically this shouldn't happen when
+      // PPR is enabled, because we always respond to route tree requests, even
+      // if it needs to be blockingly generated on demand.
+      response.status === 204 ||
+      !response.body
+    ) {
+      // Server responded with an error, or with a miss. We should still cache
+      // the response, but we can try again after 10 seconds.
       rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
       return
     }
@@ -594,9 +603,14 @@ async function fetchSegmentEntryOnCacheMiss(
       accessToken === '' ? segmentPath : `${segmentPath}.${accessToken}`,
       routeKey.nextUrl
     )
-    if (!response || !response.ok || !response.body) {
-      // Server responded with an error. We should still cache the response, but
-      // we can try again after 10 seconds.
+    if (
+      !response ||
+      !response.ok ||
+      response.status === 204 || // Cache miss
+      !response.body
+    ) {
+      // Server responded with an error, or with a miss. We should still cache
+      // the response, but we can try again after 10 seconds.
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return
     }

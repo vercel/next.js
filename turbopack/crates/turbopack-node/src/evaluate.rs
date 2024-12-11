@@ -619,7 +619,7 @@ impl EvaluateContext for BasicEvaluateContext {
                 .to_resolved()
                 .await?,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         Ok(())
     }

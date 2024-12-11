@@ -19,7 +19,7 @@ const rgbDataURL = (r: number, g: number, b: number) =>
 export default function Color() {
   return (
     <div>
-      <ViewSource pathname="pages/color.tsx" />
+      <ViewSource pathname="app/color/page.tsx" />
       <h1>Image Component With Color Data URL</h1>
       <Image
         alt="Dog"

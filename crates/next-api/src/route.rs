@@ -1,7 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, Vc,
+};
 use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;
@@ -30,43 +32,28 @@ impl AppPageRoute {
 #[derive(Clone, Debug)]
 pub enum Route {
     Page {
-        html_endpoint: Vc<Box<dyn Endpoint>>,
-        data_endpoint: Vc<Box<dyn Endpoint>>,
+        html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        data_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     PageApi {
-        endpoint: Vc<Box<dyn Endpoint>>,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
     AppRoute {
         original_name: String,
-        endpoint: Vc<Box<dyn Endpoint>>,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     Conflict,
 }
 
 impl Route {
     pub async fn resolve(&mut self) -> Result<()> {
-        match self {
-            Route::Page {
-                html_endpoint,
-                data_endpoint,
-            } => {
-                *html_endpoint = html_endpoint.resolve().await?;
-                *data_endpoint = data_endpoint.resolve().await?;
+        if let Route::AppPage(routes) = self {
+            for route in routes {
+                route.resolve().await?;
             }
-            Route::PageApi { endpoint } => {
-                *endpoint = endpoint.resolve().await?;
-            }
-            Route::AppPage(routes) => {
-                for route in routes {
-                    route.resolve().await?;
-                }
-            }
-            Route::AppRoute { endpoint, .. } => {
-                *endpoint = endpoint.resolve().await?;
-            }
-            Route::Conflict => {}
         }
+
         Ok(())
     }
 }

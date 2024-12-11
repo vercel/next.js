@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -386,7 +386,17 @@ impl Display for ExternalTraced {
 }
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum ExternalType {
     Url,
@@ -1124,7 +1134,7 @@ async fn exports_field(
                 path: package_json_path,
                 error_message: err.to_string().into(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(ExportsFieldResult::None.cell())
         }
@@ -1165,7 +1175,7 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
                 path: *package_json_path,
                 error_message: err.to_string().into(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(ImportsFieldResult::None.cell())
         }
@@ -1269,7 +1279,7 @@ pub async fn find_context_file_or_package_key(
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 enum FindPackageItem {
     PackageDirectory(ResolvedVc<FileSystemPath>),
     PackageFile(ResolvedVc<FileSystemPath>),
@@ -1845,7 +1855,7 @@ async fn resolve_internal_inline(
                         ),
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
 
@@ -1871,7 +1881,7 @@ async fn resolve_internal_inline(
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
 
@@ -1929,7 +1939,7 @@ async fn resolve_internal_inline(
                         error_message: None,
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
                 ResolveResult::unresolvable().into()
@@ -2336,7 +2346,7 @@ async fn apply_in_package(
             error_message: Some(format!("invalid alias field value: {}", value)),
             source: None,
         }
-        .cell()
+        .resolved_cell()
         .emit();
 
         return Ok(Some(
@@ -2844,7 +2854,7 @@ async fn resolve_package_internal_with_imports_field(
             error_message: None,
             source: None,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok(ResolveResult::unresolvable().into());
     }
@@ -2979,7 +2989,7 @@ async fn emit_resolve_error_issue(
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(())
 }
@@ -3006,7 +3016,7 @@ async fn emit_unresolvable_issue(
         error_message: None,
         source,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(())
 }

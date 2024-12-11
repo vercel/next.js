@@ -172,11 +172,11 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
 
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))
     }
 }

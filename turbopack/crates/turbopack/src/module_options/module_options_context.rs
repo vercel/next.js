@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, ResolvedVc, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::MinifyType, condition::ContextCondition, environment::Environment,
@@ -15,7 +15,7 @@ use turbopack_node::{
 
 use super::ModuleRule;
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub struct LoaderRuleItem {
     pub loaders: ResolvedVc<WebpackLoaderItems>,
     pub rename_as: Option<RcStr>,
@@ -38,14 +38,14 @@ pub struct WebpackLoadersOptions {
 
 /// The kind of decorators transform to use.
 /// [TODO]: might need bikeshed for the name (Ecma)
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum DecoratorsKind {
     Legacy,
     Ecma,
 }
 
 /// The types when replacing `typeof window` with a constant.
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum TypeofWindow {
     Object,
     Undefined,

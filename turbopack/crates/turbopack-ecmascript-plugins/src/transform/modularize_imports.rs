@@ -5,10 +5,10 @@ use async_trait::async_trait;
 use modularize_imports::{modularize_imports, Config, PackageConfig};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
     pub transform: String,

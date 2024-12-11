@@ -1,6 +1,7 @@
 use std::future::IntoFuture;
 
 use anyhow::{bail, Context, Result};
+use futures::future::BoxFuture;
 use next_core::{
     all_assets_from_entries, create_page_loader_entry_module, get_asset_path_from_pathname,
     get_edge_resolve_options_context,
@@ -31,7 +32,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, TaskInput, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -62,12 +64,10 @@ use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        DynamicImportedChunks, VisitedDynamicImportModules,
-    },
+    dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group, DynamicImportedChunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -105,7 +105,11 @@ impl PagesProject {
         async fn add_page_to_routes(
             routes: &mut FxIndexMap<RcStr, Route>,
             page: Vc<PagesStructureItem>,
-            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
+            make_route: impl Fn(
+                Vc<RcStr>,
+                Vc<RcStr>,
+                Vc<PagesStructureItem>,
+            ) -> BoxFuture<'static, Result<Route>>,
         ) -> Result<()> {
             let PagesStructureItem {
                 next_router_path,
@@ -115,7 +119,7 @@ impl PagesProject {
             let pathname: RcStr = format!("/{}", next_router_path.await?.path).into();
             let pathname_vc = Vc::cell(pathname.clone());
             let original_name = Vc::cell(format!("/{}", original_path.await?.path).into());
-            let route = make_route(pathname_vc, original_name, page);
+            let route = make_route(pathname_vc, original_name, page).await?;
             routes.insert(pathname, route);
             Ok(())
         }
@@ -123,7 +127,11 @@ impl PagesProject {
         async fn add_dir_to_routes(
             routes: &mut FxIndexMap<RcStr, Route>,
             dir: Vc<PagesDirectoryStructure>,
-            make_route: impl Fn(Vc<RcStr>, Vc<RcStr>, Vc<PagesStructureItem>) -> Route,
+            make_route: impl Fn(
+                Vc<RcStr>,
+                Vc<RcStr>,
+                Vc<PagesStructureItem>,
+            ) -> BoxFuture<'static, Result<Route>>,
         ) -> Result<()> {
             let mut queue = vec![dir];
             while let Some(dir) = queue.pop() {
@@ -145,37 +153,55 @@ impl PagesProject {
 
         if let Some(api) = *api {
             add_dir_to_routes(&mut routes, *api, |pathname, original_name, page| {
-                Route::PageApi {
-                    endpoint: Vc::upcast(PageEndpoint::new(
-                        PageEndpointType::Api,
-                        self,
-                        pathname,
-                        original_name,
-                        page,
-                        pages_structure,
-                    )),
-                }
+                Box::pin(async move {
+                    Ok(Route::PageApi {
+                        endpoint: ResolvedVc::upcast(
+                            PageEndpoint::new(
+                                PageEndpointType::Api,
+                                self,
+                                pathname,
+                                original_name,
+                                page,
+                                pages_structure,
+                            )
+                            .to_resolved()
+                            .await?,
+                        ),
+                    })
+                })
             })
             .await?;
         }
 
-        let make_page_route = |pathname, original_name, page| Route::Page {
-            html_endpoint: Vc::upcast(PageEndpoint::new(
-                PageEndpointType::Html,
-                self,
-                pathname,
-                original_name,
-                page,
-                pages_structure,
-            )),
-            data_endpoint: Vc::upcast(PageEndpoint::new(
-                PageEndpointType::Data,
-                self,
-                pathname,
-                original_name,
-                page,
-                pages_structure,
-            )),
+        let make_page_route = |pathname, original_name, page| -> BoxFuture<_> {
+            Box::pin(async move {
+                Ok(Route::Page {
+                    html_endpoint: ResolvedVc::upcast(
+                        PageEndpoint::new(
+                            PageEndpointType::Html,
+                            self,
+                            pathname,
+                            original_name,
+                            page,
+                            pages_structure,
+                        )
+                        .to_resolved()
+                        .await?,
+                    ),
+                    data_endpoint: ResolvedVc::upcast(
+                        PageEndpoint::new(
+                            PageEndpointType::Data,
+                            self,
+                            pathname,
+                            original_name,
+                            page,
+                            pages_structure,
+                        )
+                        .to_resolved()
+                        .await?,
+                    ),
+                })
+            })
         };
 
         if let Some(pages) = *pages {
@@ -606,7 +632,17 @@ struct PageEndpoint {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum PageEndpointType {
     Api,
@@ -616,7 +652,17 @@ enum PageEndpointType {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum SsrChunkType {
     Page,
@@ -819,14 +865,14 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
-            let dynamic_import_modules = collect_next_dynamic_imports(
-                vec![*ResolvedVc::upcast(ssr_module)],
-                this.pages_project.client_module_context(),
-                VisitedDynamicImportModules::empty(),
-            )
-            .await?
-            .client_dynamic_imports
-            .clone();
+            let reduced_graphs = get_reduced_graphs_for_endpoint(
+                this.pages_project.project(),
+                *ssr_module,
+                Vc::upcast(this.pages_project.client_module_context()),
+            );
+            let next_dynamic_imports = reduced_graphs
+                .get_next_dynamic_imports_for_endpoint(*ssr_module)
+                .await?;
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
@@ -849,7 +895,7 @@ impl PageEndpoint {
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    dynamic_import_modules,
+                    &next_dynamic_imports,
                 )
                 .await?
                 .to_resolved()
@@ -884,7 +930,7 @@ impl PageEndpoint {
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    dynamic_import_modules,
+                    &next_dynamic_imports,
                     Value::new(AvailabilityInfo::Root),
                 )
                 .await?

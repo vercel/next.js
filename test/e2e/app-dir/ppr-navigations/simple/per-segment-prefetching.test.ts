@@ -64,9 +64,9 @@ describe('per segment prefetching', () => {
     expect(childResponseText).toInclude('"rsc"')
   })
 
-  it('respond with 404 if the segment does not have prefetch data', async () => {
+  it('respond with 204 if the segment does not have prefetch data', async () => {
     const response = await prefetch('/en', '/does-not-exist')
-    expect(response.status).toBe(404)
+    expect(response.status).toBe(204)
     const responseText = await response.text()
     expect(responseText.trim()).toBe('')
   })
