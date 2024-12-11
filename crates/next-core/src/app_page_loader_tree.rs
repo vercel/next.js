@@ -213,7 +213,8 @@ impl AppPageLoaderTreeBuilder {
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import: RcStr = "import { fillMetadataSegment } from \
-                                    \"next/dist/lib/metadata/get-metadata-route\""
+                                    'next/dist/lib/metadata/get-metadata-route' with { \
+                                    'turbopack-transition': 'next-server-utility' }"
             .into();
 
         if !self.base.imports.contains(&helper_import) {
