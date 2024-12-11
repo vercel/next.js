@@ -1074,7 +1074,14 @@ export default async function loadConfig(
     ) as NextConfigComplete
   }
 
-  const path = await findUp(CONFIG_FILES, { cwd: dir })
+  // To ensure end-to-end stability, we use the config from the project directory only.
+  // This prevents issues caused by extraneous next.config files in parent directories,
+  // which can lead to hard-to-debug flaky behavior.
+  const path = process.env.__NEXT_TEST_MODE
+    ? CONFIG_FILES.map((configFile) => join(dir, configFile)).find((file) =>
+        existsSync(file)
+      )
+    : await findUp(CONFIG_FILES, { cwd: dir })
 
   if (process.env.__NEXT_TEST_MODE) {
     if (path) {
