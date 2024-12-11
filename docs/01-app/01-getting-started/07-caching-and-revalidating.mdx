@@ -195,3 +195,103 @@ export default async function Page() {
   return <Posts posts={posts} />
 }
 ```
+
+## On-demand Revalidation
+
+You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be purged using the [`expireTag`](/docs/app/api-reference/functions/expireTag) in another part of your application such a [Server Action](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+
+For example, to update the list of blog posts once a new post is created, add the `cacheTag` function to the component that renders the list of posts:
+
+```tsx filename="app/ui/posts.tsx" switcher
+'use cache'
+
+import { cacheTag } from 'next/cache'
+
+export function Posts({ posts }) {
+  cacheTag('blog-posts')
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+```jsx filename="app/ui/posts.js" switcher
+'use cache'
+
+import { cacheTag } from 'next/cache'
+
+export function Posts({ posts }) {
+  cacheTag('blog-posts')
+  return (
+    <ul>
+      {posts.map((post) => (
+        <li key={post.id}>{post.title}</li>
+      ))}
+    </ul>
+  )
+}
+```
+
+Then, in the Server Action, call `expireTag` to purge the cache entry:
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+import { expireTag } from 'next/cache'
+
+export async function createPost() {
+  // Mutate data
+  // ...
+
+  // Purge cache
+  expireTag('blog-posts')
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+import { expireTag } from 'next/cache'
+
+export async function createPost() {
+  // Mutate data
+  // ...
+
+  // Purge cache
+  expireTag('blog-posts')
+}
+```
+
+Alternatively, you can call the [`expirePath`](/docs/app/api-reference/functions/unstable_expirePath) function to purge the whole `/blog` route (in which case you don't need to add `cacheTag`):
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+import { expireTag } from 'next/cache'
+
+export async function createPost() {
+  // Mutate data
+  // ...
+
+  // Purge cache
+  expirePath('/blog')
+}
+```
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+import { expireTag } from 'next/cache'
+
+export async function createPost() {
+  // Mutate data
+  // ...
+
+  // Purge cache
+  expirePath('/blog')
+}
+```
