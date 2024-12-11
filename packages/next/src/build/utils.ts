@@ -2,7 +2,7 @@ import type { NextConfig, NextConfigComplete } from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
-import type { GetStaticPathsResult, PageConfig, ServerRuntime } from '../types'
+import type { PageConfig, ServerRuntime } from '../types'
 import type { BuildManifest } from '../server/get-page-files'
 import type {
   Redirect,
@@ -77,9 +77,10 @@ import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { AppSegment } from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
-import type { PrerenderedRoute } from './static-paths/types'
+import { collectRootParamKeys } from './segment-config/app/collect-root-param-keys'
 import { buildAppStaticPaths } from './static-paths/app'
-import { buildStaticPaths } from './static-paths/pages'
+import { buildPagesStaticPaths } from './static-paths/pages'
+import type { PrerenderedRoute } from './static-paths/types'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -940,6 +941,7 @@ type PageIsStaticResult = {
   hasStaticProps?: boolean
   prerenderedRoutes: PrerenderedRoute[] | undefined
   prerenderFallbackMode: FallbackMode | undefined
+  rootParamKeys: readonly string[] | undefined
   isNextImageImported?: boolean
   traceIncludes?: string[]
   traceExcludes?: string[]
@@ -1021,6 +1023,7 @@ export async function isPageStatic({
       let prerenderedRoutes: PrerenderedRoute[] | undefined
       let prerenderFallbackMode: FallbackMode | undefined
       let appConfig: AppSegmentConfig = {}
+      let rootParamKeys: readonly string[] | undefined
       let isClientComponent: boolean = false
       const pathIsEdgeRuntime = isEdgeRuntime(pageRuntime)
 
@@ -1069,7 +1072,6 @@ export async function isPageStatic({
         })
       }
       const Comp = componentsResult.Component as NextComponentType | undefined
-      let staticPathsResult: GetStaticPathsResult | undefined
 
       const routeModule: RouteModule = componentsResult.routeModule
 
@@ -1097,6 +1099,8 @@ export async function isPageStatic({
           )
         }
 
+        rootParamKeys = collectRootParamKeys(componentsResult)
+
         // A page supports partial prerendering if it is an app page and either
         // the whole app has PPR enabled or this page has PPR enabled when we're
         // in incremental mode.
@@ -1113,13 +1117,12 @@ export async function isPageStatic({
         }
 
         if (isDynamicRoute(page)) {
-          ;({ fallbackMode: prerenderFallbackMode, prerenderedRoutes } =
+          ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
             await buildAppStaticPaths({
               dir,
               page,
               dynamicIO,
               authInterrupts,
-              configFileName,
               segments,
               distDir,
               requestHeaders: {},
@@ -1131,6 +1134,7 @@ export async function isPageStatic({
               nextConfigOutput,
               isRoutePPREnabled,
               buildId,
+              rootParamKeys,
             }))
         }
       } else {
@@ -1174,14 +1178,13 @@ export async function isPageStatic({
         )
       }
 
-      if ((hasStaticProps && hasStaticPaths) || staticPathsResult) {
-        ;({ fallbackMode: prerenderFallbackMode, prerenderedRoutes } =
-          await buildStaticPaths({
+      if (hasStaticProps && hasStaticPaths) {
+        ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
+          await buildPagesStaticPaths({
             page,
             locales,
             defaultLocale,
             configFileName,
-            staticPathsResult,
             getStaticPaths: componentsResult.getStaticPaths!,
           }))
       }
@@ -1209,6 +1212,7 @@ export async function isPageStatic({
         isAmpOnly: config.amp === true,
         prerenderFallbackMode,
         prerenderedRoutes,
+        rootParamKeys,
         hasStaticProps,
         hasServerProps,
         isNextImageImported,

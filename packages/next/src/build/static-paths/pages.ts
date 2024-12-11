@@ -1,4 +1,4 @@
-import type { GetStaticPaths, GetStaticPathsResult } from '../../types'
+import type { GetStaticPaths } from '../../types'
 import type { PrerenderedRoute, StaticPathsResult } from './types'
 
 import { normalizeLocalePath } from '../../shared/lib/i18n/normalize-locale-path'
@@ -7,23 +7,20 @@ import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-deli
 import { removeTrailingSlash } from '../../shared/lib/router/utils/remove-trailing-slash'
 import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
 import { getRouteRegex } from '../../shared/lib/router/utils/route-regex'
+import { encodeParam, normalizePathname } from './utils'
 
-export async function buildStaticPaths({
+export async function buildPagesStaticPaths({
   page,
   getStaticPaths,
-  staticPathsResult,
   configFileName,
   locales,
   defaultLocale,
-  appDir,
 }: {
   page: string
-  getStaticPaths?: GetStaticPaths
-  staticPathsResult?: GetStaticPathsResult
+  getStaticPaths: GetStaticPaths
   configFileName: string
   locales?: string[]
   defaultLocale?: string
-  appDir?: boolean
 }): Promise<StaticPathsResult> {
   const prerenderedRoutes: PrerenderedRoute[] = []
   const _routeRegex = getRouteRegex(page)
@@ -31,16 +28,7 @@ export async function buildStaticPaths({
 
   // Get the default list of allowed params.
   const routeParameterKeys = Object.keys(_routeMatcher(page))
-
-  if (!staticPathsResult) {
-    if (getStaticPaths) {
-      staticPathsResult = await getStaticPaths({ locales, defaultLocale })
-    } else {
-      throw new Error(
-        `invariant: attempted to buildStaticPaths without "staticPathsResult" or "getStaticPaths" ${page}`
-      )
-    }
-  }
+  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
@@ -115,14 +103,16 @@ export async function buildStaticPaths({
       // encoded so we decode the segments ensuring we only escape path
       // delimiters
       prerenderedRoutes.push({
-        path: entry
+        pathname: entry
           .split('/')
           .map((segment) =>
             escapePathDelimiters(decodeURIComponent(segment), true)
           )
           .join('/'),
-        encoded: entry,
+        encodedPathname: entry,
         fallbackRouteParams: undefined,
+        fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
+        fallbackRootParams: undefined,
       })
     }
     // For the object-provided path, we must make sure it specifies all
@@ -159,51 +149,33 @@ export async function buildStaticPaths({
         ) {
           paramValue = []
         }
+
         if (
           (repeat && !Array.isArray(paramValue)) ||
-          (!repeat && typeof paramValue !== 'string')
+          (!repeat && typeof paramValue !== 'string') ||
+          typeof paramValue === 'undefined'
         ) {
-          // If this is from app directory, and not all params were provided,
-          // then filter this out.
-          if (appDir && typeof paramValue === 'undefined') {
-            builtPage = ''
-            encodedBuiltPage = ''
-            return
-          }
-
           throw new Error(
             `A required parameter (${validParamKey}) was not provided as ${
               repeat ? 'an array' : 'a string'
-            } received ${typeof paramValue} in ${
-              appDir ? 'generateStaticParams' : 'getStaticPaths'
-            } for ${page}`
+            } received ${typeof paramValue} in getStaticPaths for ${page}`
           )
         }
+
         let replaced = `[${repeat ? '...' : ''}${validParamKey}]`
         if (optional) {
           replaced = `[${replaced}]`
         }
-        builtPage = builtPage
-          .replace(
-            replaced,
-            repeat
-              ? (paramValue as string[])
-                  .map((segment) => escapePathDelimiters(segment, true))
-                  .join('/')
-              : escapePathDelimiters(paramValue as string, true)
-          )
-          .replace(/\\/g, '/')
-          .replace(/(?!^)\/$/, '')
 
-        encodedBuiltPage = encodedBuiltPage
-          .replace(
-            replaced,
-            repeat
-              ? (paramValue as string[]).map(encodeURIComponent).join('/')
-              : encodeURIComponent(paramValue as string)
-          )
-          .replace(/\\/g, '/')
-          .replace(/(?!^)\/$/, '')
+        builtPage = builtPage.replace(
+          replaced,
+          encodeParam(paramValue, (value) => escapePathDelimiters(value, true))
+        )
+
+        encodedBuiltPage = encodedBuiltPage.replace(
+          replaced,
+          encodeParam(paramValue, encodeURIComponent)
+        )
       })
 
       if (!builtPage && !encodedBuiltPage) {
@@ -218,13 +190,19 @@ export async function buildStaticPaths({
       const curLocale = entry.locale || defaultLocale || ''
 
       prerenderedRoutes.push({
-        path: `${curLocale ? `/${curLocale}` : ''}${
-          curLocale && builtPage === '/' ? '' : builtPage
-        }`,
-        encoded: `${curLocale ? `/${curLocale}` : ''}${
-          curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
-        }`,
+        pathname: normalizePathname(
+          `${curLocale ? `/${curLocale}` : ''}${
+            curLocale && builtPage === '/' ? '' : builtPage
+          }`
+        ),
+        encodedPathname: normalizePathname(
+          `${curLocale ? `/${curLocale}` : ''}${
+            curLocale && encodedBuiltPage === '/' ? '' : encodedBuiltPage
+          }`
+        ),
         fallbackRouteParams: undefined,
+        fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
+        fallbackRootParams: undefined,
       })
     }
   })
@@ -234,10 +212,10 @@ export async function buildStaticPaths({
   return {
     fallbackMode: parseStaticPathsResult(staticPathsResult.fallback),
     prerenderedRoutes: prerenderedRoutes.filter((route) => {
-      if (seen.has(route.path)) return false
+      if (seen.has(route.pathname)) return false
 
       // Filter out duplicate paths.
-      seen.add(route.path)
+      seen.add(route.pathname)
       return true
     }),
   }
