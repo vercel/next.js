@@ -10,8 +10,8 @@ related:
     - app/api-reference/directives/use-cache
     - app/api-reference/functions/cacheLife
     - app/api-reference/functions/cacheTag
-    - app/api-reference/functions/unstable_expireTag
-    - app/api-reference/functions/unstable_expirePath
+    - app/api-reference/functions/revalidateTag
+    - app/api-reference/functions/revalidatePath
 ---
 
 > **Warning:** The content below assumes the [`dynamicIO` config option](/docs/app/api-reference/config/next-config-js/dynamicIO) is enabled in your application. This option was introduced in Next.js 15 canary.
@@ -200,7 +200,7 @@ export default async function Page() {
 
 ## On-demand Revalidation
 
-You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be purged using the [`expireTag`](/docs/app/api-reference/functions/expireTag) in another part of your application such a [Server Action](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
+You can use the [`cacheTag` function](/docs/app/api-reference/functions/cacheTag) to define a tag for a cache entry. The entry can then be purged using the [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) function in another part of your application such a [Server Action](https://react.dev/reference/rsc/server-functions) or [Route Handler](/docs/app/building-your-application/routing/route-handlers).
 
 For example, to update the list of blog posts once a new post is created, add the `cacheTag` function to the component that renders the list of posts:
 
@@ -238,56 +238,56 @@ export function Posts({ posts }) {
 }
 ```
 
-Then, in the Server Action, call `expireTag` to purge the cache entry:
+Then, in the Server Action to create a new post, call `revalidateTag` to purge the cache entry:
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-import { expireTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 
 export async function createPost() {
   // Mutate data
   // ...
 
   // Purge cache
-  expireTag('blog-posts')
+  revalidateTag('blog-posts')
 }
 ```
 
 ```jsx filename="app/actions.js" switcher
 'use server'
 
-import { expireTag } from 'next/cache'
+import { revalidateTag } from 'next/cache'
 
 export async function createPost() {
   // Mutate data
   // ...
 
   // Purge cache
-  expireTag('blog-posts')
+  revalidateTag('blog-posts')
 }
 ```
 
-Alternatively, you can call the [`expirePath`](/docs/app/api-reference/functions/unstable_expirePath) function to purge the whole `/blog` route (in which case you don't need to add `cacheTag`):
+Alternatively, you can call the [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) function to purge the whole `/blog` route (in which case you don't need `cacheTag`):
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-import { expireTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 
 export async function createPost() {
   // Mutate data
   // ...
 
   // Purge cache
-  expirePath('/blog')
+  revalidatePath('/blog')
 }
 ```
 
 ```tsx filename="app/actions.ts" switcher
 'use server'
 
-import { expireTag } from 'next/cache'
+import { revalidatePath } from 'next/cache'
 
 export async function createPost() {
   // Mutate data
