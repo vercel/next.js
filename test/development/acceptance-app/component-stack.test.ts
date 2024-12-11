@@ -7,8 +7,8 @@ describe('Component Stack in error overlay', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'component-stack')),
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '^18.2.0',
+      'react-dom': '^18.2.0',
     },
     skipStart: true,
   })

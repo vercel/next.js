@@ -30,7 +30,7 @@ describe('next/jest', () => {
       buildCommand: `pnpm build`,
       dependencies: {
         '@hashicorp/platform-util': '0.2.0',
-        '@types/react': 'latest',
+        '@types/react': '^18.2.0',
         jest: '27.4.7',
       },
     })

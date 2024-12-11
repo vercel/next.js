@@ -44,8 +44,8 @@ describe('Switchable runtime', () => {
     next = await createNext({
       files: new FileRef(__dirname),
       dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
+        react: '^18.2.0',
+        'react-dom': '^18.2.0',
       },
     })
     context = {

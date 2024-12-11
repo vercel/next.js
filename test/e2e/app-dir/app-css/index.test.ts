@@ -8,8 +8,8 @@ createNextDescribe(
     skipDeployment: true,
     dependencies: {
       '@picocss/pico': '1.5.7',
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '^18.2.0',
+      'react-dom': '^18.2.0',
       sass: 'latest',
       '@next/mdx': 'canary',
     },

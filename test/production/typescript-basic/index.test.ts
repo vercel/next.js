@@ -13,8 +13,8 @@ describe('TypeScript basic', () => {
         '@next/bundle-analyzer': 'canary',
         typescript: 'latest',
         '@types/node': 'latest',
-        '@types/react': 'latest',
-        '@types/react-dom': 'latest',
+        '@types/react': '^18.2.0',
+        '@types/react-dom': '^18.2.0',
       },
     })
   })

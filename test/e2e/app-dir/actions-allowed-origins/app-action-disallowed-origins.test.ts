@@ -8,8 +8,8 @@ createNextDescribe(
     files: join(__dirname, 'unsafe-origins'),
     skipDeployment: true,
     dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
+      react: '^18.2.0',
+      'react-dom': '^18.2.0',
       'server-only': 'latest',
     },
   },

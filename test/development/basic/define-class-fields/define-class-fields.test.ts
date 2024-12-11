@@ -10,7 +10,7 @@ createNextDescribe(
     dependencies: {
       mobx: '6.3.7',
       typescript: 'latest',
-      '@types/react': 'latest',
+      '@types/react': '^18.2.0',
       '@types/node': 'latest',
       'mobx-react': '7.2.1',
     },
