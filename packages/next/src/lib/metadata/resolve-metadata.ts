@@ -383,8 +383,6 @@ async function collectStaticImagesFiles(
       interopDefault(await imageModule(props))
   )
 
-  console.log('iconPromises.length', iconPromises.length)
-
   return iconPromises?.length > 0
     ? (await Promise.all(iconPromises))?.flat()
     : undefined
