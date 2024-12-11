@@ -30,8 +30,8 @@ export type ImageProps = Omit<
 > & {
   src: string | StaticImport
   alt: string
-  width: number | `${number}`
-  height: number | `${number}`
+  width?: number | `${number}`;
+  height?: number | `${number}`;
   fill?: boolean
   loader?: ImageLoader
   quality?: number | `${number}`
@@ -67,7 +67,10 @@ export type ImageProps = Omit<
    * @deprecated This prop does not do anything.
    */
   lazyRoot?: string
-}
+} & (
+  | { fill: true; width?: number | `${number}`; height?: number | `${number}` }
+  | { fill?: false; width: number | `${number}`; height: number | `${number}` }
+);
 
 export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
