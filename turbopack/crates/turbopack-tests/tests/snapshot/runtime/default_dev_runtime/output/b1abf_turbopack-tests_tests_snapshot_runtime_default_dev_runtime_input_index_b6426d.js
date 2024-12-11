@@ -489,7 +489,7 @@ async function loadChunkPath(source, chunkPath) {
     return `/ROOT/${modulePath ?? ""}`;
 }
 function getWorkerBlobURL(chunks) {
-    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
+    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`self.TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
     let blob = new Blob([
         bootstrap
     ], {
