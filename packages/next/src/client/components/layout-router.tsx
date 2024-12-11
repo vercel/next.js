@@ -8,7 +8,6 @@ import type {
 import type {
   FlightRouterState,
   FlightSegmentPath,
-  Segment,
 } from '../../server/app-render/types'
 import type { ErrorComponent } from './error-boundary'
 import type { FocusAndScrollRef } from './router-reducer/router-reducer-types'
@@ -34,7 +33,6 @@ import { matchSegment } from './match-segments'
 import { handleSmoothScroll } from '../../shared/lib/router/utils/handle-smooth-scroll'
 import { RedirectBoundary } from './redirect-boundary'
 import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
-import { getSegmentValue } from './router-reducer/reducers/get-segment-value'
 import { createRouterCacheKey } from './router-reducer/create-router-cache-key'
 import { hasInterceptionRouteInCurrentTree } from './router-reducer/reducers/has-interception-route-in-current-tree'
 
@@ -321,8 +319,6 @@ function InnerLayoutRouter({
   childNodes,
   segmentPath,
   tree,
-  // TODO-APP: implement `<Offscreen>` when available.
-  // isActive,
   cacheKey,
 }: {
   parallelRouterKey: string
@@ -330,7 +326,6 @@ function InnerLayoutRouter({
   childNodes: ChildSegmentMap
   segmentPath: FlightSegmentPath
   tree: FlightRouterState
-  isActive: boolean
   cacheKey: ReturnType<typeof createRouterCacheKey>
 }) {
   const context = useContext(GlobalLayoutRouterContext)
@@ -548,71 +543,63 @@ export default function OuterLayoutRouter({
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
   const treeSegment = tree[1][parallelRouterKey][0]
 
-  // If segment is an array it's a dynamic route and we want to read the dynamic route value as the segment to get from the cache.
-  const currentChildSegmentValue = getSegmentValue(treeSegment)
+  // The "state" key of a segment is the one passed to React — it represents the
+  // identity of the UI tree. Whenever the state key changes, the tree is
+  // recreated and the state is reset. In the App Router model, search params do
+  // not cause state to be lost, so two segments with the same segment path but
+  // different search params should have the same state key.
+  //
+  // The "cache" key of a segment, however, *does* include the search params, if
+  // it's possible that the segment accessed the search params on the server.
+  // (This only applies to page segments; layout segments cannot access search
+  // params on the server.)
+  const cacheKey = createRouterCacheKey(treeSegment)
+  const stateKey = createRouterCacheKey(treeSegment, true) // no search params
 
-  /**
-   * Decides which segments to keep rendering, all segments that are not active will be wrapped in `<Offscreen>`.
-   */
-  // TODO-APP: Add handling of `<Offscreen>` when it's available.
-  const preservedSegments: Segment[] = [treeSegment]
-
+  /*
+    - Error boundary
+      - Only renders error boundary if error component is provided.
+      - Rendered for each segment to ensure they have their own error state.
+    - Loading boundary
+      - Only renders suspense boundary if loading components is provided.
+      - Rendered for each segment to ensure they have their own loading state.
+      - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
+  */
   return (
-    <>
-      {preservedSegments.map((preservedSegment) => {
-        const preservedSegmentValue = getSegmentValue(preservedSegment)
-        const cacheKey = createRouterCacheKey(preservedSegment)
-
-        return (
-          /*
-            - Error boundary
-              - Only renders error boundary if error component is provided.
-              - Rendered for each segment to ensure they have their own error state.
-            - Loading boundary
-              - Only renders suspense boundary if loading components is provided.
-              - Rendered for each segment to ensure they have their own loading state.
-              - Passed to the router during rendering to ensure it can be immediately rendered when suspending on a Flight fetch.
-          */
-          <TemplateContext.Provider
-            key={createRouterCacheKey(preservedSegment, true)}
-            value={
-              <ScrollAndFocusHandler segmentPath={segmentPath}>
-                <ErrorBoundary
-                  errorComponent={error}
-                  errorStyles={errorStyles}
-                  errorScripts={errorScripts}
-                >
-                  <LoadingBoundary loading={loading}>
-                    <HTTPAccessFallbackBoundary
-                      notFound={notFound}
-                      forbidden={forbidden}
-                      unauthorized={unauthorized}
-                    >
-                      <RedirectBoundary>
-                        <InnerLayoutRouter
-                          parallelRouterKey={parallelRouterKey}
-                          url={url}
-                          tree={tree}
-                          childNodes={childNodesForParallelRouter!}
-                          segmentPath={segmentPath}
-                          cacheKey={cacheKey}
-                          isActive={
-                            currentChildSegmentValue === preservedSegmentValue
-                          }
-                        />
-                      </RedirectBoundary>
-                    </HTTPAccessFallbackBoundary>
-                  </LoadingBoundary>
-                </ErrorBoundary>
-              </ScrollAndFocusHandler>
-            }
+    <TemplateContext.Provider
+      key={stateKey}
+      value={
+        <ScrollAndFocusHandler segmentPath={segmentPath}>
+          <ErrorBoundary
+            errorComponent={error}
+            errorStyles={errorStyles}
+            errorScripts={errorScripts}
           >
-            {templateStyles}
-            {templateScripts}
-            {template}
-          </TemplateContext.Provider>
-        )
-      })}
-    </>
+            <LoadingBoundary loading={loading}>
+              <HTTPAccessFallbackBoundary
+                notFound={notFound}
+                forbidden={forbidden}
+                unauthorized={unauthorized}
+              >
+                <RedirectBoundary>
+                  <InnerLayoutRouter
+                    parallelRouterKey={parallelRouterKey}
+                    url={url}
+                    tree={tree}
+                    childNodes={childNodesForParallelRouter!}
+                    segmentPath={segmentPath}
+                    cacheKey={cacheKey}
+                  />
+                </RedirectBoundary>
+              </HTTPAccessFallbackBoundary>
+            </LoadingBoundary>
+          </ErrorBoundary>
+        </ScrollAndFocusHandler>
+      }
+    >
+      {templateStyles}
+      {templateScripts}
+      {template}
+    </TemplateContext.Provider>
   )
 }
