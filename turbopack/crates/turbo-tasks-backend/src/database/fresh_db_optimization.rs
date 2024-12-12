@@ -13,7 +13,7 @@ use crate::database::{
 };
 
 pub fn is_fresh(path: &Path) -> bool {
-    fs::exists(path).map_or(false, |exists| !exists)
+    fs::exists(path).is_ok_and(|exists| !exists)
 }
 
 pub struct FreshDbOptimization<T: KeyValueDatabase> {

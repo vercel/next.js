@@ -2,7 +2,7 @@ error[E0277]: the trait bound `Vc<i32>: NonLocalValue` is not satisfied
  --> tests/derive_non_local_value/fail_contains_vc_inside_generic.rs:7:8
   |
 7 |     a: Option<Box<[Vc<i32>; 4]>>,
-  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `NonLocalValue` is not implemented for `Vc<i32>`, which is required by `std::option::Option<Box<[Vc<i32>; 4]>>: NonLocalValue`
+  |        ^^^^^^^^^^^^^^^^^^^^^^^^^ the trait `NonLocalValue` is not implemented for `Vc<i32>`
   |
   = help: the following other types implement trait `NonLocalValue`:
             &T

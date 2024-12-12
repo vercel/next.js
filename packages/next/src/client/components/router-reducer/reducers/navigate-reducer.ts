@@ -335,7 +335,8 @@ export function navigateReducer(
                 // version of the next page. This can be rendered instantly.
                 mutable.cache = newCache
               }
-              if (task.needsDynamicRequest) {
+              const dynamicRequestTree = task.dynamicRequestTree
+              if (dynamicRequestTree !== null) {
                 // The prefetched tree has dynamic holes in it. We initiate a
                 // dynamic request to fill them in.
                 //
@@ -350,7 +351,7 @@ export function navigateReducer(
                 // a different response than we expected. For now, we revert back
                 // to the lazy fetching mechanism in that case.)
                 const dynamicRequest = fetchServerResponse(url, {
-                  flightRouterState: currentTree,
+                  flightRouterState: dynamicRequestTree,
                   nextUrl: state.nextUrl,
                 })
 

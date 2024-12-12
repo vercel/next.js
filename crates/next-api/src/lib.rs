@@ -4,6 +4,7 @@
 #![feature(impl_trait_in_assoc_type)]
 
 mod app;
+mod client_references;
 mod dynamic_imports;
 mod empty;
 pub mod entrypoints;

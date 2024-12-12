@@ -7,7 +7,9 @@ export default function Home() {
     <div>
       <button
         onClick={() => {
-          const worker = new Worker(new URL('./worker', import.meta.url))
+          const worker = new Worker(new URL('../worker', import.meta.url), {
+            type: 'module',
+          })
           worker.addEventListener('message', (event) => {
             setState(event.data)
           })

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -18,7 +18,10 @@ use super::{ClientReferenceManifest, CssResource, ManifestNode, ManifestNodeEntr
 use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
-    next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
+    next_client_reference::{
+        ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
+        ClientReferenceGraphResult, ClientReferenceType,
+    },
     next_config::NextConfig,
     util::NextRuntime,
 };
@@ -117,7 +120,12 @@ impl ClientReferenceManifest {
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
                     let rsc_chunk_item: Vc<Box<dyn ChunkItem>> =
-                        parent_module.as_chunk_item(Vc::upcast(ssr_chunking_context));
+                        ResolvedVc::try_downcast_type::<EcmascriptClientReferenceProxyModule>(
+                            parent_module,
+                        )
+                        .await?
+                        .unwrap()
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context));
                     let rsc_module_id = rsc_chunk_item.id().await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {

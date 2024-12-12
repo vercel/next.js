@@ -102,7 +102,7 @@ impl Emitter for IssueEmitter {
         let is_lint = db
             .code
             .as_ref()
-            .map_or(false, |d| matches!(d, DiagnosticId::Lint(_)));
+            .is_some_and(|d| matches!(d, DiagnosticId::Lint(_)));
 
         let severity = (if is_lint {
             IssueSeverity::Suggestion
