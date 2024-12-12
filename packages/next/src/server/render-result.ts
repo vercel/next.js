@@ -34,7 +34,7 @@ export type AppPageRenderResultMetadata = {
   fetchTags?: string
   fetchMetrics?: FetchMetrics
 
-  segmentFlightData?: Map<string, Buffer>
+  segmentData?: Map<string, Buffer>
 
   /**
    * In development, the cache is warmed up before the render. This is attached

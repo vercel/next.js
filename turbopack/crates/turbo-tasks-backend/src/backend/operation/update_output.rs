@@ -22,6 +22,7 @@ use crate::{
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum UpdateOutputOperation {
     MakeDependentTasksDirty {
+        task_id: TaskId,
         dependent_tasks: Vec<TaskId>,
         children: Vec<TaskId>,
         queue: AggregationUpdateQueue,
@@ -135,6 +136,7 @@ impl UpdateOutputOperation {
         drop(old_error);
 
         UpdateOutputOperation::MakeDependentTasksDirty {
+            task_id,
             dependent_tasks,
             children,
             queue,
@@ -149,6 +151,7 @@ impl Operation for UpdateOutputOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 UpdateOutputOperation::MakeDependentTasksDirty {
+                    task_id,
                     ref mut dependent_tasks,
                     ref mut children,
                     ref mut queue,
@@ -156,7 +159,7 @@ impl Operation for UpdateOutputOperation {
                     if let Some(dependent_task_id) = dependent_tasks.pop() {
                         make_task_dirty(
                             dependent_task_id,
-                            TaskDirtyCause::OutputChange,
+                            TaskDirtyCause::OutputChange { task_id },
                             queue,
                             ctx,
                         );

@@ -192,7 +192,7 @@ async fn parse_internal(
                 source,
                 error: error.clone(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
 
             return Ok(ParseResult::Unparseable {
@@ -234,7 +234,7 @@ async fn parse_internal(
                         source,
                         error: error.clone(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     ParseResult::Unparseable {
                         messages: Some(vec![error]),
@@ -258,22 +258,19 @@ async fn parse_file_content(
     transforms: &[EcmascriptInputTransform],
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(
-            source,
-            source_map.clone(),
-            Some("Ecmascript file had an error".into()),
-        )),
+    let (emitter, collector) = IssueEmitter::new(
+        source,
+        source_map.clone(),
+        Some("Ecmascript file had an error".into()),
     );
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
-    let emitter = Box::new(IssueEmitter::new(
+    let (emitter, collector_parse) = IssueEmitter::new(
         source,
         source_map.clone(),
         Some("Parsing ecmascript source code failed".into()),
-    ));
-    let parser_handler = Handler::with_emitter(true, false, emitter.clone());
+    );
+    let parser_handler = Handler::with_emitter(true, false, Box::new(emitter));
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
 
@@ -411,7 +408,7 @@ async fn parse_file_content(
             .await?;
 
             if parser_handler.has_errors() {
-                let messages = if let Some(error) = emitter.emitted_issues.last() {
+                let messages = if let Some(error) = collector_parse.last_emitted_issue() {
                     // The emitter created in here only uses StyledString::Text
                     if let StyledString::Text(xx) = &*error.await?.message.await? {
                         Some(vec![xx.clone()])
@@ -462,6 +459,8 @@ async fn parse_file_content(
         // Assign the correct globals
         *g = globals;
     }
+    collector.emit().await?;
+    collector_parse.emit().await?;
     Ok(result.cell())
 }
 

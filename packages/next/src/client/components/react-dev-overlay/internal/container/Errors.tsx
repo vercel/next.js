@@ -35,6 +35,7 @@ import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
 } from '../helpers/console-error'
+import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 
 export type SupportedErrorEvent = {
   id: number
@@ -255,7 +256,7 @@ export function Errors({
             <line x1="12" y1="16" x2="12.01" y2="16"></line>
           </svg>
           <span>
-            {readyErrors.length} error{readyErrors.length > 1 ? 's' : ''}
+            {readyErrors.length} issue{readyErrors.length > 1 ? 's' : ''}
           </span>
           <button
             data-nextjs-toast-errors-hide-button
@@ -265,7 +266,7 @@ export function Errors({
               e.stopPropagation()
               hide()
             }}
-            aria-label="Hide Errors"
+            aria-label="Hide Issues"
           >
             <CloseIcon />
           </button>
@@ -315,13 +316,16 @@ export function Errors({
                 <span data-nextjs-dialog-header-total-count>
                   {readyErrors.length}
                 </span>
-                {' error'}
+                {' issue'}
                 {readyErrors.length < 2 ? '' : 's'}
               </small>
               <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
 
-            <div className="nextjs__container_errors__error_title">
+            <div
+              className="nextjs__container_errors__error_title"
+              data-nextjs-error-code={extractNextErrorCode(error)} // allow assertion in tests before error rating is implemented
+            >
               <h1
                 id="nextjs__container_errors_label"
                 className="nextjs__container_errors_label"

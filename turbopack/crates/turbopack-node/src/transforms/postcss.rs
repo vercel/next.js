@@ -3,7 +3,7 @@ use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, NonLocalValue, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -47,7 +47,18 @@ struct PostCssProcessingResult {
 }
 
 #[derive(
-    Default, Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Serialize, Deserialize, TaskInput,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum PostCssConfigLocation {
     #[default]
