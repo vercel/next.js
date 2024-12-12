@@ -27,7 +27,6 @@ export function buildDataRoute(page: string, buildId: string) {
       `\\.json$`
     )
     routeKeys = routeRegex.routeKeys
-    console.log("DYNAMIC ROUTE", { routeKeys, dataRouteRegex, namedDataRouteRegex, routeRegex })
   } else {
     dataRouteRegex = normalizeRouteRegex(
       new RegExp(
@@ -38,7 +37,6 @@ export function buildDataRoute(page: string, buildId: string) {
         )}$`
       ).source
     )
-    console.log("STATIC ROUTE", { routeKeys, dataRouteRegex, namedDataRouteRegex })
   }
 
   return {
