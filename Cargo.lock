@@ -9483,6 +9483,7 @@ dependencies = [
  "indexmap 2.5.0",
  "lightningcss",
  "modularize_imports",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_json",
  "styled_components",
