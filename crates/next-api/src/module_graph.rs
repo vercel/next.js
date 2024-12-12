@@ -56,7 +56,7 @@ pub enum GraphTraversalAction {
     Skip,
 }
 
-#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, Eq, PartialEq, Hash, NonLocalValue)]
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub struct SingleModuleGraphNode {
     pub module: ResolvedVc<Box<dyn Module>>,
     issues: Vec<ResolvedVc<Box<dyn Issue>>>,
@@ -118,6 +118,7 @@ struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 // afterwards build the SingleModuleGraph.
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum SingleModuleGraphBuilderNode {
+    /// This edge is represented as a node: source Module -> ChunkableReference ->  target Module
     ChunkableReference {
         chunking_type: ChunkingType,
         source: ResolvedVc<Box<dyn Module>>,
@@ -130,6 +131,7 @@ enum SingleModuleGraphBuilderNode {
         layer: Option<ReadRef<RcStr>>,
         ident: ReadRef<RcStr>,
     },
+    /// Issues to be added to the parent Module node
     #[allow(dead_code)]
     Issues(Vec<ResolvedVc<Box<dyn Issue>>>),
 }
@@ -553,9 +555,6 @@ impl SingleModuleGraph {
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(Some(root), &entries, &*visited_modules.await?).await
     }
-
-    // #[turbo_tasks::function]
-    // async fn new_
 }
 
 /// Implements layout segment optimization to compute a graph "chain" for each layout segment
