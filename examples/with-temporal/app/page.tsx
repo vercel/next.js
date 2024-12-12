@@ -1,3 +1,5 @@
+"use client"; // Add this at the very top
+
 import Link from "next/link";
 import Layout from "../components/Layout";
 import { Data } from "./api/orders";
