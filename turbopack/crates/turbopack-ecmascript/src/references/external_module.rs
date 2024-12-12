@@ -10,7 +10,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReference, ModuleReferences},
+    reference::ModuleReference,
 };
 
 use crate::{
@@ -210,17 +210,17 @@ impl ChunkItem for CachedExternalModuleChunkItem {
         self.module.ident()
     }
 
-    #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        let additional_references = &self.module.await?.additional_references;
-        if !additional_references.is_empty() {
-            let mut module_references = self.module.references().await?.clone_value();
-            module_references.extend(additional_references.iter().copied());
-            Ok(Vc::cell(module_references))
-        } else {
-            Ok(self.module.references())
-        }
-    }
+    // #[turbo_tasks::function]
+    // async fn references(&self) -> Result<Vc<ModuleReferences>> {
+    //     let additional_references = &self.module.await?.additional_references;
+    //     if !additional_references.is_empty() {
+    //         let mut module_references = self.module.references().await?.clone_value();
+    //         module_references.extend(additional_references.iter().copied());
+    //         Ok(Vc::cell(module_references))
+    //     } else {
+    //         Ok(self.module.references())
+    //     }
+    // }
 
     #[turbo_tasks::function]
     fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>> {

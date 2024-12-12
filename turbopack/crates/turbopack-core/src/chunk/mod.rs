@@ -45,8 +45,8 @@ use crate::{
     environment::ChunkLoading,
     ident::AssetIdent,
     module::Module,
-    output::OutputAssets,
-    reference::{ModuleReference, ModuleReferences},
+    output::{OutputAsset, OutputAssets},
+    reference::ModuleReference,
 };
 
 /// A module id, which can be a number or string
@@ -215,6 +215,7 @@ pub struct ChunkContentResult {
     pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
+    pub external_output_assets: Vc<OutputAssets>,
     pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
@@ -269,6 +270,7 @@ enum ChunkContentGraphNode {
     TracedModule {
         module: Vc<Box<dyn Module>>,
     },
+    ExternalOutputAssets(ResolvedVc<OutputAssets>),
     // ModuleReferences that are not placed in the current chunk group
     ExternalModuleReference(ResolvedVc<Box<dyn ModuleReference>>),
     /// A list of directly referenced chunk items from which `is_async_module`
@@ -361,13 +363,17 @@ async fn graph_node_to_referenced_nodes(
     node: ChunkGraphNodeToReferences,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ChunkGraphEdges>> {
-    let (parent, references) = match &node {
-        ChunkGraphNodeToReferences::PassthroughChunkItem(item) => (None, item.references()),
-        ChunkGraphNodeToReferences::ChunkItem(item) => (Some(*item), item.references()),
+    let (parent, module_references, output_asset_references) = match &node {
+        ChunkGraphNodeToReferences::PassthroughChunkItem(item) => {
+            (None, item.module().references(), item.references())
+        }
+        ChunkGraphNodeToReferences::ChunkItem(item) => {
+            (Some(*item), item.module().references(), item.references())
+        }
     };
 
-    let references = references.await?;
-    let graph_nodes = references
+    let module_references = module_references.await?;
+    let mut graph_nodes = module_references
         .iter()
         .map(|reference| async {
             let reference = *reference;
@@ -543,6 +549,13 @@ async fn graph_node_to_referenced_nodes(
         .try_flat_join()
         .await?;
 
+    graph_nodes.push(ChunkGraphEdge {
+        key: None,
+        node: ChunkContentGraphNode::ExternalOutputAssets(
+            output_asset_references.to_resolved().await?,
+        ),
+    });
+
     Ok(Vc::cell(graph_nodes))
 }
 
@@ -662,6 +675,7 @@ async fn chunk_content_internal_parallel(
     let mut chunk_items = FxIndexSet::default();
     let mut async_modules = FxIndexSet::default();
     let mut external_module_references = FxIndexSet::default();
+    let mut external_output_assets: FxIndexSet<Vc<Box<dyn OutputAsset>>> = FxIndexSet::default();
     let mut forward_edges_inherit_async = FxIndexMap::default();
     let mut local_back_edges_inherit_async = FxIndexMap::default();
     let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
@@ -684,6 +698,11 @@ async fn chunk_content_internal_parallel(
             ChunkContentGraphNode::ExternalModuleReference(reference) => {
                 let reference = reference.resolve().await?;
                 external_module_references.insert(*reference);
+            }
+            ChunkContentGraphNode::ExternalOutputAssets(reference) => {
+                for output_asset in reference.await? {
+                    external_output_assets.insert(**output_asset);
+                }
             }
             ChunkContentGraphNode::InheritAsyncInfo { item, references } => {
                 for &(reference, ty) in &references {
@@ -712,6 +731,7 @@ async fn chunk_content_internal_parallel(
         chunk_items,
         async_modules,
         traced_modules,
+        external_output_assets: OutputAssets::new(external_output_assets.into_iter().collect()),
         external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
@@ -732,11 +752,10 @@ pub trait ChunkItem {
     fn content_ident(self: Vc<Self>) -> Vc<AssetIdent> {
         self.asset_ident()
     }
-    /// A [ChunkItem] can describe different `references` than its original
-    /// [Module].
-    /// TODO(alexkirsz) This should have a default impl that returns empty
-    /// references.
-    fn references(self: Vc<Self>) -> Vc<ModuleReferences>;
+    /// A [ChunkItem] can reference OutputAssets, unlike [Module]s referencing other [Module]s.
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
+        OutputAssets::empty()
+    }
 
     /// The type of chunk this item should be assembled into.
     fn ty(self: Vc<Self>) -> Vc<Box<dyn ChunkType>>;

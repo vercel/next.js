@@ -1,14 +1,13 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
-    reference::{ModuleReferences, SingleOutputAssetReference},
+    output::{OutputAsset, OutputAssets},
     source::Source,
 };
 use turbopack_ecmascript::{
@@ -116,17 +115,8 @@ impl ChunkItem for RawModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![ResolvedVc::upcast(
-            SingleOutputAssetReference::new(
-                Vc::upcast(*self.wasm_asset),
-                Vc::cell(
-                    format!("wasm(url) {}", self.wasm_asset.ident().to_string().await?).into(),
-                ),
-            )
-            .to_resolved()
-            .await?,
-        )]))
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        Ok(OutputAssets::new(vec![Vc::upcast(*self.wasm_asset)]))
     }
 
     #[turbo_tasks::function]

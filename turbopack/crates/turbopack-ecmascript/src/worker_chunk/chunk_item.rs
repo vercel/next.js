@@ -10,7 +10,6 @@ use turbopack_core::{
     ident::AssetIdent,
     module::Module,
     output::OutputAssets,
-    reference::{ModuleReferences, SingleOutputAssetReference},
 };
 
 use super::module::WorkerLoaderModule;
@@ -118,24 +117,8 @@ impl ChunkItem for WorkerLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        let chunks = self.chunks();
-
-        Ok(Vc::cell(
-            chunks
-                .await?
-                .iter()
-                .copied()
-                .map(|chunk| async move {
-                    Ok(ResolvedVc::upcast(
-                        SingleOutputAssetReference::new(*chunk, chunk_reference_description())
-                            .to_resolved()
-                            .await?,
-                    ))
-                })
-                .try_join()
-                .await?,
-        ))
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        Ok(self.chunks())
     }
 
     #[turbo_tasks::function]

@@ -4,10 +4,14 @@ use turbo_tasks::{fxindexmap, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
+    chunk::{
+        chunk_group::references_to_output_assets, AsyncModuleInfo, ChunkItem, ChunkType,
+        ChunkableModule, ChunkingContext,
+    },
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionModule},
+    output::OutputAssets,
     reference::ModuleReferences,
     reference_type::ReferenceType,
     resolve::{origin::ResolveOrigin, parse::Request},
@@ -192,13 +196,12 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        let loader = self
-            .module
-            .loader()
-            .as_chunk_item(Vc::upcast(*self.chunking_context));
-
-        loader.references()
+    async fn references(&self) -> Result<Vc<OutputAssets>> {
+        let loader_references = self.module.loader().references().await?;
+        Ok(
+            references_to_output_assets(loader_references.iter().map(|r| **r).collect::<_>())
+                .await?,
+        )
     }
 
     #[turbo_tasks::function]
