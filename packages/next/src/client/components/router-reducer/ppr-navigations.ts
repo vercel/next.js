@@ -70,7 +70,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode | null,
+  prefetchHead: [React.ReactNode | null, React.ReactNode | null],
   isPrefetchHeadPartial: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
@@ -285,7 +285,7 @@ export function updateCacheNodeOnNavigation(
 function createCacheNodeOnNavigation(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  possiblyPartialPrefetchHead: React.ReactNode | null,
+  possiblyPartialPrefetchHead: [React.ReactNode | null, React.ReactNode | null],
   isPrefetchHeadPartial: boolean
 ): Task {
   // Same traversal as updateCacheNodeNavigation, but we switch to this path
@@ -386,11 +386,7 @@ function createCacheNodeOnNavigation(
       // `prefetchRsc` field.
       rsc,
       prefetchRsc: null,
-      head: [
-        // TODO: change it to support viewport and metadata
-        isLeafSegment ? possiblyPartialPrefetchHead : null,
-        isLeafSegment ? possiblyPartialPrefetchHead : null,
-      ],
+      head: isLeafSegment ? possiblyPartialPrefetchHead : [null, null],
       prefetchHead: null,
       loading,
       parallelRoutes: cacheNodeChildren,
@@ -803,6 +799,7 @@ function finishPendingCacheNode(
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
   const head = cacheNode.head
+  // Handle head[0] - viewport and head[1] - metadata
   if (isDeferredRsc(head[0])) {
     head[0].resolve(dynamicHead[0])
   }

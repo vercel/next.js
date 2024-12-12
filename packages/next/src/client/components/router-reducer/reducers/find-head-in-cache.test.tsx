@@ -108,6 +108,7 @@ describe('findHeadInCache', () => {
     expect(result).not.toBeNull()
 
     const [cacheNode, key] = result!
+    expect(cacheNode).toBe(null)
     expect(cacheNode.head[1]).toMatchObject(
       <>
         <title>About page!</title>

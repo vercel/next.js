@@ -219,7 +219,7 @@ function Head({
   // If this segment has a `prefetchHead`, it's the statically prefetched data.
   // We should use that on initial render instead of `head`. Then we'll switch
   // to `head` when the dynamic response streams in.
-  const head = headCacheNode !== null ? headCacheNode.head[1] : null
+  const head = headCacheNode !== null ? headCacheNode.head : null
   const prefetchHead =
     headCacheNode !== null ? headCacheNode.prefetchHead : null
 
