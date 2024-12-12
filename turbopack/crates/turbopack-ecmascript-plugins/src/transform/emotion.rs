@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
@@ -96,8 +97,7 @@ impl CustomTransformer for EmotionTransformer {
         #[cfg(feature = "transform_emotion")]
         {
             let hash = {
-                #[allow(clippy::disallowed_types)]
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                let mut hasher = FxHasher::default();
                 program.hash(&mut hasher);
                 hasher.finish()
             };
