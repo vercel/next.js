@@ -7,11 +7,7 @@ import { escapeStringRegexp } from '../../../shared/lib/escape-regexp'
 
 export function buildDataRoute(page: string, buildId: string) {
   const pagePath = normalizePagePath(page)
-  const dataRoute = path.posix.join(
-    '/_next/data',
-    buildId,
-    `${pagePath}\\.json`
-  )
+  const dataRoute = path.posix.join('/_next/data', buildId, `${pagePath}.json`)
 
   let dataRouteRegex: string
   let namedDataRouteRegex: string | undefined
@@ -31,6 +27,7 @@ export function buildDataRoute(page: string, buildId: string) {
       `\\.json$`
     )
     routeKeys = routeRegex.routeKeys
+    console.log("DYNAMIC ROUTE", { routeKeys, dataRouteRegex, namedDataRouteRegex, routeRegex })
   } else {
     dataRouteRegex = normalizeRouteRegex(
       new RegExp(
@@ -41,6 +38,7 @@ export function buildDataRoute(page: string, buildId: string) {
         )}$`
       ).source
     )
+    console.log("STATIC ROUTE", { routeKeys, dataRouteRegex, namedDataRouteRegex })
   }
 
   return {

@@ -3544,7 +3544,7 @@ export default async function build(
           const dataRoute = path.posix.join(
             '/_next/data',
             buildId,
-            `${normalizedRoute}\\.json`
+            `${normalizedRoute}.json`
           )
 
           prerenderManifest.dynamicRoutes[tbdRoute] = {
