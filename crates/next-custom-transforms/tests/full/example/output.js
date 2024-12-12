@@ -4,5 +4,5 @@ import r from 'other';
 e(r, 1)[0];
 export var __N_SSG = !0;
 export default function t() {
-    return React.createElement("div", null);
+    return /*#__PURE__*/ React.createElement("div", null);
 }
