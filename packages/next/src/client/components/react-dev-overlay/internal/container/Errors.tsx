@@ -35,6 +35,7 @@ import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
 } from '../helpers/console-error'
+import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 
 export type SupportedErrorEvent = {
   id: number
@@ -321,7 +322,10 @@ export function Errors({
               <VersionStalenessInfo versionInfo={versionInfo} />
             </LeftRightDialogHeader>
 
-            <div className="nextjs__container_errors__error_title">
+            <div
+              className="nextjs__container_errors__error_title"
+              data-nextjs-error-code={extractNextErrorCode(error)} // allow assertion in tests before error rating is implemented
+            >
               <h1
                 id="nextjs__container_errors_label"
                 className="nextjs__container_errors_label"

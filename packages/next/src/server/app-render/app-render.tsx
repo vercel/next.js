@@ -2,7 +2,6 @@ import type {
   ActionResult,
   DynamicParamTypesShort,
   FlightRouterState,
-  FlightSegmentPath,
   RenderOpts,
   Segment,
   CacheNodeSeedData,
@@ -53,6 +52,7 @@ import {
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
   RSC_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   createTrackedMetadataContext,
@@ -234,6 +234,7 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
+  readonly isRouteTreePrefetchRequest: boolean
   readonly isDevWarmupRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
@@ -267,6 +268,10 @@ function parseRequestHeaders(
       )
     : undefined
 
+  // Checks if this is a prefetch of the Route Tree by the Segment Cache
+  const isRouteTreePrefetchRequest =
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] === '/_tree'
+
   const csp =
     headers['content-security-policy'] ||
     headers['content-security-policy-report-only']
@@ -277,6 +282,7 @@ function parseRequestHeaders(
   return {
     flightRouterState,
     isPrefetchRequest,
+    isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
     isDevWarmupRequest,
@@ -301,8 +307,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     components,
   ]
 }
-
-export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
 /**
  * Returns a function that parses the dynamic segment and return the associated value.
@@ -459,11 +463,9 @@ async function generateDynamicRSCPayload(
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
-        createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
         flightRouterState,
-        isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
           <React.Fragment key={flightDataPathHeadKey}>
@@ -752,10 +754,8 @@ async function getRSCPayload(
 
   const seedData = await createComponentTree({
     ctx,
-    createSegmentPath: (child) => child,
     loaderTree: tree,
     parentParams: {},
-    firstItem: true,
     injectedCSS,
     injectedJS,
     injectedFontPreloadTags,
