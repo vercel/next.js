@@ -12,7 +12,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
+    TryJoinIterExt, Value, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
@@ -29,7 +30,7 @@ use turbopack_core::{
 use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{references::util::throw_module_not_found_error_expr, utils::module_id_to_lit};
 
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, Serialize, Deserialize)]
+#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub(crate) enum SinglePatternMapping {
     /// Invalid request.
     Invalid,
@@ -338,7 +339,7 @@ async fn to_single_pattern_mapping(
                 .resolved_cell(),
                 path: origin.origin_path().to_resolved().await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             return Ok(SinglePatternMapping::Invalid);
         }
@@ -368,7 +369,7 @@ async fn to_single_pattern_mapping(
         .resolved_cell(),
         path: origin.origin_path().to_resolved().await?,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(SinglePatternMapping::Invalid)
 }

@@ -4254,9 +4254,11 @@ name = "next-api"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "auto-hash-map",
  "futures",
  "indexmap 2.5.0",
  "next-core",
+ "petgraph",
  "regex",
  "serde",
  "serde_json",
@@ -4946,6 +4948,8 @@ checksum = "4dd7d28ee937e54fe3080c91faa1c3a46c06de6252988a7f4592ba2310ef22a4"
 dependencies = [
  "fixedbitset",
  "indexmap 1.9.3",
+ "serde",
+ "serde_derive",
 ]
 
 [[package]]
@@ -9670,6 +9674,8 @@ dependencies = [
 name = "turbopack-swc-utils"
 version = "0.1.0"
 dependencies = [
+ "anyhow",
+ "parking_lot",
  "swc_core",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9754,10 +9760,13 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",
+ "crossbeam-utils",
  "once_cell",
+ "parking_lot",
  "postcard",
  "rustc-hash 1.1.0",
  "serde",
+ "thread_local",
  "tokio",
  "tracing",
  "tracing-subscriber",

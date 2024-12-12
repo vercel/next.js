@@ -2,7 +2,7 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Upcast, ValueToString, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Upcast, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
@@ -181,7 +181,9 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -272,7 +274,7 @@ async fn module_factory_with_code_generation_issue(
                         .resolved_cell(),
                     message: StyledString::Text(error_message).resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 let mut code = CodeBuilder::default();
                 code += "(() => {{\n\n";

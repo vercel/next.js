@@ -291,6 +291,11 @@ const nextDev = async (
             ? startServerOptions.selfSignedCertificate.rootCA
             : defaultEnv.NODE_EXTRA_CA_CERTS,
           NODE_OPTIONS: formatNodeOptions(nodeOptions),
+          // There is a node.js bug on MacOS which causes closing file watchers to be really slow.
+          // This limits the number of watchers to mitigate the issue.
+          // https://github.com/nodejs/node/issues/29949
+          WATCHPACK_WATCHER_LIMIT:
+            os.platform() === 'darwin' ? '20' : undefined,
         },
       })
 
