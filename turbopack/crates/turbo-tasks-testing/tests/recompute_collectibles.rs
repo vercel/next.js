@@ -22,7 +22,7 @@ async fn recompute() {
         assert_eq!(read.collectible, "1");
 
         for i in 2..100 {
-            input.await?.state.set(i);
+            input.set_state(i).await?;
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, 42);
             assert_eq!(read.collectible, i.to_string());
@@ -36,6 +36,16 @@ async fn recompute() {
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChangingInput {
+    // HACK: This write has to be a separate task to avoid creating a cycle in the parent/child call
+    // tree, since `State::set`/`State::get` marks the writer task as a child of the reader task.
+    #[turbo_tasks::function]
+    fn set_state(&self, value: u32) {
+        self.state.set(value);
+    }
 }
 
 #[turbo_tasks::value]

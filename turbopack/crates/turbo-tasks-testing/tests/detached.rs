@@ -86,18 +86,18 @@ async fn test_spawns_detached_changing() -> anyhow::Result<()> {
 
             // it should send us back a cell
             let detached_vc: Vc<u32> = rx.wait_for(|opt| opt.is_some()).await.unwrap().unwrap();
-            assert_eq!(*detached_vc.strongly_consistent().await.unwrap(), 42);
+            assert_eq!(*detached_vc.strongly_consistent().await?, 42);
 
             // the parent task should now be able to exit
-            out_vc.strongly_consistent().await.unwrap();
+            out_vc.strongly_consistent().await?;
 
             // changing either input should invalidate the vc and cause it to run again
-            changing_input_detached.await.unwrap().state.set(43);
-            out_vc.strongly_consistent().await.unwrap();
-            assert_eq!(*detached_vc.strongly_consistent().await.unwrap(), 43);
+            changing_input_detached.set_state(43).await?;
+            out_vc.strongly_consistent().await?;
+            assert_eq!(*detached_vc.strongly_consistent().await?, 43);
 
-            changing_input_outer.await.unwrap().state.set(44);
-            assert_eq!(*out_vc.strongly_consistent().await.unwrap(), 44);
+            changing_input_outer.set_state(44).await?;
+            assert_eq!(*out_vc.strongly_consistent().await?, 44);
 
             Ok(())
         })
@@ -109,6 +109,16 @@ async fn test_spawns_detached_changing() -> anyhow::Result<()> {
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChangingInput {
+    // HACK: This write has to be a separate task to avoid creating a cycle in the parent/child call
+    // tree, since `State::set`/`State::get` marks the writer task as a child of the reader task.
+    #[turbo_tasks::function]
+    fn set_state(&self, value: u32) {
+        self.state.set(value);
+    }
 }
 
 #[turbo_tasks::function]

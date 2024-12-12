@@ -26,21 +26,21 @@ async fn recompute() {
         let random_value = read.random_value;
 
         println!("changing input");
-        input.await?.state.set(2);
+        input.set_state(2).await?;
         let read = output.strongly_consistent().await?;
         assert_eq!(read.state_value, 2);
         assert_ne!(read.random_value, random_value);
         let random_value = read.random_value;
 
         println!("changing input2");
-        input2.await?.state.set(20);
+        input2.set_state(20).await?;
         let read = output.strongly_consistent().await?;
         assert_eq!(read.state_value2, 20);
         assert_ne!(read.random_value, random_value);
         let random_value = read.random_value;
 
         println!("changing input");
-        input.await?.state.set(5);
+        input.set_state(5).await?;
         let read = output.strongly_consistent().await?;
         assert_eq!(read.state_value, 5);
         assert_eq!(read.state_value2, 42);
@@ -48,7 +48,7 @@ async fn recompute() {
         let random_value = read.random_value;
 
         println!("changing input2");
-        input2.await?.state.set(30);
+        input2.set_state(30).await?;
         let read = output.strongly_consistent().await?;
         assert_eq!(read.random_value, random_value);
 
@@ -61,6 +61,16 @@ async fn recompute() {
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChangingInput {
+    // HACK: This write has to be a separate task to avoid creating a cycle in the parent/child call
+    // tree, since `State::set`/`State::get` marks the writer task as a child of the reader task.
+    #[turbo_tasks::function]
+    fn set_state(&self, value: u32) {
+        self.state.set(value);
+    }
 }
 
 #[turbo_tasks::value]

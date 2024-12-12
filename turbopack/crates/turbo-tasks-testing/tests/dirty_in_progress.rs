@@ -28,14 +28,13 @@ async fn dirty_in_progress() {
                 state: State::new(a),
             }
             .cell();
-            let input_val = input.await?;
             let output = compute(input);
             output.await?;
             println!("update to {}", b);
-            input_val.state.set(b);
+            input.set_state(b).await?;
             tokio::time::sleep(Duration::from_millis(100)).await;
             println!("update to {}", c);
-            input_val.state.set(c);
+            input.set_state(c).await?;
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
@@ -50,6 +49,16 @@ async fn dirty_in_progress() {
 #[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
+}
+
+#[turbo_tasks::value_impl]
+impl ChangingInput {
+    // HACK: This write has to be a separate task to avoid creating a cycle in the parent/child call
+    // tree, since `State::set`/`State::get` marks the writer task as a child of the reader task.
+    #[turbo_tasks::function]
+    fn set_state(&self, value: u32) {
+        self.state.set(value);
+    }
 }
 
 #[turbo_tasks::value]

@@ -10,13 +10,18 @@ use serde::{Deserialize, Serialize};
 
 use crate::{
     get_invalidator, mark_session_dependent, mark_stateful, trace::TraceRawVcs, Invalidator,
-    SerializationInvalidator,
+    SerializationInvalidator, TaskId,
 };
 
 #[derive(Serialize, Deserialize)]
 struct StateInner<T> {
     value: T,
+    /// An invalidator is added for every task that reads this state. When a write finishes, all
+    /// invalidators are called.
     invalidators: AutoSet<Invalidator>,
+    /// Tasks that have written to this state in the past. All of these must be connected as
+    /// children when a read occurs.
+    writers: AutoSet<TaskId>,
 }
 
 impl<T> StateInner<T> {
@@ -24,14 +29,37 @@ impl<T> StateInner<T> {
         Self {
             value,
             invalidators: AutoSet::new(),
+            // technically `::new()` is a writer, but the reader must already depend on the caller
+            // of `::new()`, because they wouldn't have access to the `State` otherwise.
+            writers: AutoSet::new(),
         }
     }
 
-    pub fn add_invalidator(&mut self, invalidator: Invalidator) {
-        self.invalidators.insert(invalidator);
+    pub fn mark_read(&mut self) {
+        // invalidate this task when the value changes
+        self.invalidators.insert(get_invalidator());
+
+        let tt = crate::turbo_tasks();
+        for writer in &self.writers {
+            // mark that the current task depends on the writer task
+            tt.connect_task(*writer);
+        }
+    }
+
+    /// In the case of full writes, the last write "wins" and the reader only needs to care about
+    /// the last writer.
+    pub fn clear_writers(&mut self) {
+        self.writers.clear();
+    }
+
+    pub fn mark_write(&mut self) {
+        self.writers
+            .insert(crate::manager::current_task("StateInner::mark_write"));
     }
 
     pub fn set_unconditionally(&mut self, value: T) {
+        self.clear_writers();
+        self.mark_write();
         self.value = value;
         for invalidator in take(&mut self.invalidators) {
             invalidator.invalidate();
@@ -39,6 +67,10 @@ impl<T> StateInner<T> {
     }
 
     pub fn update_conditionally(&mut self, update: impl FnOnce(&mut T) -> bool) -> bool {
+        // This is a bit unsafe/incorrect: We don't want to do `mark_read` because we'd cyclically
+        // invalidate ourselves. This API is intended for side-effect-free idempotent operations,
+        // but we don't/can't enforce that the operation is side-effect-free or idempotent.
+        self.mark_write();
         if !update(&mut self.value) {
             return false;
         }
@@ -51,6 +83,12 @@ impl<T> StateInner<T> {
 
 impl<T: PartialEq> StateInner<T> {
     pub fn set(&mut self, value: T) -> bool {
+        // unless there's a logical error in PartialEq, it's fair to treat this as an
+        // "unconditional" setter, because we'll always overwrite the value if it's different
+        self.clear_writers();
+        self.mark_write();
+        // we don't need to mark_read here, as (assuming `PartialEq` does not have side-effects)
+        // there are no externally visible effects from the perspective of `State::set`'s caller.
         if self.value == value {
             return false;
         }
@@ -99,16 +137,10 @@ impl<T> Drop for StateRef<'_, T> {
 /// An [internally-mutable] type, similar to [`RefCell`][std::cell::RefCell] or [`Mutex`] that can
 /// be stored inside a [`VcValueType`].
 ///
-/// **[`State`] should only be used with [`OperationVc`] and types that implement
-/// [`OperationValue`]**.
+/// When updating a `State` with [`State::set_unconditionally`] or [`State::update_conditionally`]
 ///
-/// Setting values inside a [`State`] bypasses the normal argument and return value tracking
-/// that's tracks child function calls and re-runs tasks until their values settled. That system is
-/// needed for [strong consistency]. [`OperationVc`] ensures that function calls are reconnected
-/// with the parent/child call graph.
-///
-/// When reading a `State` with [`State::get`], the state itself (though not any values inside of
-/// it) is marked as a dependency of the current task.
+/// When reading a `State` with [`State::get`], the current task is marked as a dependency of any
+/// writers
 ///
 /// [internally-mutable]: https://doc.rust-lang.org/book/ch15-05-interior-mutability.html
 /// [`VcValueType`]: crate::VcValueType
@@ -161,9 +193,8 @@ impl<T> State<T> {
     /// as dependency of the state and will be invalidated when the state
     /// changes.
     pub fn get(&self) -> StateRef<'_, T> {
-        let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
-        inner.add_invalidator(invalidator);
+        inner.mark_read();
         StateRef {
             serialization_invalidator: Some(&self.serialization_invalidator),
             inner,
@@ -286,9 +317,8 @@ impl<T> TransientState<T> {
     /// changes.
     pub fn get(&self) -> StateRef<'_, Option<T>> {
         mark_session_dependent();
-        let invalidator = get_invalidator();
         let mut inner = self.inner.lock();
-        inner.add_invalidator(invalidator);
+        inner.mark_read();
         StateRef {
             serialization_invalidator: None,
             inner,
