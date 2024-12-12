@@ -151,7 +151,7 @@ impl Introspectable for EcmascriptBuildNodeChunk {
         let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk)
             .resolve()
             .await?;
-        children.insert((Vc::cell("chunk".into()), introspectable_chunk));
+        children.insert((ResolvedVc::cell("chunk".into()), introspectable_chunk));
         Ok(Vc::cell(children))
     }
 }

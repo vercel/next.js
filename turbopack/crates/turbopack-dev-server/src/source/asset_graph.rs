@@ -178,7 +178,6 @@ async fn expand(
         }
     }
     for (sub_path, asset) in assets {
-        let asset = asset.to_resolved().await?;
         if &*sub_path == "index.html" {
             map.insert("".into(), asset);
         } else if let Some(p) = sub_path.strip_suffix("/index.html") {
@@ -264,12 +263,12 @@ impl AssetGraphGetContentSourceContent {
 impl GetContentSourceContent for AssetGraphGetContentSourceContent {
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         _path: RcStr,
         _data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
         let this = self.await?;
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(ContentSourceContent::static_content(
             this.asset.versioned_content(),
         ))
@@ -318,9 +317,9 @@ impl Introspectable for AssetGraphContentSource {
     #[turbo_tasks::function]
     async fn children(self: Vc<Self>) -> Result<Vc<IntrospectableChildren>> {
         let this = self.await?;
-        let key = Vc::cell("root".into());
-        let inner_key = Vc::cell("inner".into());
-        let expanded_key = Vc::cell("expanded".into());
+        let key = ResolvedVc::cell("root".into());
+        let inner_key = ResolvedVc::cell("inner".into());
+        let expanded_key = ResolvedVc::cell("expanded".into());
 
         let root_assets = this.root_assets.await?;
         let root_asset_children = root_assets.iter().map(|&asset| {
@@ -376,7 +375,7 @@ impl Introspectable for FullyExpaned {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let source = self.0.await?;
-        let key = Vc::cell("asset".into());
+        let key = ResolvedVc::cell("asset".into());
 
         let expanded_assets =
             expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;

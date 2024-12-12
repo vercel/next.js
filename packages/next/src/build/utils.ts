@@ -1215,7 +1215,6 @@ export async function buildAppStaticPaths({
   page,
   distDir,
   dynamicIO,
-  after,
   authInterrupts,
   configFileName,
   segments,
@@ -1233,7 +1232,6 @@ export async function buildAppStaticPaths({
   dir: string
   page: string
   dynamicIO: boolean
-  after: boolean
   authInterrupts: boolean
   configFileName: string
   segments: AppSegment[]
@@ -1317,7 +1315,6 @@ export async function buildAppStaticPaths({
       supportsDynamicResponse: true,
       isRevalidate: false,
       experimental: {
-        after,
         dynamicIO,
         authInterrupts,
       },
@@ -1385,6 +1382,7 @@ export async function buildAppStaticPaths({
     }
   )
 
+  let lastDynamicSegmentHadGenerateStaticParams = false
   for (const segment of segments) {
     // Check to see if there are any missing params for segments that have
     // dynamicParams set to false.
@@ -1404,6 +1402,15 @@ export async function buildAppStaticPaths({
           `Segment "${relative}" exports "dynamicParams: false" but the param "${segment.param}" is missing from the generated route params.`
         )
       }
+    }
+
+    if (
+      segment.isDynamicSegment &&
+      typeof segment.generateStaticParams !== 'function'
+    ) {
+      lastDynamicSegmentHadGenerateStaticParams = false
+    } else if (typeof segment.generateStaticParams === 'function') {
+      lastDynamicSegmentHadGenerateStaticParams = true
     }
   }
 
@@ -1440,7 +1447,9 @@ export async function buildAppStaticPaths({
 
   let result: PartialStaticPathsResult = {
     fallbackMode,
-    prerenderedRoutes: undefined,
+    prerenderedRoutes: lastDynamicSegmentHadGenerateStaticParams
+      ? []
+      : undefined,
   }
 
   if (hadAllParamsGenerated && fallbackMode) {
@@ -1500,7 +1509,6 @@ export async function isPageStatic({
   edgeInfo,
   pageType,
   dynamicIO,
-  after,
   authInterrupts,
   originalAppPath,
   isrFlushToDisk,
@@ -1516,7 +1524,6 @@ export async function isPageStatic({
   page: string
   distDir: string
   dynamicIO: boolean
-  after: boolean
   authInterrupts: boolean
   configFileName: string
   runtimeEnvConfig: any
@@ -1630,7 +1637,7 @@ export async function isPageStatic({
           })
         }
 
-        appConfig = reduceAppConfig(await collectSegments(componentsResult))
+        appConfig = reduceAppConfig(segments)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -1659,7 +1666,6 @@ export async function isPageStatic({
               dir,
               page,
               dynamicIO,
-              after,
               authInterrupts,
               configFileName,
               segments,

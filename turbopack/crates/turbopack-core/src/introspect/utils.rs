@@ -39,6 +39,11 @@ fn passthrough_reference_ty() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::function]
+fn isolated_reference_ty() -> Vc<RcStr> {
+    Vc::cell("isolated reference".into())
+}
+
+#[turbo_tasks::function]
 fn traced_reference_ty() -> Vc<RcStr> {
     Vc::cell("traced reference".into())
 }
@@ -72,7 +77,7 @@ pub async fn children_from_module_references(
     for &reference in &*references {
         let mut key = key;
         if let Some(chunkable) =
-            Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
+            ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
         {
             match &*chunkable.chunking_type().await? {
                 None => {}
@@ -81,6 +86,7 @@ pub async fn children_from_module_references(
                     key = parallel_inherit_async_reference_ty()
                 }
                 Some(ChunkingType::Async) => key = async_reference_ty(),
+                Some(ChunkingType::Isolated { .. }) => key = isolated_reference_ty(),
                 Some(ChunkingType::Passthrough) => key = passthrough_reference_ty(),
                 Some(ChunkingType::Traced) => key = traced_reference_ty(),
             }
@@ -94,7 +100,7 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableModule::new(*module)));
+            children.insert((key.to_resolved().await?, IntrospectableModule::new(*module)));
         }
         for &output_asset in reference
             .resolve_reference()
@@ -102,7 +108,10 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableOutputAsset::new(*output_asset)));
+            children.insert((
+                key.to_resolved().await?,
+                IntrospectableOutputAsset::new(*output_asset),
+            ));
         }
     }
     Ok(Vc::cell(children))
@@ -117,7 +126,7 @@ pub async fn children_from_output_assets(
     let references = references.await?;
     for &reference in &*references {
         children.insert((
-            key,
+            key.to_resolved().await?,
             IntrospectableOutputAsset::new(*ResolvedVc::upcast(reference)),
         ));
     }

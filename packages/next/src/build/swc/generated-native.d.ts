@@ -285,6 +285,10 @@ export function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>
+export function projectGetSourceMapSync(
+  project: { __napiType: 'Project' },
+  filePath: string
+): string | null
 /** Runs exit handlers for the project registered using the [`ExitHandler`] API. */
 export function projectOnExit(project: { __napiType: 'Project' }): Promise<void>
 export function rootTaskDispose(rootTask: { __napiType: 'RootTask' }): void

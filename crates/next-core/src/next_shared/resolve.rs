@@ -89,7 +89,7 @@ impl Issue for InvalidImportModuleIssue {
                     .map(|v| StyledString::Text(format!("{}\n", v).into()))
                     .collect::<Vec<StyledString>>(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -142,7 +142,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
             // styled-jsx specific resolve error has its own message
             skip_context_message: self.invalid_import == "styled-jsx",
         }
-        .cell()
+        .resolved_cell()
         .emit();
 
         ResolveResultOption::some(
@@ -252,7 +252,7 @@ impl AfterResolvePlugin for NextExternalResolvePlugin {
                 ty: ExternalType::CommonJs,
                 traced: ExternalTraced::Traced,
             })
-            .into(),
+            .resolved_cell(),
         )))
     }
 }
@@ -329,7 +329,7 @@ impl AfterResolvePlugin for NextNodeSharedRuntimeResolvePlugin {
             ResolveResult::source(ResolvedVc::upcast(
                 FileSource::new(new_path).to_resolved().await?,
             ))
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -383,7 +383,7 @@ impl BeforeResolvePlugin for ModuleFeatureReportResolvePlugin {
 
                 if let Some(sub_path) = sub_path {
                     ModuleFeatureTelemetry::new(format!("{}{}", module, sub_path).into(), 1)
-                        .cell()
+                        .resolved_cell()
                         .emit();
                 }
             }
@@ -431,7 +431,7 @@ impl AfterResolvePlugin for NextSharedRuntimeResolvePlugin {
             ResolveResult::source(ResolvedVc::upcast(
                 FileSource::new(new_path).to_resolved().await?,
             ))
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }

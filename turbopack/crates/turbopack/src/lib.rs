@@ -599,31 +599,33 @@ async fn process_default_internal(
                             }),
                             Some(module_type) => {
                                 ModuleIssue {
-                                    ident,
-                                    title: StyledString::Text("Invalid module type".into()).cell(),
+                                    ident: ident.to_resolved().await?,
+                                    title: StyledString::Text("Invalid module type".into())
+                                        .resolved_cell(),
                                     description: StyledString::Text(
                                         "The module type must be Ecmascript or Typescript to add \
                                          Ecmascript transforms"
                                             .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 Some(module_type)
                             }
                             None => {
                                 ModuleIssue {
-                                    ident,
-                                    title: StyledString::Text("Missing module type".into()).cell(),
+                                    ident: ident.to_resolved().await?,
+                                    title: StyledString::Text("Missing module type".into())
+                                        .resolved_cell(),
                                     description: StyledString::Text(
                                         "The module type effect must be applied before adding \
                                          Ecmascript transforms"
                                             .into(),
                                     )
-                                    .cell(),
+                                    .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 None
                             }

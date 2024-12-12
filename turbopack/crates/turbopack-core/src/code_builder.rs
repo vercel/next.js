@@ -164,6 +164,7 @@ impl GenerateSourceMap for Code {
 
         let mut sections = Vec::with_capacity(self.mappings.len());
         let mut read = self.code.read();
+        // ast-grep-ignore: to-resolved-in-loop
         for (byte_pos, map) in &self.mappings {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
@@ -210,10 +211,12 @@ impl GenerateSourceMap for Code {
                 },
             };
 
-            sections.push(SourceMapSection::new(pos, encoded))
+            sections.push(SourceMapSection::new(pos, encoded.to_resolved().await?))
         }
 
-        Ok(Vc::cell(Some(SourceMap::new_sectioned(sections).cell())))
+        Ok(Vc::cell(Some(
+            SourceMap::new_sectioned(sections).resolved_cell(),
+        )))
     }
 }
 
@@ -270,6 +273,6 @@ pub async fn fileify_source_map(
     }
 
     Ok(Vc::cell(Some(
-        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(transformed)).cell(),
+        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(transformed)).resolved_cell(),
     )))
 }

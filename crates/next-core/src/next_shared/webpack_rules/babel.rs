@@ -76,7 +76,7 @@ pub async fn maybe_add_babel_loader(
                         .resolved_cell(),
                         severity: IssueSeverity::Fatal.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
 
                     has_emitted_babel_resolve_issue = true;
@@ -156,6 +156,6 @@ impl Issue for BabelIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(*self.description))
+        Vc::cell(Some(self.description))
     }
 }

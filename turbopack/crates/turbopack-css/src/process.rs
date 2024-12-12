@@ -428,7 +428,7 @@ async fn process_content(
                                 msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                             return Ok(ParseCssResult::Unparseable.cell());
                         }
@@ -461,7 +461,7 @@ async fn process_content(
                     msg: ResolvedVc::cell(e.to_string().into()),
                     source,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 return Ok(ParseCssResult::Unparseable.cell());
             }
@@ -483,7 +483,13 @@ async fn process_content(
     Ok(ParseCssResult::Ok {
         code: content_vc.to_resolved().await?,
         stylesheet,
-        references: ResolvedVc::cell(references),
+        references: ResolvedVc::cell(
+            references
+                .into_iter()
+                .map(|v| v.to_resolved())
+                .try_join()
+                .await?,
+        ),
         url_references: ResolvedVc::cell(url_references),
         options: config,
     }
@@ -518,7 +524,7 @@ impl CssError {
                     ),
                     source: None,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
@@ -649,7 +655,7 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
 
                 Vc::cell(Some(
                     turbopack_core::source_map::SourceMap::new_regular(builder.into_sourcemap())
-                        .cell(),
+                        .resolved_cell(),
                 ))
             }
             ParseCssResultSourceMap::Swc {
@@ -662,7 +668,7 @@ impl GenerateSourceMap for ParseCssResultSourceMap {
                     InlineSourcesContentConfig {},
                 );
                 Vc::cell(Some(
-                    turbopack_core::source_map::SourceMap::new_regular(map).cell(),
+                    turbopack_core::source_map::SourceMap::new_regular(map).resolved_cell(),
                 ))
             }
         }
@@ -694,14 +700,17 @@ impl Issue for ParsingIssue {
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(*self.file)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match self.source {
+            Some(s) => Some(s.resolve_source_map(*self.file).to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
     async fn description(&self) -> Result<Vc<OptionStyledString>> {
         Ok(Vc::cell(Some(
-            StyledString::Text(self.msg.await?.as_str().into()).cell(),
+            StyledString::Text(self.msg.await?.as_str().into()).resolved_cell(),
         )))
     }
 }

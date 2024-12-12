@@ -108,6 +108,7 @@ import { RouteKind } from './route-kind'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
+import DefaultCacheHandler from './lib/cache-handlers/default'
 
 export * from './base-server'
 
@@ -389,6 +390,10 @@ export default class NextNodeServer extends BaseServer<
           )
         }
       }
+
+      if (!cacheHandlers.default) {
+        ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
+      }
     }
 
     // incremental-cache is request specific
@@ -404,7 +409,6 @@ export default class NextNodeServer extends BaseServer<
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
-      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk:
@@ -668,13 +672,10 @@ export default class NextNodeServer extends BaseServer<
             handleInternalReq
           )
 
-      return imageOptimizer(
-        imageUpstream,
-        paramsResult,
-        this.nextConfig,
-        this.renderOpts.dev,
-        previousCacheEntry
-      )
+      return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
+        isDev: this.renderOpts.dev,
+        previousCacheEntry,
+      })
     }
   }
 
@@ -1056,7 +1057,7 @@ export default class NextNodeServer extends BaseServer<
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
-          await this.logErrorWithOriginalStack(err)
+          this.logErrorWithOriginalStack(err)
         } else {
           this.logError(err)
         }
@@ -1070,10 +1071,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   // Used in development only, overloaded in next-dev-server
-  protected async logErrorWithOriginalStack(
+  protected logErrorWithOriginalStack(
     _err?: unknown,
     _type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ): Promise<void> {
+  ): void {
     throw new Error(
       'Invariant: logErrorWithOriginalStack can only be called on the development server'
     )

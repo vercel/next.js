@@ -3,7 +3,7 @@ use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, NonLocalValue, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -47,7 +47,18 @@ struct PostCssProcessingResult {
 }
 
 #[derive(
-    Default, Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Serialize, Deserialize, TaskInput,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum PostCssConfigLocation {
     #[default]
@@ -183,8 +194,12 @@ async fn config_changed(
         .module();
 
     Ok(Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset),
-        extra_configs_changed(asset_context, postcss_config_path),
+        any_content_changed_of_module(config_asset)
+            .to_resolved()
+            .await?,
+        extra_configs_changed(asset_context, postcss_config_path)
+            .to_resolved()
+            .await?,
     ])
     .completed())
 }
@@ -207,7 +222,7 @@ async fn extra_configs_changed(
         .map(|path| async move {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    asset_context
+                    match *asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
                             Value::new(ReferenceType::Internal(
@@ -216,7 +231,12 @@ async fn extra_configs_changed(
                         )
                         .try_into_module()
                         .await?
-                        .map(|rvc| any_content_changed_of_module(*rvc))
+                    {
+                        Some(module) => {
+                            Some(any_content_changed_of_module(*module).to_resolved().await?)
+                        }
+                        None => None,
+                    }
                 } else {
                     None
                 },
@@ -561,7 +581,9 @@ impl Issue for PostCssTransformIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.description.clone()).resolved_cell(),
+        ))
     }
 
     #[turbo_tasks::function]

@@ -65,7 +65,7 @@ pub async fn assert_can_resolve_react_refresh(
             return Ok(ResolveReactRefreshResult::Found(request.to_resolved().await?).cell());
         }
     }
-    ReactRefreshResolvingIssue { path }.cell().emit();
+    ReactRefreshResolvingIssue { path }.resolved_cell().emit();
     Ok(ResolveReactRefreshResult::NotFound.cell())
 }
 
@@ -109,7 +109,7 @@ impl Issue for ReactRefreshResolvingIssue {
                 StyledString::Code("@next/react-refresh-utils".into()),
                 StyledString::Text(" modules.".into()),
             ])
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }

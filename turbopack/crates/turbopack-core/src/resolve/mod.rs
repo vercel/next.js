@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -386,7 +386,17 @@ impl Display for ExternalTraced {
 }
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum ExternalType {
     Url,
@@ -1024,12 +1034,12 @@ impl ResolveResult {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ResolveResultOption(Option<Vc<ResolveResult>>);
+pub struct ResolveResultOption(Option<ResolvedVc<ResolveResult>>);
 
 #[turbo_tasks::value_impl]
 impl ResolveResultOption {
     #[turbo_tasks::function]
-    pub fn some(result: Vc<ResolveResult>) -> Vc<Self> {
+    pub fn some(result: ResolvedVc<ResolveResult>) -> Vc<Self> {
         ResolveResultOption(Some(result)).cell()
     }
 
@@ -1059,11 +1069,18 @@ async fn type_exists(
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<ResolvedVc<FileSystemPath>>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
-    for path in result.symlinks.iter() {
-        refs.push(ResolvedVc::upcast(
-            FileSource::new(**path).to_resolved().await?,
-        ));
-    }
+    refs.extend(
+        result
+            .symlinks
+            .iter()
+            .map(|path| async move {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(**path).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
+    );
     let path = result.path;
     Ok(if *path.get_type().await? == ty {
         Some(path)
@@ -1077,11 +1094,18 @@ async fn any_exists(
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
-    for path in result.symlinks.iter() {
-        refs.push(ResolvedVc::upcast(
-            FileSource::new(**path).to_resolved().await?,
-        ));
-    }
+    refs.extend(
+        result
+            .symlinks
+            .iter()
+            .map(|path| async move {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(**path).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
+    );
     let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
@@ -1105,8 +1129,10 @@ enum ExportsFieldResult {
 /// Extracts the "exports" field out of the package.json, parsing it into an
 /// appropriate [AliasMap] for lookups.
 #[turbo_tasks::function]
-async fn exports_field(package_json_path: Vc<FileSystemPath>) -> Result<Vc<ExportsFieldResult>> {
-    let read = read_package_json(package_json_path).await?;
+async fn exports_field(
+    package_json_path: ResolvedVc<FileSystemPath>,
+) -> Result<Vc<ExportsFieldResult>> {
+    let read = read_package_json(*package_json_path).await?;
     let package_json = match &*read {
         Some(json) => json,
         None => return Ok(ExportsFieldResult::None.cell()),
@@ -1122,7 +1148,7 @@ async fn exports_field(package_json_path: Vc<FileSystemPath>) -> Result<Vc<Expor
                 path: package_json_path,
                 error_message: err.to_string().into(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(ExportsFieldResult::None.cell())
         }
@@ -1160,10 +1186,10 @@ async fn imports_field(lookup_path: Vc<FileSystemPath>) -> Result<Vc<ImportsFiel
         Ok(imports) => Ok(ImportsFieldResult::Some(imports, *package_json_path).cell()),
         Err(err) => {
             PackageJsonIssue {
-                path: **package_json_path,
+                path: *package_json_path,
                 error_message: err.to_string().into(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(ImportsFieldResult::None.cell())
         }
@@ -1190,7 +1216,7 @@ pub async fn find_context_file(
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).cell());
+            return Ok(FindContextFileResult::Found(fs_path, refs).cell());
         }
     }
     if lookup_path.await?.is_root() {
@@ -1232,18 +1258,14 @@ pub async fn find_context_file_or_package_key(
     if let Some(package_json_path) = exists(package_json_path, &mut refs).await? {
         if let Some(json) = &*read_package_json(*package_json_path).await? {
             if json.get(&**package_key).is_some() {
-                return Ok(FindContextFileResult::Found(
-                    package_json_path.to_resolved().await?,
-                    refs,
-                )
-                .into());
+                return Ok(FindContextFileResult::Found(package_json_path, refs).into());
             }
         }
     }
     for name in &*names.await? {
         let fs_path = lookup_path.join(name.clone());
         if let Some(fs_path) = exists(fs_path, &mut refs).await? {
-            return Ok(FindContextFileResult::Found(fs_path.to_resolved().await?, refs).into());
+            return Ok(FindContextFileResult::Found(fs_path, refs).into());
         }
     }
     if lookup_path.await?.is_root() {
@@ -1271,7 +1293,7 @@ pub async fn find_context_file_or_package_key(
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 enum FindPackageItem {
     PackageDirectory(ResolvedVc<FileSystemPath>),
     PackageFile(ResolvedVc<FileSystemPath>),
@@ -1307,9 +1329,7 @@ async fn find_package(
                             if let Some(fs_path) =
                                 dir_exists(fs_path, &mut affecting_sources).await?
                             {
-                                packages.push(FindPackageItem::PackageDirectory(
-                                    fs_path.to_resolved().await?,
-                                ));
+                                packages.push(FindPackageItem::PackageDirectory(fs_path));
                             }
                         }
                     }
@@ -1351,9 +1371,7 @@ async fn find_package(
                     let package_file = package_dir.append(extension.clone());
                     if let Some(package_file) = exists(package_file, &mut affecting_sources).await?
                     {
-                        packages.push(FindPackageItem::PackageFile(
-                            package_file.to_resolved().await?,
-                        ));
+                        packages.push(FindPackageItem::PackageFile(package_file));
                     }
                 }
             }
@@ -1580,7 +1598,7 @@ async fn handle_before_resolve_plugins(
             .before_resolve(lookup_path, reference_type.clone(), request)
             .await?
         {
-            return Ok(Some(result));
+            return Ok(Some(*result));
         }
     }
     Ok(None)
@@ -1607,7 +1625,7 @@ async fn handle_after_resolve_plugins(
                     .after_resolve(path, lookup_path, reference_type.clone(), request)
                     .await?
                 {
-                    return Ok(Some(result));
+                    return Ok(Some(*result));
                 }
             }
         }
@@ -1851,7 +1869,7 @@ async fn resolve_internal_inline(
                         ),
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
 
@@ -1877,7 +1895,7 @@ async fn resolve_internal_inline(
                         error_message: Some("windows imports are not implemented yet".to_string()),
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
 
@@ -1935,7 +1953,7 @@ async fn resolve_internal_inline(
                         error_message: None,
                         source: None,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
                 ResolveResult::unresolvable().into()
@@ -2259,6 +2277,7 @@ async fn apply_in_package(
     fragment: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     // Check alias field for module aliases first
+    // ast-grep-ignore: to-resolved-in-loop
     for in_package in options_value.in_package.iter() {
         // resolve_module_request is called when importing a node
         // module, not a PackageInternal one, so the imports field
@@ -2342,7 +2361,7 @@ async fn apply_in_package(
             error_message: Some(format!("invalid alias field value: {}", value)),
             source: None,
         }
-        .cell()
+        .resolved_cell()
         .emit();
 
         return Ok(Some(
@@ -2356,7 +2375,7 @@ async fn apply_in_package(
 enum FindSelfReferencePackageResult {
     Found {
         name: String,
-        package_path: Vc<FileSystemPath>,
+        package_path: ResolvedVc<FileSystemPath>,
     },
     NotFound,
 }
@@ -2375,7 +2394,7 @@ async fn find_self_reference(
                 if let Some(name) = json["name"].as_str() {
                     return Ok(FindSelfReferencePackageResult::Found {
                         name: name.to_string(),
-                        package_path: package_json_path.parent(),
+                        package_path: package_json_path.parent().to_resolved().await?,
                     }
                     .cell());
                 }
@@ -2422,7 +2441,7 @@ async fn resolve_module_request(
         if name == module {
             let result = resolve_into_package(
                 Value::new(path.clone()),
-                *package_path,
+                **package_path,
                 query,
                 fragment,
                 options,
@@ -2637,7 +2656,7 @@ async fn resolve_import_map_result(
 
             // We must avoid cycles during resolving
             if request.resolve().await? == original_request
-                && *alias_lookup_path.to_resolved().await? == original_lookup_path
+                && **alias_lookup_path == original_lookup_path
             {
                 None
             } else {
@@ -2850,7 +2869,7 @@ async fn resolve_package_internal_with_imports_field(
             error_message: None,
             source: None,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         return Ok(ResolveResult::unresolvable().into());
     }
@@ -2985,7 +3004,7 @@ async fn emit_resolve_error_issue(
         error_message: Some(format!("{}", PrettyPrintError(&err))),
         source,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(())
 }
@@ -3012,7 +3031,7 @@ async fn emit_unresolvable_issue(
         error_message: None,
         source,
     }
-    .cell()
+    .resolved_cell()
     .emit();
     Ok(())
 }
@@ -3038,11 +3057,11 @@ pub enum ModulePart {
     Export(ResolvedVc<RcStr>),
     /// Represents a renamed export of a module.
     RenamedExport {
-        original_export: Vc<RcStr>,
-        export: Vc<RcStr>,
+        original_export: ResolvedVc<RcStr>,
+        export: ResolvedVc<RcStr>,
     },
     /// Represents a namespace object of a module exported as named export.
-    RenamedNamespace { export: Vc<RcStr> },
+    RenamedNamespace { export: ResolvedVc<RcStr> },
     /// A pointer to a specific part.
     Internal(u32),
     /// A pointer to a specific part, but with evaluation.
@@ -3069,15 +3088,15 @@ impl ModulePart {
     #[turbo_tasks::function]
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Vc<Self> {
         ModulePart::RenamedExport {
-            original_export: Vc::cell(original_export),
-            export: Vc::cell(export),
+            original_export: ResolvedVc::cell(original_export),
+            export: ResolvedVc::cell(export),
         }
         .cell()
     }
     #[turbo_tasks::function]
     pub fn renamed_namespace(export: RcStr) -> Vc<Self> {
         ModulePart::RenamedNamespace {
-            export: Vc::cell(export),
+            export: ResolvedVc::cell(export),
         }
         .cell()
     }

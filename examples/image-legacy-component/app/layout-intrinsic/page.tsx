@@ -4,7 +4,7 @@ import ViewSource from "@/components/view-source";
 export default function LayoutIntrinsic() {
   return (
     <div>
-      <ViewSource pathname="pages/layout-intrinsic.tsx" />
+      <ViewSource pathname="app/layout-intrinsic/page.tsx" />
       <h1>Image Component With Layout Intrinsic</h1>
       <Image
         alt="Mountains"

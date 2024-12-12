@@ -461,7 +461,7 @@ function getIteratorFn(maybeIterable) {
 }
 var ASYNC_ITERATOR = Symbol.asyncIterator,
   SuspenseException = Error(
-    "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+    "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
   );
 function noop$1() {}
 function trackUsedThenable(thenableState, thenable, index) {
@@ -982,10 +982,7 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
 }
 function emitHint(request, code, model) {
   model = stringify(model);
-  var id = request.nextChunkId++;
-  code = "H" + code;
-  code = id.toString(16) + ":" + code;
-  request.completedHintChunks.push(code + model + "\n");
+  request.completedHintChunks.push(":H" + code + model + "\n");
   enqueueFlush(request);
 }
 function readThenable(thenable) {
@@ -2745,12 +2742,12 @@ exports.decodeReplyFromBusboy = function (busboyStream, webpackMap, options) {
         "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
       );
     pendingFiles++;
-    var JSCompiler_object_inline_chunks_216 = [];
+    var JSCompiler_object_inline_chunks_215 = [];
     value.on("data", function (chunk) {
-      JSCompiler_object_inline_chunks_216.push(chunk);
+      JSCompiler_object_inline_chunks_215.push(chunk);
     });
     value.on("end", function () {
-      var blob = new Blob(JSCompiler_object_inline_chunks_216, {
+      var blob = new Blob(JSCompiler_object_inline_chunks_215, {
         type: mimeType
       });
       response._formData.append(name, blob, filename);

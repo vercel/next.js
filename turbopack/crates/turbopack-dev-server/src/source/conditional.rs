@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{Completion, ResolvedVc, State, Value, Vc};
+use turbo_tasks::{Completion, ResolvedVc, State, TryJoinIterExt, Value, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{
@@ -148,6 +148,10 @@ impl Introspectable for ConditionalContentSource {
             ]
             .into_iter()
             .flatten()
+            .map(|(k, v)| async move { Ok((k.to_resolved().await?, v)) })
+            .try_join()
+            .await?
+            .into_iter()
             .collect(),
         ))
     }
@@ -168,11 +172,11 @@ impl GetContentSourceContent for ActivateOnGetContentSource {
 
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: RcStr,
         data: Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
-        turbo_tasks::emit(Vc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
+        turbo_tasks::emit(ResolvedVc::upcast::<Box<dyn ContentSourceSideEffect>>(self));
         Ok(self.await?.get_content.get(path, data))
     }
 }

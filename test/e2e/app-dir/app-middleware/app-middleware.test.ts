@@ -187,6 +187,26 @@ describe('app-dir with middleware', () => {
     await browser.deleteCookies()
   })
 
+  it('should omit internal headers for middleware cookies', async () => {
+    const response = await next.fetch('/rsc-cookies/cookie-options')
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-middleware-set-cookie')).toBeNull()
+  })
+
+  it('should ignore x-middleware-set-cookie as a request header', async () => {
+    const $ = await next.render$(
+      '/cookies',
+      {},
+      {
+        headers: {
+          'x-middleware-set-cookie': 'test',
+        },
+      }
+    )
+
+    expect($('#cookies').text()).toBe('cookies: 0')
+  })
+
   it('should be possible to read cookies that are set during the middleware handling of a server action', async () => {
     const browser = await next.browser('/rsc-cookies')
     const initialRandom1 = await browser.elementById('rsc-cookie-1').text()

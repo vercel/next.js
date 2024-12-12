@@ -43,6 +43,21 @@ describe('Dynamic IO Dev Errors', () => {
     )
   })
 
+  it('should not log unhandled rejections for persistently thrown top-level errors', async () => {
+    const cliOutputLength = next.cliOutput.length
+    const res = await next.fetch('/top-level-error')
+    expect(res.status).toBe(500)
+
+    await retry(() => {
+      const cliOutput = next.cliOutput.slice(cliOutputLength)
+      expect(cliOutput).toContain('GET /top-level-error 500')
+    })
+
+    expect(next.cliOutput.slice(cliOutputLength)).not.toContain(
+      'unhandledRejection'
+    )
+  })
+
   // NOTE: when update this snapshot, use `pnpm build` in packages/next to avoid next source code get mapped to source.
   it('should display error when component accessed data without suspense boundary', async () => {
     const outputIndex = next.cliOutput.length
@@ -57,11 +72,12 @@ describe('Dynamic IO Dev Errors', () => {
         `See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense` +
         '\n    at Page [Server] (<anonymous>)' +
         (isTurbopack
-          ? // TODO(Veil): Should be sourcemapped
-            '\n    at InnerScrollAndFocusHandler (.next/'
-          : // TODO(veil): Should be ignore-listed
-            // TODO(veil): Why is this not pointing to n_m in Webpack?
-            '\n    at parallelRouterKey (..')
+          ? '\n    at main (<anonymous>)' +
+            '\n    at body (<anonymous>)' +
+            '\n    at html (<anonymous>)' +
+            '\n    at Root [Server] (<anonymous>)'
+          : // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
+            '\n    at tree (..')
     )
 
     const description = await getRedboxDescription(browser)

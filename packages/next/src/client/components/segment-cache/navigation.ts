@@ -8,13 +8,11 @@ import type {
   LoadingModuleData,
 } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
-import {
-  fetchServerResponse,
-  type FetchServerResponseResult,
-} from '../router-reducer/fetch-server-response'
+import { fetchServerResponse } from '../router-reducer/fetch-server-response'
 import {
   updateCacheNodeOnNavigation,
   listenForDynamicRequest,
+  type Task as PPRNavigationTask,
 } from '../router-reducer/ppr-navigations'
 import { createHrefFromUrl as createCanonicalUrl } from '../router-reducer/create-href-from-url'
 import {
@@ -86,36 +84,26 @@ export function navigate(
 ): AsyncNavigationResult | SuccessfulNavigationResult | NoOpNavigationResult {
   const now = Date.now()
 
-  // TODO: Interception routes not yet implemented in Segment Cache. Pass a
-  // Next-URL to createCacheKey.
-  const cacheKey = createCacheKey(url.href, null)
+  const cacheKey = createCacheKey(url.href, nextUrl)
   const route = readRouteCacheEntry(now, cacheKey)
-  if (
-    route !== null &&
-    route.status === EntryStatus.Fulfilled &&
-    // TODO: Prefetching interception routes is not support yet by the Segment
-    // Cache. For now, treat this as a cache miss and fallthrough to a full
-    // dynamic navigation.
-    !route.couldBeIntercepted
-  ) {
+  if (route !== null && route.status === EntryStatus.Fulfilled) {
     // We have a matching prefetch.
     const snapshot = readRenderSnapshotFromCache(now, route.tree)
     const prefetchFlightRouterState = snapshot.flightRouterState
     const prefetchSeedData = snapshot.seedData
     const prefetchHead = route.head
+    const isPrefetchHeadPartial = route.isHeadPartial
     const canonicalUrl = route.canonicalUrl
-    const promiseForDynamicServerResponse = fetchServerResponse(url, {
-      flightRouterState: currentFlightRouterState,
-      nextUrl,
-    })
     return navigateUsingPrefetchedRouteTree(
+      url,
+      nextUrl,
       currentCacheNode,
       currentFlightRouterState,
       prefetchFlightRouterState,
       prefetchSeedData,
       prefetchHead,
-      canonicalUrl,
-      promiseForDynamicServerResponse
+      isPrefetchHeadPartial,
+      canonicalUrl
     )
   }
   // There's no matching prefetch for this route in the cache.
@@ -123,21 +111,23 @@ export function navigate(
     tag: NavigationResultTag.Async,
     data: navigateDynamicallyWithNoPrefetch(
       url,
+      nextUrl,
       currentCacheNode,
-      currentFlightRouterState,
-      nextUrl
+      currentFlightRouterState
     ),
   }
 }
 
 function navigateUsingPrefetchedRouteTree(
+  url: URL,
+  nextUrl: string | null,
   currentCacheNode: CacheNode,
   currentFlightRouterState: FlightRouterState,
   prefetchFlightRouterState: FlightRouterState,
   prefetchSeedData: CacheNodeSeedData | null,
   prefetchHead: React.ReactNode | null,
-  canonicalUrl: string,
-  promiseForDynamicServerResponse: Promise<FetchServerResponseResult>
+  isPrefetchHeadPartial: boolean,
+  canonicalUrl: string
 ): SuccessfulNavigationResult | NoOpNavigationResult {
   // Recursively construct a prefetch tree by reading from the Segment Cache. To
   // maintain compatibility, we output the same data structures as the old
@@ -150,24 +140,41 @@ function navigateUsingPrefetchedRouteTree(
     currentFlightRouterState,
     prefetchFlightRouterState,
     prefetchSeedData,
-    prefetchHead
+    prefetchHead,
+    isPrefetchHeadPartial
   )
   if (task !== null) {
-    const newCacheNode = task.node
-    if (newCacheNode !== null) {
+    const dynamicRequestTree = task.dynamicRequestTree
+    if (dynamicRequestTree !== null) {
+      const promiseForDynamicServerResponse = fetchServerResponse(url, {
+        flightRouterState: dynamicRequestTree,
+        nextUrl,
+      })
       listenForDynamicRequest(task, promiseForDynamicServerResponse)
+    } else {
+      // The prefetched tree does not contain dynamic holes — it's
+      // fully static. We can skip the dynamic request.
     }
-    return {
-      tag: NavigationResultTag.Success,
-      data: {
-        flightRouterState: task.route,
-        cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
-        canonicalUrl,
-      },
-    }
+    return navigationTaskToResult(task, currentCacheNode, canonicalUrl)
   }
   // The server sent back an empty tree patch. There's nothing to update.
   return noOpNavigationResult
+}
+
+function navigationTaskToResult(
+  task: PPRNavigationTask,
+  currentCacheNode: CacheNode,
+  canonicalUrl: string
+): SuccessfulNavigationResult {
+  const newCacheNode = task.node
+  return {
+    tag: NavigationResultTag.Success,
+    data: {
+      flightRouterState: task.route,
+      cacheNode: newCacheNode !== null ? newCacheNode : currentCacheNode,
+      canonicalUrl,
+    },
+  }
 }
 
 function readRenderSnapshotFromCache(
@@ -190,6 +197,7 @@ function readRenderSnapshotFromCache(
 
   let rsc: React.ReactNode | null = null
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
+  let isPartial: boolean = true
 
   const segmentEntry = readSegmentCacheEntry(now, tree.path)
   if (segmentEntry !== null) {
@@ -198,6 +206,7 @@ function readRenderSnapshotFromCache(
         // Happy path: a cache hit
         rsc = segmentEntry.rsc
         loading = segmentEntry.loading
+        isPartial = segmentEntry.isPartial
         break
       }
       case EntryStatus.Pending: {
@@ -211,6 +220,10 @@ function readRenderSnapshotFromCache(
         loading = promiseForFulfilledEntry.then((entry) =>
           entry !== null ? entry.loading : null
         )
+        // Since we don't know yet whether the segment is partial or fully
+        // static, we must assume it's partial; we can't skip the
+        // dynamic request.
+        isPartial = true
         break
       }
       case EntryStatus.Rejected:
@@ -234,15 +247,21 @@ function readRenderSnapshotFromCache(
       null,
       isRootLayout,
     ],
-    seedData: [flightRouterStateSegment, rsc, childSeedDatas, loading],
+    seedData: [
+      flightRouterStateSegment,
+      rsc,
+      childSeedDatas,
+      loading,
+      isPartial,
+    ],
   }
 }
 
 async function navigateDynamicallyWithNoPrefetch(
   url: URL,
+  nextUrl: string | null,
   currentCacheNode: CacheNode,
-  currentFlightRouterState: FlightRouterState,
-  nextUrl: string | null
+  currentFlightRouterState: FlightRouterState
 ): Promise<
   MPANavigationResult | SuccessfulNavigationResult | NoOpNavigationResult
 > {
@@ -289,17 +308,41 @@ async function navigateDynamicallyWithNoPrefetch(
   // nor a prefetch head.
   const prefetchSeedData = null
   const prefetchHead = null
+  const isPrefetchHeadPartial = true
+
+  const canonicalUrl = createCanonicalUrl(
+    canonicalUrlOverride ? canonicalUrlOverride : url
+  )
 
   // Now we proceed exactly as we would for normal navigation.
-  return navigateUsingPrefetchedRouteTree(
+  const task = updateCacheNodeOnNavigation(
     currentCacheNode,
     currentFlightRouterState,
     prefetchFlightRouterState,
     prefetchSeedData,
     prefetchHead,
-    createCanonicalUrl(canonicalUrlOverride ? canonicalUrlOverride : url),
-    promiseForDynamicServerResponse
+    isPrefetchHeadPartial
   )
+  if (task !== null) {
+    // In this case, we've already sent the dynamic request, so we don't
+    // actually use the request tree created by `updateCacheNodeOnNavigation`,
+    // except to check if it contains dynamic holes.
+    //
+    // This is almost always true, but it could be false if all the segment data
+    // was present in the cache, but the route tree was not. E.g. navigating
+    // to a URL that was not prefetched but rewrites to a different URL
+    // that was.
+    const hasDynamicHoles = task.dynamicRequestTree !== null
+    if (hasDynamicHoles) {
+      listenForDynamicRequest(task, promiseForDynamicServerResponse)
+    } else {
+      // The prefetched tree does not contain dynamic holes — it's
+      // fully static. We don't need to process the server response further.
+    }
+    return navigationTaskToResult(task, currentCacheNode, canonicalUrl)
+  }
+  // The server sent back an empty tree patch. There's nothing to update.
+  return noOpNavigationResult
 }
 
 function simulatePrefetchTreeUsingDynamicTreePatch(

@@ -85,7 +85,7 @@ impl Introspectable for CombinedContentSource {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let source = Vc::cell("source".into());
+        let source = ResolvedVc::cell("source".into());
         Ok(Vc::cell(
             self.sources
                 .iter()

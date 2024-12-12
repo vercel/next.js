@@ -44,6 +44,7 @@ describe('Required Server Files', () => {
         }
         await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
+        process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
         nextApp = nextServer({
           conf: {},
           dir: appDir,
@@ -57,6 +58,7 @@ describe('Required Server Files', () => {
         console.log(`Listening at ::${appPort}`)
       })
       afterAll(async () => {
+        delete process.env.NEXT_PRIVATE_TEST_HEADERS
         if (server) server.close()
         await fs.rename(join(appDir, 'pages-bak'), join(appDir, 'pages'))
       })
