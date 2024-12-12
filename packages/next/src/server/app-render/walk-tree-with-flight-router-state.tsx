@@ -134,15 +134,16 @@ export async function walkTreeWithFlightRouterState({
     )
 
     if (shouldSkipComponentTree) {
-      // Send only the router state
+      // Send only the router state.
+      // TODO: Even for a dynamic route, we should cache these responses,
+      // because they do not contain any render data (neither segment data nor
+      // the head). They can be made even more cacheable once we move the route
+      // params into a separate data structure.
       return [
         [
           overriddenSegment,
           routerState,
           null,
-          // TODO: It's possible that all the segment data was prefetched during
-          // a navigation, but the head was not. Should we send it down
-          // here anyway?
           null,
           false,
         ] satisfies FlightDataSegment,
