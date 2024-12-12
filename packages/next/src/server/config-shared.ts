@@ -243,7 +243,6 @@ export interface ExperimentalConfig {
   }
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -1087,12 +1086,7 @@ export const defaultConfig: NextConfig = {
     },
     cssChunking: true,
     multiZoneDraftMode: false,
-    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
-      ? {
-          mode: 'full',
-        }
-      : undefined,
+    appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,

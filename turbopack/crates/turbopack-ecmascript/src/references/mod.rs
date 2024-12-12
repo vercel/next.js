@@ -590,11 +590,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(source, source_map.clone(), None)),
-    );
+    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph =
         set_handler_and_globals(&handler, globals, || create_graph(program, eval_context));
@@ -776,7 +773,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 path: source.ident().path().to_resolved().await?,
                 specified_type,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
@@ -798,7 +795,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     path: source.ident().path().to_resolved().await?,
                     specified_type,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
 
                 EcmascriptExports::EsmExports(
@@ -856,6 +853,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             None,
             Some(issue_source(*source, span)),
         )
+        .to_resolved()
+        .await?
         .emit();
     }
 
@@ -1254,6 +1253,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     analysis.set_successful(true);
 
+    collector.emit().await?;
+
     analysis
         .build(matches!(
             options.tree_shaking_mode,
@@ -1406,7 +1407,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
             }
             JsValue::WellKnownFunction(WellKnownFunctionKind::WorkerConstructor) => {
                 let args = linked_args(args).await?;
-                if let [url @ JsValue::Url(_, JsValueUrlKind::Relative)] = &args[..] {
+                if let Some(url @ JsValue::Url(_, JsValueUrlKind::Relative)) = args.first() {
                     let pat = js_value_to_pattern(url);
                     if !pat.has_constant_parts() {
                         let (args, hints) = explain_args(&args);
@@ -3215,7 +3216,7 @@ async fn resolve_as_webpack_runtime(
 }
 
 // TODO enable serialization
-#[turbo_tasks::value(transparent, serialization = "none")]
+#[turbo_tasks::value(transparent, serialization = "none", non_local)]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 
 pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());

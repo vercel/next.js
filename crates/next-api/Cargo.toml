@@ -14,9 +14,11 @@ workspace = true
 
 [dependencies]
 anyhow = { workspace = true, features = ["backtrace"] }
+auto-hash-map = { workspace = true }
 futures = { workspace = true }
 indexmap = { workspace = true }
 next-core = { workspace = true }
+petgraph = { workspace = true, features = ["serde-1"]}
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

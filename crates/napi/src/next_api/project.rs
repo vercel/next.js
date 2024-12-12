@@ -22,7 +22,7 @@ use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     get_effects, Completion, Effects, ReadRef, ResolvedVc, TransientInstance, UpdateInfo, Vc,
@@ -41,6 +41,7 @@ use turbopack_core::{
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
+    filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
 };
@@ -317,7 +318,7 @@ pub async fn project_new(
 
         let subscriber = Registry::default();
 
-        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);

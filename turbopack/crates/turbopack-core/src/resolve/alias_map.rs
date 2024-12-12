@@ -15,6 +15,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::{internal::PassthroughDebug, ValueDebugFormat, ValueDebugFormatString},
     trace::{TraceRawVcs, TraceRawVcsContext},
+    NonLocalValue,
 };
 
 use super::pattern::Pattern;
@@ -574,7 +575,7 @@ impl AliasPattern {
     }
 }
 
-#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 enum AliasKey {
     Exact,
     Wildcard { suffix: RcStr },

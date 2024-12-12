@@ -77,7 +77,7 @@ pub async fn get_app_client_references_chunks(
 
                                 (
                                     (
-                                        client_chunk_group.assets.to_resolved().await?,
+                                        client_chunk_group.assets,
                                         client_chunk_group.availability_info,
                                     ),
                                     if let Some(ssr_chunking_context) = ssr_chunking_context {
@@ -88,7 +88,7 @@ pub async fn get_app_client_references_chunks(
                                             .await?;
 
                                         Some((
-                                            ssr_chunk_group.assets.to_resolved().await?,
+                                            ssr_chunk_group.assets,
                                             ssr_chunk_group.availability_info,
                                         ))
                                     } else {
@@ -103,7 +103,7 @@ pub async fn get_app_client_references_chunks(
 
                                 (
                                     (
-                                        client_chunk_group.assets.to_resolved().await?,
+                                        client_chunk_group.assets,
                                         client_chunk_group.availability_info,
                                     ),
                                     None,

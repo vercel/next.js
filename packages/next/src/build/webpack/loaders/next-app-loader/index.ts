@@ -47,7 +47,6 @@ export type AppLoaderOptions = {
   tsconfigPath?: string
   isDev?: true
   basePath: string
-  flyingShuttle?: boolean
   nextConfigOutput?: NextConfig['output']
   nextConfigExperimentalUseEarlyImport?: true
   middlewareConfig: string
@@ -123,13 +122,9 @@ async function createTreeCodeFromPath(
     metadataResolver,
     pageExtensions,
     basePath,
-    buildInfo,
-    flyingShuttle,
     collectedDeclarations,
   }: {
     page: string
-    flyingShuttle?: boolean
-    buildInfo: ReturnType<typeof getModuleBuildInfo>
     resolveDir: DirResolver
     resolver: PathResolver
     metadataResolver: MetadataResolver
@@ -299,15 +294,9 @@ async function createTreeCodeFromPath(
         })
       )
 
-      const definedFilePaths = filePaths.filter(([, filePath]) => {
-        if (filePath !== undefined) {
-          if (flyingShuttle && buildInfo.route?.relatedModules) {
-            buildInfo.route.relatedModules.push(filePath)
-          }
-          return true
-        }
-        return false
-      }) as [ValueOf<typeof FILE_TYPES>, string][]
+      const definedFilePaths = filePaths.filter(
+        ([, filePath]) => filePath !== undefined
+      ) as [ValueOf<typeof FILE_TYPES>, string][]
 
       // Add default access fallback as root fallback if not present
       const existedConventionNames = new Set(
@@ -502,7 +491,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     nextConfigOutput,
     preferredRegion,
     basePath,
-    flyingShuttle,
     middlewareConfig: middlewareConfigBase64,
     nextConfigExperimentalUseEarlyImport,
   } = loaderOptions
@@ -698,8 +686,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
     pageExtensions,
     basePath,
     collectedDeclarations,
-    buildInfo,
-    flyingShuttle,
   })
 
   if (!treeCodeResult.rootLayout) {
@@ -749,8 +735,6 @@ const nextAppLoader: AppLoader = async function nextAppLoader() {
         pageExtensions,
         basePath,
         collectedDeclarations,
-        buildInfo,
-        flyingShuttle,
       })
     }
   }

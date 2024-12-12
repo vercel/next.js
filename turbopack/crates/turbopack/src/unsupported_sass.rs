@@ -48,7 +48,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
                 file_path: lookup_path,
                 request,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
