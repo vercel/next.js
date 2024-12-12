@@ -165,6 +165,7 @@ pub trait OutputChunk: Asset {
     Eq,
     PartialEq,
     ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ChunkingType {
     /// Module is placed in the same chunk group and is loaded in parallel. It
