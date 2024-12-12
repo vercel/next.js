@@ -1245,13 +1245,14 @@ impl AggregationUpdateQueue {
         };
         let mut upper_upper_ids_with_new_follower = Vec::new();
         let mut is_aggregate_root = false;
+        let mut upper_aggregation_numbers = Vec::new();
         upper_ids.retain(|&upper_id| {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
             // decide if it should be an inner or follower
             let upper_aggregation_number = get_aggregation_number(&upper);
 
             if !is_root_node(upper_aggregation_number)
-                && upper_aggregation_number <= follower_aggregation_number
+                && upper_aggregation_number < follower_aggregation_number
             {
                 // It's a follower of the upper node
                 if update_count!(
@@ -1269,6 +1270,7 @@ impl AggregationUpdateQueue {
                 if upper.has_key(&CachedDataItemKey::AggregateRoot {}) {
                     is_aggregate_root = true;
                 }
+                upper_aggregation_numbers.push(upper_aggregation_number);
                 true
             }
         });
@@ -1277,24 +1279,42 @@ impl AggregationUpdateQueue {
             let mut follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
             let mut uppers_count: Option<usize> = None;
             let mut persistent_uppers = 0;
-            upper_ids.retain(|&upper_id| {
-                if update_count!(follower, Upper { task: upper_id }, 1) {
-                    // It's a new upper
-                    let uppers_count = uppers_count.get_or_insert_with(|| {
-                        let count =
-                            iter_many!(follower, Upper { .. } count if *count > 0 => ()).count();
-                        count - 1
-                    });
-                    *uppers_count += 1;
-                    if !upper_id.is_transient() {
-                        persistent_uppers += 1;
+            swap_retain_with_aux_vec(
+                &mut upper_ids,
+                &mut upper_aggregation_numbers,
+                |&mut upper_id, &mut upper_aggregation_number| {
+                    if update_count!(follower, Upper { task: upper_id }, 1) {
+                        // It's a new upper
+                        let uppers_count = uppers_count.get_or_insert_with(|| {
+                            let count =
+                                iter_many!(follower, Upper { .. } count if *count > 0 => ())
+                                    .count();
+                            count - 1
+                        });
+                        *uppers_count += 1;
+                        if !upper_id.is_transient() {
+                            persistent_uppers += 1;
+                        }
+
+                        let follower_aggregation_number = get_aggregation_number(&follower);
+
+                        // Balancing is only needed when they are equal (or could have become equal
+                        // in the meantime). This is not perfect from concurrent perspective, but we
+                        // can accept a few incorrect invariants in the graph.
+                        if upper_aggregation_number <= follower_aggregation_number {
+                            self.push(AggregationUpdateJob::BalanceEdge {
+                                upper_id,
+                                task_id: new_follower_id,
+                            });
+                        }
+
+                        true
+                    } else {
+                        // It's already an upper
+                        false
                     }
-                    true
-                } else {
-                    // It's already an upper
-                    false
-                }
-            });
+                },
+            );
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
             if !upper_ids.is_empty() {
@@ -1369,16 +1389,17 @@ impl AggregationUpdateQueue {
         let mut new_followers_of_upper_uppers = Vec::new();
         let is_aggregate_root;
         let mut upper_upper_ids_for_new_followers = Vec::new();
+        let upper_aggregation_number;
         {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
             is_aggregate_root = upper.has_key(&CachedDataItemKey::AggregateRoot {});
             // decide if it should be an inner or follower
-            let upper_aggregation_number = get_aggregation_number(&upper);
+            upper_aggregation_number = get_aggregation_number(&upper);
 
             if !is_root_node(upper_aggregation_number) {
                 followers_with_aggregation_number.retain(
                     |(follower_id, follower_aggregation_number)| {
-                        if upper_aggregation_number <= *follower_aggregation_number {
+                        if upper_aggregation_number < *follower_aggregation_number {
                             // It's a follower of the upper node
                             if update_count!(upper, Follower { task: *follower_id }, 1) {
                                 new_followers_of_upper_uppers.push(*follower_id);
@@ -1411,12 +1432,23 @@ impl AggregationUpdateQueue {
                 // It's a new upper
                 let data = AggregatedDataUpdate::from_task(&mut follower);
                 let children: Vec<_> = get_followers(&follower);
+                let follower_aggregation_number = get_aggregation_number(&follower);
                 drop(follower);
 
                 if !data.is_empty() {
                     upper_data_updates.push(data);
                 }
                 upper_new_followers.extend(children);
+
+                // Balancing is only needed when they are equal (or could have become equal in the
+                // meantime). This is not perfect from concurrent perspective, but we can accept a
+                // few incorrect invariants in the graph.
+                if upper_aggregation_number <= follower_aggregation_number {
+                    self.push(AggregationUpdateJob::BalanceEdge {
+                        upper_id,
+                        task_id: follower_id,
+                    })
+                }
             }
         }
         if !upper_new_followers.is_empty() {
@@ -1497,7 +1529,7 @@ impl AggregationUpdateQueue {
         let upper_aggregation_number = get_aggregation_number(&upper);
 
         if !is_root_node(upper_aggregation_number)
-            && upper_aggregation_number <= follower_aggregation_number
+            && upper_aggregation_number < follower_aggregation_number
         {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new follower").entered();
@@ -1535,6 +1567,7 @@ impl AggregationUpdateQueue {
                 // It's a new upper
                 let data = AggregatedDataUpdate::from_task(&mut follower);
                 let children: Vec<_> = get_followers(&follower);
+                let follower_aggregation_number = get_aggregation_number(&follower);
                 drop(follower);
 
                 if !data.is_empty() {
@@ -1553,6 +1586,16 @@ impl AggregationUpdateQueue {
                     self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
                         upper_id,
                         new_follower_ids: children,
+                    });
+                }
+
+                // Balancing is only needed when they are equal (or could have become equal in the
+                // meantime). This is not perfect from concurrent perspective, but we can accept a
+                // few incorrect invariants in the graph.
+                if upper_aggregation_number <= follower_aggregation_number {
+                    self.push(AggregationUpdateJob::BalanceEdge {
+                        upper_id,
+                        task_id: new_follower_id,
                     });
                 }
             }
@@ -1782,5 +1825,42 @@ impl Operation for AggregationUpdateQueue {
                 return;
             }
         }
+    }
+}
+
+fn swap_retain_with_aux_vec<T, A>(
+    vec: &mut Vec<T>,
+    aux_vec: &mut Vec<A>,
+    mut f: impl FnMut(&mut T, &mut A) -> bool,
+) {
+    let mut i = 0;
+    while i < vec.len() {
+        if !f(&mut vec[i], &mut aux_vec[i]) {
+            vec.swap_remove(i);
+            aux_vec.swap_remove(i);
+        } else {
+            i += 1;
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::backend::operation::aggregation_update::swap_retain_with_aux_vec;
+
+    #[test]
+    fn test_swap_retain_with_aux_vec() {
+        let mut vec = vec![1, 2, 3, 4, 5];
+        let mut aux = vec![1, 2, 3, 4, 5];
+        swap_retain_with_aux_vec(&mut vec, &mut aux, |a, b| {
+            if *a % 2 == 0 {
+                false
+            } else {
+                *b += 10;
+                true
+            }
+        });
+        assert_eq!(vec, vec![1, 5, 3]);
+        assert_eq!(aux, vec![11, 15, 13]);
     }
 }
