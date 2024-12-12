@@ -62,6 +62,7 @@ export async function walkTreeWithFlightRouterState({
     query,
     isPrefetch,
     getDynamicParamFromSegment,
+    parsedRequestHeaders,
   } = ctx
 
   const [segment, parallelRoutes, modules] = loaderTreeToFilter
@@ -115,9 +116,13 @@ export async function walkTreeWithFlightRouterState({
   // somewhere in the tree, we'll recursively render the component tree up until we encounter that loading component, and then stop.
   const shouldSkipComponentTree =
     !experimental.isRoutePPREnabled &&
-    isPrefetch &&
-    !Boolean(modules.loading) &&
-    !hasLoadingComponentInTree(loaderTreeToFilter)
+    // If PPR is disabled, and this is a request for the route tree, then we
+    // never render any components. Only send the router state.
+    (parsedRequestHeaders.isRouteTreePrefetchRequest ||
+      // Otherwise, check for the presence of a `loading` component.
+      (isPrefetch &&
+        !Boolean(modules.loading) &&
+        !hasLoadingComponentInTree(loaderTreeToFilter)))
 
   if (!parentRendered && renderComponentsOnThisLevel) {
     const overriddenSegment =
