@@ -64,7 +64,8 @@
     "unpack-next": "node scripts/unpack-next.cjs",
     "swc-build-native": "node scripts/build-native.cjs",
     "swc-build-wasm": "node scripts/build-wasm.cjs",
-    "sweep": "node scripts/sweep.cjs"
+    "sweep": "node scripts/sweep.cjs",
+    "check-error-codes": "node packages/next/check-error-codes.js"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -74,6 +75,7 @@
     "@babel/generator": "7.22.5",
     "@babel/parser": "7.22.5",
     "@babel/plugin-proposal-object-rest-spread": "7.20.7",
+    "@babel/plugin-syntax-explicit-resource-management": "7.25.7",
     "@babel/preset-flow": "7.22.5",
     "@babel/preset-react": "7.22.5",
     "@edge-runtime/jest-environment": "4.0.0",
@@ -202,7 +204,6 @@
     "postcss-short-size": "4.0.0",
     "postcss-trolling": "0.1.7",
     "prettier": "3.2.5",
-    "prettier-2": "npm:prettier@^2",
     "pretty-bytes": "5.3.0",
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
@@ -267,6 +268,7 @@
       "@babel/traverse": "7.22.5",
       "@types/react": "19.0.0",
       "@types/react-dom": "19.0.0",
+      "jest-snapshot": "30.0.0-alpha.6",
       "react": "19.0.0-rc-7283a213-20241206",
       "react-dom": "19.0.0-rc-7283a213-20241206",
       "react-is": "19.0.0-rc-7283a213-20241206",

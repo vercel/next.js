@@ -82,9 +82,5 @@ describe('webpack-module-path', () => {
         './src/hello.tsx'
       )
     })
-
-    it('should return an empty string for <anonymous> file paths', () => {
-      expect(formatFrameSourceFile('<anonymous>')).toBe('')
-    })
   })
 })

@@ -76,7 +76,7 @@ pub async fn read_tsconfigs(
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             FileJsonContent::NotFound => {
@@ -85,7 +85,7 @@ pub async fn read_tsconfigs(
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: "tsconfig not found".into(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             FileJsonContent::Content(json) => {
@@ -103,7 +103,7 @@ pub async fn read_tsconfigs(
                             message: format!("extends: \"{}\" doesn't resolve correctly", extends)
                                 .into(),
                         }
-                        .cell()
+                        .resolved_cell()
                         .emit();
                     }
                 }
@@ -308,7 +308,7 @@ pub async fn tsconfig_resolve_options(
                             )
                             .into(),
                         }
-                        .cell()
+                        .resolved_cell()
                         .emit()
                     }
                 }

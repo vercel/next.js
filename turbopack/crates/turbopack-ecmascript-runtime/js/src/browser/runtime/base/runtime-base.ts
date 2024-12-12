@@ -239,7 +239,7 @@ function resolveAbsolutePath(modulePath?: string): string {
 }
 
 function getWorkerBlobURL(chunks: ChunkPath[]): string {
-  let bootstrap = `TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map(c => (`TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`)).join(", ")});`;
+  let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map(c => (`self.TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`)).join(", ")});`;
   let blob = new Blob([bootstrap], { type: "text/javascript" });
   return URL.createObjectURL(blob);
 }

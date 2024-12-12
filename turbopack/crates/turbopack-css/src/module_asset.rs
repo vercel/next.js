@@ -343,7 +343,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                     "#,
                                     from = &*from.await?.request.to_string().await?
                                 }.into(),
-                            }.cell().emit();
+                            }.resolved_cell().emit();
                             continue;
                         };
 
@@ -360,7 +360,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                     "#,
                                     from = &*from.await?.request.to_string().await?
                                 }.into(),
-                            }.cell().emit();
+                            }.resolved_cell().emit();
                             continue;
                         };
 

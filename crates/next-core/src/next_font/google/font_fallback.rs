@@ -5,7 +5,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{IssueExt, IssueSeverity, StyledString};
 
@@ -37,7 +37,7 @@ pub(super) struct FontMetricsMapEntry {
 #[derive(Deserialize, Debug)]
 pub(super) struct FontMetricsMap(pub HashMap<RcStr, FontMetricsMapEntry>);
 
-#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 struct Fallback {
     pub font_family: RcStr,
     pub adjustment: Option<FontAdjustment>,
@@ -92,7 +92,7 @@ pub(super) async fn get_font_fallback(
                         .resolved_cell(),
                         severity: IssueSeverity::Warning.resolved_cell(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     FontFallback::Error.cell()
                 }

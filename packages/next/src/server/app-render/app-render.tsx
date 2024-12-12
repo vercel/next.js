@@ -2,7 +2,6 @@ import type {
   ActionResult,
   DynamicParamTypesShort,
   FlightRouterState,
-  FlightSegmentPath,
   RenderOpts,
   Segment,
   CacheNodeSeedData,
@@ -53,6 +52,7 @@ import {
   NEXT_ROUTER_STALE_TIME_HEADER,
   NEXT_URL,
   RSC_HEADER,
+  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
 } from '../../client/components/app-router-headers'
 import {
   createTrackedMetadataContext,
@@ -234,6 +234,7 @@ interface ParsedRequestHeaders {
    */
   readonly flightRouterState: FlightRouterState | undefined
   readonly isPrefetchRequest: boolean
+  readonly isRouteTreePrefetchRequest: boolean
   readonly isDevWarmupRequest: boolean
   readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
@@ -267,6 +268,10 @@ function parseRequestHeaders(
       )
     : undefined
 
+  // Checks if this is a prefetch of the Route Tree by the Segment Cache
+  const isRouteTreePrefetchRequest =
+    headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] === '/_tree'
+
   const csp =
     headers['content-security-policy'] ||
     headers['content-security-policy-report-only']
@@ -277,6 +282,7 @@ function parseRequestHeaders(
   return {
     flightRouterState,
     isPrefetchRequest,
+    isRouteTreePrefetchRequest,
     isHmrRefresh,
     isRSCRequest,
     isDevWarmupRequest,
@@ -301,8 +307,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
     components,
   ]
 }
-
-export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
 
 /**
  * Returns a function that parses the dynamic segment and return the associated value.
@@ -459,11 +463,9 @@ async function generateDynamicRSCPayload(
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
-        createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
         flightRouterState,
-        isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
           <React.Fragment key={flightDataPathHeadKey}>
@@ -752,10 +754,8 @@ async function getRSCPayload(
 
   const seedData = await createComponentTree({
     ctx,
-    createSegmentPath: (child) => child,
     loaderTree: tree,
     parentParams: {},
-    firstItem: true,
     injectedCSS,
     injectedJS,
     injectedFontPreloadTags,
@@ -2716,11 +2716,12 @@ async function prerenderToStream(
           ctx,
           res.statusCode === 404
         )
+        let prerenderIsPending = true
         const reactServerResult = (reactServerPrerenderResult =
           await createReactServerPrerenderResult(
             prerenderAndAbortInSequentialTasks(
-              () =>
-                workUnitAsyncStorage.run(
+              async () => {
+                const prerenderResult = await workUnitAsyncStorage.run(
                   // The store to scope
                   finalRenderPrerenderStore,
                   // The function to run
@@ -2730,8 +2731,9 @@ async function prerenderToStream(
                   clientReferenceManifest.clientModules,
                   {
                     onError: (err: unknown) => {
+                      // TODO we can remove this once https://github.com/facebook/react/pull/31715 lands
+                      // because we won't have onError calls when halting the prerender
                       if (finalServerController.signal.aborted) {
-                        serverIsDynamic = true
                         return
                       }
 
@@ -2739,8 +2741,23 @@ async function prerenderToStream(
                     },
                     signal: finalServerController.signal,
                   }
-                ),
+                )
+                prerenderIsPending = false
+                return prerenderResult
+              },
               () => {
+                if (finalServerController.signal.aborted) {
+                  // If the server controller is already aborted we must have called something
+                  // that required aborting the prerender synchronously such as with new Date()
+                  serverIsDynamic = true
+                  return
+                }
+
+                if (prerenderIsPending) {
+                  // If prerenderIsPending then we have blocked for longer than a Task and we assume
+                  // there is something unfinished.
+                  serverIsDynamic = true
+                }
                 finalServerController.abort()
               }
             )
@@ -2844,7 +2861,7 @@ async function prerenderToStream(
 
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           finalRenderPrerenderStore,
           ComponentMod,
@@ -3323,7 +3340,7 @@ async function prerenderToStream(
           serverPrerenderStreamResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           finalClientPrerenderStore,
           ComponentMod,
@@ -3455,7 +3472,7 @@ async function prerenderToStream(
 
       if (shouldGenerateStaticFlightData(workStore)) {
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
@@ -3647,7 +3664,7 @@ async function prerenderToStream(
       if (shouldGenerateStaticFlightData(workStore)) {
         const flightData = await streamToBuffer(reactServerResult.asStream())
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
@@ -3801,7 +3818,7 @@ async function prerenderToStream(
           reactServerPrerenderResult.asStream()
         )
         metadata.flightData = flightData
-        metadata.segmentFlightData = await collectSegmentData(
+        metadata.segmentData = await collectSegmentData(
           flightData,
           prerenderLegacyStore,
           ComponentMod,

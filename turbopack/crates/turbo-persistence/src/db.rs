@@ -295,7 +295,7 @@ impl TurboPersistence {
             .into_iter()
             .map(|seq| self.open_sst(seq))
             .collect::<Result<Vec<StaticSortedFile>>>()?;
-        #[cfg(feature = "stats")]
+        #[cfg(feature = "print_stats")]
         {
             for sst in sst_files.iter() {
                 let crate::static_sorted_file::StaticSortedFileRange {
