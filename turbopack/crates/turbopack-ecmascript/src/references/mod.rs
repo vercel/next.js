@@ -598,6 +598,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
     let mut evaluation_references = Vec::new();
 
+    // ast-grep-ignore: to-resolved-in-loop
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
             *origin,
