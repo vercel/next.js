@@ -71,7 +71,11 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
+<<<<<<< HEAD
   prefetchHead: HeadData,
+=======
+  prefetchHead: [React.ReactNode | null, React.ReactNode | null],
+>>>>>>> a510ad9bd8 (clean up types)
   isPrefetchHeadPartial: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
@@ -286,7 +290,11 @@ export function updateCacheNodeOnNavigation(
 function createCacheNodeOnNavigation(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
+<<<<<<< HEAD
   possiblyPartialPrefetchHead: HeadData,
+=======
+  possiblyPartialPrefetchHead: [React.ReactNode | null, React.ReactNode | null],
+>>>>>>> a510ad9bd8 (clean up types)
   isPrefetchHeadPartial: boolean
 ): Task {
   // Same traversal as updateCacheNodeNavigation, but we switch to this path
