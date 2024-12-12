@@ -146,10 +146,9 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
   null
 )
 export const LayoutRouterContext = React.createContext<{
-  childNodes: CacheNode['parallelRoutes']
-  tree: FlightRouterState
+  parentTree: FlightRouterState
+  parentCacheNode: CacheNode
   url: string
-  loading: LoadingModuleData | Promise<LoadingModuleData>
 } | null>(null)
 
 export const GlobalLayoutRouterContext = React.createContext<{
