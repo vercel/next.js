@@ -113,7 +113,7 @@ const expectedManifestRoutes = () => [
   },
   {
     dataRouteRegex: normalizeRegEx(
-      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non\\-json\\.json$`
+      `^\\/_next\\/data\\/${escapeRegex(buildId)}\\/non-json\\.json$`
     ),
     page: '/non-json',
   },
