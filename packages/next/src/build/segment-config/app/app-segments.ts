@@ -109,7 +109,19 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
     // If this is a page segment, we know we've reached a leaf node associated with the
     // page we're collecting segments for. We can add the collected segments to our final result.
     if (name === PAGE_SEGMENT_KEY) {
-      segments.push(...currentSegments)
+      currentSegments.forEach((seg) => {
+        if (
+          segments.some(
+            (other) =>
+              other.name === seg.name &&
+              other.filePath === seg.filePath &&
+              other.param === seg.param
+          )
+        ) {
+          return
+        }
+        segments.push(seg)
+      })
     }
 
     // Recursively process parallel routes
