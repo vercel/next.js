@@ -3,7 +3,7 @@ title: page.js
 description: API reference for the page.js file.
 ---
 
-The `page` file is used to define a page in your Next.js application.
+The `page` file allows you to define UI that is **unique** to a route. You can create a page by default exporting a component from the file:
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 export default function Page({
@@ -22,6 +22,13 @@ export default function Page({ params, searchParams }) {
   return <h1>My Page</h1>
 }
 ```
+
+## Good to know
+
+- The `.js`, `.jsx`, or `.tsx` file extensions can be used for `page`.
+- A `page` is always the **leaf** of the route subtree.
+- A `page` file is required to make a route segment **publicly accessible**.
+- Pages are [Server Components](https://react.dev/reference/rsc/server-components) by default, but can be set to a [Client Component](https://react.dev/reference/rsc/use-client).
 
 ## Reference
 
