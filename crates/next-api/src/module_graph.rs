@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     future::Future,
     hash::Hash,
     ops::Deref,
@@ -184,10 +184,17 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
     }
 
     fn edges(&mut self, node: &SingleModuleGraphBuilderNode) -> Self::EdgesFuture {
-        let node = node.clone();
+        // Destructure beforehand to not have to clone the whole node when entering the async block
+        let (module, chunkable_ref_target) = match node {
+            SingleModuleGraphBuilderNode::Module { module, .. } => (Some(*module), None),
+            SingleModuleGraphBuilderNode::ChunkableReference { target, .. } => {
+                (None, Some(*target))
+            }
+            SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
+        };
         async move {
-            Ok(match node {
-                SingleModuleGraphBuilderNode::Module { module, .. } => {
+            Ok(match (module, chunkable_ref_target) {
+                (Some(module), None) => {
                     let refs_cell = primary_chunkable_referenced_modules(*module);
                     let refs = refs_cell.await?;
                     // TODO This is currently too slow
@@ -222,12 +229,12 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
                         .try_join()
                         .await?
                 }
-                SingleModuleGraphBuilderNode::ChunkableReference { target, .. } => {
+                (None, Some(chunkable_ref_target)) => {
                     vec![SingleModuleGraphBuilderEdge {
-                        to: SingleModuleGraphBuilderNode::new_module(target).await?,
+                        to: SingleModuleGraphBuilderNode::new_module(chunkable_ref_target).await?,
                     }]
                 }
-                SingleModuleGraphBuilderNode::Issues(_) => unimplemented!("Shoudln't visit these"),
+                _ => unreachable!(),
             })
         }
     }
@@ -315,24 +322,24 @@ impl SingleModuleGraph {
                         module,
                         layer,
                         ident: _,
-                    } => match modules.entry(module) {
-                        Entry::Occupied(current_idx) => {
-                            if let Some((parent_idx, chunking_type)) = parent_edge {
-                                graph.add_edge(parent_idx, *current_idx.get(), chunking_type);
-                            }
-                        }
-                        Entry::Vacant(current_idx) => {
+                    } => {
+                        // Find the current node, if it was already added
+                        let current_idx = if let Some(current_idx) = modules.get(&module) {
+                            *current_idx
+                        } else {
                             let idx = graph.add_node(SingleModuleGraphNode {
                                 module,
                                 issues: Default::default(),
                                 layer,
                             });
-                            current_idx.insert(idx);
-                            if let Some((parent_idx, chunking_type)) = parent_edge {
-                                graph.add_edge(parent_idx, idx, chunking_type);
-                            }
+                            modules.insert(module, idx);
+                            idx
+                        };
+                        // Add the edge
+                        if let Some((parent_idx, chunking_type)) = parent_edge {
+                            graph.add_edge(parent_idx, current_idx, chunking_type);
                         }
-                    },
+                    }
                     SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
                         // Ignore. They are handled when visiting the next edge
                         // (ChunkableReference -> Module)
