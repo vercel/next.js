@@ -80,6 +80,13 @@ impl SingleModuleGraphNode {
             }
         }
     }
+    fn module(&self) -> Option<ResolvedVc<Box<dyn Module>>> {
+        match self {
+            SingleModuleGraphNode::Module { module, .. } => Some(*module),
+            SingleModuleGraphNode::Chunk { .. }
+            | SingleModuleGraphNode::ChunkableReference { .. } => None,
+        }
+    }
 }
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
@@ -118,7 +125,6 @@ pub struct SingleModuleGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
-    // entries: HashMap<SingleModuleGraphNode, NodeIndex>,
     entries: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
 
@@ -311,30 +317,29 @@ impl SingleModuleGraph {
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         {
             let _span = tracing::info_span!("build module graph").entered();
-            for (parent, current) in children_modules_iter.into_breadth_first_edges() {
-                let parent_idx =
-                    parent.map(|parent| *modules.get(&parent.module().unwrap()).unwrap());
+            for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
+                let parent_idx = parent.map(|parent| *nodes.get(&parent).unwrap());
 
-                match current {
+                match &current {
                     SingleModuleGraphBuilderNode::Module {
                         module,
                         layer,
                         ident,
                     } => {
-                        if let Some(idx) = modules.get(&module) {
+                        if let Some(idx) = nodes.get(&current) {
                             if let Some(parent_idx) = parent_idx {
                                 graph.add_edge(parent_idx, *idx, ());
                             }
                         } else {
                             let idx = graph.add_node(SingleModuleGraphNode::Module {
-                                module,
+                                module: *module,
                                 issues: Default::default(),
                                 layer: layer.clone(),
                             });
-                            modules.insert(module, idx);
+                            modules.insert(*module, idx);
                             nodes.insert(
                                 SingleModuleGraphBuilderNode::Module {
-                                    module,
+                                    module: *module,
                                     layer: layer.clone(),
                                     ident: ident.clone(),
                                 },
@@ -350,7 +355,9 @@ impl SingleModuleGraph {
                         module: _,
                         module_ident: _,
                     } => {
-                        graph.add_node(SingleModuleGraphNode::ChunkableReference { chunking_type });
+                        graph.add_node(SingleModuleGraphNode::ChunkableReference {
+                            chunking_type: chunking_type.clone(),
+                        });
                     }
                     SingleModuleGraphBuilderNode::Issues(new_issues) => {
                         let parent_idx = parent_idx.unwrap();
@@ -592,7 +599,7 @@ async fn get_module_graph_for_endpoint(
         graph
             .await?
             .iter_nodes()
-            .map(|n| n.module)
+            .map(|n| n.module().unwrap())
             .collect::<HashSet<_>>()
     } else {
         HashSet::new()
@@ -784,8 +791,8 @@ impl ServerActionsGraph {
 
                 let mut result = HashMap::new();
                 graph.traverse_from_entry(entry, |node| {
-                    if let Some(node_data) = data.get(&node.module) {
-                        result.insert(node.module, *node_data);
+                    if let Some(node_data) = data.get(&node.module().unwrap()) {
+                        result.insert(node.module().unwrap(), *node_data);
                     }
                 })?;
                 Cow::Owned(result)
@@ -873,12 +880,12 @@ impl ClientReferencesGraph {
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut HashMap::new(),
                 |(parent_node, node), state_map| {
-                    let module = node.module;
+                    let module = node.module().unwrap();
                     let Some(parent_node) = parent_node else {
                         state_map.insert(module, None);
                         return GraphTraversalAction::Continue;
                     };
-                    let module = node.module;
+                    let module = node.module().unwrap();
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -887,7 +894,7 @@ impl ClientReferencesGraph {
                     {
                         Some(*module)
                     } else {
-                        *state_map.get(&parent_node.module).unwrap()
+                        *state_map.get(&parent_node.module().unwrap()).unwrap()
                     };
 
                     state_map.insert(module, current_server_component);
@@ -904,11 +911,11 @@ impl ClientReferencesGraph {
                     let Some(parent_node) = parent_node else {
                         return;
                     };
-                    let parent_module = parent_node.module;
+                    let parent_module = parent_node.module().unwrap();
 
                     let parent_server_component = *state_map.get(&parent_module).unwrap();
 
-                    match data.get(&node.module) {
+                    match data.get(&node.module().unwrap()) {
                         Some(ClientReferenceMapType::EcmascriptClientReference {
                             module: module_ref,
                             ssr_module,
@@ -1127,7 +1134,10 @@ async fn get_reduced_graphs_for_endpoint_inner(
     let next_dynamic = async {
         graphs
             .iter()
-            .map(|graph| ChunkGraph::new_with_entries(**graph, is_single_page).to_resolved())
+            .map(|graph| {
+                NextDynamicGraph::new_with_entries(**graph, is_single_page, client_asset_context)
+                    .to_resolved()
+            })
             .try_join()
             .await
     }
