@@ -77,7 +77,7 @@ const runTests = (isDev) => {
         ],
         initialRevalidateSeconds: false,
         srcRoute: null,
-        dataRoute: `/_next/data/${buildId}/404\\.json`,
+        dataRoute: `/_next/data/${buildId}/404.json`,
       })
     })
   }
