@@ -1530,7 +1530,7 @@ describe('Prerender', () => {
             //   dataRouteRegex: normalizeRegEx(
             //     `^\\/_next\\/data\\/${escapeRegex(
             //       next.buildId
-            //     )}\\/index\\/index.json$`
+            //     )}\\/index\\/index\\.json$`
             //   ),
             //   page: '/index',
             // },
@@ -1551,7 +1551,7 @@ describe('Prerender', () => {
             {
               dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
                 next.buildId
-              )}\\/large-page-data.json$`,
+              )}\\/large-page-data\\.json$`,
               page: '/large-page-data',
             },
             {
@@ -1606,7 +1606,7 @@ describe('Prerender', () => {
             },
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr\\.json$`
               ),
               page: '/ssr',
             },
