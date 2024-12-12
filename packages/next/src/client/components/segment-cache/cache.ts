@@ -3,6 +3,7 @@ import type {
   RootTreePrefetch,
   SegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
+import type { Segment as FlightRouterStateSegment } from '../../../server/app-render/types'
 import type {
   HeadData,
   LoadingModuleData,
@@ -35,6 +36,11 @@ import type {
 } from './cache-key'
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
 import { createLRU, type LRU } from './lru'
+import {
+  encodeChildSegmentKey,
+  encodeSegment,
+  ROOT_SEGMENT_KEY,
+} from '../../../server/app-render/segment-value-encoding'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -56,6 +62,16 @@ import { createLRU, type LRU } from './lru'
 // parent segments are still cached. If the segment is no longer reachable from
 // the root, then it's effectively canceled. This is similar to the design of
 // Rust Futures, or React Suspense.
+
+export type RouteTree = {
+  key: string
+  token: string
+  segment: FlightRouterStateSegment
+  slots: null | {
+    [parallelRouteKey: string]: RouteTree
+  }
+  isRootLayout: boolean
+}
 
 type RouteCacheEntryShared = {
   staleAt: number
@@ -88,7 +104,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: [null, null]
+  head: HeadData | null
   isHeadPartial: true
 }
 
@@ -97,7 +113,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: [null, null]
+  head: null
   isHeadPartial: true
 }
 
@@ -105,7 +121,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Fulfilled
   blockedTasks: null
   canonicalUrl: string
-  tree: TreePrefetch
+  tree: RouteTree
   head: HeadData
   isHeadPartial: boolean
 }
@@ -406,7 +422,7 @@ function pingBlockedTasks(entry: {
 
 function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
-  tree: TreePrefetch,
+  tree: RouteTree,
   head: HeadData,
   isHeadPartial: boolean,
   staleAt: number,
@@ -468,6 +484,49 @@ function rejectSegmentCacheEntry(
     // but we could by accepting a `reason` argument.
     entry.promise.resolve(null)
     entry.promise = null
+  }
+}
+
+function convertRootTreePrefetchToRouteTree(rootTree: RootTreePrefetch) {
+  return convertTreePrefetchToRouteTree(rootTree.tree, ROOT_SEGMENT_KEY)
+}
+
+function convertTreePrefetchToRouteTree(
+  prefetch: TreePrefetch,
+  key: string
+): RouteTree {
+  // Converts the route tree sent by the server into the format used by the
+  // cache. The cached version of the tree includes additional fields, such as a
+  // cache key for each segment. Since this is frequently accessed, we compute
+  // it once instead of on every access. This same cache key is also used to
+  // request the segment from the server.
+  let slots: { [parallelRouteKey: string]: RouteTree } | null = null
+  const prefetchSlots = prefetch.slots
+  if (prefetchSlots !== null) {
+    slots = {}
+    for (let parallelRouteKey in prefetchSlots) {
+      const childPrefetch = prefetchSlots[parallelRouteKey]
+      const childSegment = childPrefetch.segment
+      // TODO: Eventually, the param values will not be included in the response
+      // from the server. We'll instead fill them in on the client by parsing
+      // the URL. This is where we'll do that.
+      const childKey = encodeChildSegmentKey(
+        key,
+        parallelRouteKey,
+        encodeSegment(childSegment)
+      )
+      slots[parallelRouteKey] = convertTreePrefetchToRouteTree(
+        childPrefetch,
+        childKey
+      )
+    }
+  }
+  return {
+    key,
+    token: prefetch.token,
+    segment: prefetch.segment,
+    slots,
+    isRootLayout: prefetch.isRootLayout,
   }
 }
 
@@ -534,7 +593,7 @@ export async function fetchRouteOnCacheMiss(
 
     fulfillRouteCacheEntry(
       entry,
-      serverData.tree,
+      convertRootTreePrefetchToRouteTree(serverData),
       serverData.head,
       serverData.isHeadPartial,
       Date.now() + serverData.staleTime,
@@ -576,7 +635,7 @@ export async function fetchSegmentOnCacheMiss(
   route: FulfilledRouteCacheEntry,
   segmentCacheEntry: PendingSegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentPath: string,
+  segmentKeyPath: string,
   accessToken: string | null
 ): Promise<void> {
   // This function is allowed to use async/await because it contains the actual
@@ -589,7 +648,7 @@ export async function fetchSegmentOnCacheMiss(
   try {
     const response = await fetchSegmentPrefetchResponse(
       href,
-      accessToken === '' ? segmentPath : `${segmentPath}.${accessToken}`,
+      accessToken === '' ? segmentKeyPath : `${segmentKeyPath}.${accessToken}`,
       routeKey.nextUrl
     )
     if (

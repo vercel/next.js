@@ -1,4 +1,3 @@
-import type { TreePrefetch } from '../../../server/app-render/collect-segment-data'
 import {
   readOrCreateRouteCacheEntry,
   readOrCreateSegmentCacheEntry,
@@ -8,6 +7,7 @@ import {
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
   type SegmentCacheEntry,
+  type RouteTree,
 } from './cache'
 import type { RouteCacheKey } from './cache-key'
 
@@ -304,9 +304,9 @@ function pingRootRouteTree(
         return PrefetchTaskExitStatus.InProgress
       }
       const tree = route.tree
-      const segmentPath = tree.path
-      const segment = readOrCreateSegmentCacheEntry(now, route, segmentPath)
-      pingSegment(route, segment, task.key, tree.path, tree.token)
+      const segmentKey = tree.key
+      const segment = readOrCreateSegmentCacheEntry(now, route, segmentKey)
+      pingSegment(route, segment, task.key, segmentKey, tree.token)
       if (!hasNetworkBandwidth()) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
@@ -324,16 +324,16 @@ function pingRouteTree(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: TreePrefetch
+  tree: RouteTree
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
   if (tree.slots !== null) {
     // Recursively ping the children.
     for (const parallelRouteKey in tree.slots) {
       const childTree = tree.slots[parallelRouteKey]
-      const childPath = childTree.path
+      const childKey = childTree.key
       const childToken = childTree.token
-      const segment = readOrCreateSegmentCacheEntry(now, route, childPath)
-      pingSegment(route, segment, task.key, childPath, childToken)
+      const segment = readOrCreateSegmentCacheEntry(now, route, childKey)
+      pingSegment(route, segment, task.key, childKey, childToken)
       if (!hasNetworkBandwidth()) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
@@ -353,20 +353,14 @@ function pingSegment(
   route: FulfilledRouteCacheEntry,
   segment: SegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentPath: string,
+  segmentKey: string,
   accessToken: string
 ): void {
   if (segment.status === EntryStatus.Empty) {
     // Segment is not yet cached, and there's no request already in progress.
     // Spawn a task to request the segment and load it into the cache.
     spawnPrefetchSubtask(
-      fetchSegmentOnCacheMiss(
-        route,
-        segment,
-        routeKey,
-        segmentPath,
-        accessToken
-      )
+      fetchSegmentOnCacheMiss(route, segment, routeKey, segmentKey, accessToken)
     )
     // Upgrade to Pending so we know there's already a request in progress
     segment.status = EntryStatus.Pending
