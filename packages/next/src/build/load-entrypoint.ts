@@ -53,7 +53,7 @@ export async function loadEntrypoint(
     for (const [innerKey, importPath] of Object.entries(
       importMaps?.[key] || {}
     )) {
-      file = `import ${key}_${innerKey} from "${importPath}"\n${file}`
+      file = `import ${key}_${innerKey} from ${JSON.stringify(importPath)}\n${file}`
       importMapItems[key][innerKey] = `${key}_${innerKey}`
     }
   }
