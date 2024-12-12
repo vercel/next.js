@@ -19,7 +19,7 @@ Expected errors are those that can occur during the normal operation of the appl
 
 Use the `useActionState` hook to manage the state of Server Actions, including handling errors. This approach avoids `try`/`catch` blocks for expected errors, which should be modeled as return values rather than thrown exceptions.
 
-```tsx filename="app/actions.ts" switcher
+```ts filename="app/actions.ts" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
@@ -36,7 +36,7 @@ export async function createUser(prevState: any, formData: FormData) {
 }
 ```
 
-```jsx filename="app/actions.js" switcher
+```js filename="app/actions.js" switcher
 'use server'
 
 import { redirect } from 'next/navigation'
