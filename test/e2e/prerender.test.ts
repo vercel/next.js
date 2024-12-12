@@ -105,235 +105,235 @@ describe('Prerender', () => {
   const expectedManifestRoutes = () => ({
     '/': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/index\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/index.json`,
       initialRevalidateSeconds: 2,
       srcRoute: null,
     },
     '/blog/[post3]': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/[post3]\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/[post3].json`,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-1': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/post-1\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/post-1.json`,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-2': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/post-2\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/post-2.json`,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-4': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/post-4\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/post-4.json`,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/blog/post-1/comment-1': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/post-1/comment-1\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/post-1/comment-1.json`,
       initialRevalidateSeconds: 2,
       srcRoute: '/blog/[post]/[comment]',
     },
     '/blog/post-2/comment-2': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/post-2/comment-2\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/post-2/comment-2.json`,
       initialRevalidateSeconds: 2,
       srcRoute: '/blog/[post]/[comment]',
     },
     '/blog/post.1': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog/post.1\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog/post.1.json`,
       initialRevalidateSeconds: 10,
       srcRoute: '/blog/[post]',
     },
     '/catchall-explicit/another/value': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/another/value\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/another/value.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/first': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/first\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/first.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/hello/another': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/hello/another\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/hello/another.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/second': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/second\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/second.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/[first]/[second]': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[first]/[second]\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[first]/[second].json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-explicit/[third]/[fourth]': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[third]/[fourth]\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[third]/[fourth].json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall-explicit/[...slug]',
     },
     '/catchall-optional': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-optional\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-optional.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/catchall-optional/[[...slug]]',
     },
     '/catchall-optional/value': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall-optional/value\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall-optional/value.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/catchall-optional/[[...slug]]',
     },
     '/large-page-data': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/large-page-data\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/large-page-data.json`,
       initialRevalidateSeconds: false,
       srcRoute: null,
     },
     '/another': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/another\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/another.json`,
       initialRevalidateSeconds: 1,
       srcRoute: null,
     },
     '/preview': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/preview\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/preview.json`,
       initialRevalidateSeconds: false,
       srcRoute: null,
     },
     '/api-docs/first': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/api-docs/first\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/api-docs/first.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/api-docs/[...slug]',
     },
     '/blocking-fallback-once/404-on-manual-revalidate': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/404-on-manual-revalidate\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/404-on-manual-revalidate.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/blocking-fallback-once/[slug]',
     },
     '/blocking-fallback-some/a': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/a\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/a.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
     '/blocking-fallback-some/b': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/b\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/b.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback-some/[slug]',
     },
     '/blocking-fallback/lots-of-data': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/lots-of-data\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/lots-of-data.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/blocking-fallback/[slug]',
     },
     '/blocking-fallback/test-errors-1': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blocking-fallback/test-errors-1.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/blocking-fallback/[slug]',
     },
     '/blog': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/blog\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/blog.json`,
       initialRevalidateSeconds: 10,
       srcRoute: null,
     },
     '/default-revalidate': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/default-revalidate\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/default-revalidate.json`,
       initialRevalidateSeconds: false,
       srcRoute: null,
     },
     '/dynamic/[first]': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/dynamic/[first]\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/dynamic/[first].json`,
       initialRevalidateSeconds: false,
       srcRoute: '/dynamic/[slug]',
     },
     '/dynamic/[second]': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/dynamic/[second]\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/dynamic/[second].json`,
       initialRevalidateSeconds: false,
       srcRoute: '/dynamic/[slug]',
     },
     // TODO: investigate index/index
     // '/index': {
-    //   dataRoute: `/_next/data/${next.buildId}/index/index\\.json`,
+    //   dataRoute: `/_next/data/${next.buildId}/index/index.json`,
     //   initialRevalidateSeconds: false,
     //   srcRoute: null,
     // },
     '/lang/de/about': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/lang/de/about\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/lang/de/about.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/lang/[lang]/about',
     },
     '/lang/en/about': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/lang/en/about\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/lang/en/about.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/lang/[lang]/about',
     },
     '/lang/es/about': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/lang/es/about\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/lang/es/about.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/lang/[lang]/about',
     },
     '/lang/fr/about': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/lang/fr/about\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/lang/fr/about.json`,
       initialRevalidateSeconds: false,
       srcRoute: '/lang/[lang]/about',
     },
     '/something': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/something\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/something.json`,
       initialRevalidateSeconds: false,
       srcRoute: null,
     },
     '/catchall/another/value': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall/another/value\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall/another/value.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
     '/catchall/first': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall/first\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall/first.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
     '/catchall/second': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall/second\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall/second.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
     '/catchall/hello/another': {
       allowHeader,
-      dataRoute: `/_next/data/${next.buildId}/catchall/hello/another\\.json`,
+      dataRoute: `/_next/data/${next.buildId}/catchall/hello/another.json`,
       initialRevalidateSeconds: 1,
       srcRoute: '/catchall/[...slug]',
     },
@@ -1648,7 +1648,7 @@ describe('Prerender', () => {
           expect(manifest.routes).toEqual(expectedManifestRoutes())
           expect(manifest.dynamicRoutes).toEqual({
             '/api-docs/[...slug]': {
-              dataRoute: `/_next/data/${next.buildId}/api-docs/[...slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/api-docs/[...slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/api\\-docs\\/(.+?)\\.json$`
               ),
@@ -1657,7 +1657,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback-once/[slug]': {
-              dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/[slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/blocking-fallback-once/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-once\\/([^\\/]+?)\\.json$`
               ),
@@ -1668,7 +1668,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback-some/[slug]': {
-              dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/[slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/blocking-fallback-some/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\-some\\/([^\\/]+?)\\.json$`
               ),
@@ -1679,7 +1679,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/blocking-fallback/[slug]': {
-              dataRoute: `/_next/data/${next.buildId}/blocking-fallback/[slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/blocking-fallback/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blocking\\-fallback\\/([^\\/]+?)\\.json$`
               ),
@@ -1691,7 +1691,7 @@ describe('Prerender', () => {
             },
             '/blog/[post]': {
               fallback: '/blog/[post].html',
-              dataRoute: `/_next/data/${next.buildId}/blog/[post]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/blog/[post].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\.json$`
               ),
@@ -1700,7 +1700,7 @@ describe('Prerender', () => {
             },
             '/blog/[post]/[comment]': {
               fallback: '/blog/[post]/[comment].html',
-              dataRoute: `/_next/data/${next.buildId}/blog/[post]/[comment]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/blog/[post]/[comment].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/blog\\/([^\\/]+?)\\/([^\\/]+?)\\.json$`
               ),
@@ -1710,7 +1710,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/dynamic/[slug]': {
-              dataRoute: `/_next/data/${next.buildId}/dynamic/[slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/dynamic/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/dynamic\\/([^\\/]+?)\\.json$`
               ),
@@ -1719,7 +1719,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/fallback-only/[slug]': {
-              dataRoute: `/_next/data/${next.buildId}/fallback-only/[slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/fallback-only/[slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/fallback\\-only\\/([^\\/]+?)\\.json$`
               ),
@@ -1730,7 +1730,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/lang/[lang]/about': {
-              dataRoute: `/_next/data/${next.buildId}/lang/[lang]/about\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/lang/[lang]/about.json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/lang\\/([^\\/]+?)\\/about\\.json$`
               ),
@@ -1741,7 +1741,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/non-json-blocking/[p]': {
-              dataRoute: `/_next/data/${next.buildId}/non-json-blocking/[p]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/non-json-blocking/[p].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\-blocking\\/([^\\/]+?)\\.json$`
               ),
@@ -1752,7 +1752,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/non-json/[p]': {
-              dataRoute: `/_next/data/${next.buildId}/non-json/[p]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/non-json/[p].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/non\\-json\\/([^\\/]+?)\\.json$`
               ),
@@ -1764,7 +1764,7 @@ describe('Prerender', () => {
             },
             '/user/[user]/profile': {
               fallback: '/user/[user]/profile.html',
-              dataRoute: `/_next/data/${next.buildId}/user/[user]/profile\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/user/[user]/profile.json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/user\\/([^\\/]+?)\\/profile\\.json$`
               ),
@@ -1777,14 +1777,14 @@ describe('Prerender', () => {
             '/catchall/[...slug]': {
               fallback: '/catchall/[...slug].html',
               routeRegex: normalizeRegEx('^\\/catchall\\/(.+?)(?:\\/)?$'),
-              dataRoute: `/_next/data/${next.buildId}/catchall/[...slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/catchall/[...slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\/(.+?)\\.json$`
               ),
               allowHeader,
             },
             '/catchall-optional/[[...slug]]': {
-              dataRoute: `/_next/data/${next.buildId}/catchall-optional/[[...slug]]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/catchall-optional/[[...slug]].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-optional(?:\\/(.+?))?\\.json$`
               ),
@@ -1795,7 +1795,7 @@ describe('Prerender', () => {
               allowHeader,
             },
             '/catchall-explicit/[...slug]': {
-              dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[...slug]\\.json`,
+              dataRoute: `/_next/data/${next.buildId}/catchall-explicit/[...slug].json`,
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapedBuildId}\\/catchall\\-explicit\\/(.+?)\\.json$`
               ),
