@@ -100,13 +100,13 @@ See the [Font Optimization](/docs/app/building-your-application/optimizing/fonts
 
 > **🎥 Watch:** Learn how to incrementally adopt the App Router → [YouTube (16 minutes)](https://www.youtube.com/watch?v=YQMSietiFm0).
 
-Moving to the App Router may be the first time using React features that Next.js builds on top of such as Server Components, Suspense, and more. When combined with new Next.js features such as [special files](/docs/app/building-your-application/routing#file-conventions) and [layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts), migration means new concepts, mental models, and behavioral changes to learn.
+Moving to the App Router may be the first time using React features that Next.js builds on top of such as Server Components, Suspense, and more. When combined with new Next.js features such as [special files](/docs/app/api-reference/file-conventions) and [layouts](/docs/app/api-reference/file-conventions/layout), migration means new concepts, mental models, and behavioral changes to learn.
 
 We recommend reducing the combined complexity of these updates by breaking down your migration into smaller steps. The `app` directory is intentionally designed to work simultaneously with the `pages` directory to allow for incremental page-by-page migration.
 
 - The `app` directory supports nested routes _and_ layouts. [Learn more](/docs/app/building-your-application/routing).
 - Use nested folders to [define routes](/docs/app/building-your-application/routing/defining-routes) and a special `page.js` file to make a route segment publicly accessible. [Learn more](#step-4-migrating-pages).
-- [Special file conventions](/docs/app/building-your-application/routing#file-conventions) are used to create UI for each route segment. The most common special files are `page.js` and `layout.js`.
+- [Special file conventions](/docs/app/api-reference/file-conventions) are used to create UI for each route segment. The most common special files are `page.js` and `layout.js`.
   - Use `page.js` to define UI unique to a route.
   - Use `layout.js` to define UI that is shared across multiple routes.
   - `.js`, `.jsx`, or `.tsx` file extensions can be used for special files.
