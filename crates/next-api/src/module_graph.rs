@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     future::Future,
     hash::Hash,
     ops::Deref,
@@ -190,6 +190,13 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
                 SingleModuleGraphBuilderNode::Module { module, .. } => {
                     let refs_cell = primary_chunkable_referenced_modules(*module);
                     let refs = refs_cell.await?;
+                    // TODO This is currently too slow
+                    // let refs_issues = refs_cell
+                    //     .take_collectibles::<Box<dyn Issue>>()
+                    //     .iter()
+                    //     .map(|issue| issue.to_resolved())
+                    //     .try_join()
+                    // .await?;
 
                     refs.iter()
                         .flat_map(|(ty, modules)| {
@@ -302,30 +309,30 @@ impl SingleModuleGraph {
                     } => (*modules.get(&source).unwrap(), chunking_type),
                     SingleModuleGraphBuilderNode::Issues { .. } => unreachable!(),
                 });
-                // parent.map(|parent| *modules.get(&parent.module().unwrap()).unwrap());
 
-                match &current {
+                match current {
                     SingleModuleGraphBuilderNode::Module {
                         module,
                         layer,
                         ident: _,
-                    } => {
-                        if let Some(idx) = modules.get(module) {
+                    } => match modules.entry(module) {
+                        Entry::Occupied(current_idx) => {
                             if let Some((parent_idx, chunking_type)) = parent_edge {
-                                graph.add_edge(parent_idx, *idx, chunking_type);
+                                graph.add_edge(parent_idx, *current_idx.get(), chunking_type);
                             }
-                        } else {
+                        }
+                        Entry::Vacant(current_idx) => {
                             let idx = graph.add_node(SingleModuleGraphNode {
-                                module: *module,
+                                module,
                                 issues: Default::default(),
-                                layer: layer.clone(),
+                                layer,
                             });
-                            modules.insert(*module, idx);
+                            current_idx.insert(idx);
                             if let Some((parent_idx, chunking_type)) = parent_edge {
                                 graph.add_edge(parent_idx, idx, chunking_type);
                             }
                         }
-                    }
+                    },
                     SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
                         // Ignore. They are handled when visiting the next edge
                         // (ChunkableReference -> Module)
@@ -600,27 +607,6 @@ async fn get_module_graph_for_endpoint(
     graphs.push(graph);
 
     Ok(Vc::cell(graphs))
-}
-
-#[turbo_tasks::value]
-pub struct ChunkGraph {
-    is_single_page: bool,
-    graph: ResolvedVc<SingleModuleGraph>,
-}
-
-#[turbo_tasks::value_impl]
-impl ChunkGraph {
-    #[turbo_tasks::function]
-    pub async fn new_with_entries(
-        graph: ResolvedVc<SingleModuleGraph>,
-        is_single_page: bool,
-    ) -> Result<Vc<Self>> {
-        Ok(ChunkGraph {
-            is_single_page,
-            graph,
-        }
-        .cell())
-    }
 }
 
 #[turbo_tasks::value]
@@ -932,7 +918,6 @@ pub struct ReducedGraphs {
     next_dynamic: Vec<ResolvedVc<NextDynamicGraph>>,
     server_actions: Vec<ResolvedVc<ServerActionsGraph>>,
     client_references: Vec<ResolvedVc<ClientReferencesGraph>>,
-    chunking: Vec<ResolvedVc<ChunkGraph>>,
     // TODO add other graphs
 }
 
@@ -1082,16 +1067,6 @@ async fn get_reduced_graphs_for_endpoint_inner(
         ),
     };
 
-    let chunking = async {
-        graphs
-            .iter()
-            .map(|graph| ChunkGraph::new_with_entries(**graph, is_single_page).to_resolved())
-            .try_join()
-            .await
-    }
-    .instrument(tracing::info_span!("generating chunking graphs"))
-    .await?;
-
     let next_dynamic = async {
         graphs
             .iter()
@@ -1130,7 +1105,6 @@ async fn get_reduced_graphs_for_endpoint_inner(
     .await?;
 
     Ok(ReducedGraphs {
-        chunking,
         next_dynamic,
         server_actions,
         client_references,
