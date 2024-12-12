@@ -355,7 +355,7 @@ struct AnalysisState<'a> {
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
 }
 
-impl<'a> AnalysisState<'a> {
+impl AnalysisState<'_> {
     /// Links a value to the graph, returning the linked value.
     async fn link_value(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
         let fun_args_values = self.fun_args_values.lock().clone();
@@ -3247,8 +3247,8 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
     if let Program::Module(m) = p {
         // Check for imports/exports
         if m.body.iter().any(|item| {
-            item.as_module_decl().map_or(false, |module_decl| {
-                module_decl.as_import().map_or(true, |import| {
+            item.as_module_decl().is_some_and(|module_decl| {
+                module_decl.as_import().is_none_or(|import| {
                     !is_turbopack_helper_import(import) && !is_swc_helper_import(import)
                 })
             })

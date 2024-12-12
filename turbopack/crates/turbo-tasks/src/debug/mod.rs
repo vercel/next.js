@@ -379,7 +379,7 @@ pub enum ValueDebugFormatString<'a> {
     ),
 }
 
-impl<'a> ValueDebugFormatString<'a> {
+impl ValueDebugFormatString<'_> {
     /// Convert the `ValueDebugFormatString` into a `String`.
     ///
     /// This can fail when resolving `Vc` types.
