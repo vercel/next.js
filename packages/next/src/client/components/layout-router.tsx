@@ -402,6 +402,7 @@ function InnerLayoutRouter({
       value={{
         parentTree: tree,
         parentCacheNode: cacheNode,
+        parentSegmentPath: segmentPath,
 
         // TODO-APP: overriding of url for parallel routes
         url: url,
@@ -473,7 +474,6 @@ function LoadingBoundary({
  */
 export default function OuterLayoutRouter({
   parallelRouterKey,
-  segmentPath,
   error,
   errorStyles,
   errorScripts,
@@ -485,7 +485,6 @@ export default function OuterLayoutRouter({
   unauthorized,
 }: {
   parallelRouterKey: string
-  segmentPath: FlightSegmentPath
   error: ErrorComponent | undefined
   errorStyles: React.ReactNode | undefined
   errorScripts: React.ReactNode | undefined
@@ -501,7 +500,7 @@ export default function OuterLayoutRouter({
     throw new Error('invariant expected layout router to be mounted')
   }
 
-  const { parentTree, parentCacheNode, url } = context
+  const { parentTree, parentCacheNode, parentSegmentPath, url } = context
 
   // Get the CacheNode for this segment by reading it from the parent segment's
   // child map.
@@ -516,8 +515,17 @@ export default function OuterLayoutRouter({
 
   // Get the active segment in the tree
   // The reason arrays are used in the data format is that these are transferred from the server to the browser so it's optimized to save bytes.
+  const parentTreeSegment = parentTree[0]
   const tree = parentTree[1][parallelRouterKey]
   const treeSegment = tree[0]
+
+  const segmentPath =
+    parentSegmentPath === null
+      ? // TODO: The root segment value is currently omitted from the segment
+        // path. This has led to a bunch of special cases scattered throughout
+        // the code. We should clean this up.
+        [parallelRouterKey]
+      : parentSegmentPath.concat([parentTreeSegment, parallelRouterKey])
 
   // The "state" key of a segment is the one passed to React — it represents the
   // identity of the UI tree. Whenever the state key changes, the tree is

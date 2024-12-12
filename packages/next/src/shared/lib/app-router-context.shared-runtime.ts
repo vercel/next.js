@@ -6,7 +6,10 @@ import type {
   PrefetchKind,
   RouterChangeByServerResponse,
 } from '../../client/components/router-reducer/router-reducer-types'
-import type { FlightRouterState } from '../../server/app-render/types'
+import type {
+  FlightRouterState,
+  FlightSegmentPath,
+} from '../../server/app-render/types'
 import React from 'react'
 
 export type ChildSegmentMap = Map<string, CacheNode>
@@ -148,6 +151,7 @@ export const AppRouterContext = React.createContext<AppRouterInstance | null>(
 export const LayoutRouterContext = React.createContext<{
   parentTree: FlightRouterState
   parentCacheNode: CacheNode
+  parentSegmentPath: FlightSegmentPath | null
   url: string
 } | null>(null)
 

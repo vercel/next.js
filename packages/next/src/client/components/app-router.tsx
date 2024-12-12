@@ -566,6 +566,7 @@ function Router({
     return {
       parentTree: tree,
       parentCacheNode: cache,
+      parentSegmentPath: null,
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,

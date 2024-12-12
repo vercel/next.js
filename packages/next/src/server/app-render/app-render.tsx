@@ -2,7 +2,6 @@ import type {
   ActionResult,
   DynamicParamTypesShort,
   FlightRouterState,
-  FlightSegmentPath,
   RenderOpts,
   Segment,
   CacheNodeSeedData,
@@ -302,8 +301,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   ]
 }
 
-export type CreateSegmentPath = (child: FlightSegmentPath) => FlightSegmentPath
-
 /**
  * Returns a function that parses the dynamic segment and return the associated value.
  */
@@ -459,11 +456,9 @@ async function generateDynamicRSCPayload(
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
-        createSegmentPath: (child) => child,
         loaderTreeToFilter: loaderTree,
         parentParams: {},
         flightRouterState,
-        isFirst: true,
         // For flight, render metadata inside leaf page
         rscPayloadHead: (
           <React.Fragment key={flightDataPathHeadKey}>
@@ -752,10 +747,8 @@ async function getRSCPayload(
 
   const seedData = await createComponentTree({
     ctx,
-    createSegmentPath: (child) => child,
     loaderTree: tree,
     parentParams: {},
-    firstItem: true,
     injectedCSS,
     injectedJS,
     injectedFontPreloadTags,
