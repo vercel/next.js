@@ -441,8 +441,8 @@ impl<'a> SpanRef<'a> {
                             .and_modify(|_, v| v.push(span.index()))
                             .or_insert_with(|| (value.to_string(), vec![span.index()]));
                     }
-                    if !span.is_complete() {
-                        let name = "incomplete";
+                    if !span.is_complete() && !span.time_data().ignore_self_time {
+                        let name = "incomplete_span";
                         index
                             .raw_entry_mut()
                             .from_key(name)

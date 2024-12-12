@@ -210,10 +210,12 @@ impl GenerateSourceMap for Code {
                 },
             };
 
-            sections.push(SourceMapSection::new(pos, encoded))
+            sections.push(SourceMapSection::new(pos, encoded.to_resolved().await?))
         }
 
-        Ok(Vc::cell(Some(SourceMap::new_sectioned(sections).cell())))
+        Ok(Vc::cell(Some(
+            SourceMap::new_sectioned(sections).resolved_cell(),
+        )))
     }
 }
 
@@ -270,6 +272,6 @@ pub async fn fileify_source_map(
     }
 
     Ok(Vc::cell(Some(
-        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(transformed)).cell(),
+        SourceMap::new_decoded(sourcemap::DecodedMap::Regular(transformed)).resolved_cell(),
     )))
 }

@@ -100,6 +100,7 @@ import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import type { AppSegment } from './segment-config/app/app-segments'
 import { collectSegments } from './segment-config/app/app-segments'
 import { createIncrementalCache } from '../export/helpers/create-incremental-cache'
+import { AfterRunner } from '../server/after/run-with-after'
 
 export type ROUTER_TYPE = 'pages' | 'app'
 
@@ -1301,6 +1302,8 @@ export async function buildAppStaticPaths({
     }
   }
 
+  const afterRunner = new AfterRunner()
+
   const store = createWorkStore({
     page,
     // We're discovering the parameters here, so we don't have any unknown
@@ -1312,10 +1315,12 @@ export async function buildAppStaticPaths({
       supportsDynamicResponse: true,
       isRevalidate: false,
       experimental: {
-        after: false,
         dynamicIO,
         authInterrupts,
       },
+      waitUntil: afterRunner.context.waitUntil,
+      onClose: afterRunner.context.onClose,
+      onAfterTaskError: afterRunner.context.onTaskError,
       buildId,
     },
   })
@@ -1377,6 +1382,7 @@ export async function buildAppStaticPaths({
     }
   )
 
+  let lastDynamicSegmentHadGenerateStaticParams = false
   for (const segment of segments) {
     // Check to see if there are any missing params for segments that have
     // dynamicParams set to false.
@@ -1396,6 +1402,15 @@ export async function buildAppStaticPaths({
           `Segment "${relative}" exports "dynamicParams: false" but the param "${segment.param}" is missing from the generated route params.`
         )
       }
+    }
+
+    if (
+      segment.isDynamicSegment &&
+      typeof segment.generateStaticParams !== 'function'
+    ) {
+      lastDynamicSegmentHadGenerateStaticParams = false
+    } else if (typeof segment.generateStaticParams === 'function') {
+      lastDynamicSegmentHadGenerateStaticParams = true
     }
   }
 
@@ -1432,7 +1447,9 @@ export async function buildAppStaticPaths({
 
   let result: PartialStaticPathsResult = {
     fallbackMode,
-    prerenderedRoutes: undefined,
+    prerenderedRoutes: lastDynamicSegmentHadGenerateStaticParams
+      ? []
+      : undefined,
   }
 
   if (hadAllParamsGenerated && fallbackMode) {
@@ -1457,6 +1474,8 @@ export async function buildAppStaticPaths({
       fallbackRouteParams: getParamKeys(page),
     })
   }
+
+  await afterRunner.executeAfter()
 
   return result
 }
@@ -1618,7 +1637,7 @@ export async function isPageStatic({
           })
         }
 
-        appConfig = reduceAppConfig(await collectSegments(componentsResult))
+        appConfig = reduceAppConfig(segments)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(

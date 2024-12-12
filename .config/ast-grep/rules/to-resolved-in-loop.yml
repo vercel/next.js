@@ -1,0 +1,30 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/ast-grep/ast-grep/main/schemas/rule.json
+
+id: to-resolved-in-loop
+message: 'Calling `$EXPR` in a loop could be a doing a lot of work sequentially. Consider producing an iterator of futures and using `try_join`.'
+severity: info # error, warning, info, hint
+language: Rust
+rule:
+  kind: for_expression
+  pattern: for $VAR in $ITER {$$$_ARGS}
+  has:
+    kind: try_expression
+    stopBy: end
+    all:
+      - pattern: $ARG.to_resolved().await?
+      - pattern: $EXPR
+      # ignore sequential application
+      - not:
+          inside:
+            kind: assignment_expression
+            pattern: '*$VAR = $_EXPR'
+      # ignore conditionals via match
+      - not:
+          inside:
+            kind: match_arm
+            stopBy: end
+      # ignore conditionals via if
+      - not:
+          inside:
+            kind: if_expression
+            stopBy: end

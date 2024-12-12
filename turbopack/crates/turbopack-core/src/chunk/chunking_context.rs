@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Upcast, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
@@ -22,13 +22,12 @@ use crate::{
     Copy,
     PartialEq,
     Eq,
-    PartialOrd,
-    Ord,
     Hash,
     Serialize,
     Deserialize,
     TraceRawVcs,
     DeterministicHash,
+    NonLocalValue,
 )]
 pub enum MinifyType {
     #[default]
@@ -36,9 +35,28 @@ pub enum MinifyType {
     NoMinify,
 }
 
+#[derive(
+    Debug,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum ChunkGroupType {
+    Entry,
+    Evaluated,
+}
+
 #[turbo_tasks::value(shared)]
 pub struct ChunkGroupResult {
-    pub assets: Vc<OutputAssets>,
+    pub assets: ResolvedVc<OutputAssets>,
     pub availability_info: AvailabilityInfo,
 }
 
@@ -291,7 +309,7 @@ async fn root_chunk_group_assets(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     module: Vc<Box<dyn ChunkableModule>>,
 ) -> Result<Vc<OutputAssets>> {
-    Ok(chunking_context.root_chunk_group(module).await?.assets)
+    Ok(*chunking_context.root_chunk_group(module).await?.assets)
 }
 
 #[turbo_tasks::function]
@@ -301,7 +319,7 @@ async fn evaluated_chunk_group_assets(
     evaluatable_assets: Vc<EvaluatableAssets>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {
-    Ok(chunking_context
+    Ok(*chunking_context
         .evaluated_chunk_group(ident, evaluatable_assets, availability_info)
         .await?
         .assets)
@@ -334,7 +352,7 @@ async fn chunk_group_assets(
     module: Vc<Box<dyn ChunkableModule>>,
     availability_info: Value<AvailabilityInfo>,
 ) -> Result<Vc<OutputAssets>> {
-    Ok(chunking_context
+    Ok(*chunking_context
         .chunk_group(module.ident(), module, availability_info)
         .await?
         .assets)

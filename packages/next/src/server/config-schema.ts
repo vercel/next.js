@@ -307,13 +307,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
-        flyingShuttle: z
-          .strictObject({
-            mode: z
-              .union([z.literal('full'), z.literal('store-only')])
-              .optional(),
-          })
-          .optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
@@ -328,7 +321,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         multiZoneDraftMode: z.boolean().optional(),
-        cssChunking: z.enum(['strict', 'loose']).optional(),
+        cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),

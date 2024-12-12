@@ -6,6 +6,7 @@ const styles = css`
     border-radius: var(--size-gap-half);
     background-color: var(--color-ansi-bg);
     color: var(--color-ansi-fg);
+    margin-bottom: var(--size-gap-double);
   }
   [data-nextjs-codeframe]::selection,
   [data-nextjs-codeframe] *::selection {

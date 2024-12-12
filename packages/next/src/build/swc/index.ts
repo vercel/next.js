@@ -759,6 +759,10 @@ function bindingToApi(
       return binding.projectGetSourceMap(this._nativeProject, filePath)
     }
 
+    getSourceMapSync(filePath: string): string | null {
+      return binding.projectGetSourceMapSync(this._nativeProject, filePath)
+    }
+
     updateInfoSubscribe(aggregationMs: number) {
       return subscribe<TurbopackResult<UpdateMessage>>(true, async (callback) =>
         binding.projectUpdateInfoSubscribe(

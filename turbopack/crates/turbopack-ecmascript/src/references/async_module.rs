@@ -6,7 +6,8 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexSet, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -21,7 +22,9 @@ use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -51,7 +54,7 @@ pub struct AsyncModule {
 
 /// Option<[AsyncModule]>.
 #[turbo_tasks::value(transparent)]
-pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
+pub struct OptionAsyncModule(Option<ResolvedVc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]
 impl OptionAsyncModule {
@@ -83,7 +86,7 @@ async fn get_inherit_async_referenced_asset(
     let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
         return Ok(None);
     };
-    let Some(ty) = *r.chunking_type().await? else {
+    let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
     if !matches!(ty, ChunkingType::ParallelInheritAsync) {
@@ -109,7 +112,7 @@ impl AsyncModule {
             .await?
             .iter()
             .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(**r).await? else {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
@@ -156,7 +159,8 @@ impl AsyncModule {
                     .await?
                     .iter()
                     .map(|r| async {
-                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
+                        let Some(referenced_asset) =
+                            get_inherit_async_referenced_asset(**r).await?
                         else {
                             return Ok(false);
                         };

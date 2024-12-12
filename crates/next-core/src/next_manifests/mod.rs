@@ -8,7 +8,8 @@ use anyhow::{Context, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput,
+    TryJoinIterExt, Vc,
 };
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
@@ -161,6 +162,7 @@ impl Default for MiddlewaresManifest {
     TraceRawVcs,
     Serialize,
     Deserialize,
+    NonLocalValue,
 )]
 #[serde(rename_all = "camelCase", default)]
 pub struct MiddlewareMatcher {
@@ -327,6 +329,7 @@ pub enum ActionManifestModuleId<'a> {
     TraceRawVcs,
     Serialize,
     Deserialize,
+    NonLocalValue,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum ActionLayer {

@@ -2,7 +2,6 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use futures::future::try_join_all;
 use turbo_tasks::{
     FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
 };
@@ -24,7 +23,7 @@ pub struct MakeChunkGroupResult {
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_group_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
     let ChunkContentResult {
@@ -145,6 +144,7 @@ pub async fn make_chunk_group(
     let async_loader_external_module_references = async_loader_references
         .iter()
         .flat_map(|references| references.iter().copied())
+        .map(|v| *v)
         .collect();
 
     let mut referenced_output_assets = references_to_output_assets(external_module_references)
@@ -152,15 +152,18 @@ pub async fn make_chunk_group(
         .await?
         .clone_value();
 
-    let rebased_modules = try_join_all(traced_modules.into_iter().map(|module| {
-        RebasedAsset::new(
-            *module,
-            module.ident().path().root(),
-            module.ident().path().root(),
-        )
-        .to_resolved()
-    }))
-    .await?;
+    let rebased_modules = traced_modules
+        .into_iter()
+        .map(|module| {
+            RebasedAsset::new(
+                *module,
+                module.ident().path().root(),
+                module.ident().path().root(),
+            )
+            .to_resolved()
+        })
+        .try_join()
+        .await?;
 
     referenced_output_assets.extend(rebased_modules.into_iter().map(ResolvedVc::upcast));
 
@@ -190,14 +193,8 @@ pub async fn make_chunk_group(
         chunks.extend(async_loader_chunks.iter().copied());
     }
 
-    let resolved_chunks = chunks
-        .into_iter()
-        .map(|chunk| chunk.to_resolved())
-        .try_join()
-        .await?;
-
     Ok(MakeChunkGroupResult {
-        chunks: resolved_chunks,
+        chunks,
         availability_info,
     })
 }

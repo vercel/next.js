@@ -12,8 +12,8 @@ use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
-    TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -193,7 +193,17 @@ async fn run_inner(
     Ok(*run_result.await?.js_result)
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
@@ -248,7 +258,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         path: path.to_resolved().await?,
         project_path: project_path.to_resolved().await?,
         tests_path: tests_path.to_resolved().await?,
-        project_root: project_root.to_resolved().await?,
+        project_root,
         options,
     }
     .cell())
@@ -320,7 +330,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env.to_resolved().await?),
+            preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),

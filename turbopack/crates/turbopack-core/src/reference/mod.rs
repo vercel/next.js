@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -34,7 +34,7 @@ pub trait ModuleReference: ValueToString {
 
 /// Multiple [ModuleReference]s
 #[turbo_tasks::value(transparent)]
-pub struct ModuleReferences(Vec<Vc<Box<dyn ModuleReference>>>);
+pub struct ModuleReferences(Vec<ResolvedVc<Box<dyn ModuleReference>>>);
 
 #[turbo_tasks::value_impl]
 impl ModuleReferences {
@@ -49,7 +49,7 @@ impl ModuleReferences {
 #[turbo_tasks::value]
 pub struct SingleModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
-    description: Vc<RcStr>,
+    description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -64,7 +64,7 @@ impl ModuleReference for SingleModuleReference {
 impl ValueToString for SingleModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        self.description
+        *self.description
     }
 }
 
@@ -73,7 +73,7 @@ impl SingleModuleReference {
     /// Create a new [Vc<SingleModuleReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
         Self::cell(SingleModuleReference { asset, description })
     }
 
@@ -87,13 +87,13 @@ impl SingleModuleReference {
 #[turbo_tasks::value]
 pub struct SingleChunkableModuleReference {
     asset: ResolvedVc<Box<dyn Module>>,
-    description: Vc<RcStr>,
+    description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
 impl SingleChunkableModuleReference {
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn Module>>, description: ResolvedVc<RcStr>) -> Vc<Self> {
         Self::cell(SingleChunkableModuleReference { asset, description })
     }
 }
@@ -118,7 +118,7 @@ impl ModuleReference for SingleChunkableModuleReference {
 impl ValueToString for SingleChunkableModuleReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        self.description
+        *self.description
     }
 }
 
@@ -126,7 +126,7 @@ impl ValueToString for SingleChunkableModuleReference {
 #[turbo_tasks::value]
 pub struct SingleOutputAssetReference {
     asset: ResolvedVc<Box<dyn OutputAsset>>,
-    description: Vc<RcStr>,
+    description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -141,7 +141,7 @@ impl ModuleReference for SingleOutputAssetReference {
 impl ValueToString for SingleOutputAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
-        self.description
+        *self.description
     }
 }
 
@@ -150,7 +150,10 @@ impl SingleOutputAssetReference {
     /// Create a new [Vc<SingleOutputAssetReference>] that resolves to the given
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>, description: Vc<RcStr>) -> Vc<Self> {
+    pub fn new(
+        asset: ResolvedVc<Box<dyn OutputAsset>>,
+        description: ResolvedVc<RcStr>,
+    ) -> Vc<Self> {
         Self::cell(SingleOutputAssetReference { asset, description })
     }
 
@@ -170,14 +173,15 @@ impl SingleOutputAssetReference {
 pub async fn referenced_modules_and_affecting_sources(
     module: Vc<Box<dyn Module>>,
 ) -> Result<Vc<Modules>> {
-    let references_set = module.references().await?;
-    let mut modules = FxIndexSet::default();
-    let resolve_results = references_set
+    let references = module.references().await?;
+
+    let resolved_references = references
         .iter()
         .map(|r| r.resolve_reference())
         .try_join()
         .await?;
-    for resolve_result in resolve_results {
+    let mut modules = Vec::new();
+    for resolve_result in resolved_references {
         modules.extend(resolve_result.primary_modules_raw_iter());
         modules.extend(
             resolve_result
@@ -191,10 +195,9 @@ pub async fn referenced_modules_and_affecting_sources(
                 .await?,
         );
     }
-    let mut resolved_modules = FxIndexSet::default();
-    for module in modules {
-        resolved_modules.insert(module.to_resolved().await?);
-    }
+
+    let resolved_modules: FxIndexSet<_> = modules.into_iter().collect();
+
     Ok(Vc::cell(resolved_modules.into_iter().collect()))
 }
 
@@ -264,6 +267,45 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .flatten()
         .filter(|&module| set.insert(module))
         .collect();
+    Ok(Vc::cell(modules))
+}
+
+type ModulesVec = Vec<ResolvedVc<Box<dyn Module>>>;
+#[turbo_tasks::value(transparent)]
+pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
+
+/// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
+/// This does not include transitively references [Module]s, only includes
+/// primary [Module]s referenced.
+///
+/// [Module]: crate::module::Module
+#[turbo_tasks::function]
+pub async fn primary_chunkable_referenced_modules(
+    module: Vc<Box<dyn Module>>,
+) -> Result<Vc<ModulesWithChunkingType>> {
+    let modules = module
+        .references()
+        .await?
+        .iter()
+        .map(|reference| async {
+            if let Some(reference) =
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference).await?
+            {
+                if let Some(chunking_type) = &*reference.chunking_type().await? {
+                    let resolved = reference
+                        .resolve_reference()
+                        .resolve()
+                        .await?
+                        .primary_modules()
+                        .await?
+                        .clone_value();
+                    return Ok(Some((chunking_type.clone(), resolved)));
+                }
+            }
+            Ok(None)
+        })
+        .try_flat_join()
+        .await?;
     Ok(Vc::cell(modules))
 }
 

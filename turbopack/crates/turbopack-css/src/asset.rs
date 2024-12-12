@@ -215,7 +215,7 @@ impl CssChunkItem for CssModuleChunkItem {
 
         for reference in references.iter() {
             if let Some(import_ref) =
-                Vc::try_resolve_downcast_type::<ImportAssetReference>(*reference).await?
+                ResolvedVc::try_downcast_type::<ImportAssetReference>(*reference).await?
             {
                 for &module in import_ref
                     .resolve_reference()
@@ -233,14 +233,14 @@ impl CssChunkItem for CssModuleChunkItem {
                             Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(item).await?
                         {
                             imports.push(CssImport::Internal(
-                                import_ref.to_resolved().await?,
+                                import_ref,
                                 css_item.to_resolved().await?,
                             ));
                         }
                     }
                 }
             } else if let Some(compose_ref) =
-                Vc::try_resolve_downcast_type::<CssModuleComposeReference>(*reference).await?
+                ResolvedVc::try_downcast_type::<CssModuleComposeReference>(*reference).await?
             {
                 for &module in compose_ref
                     .resolve_reference()
@@ -267,7 +267,7 @@ impl CssChunkItem for CssModuleChunkItem {
         let mut code_gens = Vec::new();
         for r in references.iter() {
             if let Some(code_gen) =
-                Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(*r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r).await?
             {
                 code_gens.push(code_gen.code_generation(*chunking_context));
             }

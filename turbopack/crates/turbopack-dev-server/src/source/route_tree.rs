@@ -4,15 +4,17 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueToString, Vc,
 };
 
 use super::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. THis will decide about the remaining segements of the
 /// route after the base.
-#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub enum RouteType {
     Exact,
     CatchAll,
@@ -21,7 +23,9 @@ pub enum RouteType {
 }
 
 /// Some normal segment of a route.
-#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub enum BaseSegment {
     Static(RcStr),
     Dynamic,
@@ -41,7 +45,7 @@ impl BaseSegment {
 /// lead to creating new tasks over and over. A celled list leads to task reuse
 /// and faster operation.
 #[turbo_tasks::value(transparent)]
-pub struct RouteTrees(Vec<Vc<RouteTree>>);
+pub struct RouteTrees(Vec<ResolvedVc<RouteTree>>);
 
 #[turbo_tasks::value_impl]
 impl RouteTrees {
@@ -53,7 +57,7 @@ impl RouteTrees {
             return Ok(RouteTree::default().cell());
         }
         if trees.len() == 1 {
-            return Ok(*trees.iter().next().unwrap());
+            return Ok(**trees.iter().next().unwrap());
         }
 
         // Find common base
@@ -81,7 +85,7 @@ impl RouteTrees {
                 if tree_values[i].base.len() > common_base {
                     tree.with_base_len(common_base)
                 } else {
-                    *tree
+                    **tree
                 }
             })
             .collect::<Vec<_>>();
@@ -101,12 +105,12 @@ impl RouteTrees {
 #[derive(Default, Clone, Debug)]
 pub struct RouteTree {
     base: Vec<BaseSegment>,
-    sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    static_segments: FxIndexMap<RcStr, Vc<RouteTree>>,
+    sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    static_segments: FxIndexMap<RcStr, ResolvedVc<RouteTree>>,
     dynamic_segments: Vec<ResolvedVc<RouteTree>>,
-    catch_all_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    fallback_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
-    not_found_sources: Vec<Vc<Box<dyn GetContentSourceContent>>>,
+    catch_all_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    fallback_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
+    not_found_sources: Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>,
 }
 
 impl RouteTree {
@@ -114,7 +118,7 @@ impl RouteTree {
     pub fn new_route_ref(
         base_segments: Vec<BaseSegment>,
         route_type: RouteType,
-        source: Vc<Box<dyn GetContentSourceContent>>,
+        source: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Self {
         match route_type {
             RouteType::Exact => Self {
@@ -172,7 +176,7 @@ impl RouteTree {
                         if value.len() == 1 {
                             value.into_iter().next().unwrap()
                         } else {
-                            Vc::<RouteTrees>::cell(value).merge().resolve().await?
+                            Vc::<RouteTrees>::cell(value).merge().to_resolved().await?
                         },
                     ))
                 })
@@ -250,7 +254,7 @@ impl RouteTree {
     pub fn new_route(
         base_segments: Vec<BaseSegment>,
         route_type: RouteType,
-        source: Vc<Box<dyn GetContentSourceContent>>,
+        source: ResolvedVc<Box<dyn GetContentSourceContent>>,
     ) -> Vc<Self> {
         RouteTree::new_route_ref(base_segments, route_type, source).cell()
     }
@@ -335,7 +339,7 @@ impl RouteTree {
             match selector_segment {
                 BaseSegment::Static(value) => Ok(RouteTree {
                     base,
-                    static_segments: fxindexmap! { value => inner.cell() },
+                    static_segments: fxindexmap! { value => inner.resolved_cell() },
                     ..Default::default()
                 }
                 .cell()),
@@ -370,19 +374,19 @@ impl RouteTree {
         } = &mut this;
 
         for s in sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for s in catch_all_sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for s in fallback_sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for s in not_found_sources.iter_mut() {
-            *s = mapper.map_get_content(*s);
+            *s = mapper.map_get_content(**s).to_resolved().await?;
         }
         for r in static_segments.values_mut() {
-            *r = r.map_routes(mapper);
+            *r = r.map_routes(mapper).to_resolved().await?;
         }
         for r in dynamic_segments.iter_mut() {
             *r = r.map_routes(mapper).to_resolved().await?;

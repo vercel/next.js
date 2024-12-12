@@ -26,7 +26,7 @@ import _pkg from 'next/package.json'
 import type { SpawnOptions, ChildProcess } from 'child_process'
 import type { RequestInit, Response } from 'node-fetch'
 import type { NextServer } from 'next/dist/server/next'
-import type { BrowserInterface } from './browsers/base'
+import { BrowserInterface } from './browsers/base'
 
 import { getTurbopackFlag, shouldRunTurboDevTest } from './turbo'
 import stripAnsi from 'strip-ansi'
@@ -919,7 +919,7 @@ export function getRedboxHeader(browser: BrowserInterface) {
 
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
   const header = (await getRedboxHeader(browser)) || ''
-  return parseInt(header.match(/\d+ of (\d+) error/)?.[1], 10)
+  return parseInt(header.match(/\d+ of (\d+) issue/)?.[1], 10)
 }
 
 export function getRedboxSource(browser: BrowserInterface) {
@@ -1234,6 +1234,17 @@ export async function toggleCollapseComponentStack(
     .click()
 }
 
+export async function hasRedboxCallStack(browser: BrowserInterface) {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-dialog-body]'))
+    const root = portal?.shadowRoot
+
+    return root?.querySelectorAll('[data-nextjs-call-stack-frame]').length > 0
+  })
+}
+
 export async function getRedboxCallStack(
   browser: BrowserInterface
 ): Promise<string | null> {
@@ -1499,4 +1510,15 @@ export async function getStackFramesContent(browser) {
     .join('\n')
 
   return stackFramesContent
+}
+
+export async function toggleCollapseCallStackFrames(browser: BrowserInterface) {
+  const button = await browser.elementByCss('[data-expand-ignore-button]')
+  const lastExpanded = await button.getAttribute('data-expand-ignore-button')
+  await button.click()
+
+  await retry(async () => {
+    const currExpanded = await button.getAttribute('data-expand-ignore-button')
+    expect(currExpanded).not.toBe(lastExpanded)
+  })
 }

@@ -8,7 +8,8 @@ use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, Completion, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Value,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -46,8 +47,8 @@ use crate::{
     debug::should_debug,
     embed_js::embed_file_path,
     evaluate::{
-        compute, custom_evaluate, get_evaluate_pool, EvaluateContext, EvaluationIssue,
-        JavaScriptEvaluation, JavaScriptStreamSender,
+        compute, custom_evaluate, get_evaluate_pool, EnvVarTracking, EvaluateContext,
+        EvaluationIssue, JavaScriptEvaluation, JavaScriptStreamSender,
     },
     execution_context::ExecutionContext,
     pool::{FormattingMode, NodeJsPool},
@@ -74,15 +75,14 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
-    #[turbo_tasks(trace_ignore)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent)]
+#[turbo_tasks::value(shared, transparent, non_local)]
 pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
 
 #[turbo_tasks::value]
@@ -164,7 +164,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
-        Ok(Vc::cell(self.process().await?.source_map.map(|v| *v)))
+        Ok(Vc::cell(self.process().await?.source_map))
     }
 }
 
@@ -172,7 +172,7 @@ impl GenerateSourceMap for WebpackLoadersProcessedAsset {
 struct ProcessWebpackLoadersResult {
     content: ResolvedVc<AssetContent>,
     source_map: Option<ResolvedVc<SourceMap>>,
-    assets: Vec<Vc<VirtualSource>>,
+    assets: Vec<ResolvedVc<VirtualSource>>,
 }
 
 #[turbo_tasks::function]
@@ -242,11 +242,11 @@ impl WebpackLoadersProcessedAsset {
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
-                Vc::cell(content.into()),
+                ResolvedVc::cell(content.into()),
                 // We need to pass the query string to the loader
-                Vc::cell(resource_path.to_string().into()),
-                Vc::cell(this.source.ident().query().await?.to_string().into()),
-                Vc::cell(json!(*loaders)),
+                ResolvedVc::cell(resource_path.to_string().into()),
+                ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
+                ResolvedVc::cell(json!(*loaders)),
             ],
             additional_invalidation: Completion::immutable().to_resolved().await?,
         })
@@ -278,11 +278,8 @@ impl WebpackLoadersProcessedAsset {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
         };
-        let assets = emitted_assets_to_virtual_sources(processed.assets)
-            .await?
-            .into_iter()
-            .map(|asset| *asset)
-            .collect();
+        let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
+
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
         Ok(ProcessWebpackLoadersResult {
@@ -350,6 +347,9 @@ pub enum InfoMessage {
         path: RcStr,
         glob: RcStr,
     },
+    EnvDependency {
+        name: RcStr,
+    },
     EmittedError {
         severity: IssueSeverity,
         error: StructuredError,
@@ -397,7 +397,7 @@ pub struct WebpackLoaderContext {
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
-    pub args: Vec<Vc<JsonValue>>,
+    pub args: Vec<ResolvedVc<JsonValue>>,
     pub additional_invalidation: ResolvedVc<Completion>,
 }
 
@@ -422,10 +422,14 @@ impl EvaluateContext for WebpackLoaderContext {
             None,
             *self.additional_invalidation,
             should_debug("webpack_loader"),
+            // Env vars are read untracked, since we want a more granular dependency on certain env
+            // vars only. So the runtime code tracks which env vars are read and send a dependency
+            // message for them.
+            EnvVarTracking::Untracked,
         )
     }
 
-    fn args(&self) -> &[Vc<serde_json::Value>] {
+    fn args(&self) -> &[ResolvedVc<serde_json::Value>] {
         &self.args
     }
 
@@ -450,7 +454,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 .to_resolved()
                 .await?,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         Ok(())
     }
@@ -474,7 +478,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     context_ident: self.context_ident_for_issue,
                     path: self.cwd.join(path).to_resolved().await?,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             InfoMessage::DirDependency { path, glob } => {
@@ -482,6 +486,9 @@ impl EvaluateContext for WebpackLoaderContext {
                 // Read dependencies to make them a dependencies of this task. This task will
                 // execute again when they change.
                 dir_dependency(self.cwd.join(path).read_glob(Glob::new(glob), false)).await?;
+            }
+            InfoMessage::EnvDependency { name } => {
+                self.env.read(name).await?;
             }
             InfoMessage::EmittedError { error, severity } => {
                 EvaluateEmittedErrorIssue {
@@ -497,7 +504,7 @@ impl EvaluateContext for WebpackLoaderContext {
                         .to_resolved()
                         .await?,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             InfoMessage::Log(log) => {
@@ -593,7 +600,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     .to_resolved()
                     .await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
         Ok(())
@@ -721,7 +728,7 @@ impl Issue for BuildDependencyIssue {
                         .into(),
                 ),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -811,7 +818,7 @@ impl Issue for EvaluateEmittedErrorIssue {
                     .await?
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -884,6 +891,6 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Vc::cell(Some(StyledString::Stack(lines).cell()))
+        Vc::cell(Some(StyledString::Stack(lines).resolved_cell()))
     }
 }

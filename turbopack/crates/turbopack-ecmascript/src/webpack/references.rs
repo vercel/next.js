@@ -22,7 +22,7 @@ use crate::{
 #[turbo_tasks::function]
 pub async fn module_references(
     source: ResolvedVc<Box<dyn Source>>,
-    runtime: Vc<WebpackRuntime>,
+    runtime: ResolvedVc<WebpackRuntime>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ModuleReferences>> {
     let parsed = parse(
@@ -43,18 +43,16 @@ pub async fn module_references(
                 runtime,
                 transforms,
             };
-            let handler = Handler::with_emitter(
-                true,
-                false,
-                Box::new(IssueEmitter::new(
-                    source,
-                    source_map.clone(),
-                    Some("Parsing webpack bundle failed".into()),
-                )),
+            let (emitter, collector) = IssueEmitter::new(
+                source,
+                source_map.clone(),
+                Some("Parsing webpack bundle failed".into()),
             );
+            let handler = Handler::with_emitter(true, false, Box::new(emitter));
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);
             });
+            collector.emit().await?;
             Ok(Vc::cell(references))
         }
         ParseResult::Unparseable { .. } | ParseResult::NotFound => Ok(Vc::cell(Vec::new())),
@@ -62,8 +60,8 @@ pub async fn module_references(
 }
 
 struct ModuleReferencesVisitor<'a> {
-    runtime: Vc<WebpackRuntime>,
-    references: &'a mut Vec<Vc<Box<dyn ModuleReference>>>,
+    runtime: ResolvedVc<WebpackRuntime>,
+    references: &'a mut Vec<ResolvedVc<Box<dyn ModuleReference>>>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
 }
 
@@ -74,13 +72,13 @@ impl Visit for ModuleReferencesVisitor<'_> {
                 if &*obj.sym == "__webpack_require__" && &*prop.sym == "e" {
                     if let [ExprOrSpread { spread: None, expr }] = &call.args[..] {
                         if let Expr::Lit(lit) = &**expr {
-                            self.references.push(Vc::upcast(
+                            self.references.push(ResolvedVc::upcast(
                                 WebpackChunkAssetReference {
                                     chunk_id: lit.clone(),
                                     runtime: self.runtime,
                                     transforms: self.transforms,
                                 }
-                                .cell(),
+                                .resolved_cell(),
                             ));
                         }
                     }

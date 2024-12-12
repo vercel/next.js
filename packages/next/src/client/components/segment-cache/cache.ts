@@ -5,6 +5,7 @@ import type {
 } from '../../../server/app-render/collect-segment-data'
 import type { LoadingModuleData } from '../../../shared/lib/app-router-context.shared-runtime'
 import {
+  NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
@@ -14,7 +15,6 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
-  createUnclosingPrefetchStream,
   urlToUrlWithoutFlightMarker,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
@@ -22,10 +22,17 @@ import {
   trackPrefetchRequestBandwidth,
   pingPrefetchTask,
   type PrefetchTask,
+  spawnPrefetchSubtask,
 } from './scheduler'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
-import type { RouteCacheKey, RouteCacheKeyId } from './cache-key'
+import type {
+  NormalizedHref,
+  NormalizedNextUrl,
+  RouteCacheKey,
+} from './cache-key'
+import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
+import { createLRU, type LRU } from './lru'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -50,7 +57,16 @@ import type { RouteCacheKey, RouteCacheKeyId } from './cache-key'
 
 type RouteCacheEntryShared = {
   staleAt: number
+  // This is false only if we're certain the route cannot be intercepted. It's
+  // true in all other cases, including on initialization when we haven't yet
+  // received a response from the server.
   couldBeIntercepted: boolean
+
+  // LRU-related fields
+  keypath: null | Prefix<RouteCacheKeypath>
+  next: null | RouteCacheEntry
+  prev: null | RouteCacheEntry
+  size: number
 }
 
 export const enum EntryStatus {
@@ -61,23 +77,29 @@ export const enum EntryStatus {
 
 type PendingRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Pending
+  blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
   head: null
+  isHeadPartial: true
 }
 
 type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Rejected
+  blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
   head: null
+  isHeadPartial: true
 }
 
 export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Fulfilled
+  blockedTasks: null
   canonicalUrl: string
   tree: TreePrefetch
   head: React.ReactNode | null
+  isHeadPartial: boolean
 }
 
 export type RouteCacheEntry =
@@ -87,12 +109,19 @@ export type RouteCacheEntry =
 
 type SegmentCacheEntryShared = {
   staleAt: number
+
+  // LRU-related fields
+  key: null | string
+  next: null | RouteCacheEntry
+  prev: null | RouteCacheEntry
+  size: number
 }
 
 type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Pending
   rsc: null
   loading: null
+  isPartial: true
   promise: null | PromiseWithResolvers<FulfilledSegmentCacheEntry | null>
 }
 
@@ -100,6 +129,7 @@ type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Rejected
   rsc: null
   loading: null
+  isPartial: true
   promise: null
 }
 
@@ -107,6 +137,7 @@ type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Fulfilled
   rsc: React.ReactNode | null
   loading: LoadingModuleData | Promise<LoadingModuleData>
+  isPartial: boolean
   promise: null
 }
 
@@ -115,40 +146,96 @@ export type SegmentCacheEntry =
   | RejectedSegmentCacheEntry
   | FulfilledSegmentCacheEntry
 
-const routeCache = new Map<RouteCacheKeyId, RouteCacheEntry>()
-const segmentCache = new Map<string, SegmentCacheEntry>()
+// Route cache entries vary on multiple keys: the href and the Next-Url. Each of
+// these parts needs to be included in the internal cache key. Rather than
+// concatenate the keys into a single key, we use a multi-level map, where the
+// first level is keyed by href, the second level is keyed by Next-Url, and so
+// on (if were to add more levels).
+type RouteCacheKeypath = [NormalizedHref, NormalizedNextUrl]
+const routeCacheMap: TupleMap<RouteCacheKeypath, RouteCacheEntry> =
+  createTupleMap()
+
+// We use an LRU for memory management. We must update this whenever we add or
+// remove a new cache entry, or when an entry changes size.
+// TODO: I chose the max size somewhat arbitrarily. Consider setting this based
+// on navigator.deviceMemory, or some other heuristic. We should make this
+// customizable via the Next.js config, too.
+const maxRouteLruSize = 10 * 1024 * 1024 // 10 MB
+const routeCacheLru = createLRU<RouteCacheEntry>(
+  maxRouteLruSize,
+  onRouteLRUEviction
+)
+
+// TODO: We may eventually store segment entries in a tuple map, too, to
+// account for search params.
+const segmentCacheMap = new Map<string, SegmentCacheEntry>()
+// NOTE: Segments and Route entries are managed by separate LRUs. We could
+// combine them into a single LRU, but because they are separate types, we'd
+// need to wrap each one in an extra LRU node (to maintain monomorphism, at the
+// cost of additional memory).
+const maxSegmentLruSize = 50 * 1024 * 1024 // 50 MB
+const segmentCacheLru = createLRU<SegmentCacheEntry>(
+  maxSegmentLruSize,
+  onSegmentLRUEviction
+)
+
+export function readExactRouteCacheEntry(
+  now: number,
+  href: NormalizedHref,
+  nextUrl: NormalizedNextUrl | null
+): RouteCacheEntry | null {
+  const keypath: Prefix<RouteCacheKeypath> =
+    nextUrl === null ? [href] : [href, nextUrl]
+  const existingEntry = routeCacheMap.get(keypath)
+  if (existingEntry !== null) {
+    // Check if the entry is stale
+    if (existingEntry.staleAt > now) {
+      // Reuse the existing entry.
+
+      // Since this is an access, move the entry to the front of the LRU.
+      routeCacheLru.put(existingEntry)
+
+      return existingEntry
+    } else {
+      // Evict the stale entry from the cache.
+      deleteRouteFromCache(existingEntry, keypath)
+    }
+  }
+  return null
+}
 
 export function readRouteCacheEntry(
   now: number,
   key: RouteCacheKey
 ): RouteCacheEntry | null {
-  const existingEntry = routeCache.get(key.id)
-  if (existingEntry !== undefined) {
-    // Check if the entry is stale
-    if (existingEntry.staleAt > now) {
-      // Reuse the existing entry.
-      return existingEntry
-    } else {
-      // Evict the stale entry from the cache.
-      evictRouteCacheEntryFromCache(key)
-    }
+  // First check if there's a non-intercepted entry. Most routes cannot be
+  // intercepted, so this is the common case.
+  const nonInterceptedEntry = readExactRouteCacheEntry(now, key.href, null)
+  if (nonInterceptedEntry !== null && !nonInterceptedEntry.couldBeIntercepted) {
+    // Found a match, and the route cannot be intercepted. We can reuse it.
+    return nonInterceptedEntry
   }
-  return null
+  // There was no match. Check again but include the Next-Url this time.
+  return readExactRouteCacheEntry(now, key.href, key.nextUrl)
 }
 
 export function readSegmentCacheEntry(
   now: number,
   path: string
 ): SegmentCacheEntry | null {
-  const existingEntry = segmentCache.get(path)
+  const existingEntry = segmentCacheMap.get(path)
   if (existingEntry !== undefined) {
     // Check if the entry is stale
     if (existingEntry.staleAt > now) {
       // Reuse the existing entry.
+
+      // Since this is an access, move the entry to the front of the LRU.
+      segmentCacheLru.put(existingEntry)
+
       return existingEntry
     } else {
       // Evict the stale entry from the cache.
-      evictSegmentEntryFromCache(existingEntry, path)
+      deleteSegmentFromCache(existingEntry, path)
     }
   }
   return null
@@ -178,28 +265,52 @@ export function requestRouteCacheEntryFromCache(
   now: number,
   task: PrefetchTask
 ): RouteCacheEntry {
-  const existingEntry = readRouteCacheEntry(now, task.key)
-  if (existingEntry !== null) {
-    return existingEntry
+  const key = task.key
+  // First check if there's a non-intercepted entry. Most routes cannot be
+  // intercepted, so this is the common case.
+  const nonInterceptedEntry = readExactRouteCacheEntry(now, key.href, null)
+  if (nonInterceptedEntry !== null && !nonInterceptedEntry.couldBeIntercepted) {
+    // Found a match, and the route cannot be intercepted. We can reuse it.
+    return nonInterceptedEntry
+  }
+  // There was no match. Check again but include the Next-Url this time.
+  const exactEntry = readExactRouteCacheEntry(now, key.href, key.nextUrl)
+  if (exactEntry !== null) {
+    return exactEntry
   }
   // Create a pending entry and spawn a request for its data.
   const pendingEntry: PendingRouteCacheEntry = {
     canonicalUrl: null,
     status: EntryStatus.Pending,
+    blockedTasks: null,
     tree: null,
     head: null,
+    isHeadPartial: true,
     // If the request takes longer than a minute, a subsequent request should
     // retry instead of waiting for this one.
     //
     // When the response is received, this value will be replaced by a new value
     // based on the stale time sent from the server.
     staleAt: now + 60 * 1000,
-    couldBeIntercepted: false,
+    // This is initialized to true because we don't know yet whether the route
+    // could be intercepted. It's only set to false once we receive a response
+    // from the server.
+    couldBeIntercepted: true,
+
+    // LRU-related fields
+    keypath: null,
+    next: null,
+    prev: null,
+    size: 0,
   }
-  const key = task.key
-  const requestPromise = fetchRouteOnCacheMiss(pendingEntry, key)
-  trackPrefetchRequestBandwidth(requestPromise)
-  routeCache.set(key.id, pendingEntry)
+  spawnPrefetchSubtask(fetchRouteOnCacheMiss(pendingEntry, task))
+  const keypath: Prefix<RouteCacheKeypath> =
+    key.nextUrl === null ? [key.href] : [key.href, key.nextUrl]
+  routeCacheMap.set(keypath, pendingEntry)
+  // Stash the keypath on the entry so we know how to remove it from the map
+  // if it gets evicted from the LRU.
+  pendingEntry.keypath = keypath
+  routeCacheLru.put(pendingEntry)
   return pendingEntry
 }
 
@@ -225,9 +336,16 @@ export function requestSegmentEntryFromCache(
     rsc: null,
     loading: null,
     staleAt: route.staleAt,
+    isPartial: true,
     promise: null,
+
+    // LRU-related fields
+    key: null,
+    next: null,
+    prev: null,
+    size: 0,
   }
-  trackPrefetchRequestBandwidth(
+  spawnPrefetchSubtask(
     fetchSegmentEntryOnCacheMiss(
       route,
       pendingEntry,
@@ -236,19 +354,50 @@ export function requestSegmentEntryFromCache(
       accessToken
     )
   )
-  segmentCache.set(path, pendingEntry)
+  segmentCacheMap.set(path, pendingEntry)
+  // Stash the keypath on the entry so we know how to remove it from the map
+  // if it gets evicted from the LRU.
+  pendingEntry.key = path
+  segmentCacheLru.put(pendingEntry)
   return pendingEntry
 }
 
-function evictRouteCacheEntryFromCache(key: RouteCacheKey): void {
-  routeCache.delete(key.id)
+function deleteRouteFromCache(
+  entry: RouteCacheEntry,
+  keypath: Prefix<RouteCacheKeypath>
+): void {
+  pingBlockedTasks(entry)
+  routeCacheMap.delete(keypath)
+  routeCacheLru.delete(entry)
 }
 
-function evictSegmentEntryFromCache(
-  entry: SegmentCacheEntry,
-  key: string
-): void {
-  segmentCache.delete(key)
+function deleteSegmentFromCache(entry: SegmentCacheEntry, key: string): void {
+  cancelEntryListeners(entry)
+  segmentCacheMap.delete(key)
+  segmentCacheLru.delete(entry)
+}
+
+function onRouteLRUEviction(entry: RouteCacheEntry): void {
+  // The LRU evicted this entry. Remove it from the map.
+  const keypath = entry.keypath
+  if (keypath !== null) {
+    entry.keypath = null
+    pingBlockedTasks(entry)
+    routeCacheMap.delete(keypath)
+  }
+}
+
+function onSegmentLRUEviction(entry: SegmentCacheEntry): void {
+  // The LRU evicted this entry. Remove it from the map.
+  const key = entry.key
+  if (key !== null) {
+    entry.key = null
+    cancelEntryListeners(entry)
+    segmentCacheMap.delete(key)
+  }
+}
+
+function cancelEntryListeners(entry: SegmentCacheEntry): void {
   if (entry.status === EntryStatus.Pending && entry.promise !== null) {
     // There were listeners for this entry. Resolve them with `null` to indicate
     // that the prefetch failed. It's up to the listener to decide how to handle
@@ -260,34 +409,52 @@ function evictSegmentEntryFromCache(
   }
 }
 
+function pingBlockedTasks(entry: {
+  blockedTasks: Set<PrefetchTask> | null
+}): void {
+  const blockedTasks = entry.blockedTasks
+  if (blockedTasks !== null) {
+    for (const task of blockedTasks) {
+      pingPrefetchTask(task)
+    }
+    entry.blockedTasks = null
+  }
+}
+
 function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
   tree: TreePrefetch,
   head: React.ReactNode,
+  isHeadPartial: boolean,
   staleAt: number,
   couldBeIntercepted: boolean,
   canonicalUrl: string
-) {
+): FulfilledRouteCacheEntry {
   const fulfilledEntry: FulfilledRouteCacheEntry = entry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.tree = tree
   fulfilledEntry.head = head
+  fulfilledEntry.isHeadPartial = isHeadPartial
   fulfilledEntry.staleAt = staleAt
   fulfilledEntry.couldBeIntercepted = couldBeIntercepted
   fulfilledEntry.canonicalUrl = canonicalUrl
+  pingBlockedTasks(entry)
+  return fulfilledEntry
 }
 
 function fulfillSegmentCacheEntry(
   segmentCacheEntry: PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   loading: LoadingModuleData | Promise<LoadingModuleData>,
-  staleAt: number
+  staleAt: number,
+  isPartial: boolean
 ) {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
   fulfilledEntry.loading = loading
   fulfilledEntry.staleAt = staleAt
+  fulfilledEntry.isPartial = isPartial
   // Resolve any listeners that were waiting for this data.
   if (segmentCacheEntry.promise !== null) {
     segmentCacheEntry.promise.resolve(fulfilledEntry)
@@ -303,6 +470,7 @@ function rejectRouteCacheEntry(
   const rejectedEntry: RejectedRouteCacheEntry = entry as any
   rejectedEntry.status = EntryStatus.Rejected
   rejectedEntry.staleAt = staleAt
+  pingBlockedTasks(entry)
 }
 
 function rejectSegmentCacheEntry(
@@ -322,22 +490,43 @@ function rejectSegmentCacheEntry(
 
 async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
-  key: RouteCacheKey
+  task: PrefetchTask
 ): Promise<void> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice though that it does not
   // return anything; it writes the result to the cache entry directly, then
   // pings the scheduler to unblock the corresponding prefetch task.
+  const key = task.key
   const href = key.href
+  const nextUrl = key.nextUrl
   try {
-    const response = await fetchSegmentPrefetchResponse(href, '/_tree')
-    if (!response || !response.ok || !response.body) {
-      // Received an unexpected response.
+    const response = await fetchSegmentPrefetchResponse(href, '/_tree', nextUrl)
+    if (
+      !response ||
+      !response.ok ||
+      // 204 is a Cache miss. Though theoretically this shouldn't happen when
+      // PPR is enabled, because we always respond to route tree requests, even
+      // if it needs to be blockingly generated on demand.
+      response.status === 204 ||
+      // This checks whether the response was served from the per-segment cache,
+      // rather than the old prefetching flow. If it fails, it implies that PPR
+      // is disabled on this route.
+      // TODO: Add support for non-PPR routes.
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
+      !response.body
+    ) {
+      // Server responded with an error, or with a miss. We should still cache
+      // the response, but we can try again after 10 seconds.
       rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
       return
     }
+    const prefetchStream = createPrefetchResponseStream(
+      response.body,
+      routeCacheLru,
+      entry
+    )
     const serverData: RootTreePrefetch = await (createFromNextReadableStream(
-      response.body
+      prefetchStream
     ) as Promise<RootTreePrefetch>)
     if (serverData.buildId !== getAppBuildId()) {
       // The server build does not match the client. Treat as a 404. During
@@ -357,29 +546,46 @@ async function fetchRouteOnCacheMiss(
 
     // Check whether the response varies based on the Next-Url header.
     const varyHeader = response.headers.get('vary')
-    const couldBeIntercepted = varyHeader
-      ? varyHeader.includes(NEXT_URL)
-      : false
+    const couldBeIntercepted =
+      varyHeader !== null && varyHeader.includes(NEXT_URL)
 
     fulfillRouteCacheEntry(
       entry,
       serverData.tree,
       serverData.head,
+      serverData.isHeadPartial,
       Date.now() + serverData.staleTime,
       couldBeIntercepted,
       canonicalUrl
     )
+
+    if (!couldBeIntercepted && nextUrl !== null) {
+      // This route will never be intercepted. So we can use this entry for all
+      // requests to this route, regardless of the Next-Url header. This works
+      // because when reading the cache we always check for a valid
+      // non-intercepted entry first.
+      //
+      // Re-key the entry. Since we're in an async task, we must first confirm
+      // that the entry hasn't been concurrently modified by a different task.
+      const currentKeypath: Prefix<RouteCacheKeypath> = [href, nextUrl]
+      const expectedEntry = routeCacheMap.get(currentKeypath)
+      if (expectedEntry === entry) {
+        routeCacheMap.delete(currentKeypath)
+        const newKeypath: Prefix<RouteCacheKeypath> = [href]
+        routeCacheMap.set(newKeypath, entry)
+        // We don't need to update the LRU because the entry is already in it.
+        // But since we changed the keypath, we do need to update that, so we
+        // know how to remove it from the map if it gets evicted from the LRU.
+        entry.keypath = newKeypath
+      } else {
+        // Something else modified this entry already. Since the re-keying is
+        // just a performance optimization, we can safely skip it.
+      }
+    }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
     rejectRouteCacheEntry(entry, Date.now() + 10 * 1000)
-    pingPrefetchTask(key)
-  } finally {
-    // The request for the route tree is was blocking this task from prefetching
-    // the segments. Now that the route tree is ready, notify the scheduler to
-    // unblock the prefetch task. We do this even if the request failed, so the
-    // scheduler can dispose of the task.
-    pingPrefetchTask(key)
   }
 }
 
@@ -400,18 +606,33 @@ async function fetchSegmentEntryOnCacheMiss(
   try {
     const response = await fetchSegmentPrefetchResponse(
       href,
-      accessToken === '' ? segmentPath : `${segmentPath}.${accessToken}`
+      accessToken === '' ? segmentPath : `${segmentPath}.${accessToken}`,
+      routeKey.nextUrl
     )
-    if (!response || !response.ok || !response.body) {
-      // Server responded with an error. We should still cache the response, but
-      // we can try again after 10 seconds.
+    if (
+      !response ||
+      !response.ok ||
+      response.status === 204 || // Cache miss
+      // This checks whether the response was served from the per-segment cache,
+      // rather than the old prefetching flow. If it fails, it implies that PPR
+      // is disabled on this route. Theoretically this should never happen
+      // because we only issue requests for segments once we've verified that
+      // the route supports PPR.
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
+      !response.body
+    ) {
+      // Server responded with an error, or with a miss. We should still cache
+      // the response, but we can try again after 10 seconds.
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return
     }
     // Wrap the original stream in a new stream that never closes. That way the
-    // Flight client doesn't error if there's a hanging promise. See comment in
-    // createUnclosingPrefetchStream for more details.
-    const prefetchStream = createUnclosingPrefetchStream(response.body)
+    // Flight client doesn't error if there's a hanging promise.
+    const prefetchStream = createPrefetchResponseStream(
+      response.body,
+      segmentCacheLru,
+      segmentCacheEntry
+    )
     const serverData = await (createFromNextReadableStream(
       prefetchStream
     ) as Promise<SegmentPrefetch>)
@@ -430,7 +651,8 @@ async function fetchSegmentEntryOnCacheMiss(
       serverData.loading,
       // TODO: The server does not currently provide per-segment stale time.
       // So we use the stale time of the route.
-      route.staleAt
+      route.staleAt,
+      serverData.isPartial
     )
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
@@ -440,16 +662,22 @@ async function fetchSegmentEntryOnCacheMiss(
 }
 
 async function fetchSegmentPrefetchResponse(
-  href: string,
-  segmentPath: string
+  href: NormalizedHref,
+  segmentPath: string,
+  nextUrl: NormalizedNextUrl | null
 ): Promise<Response | null> {
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
     [NEXT_ROUTER_PREFETCH_HEADER]: '1',
     [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
   }
+  if (nextUrl !== null) {
+    headers[NEXT_URL] = nextUrl
+  }
   const fetchPriority = 'low'
-  const response = await createFetch(new URL(href), headers, fetchPriority)
+  const responsePromise = createFetch(new URL(href), headers, fetchPriority)
+  trackPrefetchRequestBandwidth(responsePromise)
+  const response = await responsePromise
   const contentType = response.headers.get('content-type')
   const isFlightResponse =
     contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
@@ -457,6 +685,55 @@ async function fetchSegmentPrefetchResponse(
     return null
   }
   return response
+}
+
+function createPrefetchResponseStream<
+  T extends RouteCacheEntry | SegmentCacheEntry,
+>(
+  originalFlightStream: ReadableStream<Uint8Array>,
+  lru: LRU<T>,
+  lruEntry: T
+): ReadableStream<Uint8Array> {
+  // When PPR is enabled, prefetch streams may contain references that never
+  // resolve, because that's how we encode dynamic data access. In the decoded
+  // object returned by the Flight client, these are reified into hanging
+  // promises that suspend during render, which is effectively what we want.
+  // The UI resolves when it switches to the dynamic data stream
+  // (via useDeferredValue(dynamic, static)).
+  //
+  // However, the Flight implementation currently errors if the server closes
+  // the response before all the references are resolved. As a cheat to work
+  // around this, we wrap the original stream in a new stream that never closes,
+  // and therefore doesn't error.
+  //
+  // While processing the original stream, we also incrementally update the size
+  // of the cache entry in the LRU.
+  let totalByteLength = 0
+  const reader = originalFlightStream.getReader()
+  return new ReadableStream({
+    async pull(controller) {
+      while (true) {
+        const { done, value } = await reader.read()
+        if (!done) {
+          // Pass to the target stream and keep consuming the Flight response
+          // from the server.
+          controller.enqueue(value)
+
+          // Incrementally update the size of the cache entry in the LRU.
+          // NOTE: Since prefetch responses are delivered in a single chunk,
+          // it's not really necessary to do this streamingly, but I'm doing it
+          // anyway in case this changes in the future.
+          totalByteLength += value.byteLength
+          lru.updateSize(lruEntry, totalByteLength)
+
+          continue
+        }
+        // The server stream has closed. Exit, but intentionally do not close
+        // the target stream.
+        return
+      }
+    },
+  })
 }
 
 function createPromiseWithResolvers<T>(): PromiseWithResolvers<T> {

@@ -16,7 +16,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt, ValueToString, Vc,
+    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -107,7 +108,7 @@ pub async fn all_known_export_names(
     Ok(Vc::cell(export_names.esm_exports.keys().cloned().collect()))
 }
 
-#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Copy, Clone, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub enum FoundExportType {
     Found,
     Dynamic,
@@ -118,14 +119,14 @@ pub enum FoundExportType {
 
 #[turbo_tasks::value]
 pub struct FollowExportsResult {
-    pub module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    pub module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     pub export_name: Option<RcStr>,
     pub ty: FoundExportType,
 }
 
 #[turbo_tasks::function]
 pub async fn follow_reexports(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     side_effect_free_packages: Vc<Glob>,
     ignore_side_effect_of_entry: bool,
@@ -160,7 +161,7 @@ pub async fn follow_reexports(
                 .await?
             {
                 ControlFlow::Continue((m, n)) => {
-                    module = m;
+                    module = m.to_resolved().await?;
                     export_name = n;
                     continue;
                 }
@@ -172,7 +173,7 @@ pub async fn follow_reexports(
 
         // Try to find the export in the star exports
         if !exports_ref.star_exports.is_empty() && &*export_name != "default" {
-            let result = get_all_export_names(module).await?;
+            let result = get_all_export_names(*module).await?;
             if let Some(m) = result.esm_exports.get(&export_name) {
                 module = *m;
                 continue;
@@ -208,7 +209,7 @@ pub async fn follow_reexports(
 }
 
 async fn handle_declared_export(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
     export: &EsmExport,
     side_effect_free_packages: Vc<Glob>,
@@ -223,7 +224,7 @@ async fn handle_declared_export(
                     .await?
                 {
                     return Ok(ControlFlow::Break(FollowExportsResult {
-                        module: *module,
+                        module,
                         export_name: Some(name.clone()),
                         ty: FoundExportType::SideEffects,
                     }));
@@ -232,11 +233,11 @@ async fn handle_declared_export(
             }
         }
         EsmExport::ImportedNamespace(reference) => {
-            if let ReferencedAsset::Some(m) =
+            if let ReferencedAsset::Some(module) =
                 *ReferencedAsset::from_resolve_result(reference.resolve_reference()).await?
             {
                 return Ok(ControlFlow::Break(FollowExportsResult {
-                    module: *m,
+                    module,
                     export_name: None,
                     ty: FoundExportType::Found,
                 }));
@@ -266,13 +267,13 @@ async fn handle_declared_export(
 
 #[turbo_tasks::value]
 struct AllExportNamesResult {
-    esm_exports: FxIndexMap<RcStr, Vc<Box<dyn EcmascriptChunkPlaceable>>>,
-    dynamic_exporting_modules: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    esm_exports: FxIndexMap<RcStr, ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
+    dynamic_exporting_modules: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::function]
 async fn get_all_export_names(
-    module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<AllExportNamesResult>> {
     let exports = module.get_exports().await?;
     let EcmascriptExports::EsmExports(exports) = &*exports else {
@@ -352,27 +353,33 @@ pub async fn expand_star_exports(
                     }
                 }
             }
-            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => emit_star_exports_issue(
-                asset.ident(),
-                format!(
-                    "export * used with module {} which has no exports\nTypescript only: Did you \
-                     want to export only types with `export type * from \"...\"`?\nNote: Using \
-                     `export type` is more efficient than `export *` as it won't emit any runtime \
-                     code.",
-                    asset.ident().to_string().await?
+            EcmascriptExports::None | EcmascriptExports::EmptyCommonJs => {
+                emit_star_exports_issue(
+                    asset.ident(),
+                    format!(
+                        "export * used with module {} which has no exports\nTypescript only: Did \
+                         you want to export only types with `export type * from \"...\"`?\nNote: \
+                         Using `export type` is more efficient than `export *` as it won't emit \
+                         any runtime code.",
+                        asset.ident().to_string().await?
+                    )
+                    .into(),
                 )
-                .into(),
-            ),
-            EcmascriptExports::Value => emit_star_exports_issue(
-                asset.ident(),
-                format!(
-                    "export * used with module {} which only has a default export (default export \
-                     is not exported with export *)\nDid you want to use `export {{ default }} \
-                     from \"...\";` instead?",
-                    asset.ident().to_string().await?
+                .await?
+            }
+            EcmascriptExports::Value => {
+                emit_star_exports_issue(
+                    asset.ident(),
+                    format!(
+                        "export * used with module {} which only has a default export (default \
+                         export is not exported with export *)\nDid you want to use `export {{ \
+                         default }} from \"...\";` instead?",
+                        asset.ident().to_string().await?
+                    )
+                    .into(),
                 )
-                .into(),
-            ),
+                .await?
+            }
             EcmascriptExports::CommonJs => {
                 has_dynamic_exports = true;
                 emit_star_exports_issue(
@@ -385,7 +392,8 @@ pub async fn expand_star_exports(
                         asset.ident().to_string().await?
                     )
                     .into(),
-                );
+                )
+                .await?;
             }
             EcmascriptExports::DynamicNamespace => {
                 has_dynamic_exports = true;
@@ -400,24 +408,26 @@ pub async fn expand_star_exports(
     .cell())
 }
 
-fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) {
-    AnalyzeIssue {
-        code: None,
-        message: StyledString::Text(message).resolved_cell(),
+async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -> Result<()> {
+    AnalyzeIssue::new(
+        IssueSeverity::Warning.cell(),
         source_ident,
-        severity: IssueSeverity::Warning.resolved_cell(),
-        source: None,
-        title: ResolvedVc::cell("unexpected export *".into()),
-    }
-    .cell()
+        Vc::cell("unexpected export *".into()),
+        StyledString::Text(message).cell(),
+        None,
+        None,
+    )
+    .to_resolved()
+    .await?
     .emit();
+    Ok(())
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
-    pub star_exports: Vec<Vc<Box<dyn ModuleReference>>>,
+    pub star_exports: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
 /// The expanded version of [EsmExports], the `exports` field here includes all
@@ -455,7 +465,7 @@ impl EsmExports {
                 if !exports.contains_key(export) {
                     exports.insert(
                         export.clone(),
-                        EsmExport::ImportedBinding(Vc::upcast(esm_ref), export.clone(), false),
+                        EsmExport::ImportedBinding(Vc::upcast(*esm_ref), export.clone(), false),
                     );
                 }
             }

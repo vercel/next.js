@@ -3,7 +3,8 @@ use std::sync::Arc;
 use anyhow::{anyhow, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, ReadRef, State, TraitRef, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc,
+    State, TraitRef, Vc,
 };
 use turbo_tasks_fs::{FileContent, LinkType};
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
@@ -11,7 +12,7 @@ use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64};
 use crate::asset::AssetContent;
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionVersionedContent(Option<Vc<Box<dyn VersionedContent>>>);
+pub struct OptionVersionedContent(Option<ResolvedVc<Box<dyn VersionedContent>>>);
 
 /// The content of an [Asset] alongside its version.
 #[turbo_tasks::value_trait]
@@ -146,7 +147,7 @@ pub trait VersionedContentMerger {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct VersionedContents(Vec<Vc<Box<dyn VersionedContent>>>);
+pub struct VersionedContents(Vec<ResolvedVc<Box<dyn VersionedContent>>>);
 
 #[turbo_tasks::value]
 pub struct NotFoundVersion;
@@ -187,7 +188,7 @@ pub enum Update {
 }
 
 /// A total update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
     #[turbo_tasks(trace_ignore)]
@@ -195,7 +196,7 @@ pub struct TotalUpdate {
 }
 
 /// A partial update to a versioned object.
-#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat)]
+#[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct PartialUpdate {
     /// The version this update will bring the object to.
     #[turbo_tasks(trace_ignore)]

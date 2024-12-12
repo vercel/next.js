@@ -3,7 +3,7 @@ use std::{fmt::Display, io::Write};
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -29,7 +29,17 @@ fn layer() -> Vc<RcStr> {
 }
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput, Hash,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    Hash,
+    NonLocalValue,
 )]
 pub enum CachedExternalType {
     CommonJs,
@@ -164,7 +174,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
                         has_top_level_await: true,
                         import_externals: true,
                     }
-                    .cell(),
+                    .resolved_cell(),
                 )
             } else {
                 None
@@ -205,7 +215,7 @@ impl ChunkItem for CachedExternalModuleChunkItem {
         let additional_references = &self.module.await?.additional_references;
         if !additional_references.is_empty() {
             let mut module_references = self.module.references().await?.clone_value();
-            module_references.extend(additional_references.iter().map(|rvc| **rvc));
+            module_references.extend(additional_references.iter().copied());
             Ok(Vc::cell(module_references))
         } else {
             Ok(self.module.references())

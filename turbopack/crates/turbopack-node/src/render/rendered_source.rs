@@ -68,12 +68,12 @@ pub fn create_node_rendered_source(
         render_data,
         debug,
     }
-    .cell();
+    .resolved_cell();
     Vc::upcast(ConditionalContentSource::new(
-        Vc::upcast(source),
+        Vc::upcast(*source),
         Vc::upcast(
             LazyInstantiatedContentSource {
-                get_source: Vc::upcast(source),
+                get_source: ResolvedVc::upcast(source),
             }
             .cell(),
         ),
@@ -238,9 +238,7 @@ impl GetContentSourceContent for NodeRenderContentSource {
                 .resolved_cell(),
             )
             .cell(),
-            StaticResult::Rewrite(rewrite) => {
-                ContentSourceContent::Rewrite(rewrite.to_resolved().await?).cell()
-            }
+            StaticResult::Rewrite(rewrite) => ContentSourceContent::Rewrite(rewrite).cell(),
         })
     }
 }
@@ -279,11 +277,11 @@ impl Introspectable for NodeRenderContentSource {
         for &entry in self.entry.entries().await?.iter() {
             let entry = entry.await?;
             set.insert((
-                Vc::cell("module".into()),
+                ResolvedVc::cell("module".into()),
                 IntrospectableModule::new(Vc::upcast(*entry.module)),
             ));
             set.insert((
-                Vc::cell("intermediate asset".into()),
+                ResolvedVc::cell("intermediate asset".into()),
                 IntrospectableOutputAsset::new(get_intermediate_asset(
                     *entry.chunking_context,
                     *entry.module,

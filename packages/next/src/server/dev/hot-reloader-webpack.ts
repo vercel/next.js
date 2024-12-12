@@ -1594,23 +1594,29 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     definition?: RouteDefinition
     url?: string
   }): Promise<void> {
-    // Make sure we don't re-build or dispose prebuilt pages
-    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
-      return
-    }
-    const error = clientOnly
-      ? this.clientError
-      : this.serverError || this.clientError
-    if (error) {
-      throw error
-    }
+    return this.hotReloaderSpan
+      .traceChild('ensure-page', {
+        inputPage: page,
+      })
+      .traceAsyncFn(async () => {
+        // Make sure we don't re-build or dispose prebuilt pages
+        if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
+          return
+        }
+        const error = clientOnly
+          ? this.clientError
+          : this.serverError || this.clientError
+        if (error) {
+          throw error
+        }
 
-    return this.onDemandEntries?.ensurePage({
-      page,
-      appPaths,
-      definition,
-      isApp,
-      url,
-    })
+        return this.onDemandEntries?.ensurePage({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
   }
 }

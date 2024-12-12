@@ -6,6 +6,7 @@ use std::{
 
 use anyhow::Result;
 use async_trait::async_trait;
+use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
@@ -14,10 +15,10 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
     DevOnly,
@@ -27,7 +28,7 @@ pub enum EmotionLabelKind {
 
 //[TODO]: need to support importmap, there are type mismatch between
 //next.config.js to swc's emotion options
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, non_local)]
 #[derive(Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {
@@ -96,8 +97,7 @@ impl CustomTransformer for EmotionTransformer {
         #[cfg(feature = "transform_emotion")]
         {
             let hash = {
-                #[allow(clippy::disallowed_types)]
-                let mut hasher = std::collections::hash_map::DefaultHasher::new();
+                let mut hasher = FxHasher::default();
                 program.hash(&mut hasher);
                 hasher.finish()
             };

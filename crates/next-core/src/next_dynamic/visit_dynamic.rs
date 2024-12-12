@@ -15,7 +15,7 @@ use turbopack_core::{
 use super::NextDynamicEntryModule;
 
 #[turbo_tasks::value(transparent)]
-pub struct NextDynamicEntries(Vec<Vc<NextDynamicEntryModule>>);
+pub struct NextDynamicEntries(Vec<ResolvedVc<NextDynamicEntryModule>>);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicEntries {
@@ -30,10 +30,7 @@ impl NextDynamicEntries {
                         .iter()
                         .copied()
                         .map(|m| async move {
-                            Ok(VisitDynamicNode::Internal(
-                                m.to_resolved().await?,
-                                m.ident().to_string().await?,
-                            ))
+                            Ok(VisitDynamicNode::Internal(m, m.ident().to_string().await?))
                         })
                         .try_join()
                         .await?,
@@ -54,7 +51,7 @@ impl NextDynamicEntries {
                         // traversal.
                     }
                     VisitDynamicNode::Dynamic(dynamic_asset, _) => {
-                        next_dynamics.push(*dynamic_asset);
+                        next_dynamics.push(dynamic_asset);
                     }
                 }
             }
@@ -96,9 +93,8 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
             let referenced_modules = primary_referenced_modules(*module).await?;
 
             let referenced_modules = referenced_modules.iter().map(|module| async move {
-                let module = module.to_resolved().await?;
                 if let Some(next_dynamic_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module).await?
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module).await?
                 {
                     return Ok(VisitDynamicNode::Dynamic(
                         next_dynamic_module,
@@ -107,7 +103,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
                 }
 
                 Ok(VisitDynamicNode::Internal(
-                    module,
+                    *module,
                     module.ident().to_string().await?,
                 ))
             });

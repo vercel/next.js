@@ -85,7 +85,6 @@ export default class NextWebServer extends BaseServer<
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
-      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk: false,
