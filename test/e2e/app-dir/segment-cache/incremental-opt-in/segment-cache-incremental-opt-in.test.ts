@@ -40,4 +40,28 @@ describe('segment cache (incremental opt in)', () => {
     const result = extractPseudoJSONFromFlightResponse(flightText)
     expect(typeof result.b === 'string').toBe(true)
   })
+
+  // TODO: Replace with e2e test once the client part is implemented
+  it('route tree prefetch does not include any component data even if loading.tsx is defined', async () => {
+    await next.browser('/')
+    const response = await next.fetch('/ppr-disabled-with-loading-boundary', {
+      headers: {
+        RSC: '1',
+        'Next-Router-Prefetch': '1',
+        'Next-Router-Segment-Prefetch': '/_tree',
+      },
+    })
+    expect(response.status).toBe(200)
+    expect(response.headers.get('x-nextjs-postponed')).toBe(null)
+
+    // Usually when PPR is disabled, a prefetch to a route that has a
+    // loading.tsx boundary will include component data in the response, up to
+    // the first loading boundary. But since this is specifically a prefetch
+    // of the route tree, it should skip all the component data and only return
+    // the router state.
+    const flightText = await response.text()
+    // Confirm that the response does not include any component data by checking
+    // for the absence of the loading component.
+    expect(flightText).not.toContain('Loading...')
+  })
 })

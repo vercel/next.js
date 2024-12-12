@@ -1,15 +1,11 @@
-import type {
-  FlightSegmentPath,
-  CacheNodeSeedData,
-  PreloadCallbacks,
-} from './types'
+import type { CacheNodeSeedData, PreloadCallbacks } from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
 import { parseLoaderTree } from './parse-loader-tree'
-import type { CreateSegmentPath, AppRenderContext } from './app-render'
+import type { AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
@@ -27,11 +23,9 @@ import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
  * Use the provided loader tree to create the React Component tree.
  */
 export function createComponentTree(props: {
-  createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
   parentParams: Params
   rootLayoutIncluded: boolean
-  firstItem?: boolean
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
@@ -63,10 +57,8 @@ function errorMissingDefaultExport(
 const cacheNodeKey = 'c'
 
 async function createComponentTreeInternal({
-  createSegmentPath,
   loaderTree: tree,
   parentParams,
-  firstItem,
   rootLayoutIncluded,
   injectedCSS,
   injectedJS,
@@ -77,11 +69,9 @@ async function createComponentTreeInternal({
   preloadCallbacks,
   authInterrupts,
 }: {
-  createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
   parentParams: Params
   rootLayoutIncluded: boolean
-  firstItem?: boolean
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
@@ -412,10 +402,6 @@ async function createComponentTreeInternal({
         parallelRouteKey
       ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
-        const currentSegmentPath: FlightSegmentPath = firstItem
-          ? [parallelRouteKey]
-          : [actualSegment, parallelRouteKey]
-
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
         const notFoundComponent =
@@ -489,9 +475,6 @@ async function createComponentTreeInternal({
           }
 
           const seedData = await createComponentTreeInternal({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
             loaderTree: parallelRoute,
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
@@ -517,7 +500,6 @@ async function createComponentTreeInternal({
           parallelRouteKey,
           <LayoutRouter
             parallelRouterKey={parallelRouteKey}
-            segmentPath={createSegmentPath(currentSegmentPath)}
             // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
             error={ErrorComponent}
             errorStyles={errorStyles}
