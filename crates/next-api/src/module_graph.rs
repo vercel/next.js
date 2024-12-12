@@ -177,9 +177,11 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<SingleModuleGraphBuilderNode> {
         match edge.to {
-            SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue(edge.to),
-            SingleModuleGraphBuilderNode::ChunkableReference { .. }
-            | SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
+            SingleModuleGraphBuilderNode::Module { .. }
+            | SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
+                VisitControlFlow::Continue(edge.to)
+            }
+            SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
         }
     }
 
