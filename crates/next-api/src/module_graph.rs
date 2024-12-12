@@ -57,34 +57,16 @@ pub enum GraphTraversalAction {
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, Eq, PartialEq, Hash, NonLocalValue)]
-pub enum SingleModuleGraphNode {
-    Module {
-        module: ResolvedVc<Box<dyn Module>>,
-        issues: Vec<ResolvedVc<Box<dyn Issue>>>,
-        layer: Option<ReadRef<RcStr>>,
-    },
-    ChunkableReference {
-        chunking_type: ChunkingType,
-        // module: ResolvedVc<Box<dyn Module>>,
-    },
-    Chunk {
-        entries: Vec<ResolvedVc<Box<dyn Module>>>,
-    },
+pub struct SingleModuleGraphNode {
+    pub module: ResolvedVc<Box<dyn Module>>,
+    issues: Vec<ResolvedVc<Box<dyn Issue>>>,
+    pub layer: Option<ReadRef<RcStr>>,
 }
 
 impl SingleModuleGraphNode {
     fn emit_issues(&self) {
-        if let SingleModuleGraphNode::Module { issues, .. } = self {
-            for issue in issues {
-                issue.emit();
-            }
-        }
-    }
-    fn module(&self) -> Option<ResolvedVc<Box<dyn Module>>> {
-        match self {
-            SingleModuleGraphNode::Module { module, .. } => Some(*module),
-            SingleModuleGraphNode::Chunk { .. }
-            | SingleModuleGraphNode::ChunkableReference { .. } => None,
+        for issue in &self.issues {
+            issue.emit();
         }
     }
 }
@@ -333,7 +315,7 @@ impl SingleModuleGraph {
                                 graph.add_edge(parent_idx, *idx, chunking_type);
                             }
                         } else {
-                            let idx = graph.add_node(SingleModuleGraphNode::Module {
+                            let idx = graph.add_node(SingleModuleGraphNode {
                                 module: *module,
                                 issues: Default::default(),
                                 layer: layer.clone(),
@@ -350,13 +332,11 @@ impl SingleModuleGraph {
                     }
                     SingleModuleGraphBuilderNode::Issues(new_issues) => {
                         let (parent_idx, _) = parent_edge.unwrap();
-                        let node_weight = graph.node_weight_mut(parent_idx).unwrap();
-
-                        if let SingleModuleGraphNode::Module { ref mut issues, .. } = node_weight {
-                            issues.extend(new_issues);
-                        } else {
-                            unreachable!()
-                        }
+                        graph
+                            .node_weight_mut(parent_idx)
+                            .unwrap()
+                            .issues
+                            .extend(new_issues);
                     }
                 }
             }
@@ -364,7 +344,7 @@ impl SingleModuleGraph {
 
         let root_idx = if let Some(root) = root {
             if !modules.contains_key(&root) {
-                let root_idx = graph.add_node(SingleModuleGraphNode::Module {
+                let root_idx = graph.add_node(SingleModuleGraphNode {
                     module: root,
                     issues: Default::default(),
                     layer: None,
@@ -586,7 +566,7 @@ async fn get_module_graph_for_endpoint(
         graph
             .await?
             .iter_nodes()
-            .map(|n| n.module().unwrap())
+            .map(|n| n.module)
             .collect::<HashSet<_>>()
     } else {
         HashSet::new()
@@ -604,10 +584,7 @@ async fn get_module_graph_for_endpoint(
         )
         .to_resolved()
         .await?;
-        visited_modules.extend(graph.await?.graph.node_weights().filter_map(|n| match n {
-            SingleModuleGraphNode::Module { module, .. } => Some(*module),
-            _ => None,
-        }));
+        visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
         graphs.push(graph);
     }
 
@@ -717,12 +694,9 @@ impl NextDynamicGraph {
 
                 let mut result = FxIndexMap::default();
                 graph.traverse_from_entry(entry, |node| {
-                    let SingleModuleGraphNode::Module { module, .. } = node else {
-                        return;
-                    };
-
-                    if let Some(node_data) = data.get(module) {
-                        result.insert(*module, node_data.clone());
+                    let module = node.module;
+                    if let Some(node_data) = data.get(&module) {
+                        result.insert(module, node_data.clone());
                     }
                 })?;
                 Ok(Vc::cell(result))
@@ -778,8 +752,8 @@ impl ServerActionsGraph {
 
                 let mut result = HashMap::new();
                 graph.traverse_from_entry(entry, |node| {
-                    if let Some(node_data) = data.get(&node.module().unwrap()) {
-                        result.insert(node.module().unwrap(), *node_data);
+                    if let Some(node_data) = data.get(&node.module) {
+                        result.insert(node.module, *node_data);
                     }
                 })?;
                 Cow::Owned(result)
@@ -867,12 +841,12 @@ impl ClientReferencesGraph {
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut HashMap::new(),
                 |(parent_node, node), state_map| {
-                    let module = node.module().unwrap();
+                    let module = node.module;
                     let Some(parent_node) = parent_node else {
                         state_map.insert(module, None);
                         return GraphTraversalAction::Continue;
                     };
-                    let module = node.module().unwrap();
+                    let module = node.module;
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -881,7 +855,7 @@ impl ClientReferencesGraph {
                     {
                         Some(*module)
                     } else {
-                        *state_map.get(&parent_node.module().unwrap()).unwrap()
+                        *state_map.get(&parent_node.module).unwrap()
                     };
 
                     state_map.insert(module, current_server_component);
@@ -898,11 +872,11 @@ impl ClientReferencesGraph {
                     let Some(parent_node) = parent_node else {
                         return;
                     };
-                    let parent_module = parent_node.module().unwrap();
+                    let parent_module = parent_node.module;
 
                     let parent_server_component = *state_map.get(&parent_module).unwrap();
 
-                    match data.get(&node.module().unwrap()) {
+                    match data.get(&node.module) {
                         Some(ClientReferenceMapType::EcmascriptClientReference {
                             module: module_ref,
                             ssr_module,

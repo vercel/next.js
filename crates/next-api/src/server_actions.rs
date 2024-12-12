@@ -41,7 +41,7 @@ use turbopack_ecmascript::{
     tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
 
-use crate::module_graph::{SingleModuleGraph, SingleModuleGraphNode};
+use crate::module_graph::SingleModuleGraph;
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
@@ -400,17 +400,8 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
-                let SingleModuleGraphNode::Module {
-                    module,
-                    issues: _,
-                    layer,
-                } = node
-                else {
-                    return Ok(None);
-                };
-
                 // TODO: compare module contexts instead?
-                let layer = match &layer {
+                let layer = match &node.layer {
                     Some(layer) if &**layer == "app-rsc" || &**layer == "app-edge-rsc" => {
                         ActionLayer::Rsc
                     }
@@ -420,9 +411,9 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
                 };
                 // TODO the old implementation did parse_actions(to_rsc_context(module))
                 // is that really necessary?
-                Ok(parse_actions(**module)
+                Ok(parse_actions(*node.module)
                     .await?
-                    .map(|action_map| (*module, (layer, action_map))))
+                    .map(|action_map| (node.module, (layer, action_map))))
             }
         })
         .try_flat_join()

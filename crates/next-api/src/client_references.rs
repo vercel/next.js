@@ -12,7 +12,7 @@ use turbo_tasks::{
 use turbopack::css::CssModuleAsset;
 use turbopack_core::module::Module;
 
-use crate::module_graph::{SingleModuleGraph, SingleModuleGraphNode};
+use crate::module_graph::SingleModuleGraph;
 
 #[derive(
     Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
@@ -37,37 +37,30 @@ pub async fn map_client_references(
         .await?
         .iter_nodes()
         .map(|node| async move {
-            let SingleModuleGraphNode::Module {
-                module,
-                issues: _,
-                layer: _,
-            } = node
-            else {
-                return Ok(None);
-            };
+            let module = node.module;
 
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module).await?
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
             {
                 Ok(Some((
-                    *module,
+                    module,
                     ClientReferenceMapType::EcmascriptClientReference {
                         module: client_reference_module,
                         ssr_module: ResolvedVc::upcast(client_reference_module.await?.ssr_module),
                     },
                 )))
             } else if let Some(css_client_reference_asset) =
-                ResolvedVc::try_downcast_type::<CssModuleAsset>(*module).await?
+                ResolvedVc::try_downcast_type::<CssModuleAsset>(module).await?
             {
                 Ok(Some((
-                    *module,
+                    module,
                     ClientReferenceMapType::CssClientReference(css_client_reference_asset),
                 )))
             } else if let Some(server_component) =
-                ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module).await?
+                ResolvedVc::try_downcast_type::<NextServerComponentModule>(module).await?
             {
                 Ok(Some((
-                    *module,
+                    module,
                     ClientReferenceMapType::ServerComponent(server_component),
                 )))
             } else {
