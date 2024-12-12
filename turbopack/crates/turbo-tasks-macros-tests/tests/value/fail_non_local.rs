@@ -3,7 +3,7 @@
 
 use turbo_tasks::Vc;
 
-#[turbo_tasks::value(non_local)]
+#[turbo_tasks::value]
 struct MyValue {
     value: Vc<i32>,
 }
