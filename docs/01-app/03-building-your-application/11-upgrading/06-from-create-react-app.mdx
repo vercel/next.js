@@ -306,7 +306,7 @@ On Next.js you declare an entrypoint for your application by creating a `page.ts
 
 Since this guide is aiming to first set up our Next.js as an SPA (Single Page Application), you need your page entry point to catch all possible routes of your application. For that, create a new `[[...slug]]` directory in your `app` directory.
 
-This directory is what is called an [optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments). Next.js uses a file-system based router where [directories are used to define routes](/docs/app/building-your-application/routing/defining-routes#creating-routes). This special directory will make sure that all routes of your application will be directed to its containing `page.tsx` file.
+This directory is what is called an [optional catch-all route segment](/docs/app/building-your-application/routing/dynamic-routes#optional-catch-all-segments). Next.js uses a file-system based router where folders are used to define routes. This special directory will make sure that all routes of your application will be directed to its containing `page.tsx` file.
 
 **Create a new `page.tsx` file inside the `app/[[...slug]]` directory with the following content:**
 
