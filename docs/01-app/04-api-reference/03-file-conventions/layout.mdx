@@ -202,6 +202,40 @@ The two layouts would be nested as such:
   width="1600"
   height="1026"
 />
+### Adding metadata
+
+You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to layouts. Instead, you can use the [Metadata API](/docs/app/building-your-application/optimizing/metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+// This metadata will be applied to all pages in /dashboard/*
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'Dashboard',
+  description: 'Dashboard',
+}
+
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return <section>{children}</section>
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+// This metadata will be applied to all pages in /dashboard/*
+export const metadata = {
+  title: 'Dashboard',
+  description: 'Dashboard',
+}
+
+export default function DashboardLayout({ children }) {
+  return <section>{children}</section>
+}
+```
+
 ### Displaying content based on `params`
 
 Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content based on the `params` prop.
