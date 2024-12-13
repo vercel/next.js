@@ -12,8 +12,8 @@ use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
-    TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -193,7 +193,17 @@ async fn run_inner(
     Ok(*run_result.await?.js_result)
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,

@@ -10,7 +10,6 @@ import {
 import type { Revalidate } from '../revalidate'
 import type { DeepReadonly } from '../../../shared/lib/deep-readonly'
 
-import FetchCache from './fetch-cache'
 import FileSystemCache from './file-system-cache'
 import { normalizePagePath } from '../../../shared/lib/page-path/normalize-page-path'
 
@@ -96,7 +95,6 @@ export class IncrementalCache implements IncrementalCacheType {
     dev,
     dynamicIO,
     flushToDisk,
-    fetchCache,
     minimalMode,
     serverDistDir,
     requestHeaders,
@@ -110,7 +108,6 @@ export class IncrementalCache implements IncrementalCacheType {
     fs?: CacheFs
     dev: boolean
     dynamicIO: boolean
-    fetchCache?: boolean
     minimalMode?: boolean
     serverDistDir?: string
     flushToDisk?: boolean
@@ -144,16 +141,6 @@ export class IncrementalCache implements IncrementalCacheType {
             console.log('using filesystem cache handler')
           }
           CurCacheHandler = FileSystemCache
-        }
-        if (
-          FetchCache.isAvailable({ _requestHeaders: requestHeaders }) &&
-          minimalMode &&
-          fetchCache
-        ) {
-          if (debug) {
-            console.log('using fetch cache handler')
-          }
-          CurCacheHandler = FetchCache
         }
       }
     } else if (debug) {

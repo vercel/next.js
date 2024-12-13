@@ -16,6 +16,52 @@ use crate::{
     ResolveTypeError, Upcast, VcRead, VcTransparentRead, VcValueTrait, VcValueType,
 };
 
+/// A "subtype" (via [`Deref`]) of [`Vc`] that represents a specific [`Vc::cell`]/`.cell()` or
+/// [`ResolvedVc::cell`]/`.resolved_cell()` constructor call within [a task][macro@crate::function].
+///
+/// Unlike [`Vc`], `ResolvedVc`:
+///
+/// - Does not potentially refer to task-local information, meaning that it implements
+///   [`NonLocalValue`], and can be used in any [`#[turbo_tasks::value]`][macro@crate::value].
+///
+/// - Has only one potential internal representation, meaning that it has a saner equality
+///   definition.
+///
+/// - Points to a concrete value with a type, and is therefore [cheap to
+///   downcast][ResolvedVc::try_downcast].
+///
+///
+/// ## Construction
+///
+/// There are a few ways to construct a `ResolvedVc`, in order of preference:
+///
+/// 1. Given a [value][VcValueType], construct a `ResolvedVc` using [`ResolvedVc::cell`] (for
+///    "transparent" values) or by calling the generated `.resolved_cell()` constructor on the value
+///    type.
+///
+/// 2. Given an argument to a function using the [`#[turbo_tasks::function]`][macro@crate::function]
+///    macro, change the argument's type to a `ResolvedVc`. The [rewritten external signature] will
+///    still use [`Vc`], but when the function is called, the [`Vc`] will be resolved.
+///
+/// 3. Given a [`Vc`], use [`.to_resolved().await?`][Vc::to_resolved].
+///
+///
+/// ## Equality & Hashing
+///
+/// Equality between two `ResolvedVc`s means that both have an identical in-memory representation
+/// and point to the same cell. The implementation of [`Hash`] has similar behavior.
+///
+/// If `.await`ed at the same time, both would likely resolve to the same [`ReadRef`], though it is
+/// possible that they may not if the cell is invalidated between `.await`s.
+///
+/// Because equality is a synchronous operation that cannot read the cell contents, even if the
+/// `ResolvedVc`s are not equal, it is possible that if `.await`ed, both `ResolvedVc`s could point
+/// to the same or equal values.
+///
+///
+/// [`NonLocalValue`]: crate::NonLocalValue
+/// [rewritten external signature]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
+/// [`ReadRef`]: crate::ReadRef
 #[derive(Serialize, Deserialize)]
 #[serde(transparent, bound = "")]
 pub struct ResolvedVc<T>

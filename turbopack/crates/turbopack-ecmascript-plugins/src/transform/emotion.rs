@@ -14,10 +14,10 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
     DevOnly,

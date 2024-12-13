@@ -1637,7 +1637,7 @@ export async function isPageStatic({
           })
         }
 
-        appConfig = reduceAppConfig(await collectSegments(componentsResult))
+        appConfig = reduceAppConfig(segments)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(

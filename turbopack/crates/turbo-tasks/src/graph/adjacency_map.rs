@@ -1,24 +1,41 @@
-use std::collections::{HashMap, HashSet, VecDeque};
+use std::{
+    collections::{HashMap, HashSet, VecDeque},
+    hash::Hash,
+};
 
 use serde::{Deserialize, Serialize};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
 use super::graph_store::{GraphNode, GraphStore};
-use crate as turbo_tasks;
+use crate::{self as turbo_tasks, NonLocalValue};
 
 /// A graph traversal that builds an adjacency map
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
-pub struct AdjacencyMap<T>
-where
-    T: Eq + std::hash::Hash + Clone,
-{
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[serde(bound(
+    serialize = "T: Serialize + Eq + Hash",
+    deserialize = "T: Deserialize<'de> + Eq + Hash"
+))]
+pub struct AdjacencyMap<T> {
     adjacency_map: HashMap<T, Vec<T>>,
     roots: Vec<T>,
 }
 
+unsafe impl<T> NonLocalValue for AdjacencyMap<T> where T: NonLocalValue {}
+
+impl<T> PartialEq for AdjacencyMap<T>
+where
+    T: Eq + Hash,
+{
+    fn eq(&self, other: &Self) -> bool {
+        self.adjacency_map == other.adjacency_map && self.roots == other.roots
+    }
+}
+
+impl<T> Eq for AdjacencyMap<T> where T: Eq + Hash {}
+
 impl<T> Default for AdjacencyMap<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     fn default() -> Self {
         Self::new()
@@ -27,7 +44,7 @@ where
 
 impl<T> AdjacencyMap<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     /// Creates a new adjacency map
     pub fn new() -> Self {
@@ -50,7 +67,7 @@ where
 
 impl<T> GraphStore for AdjacencyMap<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     type Node = T;
     type Handle = T;
@@ -71,7 +88,7 @@ where
 
 impl<T> AdjacencyMap<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     /// Returns an owned iterator over the nodes in reverse topological order,
     /// starting from the roots.
@@ -88,7 +105,7 @@ where
         }
     }
 
-    /// Returns an owned iterator over all edges (node pairs) in breadth first order,
+    /// Returns an owned iterator over all edges (node pairs) in reverse breadth first order,
     /// starting from the roots.
     pub fn into_breadth_first_edges(self) -> IntoBreadthFirstEdges<T> {
         IntoBreadthFirstEdges {
@@ -99,7 +116,7 @@ where
                 .rev()
                 .map(|root| (None, root))
                 .collect(),
-            visited: HashSet::new(),
+            expanded: HashSet::new(),
         }
     }
 
@@ -142,7 +159,7 @@ enum ReverseTopologicalPass {
 /// from the roots.
 pub struct IntoReverseTopologicalIter<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     adjacency_map: HashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, T)>,
@@ -151,7 +168,7 @@ where
 
 impl<T> Iterator for IntoReverseTopologicalIter<T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     type Item = T;
 
@@ -195,7 +212,7 @@ where
 {
     adjacency_map: HashMap<T, Vec<T>>,
     stack: VecDeque<(Option<T>, T)>,
-    visited: HashSet<T>,
+    expanded: HashSet<T>,
 }
 
 impl<T> Iterator for IntoBreadthFirstEdges<T>
@@ -208,15 +225,13 @@ where
         let (parent, current) = self.stack.pop_front()?;
 
         let Some(neighbors) = self.adjacency_map.get(&current) else {
-            self.visited.insert(current.clone());
             return Some((parent, current));
         };
 
-        if self.visited.insert(current.clone()) {
+        if self.expanded.insert(current.clone()) {
             self.stack.extend(
                 neighbors
                     .iter()
-                    .rev()
                     .map(|neighbor| (Some(current.clone()), neighbor.clone())),
             );
         }
@@ -229,7 +244,7 @@ where
 /// from the roots.
 pub struct ReverseTopologicalIter<'graph, T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     adjacency_map: &'graph HashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, &'graph T)>,
@@ -238,7 +253,7 @@ where
 
 impl<'graph, T> Iterator for ReverseTopologicalIter<'graph, T>
 where
-    T: Eq + std::hash::Hash + Clone,
+    T: Eq + Hash + Clone,
 {
     type Item = &'graph T;
 

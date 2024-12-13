@@ -27,7 +27,7 @@ type DevHtmlEntry = (
 /// The HTML entry point of the dev server.
 ///
 /// Generates an HTML page that includes the ES and CSS chunks.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub struct DevHtmlAsset {
     path: ResolvedVc<FileSystemPath>,

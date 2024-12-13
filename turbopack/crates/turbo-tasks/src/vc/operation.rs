@@ -8,6 +8,43 @@ use crate::{
     Upcast, Vc, VcValueTrait,
 };
 
+/// A "subtype" (can be converted via [`.connect()`]) of [`Vc`] that
+/// represents a specific call (with arguments) to [a task][macro@crate::function].
+///
+/// Unlike [`Vc`], `OperationVc`:
+///
+/// - Does not potentially refer to task-local information, meaning that it implements
+///   [`NonLocalValue`], and can be used in any [`#[turbo_tasks::value]`][macro@crate::value].
+///
+/// - Has only one potential internal representation, meaning that it has a saner equality
+///   definition.
+///
+/// - Can be [reconnected][OperationVc::connect] to the strongly-consistent compilation graph after
+///   being placed inside of a [`State`].
+///
+/// - Makes sense with [collectibles][`CollectiblesSource`], as it represents a function call, and
+///   only function calls can have issues or side-effects.
+///
+///
+/// ## Equality & Hashing
+///
+/// Equality between two `OperationVc`s means that both have an identical in-memory representation
+/// and point to the same task function call. The implementation of [`Hash`] has similar behavior.
+///
+/// If [connected] and then `.await`ed at the same time, both would likely resolve to the same
+/// [`ReadRef`], though it is possible that they may not if the task or cell is invalidated between
+/// `.await`s.
+///
+/// Because equality is a synchronous operation that cannot read the cell contents, even if the
+/// `OperationVc`s are not equal, it is possible that if `.await`ed, both `OperationVc`s could point
+/// to the same or equal values.
+///
+/// [`.connect()`]: OperationVc::connect
+/// [reconnected]: OperationVc::connect
+/// [connected]: OperationVc::connect
+/// [`NonLocalValue`]: crate::NonLocalValue
+/// [`State`]: crate::State
+/// [`ReadRef`]: crate::ReadRef
 #[must_use]
 pub struct OperationVc<T>
 where
@@ -21,6 +58,9 @@ impl<T: ?Sized> OperationVc<T> {
     ///
     /// The caller must ensure that the `Vc` is not a local task and it points to a a single
     /// operation.
+    ///
+    /// **This API is a placeholder and will likely be removed soon** in favor of a future API that
+    /// uses macros and static (compile-time) assertions in place of runtime assertions.
     pub fn new(node: Vc<T>) -> Self {
         // TODO to avoid this runtime check, we should mark functions with `(operation)` and return
         // a OperationVc directly
@@ -32,7 +72,7 @@ impl<T: ?Sized> OperationVc<T> {
     }
 
     /// Marks this operation's underlying function call as a child of the current task, and returns
-    /// a dereferenced [`Vc`] that can be [resolved][Vc::to_resolved] or read with `.await?`.
+    /// a [`Vc`] that can be [resolved][Vc::to_resolved] or read with `.await?`.
     ///
     /// By marking this function call as a child of the current task, turbo-tasks will re-run tasks
     /// as-needed to achieve strong consistency at the root of the function call tree. This explicit

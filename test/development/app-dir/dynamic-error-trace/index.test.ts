@@ -2,8 +2,6 @@ import { nextTestSetup } from 'e2e-utils'
 import { assertHasRedbox, getRedboxSource } from 'next-test-utils'
 import { outdent } from 'outdent'
 
-const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-
 function normalizeStackTrace(trace) {
   return trace.replace(/ \(.*\)/g, '')
 }
@@ -37,14 +35,7 @@ describe('app dir - dynamic error trace', () => {
 
     // TODO: Show useful stack
     const normalizedStack = normalizeStackTrace(stackFramesContent)
-    if (isReactExperimental) {
-      expect(normalizedStack).toMatchInlineSnapshot(`
-        "Array.map
-        <anonymous>"
-      `)
-    } else {
-      expect(normalizedStack).toMatchInlineSnapshot(`""`)
-    }
+    expect(normalizedStack).toMatchInlineSnapshot(`""`)
 
     const codeframe = await getRedboxSource(browser)
     expect(codeframe).toEqual(

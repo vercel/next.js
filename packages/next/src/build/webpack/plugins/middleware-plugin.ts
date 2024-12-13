@@ -297,7 +297,9 @@ function isDynamicCodeEvaluationAllowed(
 
   const name = fileName.replace(rootDir ?? '', '')
 
-  return picomatch(middlewareConfig?.unstable_allowDynamic ?? [])(name)
+  return picomatch(middlewareConfig?.unstable_allowDynamic ?? [], {
+    dot: true,
+  })(name)
 }
 
 function buildUnsupportedApiError({
