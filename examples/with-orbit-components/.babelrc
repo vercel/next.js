@@ -1,6 +1,0 @@
-{
-  "presets": ["next/babel"],
-  "plugins": [
-    "@kiwicom/babel-plugin-orbit-components"
-  ]
-}
