@@ -138,6 +138,15 @@ The two layouts would be nested as such:
   width="1600"
   height="1026"
 />
+
+### Creating multiple root layouts
+
+You can use [route groups](/docs/app/building-your-application/routing/route-groups) to create multiple root layouts.
+
+Navigating across multiple root layouts will cause a **full page load** (as opposed to a client-side navigation). For example, navigating from `/cart` that uses `app/(shop)/layout.js` to `/blog` that uses `app/(marketing)/layout.js` will cause a full page load.
+
+{/* TODO: Add Diagram */}
+
 ### Adding metadata
 
 You should **not** manually add `<head>` tags such as `<title>` and `<meta>` to layouts. Instead, you can use the [Metadata API](/docs/app/building-your-application/optimizing/metadata) which automatically handles advanced requirements such as streaming and de-duplicating `<head>` elements.
