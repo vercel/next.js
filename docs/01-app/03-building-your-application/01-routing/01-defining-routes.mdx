@@ -15,7 +15,7 @@ This page will guide you through how to define and organize routes in your Next.
 
 Next.js uses a file-system based router where **folders** are used to define routes.
 
-Each folder represents a [**route** segment](/docs/app/building-your-application/routing#route-segments) that maps to a **URL** segment. To create a [nested route](/docs/app/building-your-application/routing#nested-routes), you can nest folders inside each other.
+Each folder represents a **route segment** that maps to a **URL** segment. To create a nested route, you can nest folders inside each other.
 
 <Image
   alt="Route segments to path segments"
@@ -41,7 +41,7 @@ In this example, the `/dashboard/analytics` URL path is _not_ publicly accessibl
 
 ## Creating UI
 
-[Special file conventions](/docs/app/building-your-application/routing#file-conventions) are used to create UI for each route segment. The most common are [pages](/docs/app/building-your-application/routing/pages) to show UI unique to a route, and [layouts](/docs/app/building-your-application/routing/layouts-and-templates#layouts) to show UI that is shared across multiple routes.
+[Special file conventions](/docs/app/api-reference/file-conventions) are used to create UI for each route segment. The most common are [pages](/docs/app/api-reference/file-conventions/page) to show UI unique to a route, and [layouts](/docs/app/api-reference/file-conventions/layout) to show UI that is shared across multiple routes.
 
 For example, to create your first page, add a `page.js` file inside the `app` directory and export a React component:
 
