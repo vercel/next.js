@@ -19,10 +19,45 @@ async function fetchUser(id) {
 }
 
 export default async function Profile({ params }) {
-  const user = await fetchUser(params.id)
+  const id = await params.id
+  const user = await fetchUser(id)
 
   if (!user) {
     notFound()
+  }
+
+  // ...
+}
+```
+
+You can also pass an error cause to `notFound` to handle different types of errors before escalating to the Next.js' error page. For example, you can call `notFound` with a path where the resource was relocated to, which can be selectively handled when using this function, while still falling back to a 404 page if unhandled.
+
+```tsx filename="app/auth/page.js"
+import { ResourceRelocatedError } from '@/app/lib/dal'
+import { notFound } from 'next/navigation'
+
+async function fetchArticle(slug) {
+  const res = await fetch('https://...')
+
+  if (res.status === 301) {
+    notFound(new ResourceRelocatedError('/new-url'))
+  }
+
+  return res.json()
+}
+
+export default function Page({ params }) {
+  let article
+
+  try {
+    const slug = await params.slug
+    article = await fetchArticle(slug)
+  } catch (err) {
+    if (err.cause instanceof ResourceRelocatedError) {
+      redirect(err.cause.redirectTo)
+    }
+
+    throw err
   }
 
   // ...

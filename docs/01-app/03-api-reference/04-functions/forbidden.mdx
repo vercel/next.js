@@ -67,6 +67,45 @@ export default async function AdminPage() {
 }
 ```
 
+You can also pass an error cause to `forbidden` to handle different types of errors before escalating to the Next.js' error page. For example, you can call `forbidden` with an error cause associated with a session expiration error and redirect the user to the login page.
+
+```tsx filename="app/lib/dal.ts"
+import { forbidden } from 'next/navigation'
+import { cookies } from 'next/headers'
+
+export async function verifySession() {
+  const cookieStore = await cookies()
+  const token = cookieStore.get('token')
+
+  if (!token) {
+    forbidden(new AuthError('No token found'))
+  }
+
+  if (isExpired(token.value)) {
+    forbidden(new SessionExpiredError('Session expired'))
+  }
+}
+```
+
+```tsx filename="app/auth/page.tsx"
+import { InvalidPermissionError, isExpired } from '@/app/lib/dal'
+
+export default async function AdminPage() {
+  try {
+    await verifySession()
+  } catch (err) {
+    if (err instanceof Error && err.cause instanceof SessionExpiredError) {
+      redirect('/login')
+    }
+
+    throw err
+  }
+
+  // Render the admin page for authorized users
+  return <></>
+}
+```
+
 ## Good to know
 
 - The `forbidden` function cannot be called in the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required).

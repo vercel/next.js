@@ -10,9 +10,10 @@ import {
 export function getRedirectError(
   url: string,
   type: RedirectType,
-  statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect
+  statusCode: RedirectStatusCode = RedirectStatusCode.TemporaryRedirect,
+  cause?: Error
 ): RedirectError {
-  const error = new Error(REDIRECT_ERROR_CODE) as RedirectError
+  const error = new Error(REDIRECT_ERROR_CODE, { cause }) as RedirectError
   error.digest = `${REDIRECT_ERROR_CODE};${type};${url};${statusCode};`
   return error
 }
@@ -32,7 +33,8 @@ export function getRedirectError(
 export function redirect(
   /** The URL to redirect to */
   url: string,
-  type?: RedirectType
+  type?: RedirectType,
+  cause?: Error
 ): never {
   const actionStore = actionAsyncStorage.getStore()
   const redirectType =
@@ -40,7 +42,8 @@ export function redirect(
   throw getRedirectError(
     url,
     redirectType,
-    RedirectStatusCode.TemporaryRedirect
+    RedirectStatusCode.TemporaryRedirect,
+    cause
   )
 }
 
@@ -58,9 +61,10 @@ export function redirect(
 export function permanentRedirect(
   /** The URL to redirect to */
   url: string,
-  type: RedirectType = RedirectType.replace
+  type: RedirectType = RedirectType.replace,
+  cause?: Error
 ): never {
-  throw getRedirectError(url, type, RedirectStatusCode.PermanentRedirect)
+  throw getRedirectError(url, type, RedirectStatusCode.PermanentRedirect, cause)
 }
 
 /**

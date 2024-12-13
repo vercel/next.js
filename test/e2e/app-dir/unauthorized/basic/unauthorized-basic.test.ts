@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry } from 'next-test-utils'
 
 describe('app dir - unauthorized - basic', () => {
   const { next } = nextTestSetup({
@@ -37,5 +38,23 @@ describe('app dir - unauthorized - basic', () => {
     expect(await browserDynamicId.elementByCss('h1').text()).toBe(
       'Root Unauthorized'
     )
+  })
+
+  it('should support a custom error cause', async () => {
+    const browser = await next.browser('/cause')
+
+    // we don't have explicit handling for a missing token, but we still triggered `unauthorized`
+    expect(await browser.elementByCss('h1').text()).toBe('Root Unauthorized')
+
+    // Set a token
+    await browser.eval("document.cookie='token=expired'")
+    await browser.refresh()
+
+    // expired token, and the user decided that SessionExpiredError should be handled by redirecting to root
+    retry(async () => {
+      expect(await browser.url()).toBe(next.url)
+    })
+
+    expect(await browser.elementByCss('h1').text()).toBe('My page')
   })
 })

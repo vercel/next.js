@@ -16,16 +16,17 @@ If a resource doesn't exist, you can use the [`notFound` function](/docs/app/api
 
 ## Parameters
 
-The `permanentRedirect` function accepts two arguments:
+The `permanentRedirect` function accepts three arguments:
 
 ```js
-permanentRedirect(path, type)
+permanentRedirect(path, type, cause)
 ```
 
-| Parameter | Type                                                          | Description                                                 |
-| --------- | ------------------------------------------------------------- | ----------------------------------------------------------- |
-| `path`    | `string`                                                      | The URL to redirect to. Can be a relative or absolute path. |
-| `type`    | `'replace'` (default) or `'push'` (default in Server Actions) | The type of redirect to perform.                            |
+| Parameter | Type                                                          | Description                                                                                     |
+| --------- | ------------------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
+| `path`    | `string`                                                      | The URL to redirect to. Can be a relative or absolute path.                                     |
+| `type`    | `'replace'` (default) or `'push'` (default in Server Actions) | The type of redirect to perform.                                                                |
+| `cause`   | `Error`                                                       | An optional error that will be attached to the `cause` property of the error thrown by Next.js. |
 
 By default, `permanentRedirect` will use `push` (adding a new entry to the browser history stack) in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and `replace` (replacing the current URL in the browser history stack) everywhere else. You can override this behavior by specifying the `type` parameter.
 

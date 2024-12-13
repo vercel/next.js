@@ -20,7 +20,7 @@ import {
 
 const DIGEST = `${HTTP_ERROR_FALLBACK_ERROR_CODE};401`
 
-export function unauthorized(): never {
+export function unauthorized(cause?: Error): never {
   if (!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS) {
     throw new Error(
       `\`unauthorized()\` is experimental and only allowed to be used when \`experimental.authInterrupts\` is enabled.`
@@ -28,7 +28,7 @@ export function unauthorized(): never {
   }
 
   // eslint-disable-next-line no-throw-literal
-  const error = new Error(DIGEST) as HTTPAccessFallbackError
+  const error = new Error(DIGEST, { cause }) as HTTPAccessFallbackError
   ;(error as HTTPAccessFallbackError).digest = DIGEST
   throw error
 }
