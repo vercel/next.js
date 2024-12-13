@@ -6,7 +6,7 @@ use anyhow::Result;
 use turbo_tasks::{ResolvedVc, Vc};
 
 #[derive(Clone)]
-#[turbo_tasks::value(non_local)]
+#[turbo_tasks::value]
 struct ExampleStruct {
     items: Vec<ResolvedVc<u32>>,
 }
@@ -41,7 +41,7 @@ impl ExampleStruct {
     fn non_turbo_method_with_resolved_vc_self(self: ResolvedVc<Self>) {}
 }
 
-#[turbo_tasks::value(non_local, transparent)]
+#[turbo_tasks::value(transparent)]
 struct MaybeExampleStruct(Option<ExampleStruct>);
 
 #[turbo_tasks::function]

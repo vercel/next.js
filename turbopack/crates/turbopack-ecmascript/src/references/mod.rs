@@ -3217,7 +3217,7 @@ async fn resolve_as_webpack_runtime(
 }
 
 // TODO enable serialization
-#[turbo_tasks::value(transparent, serialization = "none", non_local)]
+#[turbo_tasks::value(transparent, serialization = "none")]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 
 pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());
