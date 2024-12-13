@@ -809,7 +809,11 @@ export default class Router implements BaseRouter {
       route,
       pathname,
       query,
-      asPath: autoExportDynamic ? pathname : as,
+      asPath:
+        autoExportDynamic ||
+        (self.__NEXT_DATA__.autoExport && self.location.search)
+          ? pathname
+          : as,
       isPreview: !!isPreview,
       locale: process.env.__NEXT_I18N_SUPPORT ? locale : undefined,
       isFallback,

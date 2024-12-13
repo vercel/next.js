@@ -89,5 +89,12 @@ describe('Auto Export', () => {
       const caughtWarns = await browser.eval(`window.caughtWarns`)
       expect(caughtWarns).toEqual([])
     })
+
+    it('should not show hydration warning from mismatching asPath for auto exported not dynamic page', async () => {
+      const browser = await webdriver(appPort, '/hello?query=true')
+
+      const caughtErrors = await browser.eval(`window.caughtErrors`)
+      expect(caughtErrors).toEqual([])
+    })
   })
 })
