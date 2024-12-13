@@ -30,7 +30,6 @@ export async function walkTreeWithFlightRouterState({
   loaderTreeToFilter,
   parentParams,
   flightRouterState,
-  parentRendered,
   rscHead,
   injectedCSS,
   injectedJS,
@@ -44,7 +43,6 @@ export async function walkTreeWithFlightRouterState({
   loaderTreeToFilter: LoaderTree
   parentParams: { [key: string]: string | string[] }
   flightRouterState?: FlightRouterState
-  parentRendered?: boolean
   rscHead: HeadData
   injectedCSS: Set<string>
   injectedJS: Set<string>
@@ -122,7 +120,7 @@ export async function walkTreeWithFlightRouterState({
         !Boolean(modules.loading) &&
         !hasLoadingComponentInTree(loaderTreeToFilter)))
 
-  if (!parentRendered && renderComponentsOnThisLevel) {
+  if (renderComponentsOnThisLevel) {
     const overriddenSegment =
       flightRouterState &&
       canSegmentBeOverridden(actualSegment, flightRouterState[0])
@@ -219,7 +217,6 @@ export async function walkTreeWithFlightRouterState({
       parentParams: currentParams,
       flightRouterState:
         flightRouterState && flightRouterState[1][parallelRouteKey],
-      parentRendered: parentRendered || renderComponentsOnThisLevel,
       rscHead,
       injectedCSS: injectedCSSWithCurrentLayout,
       injectedJS: injectedJSWithCurrentLayout,
