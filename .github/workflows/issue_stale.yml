@@ -16,7 +16,7 @@ jobs:
         with:
           repo-token: ${{ secrets.STALE_TOKEN }}
           any-of-labels: 'please add a complete reproduction'
-          close-issue-message: 'This issue has been automatically closed due to 2 days of inactivity and the avsence of a complete reproduction. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a complete reproduction. Thank you.'
+          close-issue-message: 'This issue has been automatically closed due to 2 days of inactivity and the absence of a complete reproduction. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a complete reproduction. Thank you.'
           days-before-issue-close: 1
           days-before-issue-stale: 2
           days-before-pr-close: -1

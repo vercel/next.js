@@ -121,7 +121,7 @@ impl VersionedContentExt for AssetContent {
 
 /// Describes the current version of an object, and how to update them from an
 /// earlier version.
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
