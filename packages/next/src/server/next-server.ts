@@ -177,10 +177,13 @@ export default class NextNodeServer extends BaseServer<
 
   protected cleanupListeners = new AsyncCallbackSet()
   protected internalWaitUntil: WaitUntil | undefined
+  private isDev: boolean
 
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    this.isDev = options.dev ?? false
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -213,11 +216,13 @@ export default class NextNodeServer extends BaseServer<
         distDir: this.distDir,
         page: '/_document',
         isAppPath: false,
+        isDev: this.isDev,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         page: '/_app',
         isAppPath: false,
+        isDev: this.isDev,
       }).catch(() => {})
     }
 
@@ -278,11 +283,17 @@ export default class NextNodeServer extends BaseServer<
         distDir: this.distDir,
         page,
         isAppPath: false,
+        isDev: this.isDev,
       }).catch(() => {})
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
-      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: true,
+        isDev: this.isDev,
+      })
         .then(async ({ ComponentMod }) => {
           // we need to ensure fetch is patched before we require the page,
           // otherwise if the fetch is patched by user code, we will be patching it
@@ -789,6 +800,7 @@ export default class NextNodeServer extends BaseServer<
           distDir: this.distDir,
           page: pagePath,
           isAppPath,
+          isDev: this.isDev,
         })
 
         if (
