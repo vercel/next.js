@@ -133,7 +133,7 @@ import {
   collectRoutesUsingEdgeRuntime,
   collectMeta,
 } from './utils'
-import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
+import type { PageInfo, PageInfos } from './utils'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -212,6 +212,7 @@ import {
   formatNodeOptions,
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
+import type { PrerenderedRoute } from './static-paths/types'
 
 type Fallback = null | boolean | string
 
