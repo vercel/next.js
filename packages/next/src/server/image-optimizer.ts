@@ -37,11 +37,12 @@ const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
+const ICNS = 'image/x-icns'
 const TIFF = 'image/tiff'
 const BMP = 'image/bmp'
 const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const VECTOR_TYPES = [SVG]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
@@ -185,6 +186,9 @@ export function detectContentType(buffer: Buffer) {
   }
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
+  }
+  if ([0x69, 0x63, 0x6e, 0x73].every((b, i) => buffer[i] === b)) {
+    return ICNS
   }
   if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
     return TIFF
@@ -708,10 +712,7 @@ export async function imageOptimizer(
         upstreamEtag,
       }
     }
-    if (VECTOR_TYPES.includes(upstreamType)) {
-      // We don't warn here because we already know that "dangerouslyAllowSVG"
-      // was enabled above, therefore the user explicitly opted in.
-      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
+    if (BYPASS_TYPES.includes(upstreamType)) {
       return {
         buffer: upstreamBuffer,
         contentType: upstreamType,
