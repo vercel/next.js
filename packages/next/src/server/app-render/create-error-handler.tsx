@@ -8,6 +8,7 @@ import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-cs
 import { isDynamicServerError } from '../../client/components/hooks-server-context'
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { getProperError } from '../../lib/is-error'
+import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -87,7 +88,7 @@ export function createFlightReactServerErrorHandler(
 
     onReactServerRenderError(err)
 
-    return err.digest
+    return createDigestWithErrorCode(thrownValue, err.digest)
   }
 }
 
@@ -157,7 +158,7 @@ export function createHTMLReactServerErrorHandler(
       }
     }
 
-    return err.digest
+    return createDigestWithErrorCode(thrownValue, err.digest)
   }
 }
 
@@ -235,7 +236,7 @@ export function createHTMLErrorHandler(
       }
     }
 
-    return err.digest
+    return createDigestWithErrorCode(thrownValue, err.digest)
   }
 }
 

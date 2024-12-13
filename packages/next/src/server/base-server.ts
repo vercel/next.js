@@ -1357,31 +1357,29 @@ export default abstract class Server<
             | 'https',
         })
 
-        const _globalThis: typeof globalThis & {
-          __nextCacheHandlers?: Record<
-            string,
-            import('./lib/cache-handlers/types').CacheHandler
-          >
-        } = globalThis
-
-        if (_globalThis.__nextCacheHandlers) {
-          const expiredTags: string[] =
-            (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-              ','
-            ) || []
-
-          for (const handler of Object.values(
-            _globalThis.__nextCacheHandlers
-          )) {
-            if (typeof handler.receiveExpiredTags === 'function') {
-              await handler.receiveExpiredTags(...expiredTags)
-            }
-          }
-        }
-
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      const _globalThis: typeof globalThis & {
+        __nextCacheHandlers?: Record<
+          string,
+          import('./lib/cache-handlers/types').CacheHandler
+        >
+      } = globalThis
+
+      if (_globalThis.__nextCacheHandlers) {
+        const expiredTags: string[] =
+          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
+            ','
+          ) || []
+
+        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
+          if (typeof handler.receiveExpiredTags === 'function') {
+            await handler.receiveExpiredTags(...expiredTags)
+          }
+        }
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -3044,10 +3042,19 @@ export default abstract class Server<
       }
     )
 
-    if (isPrefetchRSCRequest && typeof segmentPrefetchHeader === 'string') {
+    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
       // This is a prefetch request issued by the client Segment Cache. These
       // should never reach the application layer (lambda). We should either
       // respond from the cache (HIT) or respond with 204 No Content (MISS).
+
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled. In other contexts this header is used
+      // to indicate that the response contains dynamic data, but here we're
+      // only using it to indicate that the feature is enabled — the segment
+      // response itself contains whether the data is dynamic.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
+
       if (
         cacheEntry !== null &&
         // This is always true at runtime but is needed to refine the type
@@ -3071,24 +3078,13 @@ export default abstract class Server<
         }
       }
 
-      // Cache miss. Either a cache entry for this route has not been generated,
-      // or there's no match for the requested segment. Regardless, respond with
-      // a 204 No Content. We don't bother to respond with 404 in cases where
-      // the segment does not exist, because these requests are only issued by
-      // the client cache.
-      // TODO: If this is a request for the route tree (the special /_tree
-      // segment), we should *always* respond with a tree, even if PPR
-      // is disabled.
+      // Cache miss. Either a cache entry for this route has not been generated
+      // (which technically should not be possible when PPR is enabled, because
+      // at a minimum there should always be a fallback entry) or there's no
+      // match for the requested segment. Respond with a 204 No Content. We
+      // don't bother to respond with 404, because these requests are only
+      // issued as part of a prefetch.
       res.statusCode = 204
-      if (isRoutePPREnabled) {
-        // Set a header to indicate that PPR is enabled for this route. This
-        // lets the client distinguish between a regular cache miss and a cache
-        // miss due to PPR being disabled.
-        // NOTE: Theoretically, when PPR is enabled, there should *never* be
-        // a cache miss because we should generate a fallback route. So this
-        // is mostly defensive.
-        res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
-      }
       return {
         type: 'rsc',
         body: RenderResult.fromStatic(''),

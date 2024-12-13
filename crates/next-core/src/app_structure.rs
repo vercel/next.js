@@ -27,7 +27,7 @@ use crate::{
 };
 
 /// A final route in the app directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 #[derive(Default, Debug, Clone)]
 pub struct AppDirModules {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -180,7 +180,7 @@ impl Metadata {
 }
 
 /// Metadata files that can be placed in the root of the app directory.
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -202,7 +202,7 @@ impl GlobalMetadata {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -210,7 +210,7 @@ pub struct DirectoryTree {
     pub modules: AppDirModules,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 #[derive(Clone, Debug)]
 struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -400,7 +400,7 @@ async fn get_directory_tree_internal(
     .cell())
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 #[derive(Debug, Clone)]
 pub struct AppPageLoaderTree {
     pub page: AppPage,
@@ -523,7 +523,7 @@ impl Entrypoint {
     }
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
@@ -1411,7 +1411,7 @@ pub async fn get_global_metadata(
     Ok(metadata.cell())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 struct DirectoryTreeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
     // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.

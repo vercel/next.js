@@ -54,7 +54,7 @@ impl ValueDebugString {
 /// ```ignore
 /// dbg!(any_vc.dbg().await?);
 /// ```
-#[turbo_tasks::value_trait(no_debug)]
+#[turbo_tasks::value_trait(no_debug, local)]
 pub trait ValueDebug {
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString>;
 
@@ -379,7 +379,7 @@ pub enum ValueDebugFormatString<'a> {
     ),
 }
 
-impl<'a> ValueDebugFormatString<'a> {
+impl ValueDebugFormatString<'_> {
     /// Convert the `ValueDebugFormatString` into a `String`.
     ///
     /// This can fail when resolving `Vc` types.
