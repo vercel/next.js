@@ -177,8 +177,8 @@ impl ChunkItem for AsyncLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
-        Ok(self.chunks())
+    fn references(self: Vc<Self>) -> Vc<OutputAssets> {
+        self.chunks()
     }
 
     #[turbo_tasks::function]
