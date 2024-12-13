@@ -35,6 +35,7 @@ export type WorkStoreContext = {
       RenderOpts['experimental'],
       'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts'
     >
+    ComponentMod?: Pick<RenderOpts['ComponentMod'], 'renderToReadableStream'>
 
     /**
      * Fetch metrics attached in patch-fetch.ts
@@ -127,11 +128,14 @@ export function createWorkStore({
   return store
 }
 
-function createAfterContext(renderOpts: RequestLifecycleOpts): AfterContext {
+function createAfterContext(
+  renderOpts: WorkStoreContext['renderOpts']
+): AfterContext {
   const { waitUntil, onClose, onAfterTaskError } = renderOpts
   return new AfterContext({
     waitUntil,
     onClose,
     onTaskError: onAfterTaskError,
+    renderToReadableStream: renderOpts.ComponentMod?.renderToReadableStream,
   })
 }
