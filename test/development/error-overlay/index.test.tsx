@@ -12,7 +12,7 @@ describe('DevErrorOverlay', () => {
       '[data-nextjs-error-code]'
     )
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E129')
+    expect(code).toBe('E127')
   })
 
   it('can get error code from client side error thrown by framework', async () => {
@@ -26,6 +26,6 @@ describe('DevErrorOverlay', () => {
       '[data-nextjs-error-code]'
     )
     const code = await errorCode.getAttribute('data-nextjs-error-code')
-    expect(code).toBe('E212')
+    expect(code).toBe('E209')
   })
 })

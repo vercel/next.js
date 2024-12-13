@@ -64,7 +64,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -100,7 +100,7 @@ impl ModuleResolveResultItem {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
@@ -414,7 +414,7 @@ impl Display for ExternalType {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
@@ -473,7 +473,7 @@ impl RequestKey {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
