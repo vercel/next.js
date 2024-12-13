@@ -137,11 +137,13 @@ async function loadComponentsImpl<N = any>({
   page,
   isAppPath,
   isDev,
+  sriEnabled,
 }: {
   distDir: string
   page: string
   isAppPath: boolean
   isDev: boolean
+  sriEnabled: boolean
 }): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
@@ -203,9 +205,11 @@ async function loadComponentsImpl<N = any>({
           manifestLoadAttempts
         ).catch(() => null)
       : null,
-    loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
-      join(distDir, 'server', SUBRESOURCE_INTEGRITY_MANIFEST + '.json')
-    ).catch(() => undefined),
+    sriEnabled
+      ? loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
+          join(distDir, 'server', SUBRESOURCE_INTEGRITY_MANIFEST + '.json')
+        ).catch(() => undefined)
+      : undefined,
   ])
 
   // Before requiring the actual page module, we have to set the reference

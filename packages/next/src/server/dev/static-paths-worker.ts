@@ -49,6 +49,7 @@ export async function loadStaticPaths({
   nextConfigOutput,
   buildId,
   authInterrupts,
+  sriEnabled,
 }: {
   dir: string
   distDir: string
@@ -70,6 +71,7 @@ export async function loadStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
   authInterrupts: boolean
+  sriEnabled: boolean
 }): Promise<Partial<StaticPathsResult>> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
@@ -83,6 +85,7 @@ export async function loadStaticPaths({
     page: page || pathname,
     isAppPath,
     isDev: true,
+    sriEnabled,
   })
 
   if (isAppPath) {
