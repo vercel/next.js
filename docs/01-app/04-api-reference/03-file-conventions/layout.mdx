@@ -236,6 +236,67 @@ export default function DashboardLayout({ children }) {
 }
 ```
 
+### Fetching and passing data
+
+Layouts are [Server Components](/docs/app/building-your-application/rendering/server-components) by default, so you can fetch data by turning them into `async` functions.
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+import { fetchUser } from '@/lib/data'
+
+export default async function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  const user = await fetchUser('007')
+  return (
+    <section>
+      <header>
+        <h1>Welcome {user.name}/h1>
+      </header>
+      <main>{children}</main>
+    </section>
+  )
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+export default async function DashboardLayout({ children }) {
+  const user = await fetchUser('007')
+
+  return (
+    <section>
+      <header>
+        <h1>Welcome {user.name}/h1>
+      </header>
+      <main>{children}</main>
+    </section>
+  )
+}
+```
+
+However, passing data between a layout and its children is not possible. Instead, you can fetch the same data in a route more than once, and use React's [`cache`](https://react.dev/reference/react/cache) function to dedupe the requests without affecting performance.
+
+```tsx filename="app/lib/data.ts" switcher
+import { cache } from 'react'
+
+export const fetchUser = cache(async (userId: string) => {
+  const response = await fetch(`https://api.example.com/user/${userId}`)
+  const data = await response.json()
+  return data.user
+})
+```
+
+```jsx filename="app/lib/data.js" switcher
+import { cache } from 'react'
+
+export const fetchUser = cache(async (userId) => {
+  const response = await fetch(`https://api.example.com/user/${userId}`)
+  const data = await response.json()
+  return data.user
+})
+```
+
 ### Displaying content based on `params`
 
 Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content based on the `params` prop.
