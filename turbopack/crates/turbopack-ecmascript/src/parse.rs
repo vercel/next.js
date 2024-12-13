@@ -385,6 +385,8 @@ async fn parse_file_content(
             parsed_program.mutate(swc_core::ecma::lints::rules::lint_to_fold(rules));
             drop(span);
 
+            parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
+
             let transform_context = TransformContext {
                 comments: &comments,
                 source_map: &source_map,

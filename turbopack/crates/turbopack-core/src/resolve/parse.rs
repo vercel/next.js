@@ -6,7 +6,7 @@ use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 
 use super::pattern::Pattern;
 
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Clone, Debug)]
 pub enum Request {
     Raw {

@@ -27,7 +27,7 @@ pub enum EmotionLabelKind {
 
 //[TODO]: need to support importmap, there are type mismatch between
 //next.config.js to swc's emotion options
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 #[derive(Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {

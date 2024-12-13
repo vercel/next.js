@@ -21,6 +21,12 @@ module.exports = function (task) {
       // Don't compile .d.ts
       if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
 
+      const plugins = [
+        ...(file.base.includes('.test.')
+          ? []
+          : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
+      ]
+
       const isClient = serverOrClient === 'client'
       /** @type {import('@swc/core').Options} */
       const swcClientOptions = {
@@ -47,6 +53,7 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes: esm,
+            plugins,
           },
           transform: {
             react: {
@@ -92,6 +99,7 @@ module.exports = function (task) {
           },
           experimental: {
             keepImportAttributes: esm,
+            plugins,
           },
           transform: {
             react: {

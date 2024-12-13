@@ -124,6 +124,8 @@ where
     }
 }
 
+unsafe impl<T: NonLocalValue> NonLocalValue for AliasMap<T> {}
+
 impl<T> ValueDebugFormat for AliasMap<T>
 where
     T: ValueDebugFormat,

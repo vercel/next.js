@@ -8,7 +8,7 @@ pub struct OptionOutputAsset(Option<ResolvedVc<Box<dyn OutputAsset>>>);
 
 /// An asset that should be outputted, e. g. written to disk or served from a
 /// server.
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait OutputAsset: Asset {
     // TODO change this to path() -> Vc<FileSystemPath>
     /// The identifier of the [OutputAsset]. It's expected to be unique and

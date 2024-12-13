@@ -435,7 +435,7 @@ pub struct PackagesGlobs {
 }
 
 // TODO move that to turbo
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]
