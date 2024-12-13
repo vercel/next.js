@@ -89,7 +89,7 @@ pub trait VisitorFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
@@ -112,7 +112,7 @@ pub enum CodeGen {
     CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct CodeGenerateables(Vec<CodeGen>);
 
 pub fn path_to(
