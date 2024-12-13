@@ -1,15 +1,30 @@
 import retry from 'next/dist/compiled/async-retry'
 
-export function _postPayload(endpoint: string, body: object, signal?: any) {
+interface Payload {
+  meta: { [key: string]: unknown }
+
+  context: {
+    anonymousId: string
+    projectId: string
+    sessionId: string
+  }
+
+  events: Array<{
+    eventName: string
+    fields: object
+  }>
+}
+
+export function postNextTelemetryPayload(payload: Payload, signal?: any) {
   if (!signal && 'timeout' in AbortSignal) {
     signal = AbortSignal.timeout(5000)
   }
   return (
     retry(
       () =>
-        fetch(endpoint, {
+        fetch('https://telemetry.nextjs.org/api/v1/record', {
           method: 'POST',
-          body: JSON.stringify(body),
+          body: JSON.stringify(payload),
           headers: { 'content-type': 'application/json' },
           signal,
         }).then((res) => {
