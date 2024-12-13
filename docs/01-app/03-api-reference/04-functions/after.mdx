@@ -70,7 +70,7 @@ We recommend using `after` as it has been designed to consider other Next.js API
 
 You can use request APIs such as [`cookies`](/docs/app/api-reference/functions/cookies) and [`headers`](/docs/app/api-reference/functions/headers) inside `after` in [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations) and [Route Handlers](/docs/app/api-reference/file-conventions/route). This is useful for logging activity after a mutation. For example:
 
-```tsx filename="app/api/route.ts" highlight={2,7-9} switcher
+```ts filename="app/api/route.ts" highlight={2,7-9} switcher
 import { after } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import { logUserAction } from '@/app/utils'
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
 }
 ```
 
-```jsx filename="app/api/route.js" highlight={2,7-9} switcher
+```js filename="app/api/route.js" highlight={2,7-9} switcher
 import { after } from 'next/server'
 import { cookies, headers } from 'next/headers'
 import { logUserAction } from '@/app/utils'
