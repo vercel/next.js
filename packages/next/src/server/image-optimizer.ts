@@ -677,7 +677,10 @@ export async function imageOptimizer(
 }> {
   const { href, quality, width, mimeType } = paramsResult
   const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
-  const maxAge = getMaxAge(imageUpstream.cacheControl)
+  const maxAge = Math.max(
+    nextConfig.images.minimumCacheTTL,
+    getMaxAge(imageUpstream.cacheControl)
+  )
 
   const upstreamType =
     detectContentType(upstreamBuffer) ||
@@ -791,7 +794,7 @@ export async function imageOptimizer(
     return {
       buffer: optimizedBuffer,
       contentType,
-      maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
+      maxAge,
       etag: getImageEtag(optimizedBuffer),
       upstreamEtag,
     }
