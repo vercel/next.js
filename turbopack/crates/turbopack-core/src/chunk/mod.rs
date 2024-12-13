@@ -675,7 +675,8 @@ async fn chunk_content_internal_parallel(
     let mut chunk_items = FxIndexSet::default();
     let mut async_modules = FxIndexSet::default();
     let mut external_module_references = FxIndexSet::default();
-    let mut external_output_assets: FxIndexSet<Vc<Box<dyn OutputAsset>>> = FxIndexSet::default();
+    let mut external_output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
+        FxIndexSet::default();
     let mut forward_edges_inherit_async = FxIndexMap::default();
     let mut local_back_edges_inherit_async = FxIndexMap::default();
     let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
@@ -701,7 +702,7 @@ async fn chunk_content_internal_parallel(
             }
             ChunkContentGraphNode::ExternalOutputAssets(reference) => {
                 for output_asset in reference.await? {
-                    external_output_assets.insert(**output_asset);
+                    external_output_assets.insert(*output_asset);
                 }
             }
             ChunkContentGraphNode::InheritAsyncInfo { item, references } => {
@@ -731,7 +732,7 @@ async fn chunk_content_internal_parallel(
         chunk_items,
         async_modules,
         traced_modules,
-        external_output_assets: OutputAssets::new(external_output_assets.into_iter().collect()),
+        external_output_assets: Vc::cell(external_output_assets.into_iter().collect()),
         external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,

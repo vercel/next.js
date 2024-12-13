@@ -132,8 +132,8 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(OutputAssets::new(vec![Vc::upcast(*self.static_asset)]))
+    fn references(&self) -> Vc<OutputAssets> {
+        Vc::cell(vec![ResolvedVc::upcast(self.static_asset)])
     }
 
     #[turbo_tasks::function]

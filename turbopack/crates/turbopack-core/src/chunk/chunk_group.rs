@@ -142,11 +142,10 @@ pub async fn make_chunk_group(
         .map(|&loader| loader.references())
         .try_join()
         .await?;
-    let async_loader_external_module_references = OutputAssets::new(
+    let async_loader_external_module_references = Vc::cell(
         async_loader_references
             .iter()
             .flat_map(|references| references.iter().copied())
-            .map(|v| *v)
             .collect(),
     );
 
