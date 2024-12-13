@@ -301,6 +301,31 @@ describe('app dir - prefetching', () => {
     await browser.waitForElementByCss('#prefetch-auto-page-data')
   })
 
+    it('should not unintentionally modify the requested prefetch by escaping the uri encoded query params', async () => {
+    const rscRequests = []
+    const browser = await next.browser('/uri-encoded-prefetch', {
+      beforePageLoad(page: Page) {
+        page.on('request', async (req: Request) => {
+          const url = new URL(req.url())
+          const headers = await req.allHeaders()
+          if (headers['rsc']) {
+            rscRequests.push(url.pathname + url.search)
+          }
+        })
+      },
+    })
+
+    // sanity check: the link should be present
+    expect(await browser.elementById('prefetch-via-link')).toBeDefined()
+
+    // The space encoding of the prefetch request should be the same as the href, and should not be replaced with a +
+    await retry(async () => {
+      expect(
+        rscRequests.find((req) => req === '/?param=with%20space')
+      ).toBeDefined()
+    })
+  })
+
   describe('prefetch cache seeding', () => {
     it('should not re-fetch the initial static page if the same page is prefetched with prefetch={true}', async () => {
       const rscRequests = []
