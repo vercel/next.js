@@ -1,4 +1,7 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  HeadData,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   CacheNodeSeedData,
@@ -14,7 +17,7 @@ export function fillLazyItemsTillLeafWithHead(
   existingCache: CacheNode | undefined,
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
-  head: [React.ReactNode, React.ReactNode],
+  head: HeadData,
   prefetchEntry: PrefetchCacheEntry | undefined
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0

@@ -5,6 +5,7 @@ import type {
 } from '../../../server/app-render/types'
 import type {
   CacheNode,
+  HeadData,
   LoadingModuleData,
 } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
@@ -125,7 +126,7 @@ function navigateUsingPrefetchedRouteTree(
   currentFlightRouterState: FlightRouterState,
   prefetchFlightRouterState: FlightRouterState,
   prefetchSeedData: CacheNodeSeedData | null,
-  prefetchHead: [React.ReactNode | null, React.ReactNode | null],
+  prefetchHead: HeadData,
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string
 ): SuccessfulNavigationResult | NoOpNavigationResult {

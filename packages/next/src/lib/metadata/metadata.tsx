@@ -168,7 +168,6 @@ export function createMetadataComponents({
   Metadata.displayName = METADATA_BOUNDARY_NAME
 
   async function getMetadataReady(): Promise<void> {
-    await viewport()
     await metadata()
     return undefined
   }

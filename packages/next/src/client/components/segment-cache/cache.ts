@@ -3,7 +3,10 @@ import type {
   RootTreePrefetch,
   SegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
-import type { LoadingModuleData } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -98,7 +101,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: null
   canonicalUrl: string
   tree: TreePrefetch
-  head: [React.ReactNode | null, React.ReactNode | null]
+  head: HeadData
   isHeadPartial: boolean
 }
 
@@ -424,7 +427,7 @@ function pingBlockedTasks(entry: {
 function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
   tree: TreePrefetch,
-  head: [React.ReactNode, React.ReactNode],
+  head: HeadData,
   isHeadPartial: boolean,
   staleAt: number,
   couldBeIntercepted: boolean,

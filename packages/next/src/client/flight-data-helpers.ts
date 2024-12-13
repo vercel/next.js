@@ -6,6 +6,7 @@ import type {
   FlightSegmentPath,
   Segment,
 } from '../server/app-render/types'
+import type { HeadData } from '../shared/lib/app-router-context.shared-runtime'
 
 export type NormalizedFlightData = {
   /**
@@ -19,7 +20,7 @@ export type NormalizedFlightData = {
   segment: Segment
   tree: FlightRouterState
   seedData: CacheNodeSeedData | null
-  head: [React.ReactNode | null, React.ReactNode | null]
+  head: HeadData
   isHeadPartial: boolean
   isRootRender: boolean
 }

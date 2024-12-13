@@ -7,6 +7,7 @@ import type {
 import type {
   CacheNode,
   ChildSegmentMap,
+  HeadData,
   ReadyCacheNode,
 } from '../../../shared/lib/app-router-context.shared-runtime'
 import { DEFAULT_SEGMENT_KEY } from '../../../shared/lib/segment'
@@ -70,7 +71,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: [React.ReactNode | null, React.ReactNode | null],
+  prefetchHead: HeadData,
   isPrefetchHeadPartial: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
@@ -285,7 +286,7 @@ export function updateCacheNodeOnNavigation(
 function createCacheNodeOnNavigation(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  possiblyPartialPrefetchHead: [React.ReactNode | null, React.ReactNode | null],
+  possiblyPartialPrefetchHead: HeadData,
   isPrefetchHeadPartial: boolean
 ): Task {
   // Same traversal as updateCacheNodeNavigation, but we switch to this path
@@ -531,7 +532,7 @@ function writeDynamicDataIntoPendingTask(
   segmentPath: FlightSegmentPath,
   serverRouterState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: [React.ReactNode, React.ReactNode]
+  dynamicHead: HeadData
 ) {
   // The data sent by the server represents only a subtree of the app. We need
   // to find the part of the task tree that matches the server response, and
@@ -578,7 +579,7 @@ function finishTaskUsingDynamicDataPayload(
   task: Task,
   serverRouterState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: [React.ReactNode, React.ReactNode]
+  dynamicHead: HeadData
 ) {
   if (task.dynamicRequestTree === null) {
     // Everything in this subtree is already complete. Bail out.
@@ -694,10 +695,12 @@ function createPendingCacheNode(
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
     rsc: createDeferredRsc() as React.ReactNode,
-    head: [
-      isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
-      isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
-    ],
+    head: isLeafSegment
+      ? [
+          createDeferredRsc() as React.ReactNode,
+          createDeferredRsc() as React.ReactNode,
+        ]
+      : [null, null],
   }
 }
 
@@ -706,7 +709,7 @@ function finishPendingCacheNode(
   taskState: FlightRouterState,
   serverState: FlightRouterState,
   dynamicData: CacheNodeSeedData,
-  dynamicHead: [React.ReactNode, React.ReactNode]
+  dynamicHead: HeadData
 ): void {
   // Writes a dynamic response into an existing Cache Node tree. This does _not_
   // create a new tree, it updates the existing tree in-place. So it must follow

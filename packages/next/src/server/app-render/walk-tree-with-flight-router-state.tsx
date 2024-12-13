@@ -20,6 +20,7 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
+import type { HeadData } from '../../shared/lib/app-router-context.shared-runtime'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -44,7 +45,7 @@ export async function walkTreeWithFlightRouterState({
   parentParams: { [key: string]: string | string[] }
   flightRouterState?: FlightRouterState
   parentRendered?: boolean
-  rscHead: [React.ReactNode, React.ReactNode]
+  rscHead: HeadData
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
