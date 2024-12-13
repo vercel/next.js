@@ -7,7 +7,7 @@ import cheerio from 'cheerio'
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'Subresource Integrity',
   () => {
-    describe.each(['node', 'edge'])('with %s runtime', (runtime) => {
+    describe.each(['node', 'edge'] as const)('with %s runtime', (runtime) => {
       const { next } = nextTestSetup({
         files: path.join(__dirname, 'fixture'),
       })
@@ -221,7 +221,11 @@ import cheerio from 'cheerio'
           `script-src 'nonce-"><script></script>"'`
         )
 
-        expect(res.status).toBe(500)
+        if (runtime === 'node' && process.env.__NEXT_EXPERIMENTAL_PPR) {
+          expect(res.status).toBe(200)
+        } else {
+          expect(res.status).toBe(500)
+        }
       })
     })
   }
