@@ -95,70 +95,6 @@ export default function RootLayout({ children }) {
 }
 ```
 
-## Caveats
-
-### Layouts do not receive `searchParams`
-
-Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
-
-When using client-side navigation, Next.js automatically only renders the part of the page below the common layout between two routes.
-
-For example, in the following directory structure, `dashboard/layout.tsx` is the common layout for both `/dashboard/settings` and `/dashboard/analytics`:
-
-<Image
-  alt="File structure showing a dashboard folder nesting a layout.tsx file, and settings and analytics folders with their own pages"
-  srcLight="/docs/light/shared-dashboard-layout.png"
-  srcDark="/docs/dark/shared-dashboard-layout.png"
-  width="1600"
-  height="687"
-/>
-
-When navigating from `/dashboard/settings` to `/dashboard/analytics`, `page.tsx` in `/dashboard/analytics` will rerender on the server, while `dashboard/layout.tsx` will **not** rerender because it's a common UI shared between the two routes.
-
-This performance optimization allows navigation between pages that share a layout to be quicker as only the data fetching and rendering for the page has to run, instead of the entire route that could include shared layouts that fetch their own data.
-
-Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the layout Server Component might become **stale** after navigation.
-
-Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop or the [`useSearchParams`](/docs/app/api-reference/functions/use-search-params) hook in a Client Component within the layout, which is rerendered on the client with the latest `searchParams`.
-
-### Layouts cannot access `pathname`
-
-Layouts cannot access `pathname`. This is because layouts are Server Components by default, and [don't rerender during client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), which could lead to `pathname` becoming stale between navigations. To prevent staleness, Next.js would need to refetch all segments of a route, losing the benefits of caching and increasing the [RSC payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc) size on navigation.
-
-Instead, you can extract the logic that depends on pathname into a Client Component and import it into your layouts. Since Client Components rerender (but are not refetched) during navigation, you can use Next.js hooks such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname and prevent staleness.
-
-```tsx filename="app/dashboard/layout.tsx" switcher
-import { ClientComponent } from '@/app/ui/ClientComponent'
-
-export default function Layout({ children }: { children: React.ReactNode }) {
-  return (
-    <>
-      <ClientComponent />
-      {/* Other Layout UI */}
-      <main>{children}</main>
-    </>
-  )
-}
-```
-
-```jsx filename="app/dashboard/layout.js" switcher
-import { ClientComponent } from '@/app/ui/ClientComponent'
-
-export default function Layout({ children }) {
-  return (
-    <>
-      <ClientComponent />
-      {/* Other Layout UI */}
-      <main>{children}</main>
-    </>
-  )
-}
-```
-
-Common `pathname` patterns can also be implemented with [`params`](#params-optional) prop.
-
-See the [examples](/docs/app/building-your-application/routing/layouts-and-templates#examples) section for more information.
-
 ## Examples
 
 ### Nesting Layouts
@@ -299,21 +235,20 @@ export const fetchUser = cache(async (userId) => {
 
 ### Accessing `pathname`
 
-Layouts do not have access to `pathname`. However, you can access the `pathname` in a Client Component using the [`usePathname`](/docs/app/api-reference/functions/use-pathname) hook.
+Layouts cannot access `pathname`. This is because layouts are Server Components by default, and [don't rerender during client-side navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering), which could lead to `pathname` becoming stale between navigations. To prevent staleness, Next.js would need to refetch all segments of a route, losing the benefits of caching and increasing the [RSC payload](/docs/app/building-your-application/rendering/server-components#what-is-the-react-server-component-payload-rsc) size on navigation.
+
+Instead, you can extract the logic that depends on pathname into a Client Component and import it into your layouts. Since Client Components rerender (but are not refetched) during navigation, you can use Next.js hooks such as [`usePathname`](https://nextjs.org/docs/app/api-reference/functions/use-pathname) to access the current pathname and prevent staleness.
 
 Create a layout that imports a Client Component:
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
 import { ClientComponent } from '@/app/ui/ClientComponent'
 
-export default function DashboardLayout({
-  children,
-}: {
-  children: React.ReactNode
-}) {
+export default function Layout({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ClientComponent />
+      {/* Other Layout UI */}
       <main>{children}</main>
     </>
   )
@@ -323,10 +258,11 @@ export default function DashboardLayout({
 ```jsx filename="app/dashboard/layout.js" switcher
 import { ClientComponent } from '@/app/ui/ClientComponent'
 
-export default function DashboardLayout({ children }) {
+export default function Layout({ children }) {
   return (
     <>
       <ClientComponent />
+      {/* Other Layout UI */}
       <main>{children}</main>
     </>
   )
@@ -356,6 +292,30 @@ export function ClientComponent() {
   return <div>Current path: {pathname}</div>
 }
 ```
+
+### Accessing `searchParams`
+
+Unlike [Pages](/docs/app/api-reference/file-conventions/page), Layout components **do not** receive the `searchParams` prop. This is because a shared layout is [not re-rendered during navigation](/docs/app/building-your-application/routing/linking-and-navigating#4-partial-rendering) which could lead to stale `searchParams` between navigations.
+
+When using client-side navigation, Next.js automatically only renders the part of the page below the common layout between two routes.
+
+For example, in the following directory structure, `dashboard/layout.tsx` is the common layout for both `/dashboard/settings` and `/dashboard/analytics`:
+
+<Image
+  alt="File structure showing a dashboard folder nesting a layout.tsx file, and settings and analytics folders with their own pages"
+  srcLight="/docs/light/shared-dashboard-layout.png"
+  srcDark="/docs/dark/shared-dashboard-layout.png"
+  width="1600"
+  height="687"
+/>
+
+When navigating from `/dashboard/settings` to `/dashboard/analytics`, `page.tsx` in `/dashboard/analytics` will rerender on the server, while `dashboard/layout.tsx` will **not** rerender because it's a common UI shared between the two routes.
+
+This performance optimization allows navigation between pages that share a layout to be quicker as only the data fetching and rendering for the page has to run, instead of the entire route that could include shared layouts that fetch their own data.
+
+Because `dashboard/layout.tsx` doesn't re-render, the `searchParams` prop in the layout Server Component might become **stale** after navigation.
+
+Instead, use the Page [`searchParams`](/docs/app/api-reference/file-conventions/page#searchparams-optional) prop.
 
 ### Accessing route segments below a layout
 
