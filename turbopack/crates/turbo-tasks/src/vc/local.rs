@@ -17,9 +17,13 @@ use crate::{marker_trait::impl_auto_marker_trait, OperationVc, ResolvedVc};
 ///
 /// # Safety
 ///
-/// This trait is marked as unsafe. You should not derive it yourself, but instead you should rely
-/// on [`#[turbo_tasks::value(non_local)]`][macro@crate::value] or [the derive
-/// macro][macro@NonLocalValue] to do it for you.
+/// This trait is marked as unsafe. You should not implement it yourself, but instead you should
+/// rely on [`#[turbo_tasks::value]`][macro@crate::value] or
+/// [`#[derive(NonLocalValue)]`][macro@NonLocalValue] to do it for you.
+///
+/// There may be a few rare cases (e.g. custom generic bounds) where you cannot use
+/// `#[turbo_tasks::value]`. In these cases, it is your responsibility to ensure that no fields can
+/// contain a [`Vc`] or a transitive reference to a [`Vc`].
 ///
 /// There are currently runtime assertions in place as a fallback to ensure memory safety, but those
 /// assertions may become debug-only in the future if it significantly improves performance.
