@@ -61,7 +61,7 @@ impl ModuleRule {
     }
 }
 
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub enum ModuleRuleEffect {
     ModuleType(ModuleType),
@@ -75,7 +75,7 @@ pub enum ModuleRuleEffect {
     SourceTransforms(ResolvedVc<SourceTransforms>),
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", shared, non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input", shared)]
 #[derive(Hash, Debug, Copy, Clone)]
 pub enum ModuleType {
     Ecmascript {

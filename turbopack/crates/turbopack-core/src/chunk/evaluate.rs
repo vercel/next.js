@@ -14,7 +14,7 @@ use crate::{
 ///
 /// The chunking context implementation will resolve the dynamic entry to a
 /// well-known value or trait object.
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait EvaluatableAsset: Asset + Module + ChunkableModule {}
 
 pub trait EvaluatableAssetExt {

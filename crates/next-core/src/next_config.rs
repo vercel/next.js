@@ -448,7 +448,7 @@ pub enum LoaderItem {
     LoaderOptions(WebpackLoaderItem),
 }
 
-#[turbo_tasks::value(non_local)]
+#[turbo_tasks::value]
 #[derive(Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ModuleIdStrategy {
@@ -466,7 +466,7 @@ pub enum MdxRsOptions {
     Option(MdxTransformOptions),
 }
 
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ReactCompilerMode {
@@ -476,7 +476,7 @@ pub enum ReactCompilerMode {
 }
 
 /// Subset of react compiler options
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ReactCompilerOptions {

@@ -2272,7 +2272,9 @@ export async function precompile(task, opts) {
 
   const validatorRes = await fetch(
     'https://cdn.ampproject.org/v0/validator_wasm.js'
-  )
+  ).catch((err) => {
+    throw new Error('Failed to fetch AMP validator', { cause: err })
+  })
 
   if (!validatorRes.ok) {
     throw new Error(
