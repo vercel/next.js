@@ -110,10 +110,8 @@ struct ValueArguments {
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
-    /// Should we `#[derive(turbo_tasks::NonLocalValue)]`?
-    ///
-    /// `Some(...)` if enabled, containing the span that enabled the derive.
-    non_local: Option<Span>,
+    /// Should we skip `#[derive(turbo_tasks::NonLocalValue)]`?
+    local: bool,
     /// Should we `#[derive(turbo_tasks::OperationValue)]`?
     operation: Option<Span>,
 }
@@ -126,7 +124,7 @@ impl Parse for ValueArguments {
             cell_mode: CellMode::Shared,
             manual_eq: false,
             transparent: false,
-            non_local: None,
+            local: false,
             operation: None,
         };
         let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
@@ -182,8 +180,8 @@ impl Parse for ValueArguments {
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
-                ("non_local", Meta::Path(path)) => {
-                    result.non_local = Some(path.span());
+                ("local", Meta::Path(_)) => {
+                    result.local = true;
                 }
                 ("operation", Meta::Path(path)) => {
                     result.operation = Some(path.span());
@@ -213,7 +211,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         cell_mode,
         manual_eq,
         transparent,
-        non_local: resolved,
+        local,
         operation,
     } = parse_macro_input!(args as ValueArguments);
 
@@ -390,9 +388,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
             #[derive(PartialEq, Eq)]
         });
     }
-    if let Some(span) = resolved {
-        struct_attributes.push(quote_spanned! {
-            span =>
+    if !local {
+        struct_attributes.push(quote! {
             #[derive(turbo_tasks::NonLocalValue)]
         });
     }

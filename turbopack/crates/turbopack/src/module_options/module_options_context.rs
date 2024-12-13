@@ -107,7 +107,7 @@ pub struct JsxTransformOptions {
     pub runtime: Option<RcStr>,
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
