@@ -130,13 +130,19 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();
-            let native_function_def = native_function.definition();
+            let native_function_def_sig =
+                native_function.definition_signature(&native_function_ident);
+            let native_function_def = native_function.definition(&native_function_ident);
+
             let native_function_id_ident =
                 get_trait_default_impl_function_id_ident(trait_ident, ident);
             let native_function_id_ty = native_function.id_ty();
-            let native_function_id_def = native_function.id_definition(&parse_quote! {
-                #native_function_ident
-            });
+            let native_function_id_def_sig =
+                native_function.id_definition_signature(&native_function_id_ident);
+            let native_function_id_def = native_function.id_definition(
+                &native_function_id_ident,
+                &native_function_ident.clone().into(),
+            );
 
             trait_methods.push(quote! {
                 trait_type.register_default_trait_method::<(#(#arg_types,)*)>(stringify!(#ident).into(), *#native_function_id_ident);
@@ -146,10 +152,8 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 trait #inline_extension_trait_ident: std::marker::Send {
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_ident: #native_function_ty;
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_id_ident: #native_function_id_ty;
+                    #native_function_def_sig
+                    #native_function_id_def_sig
 
                     #(#attrs)*
                     #inline_signature;
@@ -159,19 +163,30 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 // Needs to be explicit 'static here, otherwise we can get a lifetime error
                 // in the inline signature.
                 impl #inline_extension_trait_ident for Box<dyn #trait_ident> {
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_ident: #native_function_ty = #native_function_def;
-                    #[allow(declare_interior_mutable_const)]
-                    const #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
+                    // put the function body here so that `Self` points to `Box<dyn ...>`
+                    #native_function_def
+                    #native_function_id_def
 
                     #(#attrs)*
                     #inline_signature #inline_block
                 }
 
                 #[doc(hidden)]
-                pub(crate) static #native_function_ident: #native_function_ty = <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#native_function_ident;
+                pub(crate) static #native_function_ident:
+                    turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                        turbo_tasks::macro_helpers::Lazy::new(
+                            <
+                                Box<dyn #trait_ident> as #inline_extension_trait_ident
+                            >::#native_function_ident
+                        );
                 #[doc(hidden)]
-                pub(crate) static #native_function_id_ident: #native_function_id_ty = <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#native_function_id_ident;
+                pub(crate) static #native_function_id_ident:
+                    turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                        turbo_tasks::macro_helpers::Lazy::new(
+                            <
+                                Box<dyn #trait_ident> as #inline_extension_trait_ident
+                            >::#native_function_id_ident
+                        );
             });
 
             Some(turbo_fn.static_block(&native_function_id_ident))

@@ -59,11 +59,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
     );
     let native_function_ident = get_native_function_ident(ident);
     let native_function_ty = native_fn.ty();
-    let native_function_def = native_fn.definition();
+    let native_function_def = native_fn.definition(&native_function_ident);
 
     let native_function_id_ident = get_native_function_id_ident(ident);
     let native_function_id_ty = native_fn.id_ty();
-    let native_function_id_def = native_fn.id_definition(&native_function_ident.clone().into());
+    let native_function_id_def = native_fn.id_definition(
+        &native_function_id_ident,
+        &native_function_ident.clone().into(),
+    );
 
     let exposed_signature = turbo_fn.signature();
     let exposed_block = turbo_fn.static_block(&native_function_id_ident);
@@ -77,10 +80,20 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #inline_signature #inline_block
 
         #[doc(hidden)]
-        pub(crate) static #native_function_ident: #native_function_ty = #native_function_def;
+        pub(crate) static #native_function_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                turbo_tasks::macro_helpers::Lazy::new({
+                    #native_function_def
+                    #native_function_ident
+                });
 
         #[doc(hidden)]
-        pub(crate) static #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
+        pub(crate) static #native_function_id_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                turbo_tasks::macro_helpers::Lazy::new({
+                    #native_function_id_def
+                    #native_function_id_ident
+                });
 
         #(#errors)*
     }
