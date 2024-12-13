@@ -174,7 +174,7 @@ function useChangeByServerResponse(
 
 function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
   return useCallback(
-    (href, navigateType, shouldScroll) => {
+    (href, navigateType, shouldScroll, shouldIntercept) => {
       const url = new URL(addBasePath(href), location.href)
 
       if (process.env.__NEXT_APP_NAV_FAIL_HANDLING) {
@@ -187,6 +187,7 @@ function useNavigate(dispatch: React.Dispatch<ReducerActions>): RouterNavigate {
         isExternalUrl: isExternalURL(url),
         locationSearch: location.search,
         shouldScroll: shouldScroll ?? true,
+        shouldIntercept: shouldIntercept ?? true,
         navigateType,
         allowAliasing: true,
       })
@@ -296,12 +297,22 @@ function Router({
             },
       replace: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'replace', options.scroll ?? true)
+          navigate(
+            href,
+            'replace',
+            options.scroll ?? true,
+            options.intercept ?? true
+          )
         })
       },
       push: (href, options = {}) => {
         startTransition(() => {
-          navigate(href, 'push', options.scroll ?? true)
+          navigate(
+            href,
+            'push',
+            options.scroll ?? true,
+            options.intercept ?? true
+          )
         })
       },
       refresh: () => {

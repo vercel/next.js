@@ -70,12 +70,13 @@ The following props can be passed to the `<Link>` component:
 
 <AppOnly>
 
-| Prop                     | Example             | Type             | Required |
-| ------------------------ | ------------------- | ---------------- | -------- |
-| [`href`](#href-required) | `href="/dashboard"` | String or Object | Yes      |
-| [`replace`](#replace)    | `replace={false}`   | Boolean          | -        |
-| [`scroll`](#scroll)      | `scroll={false}`    | Boolean          | -        |
-| [`prefetch`](#prefetch)  | `prefetch={false}`  | Boolean or null  | -        |
+| Prop                      | Example             | Type             | Required |
+| ------------------------- | ------------------- | ---------------- | -------- |
+| [`href`](#href-required)  | `href="/dashboard"` | String or Object | Yes      |
+| [`replace`](#replace)     | `replace={false}`   | Boolean          | -        |
+| [`scroll`](#scroll)       | `scroll={false}`    | Boolean          | -        |
+| [`prefetch`](#prefetch)   | `prefetch={false}`  | Boolean or null  | -        |
+| [`intercept`](#intercept) | `intercept={false}` | Boolean or null  | -        |
 
 </AppOnly>
 
@@ -320,6 +321,33 @@ export default function Page() {
   return (
     <Link href="/dashboard" prefetch={false}>
       Dashboard
+    </Link>
+  )
+}
+```
+
+</AppOnly>
+
+<AppOnly>
+
+### `intercept`
+
+Explicitly opt-out of intercepting for this specific link. Useful when you have a link that should only be intercepted in specific cases.
+
+An example use case would be if you have a user page which can be both intercepted and not intercepted:
+
+- The intercepted user page loads in a sheet / modal / ... for quick access
+- The non-intercepted user page is a full page.
+
+Here, if you are already on the full page you would want the 'edit' page to also open in the non intercepted variant. Since it would feel somewhat weird to have the user page in the background, and then a sheet / modal / ... where you can edit the user. It makes more sense to do it inline.
+
+```tsx
+import Link from 'next/link'
+
+export default function NonInterceptedUserPage() {
+  return (
+    <Link href="/edit intercept={false}>
+      Edit this user
     </Link>
   )
 }

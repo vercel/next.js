@@ -151,8 +151,14 @@ export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
 ): ReducerState {
-  const { url, isExternalUrl, navigateType, shouldScroll, allowAliasing } =
-    action
+  const {
+    url,
+    isExternalUrl,
+    navigateType,
+    shouldScroll,
+    shouldIntercept,
+    allowAliasing,
+  } = action
   const mutable: Mutable = {}
   const { hash } = url
   const href = createHrefFromUrl(url)
@@ -196,7 +202,7 @@ export function navigateReducer(
 
   const prefetchValues = getOrCreatePrefetchCacheEntry({
     url,
-    nextUrl: state.nextUrl,
+    nextUrl: shouldIntercept ? state.nextUrl : null,
     tree: state.tree,
     prefetchCache: state.prefetchCache,
     allowAliasing,

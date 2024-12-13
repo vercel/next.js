@@ -24,7 +24,8 @@ export type RouterChangeByServerResponse = ({
 export type RouterNavigate = (
   href: string,
   navigateType: 'push' | 'replace',
-  shouldScroll: boolean
+  shouldScroll: boolean,
+  shouldIntercept: boolean
 ) => void
 
 export interface Mutable {
@@ -112,6 +113,7 @@ export interface NavigateAction {
   locationSearch: Location['search']
   navigateType: 'push' | 'replace'
   shouldScroll: boolean
+  shouldIntercept: boolean
   allowAliasing: boolean
 }
 

@@ -105,6 +105,7 @@ export type ReadyCacheNode = {
 
 export interface NavigateOptions {
   scroll?: boolean
+  intercept?: boolean
 }
 
 export interface PrefetchOptions {

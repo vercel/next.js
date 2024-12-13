@@ -100,6 +100,12 @@ type InternalLinkProps = {
    * Optional event handler for when Link is clicked.
    */
   onClick?: React.MouseEventHandler<HTMLAnchorElement>
+  /**
+   * Optional boolean to control whether intercepted routes should be intercepted or not.
+   * @defaultValue `true`
+   * @see https://github.com/vercel/next.js/discussions/49146#discussioncomment-8266498
+   */
+  intercept?: boolean
 }
 
 // TODO-APP: Include the full set of Anchor props
@@ -159,7 +165,8 @@ function linkClicked(
   as: string,
   replace?: boolean,
   shallow?: boolean,
-  scroll?: boolean
+  scroll?: boolean,
+  intercept: boolean = true
 ): void {
   const { nodeName } = e.currentTarget
 
@@ -184,6 +191,7 @@ function linkClicked(
     } else {
       router[replace ? 'replace' : 'push'](as || href, {
         scroll: routerScroll,
+        intercept: intercept,
       })
     }
   }
@@ -229,6 +237,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       onMouseEnter: onMouseEnterProp,
       onTouchStart: onTouchStartProp,
       legacyBehavior = false,
+      intercept = true,
       ...restProps
     } = props
 
@@ -305,6 +314,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
         onMouseEnter: true,
         onTouchStart: true,
         legacyBehavior: true,
+        intercept: true,
       } as const
       const optionalProps: LinkPropsOptional[] = Object.keys(
         optionalPropsGuard
@@ -522,7 +532,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
           return
         }
 
-        linkClicked(e, router, href, as, replace, shallow, scroll)
+        linkClicked(e, router, href, as, replace, shallow, scroll, intercept)
       },
       onMouseEnter(e) {
         if (!legacyBehavior && typeof onMouseEnterProp === 'function') {
