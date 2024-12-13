@@ -10,6 +10,7 @@ const { createFromReadableStream } = (
     : // eslint-disable-next-line import/no-extraneous-dependencies
       require('react-server-dom-webpack/client')
 ) as typeof import('react-server-dom-webpack/client')
+const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
 
 import type {
   FlightRouterState,
@@ -229,7 +230,9 @@ export function createFetch(
 
   if (process.env.NODE_ENV === 'production') {
     if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (fetchUrl.pathname.endsWith('/')) {
+      if (fetchUrl.pathname === basePath) {
+        fetchUrl.pathname += '/index.txt'
+      } else if (fetchUrl.pathname.endsWith('/')) {
         fetchUrl.pathname += 'index.txt'
       } else {
         fetchUrl.pathname += '.txt'
