@@ -140,14 +140,12 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
                 let native_function_ty = native_fn.ty();
-                let native_function_def = native_fn.definition(&native_function_ident);
+                let native_function_def = native_fn.definition();
 
                 let native_function_id_ident = get_inherent_impl_function_id_ident(ty_ident, ident);
                 let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def = native_fn.id_definition(
-                    &native_function_id_ident,
-                    &native_function_ident.clone().into(),
-                );
+                let native_function_id_def =
+                    native_fn.id_definition(&native_function_ident.clone().into());
 
                 let turbo_signature = turbo_fn.signature();
                 let turbo_block = turbo_fn.static_block(&native_function_id_ident);
@@ -162,9 +160,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // By declaring the native function's body within an `impl` block, we ensure
                         // that `Self` refers to `#ty`. This is necessary because the function's
                         // body is originally declared within an `impl` block already.
-                        #native_function_def
-                        #native_function_id_def
-
                         #(#attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
@@ -174,11 +169,11 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     pub(crate) static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(<#ty>::#native_function_ident);
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
                     #[doc(hidden)]
                     pub(crate) static #native_function_id_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(<#ty>::#native_function_id_ident);
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
                 })
             }
         }
@@ -255,19 +250,13 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let native_function_ident =
                     get_trait_impl_function_ident(ty_ident, &trait_ident, ident);
                 let native_function_ty = native_fn.ty();
-                let native_function_def_sig =
-                    native_fn.definition_signature(&native_function_ident);
-                let native_function_def = native_fn.definition(&native_function_ident);
+                let native_function_def = native_fn.definition();
 
                 let native_function_id_ident =
                     get_trait_impl_function_id_ident(ty_ident, &trait_ident, ident);
                 let native_function_id_ty = native_fn.id_ty();
-                let native_function_id_def_sig =
-                    native_fn.id_definition_signature(&native_function_id_ident);
-                let native_function_id_def = native_fn.id_definition(
-                    &native_function_id_ident,
-                    &native_function_ident.clone().into(),
-                );
+                let native_function_id_def =
+                    native_fn.id_definition(&native_function_ident.clone().into());
 
                 let turbo_signature = turbo_fn.signature();
                 let turbo_block = turbo_fn.static_block(&native_function_id_ident);
@@ -281,9 +270,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     trait #inline_extension_trait_ident: std::marker::Send {
-                        #native_function_def_sig
-                        #native_function_id_def_sig
-
                         #(#attrs)*
                         #[doc(hidden)]
                         #inline_signature;
@@ -291,9 +277,6 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
 
                     #[doc(hidden)]
                     impl #impl_generics #inline_extension_trait_ident for #ty #where_clause  {
-                        #native_function_def
-                        #native_function_id_def
-
                         #(#attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
@@ -303,15 +286,11 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     pub(crate) static #native_function_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(
-                                <#ty as #inline_extension_trait_ident>::#native_function_ident
-                            );
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
                     #[doc(hidden)]
                     pub(crate) static #native_function_id_ident:
                         turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
-                            turbo_tasks::macro_helpers::Lazy::new(
-                                <#ty as #inline_extension_trait_ident>::#native_function_id_ident
-                            );
+                            turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
                 });
 
                 trait_registers.push(quote! {

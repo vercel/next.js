@@ -982,15 +982,7 @@ impl NativeFn {
         parse_quote! { turbo_tasks::NativeFunction }
     }
 
-    pub fn definition_signature(&self, fn_name: &Ident) -> TokenStream {
-        quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            fn #fn_name() -> turbo_tasks::NativeFunction;
-        }
-    }
-
-    pub fn definition(&self, fn_name: &Ident) -> TokenStream {
+    pub fn definition(&self) -> TokenStream {
         let Self {
             function_path_string,
             function_path,
@@ -1005,9 +997,7 @@ impl NativeFn {
         };
 
         quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            fn #fn_name() -> turbo_tasks::NativeFunction {
+            {
                 #[allow(deprecated)]
                 turbo_tasks::NativeFunction::#constructor(
                     #function_path_string.to_owned(),
@@ -1024,21 +1014,9 @@ impl NativeFn {
         parse_quote! { turbo_tasks::FunctionId }
     }
 
-    pub fn id_definition_signature(&self, fn_name: &Ident) -> TokenStream {
+    pub fn id_definition(&self, native_function_id_path: &Path) -> TokenStream {
         quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            fn #fn_name() -> turbo_tasks::FunctionId;
-        }
-    }
-
-    pub fn id_definition(&self, fn_name: &Ident, native_function_id_path: &Path) -> TokenStream {
-        quote! {
-            #[doc(hidden)]
-            #[allow(non_snake_case)]
-            fn #fn_name() -> turbo_tasks::FunctionId {
-                turbo_tasks::registry::get_function_id(&*#native_function_id_path)
-            }
+            turbo_tasks::registry::get_function_id(&*#native_function_id_path)
         }
     }
 }
