@@ -27,20 +27,20 @@ impl InnerAssets {
 // TODO when plugins are supported, replace u8 with a trait that defines the
 // behavior.
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum CommonJsReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum ImportWithType {
     Json,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Default, Clone, Hash)]
 pub enum EcmaScriptModulesReferenceSubType {
     ImportPart(ResolvedVc<ModulePart>),
@@ -163,7 +163,7 @@ impl ImportContext {
     }
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
@@ -178,7 +178,7 @@ pub enum CssReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum UrlReferenceSubType {
     EcmaScriptNewUrl,
@@ -187,14 +187,14 @@ pub enum UrlReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum TypeScriptReferenceSubType {
     Custom(u8),
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum WorkerReferenceSubType {
     WebWorker,
@@ -206,7 +206,7 @@ pub enum WorkerReferenceSubType {
 
 // TODO(sokra) this was next.js specific values. We want to solve this in a
 // different way.
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum EntryReferenceSubType {
     Web,
@@ -222,7 +222,7 @@ pub enum EntryReferenceSubType {
     Undefined,
 }
 
-#[turbo_tasks::value(serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum ReferenceType {
     CommonJs(CommonJsReferenceSubType),

@@ -8,7 +8,7 @@ type EcmascriptChunkItemWithAsyncInfo = (
     Option<Vc<AsyncModuleInfo>>,
 );
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 pub struct EcmascriptChunkContent {
     pub chunk_items: Vec<EcmascriptChunkItemWithAsyncInfo>,
     pub referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>>,

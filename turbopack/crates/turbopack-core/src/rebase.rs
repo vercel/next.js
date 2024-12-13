@@ -1,7 +1,7 @@
 use std::hash::Hash;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
@@ -51,17 +51,18 @@ impl OutputAsset for RebasedAsset {
 
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
-        let mut references = Vec::new();
-        for &module in referenced_modules_and_affecting_sources(*self.source)
+        let references = referenced_modules_and_affecting_sources(*self.source)
             .await?
             .iter()
-        {
-            references.push(ResolvedVc::upcast(
-                RebasedAsset::new(*module, *self.input_dir, *self.output_dir)
-                    .to_resolved()
-                    .await?,
-            ));
-        }
+            .map(|module| async move {
+                Ok(ResolvedVc::upcast(
+                    RebasedAsset::new(**module, *self.input_dir, *self.output_dir)
+                        .to_resolved()
+                        .await?,
+                ))
+            })
+            .try_join()
+            .await?;
         Ok(Vc::cell(references))
     }
 }
