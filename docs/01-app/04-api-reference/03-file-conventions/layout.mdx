@@ -3,7 +3,9 @@ title: layout.js
 description: API reference for the layout.js file.
 ---
 
-The `layout` file is used to define a layout in your Next.js application.
+The `layout` file is used to define a layout in your Next.js application. Layouts are **shared** between multiple routes. On navigation, they preserve state, remain interactive, and don't re-render.
+
+You can define a layout by default exporting a React component from a `layout.js` file. The component should accept a `children` prop that will be populated with a child layout (if it exists) or a page during rendering.
 
 ```tsx filename="app/dashboard/layout.tsx" switcher
 export default function DashboardLayout({
