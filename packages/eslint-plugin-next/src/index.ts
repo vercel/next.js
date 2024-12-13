@@ -66,6 +66,7 @@ const plugin = {
   },
 }
 
+module.exports = plugin
 module.exports.flatConfig = {
   recommended: {
     name: 'eslint-plugin-next recommended',
