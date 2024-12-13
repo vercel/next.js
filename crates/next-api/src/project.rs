@@ -212,7 +212,7 @@ pub struct Instrumentation {
     pub edge: Vc<Box<dyn Endpoint>>,
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,

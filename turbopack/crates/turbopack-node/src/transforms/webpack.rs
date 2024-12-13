@@ -82,7 +82,7 @@ pub struct WebpackLoaderItem {
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent, non_local)]
+#[turbo_tasks::value(shared, transparent)]
 pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
 
 #[turbo_tasks::value]

@@ -1,7 +1,7 @@
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
 
-#[turbo_tasks::value(non_local)]
+#[turbo_tasks::value]
 struct MyValue {
     value: i32,
 }
