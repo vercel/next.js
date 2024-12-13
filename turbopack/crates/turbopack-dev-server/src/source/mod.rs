@@ -408,7 +408,7 @@ impl ContentSourceDataVary {
 }
 
 /// A source of content that the dev server uses to respond to http requests.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ContentSource {
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree>;
 
