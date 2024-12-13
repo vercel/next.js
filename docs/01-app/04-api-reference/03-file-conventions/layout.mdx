@@ -161,6 +161,47 @@ See the [examples](/docs/app/building-your-application/routing/layouts-and-templ
 
 ## Examples
 
+### Nesting Layouts
+
+By default, layouts in the folder hierarchy are **nested**, which means they wrap child layouts via their `children` prop. You can nest layouts by adding `layout.js` inside specific route segments (folders).
+
+For example, to create a layout for the `/dashboard` route, add a new `layout.js` file inside the `dashboard` folder:
+
+<Image
+  alt="Nested Layout"
+  srcLight="/docs/light/nested-layout.png"
+  srcDark="/docs/dark/nested-layout.png"
+  width="1600"
+  height="606"
+/>
+
+```tsx filename="app/dashboard/layout.tsx" switcher
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode
+}) {
+  return <section>{children}</section>
+}
+```
+
+```jsx filename="app/dashboard/layout.js" switcher
+export default function DashboardLayout({ children }) {
+  return <section>{children}</section>
+}
+```
+
+If you were to combine the two layouts above, the root layout (`app/layout.js`) would wrap the dashboard layout (`app/dashboard/layout.js`), which would wrap route segments inside `app/dashboard/*`.
+
+The two layouts would be nested as such:
+
+<Image
+  alt="Nested Layouts"
+  srcLight="/docs/light/nested-layouts-ui.png"
+  srcDark="/docs/dark/nested-layouts-ui.png"
+  width="1600"
+  height="1026"
+/>
 ### Displaying content based on `params`
 
 Using [dynamic route segments](/docs/app/building-your-application/routing/dynamic-routes), you can display or fetch specific content based on the `params` prop.
