@@ -104,10 +104,7 @@ export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head: [viewport, metadata] */ [
-    React.ReactNode | null,
-    React.ReactNode | null,
-  ],
+  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
   /* isHeadPartial */ boolean,
 ]
 
