@@ -21,7 +21,7 @@ use crate::resolve::{parse::Request, plugin::AfterResolvePlugin, ExternalTraced}
 #[derive(Hash, Debug)]
 pub struct LockedVersions {}
 
-#[turbo_tasks::value(transparent, non_local)]
+#[turbo_tasks::value(transparent)]
 #[derive(Debug)]
 pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 

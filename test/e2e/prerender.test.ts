@@ -1334,7 +1334,7 @@ describe('Prerender', () => {
           expect(dataRoutes).toEqual([
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/index.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/index\\.json$`
               ),
               page: '/',
             },
@@ -1342,7 +1342,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/another.json$`
+                )}\\/another\\.json$`
               ),
               page: '/another',
             },
@@ -1364,7 +1364,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/bad-gssp.json$`
+                )}\\/bad-gssp\\.json$`
               ),
               page: '/bad-gssp',
             },
@@ -1372,7 +1372,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/bad-ssr.json$`
+                )}\\/bad-ssr\\.json$`
               ),
               page: '/bad-ssr',
             },
@@ -1414,7 +1414,7 @@ describe('Prerender', () => {
             },
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/blog.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/blog\\.json$`
               ),
               page: '/blog',
             },
@@ -1493,7 +1493,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/default-revalidate.json$`
+                )}\\/default-revalidate\\.json$`
               ),
               page: '/default-revalidate',
             },
@@ -1530,7 +1530,7 @@ describe('Prerender', () => {
             //   dataRouteRegex: normalizeRegEx(
             //     `^\\/_next\\/data\\/${escapeRegex(
             //       next.buildId
-            //     )}\\/index\\/index.json$`
+            //     )}\\/index\\/index\\.json$`
             //   ),
             //   page: '/index',
             // },
@@ -1551,13 +1551,13 @@ describe('Prerender', () => {
             {
               dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
                 next.buildId
-              )}\\/large-page-data.json$`,
+              )}\\/large-page-data\\.json$`,
               page: '/large-page-data',
             },
             {
               dataRouteRegex: `^\\/_next\\/data\\/${escapeRegex(
                 next.buildId
-              )}\\/large-page-data-ssr.json$`,
+              )}\\/large-page-data-ssr\\.json$`,
               page: '/large-page-data-ssr',
             },
             {
@@ -1592,7 +1592,7 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/preview.json$`
+                )}\\/preview\\.json$`
               ),
               page: '/preview',
             },
@@ -1600,13 +1600,13 @@ describe('Prerender', () => {
               dataRouteRegex: normalizeRegEx(
                 `^\\/_next\\/data\\/${escapeRegex(
                   next.buildId
-                )}\\/something.json$`
+                )}\\/something\\.json$`
               ),
               page: '/something',
             },
             {
               dataRouteRegex: normalizeRegEx(
-                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr.json$`
+                `^\\/_next\\/data\\/${escapeRegex(next.buildId)}\\/ssr\\.json$`
               ),
               page: '/ssr',
             },

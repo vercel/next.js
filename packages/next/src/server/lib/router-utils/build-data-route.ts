@@ -33,7 +33,7 @@ export function buildDataRoute(page: string, buildId: string) {
         `^${path.posix.join(
           '/_next/data',
           escapeStringRegexp(buildId),
-          `${pagePath}.json`
+          `${pagePath}\\.json`
         )}$`
       ).source
     )

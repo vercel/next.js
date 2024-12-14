@@ -163,7 +163,7 @@ describe('edge-render-getserversideprops', () => {
       expect(manifest.dataRoutes).toEqual([
         {
           dataRouteRegex: normalizeRegEx(
-            `^/_next/data/${escapeStringRegexp(next.buildId)}/index.json$`
+            `^/_next/data/${escapeStringRegexp(next.buildId)}/index\\.json$`
           ),
           page: '/',
         },

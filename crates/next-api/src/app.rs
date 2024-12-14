@@ -781,7 +781,7 @@ enum AppEndpointType {
     },
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 struct AppEndpoint {
     ty: AppEndpointType,
     app_project: ResolvedVc<AppProject>,

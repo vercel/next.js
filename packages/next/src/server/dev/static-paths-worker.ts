@@ -83,6 +83,7 @@ export async function loadStaticPaths({
     // In `pages/`, the page is the same as the pathname.
     page: page || pathname,
     isAppPath,
+    isDev: true,
   })
 
   if (isAppPath) {
