@@ -1116,7 +1116,10 @@ export async function isPageStatic({
           appConfig.revalidate = 0
         }
 
-        if (isDynamicRoute(page)) {
+        // If the page is dynamic and we're not in edge runtime, then we need to
+        // build the static paths. The edge runtime doesn't support static
+        // paths.
+        if (isDynamicRoute(page) && !pathIsEdgeRuntime) {
           ;({ prerenderedRoutes, fallbackMode: prerenderFallbackMode } =
             await buildAppStaticPaths({
               dir,
