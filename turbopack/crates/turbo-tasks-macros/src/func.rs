@@ -10,9 +10,9 @@ use syn::{
     spanned::Spanned,
     token::Paren,
     visit_mut::VisitMut,
-    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
-    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
-    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
+    GenericArgument, Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment,
+    Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -1019,4 +1019,14 @@ impl NativeFn {
             turbo_tasks::registry::get_function_id(&*#native_function_id_path)
         }
     }
+}
+
+pub fn filter_inline_attributes<'a>(
+    attrs: impl IntoIterator<Item = &'a Attribute>,
+) -> Vec<&'a Attribute> {
+    // inline functions use #[doc(hidden)], so it's not useful to preserve/duplicate docs
+    attrs
+        .into_iter()
+        .filter(|attr| attr.path.get_ident().is_none_or(|id| id != "doc"))
+        .collect()
 }
