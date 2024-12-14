@@ -69,14 +69,14 @@ const plugin = {
 module.exports = plugin
 module.exports.flatConfig = {
   recommended: {
-    name: 'eslint-plugin-next recommended',
+    name: 'next/recommended',
     plugins: {
       '@next/next': plugin,
     },
     rules: recommendedRules,
   },
   coreWebVitals: {
-    name: 'eslint-plugin-next core-web-vitals',
+    name: 'next/core-web-vitals',
     plugins: {
       '@next/next': plugin,
     },
