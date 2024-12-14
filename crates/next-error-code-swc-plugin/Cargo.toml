@@ -1,0 +1,13 @@
+[package]
+name = "next-error-code-swc-plugin"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+swc_core = { version = "5.0.*", features = ["ecma_plugin_transform"] }
+serde_json = "1.0"
+serde = "1.0"
+md5 = "0.7"
