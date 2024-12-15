@@ -239,7 +239,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
@@ -260,7 +260,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         # TODO: Run with React 18.
         # Integration tests use the installed React version in next/package.json.include:
@@ -282,7 +282,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
       nodeVersion: 18.18.2
@@ -343,7 +343,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -360,7 +360,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -378,7 +378,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -398,7 +398,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -418,7 +418,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
         # Empty value uses default
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
@@ -436,18 +436,19 @@ jobs:
       fail-fast: false
       matrix:
         group:
-          - 1/12
-          - 2/12
-          - 3/12
-          - 4/12
-          - 5/12
-          - 6/12
-          - 7/12
-          - 8/12
-          - 9/12
-          - 10/12
-          - 11/12
-          - 12/12
+          - 1/13
+          - 2/13
+          - 3/13
+          - 4/13
+          - 5/13
+          - 6/13
+          - 7/13
+          - 8/13
+          - 9/13
+          - 10/13
+          - 11/13
+          - 12/13
+          - 13/13
           # Empty value uses default
           # TODO: Run with React 18.
           # Integration tests use the installed React version in next/package.json.include:
@@ -498,7 +499,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=dev node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
@@ -513,7 +514,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        group: [1/4, 2/4, 3/4, 4/4]
+        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" NEXT_TEST_MODE=start node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production

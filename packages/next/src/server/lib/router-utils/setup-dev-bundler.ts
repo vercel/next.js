@@ -282,7 +282,6 @@ async function startWatcher(opts: SetupOpts) {
       const conflictingAppPagePaths = new Set<string>()
       const appPageFilePaths = new Map<string, string>()
       const pagesPageFilePaths = new Map<string, string>()
-      const pagesWithUnsupportedSegments = new Map<string, string[]>()
 
       let envChange = false
       let tsconfigChange = false
@@ -294,7 +293,6 @@ async function startWatcher(opts: SetupOpts) {
       appFiles.clear()
       pageFiles.clear()
       devPageFiles.clear()
-      pagesWithUnsupportedSegments.clear()
 
       const sortedKnownFiles: string[] = [...knownFiles.keys()].sort(
         sortByPageExts(nextConfig.pageExtensions)
