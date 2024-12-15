@@ -140,6 +140,80 @@ describe('segment cache (basic tests)', () => {
 
     navigationsLock.release()
   })
+
+  it('skips dynamic request if prefetched data is fully static', async () => {
+    const interceptor = createRequestInterceptor()
+    const browser = await next.browser('/fully-static', {
+      beforePageLoad(page: Playwright.Page) {
+        page.route('**/*', async (route: Playwright.Route) => {
+          await interceptor.interceptRoute(page, route)
+        })
+      },
+    })
+
+    // Rendering the link triggers a prefetch of the test page.
+    const link = await browser.elementByCss(
+      'a[href="/fully-static/target-page"]'
+    )
+    const navigationsLock = interceptor.lockNavigations()
+    await link.click()
+
+    // The page should render immediately because it was prefetched.
+    const div = await browser.elementById('target-page')
+    expect(await div.innerHTML()).toBe('Target')
+
+    // We should have skipped the navigation request because all the data was
+    // fully static.
+    const numberOfNavigationRequests = (await navigationsLock.release()).size
+    expect(numberOfNavigationRequests).toBe(0)
+  })
+
+  it('skips static layouts during partially static navigation', async () => {
+    const interceptor = createRequestInterceptor()
+    let page: Playwright.Page
+    const browser = await next.browser('/partially-static', {
+      beforePageLoad(p: Playwright.Page) {
+        page = p
+        page.route('**/*', async (route: Playwright.Route) => {
+          await interceptor.interceptRoute(page, route)
+        })
+      },
+    })
+
+    // Rendering the link triggers a prefetch of the test page.
+    const link = await browser.elementByCss(
+      'a[href="/partially-static/target-page"]'
+    )
+    const navigationsLock = interceptor.lockNavigations()
+    await link.click()
+
+    // The static layout and the loading state of the dynamic page should render
+    // immediately because they were prefetched.
+    const layoutMarkerId = 'static-layout'
+    const layoutMarker = await browser.elementById(layoutMarkerId)
+    const layoutMarkerContent = await layoutMarker.innerHTML()
+    expect(layoutMarkerContent).toBe('Static layout')
+    const dynamicDiv = await browser.elementById('dynamic-page')
+    expect(await dynamicDiv.innerHTML()).toBe('Loading...')
+
+    // Unblock the navigation request to allow the dynamic content to stream in.
+    const navigationRoutes = await navigationsLock.release()
+
+    // Check that the navigation response does not include the static layout,
+    // since it was already prefetched. Because this is not observable in the
+    // UI, we check the navigation response body.
+    const numberOfNavigationRequests = navigationRoutes.size
+    expect(numberOfNavigationRequests).toBe(1)
+    for (const route of navigationRoutes) {
+      const response = await page.request.fetch(route.request())
+      const responseText = await response.text()
+      expect(responseText).not.toContain(layoutMarkerId)
+      expect(responseText).not.toContain(layoutMarkerContent)
+    }
+
+    // The dynamic content has streamed in.
+    expect(await dynamicDiv.innerHTML()).toBe('Dynamic page')
+  })
 })
 
 function createRequestInterceptor() {

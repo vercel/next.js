@@ -1614,6 +1614,7 @@ export async function isPageStatic({
           distDir,
           page: originalAppPath || page,
           isAppPath: pageType === 'app',
+          isDev: false,
         })
       }
       const Comp = componentsResult.Component as NextComponentType | undefined
@@ -1637,7 +1638,7 @@ export async function isPageStatic({
           })
         }
 
-        appConfig = reduceAppConfig(await collectSegments(componentsResult))
+        appConfig = reduceAppConfig(segments)
 
         if (appConfig.dynamic === 'force-static' && pathIsEdgeRuntime) {
           Log.warn(
@@ -1869,6 +1870,7 @@ export async function hasCustomGetInitialProps({
     distDir,
     page: page,
     isAppPath: false,
+    isDev: false,
   })
   let mod = components.ComponentMod
 
@@ -1895,6 +1897,7 @@ export async function getDefinedNamedExports({
     distDir,
     page: page,
     isAppPath: false,
+    isDev: false,
   })
 
   return Object.keys(components.ComponentMod).filter((key) => {

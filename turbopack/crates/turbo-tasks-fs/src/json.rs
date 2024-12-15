@@ -5,13 +5,12 @@ use std::{
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::trace::TraceRawVcs;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue};
 
 use crate::{rope::Rope, source_context::get_source_context};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub struct UnparseableJson {
-    #[turbo_tasks(trace_ignore)]
     pub message: Cow<'static, str>,
     pub path: Option<String>,
     /// The start line and column of the error.

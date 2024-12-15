@@ -118,12 +118,13 @@ export async function evalManifestWithRetries<T extends object>(
 
 async function loadClientReferenceManifest(
   manifestPath: string,
-  entryName: string
+  entryName: string,
+  attempts?: number
 ) {
   try {
     const context = await evalManifestWithRetries<{
       __RSC_MANIFEST: { [key: string]: ClientReferenceManifest }
-    }>(manifestPath)
+    }>(manifestPath, attempts)
     return context.__RSC_MANIFEST[entryName]
   } catch (err) {
     return undefined
@@ -134,10 +135,12 @@ async function loadComponentsImpl<N = any>({
   distDir,
   page,
   isAppPath,
+  isDev,
 }: {
   distDir: string
   page: string
   isAppPath: boolean
+  isDev: boolean
 }): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
@@ -151,6 +154,12 @@ async function loadComponentsImpl<N = any>({
   // Make sure to avoid loading the manifest for metadata route handlers.
   const hasClientManifest = isAppPath && !isMetadataRoute(page)
 
+  // In dev mode we retry loading a manifest file to handle a race condition
+  // that can occur while app and pages are compiling at the same time, and the
+  // build-manifest is still being written to disk while an app path is
+  // attempting to load.
+  const manifestLoadAttempts = isDev ? 3 : 1
+
   // Load the manifest files first
   const [
     buildManifest,
@@ -159,15 +168,20 @@ async function loadComponentsImpl<N = any>({
     clientReferenceManifest,
     serverActionsManifest,
   ] = await Promise.all([
-    loadManifestWithRetries<BuildManifest>(join(distDir, BUILD_MANIFEST)),
+    loadManifestWithRetries<BuildManifest>(
+      join(distDir, BUILD_MANIFEST),
+      manifestLoadAttempts
+    ),
     loadManifestWithRetries<ReactLoadableManifest>(
-      join(distDir, REACT_LOADABLE_MANIFEST)
+      join(distDir, REACT_LOADABLE_MANIFEST),
+      manifestLoadAttempts
     ),
     // This manifest will only exist in Pages dir && Production && Webpack.
     isAppPath || process.env.TURBOPACK
       ? undefined
       : loadManifestWithRetries<DynamicCssManifest>(
-          join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`)
+          join(distDir, `${DYNAMIC_CSS_MANIFEST}.json`),
+          manifestLoadAttempts
         ).catch(() => undefined),
     hasClientManifest
       ? loadClientReferenceManifest(
@@ -177,12 +191,14 @@ async function loadComponentsImpl<N = any>({
             'app',
             page.replace(/%5F/g, '_') + '_' + CLIENT_REFERENCE_MANIFEST + '.js'
           ),
-          page.replace(/%5F/g, '_')
+          page.replace(/%5F/g, '_'),
+          manifestLoadAttempts
         )
       : undefined,
     isAppPath
       ? loadManifestWithRetries<ActionManifest>(
-          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json')
+          join(distDir, 'server', SERVER_REFERENCE_MANIFEST + '.json'),
+          manifestLoadAttempts
         ).catch(() => null)
       : null,
   ])

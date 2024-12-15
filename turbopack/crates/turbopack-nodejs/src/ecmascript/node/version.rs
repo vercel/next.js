@@ -12,7 +12,7 @@ use turbopack_ecmascript::chunk::EcmascriptChunkContent;
 
 use super::content::chunk_items;
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", local)]
 pub(super) struct EcmascriptBuildNodeChunkVersion {
     chunk_path: String,
     chunk_items: Vec<(ReadRef<ModuleId>, ReadRef<Code>)>,

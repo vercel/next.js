@@ -25,8 +25,8 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, GraphTraversalResult, Visit, VisitControlFlow},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt, TryJoinIterExt,
-    Upcast, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryFlatJoinIterExt,
+    TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
@@ -89,7 +89,7 @@ impl ModuleId {
 pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait ChunkableModule: Module + Asset {
     fn as_chunk_item(
         self: Vc<Self>,
@@ -165,6 +165,7 @@ pub trait OutputChunk: Asset {
     Eq,
     PartialEq,
     ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ChunkingType {
     /// Module is placed in the same chunk group and is loaded in parallel. It
@@ -234,7 +235,9 @@ pub async fn chunk_content(
     chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
+#[derive(
+    Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue,
+)]
 enum InheritAsyncEdge {
     /// The chunk item is in the current chunk group and async module info need
     /// to be computed for it
@@ -289,7 +292,7 @@ struct ChunkGraphEdge {
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
 
 #[turbo_tasks::function]
@@ -802,7 +805,7 @@ impl AsyncModuleInfo {
 
 pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {

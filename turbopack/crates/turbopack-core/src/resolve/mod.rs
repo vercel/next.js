@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -64,7 +64,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -100,7 +100,7 @@ impl ModuleResolveResultItem {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
@@ -386,7 +386,17 @@ impl Display for ExternalTraced {
 }
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Hash, Serialize, Deserialize, TraceRawVcs, TaskInput,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum ExternalType {
     Url,
@@ -404,7 +414,7 @@ impl Display for ExternalType {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
@@ -463,7 +473,7 @@ impl RequestKey {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
@@ -1059,11 +1069,18 @@ async fn type_exists(
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<ResolvedVc<FileSystemPath>>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
-    for path in result.symlinks.iter() {
-        refs.push(ResolvedVc::upcast(
-            FileSource::new(**path).to_resolved().await?,
-        ));
-    }
+    refs.extend(
+        result
+            .symlinks
+            .iter()
+            .map(|path| async move {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(**path).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
+    );
     let path = result.path;
     Ok(if *path.get_type().await? == ty {
         Some(path)
@@ -1077,11 +1094,18 @@ async fn any_exists(
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
-    for path in result.symlinks.iter() {
-        refs.push(ResolvedVc::upcast(
-            FileSource::new(**path).to_resolved().await?,
-        ));
-    }
+    refs.extend(
+        result
+            .symlinks
+            .iter()
+            .map(|path| async move {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(**path).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
+    );
     let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
@@ -1269,7 +1293,7 @@ pub async fn find_context_file_or_package_key(
     }
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug)]
+#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 enum FindPackageItem {
     PackageDirectory(ResolvedVc<FileSystemPath>),
     PackageFile(ResolvedVc<FileSystemPath>),
@@ -2253,6 +2277,7 @@ async fn apply_in_package(
     fragment: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     // Check alias field for module aliases first
+    // ast-grep-ignore: to-resolved-in-loop
     for in_package in options_value.in_package.iter() {
         // resolve_module_request is called when importing a node
         // module, not a PackageInternal one, so the imports field

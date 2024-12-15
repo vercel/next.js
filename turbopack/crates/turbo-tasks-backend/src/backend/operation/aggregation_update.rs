@@ -576,7 +576,7 @@ impl AggregationUpdateQueue {
                                     if update.base_aggregation_number < base_aggregation_number {
                                         true
                                     } else if let Some(distance) = distance {
-                                        update.distance.map_or(true, |d| d < distance)
+                                        update.distance.is_none_or(|d| d < distance)
                                     } else {
                                         false
                                     };

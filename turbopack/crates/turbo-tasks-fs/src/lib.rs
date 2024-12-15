@@ -60,7 +60,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -188,7 +188,7 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
@@ -1702,7 +1702,7 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs)]
+  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
@@ -2167,7 +2167,7 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum InternalDirectoryEntry {
     File(RcStr),
     Directory(RcStr),
@@ -2176,7 +2176,9 @@ pub enum InternalDirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum DirectoryEntry {
     File(ResolvedVc<FileSystemPath>),
     Directory(ResolvedVc<FileSystemPath>),

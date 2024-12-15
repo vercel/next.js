@@ -10,7 +10,7 @@ note: required by a bound in `DeriveNonLocalValueAssertion::<T>::assert_impl_Non
 5 | #[derive(NonLocalValue)]
   |          ^^^^^^^^^^^^^ required by this bound in `DeriveNonLocalValueAssertion::<T>::assert_impl_NonLocalValue`
   = note: this error originates in the derive macro `NonLocalValue` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider restricting type parameter `T`
+help: consider restricting type parameter `T` with trait `NonLocalValue`
   |
 6 | struct ContainsUnderconstrainedGeneric<T: turbo_tasks::NonLocalValue> {
   |                                         ++++++++++++++++++++++++++++

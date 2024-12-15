@@ -12,8 +12,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, ResolvedVc, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
@@ -83,7 +83,17 @@ impl ValueToString for AmdDefineAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for AmdDefineAssetReference {}
 
-#[derive(ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Clone)]
+#[derive(
+    ValueDebugFormat,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Clone,
+    NonLocalValue,
+)]
 pub enum AmdDefineDependencyElement {
     Request {
         request: ResolvedVc<Request>,
@@ -95,7 +105,16 @@ pub enum AmdDefineDependencyElement {
 }
 
 #[derive(
-    ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Copy, Clone,
+    ValueDebugFormat,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Copy,
+    Clone,
+    NonLocalValue,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
