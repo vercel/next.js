@@ -81,7 +81,7 @@ fn main() {
                 .block_on(async {
                     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
 
-                    let _guard = if let Some(mut trace) = trace {
+                    let _guard = if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
                         // Trace presets
                         match trace.as_str() {
                             "overview" | "1" => {
