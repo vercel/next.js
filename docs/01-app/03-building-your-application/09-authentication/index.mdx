@@ -522,7 +522,7 @@ There are two types of sessions:
 1. [**Stateless**](#stateless-sessions): Session data (or a token) is stored in the browser's cookies. The cookie is sent with each request, allowing the session to be verified on the server. This method is simpler, but can be less secure if not implemented correctly.
 2. [**Database**](#database-sessions): Session data is stored in a database, with the user's browser only receiving the encrypted session ID. This method is more secure, but can be complex and use more server resources.
 
-> **Good to know:** While you can use either method, or both, we recommend using session management library such as [iron-session](https://github.com/vvo/iron-session) or [Jose](https://github.com/panva/jose).
+> **Good to know:** While you can use either method, or both, we recommend using a session management library such as [iron-session](https://github.com/vvo/iron-session) or [Jose](https://github.com/panva/jose).
 
 ### Stateless Sessions
 
