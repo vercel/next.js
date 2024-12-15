@@ -183,6 +183,7 @@ export interface RenderOptsPartial {
     expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
+    clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
   }
