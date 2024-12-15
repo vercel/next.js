@@ -5,7 +5,7 @@ use turbo_tasks_fs::{
     DirectoryContent, FileContent, FileMeta, FileSystem, FileSystemPath, LinkContent,
 };
 
-#[turbo_tasks::value(non_local)]
+#[turbo_tasks::value]
 pub struct ServerFileSystem {}
 
 #[turbo_tasks::value_impl]

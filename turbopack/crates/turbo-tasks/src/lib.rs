@@ -263,13 +263,14 @@ macro_rules! fxindexset {
 ///
 /// [repr-transparent]: https://doc.rust-lang.org/nomicon/other-reprs.html#reprtransparent
 ///
-/// ## `non_local`
+/// ## `local`
 ///
-/// Applies the [`#[derive(NonLocalValue)]`][macro@NonLocalValue] macro.
+/// Skip the implementation of [`NonLocalValue`] for this type.
 ///
-/// Indicates that this struct has no fields containing [`Vc`] by implementing the [`NonLocalValue`]
-/// marker trait. In order to safely implement [`NonLocalValue`], this inserts compile-time
-/// assertions that every field in this struct has a type that is also a [`NonLocalValue`].
+/// If not specified, we apply the [`#[derive(NonLocalValue)]`][macro@NonLocalValue] macro, which
+/// asserts that this struct has no fields containing [`Vc`] by implementing the [`NonLocalValue`]
+/// marker trait. Compile-time assertions are generated on every field, checking that they are also
+/// [`NonLocalValue`]s.
 #[rustfmt::skip]
 pub use turbo_tasks_macros::value;
 

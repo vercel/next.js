@@ -54,7 +54,7 @@ impl ValueDebugString {
 /// ```ignore
 /// dbg!(any_vc.dbg().await?);
 /// ```
-#[turbo_tasks::value_trait(no_debug)]
+#[turbo_tasks::value_trait(no_debug, local)]
 pub trait ValueDebug {
     fn dbg(self: Vc<Self>) -> Vc<ValueDebugString>;
 
