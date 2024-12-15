@@ -25,6 +25,7 @@ import {
   encodeSegment,
   ROOT_SEGMENT_KEY,
 } from './segment-value-encoding'
+import { getDigestForWellKnownError } from './create-error-handler'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -64,6 +65,15 @@ export type SegmentPrefetch = {
   rsc: React.ReactNode | null
   loading: LoadingModuleData | Promise<LoadingModuleData>
   isPartial: boolean
+}
+
+function onSegmentPrerenderError(error: unknown) {
+  const digest = getDigestForWellKnownError(error)
+  if (digest) {
+    return digest
+  }
+  // We don't need to log the errors because we would have already done that
+  // when generating the original Flight stream for the whole page.
 }
 
 export async function collectSegmentData(
@@ -120,10 +130,7 @@ export async function collectSegmentData(
     clientModules,
     {
       signal: abortController.signal,
-      onError() {
-        // Ignore any errors. These would have already been reported when
-        // we created the full page data.
-      },
+      onError: onSegmentPrerenderError,
     }
   )
 
@@ -326,10 +333,7 @@ async function renderSegmentPrefetch(
     clientModules,
     {
       signal: abortController.signal,
-      onError() {
-        // Ignore any errors. These would have already been reported when
-        // we created the full page data.
-      },
+      onError: onSegmentPrerenderError,
     }
   )
   const segmentBuffer = await streamToBuffer(segmentStream)
