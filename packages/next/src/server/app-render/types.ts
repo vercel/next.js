@@ -68,10 +68,10 @@ export type FlightRouterState = [
   /**
    * "refresh" and "refetch", despite being similarly named, have different
    * semantics:
-   * - "refetch" is used during a requets to inform the server where rendering
+   * - "refetch" is used during a request to inform the server where rendering
    *   should start from.
    *
-   * - "refresh" is used by the client to mark that a segmentshould re-fetch the
+   * - "refresh" is used by the client to mark that a segment should re-fetch the
    *   data from the server for the current segment. It uses the "url" property
    *   above to determine where to fetch from.
    *
@@ -87,7 +87,7 @@ export type FlightRouterState = [
    *   loading boundary beneath a shared layout.
    *
    *   TODO: We should rethink the protocol for dynamic requests. It might not
-   *   make for the client to send a FlightRouterState, since this type is
+   *   make sense for the client to send a FlightRouterState, since this type is
    *   overloaded with concerns.
    */
   refresh?: 'refetch' | 'refresh' | 'inside-shared-layout' | null,
