@@ -93,6 +93,17 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   }
 }
 
+// TODO: Figure out why this module is included in server page bundles.
+const win = typeof window === 'undefined' ? undefined : window
+const abortController = new AbortController()
+
+// Abort any in-flight requests when the page is unloaded, e.g. due to reloading
+// the page or performing hard navigations. This allows us to ignore what would
+// otherwise be a thrown TypeError when the browser cancels the requests.
+win?.addEventListener('pagehide', () => {
+  abortController.abort()
+})
+
 /**
  * Fetch the flight data for the provided url. Takes in the current router state
  * to decide what to render server-side.
@@ -202,10 +213,13 @@ export async function fetchServerResponse(
       staleTime,
     }
   } catch (err) {
-    console.error(
-      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
-      err
-    )
+    if (!abortController.signal.aborted) {
+      console.error(
+        `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
+        err
+      )
+    }
+
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
@@ -223,7 +237,8 @@ export async function fetchServerResponse(
 export function createFetch(
   url: URL,
   headers: RequestHeaders,
-  fetchPriority: 'auto' | 'high' | 'low' | null
+  fetchPriority: 'auto' | 'high' | 'low' | null,
+  signal?: AbortSignal
 ) {
   const fetchUrl = new URL(url)
 
@@ -266,6 +281,7 @@ export function createFetch(
     credentials: 'same-origin',
     headers,
     priority: fetchPriority || undefined,
+    signal,
   })
 }
 
