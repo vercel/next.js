@@ -1,4 +1,4 @@
-import type { ReactDevOverlayProps } from '../types'
+import type { PagesDevOverlayProps } from '../types'
 import { ErrorBoundary } from './ErrorBoundary'
 import { usePagesReactDevOverlay } from './hooks'
 import { ShadowPortal } from '../internal/components/ShadowPortal'
@@ -12,7 +12,7 @@ export default function ReactDevOverlay({
   children,
   preventDisplay,
   globalOverlay,
-}: ReactDevOverlayProps) {
+}: PagesDevOverlayProps) {
   const {
     isMounted,
     displayPrevented,
