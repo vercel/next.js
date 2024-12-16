@@ -1,4 +1,5 @@
 import type { PagesDevOverlayProps } from '../types'
+import { useCallback } from 'react'
 import { ErrorBoundary } from './ErrorBoundary'
 import { usePagesReactDevOverlay } from './hooks'
 import { ShadowPortal } from '../internal/components/ShadowPortal'
@@ -19,8 +20,14 @@ export default function ReactDevOverlay({
     hasBuildError,
     hasRuntimeErrors,
     state,
-    onComponentError,
   } = usePagesReactDevOverlay(preventDisplay)
+
+  const onComponentError = useCallback(
+    (_error: Error, _componentStack: string | null) => {
+      // TODO: special handling
+    },
+    []
+  )
 
   const renderErrorContent = () => {
     if (displayPrevented) {
@@ -47,7 +54,7 @@ export default function ReactDevOverlay({
       )
     }
 
-    return null
+    return undefined
   }
 
   return (
@@ -59,14 +66,15 @@ export default function ReactDevOverlay({
       >
         {children ?? null}
       </ErrorBoundary>
-      {isMounted && (
+      {isMounted ? (
         <ShadowPortal>
           <CssReset />
           <Base />
           <ComponentStyles />
+
           {renderErrorContent()}
         </ShadowPortal>
-      )}
+      ) : undefined}
     </>
   )
 }

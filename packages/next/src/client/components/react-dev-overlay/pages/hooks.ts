@@ -1,5 +1,5 @@
 import type { ErrorType } from '../types'
-import { useCallback, useEffect } from 'react'
+import { useEffect } from 'react'
 import { useErrorOverlayReducer } from '../shared'
 import { on, off } from './bus'
 
@@ -23,13 +23,6 @@ export const usePagesReactDevOverlay = (preventDisplay?: ErrorType[]) => {
     }
   }, [dispatch])
 
-  const onComponentError = useCallback(
-    (_error: Error, _componentStack: string | null) => {
-      // TODO: special handling
-    },
-    []
-  )
-
   const hasBuildError = state.buildError != null
   const hasRuntimeErrors = Boolean(state.errors.length)
   const errorType = hasBuildError
@@ -48,6 +41,5 @@ export const usePagesReactDevOverlay = (preventDisplay?: ErrorType[]) => {
     hasRuntimeErrors,
     errorType,
     state,
-    onComponentError,
   }
 }
