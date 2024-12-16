@@ -45,7 +45,7 @@ import type { HydrationErrorState } from '../internal/helpers/hydration-error-in
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../internal/helpers/stitched-error'
-import { isErrorThrownWhileRenderingRsc } from '../../../lib/is-error-thrown-while-rendering-rsc'
+import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -565,10 +565,10 @@ export default function HotReload({
   //  We render a separate error overlay at the root when an error is thrown from rendering RSC, so
   //  we should not render an additional error overlay in the descendent. However, we need to
   //  keep rendering these hooks to ensure HMR works when the error is addressed.
-  const _isErrorThrownWhileRenderingRsc = useSyncExternalStore(
+  const shouldRenderErrorOverlay = useSyncExternalStore(
     () => () => {},
-    () => isErrorThrownWhileRenderingRsc(),
-    () => false
+    () => !shouldRenderRootLevelErrorOverlay(),
+    () => true
   )
 
   const handleOnUnhandledError = useCallback(
@@ -706,13 +706,13 @@ export default function HotReload({
     appIsrManifestRef,
   ])
 
-  if (_isErrorThrownWhileRenderingRsc) {
-    return children
+  if (shouldRenderErrorOverlay) {
+    return (
+      <ReactDevOverlay state={state} dispatcher={dispatcher}>
+        {children}
+      </ReactDevOverlay>
+    )
   }
 
-  return (
-    <ReactDevOverlay state={state} dispatcher={dispatcher}>
-      {children}
-    </ReactDevOverlay>
-  )
+  return children
 }

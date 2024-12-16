@@ -25,7 +25,8 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
-import { isErrorThrownWhileRenderingRsc } from './lib/is-error-thrown-while-rendering-rsc'
+import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
+import type * as ReactDevOverlayClientEntryModule from './components/react-dev-overlay/client-entry'
 
 /// <reference types="react-dom/experimental" />
 
@@ -239,11 +240,11 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  if (isErrorThrownWhileRenderingRsc()) {
+  if (shouldRenderRootLevelErrorOverlay()) {
     if (process.env.NODE_ENV !== 'production') {
-      const createDevOverlayElement =
-        require('./components/react-dev-overlay/client-entry').createDevOverlayElement
-      const errorTree = createDevOverlayElement(reactEl)
+      const { createRootLevelDevOverlayElement } =
+        require('./components/react-dev-overlay/client-entry') as typeof ReactDevOverlayClientEntryModule
+      const errorTree = createRootLevelDevOverlayElement(reactEl)
       ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
         errorTree
       )
