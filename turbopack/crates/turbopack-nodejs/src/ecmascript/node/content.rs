@@ -52,7 +52,7 @@ pub(super) async fn chunk_items(
         .await?
         .chunk_items
         .iter()
-        .map(|&(chunk_item, async_module_info)| async move {
+        .map(|&(_, chunk_item, async_module_info)| async move {
             Ok((
                 chunk_item.id().await?,
                 chunk_item.code(async_module_info.map(|info| *info)).await?,

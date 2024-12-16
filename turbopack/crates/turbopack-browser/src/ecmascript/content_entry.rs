@@ -4,7 +4,7 @@ use anyhow::Result;
 use tracing::{info_span, Instrument};
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ModuleId},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ModuleId},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -52,10 +52,23 @@ impl EcmascriptDevChunkContentEntries {
     ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let entries: FxIndexMap<_, _> = chunk_content
+        let included_chunk_items = chunk_content
             .chunk_items
             .iter()
-            .map(|&(chunk_item, async_module_info)| async move {
+            .map(|(ty, item, async_info)| async move {
+                if matches!(*ty.await?, ChunkItemTy::Included) {
+                    Ok(Some((item, async_info)))
+                } else {
+                    Ok(None)
+                }
+            })
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten();
+
+        let entries: FxIndexMap<_, _> = included_chunk_items
+            .map(|(&chunk_item, &async_module_info)| async move {
                 async move {
                     Ok((
                         chunk_item.id().await?,

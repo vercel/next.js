@@ -136,6 +136,11 @@ impl Module for WebAssemblyModuleAsset {
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
     }
+
+    #[turbo_tasks::function]
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -228,11 +233,6 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
-    }
-
-    #[turbo_tasks::function]
-    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
     }
 }
 

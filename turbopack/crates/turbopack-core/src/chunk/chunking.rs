@@ -11,8 +11,8 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
-    Chunks,
+    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemTy, ChunkItemsWithAsyncModuleInfo, ChunkType,
+    ChunkingContext, Chunks,
 };
 use crate::output::OutputAssets;
 
@@ -52,19 +52,22 @@ pub async fn make_chunks(
     let chunk_items = chunk_items
         .await?
         .iter()
-        .map(|&(chunk_item, async_info)| async move {
+        .map(|&(ty, chunk_item, async_info)| async move {
             let chunk_item_info =
                 chunk_item_info(chunking_context, *chunk_item, async_info.map(|info| *info))
                     .await?;
-            Ok((chunk_item, async_info, chunk_item_info))
+            Ok((ty, chunk_item, async_info, chunk_item_info))
         })
         .try_join()
         .await?;
     let mut map = FxIndexMap::<_, Vec<_>>::default();
-    for (chunk_item, async_info, chunk_item_info) in chunk_items {
-        map.entry(chunk_item_info.ty)
-            .or_default()
-            .push((chunk_item, async_info, chunk_item_info));
+    for (ty, chunk_item, async_info, chunk_item_info) in chunk_items {
+        map.entry(chunk_item_info.ty).or_default().push((
+            ty,
+            chunk_item,
+            async_info,
+            chunk_item_info,
+        ));
     }
 
     let mut chunks = Vec::new();
@@ -73,8 +76,9 @@ pub async fn make_chunks(
 
         let chunk_items = chunk_items
             .into_iter()
-            .map(|(chunk_item, async_info, chunk_item_info)| async move {
+            .map(|(ty, chunk_item, async_info, chunk_item_info)| async move {
                 Ok((
+                    ty,
                     chunk_item,
                     async_info,
                     chunk_item_info.size,
@@ -120,6 +124,7 @@ pub async fn make_chunks(
 }
 
 type ChunkItemWithInfo = (
+    ResolvedVc<ChunkItemTy>,
     ResolvedVc<Box<dyn ChunkItem>>,
     Option<ResolvedVc<AsyncModuleInfo>>,
     usize,
@@ -169,7 +174,7 @@ async fn make_chunk(
             split_context.chunking_context,
             chunk_items
                 .into_iter()
-                .map(|(chunk_item, async_info, ..)| (chunk_item, async_info))
+                .map(|(ty, chunk_item, async_info, ..)| (ty, chunk_item, async_info))
                 .collect(),
             replace(
                 split_context.referenced_output_assets,
@@ -191,7 +196,7 @@ async fn app_vendors_split(
     let mut app_chunk_items = Vec::new();
     let mut vendors_chunk_items = Vec::new();
     for item in chunk_items {
-        let (_, _, _, asset_ident) = &item;
+        let (_, _, _, _, asset_ident) = &item;
         if is_app_code(asset_ident) {
             app_chunk_items.push(item);
         } else {
@@ -239,7 +244,7 @@ async fn package_name_split(
 ) -> Result<()> {
     let mut map = FxIndexMap::<_, Vec<ChunkItemWithInfo>>::default();
     for item in chunk_items {
-        let (_, _, _, asset_ident) = &item;
+        let (_, _, _, _, asset_ident) = &item;
         let package_name = package_name(asset_ident);
         if let Some(list) = map.get_mut(package_name) {
             list.push(item);
@@ -273,7 +278,7 @@ async fn folder_split(
     let mut map = FxIndexMap::<_, (_, Vec<ChunkItemWithInfo>)>::default();
     loop {
         for item in chunk_items {
-            let (_, _, _, asset_ident) = &item;
+            let (_, _, _, _, asset_ident) = &item;
             let (folder_name, new_location) = folder_name(asset_ident, location);
             if let Some((_, list)) = map.get_mut(folder_name) {
                 list.push(item);
@@ -316,7 +321,7 @@ async fn folder_split(
         }
     }
     if !remaining.is_empty() {
-        let (_, _, _, asset_ident) = &remaining[0];
+        let (_, _, _, _, asset_ident) = &remaining[0];
         let mut key = format!("{}-{}", name, &asset_ident[..location]);
         if !handle_split_group(&mut remaining, &mut key, split_context, None).await? {
             make_chunk(remaining, &mut key, split_context).await?;
@@ -365,7 +370,7 @@ enum ChunkSize {
 /// large or perfect fit.
 fn chunk_size(chunk_items: &[ChunkItemWithInfo]) -> ChunkSize {
     let mut total_size = 0;
-    for (_, _, size, _) in chunk_items {
+    for (_, _, _, size, _) in chunk_items {
         total_size += size;
     }
     if total_size >= LARGE_CHUNK {
