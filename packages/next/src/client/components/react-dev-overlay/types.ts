@@ -1,4 +1,4 @@
-import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+import type { StackFrame } from 'stacktrace-parser'
 import type { SupportedErrorEvent } from './internal/container/Errors'
 import type { ComponentStackFrame } from './internal/helpers/parse-component-stack'
 import type {
