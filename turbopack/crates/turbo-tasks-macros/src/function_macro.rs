@@ -77,10 +77,14 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #inline_signature #inline_block
 
         #[doc(hidden)]
-        pub(crate) static #native_function_ident: #native_function_ty = #native_function_def;
+        pub(crate) static #native_function_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
 
         #[doc(hidden)]
-        pub(crate) static #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
+        pub(crate) static #native_function_id_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
 
         #(#errors)*
     }
