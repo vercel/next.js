@@ -1,8 +1,10 @@
 ---
-title: How to fetch and stream data
-nav_title: Fetching Data and Streaming
-description: Learn how to fetch data and stream content in your Next.js application.
+title: How to fetch data and stream
+nav_title: Fetching data and streaming
+description: Start fetching data and streaming content in your application.
 related:
+  title: API Reference
+  description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
     - app/api-reference/functions/fetch
     - app/api-reference/file-conventions/loading
@@ -87,6 +89,13 @@ export default async function Page() {
 
 ### Client Components
 
+There are two ways to fetch data in Client Components, using:
+
+1. React's [`use` hook](https://react.dev/reference/react/use)
+2. A community library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest)
+
+#### With the `use` hook
+
 You can use React's [`use` hook](https://react.dev/reference/react/use) to [stream](#streaming) data from the server to client. Start by fetching data in your Server component, and pass the promise to your Client Component as prop:
 
 ```tsx filename="app/blog/page.tsx" switcher
@@ -159,7 +168,9 @@ export default function Posts({ posts }) {
 
 In the example above, you need to wrap the `<Posts />` component in a [`<Suspense>` boundary](https://react.dev/reference/react/Suspense). This means the fallback will be shown while the promise is being resolved. Learn more about [streaming](#streaming).
 
-Alternatively, you can use a community library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest). These libraries have their own semantics for caching, streaming, and other features. For example:
+#### Community libraries
+
+You can use a community library like [SWR](https://swr.vercel.app/) or [React Query](https://tanstack.com/query/latest) to fetch data in Client Components. These libraries have their own semantics for caching, streaming, and other features. For example, with SWR:
 
 ```tsx filename="app/blog/page.tsx" switcher
 'use client'

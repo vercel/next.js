@@ -32,7 +32,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, TaskInput, Value, Vc,
+    fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    Value, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -63,12 +64,10 @@ use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        DynamicImportedChunks, VisitedDynamicImportModules,
-    },
+    dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group, DynamicImportedChunks},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -633,7 +632,17 @@ struct PageEndpoint {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum PageEndpointType {
     Api,
@@ -643,7 +652,17 @@ enum PageEndpointType {
 }
 
 #[derive(
-    Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, Debug, TaskInput, TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum SsrChunkType {
     Page,
@@ -846,14 +865,14 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
-            let dynamic_import_modules = collect_next_dynamic_imports(
-                vec![*ResolvedVc::upcast(ssr_module)],
-                this.pages_project.client_module_context(),
-                VisitedDynamicImportModules::empty(),
-            )
-            .await?
-            .client_dynamic_imports
-            .clone();
+            let reduced_graphs = get_reduced_graphs_for_endpoint(
+                this.pages_project.project(),
+                *ssr_module,
+                Vc::upcast(this.pages_project.client_module_context()),
+            );
+            let next_dynamic_imports = reduced_graphs
+                .get_next_dynamic_imports_for_endpoint(*ssr_module)
+                .await?;
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
@@ -876,7 +895,7 @@ impl PageEndpoint {
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_evaluated_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    dynamic_import_modules,
+                    &next_dynamic_imports,
                 )
                 .await?
                 .to_resolved()
@@ -911,7 +930,7 @@ impl PageEndpoint {
                     this.pages_project.project().client_chunking_context();
                 let dynamic_import_entries = collect_chunk_group(
                     Vc::upcast(client_chunking_context),
-                    dynamic_import_modules,
+                    &next_dynamic_imports,
                     Value::new(AvailabilityInfo::Root),
                 )
                 .await?

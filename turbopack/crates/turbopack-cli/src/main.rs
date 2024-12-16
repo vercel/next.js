@@ -39,7 +39,7 @@ async fn main_inner(args: Arguments) -> Result<()> {
     let exit_handler = ExitHandler::listen();
 
     let trace = std::env::var("TURBOPACK_TRACING").ok();
-    if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
             "overview" => {

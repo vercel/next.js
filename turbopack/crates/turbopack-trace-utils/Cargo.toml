@@ -13,12 +13,15 @@ bench = false
 
 [dependencies]
 anyhow = { workspace = true }
+crossbeam-utils = { version = "0.8.20" }
 crossbeam-channel = { workspace = true }
 once_cell = { workspace = true }
+parking_lot = { workspace = true }
 postcard = { workspace = true, features = ["alloc", "use-std"] }
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 tokio = { workspace = true, features = ["macros", "signal", "sync", "rt"] }
+thread_local = { workspace = true }
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 turbo-tasks-malloc = { workspace = true }

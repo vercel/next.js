@@ -1272,7 +1272,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             CachedDataItemValue::InProgressCell { value },
                         ) if cell_counters
                             .get(&cell.type_id)
-                            .map_or(true, |start_index| cell.index >= *start_index) =>
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
                         {
                             value.event.notify(usize::MAX);
                             true
@@ -1283,8 +1283,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ));
             removed_data.extend(task.extract_if(CachedDataItemIndex::CellData, |key, _| {
                 matches!(key, &CachedDataItemKey::CellData { cell } if cell_counters
-                        .get(&cell.type_id)
-                        .map_or(true, |start_index| cell.index >= *start_index))
+                        .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
             }));
             if self.should_track_children() {
                 old_edges.extend(task.iter(CachedDataItemIndex::Children).filter_map(
@@ -1323,7 +1322,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             CachedDataItemKey::CellDependent { cell, task }
                                 if cell_counters
                                     .get(&cell.type_id)
-                                    .map_or(true, |start_index| cell.index >= *start_index) =>
+                                    .is_none_or(|start_index| cell.index >= *start_index) =>
                             {
                                 Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
                             }
@@ -1340,7 +1339,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         CachedDataItemValue::InProgressCell { value },
                     ) if cell_counters
                         .get(&cell.type_id)
-                        .map_or(true, |start_index| cell.index >= *start_index) =>
+                        .is_none_or(|start_index| cell.index >= *start_index) =>
                     {
                         value.event.notify(usize::MAX);
                         return true;
@@ -1348,7 +1347,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     (&CachedDataItemKey::CellData { cell }, _)
                         if cell_counters
                             .get(&cell.type_id)
-                            .map_or(true, |start_index| cell.index >= *start_index) =>
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
                     {
                         return true;
                     }
@@ -1371,7 +1370,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     (&CachedDataItemKey::CellDependent { cell, task }, _)
                         if cell_counters
                             .get(&cell.type_id)
-                            .map_or(true, |start_index| cell.index >= *start_index) =>
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
                     {
                         old_edges.push(OutdatedEdge::RemovedCellDependent(task, cell.type_id));
                     }

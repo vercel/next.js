@@ -53,7 +53,6 @@ export async function createIncrementalCache({
     requestHeaders: {},
     flushToDisk,
     dynamicIO,
-    fetchCache: true,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({

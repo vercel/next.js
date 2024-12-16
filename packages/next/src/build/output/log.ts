@@ -77,12 +77,11 @@ export function trace(...message: any[]) {
   prefixedLog('trace', ...message)
 }
 
-const warnOnceCache = new LRUCache<string>(10_000, (message) => message.length)
-
+const warnOnceCache = new LRUCache<string>(10_000, (value) => value.length)
 export function warnOnce(...message: any[]) {
   const key = message.join(' ')
   if (!warnOnceCache.has(key)) {
-    warnOnceCache.set(key)
+    warnOnceCache.set(key, key)
     warn(...message)
   }
 }
