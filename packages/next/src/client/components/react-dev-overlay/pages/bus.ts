@@ -1,4 +1,4 @@
-import type { BusEvent } from '../shared'
+import type { BusEvent } from '../types'
 
 export type BusEventHandler = (ev: BusEvent) => void
 

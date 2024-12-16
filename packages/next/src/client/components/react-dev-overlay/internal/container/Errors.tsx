@@ -1,9 +1,11 @@
+import type {
+  UnhandledErrorAction,
+  UnhandledRejectionAction,
+} from '../../types'
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import {
   ACTION_UNHANDLED_ERROR,
   ACTION_UNHANDLED_REJECTION,
-  type UnhandledErrorAction,
-  type UnhandledRejectionAction,
 } from '../../shared'
 import type { DebugInfo } from '../../types'
 import {
