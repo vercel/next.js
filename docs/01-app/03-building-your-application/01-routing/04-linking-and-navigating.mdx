@@ -44,7 +44,23 @@ There are other optional props you can pass to `<Link>`. See the [API reference]
 
 The `useRouter` hook allows you to programmatically change routes from [Client Components](/docs/app/building-your-application/rendering/client-components).
 
-```jsx filename="app/page.js"
+```tsx filename="app/page.tsx" switcher
+'use client'
+
+import { useRouter } from 'next/navigation'
+
+export default function Page() {
+  const router = useRouter()
+
+  return (
+    <button type="button" onClick={() => router.push('/dashboard')}>
+      Dashboard
+    </button>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
 'use client'
 
 import { useRouter } from 'next/navigation'

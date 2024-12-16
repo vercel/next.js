@@ -77,6 +77,21 @@ describe('app dir - prefetching', () => {
     expect(next.cliOutput).not.toContain('is not defined')
   })
 
+  it('should not have prefetch error when reloading before prefetch request is finished', async () => {
+    const browser = await next.browser('/')
+    await browser.eval('window.nd.router.prefetch("/dashboard/123")')
+    await browser.refresh()
+    const logs = await browser.log()
+
+    expect(logs).not.toMatchObject(
+      expect.arrayContaining([
+        expect.objectContaining({
+          message: expect.stringContaining('Failed to fetch RSC payload'),
+        }),
+      ])
+    )
+  })
+
   it('should not fetch again when a static page was prefetched', async () => {
     const browser = await next.browser('/404', browserConfigWithFixedTime)
     let requests: string[] = []
