@@ -1,4 +1,3 @@
-import React from 'react'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
 import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import type { NormalizedFlightData } from '../../flight-data-helpers'
@@ -11,7 +10,7 @@ const getFlightData = (): NormalizedFlightData[] => {
       segment: 'about',
       tree: ['about', { children: ['', {}] }],
       seedData: ['about', <h1>SubTreeData Injected!</h1>, {}, null, false],
-      head: '<title>Head Injected!</title>',
+      head: [null, '<title>Head Injected!</title>'],
       isHeadPartial: false,
       isRootRender: false,
     },
@@ -24,7 +23,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map(),
@@ -33,7 +32,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -46,7 +45,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: null,
+                head: [null, null],
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -59,7 +58,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -90,7 +89,7 @@ describe('fillCacheWithNewSubtreeData', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -103,7 +102,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: null,
+                head: [null, null],
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -117,7 +116,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -127,7 +126,7 @@ describe('fillCacheWithNewSubtreeData', () => {
                         'about',
                         {
                           lazyData: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map([
@@ -143,11 +142,12 @@ describe('fillCacheWithNewSubtreeData', () => {
                                     parallelRoutes: new Map(),
                                     prefetchHead: null,
                                     loading: null,
-                                    head: (
+                                    head: [
+                                      null,
                                       <>
                                         <title>Head Injected!</title>
-                                      </>
-                                    ),
+                                      </>,
+                                    ],
                                   },
                                 ],
                               ]),

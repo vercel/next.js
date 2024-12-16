@@ -20,6 +20,7 @@ import {
   addSearchParamsIfPageSegment,
 } from '../../shared/lib/segment'
 import { createComponentTree } from './create-component-tree'
+import type { HeadData } from '../../shared/lib/app-router-context.shared-runtime'
 
 /**
  * Use router state to decide at what common layout to render the page.
@@ -30,11 +31,12 @@ export async function walkTreeWithFlightRouterState({
   parentParams,
   flightRouterState,
   parentRendered,
-  rscPayloadHead,
+  rscHead,
   injectedCSS,
   injectedJS,
   injectedFontPreloadTags,
   rootLayoutIncluded,
+  getViewportReady,
   getMetadataReady,
   ctx,
   preloadCallbacks,
@@ -43,12 +45,13 @@ export async function walkTreeWithFlightRouterState({
   parentParams: { [key: string]: string | string[] }
   flightRouterState?: FlightRouterState
   parentRendered?: boolean
-  rscPayloadHead: React.ReactNode
+  rscHead: HeadData
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   rootLayoutIncluded: boolean
   getMetadataReady: () => Promise<void>
+  getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   preloadCallbacks: PreloadCallbacks
 }): Promise<FlightDataPath[]> {
@@ -144,7 +147,7 @@ export async function walkTreeWithFlightRouterState({
           overriddenSegment,
           routerState,
           null,
-          null,
+          [null, null],
           false,
         ] satisfies FlightDataSegment,
       ]
@@ -161,6 +164,7 @@ export async function walkTreeWithFlightRouterState({
           injectedFontPreloadTags,
           // This is intentionally not "rootLayoutIncludedAtThisLevelOrAbove" as createComponentTree starts at the current level and does a check for "rootLayoutAtThisLevel" too.
           rootLayoutIncluded,
+          getViewportReady,
           getMetadataReady,
           preloadCallbacks,
           authInterrupts: experimental.authInterrupts,
@@ -172,7 +176,7 @@ export async function walkTreeWithFlightRouterState({
           overriddenSegment,
           routerState,
           seedData,
-          rscPayloadHead,
+          rscHead,
           false,
         ] satisfies FlightDataSegment,
       ]
@@ -216,11 +220,12 @@ export async function walkTreeWithFlightRouterState({
       flightRouterState:
         flightRouterState && flightRouterState[1][parallelRouteKey],
       parentRendered: parentRendered || renderComponentsOnThisLevel,
-      rscPayloadHead,
+      rscHead,
       injectedCSS: injectedCSSWithCurrentLayout,
       injectedJS: injectedJSWithCurrentLayout,
       injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
       rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
+      getViewportReady,
       getMetadataReady,
       preloadCallbacks,
     })
