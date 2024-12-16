@@ -244,7 +244,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
+```js filename="next.config.mjs" switcher
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
@@ -253,7 +253,7 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## CSS-in-JS
@@ -392,13 +392,16 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
+```js filename="next.config.mjs" switcher
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
   compiler: {
     styledComponents: true,
   },
 }
+
+export default nextConfig
 ```
 
 Then, use the `styled-components` API to create a global registry component to collect all CSS style rules generated during a render, and a function to return those rules. Then use the `useServerInsertedHTML` hook to inject the styles collected in the registry into the `<head>` HTML tag in the root layout.
