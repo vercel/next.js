@@ -15,6 +15,7 @@ jobs:
         name: 'Mark stale issues, close stale issues'
         with:
           repo-token: ${{ secrets.STALE_TOKEN }}
+          ascending: true
           days-before-issue-stale: 730 # issues with no activity in over two years
           days-before-issue-close: 7
           remove-issue-stale-when-updated: true
