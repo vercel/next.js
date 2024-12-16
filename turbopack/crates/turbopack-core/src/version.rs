@@ -121,7 +121,7 @@ impl VersionedContentExt for AssetContent {
 
 /// Describes the current version of an object, and how to update them from an
 /// earlier version.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
     /// to convert an id back to its original `Version`, so the original object
@@ -149,7 +149,7 @@ pub trait VersionedContentMerger {
 #[turbo_tasks::value(transparent)]
 pub struct VersionedContents(Vec<ResolvedVc<Box<dyn VersionedContent>>>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 pub struct NotFoundVersion;
 
 #[turbo_tasks::value_impl]
@@ -209,7 +209,7 @@ pub struct PartialUpdate {
 
 /// [`Version`] implementation that hashes a file at a given path and returns
 /// the hex encoded hash as a version identifier.
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 #[derive(Clone)]
 pub struct FileHashVersion {
     hash: RcStr,
