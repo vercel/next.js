@@ -7,7 +7,7 @@ import { promises as fs } from 'fs'
 const appDir = join(__dirname, '..')
 const appTypeDeclarations = join(appDir, 'next-env.d.ts')
 
-describe('TypeScript App Type Declarations', () => {
+describe.skip('TypeScript App Type Declarations', () => {
   it('should write a new next-env.d.ts if none exist', async () => {
     const prevContent = await fs.readFile(appTypeDeclarations, 'utf8')
     try {

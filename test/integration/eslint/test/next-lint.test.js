@@ -149,15 +149,20 @@ describe('Next Lint', () => {
     })
   })
 
-  test('should generate next-env.d.ts before lint command', async () => {
+  test('should generate next types in tsconfig.json before lint command', async () => {
     await nextLint(dirTypescript, [], {
       stdout: true,
       stderr: true,
     })
 
-    const files = await fs.readdir(dirTypescript)
+    // const files = await fs.readdir(dirTypescript)
+    const tsConfigPath = join(dirTypescript, 'tsconfig.json')
+    const tsConfigContent = await fs.readFile(tsConfigPath, {
+      encoding: 'utf8',
+    })
+    const tsConfigJson = JSON.parse(tsConfigContent)
 
-    expect(files).toContain('next-env.d.ts')
+    expect(tsConfigJson.compilerOptions.types).toContain('next')
   })
 
   for (const { dir } of [

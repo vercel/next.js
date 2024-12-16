@@ -142,7 +142,8 @@ export async function writeConfigurationDefaults(
   isFirstTimeSetup: boolean,
   hasAppDir: boolean,
   distDir: string,
-  hasPagesDir: boolean
+  hasPagesDir: boolean,
+  imageImportsEnabled: boolean
 ): Promise<void> {
   if (isFirstTimeSetup) {
     await fs.writeFile(tsConfigPath, '{}' + os.EOL)
@@ -200,8 +201,7 @@ export async function writeConfigurationDefaults(
         )
       }
     } else {
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      const _: never = check
+      check satisfies never
     }
   }
 
@@ -209,15 +209,15 @@ export async function writeConfigurationDefaults(
 
   if (!('include' in rawConfig)) {
     userTsConfig.include = hasAppDir
-      ? ['next-env.d.ts', nextAppTypes, '**/*.ts', '**/*.tsx']
-      : ['next-env.d.ts', '**/*.ts', '**/*.tsx']
+      ? [nextAppTypes, '**/*.ts', '**/*.tsx']
+      : ['**/*.ts', '**/*.tsx']
     suggestedActions.push(
       cyan('include') +
         ' was set to ' +
         bold(
           hasAppDir
-            ? `['next-env.d.ts', '${nextAppTypes}', '**/*.ts', '**/*.tsx']`
-            : `['next-env.d.ts', '**/*.ts', '**/*.tsx']`
+            ? `['${nextAppTypes}', '**/*.ts', '**/*.tsx']`
+            : `['**/*.ts', '**/*.tsx']`
         )
     )
   } else if (hasAppDir && !rawConfig.include.includes(nextAppTypes)) {
@@ -304,6 +304,34 @@ export async function writeConfigurationDefaults(
         cyan('strictNullChecks') + ' was set to ' + bold(`true`)
       )
     }
+  }
+
+  if (userTsConfig.compilerOptions && !userTsConfig.compilerOptions.types) {
+    userTsConfig.compilerOptions.types = []
+  }
+  if (userTsConfig.compilerOptions.types) {
+    // Use a Set to improve performance
+    const typesOptionSet = new Set(userTsConfig.compilerOptions.types)
+    typesOptionSet.add('next')
+    if (imageImportsEnabled) {
+      const imageTypes = 'next/image-types/global'
+      if (!typesOptionSet.has(imageTypes)) {
+        typesOptionSet.add(imageTypes)
+        suggestedActions.push(
+          cyan('types') + ' was updated to add ' + bold(`'${imageTypes}'`)
+        )
+      }
+    }
+    if (hasAppDir && hasPagesDir) {
+      const navigationType = 'next/navigation-types/compat/navigation'
+      if (!typesOptionSet.has(navigationType)) {
+        typesOptionSet.add(navigationType)
+        suggestedActions.push(
+          cyan('types') + ' was updated to add ' + bold(`'${navigationType}'`)
+        )
+      }
+    }
+    userTsConfig.compilerOptions.types = Array.from(typesOptionSet)
   }
 
   if (!('exclude' in rawConfig)) {

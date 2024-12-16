@@ -21,5 +21,5 @@
     ]
   },
   "exclude": ["node_modules"],
-  "include": ["next-env.d.ts", "pages", "middleware.ts", ".next/types/**/*.ts"]
+  "include": ["pages", "middleware.ts", ".next/types/**/*.ts"]
 }
