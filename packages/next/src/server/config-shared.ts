@@ -608,7 +608,7 @@ export type ExportPathMap = {
  *
  * This can change the behavior, enable experimental features, and configure other advanced options.
  *
- * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
 export interface NextConfig extends Record<string, any> {
   exportPathMap?: (
@@ -643,14 +643,14 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
    *
-   * @see [Headers configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/headers)
+   * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
   headers?: () => Promise<Header[]>
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
-   * @see [Rewrites configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/rewrites)
+   * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
   rewrites?: () => Promise<
     | Rewrite[]
@@ -676,7 +676,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case
    *
-   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config)
+   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/webpack)
    */
   webpack?: NextJsWebpackConfig | null
 
@@ -684,14 +684,14 @@ export interface NextConfig extends Record<string, any> {
    * By default Next.js will redirect urls with trailing slashes to their counterpart without a trailing slash.
    *
    * @default false
-   * @see [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
+   * @see [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailingSlash)
    */
   trailingSlash?: boolean
 
   /**
    * Next.js comes with built-in support for environment variables
    *
-   * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
+   * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/env)
    */
   env?: Record<string, string | undefined>
 
@@ -708,7 +708,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * To set up a CDN, you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
    *
-   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
+   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/assetPrefix)
    */
   assetPrefix?: string
 
@@ -737,20 +737,20 @@ export interface NextConfig extends Record<string, any> {
   useFileSystemPublicRoutes?: boolean
 
   /**
-   * @see [Configuring the build ID](https://nextjs.org/docs/api-reference/next.config.js/configuring-the-build-id)
+   * @see [Configuring the build ID](https://nextjs.org/docs/app/api-reference/config/next-config-js/generateBuildId)
    */
   generateBuildId?: () => string | null | Promise<string | null>
 
-  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/api-reference/next.config.js/disabling-etag-generation) */
+  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/generateEtags) */
   generateEtags?: boolean
 
-  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/api-reference/next.config.js/custom-page-extensions) */
+  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/app/api-reference/config/next-config-js/pageExtensions) */
   pageExtensions?: string[]
 
-  /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
+  /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
-  /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
+  /** @see [Disabling x-powered-by](https://nextjs.org/docs/app/api-reference/config/next-config-js/poweredByHeader) */
   poweredByHeader?: boolean
 
   /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
@@ -773,7 +773,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
    *
-   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/api-reference/next.config.js/configuring-onDemandEntries)
+   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/app/api-reference/config/next-config-js/onDemandEntries)
    */
   onDemandEntries?: {
     /** period (in ms) where the server will keep pages in the buffer */
@@ -782,7 +782,7 @@ export interface NextConfig extends Record<string, any> {
     pagesBufferLength?: number
   }
 
-  /** @see [`next/amp`](https://nextjs.org/docs/api-reference/next/amp) */
+  /** @see [`next/amp`](https://nextjs.org/docs/pages/api-reference/functions/use-amp) */
   amp?: {
     canonicalBase?: string
   }
@@ -795,7 +795,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Deploy a Next.js application under a sub-path of a domain
    *
-   * @see [Base path configuration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
+   * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
    */
   basePath?: string
 
@@ -808,7 +808,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Enable browser source map generation during the production build
    *
-   * @see [Source Maps](https://nextjs.org/docs/advanced-features/source-maps)
+   * @see [Source Maps](https://nextjs.org/docs/app/api-reference/config/next-config-js/productionBrowserSourceMaps)
    */
   productionBrowserSourceMaps?: boolean
 
@@ -821,7 +821,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * The Next.js runtime is Strict Mode-compliant.
    *
-   * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
+   * @see [React Strict Mode](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactStrictMode)
    */
   reactStrictMode?: boolean | null
 
@@ -829,21 +829,23 @@ export interface NextConfig extends Record<string, any> {
    * The maximum length of the headers that are emitted by React and added to
    * the response.
    *
-   * @see [React Max Headers Length](https://nextjs.org/docs/api-reference/next.config.js/react-max-headers-length)
+   * @see [React Max Headers Length](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactMaxHeadersLength)
    */
   reactMaxHeadersLength?: number
 
   /**
    * Add public (in browser) runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
+   * @deprecated We recommend using environment variables instead, which also can support reading runtime values.
    */
   publicRuntimeConfig?: { [key: string]: any }
 
   /**
    * Add server runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration)
+   * @deprecated We recommend using environment variables instead, which also can support reading runtime values.
    */
   serverRuntimeConfig?: { [key: string]: any }
 
@@ -851,7 +853,7 @@ export interface NextConfig extends Record<string, any> {
    * Next.js enables HTTP Keep-Alive by default.
    * You may want to disable HTTP Keep-Alive for certain `fetch()` calls or globally.
    *
-   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/next-config-js/httpAgentOptions)
+   * @see [Disabling HTTP Keep-Alive](https://nextjs.org/docs/app/api-reference/config/next-config-js/httpAgentOptions)
    */
   httpAgentOptions?: { keepAlive?: boolean }
 
@@ -873,7 +875,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Optionally enable compiler transforms
    *
-   * @see [Supported Compiler Options](https://nextjs.org/docs/advanced-features/compiler#supported-features)
+   * @see [Supported Compiler Options](https://nextjs.org/docs/architecture/nextjs-compiler#supported-features)
    */
   compiler?: {
     reactRemoveProperties?:
@@ -913,15 +915,14 @@ export interface NextConfig extends Record<string, any> {
    * - `undefined`: The default build output, `.next` directory, that works with production mode `next start` or a hosting provider like Vercel
    * - `'standalone'`: A standalone build output, `.next/standalone` directory, that only includes necessary files/dependencies. Useful for self-hosting in a Docker container.
    * - `'export'`: An exported build output, `out` directory, that only includes static HTML/CSS/JS. Useful for self-hosting without a Node.js server.
-   * @see [Output File Tracing](https://nextjs.org/docs/advanced-features/output-file-tracing)
-   * @see [Static HTML Export](https://nextjs.org/docs/advanced-features/static-html-export)
+   * @see [Output](https://nextjs.org/docs/app/api-reference/config/next-config-js/output)
    */
   output?: 'standalone' | 'export'
 
   /**
    * Automatically transpile and bundle dependencies from local packages (like monorepos) or from external dependencies (`node_modules`). This replaces the
    * `next-transpile-modules` package.
-   * @see [transpilePackages](https://nextjs.org/docs/advanced-features/compiler#module-transpilation)
+   * @see [transpilePackages](https://nextjs.org/docs/app/api-reference/config/next-config-js/transpilePackages)
    */
   transpilePackages?: string[]
 
