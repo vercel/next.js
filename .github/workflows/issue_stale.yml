@@ -11,6 +11,18 @@ jobs:
     if: github.repository_owner == 'vercel'
     steps:
       - uses: actions/stale@v9
+        id: issue-stale
+        name: 'Mark stale issues, close stale issues'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          days-before-issue-stale: 730 # issues with no activity in over two years
+          days-before-issue-close: 7
+          remove-issue-stale-when-updated: true
+          stale-issue-label: 'stale'
+          stale-issue-message: 'This issue has been automatically marked as stale because it has not had recent activity in the last two years. It will be closed in 7 days if no further activity occurs. If you believe this was done in error, please leave a comment. Thank you.'
+          close-issue-message: 'This issue has been automatically closed due to no activity in two years. If you are experiencing a similar issue, consider opening a new issue. Thank you.'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+      - uses: actions/stale@v9
         id: stale-no-repro
         name: 'Close stale issues with no reproduction'
         with:
@@ -21,7 +33,6 @@ jobs:
           days-before-issue-stale: 2
           days-before-pr-close: -1
           days-before-pr-stale: -1
-          exempt-issue-labels: 'blocked,must,should,keep'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
       - uses: actions/stale@v9
         id: stale-simple-repro
@@ -34,7 +45,6 @@ jobs:
           days-before-issue-stale: 14
           days-before-pr-close: -1
           days-before-pr-stale: -1
-          exempt-issue-labels: 'blocked,must,should,keep'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
       - uses: actions/stale@v9
         id: stale-no-canary
@@ -47,5 +57,4 @@ jobs:
           days-before-issue-stale: 14
           days-before-pr-close: -1
           days-before-pr-stale: -1
-          exempt-issue-labels: 'blocked,must,should,keep'
           operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
