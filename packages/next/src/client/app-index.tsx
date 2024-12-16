@@ -25,6 +25,7 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
+import { isErrorThrownWhileRenderingRsc } from './lib/is-error-thrown-while-rendering-rsc'
 
 /// <reference types="react-dom/experimental" />
 
@@ -238,13 +239,7 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
-  const hasMissingTags = !!rootLayoutMissingTags?.length
-
-  const isError =
-    document.documentElement.id === '__next_error__' || hasMissingTags
-
-  if (isError) {
+  if (isErrorThrownWhileRenderingRsc()) {
     if (process.env.NODE_ENV !== 'production') {
       const createDevOverlayElement =
         require('./components/react-dev-overlay/client-entry').createDevOverlayElement

@@ -1,5 +1,12 @@
 import type { ReactNode } from 'react'
-import { useCallback, useEffect, startTransition, useMemo, useRef } from 'react'
+import {
+  useCallback,
+  useEffect,
+  startTransition,
+  useMemo,
+  useRef,
+  useSyncExternalStore,
+} from 'react'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
 import formatWebpackMessages from '../internal/helpers/format-webpack-messages'
 import { useRouter } from '../../navigation'
@@ -38,6 +45,7 @@ import type { HydrationErrorState } from '../internal/helpers/hydration-error-in
 import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../internal/helpers/stitched-error'
+import { isErrorThrownWhileRenderingRsc } from '../../../lib/is-error-thrown-while-rendering-rsc'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -554,6 +562,15 @@ export default function HotReload({
     }
   }, [dispatch])
 
+  //  We render a separate error overlay at the root when an error is thrown from rendering RSC, so
+  //  we should not render an additional error overlay in the descendent. However, we need to
+  //  keep rendering these hooks to ensure HMR works when the error is addressed.
+  const _isErrorThrownWhileRenderingRsc = useSyncExternalStore(
+    () => () => {},
+    () => isErrorThrownWhileRenderingRsc(),
+    () => false
+  )
+
   const handleOnUnhandledError = useCallback(
     (error: Error): void => {
       const errorDetails = (error as any).details as
@@ -688,6 +705,10 @@ export default function HotReload({
     processTurbopackMessage,
     appIsrManifestRef,
   ])
+
+  if (_isErrorThrownWhileRenderingRsc) {
+    return children
+  }
 
   return (
     <ReactDevOverlay state={state} dispatcher={dispatcher}>
