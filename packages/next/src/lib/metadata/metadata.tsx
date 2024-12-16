@@ -3,7 +3,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
-import { cache, cloneElement } from 'react'
+import { cache, cloneElement, Suspense, use } from 'react'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,
@@ -38,6 +38,7 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
+import { MetadataClientReceiver } from './metadata-client-receiver'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -143,27 +144,28 @@ export function createMetadataComponents({
   }
 
   async function Metadata() {
-    try {
-      return await metadata()
-    } catch (error) {
-      if (!errorType && isHTTPAccessFallbackError(error)) {
-        try {
-          return await getNotFoundMetadata(
-            tree,
-            searchParams,
-            getDynamicParamFromSegment,
-            metadataContext,
-            createServerParamsForMetadata,
-            workStore
-          )
-        } catch {}
-      }
-      // We don't actually want to error in this component. We will
-      // also error in the MetadataOutlet which causes the error to
-      // bubble from the right position in the page to be caught by the
-      // appropriate boundaries
-      return null
-    }
+    return await metadata()
+  //   try {
+  //     return await metadata()
+  //   } catch (error) {
+  //     if (!errorType && isHTTPAccessFallbackError(error)) {
+  //       try {
+  //         return await getNotFoundMetadata(
+  //           tree,
+  //           searchParams,
+  //           getDynamicParamFromSegment,
+  //           metadataContext,
+  //           createServerParamsForMetadata,
+  //           workStore
+  //         )
+  //       } catch {}
+  //     }
+  //     // We don't actually want to error in this component. We will
+  //     // also error in the MetadataOutlet which causes the error to
+  //     // bubble from the right position in the page to be caught by the
+  //     // appropriate boundaries
+  //     return null
+  //   }
   }
   Metadata.displayName = METADATA_BOUNDARY_NAME
 
@@ -186,7 +188,8 @@ export function createMetadataComponents({
 }
 
 const getResolvedMetadata = cache(getResolvedMetadataImpl)
-async function getResolvedMetadataImpl(
+
+async function getResolvedMetadataHelper(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
@@ -194,7 +197,7 @@ async function getResolvedMetadataImpl(
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
   errorType?: MetadataErrorType | 'redirect'
-): Promise<React.ReactNode> {
+) {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
 
   const metadataItems = await resolveMetadataItems(
@@ -205,8 +208,31 @@ async function getResolvedMetadataImpl(
     createServerParamsForMetadata,
     workStore
   )
+  const resolvedMetadata = await accumulateMetadata(metadataItems, metadataContext)
+  return resolvedMetadata
+}
+
+async function getAsyncMetadata(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  // Suspend the metadata resolving
+  const resolvedMetadata = await getResolvedMetadataHelper(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    metadataContext,
+    createServerParamsForMetadata,
+    workStore,
+    errorType
+  )
   const elements: Array<React.ReactNode> = createMetadataElements(
-    await accumulateMetadata(metadataItems, metadataContext)
+    resolvedMetadata 
   )
   return (
     <>
@@ -214,6 +240,29 @@ async function getResolvedMetadataImpl(
         return cloneElement(el as React.ReactElement, { key: index })
       })}
     </>
+  )
+}
+
+async function getResolvedMetadataImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  const metadataPromise = getAsyncMetadata(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    metadataContext,
+    createServerParamsForMetadata,
+    workStore,
+    errorType
+  )
+  return (
+    <MetadataClientReceiver promise={metadataPromise} />
   )
 }
 
