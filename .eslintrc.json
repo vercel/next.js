@@ -363,6 +363,7 @@
     "react/no-typos": "error",
     "react/react-in-jsx-scope": "off",
     "react/require-render-return": "error",
+    "react/self-closing-comp": "error",
     "react/style-prop-object": "error",
     "react-hooks/rules-of-hooks": "error",
     // "@typescript-eslint/non-nullable-type-assertion-style": "error",
