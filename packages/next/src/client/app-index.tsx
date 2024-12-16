@@ -26,7 +26,6 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
-import type * as ReactDevOverlayClientEntryModule from './components/react-dev-overlay/client-entry'
 
 /// <reference types="react-dom/experimental" />
 
@@ -243,7 +242,7 @@ export function hydrate() {
   if (shouldRenderRootLevelErrorOverlay()) {
     if (process.env.NODE_ENV !== 'production') {
       const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/client-entry') as typeof ReactDevOverlayClientEntryModule
+        require('./components/react-dev-overlay/client-entry') as typeof import('./components/react-dev-overlay/client-entry')
       const errorTree = createRootLevelDevOverlayElement(reactEl)
       ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
         errorTree
