@@ -298,7 +298,7 @@ pub async fn project_new(
     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {

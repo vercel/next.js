@@ -16,8 +16,43 @@ struct NewError {
 }
 
 fn is_error_class_name(name: &str) -> bool {
-    // TODO: handle other error classes
-    name == "Error"
+    name == "AggregateError"
+        // built-in error classes
+        || name == "Error"
+        || name == "EvalError"
+        || name == "RangeError"
+        || name == "ReferenceError"
+        || name == "SyntaxError"
+        || name == "TypeError"
+        || name == "URIError"
+        // custom error classes
+        || name == "ApiError"
+        || name == "BailoutToCSRError"
+        || name == "BubbledError"
+        || name == "CanaryOnlyError"
+        || name == "Cancel"
+        || name == "CompileError"
+        || name == "CssSyntaxError"
+        || name == "DecodeError"
+        || name == "DynamicServerError"
+        || name == "ExportError"
+        || name == "FatalError"
+        || name == "ImageError"
+        || name == "InvariantError"
+        || name == "ModuleBuildError"
+        || name == "NestedMiddlewareError"
+        || name == "NoFallbackError"
+        || name == "NoSuchDeclarationError"
+        || name == "PageSignatureError"
+        || name == "PostCSSSyntaxError"
+        || name == "ReadonlyHeadersError"
+        || name == "ReadonlyRequestCookiesError"
+        || name == "ReadonlyURLSearchParamsError"
+        || name == "ResponseAborted"
+        || name == "SerializableError"
+        || name == "StaticGenBailoutError"
+        || name == "TimeoutError"
+        || name == "Warning"
 }
 
 // Get the string representation of the first argument of `new Error(...)`
