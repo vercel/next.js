@@ -9,7 +9,9 @@ use turbo_tasks_macros_shared::{
     get_trait_type_id_ident, get_trait_type_ident, ValueTraitArguments,
 };
 
-use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
+use crate::func::{
+    filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
+};
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
     let ValueTraitArguments {
@@ -114,6 +116,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let inline_extension_trait_ident =
                 Ident::new(&format!("{}_{}_inline", trait_ident, ident), ident.span());
             let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
+            let inline_attrs = filter_inline_attributes(&attrs[..]);
 
             let native_function = NativeFn::new(
                 &format!("{trait_ident}::{ident}"),
@@ -146,7 +149,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 #[doc(hidden)]
                 #[allow(non_camel_case_types)]
                 trait #inline_extension_trait_ident: std::marker::Send {
-                    #(#attrs)*
+                    #(#inline_attrs)*
                     #inline_signature;
                 }
 
@@ -155,7 +158,7 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
                 // in the inline signature.
                 impl #inline_extension_trait_ident for Box<dyn #trait_ident> {
                     // put the function body here so that `Self` points to `Box<dyn ...>`
-                    #(#attrs)*
+                    #(#inline_attrs)*
                     #inline_signature #inline_block
                 }
 

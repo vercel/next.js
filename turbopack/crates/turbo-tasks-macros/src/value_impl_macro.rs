@@ -15,7 +15,10 @@ use turbo_tasks_macros_shared::{
     get_trait_impl_function_ident, get_type_ident,
 };
 
-use crate::func::{DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn, TurboFn};
+use crate::func::{
+    filter_inline_attributes, DefinitionContext, FunctionArguments, MaybeParenthesized, NativeFn,
+    TurboFn,
+};
 
 fn is_attribute(attr: &Attribute, name: &str) -> bool {
     let path = &attr.path;
@@ -130,6 +133,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 };
                 let inline_function_ident = turbo_fn.inline_ident();
                 let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn::new(
                     &format!("{ty}::{ident}", ty = ty.to_token_stream()),
@@ -160,7 +164,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         // By declaring the native function's body within an `impl` block, we ensure
                         // that `Self` refers to `#ty`. This is necessary because the function's
                         // body is originally declared within an `impl` block already.
-                        #(#attrs)*
+                        #(#inline_attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
                         pub(self) #inline_signature #inline_block
@@ -233,6 +237,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     ident.span(),
                 );
                 let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
+                let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
                 let native_fn = NativeFn::new(
                     &format!(
@@ -270,14 +275,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     #[doc(hidden)]
                     #[allow(non_camel_case_types)]
                     trait #inline_extension_trait_ident: std::marker::Send {
-                        #(#attrs)*
+                        #(#inline_attrs)*
                         #[doc(hidden)]
                         #inline_signature;
                     }
 
                     #[doc(hidden)]
                     impl #impl_generics #inline_extension_trait_ident for #ty #where_clause  {
-                        #(#attrs)*
+                        #(#inline_attrs)*
                         #[doc(hidden)]
                         #[deprecated(note = "This function is only exposed for use in macros. Do not call it directly.")]
                         #inline_signature #inline_block
