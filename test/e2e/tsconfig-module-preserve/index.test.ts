@@ -38,33 +38,36 @@ describe('tsconfig module: preserve', () => {
     expect(output).not.toContain('resolveJsonModule')
 
     expect(await next.readFile('tsconfig.json')).toMatchInlineSnapshot(`
-      "{
-        "compilerOptions": {
-          "module": "preserve",
-          "target": "ES2017",
-          "lib": [
-            "dom",
-            "dom.iterable",
-            "esnext"
-          ],
-          "allowJs": true,
-          "skipLibCheck": true,
-          "strict": false,
-          "noEmit": true,
-          "incremental": true,
-          "isolatedModules": true,
-          "jsx": "preserve"
-        },
-        "include": [
-          "next-env.d.ts",
-          "**/*.ts",
-          "**/*.tsx"
-        ],
-        "exclude": [
-          "node_modules"
-        ]
-      }
-      "
+     "{
+       "compilerOptions": {
+         "module": "preserve",
+         "target": "ES2017",
+         "lib": [
+           "dom",
+           "dom.iterable",
+           "esnext"
+         ],
+         "allowJs": true,
+         "skipLibCheck": true,
+         "strict": false,
+         "noEmit": true,
+         "incremental": true,
+         "isolatedModules": true,
+         "jsx": "preserve",
+         "types": [
+           "next",
+           "next/image-types/global"
+         ]
+       },
+       "include": [
+         "**/*.ts",
+         "**/*.tsx"
+       ],
+       "exclude": [
+         "node_modules"
+       ]
+     }
+     "
     `)
   })
 })
