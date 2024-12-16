@@ -93,22 +93,23 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   }
 }
 
-// TODO: Figure out why this module is included in server page bundles.
-const win = typeof window === 'undefined' ? undefined : window
 let abortController = new AbortController()
 
-// Abort any in-flight requests when the page is unloaded, e.g. due to reloading
-// the page or performing hard navigations. This allows us to ignore what would
-// otherwise be a thrown TypeError when the browser cancels the requests.
-win?.addEventListener('pagehide', () => {
-  abortController.abort()
-})
+if (typeof window !== 'undefined') {
+  // Abort any in-flight requests when the page is unloaded, e.g. due to
+  // reloading the page or performing hard navigations. This allows us to ignore
+  // what would otherwise be a thrown TypeError when the browser cancels the
+  // requests.
+  window.addEventListener('pagehide', () => {
+    abortController.abort()
+  })
 
-// Use a fresh AbortController instance on pageshow, e.g. when navigating back
-// and the JavaScript execution context is restored by the browser.
-win?.addEventListener('pageshow', () => {
-  abortController = new AbortController()
-})
+  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
+  // and the JavaScript execution context is restored by the browser.
+  window.addEventListener('pageshow', () => {
+    abortController = new AbortController()
+  })
+}
 
 /**
  * Fetch the flight data for the provided url. Takes in the current router state
