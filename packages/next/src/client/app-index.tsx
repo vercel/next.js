@@ -246,8 +246,8 @@ export function hydrate() {
 
   if (isError) {
     if (process.env.NODE_ENV !== 'production') {
-      const createDevOverlayElement =
-        require('./components/react-dev-overlay/client-entry').createDevOverlayElement
+      const createDevOverlayElement: typeof import('./components/react-dev-overlay/app/client-entry').createDevOverlayElement =
+        require('./components/react-dev-overlay/app/client-entry').createDevOverlayElement
       const errorTree = createDevOverlayElement(reactEl)
       ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
         errorTree
