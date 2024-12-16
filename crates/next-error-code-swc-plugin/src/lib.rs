@@ -16,6 +16,7 @@ struct NewError {
 }
 
 fn is_error_class_name(name: &str) -> bool {
+    // Error classes are collected by https://gist.github.com/eps1lon/6cce3059dfa061f2a7dc28305fdaddae#file-collect-error-constructors-mjs
     name == "AggregateError"
         // built-in error classes
         || name == "Error"
@@ -150,9 +151,13 @@ impl VisitMut for TransformVisitor {
         }
 
         let new_error_expr: NewExpr = new_error_expr.unwrap();
-        let error_message = error_message.unwrap();
+
+        // Normalize line endings by converting Windows CRLF (\r\n) to Unix LF (\n)
+        // This ensures the comparison works consistently across different operating systems
+        let error_message = error_message.unwrap().replace("\r\n", "\n");
 
         let code = self.errors.iter().find_map(|(key, value)| {
+            // We assume `errors.json` uses Unix LF (\n) as line endings
             if *value == error_message {
                 Some(key)
             } else {
