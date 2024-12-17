@@ -382,7 +382,7 @@ export function serverActionReducer(
           mutable.prefetchCache = state.prefetchCache
         }
 
-        // If the action triggered a redirect, the action promise promise will be rejected with
+        // If the action triggered a redirect, the action promise will be rejected with
         // a redirect so that it's handled by RedirectBoundary as we won't have a valid
         // action result to resolve the promise with. This will effectively reset the state of
         // the component that called the action as the error boundary will remount the tree.
