@@ -55,7 +55,7 @@ export async function loadStaticPaths({
   pathname: string
   config: RuntimeConfig
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
   isAppPath: boolean
   page: string

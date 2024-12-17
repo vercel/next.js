@@ -981,7 +981,7 @@ export async function isPageStatic({
   configFileName: string
   runtimeEnvConfig: any
   httpAgentOptions: NextConfigComplete['httpAgentOptions']
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
   parentId?: any
   edgeInfo?: any
