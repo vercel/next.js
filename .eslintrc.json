@@ -231,7 +231,8 @@
       "extends": ["plugin:mdx/recommended"],
       "parser": "eslint-mdx",
       "rules": {
-        "react/self-closing-comp": "error" // Enforce self-closing components
+        "react/jsx-no-undef": "off",
+        "react/self-closing-comp": "error"
       }
     }
   ],
