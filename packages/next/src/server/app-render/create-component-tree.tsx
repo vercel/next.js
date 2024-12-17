@@ -30,6 +30,7 @@ export function createComponentTree(props: {
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   getMetadataReady: () => Promise<void>
+  getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
@@ -63,6 +64,7 @@ async function createComponentTreeInternal({
   injectedCSS,
   injectedJS,
   injectedFontPreloadTags,
+  getViewportReady,
   getMetadataReady,
   ctx,
   missingSlots,
@@ -75,6 +77,7 @@ async function createComponentTreeInternal({
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
+  getViewportReady: () => Promise<void>
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -393,6 +396,10 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
+  if (rootLayoutAtThisLevel) {
+    workStore.rootParams = currentParams
+  }
+
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
@@ -481,10 +488,13 @@ async function createComponentTreeInternal({
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             getMetadataReady: isChildrenRouteKey
               ? getMetadataReady
+              : () => Promise.resolve(),
+            getViewportReady: isChildrenRouteKey
+              ? getViewportReady
               : () => Promise.resolve(),
             ctx,
             missingSlots,
@@ -645,6 +655,7 @@ async function createComponentTreeInternal({
         {pageElement}
         {layerAssets}
         <OutletBoundary>
+          <MetadataOutlet ready={getViewportReady} />
           <MetadataOutlet ready={getMetadataReady} />
         </OutletBoundary>
       </React.Fragment>,

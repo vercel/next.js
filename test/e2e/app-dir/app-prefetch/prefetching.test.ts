@@ -79,7 +79,7 @@ describe('app dir - prefetching', () => {
 
   it('should not have prefetch error when reloading before prefetch request is finished', async () => {
     const browser = await next.browser('/')
-    await browser.eval('window.nd.router.prefetch("/dashboard/123")')
+    await browser.eval('window.next.router.prefetch("/dashboard/123")')
     await browser.refresh()
     const logs = await browser.log()
 
@@ -90,6 +90,32 @@ describe('app dir - prefetching', () => {
         }),
       ])
     )
+  })
+
+  it('should not suppress prefetches after navigating back', async () => {
+    if (!process.env.CI && process.env.HEADLESS) {
+      console.warn('This test can only run in headed mode. Skipping...')
+      return
+    }
+
+    // Force headed mode, as bfcache is not available in headless mode.
+    const browser = await next.browser('/', { headless: false })
+
+    // Trigger a hard navigation.
+    await browser.elementById('to-static-page-hard').click()
+
+    // Go back, utilizing the bfcache.
+    await browser.elementById('go-back').click()
+
+    let requests: string[] = []
+    browser.on('request', (req) => {
+      requests.push(new URL(req.url()).pathname)
+    })
+
+    await browser.evalAsync('window.next.router.prefetch("/dashboard/123")')
+    await browser.waitForIdleNetwork()
+
+    expect(requests).toInclude('/dashboard/123')
   })
 
   it('should not fetch again when a static page was prefetched', async () => {
