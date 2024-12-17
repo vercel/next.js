@@ -10,7 +10,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
-    reference::{ModuleReference, ModuleReferences, SingleOutputAssetReference},
+    output::OutputAssets,
 };
 
 use super::chunk_asset::ManifestAsyncModule;
@@ -95,46 +95,11 @@ impl ChunkItem for ManifestLoaderChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
+    async fn references(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-
-        let chunks = this.manifest.manifest_chunks();
-
-        let mut references: Vec<ResolvedVc<Box<dyn ModuleReference>>> = chunks
-            .await?
-            .iter()
-            .map(|&chunk| async move {
-                Ok(ResolvedVc::upcast(
-                    SingleOutputAssetReference::new(
-                        *chunk,
-                        manifest_loader_chunk_reference_description(),
-                    )
-                    .to_resolved()
-                    .await?,
-                ))
-            })
-            .try_join()
-            .await?;
-
+        let mut references = (*this.manifest.manifest_chunks().await?).clone();
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(
-                chunk_data
-                    .references()
-                    .await?
-                    .iter()
-                    .map(|&output_asset| async move {
-                        Ok(ResolvedVc::upcast(
-                            SingleOutputAssetReference::new(
-                                *output_asset,
-                                chunk_data_reference_description(),
-                            )
-                            .to_resolved()
-                            .await?,
-                        ))
-                    })
-                    .try_join()
-                    .await?,
-            );
+            references.extend(chunk_data.references().await?);
         }
 
         Ok(Vc::cell(references))
