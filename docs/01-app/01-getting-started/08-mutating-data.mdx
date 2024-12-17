@@ -225,13 +225,14 @@ While executing a Server Function, you can show a loading indicator with React's
 
 import { useActionState } from 'react'
 import { createPost } from '@/app/actions'
+import { LoadingSpinner } from '@/app/ui/loading-spinner'
 
 export function Button() {
   const [state, action, pending] = useActionState(createPost, false)
 
   return (
-    <button disabled={pending} onClick={async () => action()}>
-      Create
+    <button onClick={async () => action()}>
+      {pending ? <LoadingSpinner /> : 'Create Post'}
     </button>
   )
 }
@@ -242,13 +243,14 @@ export function Button() {
 
 import { useActionState } from 'react'
 import { createPost } from '@/app/actions'
+import { LoadingSpinner } from '@/app/ui/loading-spinner'
 
 export function Button() {
   const [state, action, pending] = useActionState(createPost, false)
 
   return (
-    <button disabled={pending} onClick={async () => action()}>
-      Create
+    <button onClick={async () => action()}>
+      {pending ? <LoadingSpinner /> : 'Create Post'}
     </button>
   )
 }
