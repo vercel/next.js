@@ -127,6 +127,25 @@ pub fn create_turbo_tasks(
     memory_limit: usize,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
+        let dirty_suffix = if crate::build::GIT_CLEAN || !env!("CI").is_empty() {
+            ""
+        } else {
+            "-dirty"
+        };
+        #[allow(
+            clippy::const_is_empty,
+            reason = "LAST_TAG might be empty if the tag can't be determined"
+        )]
+        let version_info = if crate::build::LAST_TAG.is_empty() {
+            format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
+        } else {
+            format!(
+                "{}-{}{}",
+                crate::build::LAST_TAG,
+                crate::build::SHORT_COMMIT,
+                dirty_suffix
+            )
+        };
         NextTurboTasks::PersistentCaching(TurboTasks::new(
             turbo_tasks_backend::TurboTasksBackend::new(
                 turbo_tasks_backend::BackendOptions {
@@ -137,7 +156,7 @@ pub fn create_turbo_tasks(
                     }),
                     ..Default::default()
                 },
-                default_backing_storage(&output_path.join("cache/turbopack"))?,
+                default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
             ),
         ))
     } else {

@@ -8483,7 +8483,6 @@ dependencies = [
  "turbo-tasks-hash",
  "turbo-tasks-malloc",
  "turbo-tasks-testing",
- "vergen-gitcl",
 ]
 
 [[package]]
@@ -9558,20 +9557,6 @@ dependencies = [
  "regex",
  "rustversion",
  "time",
- "vergen-lib",
-]
-
-[[package]]
-name = "vergen-gitcl"
-version = "1.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a3a7f91caabecefc3c249fd864b11d4abe315c166fbdb568964421bccfd2b7a"
-dependencies = [
- "anyhow",
- "derive_builder 0.20.1",
- "rustversion",
- "time",
- "vergen 9.0.1",
  "vergen-lib",
 ]
 
