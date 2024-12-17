@@ -127,7 +127,9 @@ pub fn create_turbo_tasks(
     memory_limit: usize,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
-        let dirty_suffix = if crate::build::GIT_CLEAN || !env!("CI").is_empty() {
+        let dirty_suffix = if crate::build::GIT_CLEAN
+            || option_env!("CI").is_some_and(|value| !value.is_empty())
+        {
             ""
         } else {
             "-dirty"
