@@ -150,6 +150,7 @@
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jest": "27.6.3",
     "eslint-plugin-jsdoc": "48.0.4",
+    "eslint-plugin-mdx": "3.1.5",
     "eslint-plugin-react": "7.35.0",
     "eslint-plugin-react-hooks": "5.0.0",
     "eslint-v8": "npm:eslint@^8.57.0",

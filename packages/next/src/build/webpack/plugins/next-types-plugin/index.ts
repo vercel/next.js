@@ -237,6 +237,7 @@ async function collectNamedSlots(layoutPath: string) {
 // possible to provide the same experience for dynamic routes.
 
 const pluginState = getProxiedPluginState({
+  collectedRootParams: {} as Record<string, string[]>,
   routeTypes: {
     edge: {
       static: '',
@@ -584,6 +585,103 @@ function formatTimespanWithSeconds(seconds: undefined | number): string {
   return text + ' (' + descriptive + ')'
 }
 
+function getRootParamsFromLayouts(layouts: Record<string, string[]>) {
+  // Sort layouts by depth (descending)
+  const sortedLayouts = Object.entries(layouts).sort(
+    (a, b) => b[0].split('/').length - a[0].split('/').length
+  )
+
+  if (!sortedLayouts.length) {
+    return []
+  }
+
+  // we assume the shorted layout path is the root layout
+  let rootLayout = sortedLayouts[sortedLayouts.length - 1][0]
+
+  let rootParams = new Set<string>()
+  let isMultipleRootLayouts = false
+
+  for (const [layoutPath, params] of sortedLayouts) {
+    const allSegmentsAreDynamic = layoutPath
+      .split('/')
+      .slice(1, -1)
+      // match dynamic params but not catch-all or optional catch-all
+      .every((segment) => /^\[[^[.\]]+\]$/.test(segment))
+
+    if (allSegmentsAreDynamic) {
+      if (isSubpath(rootLayout, layoutPath)) {
+        // Current path is a subpath of the root layout, update root
+        rootLayout = layoutPath
+        rootParams = new Set(params)
+      } else {
+        // Found another potential root layout
+        isMultipleRootLayouts = true
+        // Add any new params
+        for (const param of params) {
+          rootParams.add(param)
+        }
+      }
+    }
+  }
+
+  // Create result array
+  const result = Array.from(rootParams).map((param) => ({
+    param,
+    optional: isMultipleRootLayouts,
+  }))
+
+  return result
+}
+
+function isSubpath(parentLayoutPath: string, potentialChildLayoutPath: string) {
+  // we strip off the `layout` part of the path as those will always conflict with being a subpath
+  const parentSegments = parentLayoutPath.split('/').slice(1, -1)
+  const childSegments = potentialChildLayoutPath.split('/').slice(1, -1)
+
+  // child segments should be shorter or equal to parent segments to be a subpath
+  if (childSegments.length > parentSegments.length || !childSegments.length)
+    return false
+
+  // Verify all segment values are equal
+  return childSegments.every(
+    (childSegment, index) => childSegment === parentSegments[index]
+  )
+}
+
+function createServerDefinitions(
+  rootParams: { param: string; optional: boolean }[]
+) {
+  return `
+  declare module 'next/server' {
+
+    import type { AsyncLocalStorage as NodeAsyncLocalStorage } from 'async_hooks'
+    declare global {
+      var AsyncLocalStorage: typeof NodeAsyncLocalStorage
+    }
+    export { NextFetchEvent } from 'next/dist/server/web/spec-extension/fetch-event'
+    export { NextRequest } from 'next/dist/server/web/spec-extension/request'
+    export { NextResponse } from 'next/dist/server/web/spec-extension/response'
+    export { NextMiddleware, MiddlewareConfig } from 'next/dist/server/web/types'
+    export { userAgentFromString } from 'next/dist/server/web/spec-extension/user-agent'
+    export { userAgent } from 'next/dist/server/web/spec-extension/user-agent'
+    export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
+    export { ImageResponse } from 'next/dist/server/web/spec-extension/image-response'
+    export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
+    export { unstable_after } from 'next/dist/server/after'
+    export { connection } from 'next/dist/server/request/connection'
+    export type { UnsafeUnwrappedSearchParams } from 'next/dist/server/request/search-params'
+    export type { UnsafeUnwrappedParams } from 'next/dist/server/request/params'
+    export function unstable_rootParams(): Promise<{ ${rootParams
+      .map(
+        ({ param, optional }) =>
+          // ensure params with dashes are valid keys
+          `${param.includes('-') ? `'${param}'` : param}${optional ? '?' : ''}: string`
+      )
+      .join(', ')} }>
+  }
+  `
+}
+
 function createCustomCacheLifeDefinitions(cacheLife: {
   [profile: string]: CacheLife
 }) {
@@ -855,6 +953,22 @@ export class NextTypesPlugin {
       if (!IS_IMPORTABLE) return
 
       if (IS_LAYOUT) {
+        const rootLayoutPath = normalizeAppPath(
+          ensureLeadingSlash(
+            getPageFromPath(
+              path.relative(this.appDir, mod.resource),
+              this.pageExtensions
+            )
+          )
+        )
+
+        const foundParams = Array.from(
+          rootLayoutPath.matchAll(/\[(.*?)\]/g),
+          (match) => match[1]
+        )
+
+        pluginState.collectedRootParams[rootLayoutPath] = foundParams
+
         const slots = await collectNamedSlots(mod.resource)
         assets[assetPath] = new sources.RawSource(
           createTypeGuardFile(mod.resource, relativeImportPath, {
@@ -932,6 +1046,22 @@ export class NextTypesPlugin {
           })
 
           await Promise.all(promises)
+
+          const rootParams = getRootParamsFromLayouts(
+            pluginState.collectedRootParams
+          )
+          // If we discovered rootParams, we'll override the `next/server` types
+          // since we're able to determine the root params at build time.
+          if (rootParams.length > 0) {
+            const serverTypesPath = path.join(
+              assetDirRelative,
+              'types/server.d.ts'
+            )
+
+            assets[serverTypesPath] = new sources.RawSource(
+              createServerDefinitions(rootParams)
+            ) as unknown as webpack.sources.RawSource
+          }
 
           // Support `"moduleResolution": "Node16" | "NodeNext"` with `"type": "module"`
 
