@@ -127,7 +127,7 @@ export async function getPosts(slug) {
 }
 ```
 
-With the approach above, you can call the function throughout your application code and the same cache entry will be reused as long as the arguments are the same.
+You can then call the function throughout your application code and the same cache entry will be reused, as long as the arguments to the function (e.g. `slug`) are the same.
 
 Alternatively, you can also cache all functions within a file by adding the `'use cache'` directive at the top of the file. Each function will be cached separately, with its own cache key.
 
@@ -161,7 +161,7 @@ export async function getPostBySlug(slug: string) {
 
 ## Revalidating
 
-Revalidation allows you to update cached content without having to rebuild your entire application. It's useful for content that _sometimes_ changes, but would benefit from being cached to improve your application'sperformance.
+Revalidation allows you to update cached content without having to rebuild your entire application. It's useful for content that _sometimes_ changes, but would benefit from being cached to improve your application's performance.
 
 In Next.js, there are two types of revalidation:
 
