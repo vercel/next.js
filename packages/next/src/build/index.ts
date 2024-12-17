@@ -2798,16 +2798,6 @@ export default async function build(
                   : undefined
 
                 routes.forEach((route) => {
-                  // If the route has any dynamic root segments, we need to skip
-                  // rendering the route. This is because we don't support
-                  // revalidating the shells without the parameters present.
-                  if (
-                    route.fallbackRootParams &&
-                    route.fallbackRootParams.length > 0
-                  ) {
-                    return
-                  }
-
                   defaultMap[route.pathname] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: route.encodedPathname },
