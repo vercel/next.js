@@ -1,4 +1,4 @@
-import { EventButton } from "./components/EventButton";
+import { EventButton } from "@/_components/EventButton";
 
 export default function Page() {
   return (
