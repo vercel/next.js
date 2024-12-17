@@ -99,3 +99,29 @@ export function Button() {
   return <button onClick={() => createPost()}>Create</button>
 }
 ```
+
+### Redirecting
+
+You may want to redirect the user to a different page after performing a mutation. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function:
+
+```ts filename="app/lib/actions.ts" switcher
+'use server'
+
+export async function createPost(formData: FormData) {
+  // Mutate data
+  // ...
+
+  redirect('/posts')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function createPost(formData) {
+  // Mutate data
+  // ...
+
+  redirect('/posts')
+}
+```
