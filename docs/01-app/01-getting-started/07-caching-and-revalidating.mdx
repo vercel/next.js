@@ -127,7 +127,7 @@ export async function getPosts(slug) {
 }
 ```
 
-With the approach above, you can call the function throughout your application code and the same cache entry will be reused as long as the arguments are the same.
+You can then call the function throughout your application code and the same cache entry will be reused, as long as the arguments to the function (e.g. `slug`) are the same.
 
 Alternatively, you can also cache all functions within a file by adding the `'use cache'` directive at the top of the file:
 
