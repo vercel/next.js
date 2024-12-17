@@ -808,7 +808,7 @@ export default class DevServer extends Server {
           staticPaths: string[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.path),
+          staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)

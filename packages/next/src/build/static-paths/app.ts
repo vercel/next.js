@@ -1,33 +1,240 @@
-import {
-  IncrementalCache,
-  type CacheHandler,
-} from '../../server/lib/incremental-cache'
-import type { AppPageModule } from '../../server/route-modules/app-page/module.compiled'
+import type { ParamValue, Params } from '../../server/request/params'
+import type { AppPageModule } from '../../server/route-modules/app-page/module'
 import type { AppSegment } from '../segment-config/app/app-segments'
 import type { StaticPathsResult } from './types'
-import type { Params } from '../../server/request/params'
+import type { CacheHandler } from '../../server/lib/incremental-cache'
 
 import path from 'path'
-import {
-  FallbackMode,
-  fallbackModeToStaticPathsResult,
-} from '../../lib/fallback'
-import * as ciEnvironment from '../../server/ci-info'
-import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
-import { interopDefault } from '../../lib/interop-default'
 import { AfterRunner } from '../../server/after/run-with-after'
 import { createWorkStore } from '../../server/async-storage/work-store'
+import { FallbackMode } from '../../lib/fallback'
+import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
+import { getRouteMatcher } from '../../shared/lib/router/utils/route-matcher'
+import {
+  getRouteRegex,
+  type RouteRegex,
+} from '../../shared/lib/router/utils/route-regex'
+import { IncrementalCache } from '../../server/lib/incremental-cache'
+import { interopDefault } from '../../lib/interop-default'
 import { nodeFs } from '../../server/lib/node-fs-methods'
-import { getParamKeys } from '../../server/request/fallback-params'
-import { buildStaticPaths } from './pages'
+import { normalizePathname, encodeParam } from './utils'
+import * as ciEnvironment from '../../server/ci-info'
+import escapePathDelimiters from '../../shared/lib/router/utils/escape-path-delimiters'
 
+/**
+ * Compares two parameters to see if they're equal.
+ *
+ * @param a - The first parameter.
+ * @param b - The second parameter.
+ * @returns Whether the parameters are equal.
+ */
+function areParamValuesEqual(a: ParamValue, b: ParamValue) {
+  // If they're equal, then we can return true.
+  if (a === b) {
+    return true
+  }
+
+  // If they're both arrays, then we can return true if they have the same
+  // length and all the items are the same.
+  if (Array.isArray(a) && Array.isArray(b)) {
+    if (a.length !== b.length) {
+      return false
+    }
+
+    return a.every((item) => b.includes(item))
+  }
+
+  // Otherwise, they're not equal.
+  return false
+}
+
+/**
+ * Filters out duplicate parameters from a list of parameters.
+ *
+ * @param paramKeys - The keys of the parameters.
+ * @param routeParams - The list of parameters to filter.
+ * @returns The list of unique parameters.
+ */
+function filterUniqueParams(
+  paramKeys: readonly string[],
+  routeParams: readonly Params[]
+): Params[] {
+  const unique: Params[] = []
+
+  for (const params of routeParams) {
+    let i = 0
+    for (; i < unique.length; i++) {
+      const item = unique[i]
+      let j = 0
+      for (; j < paramKeys.length; j++) {
+        const key = paramKeys[j]
+
+        // If the param is not the same, then we need to break out of the loop.
+        if (!areParamValuesEqual(item[key], params[key])) {
+          break
+        }
+      }
+
+      // If we got to the end of the paramKeys array, then it means that we
+      // found a duplicate. Skip it.
+      if (j === paramKeys.length) {
+        break
+      }
+    }
+
+    // If we didn't get to the end of the unique array, then it means that we
+    // found a duplicate. Skip it.
+    if (i < unique.length) {
+      continue
+    }
+
+    unique.push(params)
+  }
+
+  return unique
+}
+
+/**
+ * Filters out all combinations of root params from a list of parameters.
+ *
+ * Given the following root param ('lang'), and the following routeParams:
+ *
+ * ```
+ * [
+ *   { lang: 'en', region: 'US', slug: ['home'] },
+ *   { lang: 'en', region: 'US', slug: ['about'] },
+ *   { lang: 'fr', region: 'CA', slug: ['about'] },
+ * ]
+ * ```
+ *
+ * The result will be:
+ *
+ * ```
+ * [
+ *   { lang: 'en', region: 'US' },
+ *   { lang: 'fr', region: 'CA' },
+ * ]
+ * ```
+ *
+ * @param rootParamKeys - The keys of the root params.
+ * @param routeParams - The list of parameters to filter.
+ * @returns The list of combinations of root params.
+ */
+function filterRootParamsCombinations(
+  rootParamKeys: readonly string[],
+  routeParams: readonly Params[]
+): Params[] {
+  const combinations: Params[] = []
+
+  for (const params of routeParams) {
+    const combination: Params = {}
+
+    // Collect all root params. As soon as we don't find a root param, break.
+    let i = 0
+    for (; i < rootParamKeys.length; i++) {
+      const key = rootParamKeys[i]
+      if (params[key]) {
+        combination[key] = params[key]
+      } else {
+        break
+      }
+    }
+
+    // If we didn't find all root params, skip this combination. We only want to
+    // generate combinations that have all root params.
+    if (i < rootParamKeys.length) {
+      continue
+    }
+
+    combinations.push(combination)
+  }
+
+  return combinations
+}
+
+/**
+ * Validates the parameters to ensure they're accessible and have the correct
+ * types.
+ *
+ * @param page - The page to validate.
+ * @param regex - The route regex.
+ * @param isRoutePPREnabled - Whether the route has partial prerendering enabled.
+ * @param paramKeys - The keys of the parameters.
+ * @param routeParams - The list of parameters to validate.
+ * @returns The list of validated parameters.
+ */
+function validateParams(
+  page: string,
+  regex: RouteRegex,
+  isRoutePPREnabled: boolean,
+  paramKeys: readonly string[],
+  routeParams: readonly Params[]
+): Params[] {
+  const valid: Params[] = []
+
+  for (const params of routeParams) {
+    const item: Params = {}
+
+    for (const key of paramKeys) {
+      const { repeat, optional } = regex.groups[key]
+
+      let paramValue = params[key]
+
+      if (
+        optional &&
+        params.hasOwnProperty(key) &&
+        (paramValue === null ||
+          paramValue === undefined ||
+          (paramValue as any) === false)
+      ) {
+        paramValue = []
+      }
+
+      // A parameter is missing, so the rest of the params are not accessible.
+      // We only support this when the route has partial prerendering enabled.
+      // This will make it so that the remaining params are marked as missing so
+      // we can generate a fallback route for them.
+      if (!paramValue && isRoutePPREnabled) {
+        break
+      }
+
+      // Perform validation for the parameter based on whether it's a repeat
+      // parameter or not.
+      if (repeat) {
+        if (!Array.isArray(paramValue)) {
+          throw new Error(
+            `A required parameter (${key}) was not provided as an array received ${typeof paramValue} in generateStaticParams for ${page}`
+          )
+        }
+      } else {
+        if (typeof paramValue !== 'string') {
+          throw new Error(
+            `A required parameter (${key}) was not provided as a string received ${typeof paramValue} in generateStaticParams for ${page}`
+          )
+        }
+      }
+
+      item[key] = paramValue
+    }
+
+    valid.push(item)
+  }
+
+  return valid
+}
+
+/**
+ * Builds the static paths for an app using `generateStaticParams`.
+ *
+ * @param params - The parameters for the build.
+ * @returns The static paths.
+ */
 export async function buildAppStaticPaths({
   dir,
   page,
   distDir,
   dynamicIO,
   authInterrupts,
-  configFileName,
   segments,
   isrFlushToDisk,
   cacheHandler,
@@ -37,14 +244,14 @@ export async function buildAppStaticPaths({
   fetchCacheKeyPrefix,
   nextConfigOutput,
   ComponentMod,
-  isRoutePPREnabled,
+  isRoutePPREnabled = false,
   buildId,
+  rootParamKeys,
 }: {
   dir: string
   page: string
   dynamicIO: boolean
   authInterrupts: boolean
-  configFileName: string
   segments: AppSegment[]
   distDir: string
   isrFlushToDisk?: boolean
@@ -57,8 +264,9 @@ export async function buildAppStaticPaths({
   requestHeaders: IncrementalCache['requestHeaders']
   nextConfigOutput: 'standalone' | 'export' | undefined
   ComponentMod: AppPageModule
-  isRoutePPREnabled: boolean | undefined
+  isRoutePPREnabled: boolean
   buildId: string
+  rootParamKeys: readonly string[]
 }): Promise<Partial<StaticPathsResult>> {
   if (
     segments.some((generate) => generate.config?.dynamicParams === true) &&
@@ -100,18 +308,8 @@ export async function buildAppStaticPaths({
     minimalMode: ciEnvironment.hasNextSupport,
   })
 
-  const paramKeys = new Set<string>()
-
-  const staticParamKeys = new Set<string>()
-  for (const segment of segments) {
-    if (segment.param) {
-      paramKeys.add(segment.param)
-
-      if (segment.config?.dynamicParams === false) {
-        staticParamKeys.add(segment.param)
-      }
-    }
-  }
+  const regex = getRouteRegex(page)
+  const paramKeys = Object.keys(getRouteMatcher(regex)(page) || {})
 
   const afterRunner = new AfterRunner()
 
@@ -225,10 +423,9 @@ export async function buildAppStaticPaths({
     }
   }
 
-  // Determine if all the segments have had their parameters provided. If there
-  // was no dynamic parameters, then we've collected all the params.
+  // Determine if all the segments have had their parameters provided.
   const hadAllParamsGenerated =
-    paramKeys.size === 0 ||
+    paramKeys.length === 0 ||
     (routeParams.length > 0 &&
       routeParams.every((params) => {
         for (const key of paramKeys) {
@@ -256,33 +453,91 @@ export async function buildAppStaticPaths({
       : undefined
     : FallbackMode.NOT_FOUND
 
-  let result: Partial<StaticPathsResult> = {
+  const result: Partial<StaticPathsResult> = {
     fallbackMode,
     prerenderedRoutes: lastDynamicSegmentHadGenerateStaticParams
       ? []
       : undefined,
   }
 
-  if (hadAllParamsGenerated && fallbackMode) {
-    result = await buildStaticPaths({
-      staticPathsResult: {
-        fallback: fallbackModeToStaticPathsResult(fallbackMode),
-        paths: routeParams.map((params) => ({ params })),
-      },
-      page,
-      configFileName,
-      appDir: true,
-    })
-  }
+  if (hadAllParamsGenerated || isRoutePPREnabled) {
+    if (isRoutePPREnabled) {
+      // Discover all unique combinations of the rootParams so we can generate
+      // shells for each of them.
+      routeParams.unshift(
+        // We're inserting an empty object at the beginning of the array so that
+        // we can generate a shell for when all params are unknown.
+        {},
+        ...filterRootParamsCombinations(rootParamKeys, routeParams)
+      )
+    }
 
-  // If the fallback mode is a prerender, we want to include the dynamic
-  // route in the prerendered routes too.
-  if (isRoutePPREnabled) {
-    result.prerenderedRoutes ??= []
-    result.prerenderedRoutes.unshift({
-      path: page,
-      encoded: page,
-      fallbackRouteParams: getParamKeys(page),
+    filterUniqueParams(
+      paramKeys,
+      validateParams(page, regex, isRoutePPREnabled, paramKeys, routeParams)
+    ).forEach((params) => {
+      let pathname: string = page
+      let encodedPathname: string = page
+
+      const fallbackRouteParams: string[] = []
+
+      for (const key of paramKeys) {
+        if (fallbackRouteParams.length > 0) {
+          // This is a partial route, so we should add the value to the
+          // fallbackRouteParams.
+          fallbackRouteParams.push(key)
+          continue
+        }
+
+        let paramValue = params[key]
+
+        if (!paramValue) {
+          if (isRoutePPREnabled) {
+            // This is a partial route, so we should add the value to the
+            // fallbackRouteParams.
+            fallbackRouteParams.push(key)
+            continue
+          } else {
+            // This route is not complete, and we aren't performing a partial
+            // prerender, so we should return, skipping this route.
+            return
+          }
+        }
+
+        const { repeat, optional } = regex.groups[key]
+        let replaced = `[${repeat ? '...' : ''}${key}]`
+        if (optional) {
+          replaced = `[${replaced}]`
+        }
+
+        pathname = pathname.replace(
+          replaced,
+          encodeParam(paramValue, (value) => escapePathDelimiters(value, true))
+        )
+        encodedPathname = encodedPathname.replace(
+          replaced,
+          encodeParam(paramValue, encodeURIComponent)
+        )
+      }
+
+      const fallbackRootParams = rootParamKeys.filter((param) =>
+        fallbackRouteParams.includes(param)
+      )
+
+      result.prerenderedRoutes ??= []
+      result.prerenderedRoutes.push({
+        pathname: normalizePathname(pathname),
+        encodedPathname: normalizePathname(encodedPathname),
+        fallbackRouteParams,
+        fallbackMode: dynamicParams
+          ? // If the fallback params includes any root params, then we need to
+            // perform a blocking static render.
+            fallbackRootParams.length > 0
+            ? FallbackMode.BLOCKING_STATIC_RENDER
+            : fallbackMode
+          : FallbackMode.NOT_FOUND,
+        fallbackRootParams,
+      })
     })
   }
 

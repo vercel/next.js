@@ -1,15 +1,19 @@
 import type { FallbackMode } from '../../lib/fallback'
 
 type StaticPrerenderedRoute = {
-  path: string
-  encoded: string
+  pathname: string
+  encodedPathname: string
   fallbackRouteParams: undefined
+  fallbackMode: FallbackMode | undefined
+  fallbackRootParams: undefined
 }
 
 type FallbackPrerenderedRoute = {
-  path: string
-  encoded: string
+  pathname: string
+  encodedPathname: string
   fallbackRouteParams: readonly string[]
+  fallbackMode: FallbackMode | undefined
+  fallbackRootParams: readonly string[]
 }
 
 export type PrerenderedRoute = StaticPrerenderedRoute | FallbackPrerenderedRoute
