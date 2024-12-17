@@ -500,7 +500,7 @@ pub enum RewriteType {
 
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
 /// update its parsed url, path, and queries with this new information.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Debug)]
 pub struct Rewrite {
     pub ty: RewriteType,

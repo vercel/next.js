@@ -3,8 +3,12 @@ import type {
   RootTreePrefetch,
   SegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
-import type { LoadingModuleData } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import {
+  NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_URL,
@@ -79,7 +83,7 @@ type PendingRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: null
+  head: [null, null]
   isHeadPartial: true
 }
 
@@ -88,7 +92,7 @@ type RejectedRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: null
+  head: [null, null]
   isHeadPartial: true
 }
 
@@ -97,7 +101,7 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   blockedTasks: null
   canonicalUrl: string
   tree: TreePrefetch
-  head: React.ReactNode | null
+  head: HeadData
   isHeadPartial: boolean
 }
 
@@ -283,7 +287,7 @@ export function requestRouteCacheEntryFromCache(
     status: EntryStatus.Pending,
     blockedTasks: null,
     tree: null,
-    head: null,
+    head: [null, null],
     isHeadPartial: true,
     // If the request takes longer than a minute, a subsequent request should
     // retry instead of waiting for this one.
@@ -423,7 +427,7 @@ function pingBlockedTasks(entry: {
 function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
   tree: TreePrefetch,
-  head: React.ReactNode,
+  head: HeadData,
   isHeadPartial: boolean,
   staleAt: number,
   couldBeIntercepted: boolean,
@@ -507,6 +511,11 @@ async function fetchRouteOnCacheMiss(
       // PPR is enabled, because we always respond to route tree requests, even
       // if it needs to be blockingly generated on demand.
       response.status === 204 ||
+      // This checks whether the response was served from the per-segment cache,
+      // rather than the old prefetching flow. If it fails, it implies that PPR
+      // is disabled on this route.
+      // TODO: Add support for non-PPR routes.
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
       !response.body
     ) {
       // Server responded with an error, or with a miss. We should still cache
@@ -607,6 +616,12 @@ async function fetchSegmentEntryOnCacheMiss(
       !response ||
       !response.ok ||
       response.status === 204 || // Cache miss
+      // This checks whether the response was served from the per-segment cache,
+      // rather than the old prefetching flow. If it fails, it implies that PPR
+      // is disabled on this route. Theoretically this should never happen
+      // because we only issue requests for segments once we've verified that
+      // the route supports PPR.
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
       !response.body
     ) {
       // Server responded with an error, or with a miss. We should still cache

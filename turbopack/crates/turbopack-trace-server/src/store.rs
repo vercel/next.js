@@ -73,7 +73,7 @@ impl Store {
     pub fn has_time_info(&self) -> bool {
         self.self_time_tree
             .as_ref()
-            .map_or(true, |tree| tree.len() > 0)
+            .is_none_or(|tree| tree.len() > 0)
     }
 
     pub fn add_span(

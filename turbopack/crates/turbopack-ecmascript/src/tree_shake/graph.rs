@@ -810,7 +810,7 @@ impl DepGraph {
                             for decl in &v.decls {
                                 let disable_export_merging = comments
                                     .has_flag(decl.name.span().lo, FLAG_DISABLE_EXPORT_MERGING)
-                                    || decl.init.as_deref().map_or(false, |e| {
+                                    || decl.init.as_deref().is_some_and(|e| {
                                         comments.has_flag(e.span().lo, FLAG_DISABLE_EXPORT_MERGING)
                                     });
 
@@ -1245,7 +1245,7 @@ impl DepGraph {
 
                         let side_effects = !has_explicit_pure
                             && (vars.found_unresolved
-                                || decl.init.as_deref().map_or(false, |e| {
+                                || decl.init.as_deref().is_some_and(|e| {
                                     e.may_have_side_effects(&ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,

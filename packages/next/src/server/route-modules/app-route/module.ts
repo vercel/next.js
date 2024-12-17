@@ -559,7 +559,7 @@ export class AppRouteRouteModule extends RouteModule<
 
         // Let's append any cookies that were added by the
         // cookie API.
-        // TODO leaving the gate here b/c it indicates that we we might not actually want to do this
+        // TODO leaving the gate here b/c it indicates that we might not actually want to do this
         // on every `do` call. During prerender there should be no mutableCookies because
         if (requestStore.type === 'request') {
           appendMutableCookies(headers, requestStore.mutableCookies)

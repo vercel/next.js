@@ -64,7 +64,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -100,7 +100,7 @@ impl ModuleResolveResultItem {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
@@ -414,7 +414,7 @@ impl Display for ExternalType {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
@@ -473,7 +473,7 @@ impl RequestKey {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
@@ -1069,11 +1069,18 @@ async fn type_exists(
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<ResolvedVc<FileSystemPath>>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
-    for path in result.symlinks.iter() {
-        refs.push(ResolvedVc::upcast(
-            FileSource::new(**path).to_resolved().await?,
-        ));
-    }
+    refs.extend(
+        result
+            .symlinks
+            .iter()
+            .map(|path| async move {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(**path).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
+    );
     let path = result.path;
     Ok(if *path.get_type().await? == ty {
         Some(path)
@@ -1087,11 +1094,18 @@ async fn any_exists(
     refs: &mut Vec<ResolvedVc<Box<dyn Source>>>,
 ) -> Result<Option<(FileSystemEntryType, Vc<FileSystemPath>)>> {
     let result = fs_path.resolve().await?.realpath_with_links().await?;
-    for path in result.symlinks.iter() {
-        refs.push(ResolvedVc::upcast(
-            FileSource::new(**path).to_resolved().await?,
-        ));
-    }
+    refs.extend(
+        result
+            .symlinks
+            .iter()
+            .map(|path| async move {
+                Ok(ResolvedVc::upcast(
+                    FileSource::new(**path).to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?,
+    );
     let path = result.path;
     let ty = *path.get_type().await?;
     Ok(
@@ -2263,6 +2277,7 @@ async fn apply_in_package(
     fragment: Vc<RcStr>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     // Check alias field for module aliases first
+    // ast-grep-ignore: to-resolved-in-loop
     for in_package in options_value.in_package.iter() {
         // resolve_module_request is called when importing a node
         // module, not a PackageInternal one, so the imports field

@@ -50,7 +50,7 @@ use crate::{
 };
 
 /// A module id, which can be a number or string
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 #[derive(Debug, Clone, Hash, Ord, PartialOrd, DeterministicHash)]
 #[serde(untagged)]
 pub enum ModuleId {
@@ -89,7 +89,7 @@ impl ModuleId {
 pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait ChunkableModule: Module + Asset {
     fn as_chunk_item(
         self: Vc<Self>,
@@ -165,6 +165,7 @@ pub trait OutputChunk: Asset {
     Eq,
     PartialEq,
     ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ChunkingType {
     /// Module is placed in the same chunk group and is loaded in parallel. It
@@ -291,7 +292,7 @@ struct ChunkGraphEdge {
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
 
 #[turbo_tasks::function]
@@ -804,7 +805,7 @@ impl AsyncModuleInfo {
 
 pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>);
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {

@@ -145,7 +145,7 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
-    head: null,
+    head: [null, null],
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
@@ -564,14 +564,14 @@ function Router({
 
   const layoutRouterContext = useMemo(() => {
     return {
-      childNodes: cache.parallelRoutes,
-      tree,
+      parentTree: tree,
+      parentCacheNode: cache,
+      parentSegmentPath: null,
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
-      loading: cache.loading,
     }
-  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading])
+  }, [tree, cache, canonicalUrl])
 
   const globalLayoutRouterContext = useMemo(() => {
     return {
