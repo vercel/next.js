@@ -10,6 +10,7 @@ export function createMetadataContext(
   return {
     pathname,
     trailingSlash: renderOpts.trailingSlash,
+    isStaticMetadataRouteFile: false,
   }
 }
 

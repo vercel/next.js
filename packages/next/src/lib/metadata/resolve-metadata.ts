@@ -131,7 +131,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -142,7 +142,7 @@ function mergeStaticMetadata(
     const resolvedOpenGraph = resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
     target.openGraph = resolvedOpenGraph
@@ -327,11 +327,11 @@ function mergeViewport({
   }
 }
 
-async function getDefinedViewport(
+function getDefinedViewport(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<Viewport | ViewportResolver | null> {
+): Viewport | ViewportResolver | null {
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingViewport) =>
@@ -349,11 +349,11 @@ async function getDefinedViewport(
   return mod.viewport || null
 }
 
-async function getDefinedMetadata(
+function getDefinedMetadata(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<Metadata | MetadataResolver | null> {
+): Metadata | MetadataResolver | null {
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
@@ -449,23 +449,19 @@ async function collectMetadata({
   }
 
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
-  const metadataExport = mod
-    ? await getDefinedMetadata(mod, props, { route })
-    : null
+  const metadataExport = mod ? getDefinedMetadata(mod, props, { route }) : null
 
-  const viewportExport = mod
-    ? await getDefinedViewport(mod, props, { route })
-    : null
+  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
 
   metadataItems.push([metadataExport, staticFilesMetadata, viewportExport])
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
     const errorViewportExport = errorMod
-      ? await getDefinedViewport(errorMod, props, { route })
+      ? getDefinedViewport(errorMod, props, { route })
       : null
     const errorMetadataExport = errorMod
-      ? await getDefinedMetadata(errorMod, props, { route })
+      ? getDefinedMetadata(errorMod, props, { route })
       : null
 
     errorMetadataItem[0] = errorMetadataExport

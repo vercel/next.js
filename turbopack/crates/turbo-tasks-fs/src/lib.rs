@@ -53,14 +53,14 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
     fs,
-    io::{AsyncBufReadExt, AsyncReadExt, BufReader},
+    io::{AsyncBufReadExt, AsyncReadExt, AsyncWriteExt, BufReader},
     sync::{RwLock, RwLockReadGuard},
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -188,7 +188,7 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
@@ -744,6 +744,7 @@ impl FileSystem for DiskFileSystem {
                             tokio::io::copy(&mut file.read(), &mut f).await?;
                             #[cfg(target_family = "unix")]
                             f.set_permissions(file.meta.permissions.into()).await?;
+                            f.flush().await?;
                             #[cfg(feature = "write_version")]
                             {
                                 let mut full_path = full_path.into_owned();
@@ -759,6 +760,7 @@ impl FileSystem for DiskFileSystem {
                                 tokio::io::copy(&mut file.read(), &mut f).await?;
                                 #[cfg(target_family = "unix")]
                                 f.set_permissions(file.meta.permissions.into()).await?;
+                                f.flush().await?;
                             }
                             Ok::<(), io::Error>(())
                         }
@@ -1700,7 +1702,7 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs)]
+  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
@@ -2165,7 +2167,7 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum InternalDirectoryEntry {
     File(RcStr),
     Directory(RcStr),
@@ -2174,7 +2176,9 @@ pub enum InternalDirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum DirectoryEntry {
     File(ResolvedVc<FileSystemPath>),
     Directory(ResolvedVc<FileSystemPath>),

@@ -5,7 +5,6 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
 };
 
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
@@ -60,7 +59,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             *analyze.references,
             *analyze.code_generation,
             *analyze.async_module,
-            analyze.source_map,
+            *analyze.source_map,
             *analyze.exports,
             async_module_info,
         );
@@ -81,11 +80,6 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModulePartChunkItem {
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
@@ -116,17 +110,12 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
 
 #[turbo_tasks::value(shared)]
 pub(super) struct SideEffectsModuleChunkItem {
-    pub module: Vc<SideEffectsModule>,
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub module: ResolvedVc<SideEffectsModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for SideEffectsModuleChunkItem {
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
@@ -139,12 +128,12 @@ impl ChunkItem for SideEffectsModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }
 
@@ -215,6 +204,6 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }

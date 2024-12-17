@@ -23,20 +23,20 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
-export type I18NDomains = DomainLocale[]
+export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
   defaultLocale: string
   domains?: I18NDomains
   localeDetection?: false
-  locales: string[]
+  locales: readonly string[]
 }
 
 export interface DomainLocale {
   defaultLocale: string
   domain: string
   http?: true
-  locales?: string[]
+  locales?: readonly string[]
 }
 
 export interface ESLintConfig {
@@ -243,7 +243,6 @@ export interface ExperimentalConfig {
   }
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
@@ -297,12 +296,12 @@ export interface ExperimentalConfig {
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
    * between CSS files to keep ordering of them.
    * An alternative is 'strict', which will try to keep correct ordering as
    * much as possible, even when this leads to many requests.
    */
-  cssChunking?: 'strict' | 'loose'
+  cssChunking?: boolean | 'strict'
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -527,11 +526,6 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
-   * Enables `unstable_after`
-   */
-  after?: boolean
-
-  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -568,6 +562,11 @@ export interface ExperimentalConfig {
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
+
+  /**
+   * Enables the new dev overlay.
+   */
+  newDevOverlay?: boolean
 }
 
 export type ExportPathMap = {
@@ -1090,13 +1089,9 @@ export const defaultConfig: NextConfig = {
       remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
       static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
     },
+    cssChunking: true,
     multiZoneDraftMode: false,
-    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
-      ? {
-          mode: 'full',
-        }
-      : undefined,
+    appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
@@ -1167,13 +1162,13 @@ export const defaultConfig: NextConfig = {
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
-    after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
+    newDevOverlay: false,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -348,9 +348,9 @@ export type BaseRouter = {
   asPath: string
   basePath: string
   locale?: string | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isLocaleDomain: boolean
 }
 
@@ -681,9 +681,9 @@ export default class Router implements BaseRouter {
   isSsr: boolean
   _inFlightRoute?: string | undefined
   _shallow?: boolean | undefined
-  locales?: string[] | undefined
+  locales?: readonly string[] | undefined
   defaultLocale?: string | undefined
-  domainLocales?: DomainLocale[] | undefined
+  domainLocales?: readonly DomainLocale[] | undefined
   isReady: boolean
   isLocaleDomain: boolean
   isFirstPopStateEvent = true
@@ -735,9 +735,9 @@ export default class Router implements BaseRouter {
       err?: Error
       isFallback: boolean
       locale?: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale?: string
-      domainLocales?: DomainLocale[]
+      domainLocales?: readonly DomainLocale[]
       isPreview?: boolean
     }
   ) {
@@ -1094,13 +1094,6 @@ export default class Router implements BaseRouter {
       let matchesBflDynamic = false
       const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
         [{ as }, { as: resolvedAs }]
-
-      if (process.env.__NEXT_FLYING_SHUTTLE) {
-        // if existing page changed we hard navigate to
-        // avoid runtime conflict with new page
-        // TODO: check buildManifest files instead?
-        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
-      }
 
       for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {

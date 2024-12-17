@@ -19,7 +19,7 @@ use turbopack_core::{
 /// An unresolved output assets operation. We need to pass an operation here as
 /// it's stored for later usage and we want to reconnect this operation when
 /// it's received from the map again.
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct OutputAssetsOperation(Vc<OutputAssets>);
 
 #[derive(Clone, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, Serialize, Deserialize, Debug)]
@@ -30,14 +30,14 @@ struct MapEntry {
     path_to_asset: HashMap<ResolvedVc<FileSystemPath>, Vc<Box<dyn OutputAsset>>>,
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 struct OptionMapEntry(Option<MapEntry>);
 
 type PathToOutputOperation = HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<Vc<OutputAssets>>>;
 // A precomputed map for quick access to output asset by filepath
 type OutputOperationToComputeEntry = HashMap<Vc<OutputAssets>, Vc<OptionMapEntry>>;
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 pub struct VersionedContentMap {
     // TODO: turn into a bi-directional multimap, OutputAssets -> FxIndexSet<FileSystemPath>
     map_path_to_op: State<PathToOutputOperation>,
@@ -140,7 +140,9 @@ impl VersionedContentMap {
         });
 
         // Make sure all written client assets are up-to-date
-        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path);
+        let _ = emit_assets(assets, node_root, client_relative_path, client_output_path)
+            .resolve()
+            .await?;
         let map_entry = Vc::cell(Some(MapEntry {
             assets_operation: assets,
             path_to_asset: entries.into_iter().collect(),
@@ -153,9 +155,10 @@ impl VersionedContentMap {
         self: Vc<Self>,
         path: Vc<FileSystemPath>,
     ) -> Result<Vc<OptionVersionedContent>> {
-        Ok(Vc::cell(
-            (*self.get_asset(path).await?).map(|a| a.versioned_content()),
-        ))
+        Ok(Vc::cell(match *self.get_asset(path).await? {
+            Some(asset) => Some(asset.versioned_content().to_resolved().await?),
+            None => None,
+        }))
     }
 
     #[turbo_tasks::function]
@@ -169,8 +172,7 @@ impl VersionedContentMap {
         };
 
         if let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(*asset.to_resolved().await?)
-                .await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
         {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section)

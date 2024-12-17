@@ -97,13 +97,15 @@ export type CacheNodeSeedData = [
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
   loading: LoadingModuleData | Promise<LoadingModuleData>,
+  isPartial: boolean,
 ]
 
 export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head */ React.ReactNode | null,
+  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
+  /* isHeadPartial */ boolean,
 ]
 
 export type FlightDataPath =
@@ -180,8 +182,8 @@ export interface RenderOptsPartial {
     isRoutePPREnabled?: boolean
     expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
-    after: boolean
     dynamicIO: boolean
+    clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
   }

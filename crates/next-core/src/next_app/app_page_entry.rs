@@ -132,7 +132,7 @@ pub async fn get_app_page_entry(
         pathname,
         original_name,
         rsc_entry: rsc_entry.to_resolved().await?,
-        config,
+        config: config.to_resolved().await?,
     }
     .cell())
 }

@@ -1,12 +1,15 @@
-import type { TreePrefetch } from '../../../server/app-render/collect-segment-data'
 import {
-  requestRouteCacheEntryFromCache,
-  requestSegmentEntryFromCache,
+  readOrCreateRouteCacheEntry,
+  readOrCreateSegmentCacheEntry,
+  fetchRouteOnCacheMiss,
+  fetchSegmentOnCacheMiss,
   EntryStatus,
   type FulfilledRouteCacheEntry,
   type RouteCacheEntry,
+  type SegmentCacheEntry,
+  type RouteTree,
 } from './cache'
-import type { RouteCacheKey, RouteCacheKeyId } from './cache-key'
+import type { RouteCacheKey } from './cache-key'
 
 const scheduleMicrotask =
   typeof queueMicrotask === 'function'
@@ -50,9 +53,9 @@ export type PrefetchTask = {
    * True if the prefetch is blocked by network data. We remove tasks from the
    * queue once they are blocked, and add them back when they receive data.
    *
-   * isBlocked also indicates whether the task is currently in the queue;
-   * tasks are removed from the queue (but not the map) when they are blocked.
-   * Use this to avoid queueing the same task multiple times.
+   * isBlocked also indicates whether the task is currently in the queue; tasks
+   * are removed from the queue when they are blocked. Use this to avoid
+   * queueing the same task multiple times.
    */
   isBlocked: boolean
 
@@ -88,7 +91,6 @@ const enum PrefetchTaskExitStatus {
 }
 
 const taskHeap: Array<PrefetchTask> = []
-const taskMap: Map<RouteCacheKeyId, PrefetchTask> = new Map()
 
 // This is intentionally low so that when a navigation happens, the browser's
 // internal network queue is not already saturated with prefetch requests.
@@ -108,24 +110,6 @@ let didScheduleMicrotask = false
  * @param key The RouteCacheKey to prefetch.
  */
 export function schedulePrefetchTask(key: RouteCacheKey): void {
-  const existingTask = taskMap.get(key.id)
-  if (existingTask !== undefined) {
-    // A task for this URL already exists, but we should bump it to the top of
-    // the queue by assigning a new sortId. However, if it already has the
-    // highest sortId that's been assigned, then we can bail out.
-    //
-    // Note that this check is not equivalent to checking if it's at the front
-    // of the queue, because there could be tasks that have a higher sortId but
-    // are not currently queued (because they are blocked).
-    if (existingTask.sortId === sortIdCounter) {
-      // No-op
-      return
-    }
-    existingTask.sortId = sortIdCounter++
-    heapSift(taskHeap, existingTask)
-    return
-  }
-
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
@@ -134,7 +118,6 @@ export function schedulePrefetchTask(key: RouteCacheKey): void {
     _heapIndex: -1,
   }
   heapPush(taskHeap, task)
-  taskMap.set(key.id, task)
 
   // Schedule an async task to process the queue.
   //
@@ -187,6 +170,17 @@ export function trackPrefetchRequestBandwidth(
   )
 }
 
+const noop = () => {}
+
+function spawnPrefetchSubtask(promise: Promise<any>) {
+  // When the scheduler spawns an async task, we don't await its result
+  // directly. Instead, the async task writes its result directly into the
+  // cache, then pings the scheduler to continue.
+  //
+  // This function only exists to prevent warnings about unhandled promises.
+  promise.then(noop, noop)
+}
+
 function onPrefetchRequestCompletion(): void {
   inProgressRequests--
 
@@ -200,15 +194,8 @@ function onPrefetchRequestCompletion(): void {
  * prefetch. The corresponding task will be added back to the queue (unless the
  * task has been canceled in the meantime).
  */
-export function pingPrefetchTask(key: RouteCacheKey) {
+export function pingPrefetchTask(task: PrefetchTask) {
   // "Ping" a prefetch that's already in progress to notify it of new data.
-  const task = taskMap.get(key.id)
-  if (task === undefined) {
-    // There's no matching prefetch task, which means it must have either
-    // already completed or been canceled. This can also happen if an entry is
-    // read from the cache outside the context of a prefetch.
-    return
-  }
   if (!task.isBlocked) {
     // Prefetch is already queued.
     return
@@ -230,8 +217,8 @@ function processQueueInMicrotask() {
   // Process the task queue until we run out of network bandwidth.
   let task = heapPeek(taskHeap)
   while (task !== null && hasNetworkBandwidth()) {
-    const route = requestRouteCacheEntryFromCache(now, task)
-    const exitStatus = pingRouteTree(now, task, route)
+    const route = readOrCreateRouteCacheEntry(now, task)
+    const exitStatus = pingRootRouteTree(now, task, route)
     switch (exitStatus) {
       case PrefetchTaskExitStatus.InProgress:
         // The task yielded because there are too many requests in progress.
@@ -243,15 +230,13 @@ function processQueueInMicrotask() {
         task.isBlocked = true
 
         // Continue to the next task
-        task = heapPop(taskHeap)
+        heapPop(taskHeap)
+        task = heapPeek(taskHeap)
         continue
       case PrefetchTaskExitStatus.Done:
-        // The prefetch is complete. Remove the task from the map so it can be
-        // garbage collected.
-        taskMap.delete(task.key.id)
-
-        // Continue to the next task
-        task = heapPop(taskHeap)
+        // The prefetch is complete. Continue to the next task.
+        heapPop(taskHeap)
+        task = heapPeek(taskHeap)
         continue
       default: {
         const _exhaustiveCheck: never = exitStatus
@@ -261,15 +246,51 @@ function processQueueInMicrotask() {
   }
 }
 
-function pingRouteTree(
+function pingRootRouteTree(
   now: number,
   task: PrefetchTask,
   route: RouteCacheEntry
 ): PrefetchTaskExitStatus {
   switch (route.status) {
+    case EntryStatus.Empty: {
+      // Route is not yet cached, and there's no request already in progress.
+      // Spawn a task to request the route, load it into the cache, and ping
+      // the task to continue.
+
+      // TODO: There are multiple strategies in the <Link> API for prefetching
+      // a route. Currently we've only implemented the main one: per-segment,
+      // static-data only.
+      //
+      // There's also <Link prefetch={true}> which prefetches both static *and*
+      // dynamic data. Similarly, we need to fallback to the old, per-page
+      // behavior if PPR is disabled for a route (via the incremental opt-in).
+      //
+      // Those cases will be handled here.
+      spawnPrefetchSubtask(fetchRouteOnCacheMiss(route, task))
+
+      // If the request takes longer than a minute, a subsequent request should
+      // retry instead of waiting for this one. When the response is received,
+      // this value will be replaced by a new value based on the stale time sent
+      // from the server.
+      // TODO: We should probably also manually abort the fetch task, to reclaim
+      // server bandwidth.
+      route.staleAt = now + 60 * 1000
+
+      // Upgrade to Pending so we know there's already a request in progress
+      route.status = EntryStatus.Pending
+
+      // Intentional fallthrough to the Pending branch
+    }
     case EntryStatus.Pending: {
       // Still pending. We can't start prefetching the segments until the route
-      // tree has loaded.
+      // tree has loaded. Add the task to the set of blocked tasks so that it
+      // is notified when the route tree is ready.
+      const blockedTasks = route.blockedTasks
+      if (blockedTasks === null) {
+        route.blockedTasks = new Set([task])
+      } else {
+        blockedTasks.add(task)
+      }
       return PrefetchTaskExitStatus.Blocked
     }
     case EntryStatus.Rejected: {
@@ -283,8 +304,14 @@ function pingRouteTree(
         return PrefetchTaskExitStatus.InProgress
       }
       const tree = route.tree
-      requestSegmentEntryFromCache(now, task, route, tree.path, '')
-      return pingSegmentTree(now, task, route, tree)
+      const segmentKey = tree.key
+      const segment = readOrCreateSegmentCacheEntry(now, route, segmentKey)
+      pingSegment(route, segment, task.key, segmentKey, tree.token)
+      if (!hasNetworkBandwidth()) {
+        // Stop prefetching segments until there's more bandwidth.
+        return PrefetchTaskExitStatus.InProgress
+      }
+      return pingRouteTree(now, task, route, tree)
     }
     default: {
       const _exhaustiveCheck: never = route
@@ -293,25 +320,25 @@ function pingRouteTree(
   }
 }
 
-function pingSegmentTree(
+function pingRouteTree(
   now: number,
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  tree: TreePrefetch
+  tree: RouteTree
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
   if (tree.slots !== null) {
     // Recursively ping the children.
     for (const parallelRouteKey in tree.slots) {
       const childTree = tree.slots[parallelRouteKey]
+      const childKey = childTree.key
+      const childToken = childTree.token
+      const segment = readOrCreateSegmentCacheEntry(now, route, childKey)
+      pingSegment(route, segment, task.key, childKey, childToken)
       if (!hasNetworkBandwidth()) {
         // Stop prefetching segments until there's more bandwidth.
         return PrefetchTaskExitStatus.InProgress
-      } else {
-        const childPath = childTree.path
-        const childToken = childTree.token
-        requestSegmentEntryFromCache(now, task, route, childPath, childToken)
       }
-      const childExitStatus = pingSegmentTree(now, task, route, childTree)
+      const childExitStatus = pingRouteTree(now, task, route, childTree)
       if (childExitStatus === PrefetchTaskExitStatus.InProgress) {
         // Child yielded without finishing.
         return PrefetchTaskExitStatus.InProgress
@@ -320,6 +347,28 @@ function pingSegmentTree(
   }
   // This segment and all its children have finished prefetching.
   return PrefetchTaskExitStatus.Done
+}
+
+function pingSegment(
+  route: FulfilledRouteCacheEntry,
+  segment: SegmentCacheEntry,
+  routeKey: RouteCacheKey,
+  segmentKey: string,
+  accessToken: string
+): void {
+  if (segment.status === EntryStatus.Empty) {
+    // Segment is not yet cached, and there's no request already in progress.
+    // Spawn a task to request the segment and load it into the cache.
+    spawnPrefetchSubtask(
+      fetchSegmentOnCacheMiss(route, segment, routeKey, segmentKey, accessToken)
+    )
+    // Upgrade to Pending so we know there's already a request in progress
+    segment.status = EntryStatus.Pending
+  }
+
+  // Segments do not have dependent tasks, so once the prefetch is initiated,
+  // there's nothing else for us to do (except write the server data into the
+  // entry, which is handled by `fetchSegmentOnCacheMiss`).
 }
 
 // -----------------------------------------------------------------------------
@@ -364,20 +413,22 @@ function heapPop(heap: Array<PrefetchTask>): PrefetchTask | null {
   return first
 }
 
-function heapSift(heap: Array<PrefetchTask>, node: PrefetchTask) {
-  const index = node._heapIndex
-  if (index !== -1) {
-    const parentIndex = (index - 1) >>> 1
-    const parent = heap[parentIndex]
-    if (compareQueuePriority(parent, node) > 0) {
-      // The parent is larger. Sift up.
-      heapSiftUp(heap, node, index)
-    } else {
-      // The parent is smaller (or equal). Sift down.
-      heapSiftDown(heap, node, index)
-    }
-  }
-}
+// Not currently used, but will be once we add the ability to update a
+// task's priority.
+// function heapSift(heap: Array<PrefetchTask>, node: PrefetchTask) {
+//   const index = node._heapIndex
+//   if (index !== -1) {
+//     const parentIndex = (index - 1) >>> 1
+//     const parent = heap[parentIndex]
+//     if (compareQueuePriority(parent, node) > 0) {
+//       // The parent is larger. Sift up.
+//       heapSiftUp(heap, node, index)
+//     } else {
+//       // The parent is smaller (or equal). Sift down.
+//       heapSiftDown(heap, node, index)
+//     }
+//   }
+// }
 
 function heapSiftUp(
   heap: Array<PrefetchTask>,

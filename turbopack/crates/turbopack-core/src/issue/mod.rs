@@ -97,7 +97,7 @@ pub enum StyledString {
     Strong(RcStr),
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.
@@ -203,8 +203,8 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<Vc<FileSystemPath>>,
-    pub description: Vc<RcStr>,
+    pub file_path: Option<ResolvedVc<FileSystemPath>>,
+    pub description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -217,7 +217,7 @@ impl ValueToString for IssueProcessingPathItem {
                 format!("{} ({})", context.to_string().await?, description_str).into(),
             ))
         } else {
-            Ok(self.description)
+            Ok(*self.description)
         }
     }
 }
@@ -239,7 +239,7 @@ impl IssueProcessingPathItem {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionIssueProcessingPathItems(Option<Vec<Vc<IssueProcessingPathItem>>>);
+pub struct OptionIssueProcessingPathItems(Option<Vec<ResolvedVc<IssueProcessingPathItem>>>);
 
 #[turbo_tasks::value_impl]
 impl OptionIssueProcessingPathItems {
@@ -265,12 +265,15 @@ impl OptionIssueProcessingPathItems {
 }
 
 #[turbo_tasks::value]
-struct RootIssueProcessingPath(Vc<Box<dyn Issue>>);
+struct RootIssueProcessingPath(ResolvedVc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
 impl IssueProcessingPath for RootIssueProcessingPath {
     #[turbo_tasks::function]
-    fn shortest_path(&self, issue: Vc<Box<dyn Issue>>) -> Vc<OptionIssueProcessingPathItems> {
+    fn shortest_path(
+        &self,
+        issue: ResolvedVc<Box<dyn Issue>>,
+    ) -> Vc<OptionIssueProcessingPathItems> {
         if self.0 == issue {
             Vc::cell(Some(Vec::new()))
         } else {
@@ -281,8 +284,8 @@ impl IssueProcessingPath for RootIssueProcessingPath {
 
 #[turbo_tasks::value]
 struct ItemIssueProcessingPath(
-    Option<Vc<IssueProcessingPathItem>>,
-    AutoSet<Vc<Box<dyn IssueProcessingPath>>>,
+    Option<ResolvedVc<IssueProcessingPathItem>>,
+    AutoSet<ResolvedVc<Box<dyn IssueProcessingPath>>>,
 );
 
 #[turbo_tasks::value_impl]
@@ -341,15 +344,15 @@ pub trait IssueExt {
     fn emit(self);
 }
 
-impl<T> IssueExt for Vc<T>
+impl<T> IssueExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = Vc::upcast::<Box<dyn Issue>>(self);
+        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
         emit(issue);
-        emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-            RootIssueProcessingPath::cell(RootIssueProcessingPath(issue)),
+        emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+            RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),
         ))
     }
 }
@@ -362,9 +365,9 @@ pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
-    issues: AutoSet<Vc<Box<dyn Issue>>>,
+    issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
     #[cfg(feature = "issue_path")]
-    processing_path: Vc<ItemIssueProcessingPath>,
+    processing_path: ResolvedVc<ItemIssueProcessingPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -388,7 +391,7 @@ impl CapturedIssues {
     }
 
     /// Returns an iterator over the issues.
-    pub fn iter(&self) -> impl Iterator<Item = Vc<Box<dyn Issue>>> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Issue>>> + '_ {
         self.issues.iter().copied()
     }
 
@@ -396,10 +399,15 @@ impl CapturedIssues {
     /// issue to each issue.
     pub fn iter_with_shortest_path(
         &self,
-    ) -> impl Iterator<Item = (Vc<Box<dyn Issue>>, Vc<OptionIssueProcessingPathItems>)> + '_ {
+    ) -> impl Iterator<
+        Item = (
+            ResolvedVc<Box<dyn Issue>>,
+            Vc<OptionIssueProcessingPathItems>,
+        ),
+    > + '_ {
         self.issues.iter().map(|issue| {
             #[cfg(feature = "issue_path")]
-            let path = self.processing_path.shortest_path(*issue);
+            let path = self.processing_path.shortest_path(**issue);
             #[cfg(not(feature = "issue_path"))]
             let path = OptionIssueProcessingPathItems::none();
             (*issue, path)
@@ -413,7 +421,7 @@ impl CapturedIssues {
             .map(|&issue| async move {
                 #[cfg(feature = "issue_path")]
                 return issue
-                    .into_plain(self.processing_path.shortest_path(issue))
+                    .into_plain(self.processing_path.shortest_path(*issue))
                     .await;
                 #[cfg(not(feature = "issue_path"))]
                 return issue
@@ -632,11 +640,6 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let (content_1, content_2) = (
-        content_1.to_resolved().await?,
-        content_2.to_resolved().await?,
-    );
-
     if content_1 != content_2 {
         return Ok(None);
     }
@@ -645,10 +648,10 @@ async fn source_pos(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionIssueSource(Option<Vc<IssueSource>>);
+pub struct OptionIssueSource(Option<ResolvedVc<IssueSource>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionStyledString(Option<Vc<StyledString>>);
+pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 
 #[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
@@ -911,13 +914,24 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
-                            file_path: file_path.into(),
-                            description: Vc::cell(RcStr::from(description.into())),
-                        })),
-                        children,
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
+                        Some(IssueProcessingPathItem::resolved_cell(
+                            IssueProcessingPathItem {
+                                file_path: match file_path.into() {
+                                    Some(path) => Some(path.to_resolved().await?),
+                                    None => None,
+                                },
+                                description: ResolvedVc::cell(RcStr::from(description.into())),
+                            },
+                        )),
+                        children
+                            .into_iter()
+                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                            .try_join()
+                            .await?
+                            .into_iter()
+                            .collect(),
                     )),
                 ));
             }
@@ -939,13 +953,24 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
-                            file_path: file_path.into(),
-                            description: Vc::cell(RcStr::from(description.into())),
-                        })),
-                        children,
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
+                        Some(IssueProcessingPathItem::resolved_cell(
+                            IssueProcessingPathItem {
+                                file_path: match file_path.into() {
+                                    Some(path) => Some(path.to_resolved().await?),
+                                    None => None,
+                                },
+                                description: ResolvedVc::cell(RcStr::from(description.into())),
+                            },
+                        )),
+                        children
+                            .into_iter()
+                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                            .try_join()
+                            .await?
+                            .into_iter()
+                            .collect(),
                     )),
                 ));
             }
@@ -963,22 +988,48 @@ where
 
     async fn peek_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self.peek_collectibles(),
+            issues: self
+                .peek_collectibles()
+                .into_iter()
+                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
             #[cfg(feature = "issue_path")]
-            processing_path: ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+            processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.peek_collectibles(),
+                self.peek_collectibles()
+                    .into_iter()
+                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .collect(),
             )),
         })
     }
 
     async fn take_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self.take_collectibles(),
+            issues: self
+                .take_collectibles()
+                .into_iter()
+                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
             #[cfg(feature = "issue_path")]
-            processing_path: ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+            processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.take_collectibles(),
+                self.take_collectibles()
+                    .into_iter()
+                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .collect(),
             )),
         })
     }

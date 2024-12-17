@@ -13,7 +13,7 @@ use crate::database::{
 };
 
 pub fn is_fresh(path: &Path) -> bool {
-    fs::exists(path).map_or(false, |exists| !exists)
+    fs::exists(path).is_ok_and(|exists| !exists)
 }
 
 pub struct FreshDbOptimization<T: KeyValueDatabase> {
@@ -40,6 +40,10 @@ impl<T: KeyValueDatabase> KeyValueDatabase for FreshDbOptimization<T> {
         tx: &'r Self::ReadTransaction<'l>,
     ) -> &'r Self::ReadTransaction<'i> {
         T::lower_read_transaction(tx)
+    }
+
+    fn is_empty(&self) -> bool {
+        self.fresh_db.load(Ordering::Acquire) || self.database.is_empty()
     }
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>> {

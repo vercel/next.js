@@ -26,9 +26,9 @@ impl GlobalModuleIdStrategyBuilder {
 
         let entrypoints = project.entrypoints().await?;
 
-        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_error_endpoint));
-        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_app_endpoint));
-        preprocessed_module_ids.push(preprocess_module_ids(entrypoints.pages_document_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_error_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_app_endpoint));
+        preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_document_endpoint));
 
         if let Some(middleware) = &entrypoints.middleware {
             preprocessed_module_ids.push(preprocess_module_ids(middleware.endpoint));
@@ -47,11 +47,11 @@ impl GlobalModuleIdStrategyBuilder {
                     html_endpoint,
                     data_endpoint,
                 } => {
-                    preprocessed_module_ids.push(preprocess_module_ids(*html_endpoint));
-                    preprocessed_module_ids.push(preprocess_module_ids(*data_endpoint));
+                    preprocessed_module_ids.push(preprocess_module_ids(**html_endpoint));
+                    preprocessed_module_ids.push(preprocess_module_ids(**data_endpoint));
                 }
                 Route::PageApi { endpoint } => {
-                    preprocessed_module_ids.push(preprocess_module_ids(*endpoint));
+                    preprocessed_module_ids.push(preprocess_module_ids(**endpoint));
                 }
                 Route::AppPage(page_routes) => {
                     for page_route in page_routes {
@@ -65,7 +65,7 @@ impl GlobalModuleIdStrategyBuilder {
                     original_name: _,
                     endpoint,
                 } => {
-                    preprocessed_module_ids.push(preprocess_module_ids(*endpoint));
+                    preprocessed_module_ids.push(preprocess_module_ids(**endpoint));
                 }
                 Route::Conflict => {
                     tracing::info!("WARN: conflict");

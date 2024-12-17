@@ -371,7 +371,9 @@ impl Module for RequireContextAsset {
 
         Ok(Vc::cell(
             map.iter()
-                .map(|(_, entry)| Vc::upcast(Vc::<ResolvedModuleReference>::cell(entry.result)))
+                .map(|(_, entry)| {
+                    ResolvedVc::upcast(ResolvedVc::<ResolvedModuleReference>::cell(entry.result))
+                })
                 .collect(),
         ))
     }
@@ -509,11 +511,6 @@ impl ChunkItem for RequireContextChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.inner.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.inner.references()
     }
 
     #[turbo_tasks::function]

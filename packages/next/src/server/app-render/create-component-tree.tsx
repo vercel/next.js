@@ -1,15 +1,11 @@
-import type {
-  FlightSegmentPath,
-  CacheNodeSeedData,
-  PreloadCallbacks,
-} from './types'
+import type { CacheNodeSeedData, PreloadCallbacks } from './types'
 import React from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
 import { parseLoaderTree } from './parse-loader-tree'
-import type { CreateSegmentPath, AppRenderContext } from './app-render'
+import type { AppRenderContext } from './app-render'
 import { createComponentStylesAndScripts } from './create-component-styles-and-scripts'
 import { getLayerAssets } from './get-layer-assets'
 import { hasLoadingComponentInTree } from './has-loading-component-in-tree'
@@ -27,15 +23,14 @@ import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
  * Use the provided loader tree to create the React Component tree.
  */
 export function createComponentTree(props: {
-  createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
   parentParams: Params
   rootLayoutIncluded: boolean
-  firstItem?: boolean
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   getMetadataReady: () => Promise<void>
+  getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
@@ -63,28 +58,26 @@ function errorMissingDefaultExport(
 const cacheNodeKey = 'c'
 
 async function createComponentTreeInternal({
-  createSegmentPath,
   loaderTree: tree,
   parentParams,
-  firstItem,
   rootLayoutIncluded,
   injectedCSS,
   injectedJS,
   injectedFontPreloadTags,
+  getViewportReady,
   getMetadataReady,
   ctx,
   missingSlots,
   preloadCallbacks,
   authInterrupts,
 }: {
-  createSegmentPath: CreateSegmentPath
   loaderTree: LoaderTree
   parentParams: Params
   rootLayoutIncluded: boolean
-  firstItem?: boolean
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
+  getViewportReady: () => Promise<void>
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -322,6 +315,22 @@ async function createComponentTreeInternal({
 
   const isStaticGeneration = workStore.isStaticGeneration
 
+  // Assume the segment we're rendering contains only partial data if PPR is
+  // enabled and this is a statically generated response. This is used by the
+  // client Segment Cache after a prefetch to determine if it can skip the
+  // second request to fill in the dynamic data.
+  //
+  // It's OK for this to be `true` when the data is actually fully static, but
+  // it's not OK for this to be `false` when the data possibly contains holes.
+  // Although the value here is overly pessimistic, for prefetches, it will be
+  // replaced by a more specific value when the data is later processed into
+  // per-segment responses (see collect-segment-data.tsx)
+  //
+  // For dynamic requests, this must always be `false` because dynamic responses
+  // are never partial.
+  const isPossiblyPartialResponse =
+    isStaticGeneration && experimental.isRoutePPREnabled === true
+
   // If there's a dynamic usage error attached to the store, throw it.
   if (workStore.dynamicUsageErr) {
     throw workStore.dynamicUsageErr
@@ -387,6 +396,10 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
+  if (rootLayoutAtThisLevel) {
+    workStore.rootParams = currentParams
+  }
+
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
@@ -396,10 +409,6 @@ async function createComponentTreeInternal({
         parallelRouteKey
       ): Promise<[string, React.ReactNode, CacheNodeSeedData | null]> => {
         const isChildrenRouteKey = parallelRouteKey === 'children'
-        const currentSegmentPath: FlightSegmentPath = firstItem
-          ? [parallelRouteKey]
-          : [actualSegment, parallelRouteKey]
-
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
         const notFoundComponent =
@@ -473,19 +482,19 @@ async function createComponentTreeInternal({
           }
 
           const seedData = await createComponentTreeInternal({
-            createSegmentPath: (child) => {
-              return createSegmentPath([...currentSegmentPath, ...child])
-            },
             loaderTree: parallelRoute,
             parentParams: currentParams,
             rootLayoutIncluded: rootLayoutIncludedAtThisLevelOrAbove,
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             getMetadataReady: isChildrenRouteKey
               ? getMetadataReady
+              : () => Promise.resolve(),
+            getViewportReady: isChildrenRouteKey
+              ? getViewportReady
               : () => Promise.resolve(),
             ctx,
             missingSlots,
@@ -501,7 +510,6 @@ async function createComponentTreeInternal({
           parallelRouteKey,
           <LayoutRouter
             parallelRouterKey={parallelRouteKey}
-            segmentPath={createSegmentPath(currentSegmentPath)}
             // TODO-APP: Add test for loading returning `undefined`. This currently can't be tested as the `webdriver()` tab will wait for the full page to load before returning.
             error={ErrorComponent}
             errorStyles={errorStyles}
@@ -548,6 +556,7 @@ async function createComponentTreeInternal({
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      isPossiblyPartialResponse,
     ]
   }
 
@@ -580,6 +589,7 @@ async function createComponentTreeInternal({
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      true,
     ]
   }
 
@@ -645,11 +655,13 @@ async function createComponentTreeInternal({
         {pageElement}
         {layerAssets}
         <OutletBoundary>
+          <MetadataOutlet ready={getViewportReady} />
           <MetadataOutlet ready={getMetadataReady} />
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      isPossiblyPartialResponse,
     ]
   } else {
     const SegmentComponent = Component
@@ -829,6 +841,7 @@ async function createComponentTreeInternal({
       segmentNode,
       parallelRouteCacheNodeSeedData,
       loadingData,
+      isPossiblyPartialResponse,
     ]
   }
 }

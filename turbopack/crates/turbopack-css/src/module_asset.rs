@@ -85,12 +85,15 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(
-                self.inner()
-                    .try_into_module()
-                    .await?
-                    .map(|inner| Vc::upcast(InternalCssAssetReference::new(*inner))),
-            )
+            .chain(match *self.inner().try_into_module().await? {
+                Some(inner) => Some(
+                    InternalCssAssetReference::new(*inner)
+                        .to_resolved()
+                        .await
+                        .map(ResolvedVc::upcast)?,
+                ),
+                None => None,
+            })
             .collect();
 
         Ok(Vc::cell(references))
@@ -222,7 +225,7 @@ impl ModuleCssAsset {
             for class_name in class_names {
                 match class_name {
                     ModuleCssClass::Import { from, .. } => {
-                        references.push(Vc::upcast(**from));
+                        references.push(ResolvedVc::upcast(*from));
                     }
                     ModuleCssClass::Local { .. } | ModuleCssClass::Global { .. } => {}
                 }
@@ -285,11 +288,6 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(*self.chunking_context)
     }
@@ -340,7 +338,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                     "#,
                                     from = &*from.await?.request.to_string().await?
                                 }.into(),
-                            }.cell().emit();
+                            }.resolved_cell().emit();
                             continue;
                         };
 
@@ -357,7 +355,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                                     "#,
                                     from = &*from.await?.request.to_string().await?
                                 }.into(),
-                            }.cell().emit();
+                            }.resolved_cell().emit();
                             continue;
                         };
 
@@ -396,17 +394,23 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             inner_code: code.clone().into(),
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
-            source_map: Some(Vc::upcast(generate_minimal_source_map(
-                self.module.ident().to_string().await?.to_string(),
-                code,
-            ))),
+            source_map: Some(ResolvedVc::upcast(
+                generate_minimal_source_map(
+                    self.module.ident().to_string().await?.to_string(),
+                    code,
+                )
+                .await?,
+            )),
             ..Default::default()
         }
         .cell())
     }
 }
 
-fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResultSourceMap> {
+async fn generate_minimal_source_map(
+    filename: String,
+    source: String,
+) -> Result<ResolvedVc<ParseResultSourceMap>> {
     let mut mappings = vec![];
     // Start from 1 because 0 is reserved for dummy spans in SWC.
     let mut pos = 1;
@@ -422,8 +426,8 @@ fn generate_minimal_source_map(filename: String, source: String) -> Vc<ParseResu
     }
     let sm: Arc<SourceMap> = Default::default();
     sm.new_source_file(FileName::Custom(filename).into(), source);
-    let map = ParseResultSourceMap::new(sm, mappings, OptionSourceMap::none());
-    map.cell()
+    let map = ParseResultSourceMap::new(sm, mappings, OptionSourceMap::none().to_resolved().await?);
+    Ok(map.resolved_cell())
 }
 
 #[turbo_tasks::value(shared)]
@@ -458,6 +462,8 @@ impl Issue for CssModuleComposesIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.message.clone()).resolved_cell(),
+        ))
     }
 }

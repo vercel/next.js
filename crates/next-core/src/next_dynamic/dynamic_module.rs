@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext, ChunkingContextExt},
@@ -14,7 +14,7 @@ use turbopack_core::{
 /// dynamic assets should appear in the dynamic manifest.
 #[turbo_tasks::value]
 pub struct NextDynamicEntryModule {
-    pub client_entry_module: Vc<Box<dyn Module>>,
+    pub client_entry_module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -22,7 +22,7 @@ impl NextDynamicEntryModule {
     /// Create a new [`NextDynamicEntryModule`] from the given source CSS
     /// asset.
     #[turbo_tasks::function]
-    pub fn new(client_entry_module: Vc<Box<dyn Module>>) -> Vc<NextDynamicEntryModule> {
+    pub fn new(client_entry_module: ResolvedVc<Box<dyn Module>>) -> Vc<NextDynamicEntryModule> {
         NextDynamicEntryModule {
             client_entry_module,
         }
@@ -35,12 +35,12 @@ impl NextDynamicEntryModule {
         client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<OutputAssets>> {
         let Some(client_entry_module) =
-            Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(self.client_entry_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(self.client_entry_module).await?
         else {
             bail!("dynamic client asset must be chunkable");
         };
 
-        Ok(client_chunking_context.root_chunk_group_assets(client_entry_module))
+        Ok(client_chunking_context.root_chunk_group_assets(*client_entry_module))
     }
 }
 

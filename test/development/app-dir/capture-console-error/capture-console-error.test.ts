@@ -6,12 +6,15 @@ import {
   getRedboxSource,
   getRedboxTotalErrorCount,
   openRedbox,
+  hasRedboxCallStack,
 } from 'next-test-utils'
 
 async function getRedboxResult(browser: any) {
   const title = await getRedboxTitle(browser)
   const description = await getRedboxDescription(browser)
-  const callStacks = await getRedboxCallStack(browser)
+  const callStacks = (await hasRedboxCallStack(browser))
+    ? await getRedboxCallStack(browser)
+    : ''
   const count = await getRedboxTotalErrorCount(browser)
   const source = await getRedboxSource(browser)
   const result = {
@@ -277,7 +280,8 @@ describe('app-dir - capture-console-error', () => {
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": "JSON.parse
+        <anonymous> (0:0)",
           "count": 1,
           "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page
@@ -294,7 +298,8 @@ describe('app-dir - capture-console-error', () => {
     } else {
       expect(result).toMatchInlineSnapshot(`
         {
-          "callStacks": "",
+          "callStacks": "JSON.parse
+        <anonymous> (0:0)",
           "count": 1,
           "description": "[ Server ] Error: boom",
           "source": "app/rsc/page.js (2:17) @ Page

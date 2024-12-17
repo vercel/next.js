@@ -2,7 +2,7 @@ use std::{borrow::Cow, collections::HashSet, fmt::Display};
 
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, TryJoinIterExt, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::{json::parse_json_with_source_context, File};
 use turbopack_core::{
     asset::AssetContent,
@@ -18,7 +18,7 @@ use crate::source::{
 
 #[turbo_tasks::value(shared)]
 pub struct IntrospectionSource {
-    pub roots: HashSet<Vc<Box<dyn Introspectable>>>,
+    pub roots: HashSet<ResolvedVc<Box<dyn Introspectable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,8 +35,8 @@ impl Introspectable for IntrospectionSource {
 
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
-        let name = Vc::cell("root".into());
-        Vc::cell(self.roots.iter().map(|root| (name, *root)).collect())
+        let name = ResolvedVc::cell("root".into());
+        Vc::cell(self.roots.iter().map(|root| (name, **root)).collect())
     }
 }
 
@@ -76,12 +76,16 @@ impl<T: Display> Display for HtmlStringEscaped<T> {
 #[turbo_tasks::value_impl]
 impl ContentSource for IntrospectionSource {
     #[turbo_tasks::function]
-    fn get_routes(self: Vc<Self>) -> Vc<RouteTree> {
-        Vc::<RouteTrees>::cell(vec![
-            RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self)),
-            RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self)),
+    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
+        Ok(Vc::<RouteTrees>::cell(vec![
+            RouteTree::new_route(Vec::new(), RouteType::Exact, Vc::upcast(self))
+                .to_resolved()
+                .await?,
+            RouteTree::new_route(Vec::new(), RouteType::CatchAll, Vc::upcast(self))
+                .to_resolved()
+                .await?,
         ])
-        .merge()
+        .merge())
     }
 }
 
@@ -89,7 +93,7 @@ impl ContentSource for IntrospectionSource {
 impl GetContentSourceContent for IntrospectionSource {
     #[turbo_tasks::function]
     async fn get(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: RcStr,
         _data: turbo_tasks::Value<ContentSourceData>,
     ) -> Result<Vc<ContentSourceContent>> {
@@ -100,12 +104,12 @@ impl GetContentSourceContent for IntrospectionSource {
             if roots.len() == 1 {
                 *roots.iter().next().unwrap()
             } else {
-                Vc::upcast(self)
+                ResolvedVc::upcast(self)
             }
         } else {
             parse_json_with_source_context(path)?
         };
-        let internal_ty = Vc::debug_identifier(introspectable).await?;
+        let internal_ty = Vc::debug_identifier(*introspectable).await?;
         fn str_or_err(s: &Result<ReadRef<RcStr>>) -> Cow<'_, str> {
             s.as_ref().map_or_else(
                 |e| Cow::<'_, str>::Owned(format!("ERROR: {:?}", e)),

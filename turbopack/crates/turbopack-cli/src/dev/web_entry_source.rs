@@ -31,32 +31,33 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
-    project_path: Vc<FileSystemPath>,
-    server_root: Vc<FileSystemPath>,
-    environment: Vc<Environment>,
-) -> Vc<Box<dyn ChunkingContext>> {
-    Vc::upcast(
+pub async fn get_client_chunking_context(
+    project_path: ResolvedVc<FileSystemPath>,
+    server_root: ResolvedVc<FileSystemPath>,
+    environment: ResolvedVc<Environment>,
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    Ok(Vc::upcast(
         BrowserChunkingContext::builder(
             project_path,
             server_root,
             server_root,
-            server_root.join("/_chunks".into()),
-            server_root.join("/_assets".into()),
+            server_root.join("/_chunks".into()).to_resolved().await?,
+            server_root.join("/_assets".into()).to_resolved().await?,
             environment,
             RuntimeType::Development,
         )
         .hot_module_replacement()
         .use_file_source_map_uris()
         .build(),
-    )
+    ))
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_path: ResolvedVc<FileSystemPath>,
+    node_env: Vc<NodeEnv>,
 ) -> Result<Vc<RuntimeEntries>> {
-    let resolve_options_context = get_client_resolve_options_context(*project_path);
+    let resolve_options_context = get_client_resolve_options_context(*project_path, node_env);
 
     let mut runtime_entries = Vec::new();
 
@@ -105,7 +106,7 @@ pub async fn create_web_entry_source(
         get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
     let chunking_context =
         get_client_chunking_context(project_path, server_root, compile_time_info.environment());
-    let entries = get_client_runtime_entries(project_path);
+    let entries = get_client_runtime_entries(project_path, node_env);
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
@@ -157,7 +158,7 @@ pub async fn create_web_entry_source(
         .await?;
 
     let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()),
+        server_root.join("index.html".into()).to_resolved().await?,
         entries,
     ));
 

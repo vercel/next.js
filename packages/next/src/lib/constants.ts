@@ -18,7 +18,6 @@ export const NEXT_META_SUFFIX = '.meta'
 export const NEXT_BODY_SUFFIX = '.body'
 
 export const NEXT_CACHE_TAGS_HEADER = 'x-next-cache-tags'
-export const NEXT_CACHE_SOFT_TAGS_HEADER = 'x-next-cache-soft-tags'
 export const NEXT_CACHE_REVALIDATED_TAGS_HEADER = 'x-next-revalidated-tags'
 export const NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER =
   'x-next-revalidate-tag-token'

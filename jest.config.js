@@ -5,6 +5,7 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
+  displayName: 'default',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,
@@ -21,12 +22,6 @@ const customJestConfig = {
   moduleNameMapper: {
     '@next/font/(.*)': '@next/font/$1',
   },
-  // Re-add support for inline snapshots using prettier v2:
-  prettierPath: require.resolve('prettier-2'),
-}
-
-if (process.env.RECORD_REPLAY) {
-  customJestConfig.testRunner = '@replayio/jest/runner'
 }
 
 // Check if the environment variable is set to enable test report,

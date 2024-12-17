@@ -32,6 +32,10 @@ export type IpcInfoMessage =
     glob: string;
   }
   | {
+    type: "envDependency";
+    name: string;
+  }
+  | {
     type: "emittedError";
     severity: "warning" | "error";
     error: StructuredError;
@@ -158,6 +162,22 @@ type ResolveOptions = {
   roots?: string[];
   importFields?: string[];
 };
+
+// Patch process.env to track which env vars are read
+const originalEnv = process.env;
+const readEnvVars = new Set<string>();
+process.env = new Proxy(originalEnv, {
+  get(target, prop) {
+    if (typeof prop === 'string' && !readEnvVars.has(prop)) {
+      // We register the env var as dependency on the
+      // current transform and all future transforms
+      // since the env var might be cached in module scope
+      // and influence them all
+      readEnvVars.add(prop);
+    }
+    return Reflect.get(target, prop);
+  },
+})
 
 const transform = (
   ipc: Ipc<IpcInfoMessage, IpcRequestMessage>,
@@ -447,7 +467,12 @@ const transform = (
         },
       },
       (err, result) => {
-        if (err) return reject(err);
+        for (const envVar of readEnvVars) {
+          ipc.sendInfo({
+            type: "envDependency",
+            name: envVar,
+          });
+        }
         for (const dep of result.contextDependencies) {
           ipc.sendInfo({
             type: "dirDependency",
@@ -461,6 +486,7 @@ const transform = (
             path: toPath(dep),
           });
         }
+        if (err) return reject(err);
         if (!result.result) return reject(new Error("No result from loaders"));
         const [source, map] = result.result;
         resolve({

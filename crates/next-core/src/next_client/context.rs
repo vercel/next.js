@@ -398,12 +398,12 @@ pub async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    project_path: Vc<FileSystemPath>,
-    client_root: Vc<FileSystemPath>,
-    asset_prefix: Vc<Option<RcStr>>,
-    environment: Vc<Environment>,
+    project_path: ResolvedVc<FileSystemPath>,
+    client_root: ResolvedVc<FileSystemPath>,
+    asset_prefix: ResolvedVc<Option<RcStr>>,
+    environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
-    module_id_strategy: Vc<Box<dyn ModuleIdStrategy>>,
+    module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
@@ -411,8 +411,11 @@ pub async fn get_client_chunking_context(
         project_path,
         client_root,
         client_root,
-        client_root.join("static/chunks".into()),
-        get_client_assets_path(client_root),
+        client_root
+            .join("static/chunks".into())
+            .to_resolved()
+            .await?,
+        get_client_assets_path(*client_root).to_resolved().await?,
         environment,
         next_mode.runtime_type(),
     )
@@ -460,8 +463,11 @@ pub async fn get_client_runtime_entries(
         // functions to be available.
         if let Some(request) = enable_react_refresh {
             runtime_entries.push(
-                RuntimeEntry::Request(request.to_resolved().await?, project_root.join("_".into()))
-                    .cell(),
+                RuntimeEntry::Request(
+                    request.to_resolved().await?,
+                    project_root.join("_".into()).to_resolved().await?,
+                )
+                .resolved_cell(),
             )
         };
     }
@@ -474,9 +480,9 @@ pub async fn get_client_runtime_entries(
                 )))
                 .to_resolved()
                 .await?,
-                project_root.join("_".into()),
+                project_root.join("_".into()).to_resolved().await?,
             )
-            .cell(),
+            .resolved_cell(),
         );
     }
 

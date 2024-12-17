@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::introspect::{Introspectable, IntrospectableChildren};
 
 use super::{route_tree::RouteTree, ContentSource};
@@ -17,7 +17,7 @@ pub trait GetContentSource {
 /// actually used.
 #[turbo_tasks::value(shared)]
 pub struct LazyInstantiatedContentSource {
-    pub get_source: Vc<Box<dyn GetContentSource>>,
+    pub get_source: ResolvedVc<Box<dyn GetContentSource>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -57,6 +57,10 @@ impl Introspectable for LazyInstantiatedContentSource {
             ]
             .into_iter()
             .flatten()
+            .map(|(k, v)| async move { Ok((k.to_resolved().await?, v)) })
+            .try_join()
+            .await?
+            .into_iter()
             .collect(),
         ))
     }

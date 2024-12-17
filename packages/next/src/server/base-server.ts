@@ -265,7 +265,7 @@ export type LoadedRenderOpts = RenderOpts &
 
 export type RequestLifecycleOpts = {
   waitUntil: ((promise: Promise<any>) => void) | undefined
-  onClose: ((callback: () => void) => void) | undefined
+  onClose: (callback: () => void) => void
   onAfterTaskError: ((error: unknown) => void) | undefined
 }
 
@@ -591,8 +591,9 @@ export default abstract class Server<
       experimental: {
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
-        after: this.nextConfig.experimental.after ?? false,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        clientSegmentCache:
+          this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
@@ -1358,31 +1359,29 @@ export default abstract class Server<
             | 'https',
         })
 
-        const _globalThis: typeof globalThis & {
-          __nextCacheHandlers?: Record<
-            string,
-            import('./lib/cache-handlers/types').CacheHandler
-          >
-        } = globalThis
-
-        if (_globalThis.__nextCacheHandlers) {
-          const expiredTags: string[] =
-            (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
-              ','
-            ) || []
-
-          for (const handler of Object.values(
-            _globalThis.__nextCacheHandlers
-          )) {
-            if (typeof handler.receiveExpiredTags === 'function') {
-              await handler.receiveExpiredTags(...expiredTags)
-            }
-          }
-        }
-
         incrementalCache.resetRequestCache()
         addRequestMeta(req, 'incrementalCache', incrementalCache)
         ;(globalThis as any).__incrementalCache = incrementalCache
+      }
+
+      const _globalThis: typeof globalThis & {
+        __nextCacheHandlers?: Record<
+          string,
+          import('./lib/cache-handlers/types').CacheHandler
+        >
+      } = globalThis
+
+      if (_globalThis.__nextCacheHandlers) {
+        const expiredTags: string[] =
+          (req.headers[NEXT_CACHE_REVALIDATED_TAGS_HEADER] as string)?.split(
+            ','
+          ) || []
+
+        for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
+          if (typeof handler.receiveExpiredTags === 'function') {
+            await handler.receiveExpiredTags(...expiredTags)
+          }
+        }
       }
 
       // set server components HMR cache to request meta so it can be passed
@@ -1438,7 +1437,7 @@ export default abstract class Server<
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
-          this.nextConfig.i18n?.locales || []
+          this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {
@@ -1630,8 +1629,7 @@ export default abstract class Server<
   protected async prepareImpl(): Promise<void> {}
   protected async loadInstrumentationModule(): Promise<any> {}
 
-  // Backwards compatibility
-  protected async close(): Promise<void> {}
+  public async close(): Promise<void> {}
 
   protected getAppPathRoutes(): Record<string, string[]> {
     const appPathRoutes: Record<string, string[]> = {}
@@ -1766,7 +1764,7 @@ export default abstract class Server<
     if (builtinRequestContext) {
       // the platform provided a request context.
       // use the `waitUntil` from there, whether actually present or not --
-      // if not present, `unstable_after` will error.
+      // if not present, `after` will error.
 
       // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
       return builtinRequestContext.waitUntil
@@ -1776,7 +1774,7 @@ export default abstract class Server<
       // we're built for a serverless environment, and `waitUntil` is not available,
       // but using a noop would likely lead to incorrect behavior,
       // because we have no way of keeping the invocation alive.
-      // return nothing, and `unstable_after` will error if used.
+      // return nothing, and `after` will error if used.
       //
       // NOTE: for edge functions, `NextWebServer` always runs in minimal mode.
       //
@@ -1785,14 +1783,11 @@ export default abstract class Server<
       return undefined
     }
 
-    // we're in `next start` or `next dev`. noop is fine for both.
-    return Server.noopWaitUntil
+    return this.getInternalWaitUntil()
   }
 
-  private static noopWaitUntil(promise: Promise<any>) {
-    promise.catch((err: unknown) => {
-      console.error(err)
-    })
+  protected getInternalWaitUntil(): WaitUntil | undefined {
+    return undefined
   }
 
   private async renderImpl(
@@ -2480,7 +2475,6 @@ export default abstract class Server<
             prerenderManifest,
             renderOpts: {
               experimental: {
-                after: renderOpts.experimental.after,
                 dynamicIO: renderOpts.experimental.dynamicIO,
                 authInterrupts: renderOpts.experimental.authInterrupts,
               },
@@ -2755,7 +2749,7 @@ export default abstract class Server<
             rscData: metadata.flightData,
             postponed: metadata.postponed,
             status: res.statusCode,
-            segmentData: undefined,
+            segmentData: metadata.segmentData,
           } satisfies CachedAppPageValue,
           revalidate: metadata.revalidate,
           isFallback: !!fallbackRouteParams,
@@ -3050,48 +3044,53 @@ export default abstract class Server<
       }
     )
 
-    if (
-      isRoutePPREnabled &&
-      isPrefetchRSCRequest &&
-      typeof segmentPrefetchHeader === 'string'
-    ) {
-      if (cacheEntry?.value?.kind === CachedRouteKind.APP_PAGE) {
-        // This is a prefetch request for an individual segment's static data.
-        // Unless the segment is fully dynamic, the data should have already been
-        // loaded into the cache, when the page itself was generated. So we should
-        // always either return the cache entry. If no cache entry is available,
-        // it's a 404 — either the segment is fully dynamic, or an invalid segment
-        // path was requested.
-        if (cacheEntry.value.segmentData) {
-          const matchedSegment =
-            cacheEntry.value.segmentData[segmentPrefetchHeader]
-          if (matchedSegment !== undefined) {
-            return {
-              type: 'rsc',
-              body: RenderResult.fromStatic(matchedSegment),
-              // TODO: Eventually this should use revalidate time of the
-              // individual segment, not the whole page.
-              revalidate: cacheEntry.revalidate,
-            }
+    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
+      // This is a prefetch request issued by the client Segment Cache. These
+      // should never reach the application layer (lambda). We should either
+      // respond from the cache (HIT) or respond with 204 No Content (MISS).
+
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled. In other contexts this header is used
+      // to indicate that the response contains dynamic data, but here we're
+      // only using it to indicate that the feature is enabled — the segment
+      // response itself contains whether the data is dynamic.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
+
+      if (
+        cacheEntry !== null &&
+        // This is always true at runtime but is needed to refine the type
+        // of cacheEntry.value to CachedAppPageValue, because the outer
+        // ResponseCacheEntry is not a discriminated union.
+        cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
+        cacheEntry.value.segmentData
+      ) {
+        const matchedSegment = cacheEntry.value.segmentData.get(
+          segmentPrefetchHeader
+        )
+        if (matchedSegment !== undefined) {
+          // Cache hit
+          return {
+            type: 'rsc',
+            body: RenderResult.fromStatic(matchedSegment),
+            // TODO: Eventually this should use revalidate time of the
+            // individual segment, not the whole page.
+            revalidate: cacheEntry.revalidate,
           }
         }
-        // If the segment is not found, return a 404. Since this is an RSC
-        // request, there's no reason to render a 404 page; just return an
-        // empty response.
-        res.statusCode = 404
-        return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(''),
-          revalidate: cacheEntry.revalidate,
-        }
-      } else {
-        // Segment prefetches should never reach the application layer. If
-        // there's no cache entry for this page, it's a 404.
-        res.statusCode = 404
-        return {
-          type: 'rsc',
-          body: RenderResult.fromStatic(''),
-        }
+      }
+
+      // Cache miss. Either a cache entry for this route has not been generated
+      // (which technically should not be possible when PPR is enabled, because
+      // at a minimum there should always be a fallback entry) or there's no
+      // match for the requested segment. Respond with a 204 No Content. We
+      // don't bother to respond with 404, because these requests are only
+      // issued as part of a prefetch.
+      res.statusCode = 204
+      return {
+        type: 'rsc',
+        body: RenderResult.fromStatic(''),
+        revalidate: cacheEntry?.revalidate,
       }
     }
 

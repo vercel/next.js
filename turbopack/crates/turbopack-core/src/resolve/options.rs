@@ -4,8 +4,8 @@ use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, ResolvedVc, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -27,7 +27,16 @@ pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
+    TraceRawVcs,
+    Hash,
+    PartialEq,
+    Eq,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
@@ -40,7 +49,9 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -60,7 +71,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -78,7 +89,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request withing a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),
@@ -204,9 +215,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .try_join()
                         .await?,
                 ),
-                ImportMapping::Dynamic(replacement) => {
-                    ReplacedImportMapping::Dynamic(replacement.to_resolved().await?)
-                }
+                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
             }
             .resolved_cell())
         })

@@ -24,6 +24,10 @@ pub trait KeyValueDatabase {
 
     fn begin_read_transaction(&self) -> Result<Self::ReadTransaction<'_>>;
 
+    fn is_empty(&self) -> bool {
+        false
+    }
+
     type ValueBuffer<'l>: std::borrow::Borrow<[u8]>
     where
         Self: 'l;
@@ -47,4 +51,8 @@ pub trait KeyValueDatabase {
     fn write_batch(
         &self,
     ) -> Result<WriteBatch<'_, Self::SerialWriteBatch<'_>, Self::ConcurrentWriteBatch<'_>>>;
+
+    fn shutdown(&self) -> Result<()> {
+        Ok(())
+    }
 }
