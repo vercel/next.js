@@ -100,6 +100,164 @@ export function Button() {
 }
 ```
 
+## Invoking Server Functions
+
+There are two mains ways you can invoke a Server Function:
+
+1. [Forms](#forms) in Server and Client Components
+2. [Event Handlers](#event-handlers) in Client Components
+
+### Forms
+
+React extends the HTML [`<form>`](https://react.dev/reference/react-dom/components/form) element to allow Server Function to be invoked with the HTML `action` prop.
+
+When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. You can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
+
+```tsx filename="app/ui/form.tsx" switcher
+import { createPost } from '@/app/actions'
+
+export function Form() {
+  return (
+    <form action={createPost}>
+      <input type="text" name="title" />
+      <input type="text" name="content" />
+      <button type="submit">Create</button>
+    </form>
+  )
+}
+```
+
+```jsx filename="app/ui/form.js" switcher
+import { createPost } from '@/app/actions'
+
+export function Form() {
+  return (
+    <form action={createPost}>
+      <input type="text" name="title" />
+      <input type="text" name="content" />
+      <button type="submit">Create</button>
+    </form>
+  )
+}
+```
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+export async function createPost(formData: FormData) {
+  const title = formData.get('title')
+  const content = formData.get('content')
+
+  // mutate data
+  // revalidate cache
+}
+```
+
+```jsx filename="app/actions.js" switcher
+'use server'
+
+export async function createPost(formData) {
+  const title = formData.get('title')
+  const content = formData.get('content')
+
+  // mutate data
+  // revalidate cache
+}
+```
+
+{/* TO DO: Create form example page */}
+
+{/* See the [Forms](/docs/app/getting-started/examples/forms) docs for more examples of how to use forms in Next.js. */}
+
+### Event Handlers
+
+You can invoke a Server Function in a Client Component by using event handlers such as `onClick`.
+
+```tsx filename="app/like-button.tsx" switcher
+'use client'
+
+import { incrementLike } from './actions'
+import { useState } from 'react'
+
+export default function LikeButton({ initialLikes }: { initialLikes: number }) {
+  const [likes, setLikes] = useState(initialLikes)
+
+  return (
+    <>
+      <p>Total Likes: {likes}</p>
+      <button
+        onClick={async () => {
+          const updatedLikes = await incrementLike()
+          setLikes(updatedLikes)
+        }}
+      >
+        Like
+      </button>
+```
+
+```jsx filename="app/like-button.js" switcher
+'use client'
+
+import { incrementLike } from './actions'
+import { useState } from 'react'
+
+export default function LikeButton({ initialLikes }) {
+  const [likes, setLikes] = useState(initialLikes)
+
+  return (
+    <>
+      <p>Total Likes: {likes}</p>
+      <button
+        onClick={async () => {
+          const updatedLikes = await incrementLike()
+          setLikes(updatedLikes)
+        }}
+      >
+        Like
+      </button>
+    </>
+  )
+}
+```
+
+### Showing a pending state
+
+While executing a Server Function, you can show a loading indicator with React's [`useActionState`](https://react.dev/reference/react/useActionState) hook. This hook returns a `pending` boolean:
+
+```tsx filename="app/ui/button.tsx" switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createPost } from '@/app/actions'
+
+export function Button() {
+  const [state, action, pending] = useActionState(createPost, false)
+
+  return (
+    <button disabled={pending} onClick={async () => action()}>
+      Create
+    </button>
+  )
+}
+```
+
+```jsx filename="app/ui/button.js" switcher
+'use client'
+
+import { useActionState } from 'react'
+import { createPost } from '@/app/actions'
+
+export function Button() {
+  const [state, action, pending] = useActionState(createPost, false)
+
+  return (
+    <button disabled={pending} onClick={async () => action()}>
+      Create
+    </button>
+  )
+}
+```
+
 ### Revalidating the cache
 
 After performing a mutation, you can revalidate a cache entry by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
