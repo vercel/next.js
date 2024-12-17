@@ -1,4 +1,4 @@
-import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'http'
+import type { IncomingHttpHeaders, OutgoingHttpHeaders } from 'node:http'
 import type { SizeLimit } from '../../types'
 import type { RequestStore } from '../app-render/work-unit-async-storage.external'
 import type { AppRenderContext, GenerateFlight } from './app-render'
@@ -524,7 +524,10 @@ export async function handleAction({
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
-  } else if (!host || originDomain !== host.value) {
+  } else if (
+    !host ||
+    new RegExp('^' + host.value + '(.?)$').test(originDomain)
+  ) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
