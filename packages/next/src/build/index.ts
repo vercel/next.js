@@ -287,6 +287,12 @@ export interface DynamicSsgRoute {
    * The status code that should be used when serving the fallback.
    */
   fallbackStatus?: number
+
+  /**
+   * The root params that are unknown for this fallback route.
+   */
+  fallbackRootParams: readonly string[] | undefined
+
   prefetchDataRoute: string | null | undefined
   prefetchDataRouteRegex: string | null | undefined
   routeRegex: string
@@ -371,13 +377,13 @@ export type RoutesManifest = {
   dynamicRoutes: Array<ManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
   i18n?: {
-    domains?: Array<{
+    domains?: ReadonlyArray<{
       http?: true
       domain: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale: string
     }>
-    locales: string[]
+    locales: readonly string[]
     defaultLocale: string
     localeDetection?: false
   }
@@ -467,7 +473,11 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-  }: { buildId: string; distDir: string; locales: string[] }
+  }: {
+    buildId: string
+    distDir: string
+    locales: readonly string[] | undefined
+  }
 ) {
   const ssgPages = new Set<string>(
     [
@@ -2782,6 +2792,16 @@ export default async function build(
                   : undefined
 
                 routes.forEach((route) => {
+                  // If the route has any dynamic root segments, we need to skip
+                  // rendering the route. This is because we don't support
+                  // revalidating the shells without the parameters present.
+                  if (
+                    route.fallbackRootParams &&
+                    route.fallbackRootParams.length > 0
+                  ) {
+                    return
+                  }
+
                   defaultMap[route.pathname] = {
                     page: originalAppPath,
                     query: { __nextSsgPath: route.encodedPathname },
@@ -3154,6 +3174,7 @@ export default async function build(
                   fallbackRevalidate,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
+                  fallbackRootParams: route.fallbackRootParams,
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
@@ -3581,6 +3602,7 @@ export default async function build(
                 ? `${normalizedRoute}.html`
                 : false,
             fallbackRevalidate: undefined,
+            fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
                 dataRoute.replace(/\.json$/, ''),
@@ -3604,7 +3626,7 @@ export default async function build(
         await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
-          locales: config.i18n?.locales || [],
+          locales: config.i18n?.locales,
         })
       } else {
         await writePrerenderManifest(distDir, {

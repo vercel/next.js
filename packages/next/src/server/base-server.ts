@@ -1437,7 +1437,7 @@ export default abstract class Server<
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
-          this.nextConfig.i18n?.locales || []
+          this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {
