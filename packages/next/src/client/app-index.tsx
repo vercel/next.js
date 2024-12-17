@@ -239,19 +239,26 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  if (shouldRenderRootLevelErrorOverlay()) {
-    if (process.env.NODE_ENV !== 'production') {
+  if (
+    document.documentElement.id === '__next_error__' ||
+    !!window.__next_root_layout_missing_tags?.length
+  ) {
+    let element = reactEl
+    // Server rendering failed, fall back to client-side rendering
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      shouldRenderRootLevelErrorOverlay()
+    ) {
       const { createRootLevelDevOverlayElement } =
         require('./components/react-dev-overlay/client-entry') as typeof import('./components/react-dev-overlay/client-entry')
-      const errorTree = createRootLevelDevOverlayElement(reactEl)
-      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
-        errorTree
-      )
-    } else {
-      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
-        reactEl
-      )
+
+      // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
+      element = createRootLevelDevOverlayElement(element)
     }
+
+    ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
+      element
+    )
   } else {
     React.startTransition(() =>
       (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {
