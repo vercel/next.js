@@ -775,7 +775,8 @@ export default class DevServer extends Server {
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
           buildId: this.renderOpts.buildId,
-          authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+          authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
       } finally {
@@ -808,7 +809,7 @@ export default class DevServer extends Server {
           staticPaths: string[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.path),
+          staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)

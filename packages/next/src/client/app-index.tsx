@@ -250,7 +250,7 @@ export function hydrate() {
       shouldRenderRootLevelErrorOverlay()
     ) {
       const { createRootLevelDevOverlayElement } =
-        require('./components/react-dev-overlay/client-entry') as typeof import('./components/react-dev-overlay/client-entry')
+        require('./components/react-dev-overlay/app/client-entry') as typeof import('./components/react-dev-overlay/app/client-entry')
 
       // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
       element = createRootLevelDevOverlayElement(element)
