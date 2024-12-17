@@ -16,21 +16,29 @@ describe('dynamic-io', () => {
     })
   })
 
-  it('should not have dynamic IO errors when encoding bound args for inline server actions', async () => {
-    const browser = await next.browser('/server-action-inline')
-    expect(await browser.elementByCss('p').text()).toBe('initial')
-    await browser.elementByCss('button').click()
+  // TODO: Re-enable the test for PPR in dev mode when the issue is resolved
+  // where the inclusion of server timings in the RSC payload makes the
+  // serialized bound args not suitable to be used as a cache key.
+  /* eslint-disable jest/no-standalone-expect */
+  ;(process.env.__NEXT_EXPERIMENTAL_PPR && isNextDev ? it.skip : it)(
+    'should not have dynamic IO errors when encoding bound args for inline server actions',
+    async () => {
+      const browser = await next.browser('/server-action-inline')
+      expect(await browser.elementByCss('p').text()).toBe('initial')
+      await browser.elementByCss('button').click()
 
-    await retry(async () => {
-      expect(await browser.elementByCss('p').text()).toBe('result')
-    })
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('result')
+      })
 
-    expect(next.cliOutput).not.toMatch('Error: Route "/server-action-inline"')
+      expect(next.cliOutput).not.toMatch('Error: Route "/server-action-inline"')
 
-    if (isNextDev) {
-      await assertNoRedbox(browser)
+      if (isNextDev) {
+        await assertNoRedbox(browser)
+      }
     }
-  })
+  )
+  /* eslint-enable jest/no-standalone-expect */
 
   it('should prerender pages with inline server actions', async () => {
     let $ = await next.render$('/server-action-inline', {})
