@@ -5,17 +5,6 @@ description: Style your Next.js Application using Tailwind CSS.
 
 {/* The content of this doc is shared between the app and pages router. You can use the `<PagesOnly>Content</PagesOnly>` component to add content that is specific to the Pages Router. Any shared content should not be wrapped in a component. */}
 
-<PagesOnly>
-
-<details open>
-  <summary>Examples</summary>
-
-- [With Tailwind CSS](https://github.com/vercel/next.js/tree/canary/examples/with-tailwindcss)
-
-</details>
-
-</PagesOnly>
-
 [Tailwind CSS](https://tailwindcss.com/) is a utility-first CSS framework that works exceptionally well with Next.js.
 
 ## Installing Tailwind
@@ -31,10 +20,10 @@ npx tailwindcss init -p
 
 Inside your Tailwind configuration file, add paths to the files that will use Tailwind class names:
 
-```ts filename="tailwind.config.ts" switcher
+```ts filename="tailwind.config.ts" highlight={5-10} switcher
 import type { Config } from 'tailwindcss'
 
-const config: Config = {
+export default {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}', // Note the addition of the `app` directory.
     './pages/**/*.{js,ts,jsx,tsx,mdx}',
@@ -47,11 +36,10 @@ const config: Config = {
     extend: {},
   },
   plugins: [],
-}
-export default config
+} satisfies Config
 ```
 
-```js filename="tailwind.config.js" switcher
+```js filename="tailwind.config.js" highlight={4-9} switcher
 /** @type {import('tailwindcss').Config} */
 module.exports = {
   content: [

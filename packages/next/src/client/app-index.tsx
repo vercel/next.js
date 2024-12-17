@@ -25,6 +25,7 @@ import type { InitialRSCPayload } from '../server/app-render/types'
 import { createInitialRouterState } from './components/router-reducer/create-initial-router-state'
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
+import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
 
 /// <reference types="react-dom/experimental" />
 
@@ -238,25 +239,26 @@ export function hydrate() {
     </StrictModeIfEnabled>
   )
 
-  const rootLayoutMissingTags = window.__next_root_layout_missing_tags
-  const hasMissingTags = !!rootLayoutMissingTags?.length
+  if (
+    document.documentElement.id === '__next_error__' ||
+    !!window.__next_root_layout_missing_tags?.length
+  ) {
+    let element = reactEl
+    // Server rendering failed, fall back to client-side rendering
+    if (
+      process.env.NODE_ENV !== 'production' &&
+      shouldRenderRootLevelErrorOverlay()
+    ) {
+      const { createRootLevelDevOverlayElement } =
+        require('./components/react-dev-overlay/client-entry') as typeof import('./components/react-dev-overlay/client-entry')
 
-  const isError =
-    document.documentElement.id === '__next_error__' || hasMissingTags
-
-  if (isError) {
-    if (process.env.NODE_ENV !== 'production') {
-      const createDevOverlayElement =
-        require('./components/react-dev-overlay/client-entry').createDevOverlayElement
-      const errorTree = createDevOverlayElement(reactEl)
-      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
-        errorTree
-      )
-    } else {
-      ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
-        reactEl
-      )
+      // Note this won't cause hydration mismatch because we are doing CSR w/o hydration
+      element = createRootLevelDevOverlayElement(element)
     }
+
+    ReactDOMClient.createRoot(appElement as any, reactRootOptions).render(
+      element
+    )
   } else {
     React.startTransition(() =>
       (ReactDOMClient as any).hydrateRoot(appElement, reactEl, {

@@ -577,7 +577,7 @@ To continue using Speed Insights, follow the [Vercel Speed Insights Quickstart](
 
 The `geo` and `ip` properties on `NextRequest` have been removed as these values are provided by your hosting provider. A [codemod](/docs/app/building-your-application/upgrading/codemods#150) is available to automate this migration.
 
-If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions](https://vercel.com/docs/functions/vercel-functions-package) instead:
+If you are using Vercel, you can alternatively use the `geolocation` and `ipAddress` functions from [`@vercel/functions`](https://vercel.com/docs/functions/vercel-functions-package) instead:
 
 ```ts filename="middleware.ts"
 import { geolocation } from '@vercel/functions'
