@@ -6,20 +6,17 @@
     "start": "next start"
   },
   "dependencies": {
-    "@kiwicom/orbit-components": "^18.1.0",
-    "autoprefixer": "^10.4.20",
+    "@kiwicom/orbit-components": "^18.1.1",
     "next": "latest",
-    "postcss": "^8.4.49",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "tailwindcss": "^3.4.16"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "devDependencies": {
-    "@kiwicom/babel-plugin-orbit-components": "^5.1.24",
-    "@types/node": "^22.10.1",
-    "@types/react": "^18.3.13",
-    "prettier": "^3.4.2",
-    "prettier-check": "^2.0.0",
+    "autoprefixer": "^10.4.20",
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.16",
     "typescript": "^5.7.2"
   }
 }
