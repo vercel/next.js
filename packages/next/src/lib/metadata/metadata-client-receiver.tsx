@@ -8,11 +8,13 @@ function InnerMetadataClient({ promise }: { promise: Promise<any> }) {
   // const metadataNode = use(promise)
   let metadataNode: React.ReactNode = null
   promise.then((resolvedMetadata) => {
+    console.log('resolved metadata')
     metadataNode = resolvedMetadata
   })
   
   useServerInsertedHTML(() => {
     if (!onceRef.current && metadataNode) {
+      console.log('insert metadata')
       onceRef.current = true
       return metadataNode
     }
@@ -21,20 +23,10 @@ function InnerMetadataClient({ promise }: { promise: Promise<any> }) {
   return null
 }
 
-function EnsurePromiseIsResolved({ promise }: { promise: Promise<any> }) {
-  use(promise)
-  return null
-}
-
 export function MetadataClientReceiver({ promise }: { promise: Promise<any> }) {
   return (
     <>
-      {typeof window === 'undefined' && <InnerMetadataClient promise={promise} />}
-        <Suspense>
-          {typeof window !== 'undefined' && (
-            <EnsurePromiseIsResolved promise={promise} />
-          )}
-        </Suspense>
+      {typeof window !== 'undefined' && <InnerMetadataClient promise={promise} />}        
     </>
   )
 }

@@ -146,7 +146,7 @@ export function createEmptyCacheNode(): CacheNode {
     rsc: null,
     prefetchRsc: null,
     head: [null, null],
-    prefetchHead: null,
+    prefetchHead: [null, null],
     parallelRoutes: new Map(),
     loading: null,
   }
@@ -211,7 +211,7 @@ function copyNextJsInternalHistoryState(data: any) {
   return data
 }
 
-function Head({
+function ViewportHead({
   headCacheNode,
 }: {
   headCacheNode: CacheNode | null
@@ -224,7 +224,33 @@ function Head({
     headCacheNode !== null ? headCacheNode.prefetchHead : null
 
   // If no prefetch data is available, then we go straight to rendering `head`.
-  const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
+  const resolvedPrefetchRsc = (prefetchHead !== null ? prefetchHead : head)?.[0]
+  const viewport = head?.[0]
+  // We use `useDeferredValue` to handle switching between the prefetched and
+  // final values. The second argument is returned on initial render, then it
+  // re-renders with the first argument.
+  //
+  // @ts-expect-error The second argument to `useDeferredValue` is only
+  // available in the experimental builds. When its disabled, it will always
+  // return `head`.
+  return useDeferredValue(viewport, resolvedPrefetchRsc)
+}
+
+function MetadataHead({
+  headCacheNode,
+}: {
+  headCacheNode: CacheNode | null
+}): React.ReactNode {
+  // If this segment has a `prefetchHead`, it's the statically prefetched data.
+  // We should use that on initial render instead of `head`. Then we'll switch
+  // to `head` when the dynamic response streams in.
+  const head = headCacheNode !== null ? headCacheNode.head : null
+  const prefetchHead =
+    headCacheNode !== null ? headCacheNode.prefetchHead : null
+
+  // If no prefetch data is available, then we go straight to rendering `head`.
+  const resolvedPrefetchRsc = (prefetchHead !== null ? prefetchHead : head)?.[1]
+  const metadata = head?.[1]
 
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
@@ -233,7 +259,7 @@ function Head({
   // @ts-expect-error The second argument to `useDeferredValue` is only
   // available in the experimental builds. When its disabled, it will always
   // return `head`.
-  return useDeferredValue(head, resolvedPrefetchRsc)
+  return useDeferredValue(metadata, resolvedPrefetchRsc)
 }
 
 /**
@@ -588,6 +614,7 @@ function Router({
   }, [changeByServerResponse, tree, focusAndScrollRef, nextUrl])
 
   let head
+  console.log('matchingHead', matchingHead)
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
     // `useDeferredValue` to swap between the prefetched and final versions of
@@ -596,7 +623,10 @@ function Router({
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
     const [headCacheNode, headKey] = matchingHead
-    head = <Head key={headKey} headCacheNode={headCacheNode} />
+    head = [
+      <ViewportHead key={headKey + 'v'} headCacheNode={headCacheNode} />,
+      <MetadataHead key={headKey + 'm'} headCacheNode={headCacheNode} />,
+    ]
   } else {
     head = null
   }

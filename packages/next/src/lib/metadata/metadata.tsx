@@ -263,9 +263,9 @@ async function getResolvedMetadataImpl(
     errorType
   )
   return (
-    // <Suspense fallback={null}>
-      <MetadataClientReceiver promise={metadataPromise} />
-    // </Suspense>
+    // TODO: for static bots: directly return the resolved metadata;
+    // Otherwise for async case
+    <MetadataClientReceiver promise={metadataPromise} />
   )
 }
 
