@@ -94,7 +94,7 @@ impl CssChunk {
                 content.source_map.map(ResolvedVc::upcast)
             };
 
-            body.push_source(&content.inner_code, source_map.map(|v| *v));
+            body.push_source(&content.inner_code, source_map);
 
             writeln!(body, "{close}")?;
             writeln!(body)?;
