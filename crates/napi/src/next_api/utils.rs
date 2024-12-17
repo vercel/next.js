@@ -132,6 +132,10 @@ pub fn create_turbo_tasks(
         } else {
             "-dirty"
         };
+        #[allow(
+            clippy::const_is_empty,
+            reason = "LAST_TAG might be empty if the tag can't be determined"
+        )]
         let version_info = if crate::build::LAST_TAG.is_empty() {
             format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
         } else {
