@@ -264,14 +264,6 @@ For example, you can have a dynamic route segment which loads MDX components fro
   height="849"
 />
 
-<Image
-  alt="Route segments for dynamic MDX components"
-  srcLight="/docs/light/mdx-files.png"
-  srcDark="/docs/dark/mdx-files.png"
-  width="1600"
-  height="849"
-/>
-
 [`generateStaticParams`](/docs/app/api-reference/functions/generate-static-params) can be used to prerender the provided routes. By marking `dynamicParams` as `false`, accessing a route not defined in `generateStaticParams` will 404.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
