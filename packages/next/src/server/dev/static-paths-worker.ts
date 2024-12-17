@@ -3,13 +3,9 @@ import type { NextConfigComplete } from '../config-shared'
 import '../require-hook'
 import '../node-environment'
 
-import {
-  buildAppStaticPaths,
-  buildStaticPaths,
-  reduceAppConfig,
-} from '../../build/utils'
+import { reduceAppConfig } from '../../build/utils'
 import { collectSegments } from '../../build/segment-config/app/app-segments'
-import type { PartialStaticPathsResult } from '../../build/utils'
+import type { StaticPathsResult } from '../../build/static-paths/types'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
@@ -19,6 +15,8 @@ import {
   type ExperimentalPPRConfig,
 } from '../lib/experimental/ppr'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { buildAppStaticPaths } from '../../build/static-paths/app'
+import { buildStaticPaths } from '../../build/static-paths/pages'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
@@ -71,7 +69,7 @@ export async function loadStaticPaths({
   nextConfigOutput: 'standalone' | 'export' | undefined
   buildId: string
   authInterrupts: boolean
-}): Promise<PartialStaticPathsResult> {
+}): Promise<Partial<StaticPathsResult>> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
