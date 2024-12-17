@@ -8,9 +8,12 @@ related:
   links:
     - /docs/app/api-reference/functions/revalidatePath
     - /docs/app/api-reference/functions/revalidateTag
+    - /docs/app/api-reference/functions/redirect
 ---
 
 You can mutate data in Next.js using React's [Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
+
+> **Good to know:** When used in a mutation context, Server Functions are also known as _Server Actions_.
 
 ## Creating Server Functions
 
@@ -18,8 +21,6 @@ A Server Function can be defined by using the [`use server`](https://react.dev/r
 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
-
-import { db } from '@/lib/db'
 
 export async function createPost(formData: FormData) {}
 
