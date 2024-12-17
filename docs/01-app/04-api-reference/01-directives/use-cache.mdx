@@ -212,6 +212,28 @@ export default async function Page() {
   )
 }
 
+async function CacheComponent({ children }: { children: ReactNode }) {
+  'use cache'
+  const cachedData = await fetch('/api/cached-data')
+  return (
+    <div>
+      <PrerenderedComponent data={cachedData} />
+      {children}
+    </div>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const uncachedData = await getData()
+  return (
+    <CacheComponent>
+      <DynamicComponent data={uncachedData} />
+    </CacheComponent>
+  )
+}
+
 async function CacheComponent({ children }) {
   'use cache'
   const cachedData = await fetch('/api/cached-data')
@@ -227,42 +249,46 @@ async function CacheComponent({ children }) {
 You can also pass Server Actions through cached components to Client Components without invoking them inside the cacheable function.
 
 ```tsx filename="app/page.tsx" switcher
-import ClientComponent from './ClientComponent';
+import ClientComponent from './ClientComponent'
 
 export default async function Page() {
   const performUpdate = async () => {
-    "use server"
+    'use server'
     // Perform some server-side update
-    await db.update(...);
-  };
+    await db.update(...)
+  }
 
-  return <CacheComponent performUpdate={performUpdate} />;
+  return <CacheComponent performUpdate={performUpdate} />
 }
 
-async function CachedComponent({ performUpdate }) {
-  "use cache"
+async function CachedComponent({
+  performUpdate,
+}: {
+  performUpdate: () => Promise<void>
+}) {
+  'use cache'
   // Do not call performUpdate here
-  return <ClientComponent action={performUpdate} />;
+  return <ClientComponent action={performUpdate} />
 }
 ```
 
 ```jsx filename="app/page.js" switcher
-import ClientComponent from './ClientComponent';
+import ClientComponent from './ClientComponent'
 
 export default async function Page() {
   const performUpdate = async () => {
-    "use server"
+    'use server'
     // Perform some server-side update
-    await db.update(...);
-  };
+    await db.update(...)
+  }
 
-  return <CacheComponent performUpdate={performUpdate} />;
+  return <CacheComponent performUpdate={performUpdate} />
 }
 
 async function CachedComponent({ performUpdate }) {
-  "use cache"
+  'use cache'
   // Do not call performUpdate here
-  return <ClientComponent action={performUpdate} />;
+  return <ClientComponent action={performUpdate} />
 }
 ```
 

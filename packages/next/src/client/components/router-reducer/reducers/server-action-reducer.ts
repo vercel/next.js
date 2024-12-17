@@ -333,7 +333,8 @@ export function serverActionReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head
+            head,
+            undefined
           )
 
           mutable.cache = cache
