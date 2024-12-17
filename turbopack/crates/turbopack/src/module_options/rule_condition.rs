@@ -1,12 +1,12 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, ReadRef, Vc};
+use turbo_tasks::{primitives::Regex, trace::TraceRawVcs, NonLocalValue, ReadRef, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, virtual_source::VirtualSource,
 };
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 pub enum RuleCondition {
     All(Vec<RuleCondition>),
     Any(Vec<RuleCondition>),

@@ -28,7 +28,7 @@ impl AppPageRoute {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub enum Route {
     Page {
@@ -58,7 +58,7 @@ impl Route {
     }
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
@@ -83,5 +83,5 @@ pub enum WrittenEndpoint {
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct Routes(FxIndexMap<RcStr, Route>);

@@ -18,7 +18,7 @@ use turbo_tasks_fs::{
     LinkContent, LinkType,
 };
 
-#[turbo_tasks::value(shared, serialization = "auto_for_input", non_local)]
+#[turbo_tasks::value(shared, serialization = "auto_for_input")]
 #[derive(Hash, Clone, Debug, Default)]
 pub enum Pattern {
     Constant(RcStr),
@@ -1322,7 +1322,7 @@ impl PatternMatch {
 
 // TODO this isn't super efficient
 // avoid storing a large list of matches
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the

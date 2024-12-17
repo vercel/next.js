@@ -7,14 +7,16 @@ use next_core::{
 };
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, TryFlatJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc,
 };
 use turbopack::css::CssModuleAsset;
 use turbopack_core::module::Module;
 
 use crate::module_graph::SingleModuleGraph;
 
-#[derive(Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
+)]
 pub enum ClientReferenceMapType {
     EcmascriptClientReference {
         module: ResolvedVc<EcmascriptClientReferenceModule>,

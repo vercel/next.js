@@ -8,7 +8,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::CssModuleAsset;
@@ -21,7 +21,17 @@ use crate::{
 };
 
 #[derive(
-    Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct ClientReference {
     pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
@@ -39,7 +49,17 @@ impl ClientReference {
 }
 
 #[derive(
-    Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference {
@@ -75,7 +95,7 @@ impl Default for ClientReferenceGraphResult {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 pub struct VisitedClientReferenceGraphNodes(HashSet<VisitClientReferenceNode>);
 
 #[turbo_tasks::value_impl]
@@ -300,7 +320,16 @@ impl VisitClientReferenceNodeState {
 }
 
 #[derive(
-    Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference, ReadRef<RcStr>),

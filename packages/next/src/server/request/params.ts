@@ -160,7 +160,7 @@ function createPrerenderParams(
           prerenderStore
         )
       }
-      // remaining cases are prender-ppr and prerender-legacy
+      // remaining cases are prerender-ppr and prerender-legacy
       // We aren't in a dynamicIO prerender but we do have fallback params at this
       // level so we need to make an erroring exotic params object which will postpone
       // if you access the fallback params

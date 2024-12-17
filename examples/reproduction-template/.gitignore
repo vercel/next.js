@@ -2,9 +2,13 @@
 
 # dependencies
 /node_modules
-/.pnp
-.pnp.js
-.yarn/install-state.gz
+/.pnp0
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # testing
 /coverage

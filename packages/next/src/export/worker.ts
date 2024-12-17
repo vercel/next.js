@@ -233,6 +233,7 @@ async function exportPageImpl(
     distDir,
     page,
     isAppPath: isAppDir,
+    isDev: false,
   })
 
   // Handle App Routes.

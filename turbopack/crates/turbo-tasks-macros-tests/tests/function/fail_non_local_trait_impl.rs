@@ -7,7 +7,7 @@ use turbo_tasks::Vc;
 #[turbo_tasks::value]
 struct ExampleStruct;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 struct IntegersVec(Vec<Vc<u32>>);
 
 #[turbo_tasks::value_trait]

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     reference_type::ReferenceType, source::Source, source_transform::SourceTransforms,
@@ -11,7 +11,7 @@ use turbopack_wasm::source::WebAssemblySourceType;
 
 use super::{match_mode::MatchMode, CustomModuleType, RuleCondition};
 
-#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, NonLocalValue)]
 pub struct ModuleRule {
     condition: RuleCondition,
     effects: Vec<ModuleRuleEffect>,
