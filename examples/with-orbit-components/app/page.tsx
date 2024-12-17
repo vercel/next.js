@@ -1,6 +1,6 @@
 import { Alert, Illustration } from "@kiwicom/orbit-components";
 
-export default function HomePage() {
+export default function Home() {
   return (
     <div>
       <Alert type="success" spaceAfter="large">
@@ -10,4 +10,3 @@ export default function HomePage() {
     </div>
   );
 }
-  
