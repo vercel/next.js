@@ -72,7 +72,7 @@ function fillCacheHelper(
             fillLazyItems || incomingSegment !== PAGE_SEGMENT_KEY ? rsc : null,
           prefetchRsc: null,
           head: [null, null],
-          prefetchHead: null,
+          prefetchHead: [null, null],
           loading,
           parallelRoutes:
             fillLazyItems && existingChildCacheNode

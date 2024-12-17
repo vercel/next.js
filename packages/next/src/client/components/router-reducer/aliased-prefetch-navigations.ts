@@ -173,7 +173,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         rsc: segmentForParallelRoute.includes(PAGE_SEGMENT_KEY) ? null : rsc,
         prefetchRsc: null,
         head: [null, null],
-        prefetchHead: null,
+        prefetchHead: [null, null],
         parallelRoutes: new Map(),
         loading,
       }
@@ -185,7 +185,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         rsc: null,
         prefetchRsc: null,
         head: [null, null],
-        prefetchHead: null,
+        prefetchHead: [null, null],
         parallelRoutes: new Map(),
         loading: null,
       }

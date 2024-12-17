@@ -19,7 +19,7 @@ export default function Page() {
 }
 
 export const generateMetadata = async () => {
-  await new Promise((resolve) => setTimeout(resolve, 1000 * 5))
+  await new Promise((resolve) => setTimeout(resolve, 1000 * 6))
   return {
     generator: 'next.js',
     applicationName: 'test',

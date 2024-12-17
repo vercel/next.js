@@ -35,6 +35,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  MetadataTree: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -70,6 +71,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
+  MetadataTree,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -83,6 +85,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  MetadataTree: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -490,9 +493,10 @@ async function createComponentTreeInternal({
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
             // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
-            getMetadataReady: isChildrenRouteKey
-              ? getMetadataReady
-              : () => Promise.resolve(),
+            getMetadataReady: () => Promise.resolve(),
+            // getMetadataReady: isChildrenRouteKey
+            //   ? getMetadataReady
+            //   : () => Promise.resolve(),
             getViewportReady: isChildrenRouteKey
               ? getViewportReady
               : () => Promise.resolve(),
@@ -500,6 +504,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts: authInterrupts,
+            MetadataTree,
           })
 
           childCacheNodeSeedData = seedData
@@ -652,6 +657,9 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
+        <Suspense fallback={null}>
+          <MetadataTree />
+        </Suspense>
         {/* <MetadataOutlet ready={getMetadataReady} /> */}
         {pageElement}
         {layerAssets}

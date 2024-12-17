@@ -3,7 +3,7 @@ import type { GetDynamicParamFromSegment } from '../../server/app-render/app-ren
 import type { LoaderTree } from '../../server/lib/app-dir-module'
 import type { CreateServerParamsForMetadata } from '../../server/request/params'
 
-import { cache, cloneElement, Suspense, use } from 'react'
+import { cache, cloneElement } from 'react'
 import {
   AppleWebAppMeta,
   FormatDetectionMeta,

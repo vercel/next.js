@@ -17,7 +17,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       rsc: null,
       prefetchRsc: null,
       head: [null, null],
-      prefetchHead: null,
+      prefetchHead: [null, null],
       parallelRoutes: new Map(),
       loading: null,
     }
@@ -26,7 +26,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
       rsc: <>Root layout</>,
       prefetchRsc: null,
       head: [null, null],
-      prefetchHead: null,
+      prefetchHead: [null, null],
       loading: null,
       parallelRoutes: new Map([
         [
@@ -39,7 +39,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                 rsc: <>Linking</>,
                 prefetchRsc: null,
                 head: [null, null],
-                prefetchHead: null,
+                prefetchHead: [null, null],
                 loading: null,
                 parallelRoutes: new Map([
                   [
@@ -52,7 +52,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
                           rsc: <>Page</>,
                           prefetchRsc: null,
                           head: [null, null],
-                          prefetchHead: null,
+                          prefetchHead: [null, null],
                           parallelRoutes: new Map(),
                           loading: null,
                         },

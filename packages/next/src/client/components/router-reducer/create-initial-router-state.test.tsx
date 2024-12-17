@@ -60,7 +60,7 @@ describe('createInitialRouterState', () => {
       rsc: children,
       prefetchRsc: null,
       head: [null, null],
-      prefetchHead: null,
+      prefetchHead: [null, null],
       loading: null,
       parallelRoutes: new Map([
         [
@@ -82,7 +82,7 @@ describe('createInitialRouterState', () => {
                           parallelRoutes: new Map(),
                           loading: null,
                           head: [null, <title>Test</title>],
-                          prefetchHead: null,
+                          prefetchHead: [null, null],
                         },
                       ],
                     ]),
@@ -92,7 +92,7 @@ describe('createInitialRouterState', () => {
                 rsc: null,
                 prefetchRsc: null,
                 head: [null, null],
-                prefetchHead: null,
+                prefetchHead: [null, null],
                 loading: null,
               },
             ],
