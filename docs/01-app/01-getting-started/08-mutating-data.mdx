@@ -100,6 +100,31 @@ export function Button() {
 }
 ```
 
+### Revalidating the cache
+
+After performing a mutation, you can revalidate a cache entry by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
+
+```ts filename="app/lib/actions.ts" switcher
+'use server'
+
+export async function createPost(formData: FormData) {
+  // Mutate data
+  // ...
+
+  revalidatePath('/posts')
+}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function createPost(formData) {
+  // Mutate data
+  // ...
+  revalidatePath('/posts')
+}
+```
+
 ### Redirecting
 
 You may want to redirect the user to a different page after performing a mutation. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function:
