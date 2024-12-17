@@ -25,6 +25,7 @@ import {
   encodeSegment,
   ROOT_SEGMENT_KEY,
 } from './segment-value-encoding'
+import { getDigestForWellKnownError } from './create-error-handler'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -66,7 +67,17 @@ export type SegmentPrefetch = {
   isPartial: boolean
 }
 
+function onSegmentPrerenderError(error: unknown) {
+  const digest = getDigestForWellKnownError(error)
+  if (digest) {
+    return digest
+  }
+  // We don't need to log the errors because we would have already done that
+  // when generating the original Flight stream for the whole page.
+}
+
 export async function collectSegmentData(
+  shouldAssumePartialData: boolean,
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
@@ -110,6 +121,7 @@ export async function collectSegmentData(
     // inside of it, the side effects are transferred to the new stream.
     // @ts-expect-error
     <PrefetchTreeData
+      shouldAssumePartialData={shouldAssumePartialData}
       fullPageDataBuffer={fullPageDataBuffer}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
@@ -120,10 +132,7 @@ export async function collectSegmentData(
     clientModules,
     {
       signal: abortController.signal,
-      onError() {
-        // Ignore any errors. These would have already been reported when
-        // we created the full page data.
-      },
+      onError: onSegmentPrerenderError,
     }
   )
 
@@ -142,6 +151,7 @@ export async function collectSegmentData(
 }
 
 async function PrefetchTreeData({
+  shouldAssumePartialData,
   fullPageDataBuffer,
   serverConsumerManifest,
   clientModules,
@@ -149,6 +159,7 @@ async function PrefetchTreeData({
   segmentTasks,
   onCompletedProcessingRouteTree,
 }: {
+  shouldAssumePartialData: boolean
   fullPageDataBuffer: Buffer
   serverConsumerManifest: any
   clientModules: ManifestNode
@@ -187,6 +198,7 @@ async function PrefetchTreeData({
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
   const tree = await collectSegmentDataImpl(
+    shouldAssumePartialData,
     flightRouterState,
     buildId,
     seedData,
@@ -198,7 +210,8 @@ async function PrefetchTreeData({
     segmentTasks
   )
 
-  const isHeadPartial = await isPartialRSCData(head, clientModules)
+  const isHeadPartial =
+    shouldAssumePartialData || (await isPartialRSCData(head, clientModules))
 
   // Notify the abort controller that we're done processing the route tree.
   // Anything async that happens after this point must be due to hanging
@@ -217,6 +230,7 @@ async function PrefetchTreeData({
 }
 
 async function collectSegmentDataImpl(
+  shouldAssumePartialData: boolean,
   route: FlightRouterState,
   buildId: string,
   seedData: CacheNodeSeedData | null,
@@ -249,6 +263,7 @@ async function collectSegmentDataImpl(
       parallelRouteKey
     )
     const childTree = await collectSegmentDataImpl(
+      shouldAssumePartialData,
       childRoute,
       buildId,
       childSeedData,
@@ -272,6 +287,7 @@ async function collectSegmentDataImpl(
       // current task to escape the current rendering context.
       waitAtLeastOneReactRenderTask().then(() =>
         renderSegmentPrefetch(
+          shouldAssumePartialData,
           buildId,
           seedData,
           key,
@@ -299,6 +315,7 @@ async function collectSegmentDataImpl(
 }
 
 async function renderSegmentPrefetch(
+  shouldAssumePartialData: boolean,
   buildId: string,
   seedData: CacheNodeSeedData,
   key: string,
@@ -314,7 +331,8 @@ async function renderSegmentPrefetch(
     buildId,
     rsc,
     loading,
-    isPartial: await isPartialRSCData(rsc, clientModules),
+    isPartial:
+      shouldAssumePartialData || (await isPartialRSCData(rsc, clientModules)),
   }
   // Since all we're doing is decoding and re-encoding a cached prerender, if
   // it takes longer than a microtask, it must because of hanging promises
@@ -326,10 +344,7 @@ async function renderSegmentPrefetch(
     clientModules,
     {
       signal: abortController.signal,
-      onError() {
-        // Ignore any errors. These would have already been reported when
-        // we created the full page data.
-      },
+      onError: onSegmentPrerenderError,
     }
   )
   const segmentBuffer = await streamToBuffer(segmentStream)
