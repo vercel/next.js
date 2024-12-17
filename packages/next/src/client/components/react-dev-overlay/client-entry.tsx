@@ -6,7 +6,7 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-ty
 
 // if an error is thrown while rendering an RSC stream, this will catch it in dev
 // and show the error overlay
-export function createDevOverlayElement(reactEl: React.ReactElement) {
+export function createRootLevelDevOverlayElement(reactEl: React.ReactElement) {
   const rootLayoutMissingTags = window.__next_root_layout_missing_tags
   const hasMissingTags = !!rootLayoutMissingTags?.length
   const socketUrl = getSocketUrl(process.env.__NEXT_ASSET_PREFIX || '')

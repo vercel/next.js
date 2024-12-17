@@ -13,6 +13,13 @@ describe('app-dir - missing required html tags', () => {
   it('should show error overlay', async () => {
     const browser = await next.browser('/')
 
+    // There was a bug where multiple dialogs were being rendered when required
+    // html tags were missing. This test ensures there is no regression.
+    await retry(async () => {
+      const dialogs = await browser.elementsByCss('nextjs-portal')
+      expect(dialogs).toHaveLength(1)
+    })
+
     await assertHasRedbox(browser)
     expect(await getRedboxDescription(browser)).toMatchInlineSnapshot(`
       "The following tags are missing in the Root Layout: <html>, <body>.

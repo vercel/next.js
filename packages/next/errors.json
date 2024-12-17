@@ -611,5 +611,7 @@
   "610": "Could not find a production build in the '%s' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id",
   "611": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`request.%s\\`.",
   "612": "ServerPrerenderStreamResult cannot be consumed as a stream because it is not yet complete. status: %s",
-  "613": "Expected the input to be `string | string[]`"
+  "613": "Expected the input to be `string | string[]`",
+  "614": "Route %s used \"unstable_rootParams\" inside \"use cache\". This is not currently supported.",
+  "615": "Missing workStore in unstable_rootParams"
 }
