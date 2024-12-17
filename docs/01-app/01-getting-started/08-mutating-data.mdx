@@ -11,3 +11,90 @@ related:
 ---
 
 You can mutate data in Next.js using React's [Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
+
+## Creating Server Functions
+
+A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Functions, or at the top of a separate file to mark all exports of that file.
+
+```ts filename="app/lib/actions.ts" switcher
+'use server'
+
+import { db } from '@/lib/db'
+
+export async function createPost(formData: FormData) {}
+
+export async function deletePost(formData: FormData) {}
+```
+
+```js filename="app/lib/actions.js" switcher
+'use server'
+
+export async function createPost(formData) {}
+
+export async function deletePost(formData: FormData) {}
+```
+
+### Server Components
+
+Server Functions can be inlined in Server Components by adding the `"use server"` directive to the top of the function body:
+
+```tsx filename="app/page.tsx" switcher
+export async default function Page() {
+  // Server Action
+  async function createPost() {
+    'use server'
+    // Mutate data
+    // ...
+
+  return <></>
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default function Page() {
+  // Server Action
+  async function createPost() {
+    'use server'
+    // Mutate data
+    // ...
+  }
+
+  return <></>
+}
+```
+
+### Client Components
+
+It's not possible to define Server Functions in Client Components. However, you can invoke them in Client Components by importing them from a file that has the `"use server"` directive at the top of it:
+
+```tsx filename="app/actions.ts" switcher
+'use server'
+
+export async function createPost() {}
+```
+
+```js filename="app/actions.js" switcher
+'use server'
+
+export async function createPost() {}
+```
+
+```tsx filename="app/ui/button.tsx" switcher
+'use client'
+
+import { createPost } from '@/app/actions'
+
+export function Button() {
+  return <button onClick={() => createPost()}>Create</button>
+}
+```
+
+```jsx filename="app/ui/button.js" switcher
+'use client'
+
+import { createPost } from '@/app/actions'
+
+export function Button() {
+  return <button onClick={() => createPost()}>Create</button>
+}
+```
