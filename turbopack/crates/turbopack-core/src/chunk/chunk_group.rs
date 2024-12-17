@@ -154,7 +154,8 @@ pub async fn make_chunk_group(
         references_to_output_assets(external_module_references)
             .await?
             .await?
-            .clone_value(),
+            .iter()
+            .copied(),
     );
 
     let rebased_modules = traced_modules
