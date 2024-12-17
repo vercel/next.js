@@ -439,6 +439,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
         authInterrupts: z.boolean().optional(),
+        newDevOverlay: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

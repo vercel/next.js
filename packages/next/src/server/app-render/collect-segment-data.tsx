@@ -17,14 +17,17 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { UNDERSCORE_NOT_FOUND_ROUTE } from '../../api/constants'
 import { waitAtLeastOneReactRenderTask } from '../../lib/scheduler'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
 export type RootTreePrefetch = {
   buildId: string
   tree: TreePrefetch
-  head: React.ReactNode | null
+  head: HeadData
   isHeadPartial: boolean
   staleTime: number
 }
@@ -178,7 +181,7 @@ async function PrefetchTreeData({
   }
   const flightRouterState: FlightRouterState = flightDataPaths[0][0]
   const seedData: CacheNodeSeedData = flightDataPaths[0][1]
-  const head: React.ReactNode | null = flightDataPaths[0][2]
+  const head: HeadData = flightDataPaths[0][2]
 
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
