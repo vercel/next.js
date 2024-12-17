@@ -61,7 +61,7 @@ export default async function Page() {
 }
 ```
 
-Alternatively, you can add the `'use cache'` directive at the top of the file to mark all components in the file as cacheable. Each component will be cached separately, with its own cache key.
+Alternatively, you can add the `'use cache'` directive at the top of the file to mark all components in the file as cacheable. Each component will be cached separately, with its own [cache key](/docs/app/api-reference/directives/use-cache#cache-keys).
 
 ```tsx filename="app/blog/page.tsx" highlight={1} switcher
 'use cache'
@@ -127,9 +127,9 @@ export async function getPosts(slug) {
 }
 ```
 
-You can then call the function throughout your application code and the same cache entry will be reused, as long as the arguments to the function (e.g. `slug`) are the same.
+You can then call the function throughout your application code and the same cache entry will be reused, as long as the arguments to the function (e.g. `slug`) are the same. If the arguments are different, a new cache key will be created for the new arguments.
 
-Alternatively, you can also cache all functions within a file by adding the `'use cache'` directive at the top of the file. Each function will be cached separately, with its own cache key.
+Alternatively, you can also cache all functions within a file by adding the `'use cache'` directive at the top of the file. Each function will be cached separately.
 
 ```ts filename="app/lib/data.ts" switcher
 'use cache'
