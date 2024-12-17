@@ -1,5 +1,5 @@
 import type { CacheNodeSeedData, PreloadCallbacks } from './types'
-import React from 'react'
+import React, { Suspense } from 'react'
 import { isClientReference } from '../../lib/client-reference'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
@@ -35,6 +35,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  metadata: React.ReactNode
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -70,6 +71,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
+  metadata,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -83,6 +85,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  metadata: React.ReactNode
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -500,6 +503,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts: authInterrupts,
+            metadata,
           })
 
           childCacheNodeSeedData = seedData
@@ -652,11 +656,14 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
+        <Suspense>
+          {metadata}
+          {/* <MetadataOutlet ready={getMetadataReady} /> */}
+        </Suspense>
         {pageElement}
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
-          <MetadataOutlet ready={getMetadataReady} />
         </OutletBoundary>
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,

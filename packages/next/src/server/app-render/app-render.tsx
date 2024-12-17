@@ -27,7 +27,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 
-import React, { type ErrorInfo, type JSX } from 'react'
+import React, { Suspense, type ErrorInfo, type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -496,6 +496,7 @@ async function generateDynamicRSCPayload(
   // We can rely on this because `ActionResult` will always be a promise, even if
   // the result is falsey.
   if (options?.actionResult) {
+    // ActionFlightResponse
     return {
       a: options.actionResult,
       f: flightData,
@@ -504,6 +505,7 @@ async function generateDynamicRSCPayload(
   }
 
   // Otherwise, it's a regular RSC response.
+  // NavigationFlightResponse
   return {
     b: ctx.renderOpts.buildId,
     f: flightData,
@@ -761,6 +763,13 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
+  const initialHeadMetadata = (
+    <React.Fragment key={flightDataPathMetadataKey}>
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <MetadataTree key={ctx.requestId} />
+    </React.Fragment>
+  )
+
   const seedData = await createComponentTree({
     ctx,
     loaderTree: tree,
@@ -774,6 +783,7 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
+    metadata: initialHeadMetadata,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -783,12 +793,7 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHeadMetadata = (
-    <React.Fragment key={flightDataPathMetadataKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={ctx.requestId} />
-    </React.Fragment>
-  )
+  
 
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
@@ -882,10 +887,12 @@ async function getErrorRSCPayload(
   })
 
   const initialHeadMetadata = (
-    <React.Fragment key={flightDataPathMetadataKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={requestId} />
-    </React.Fragment>
+    <Suspense>
+      <React.Fragment key={flightDataPathMetadataKey}>
+        {/* Adding requestId as react key to make metadata remount for each render */}
+        <MetadataTree key={requestId} />
+      </React.Fragment>
+    </Suspense>
   )
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
@@ -1882,6 +1889,7 @@ async function renderToStream(
     const generateStaticHTML = renderOpts.supportsDynamicResponse !== true
     const validateRootLayout = renderOpts.dev
     return await continueFizzStream(htmlStream, {
+      // metadataStream: createMetadataReadableStream({}),
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
         ctx.nonce,

@@ -18,22 +18,25 @@ export default function Page() {
   )
 }
 
-export const metadata: Metadata = {
-  generator: 'next.js',
-  applicationName: 'test',
-  referrer: 'origin-when-cross-origin',
-  keywords: ['next.js', 'react', 'javascript'],
-  authors: [{ name: 'huozhi' }, { name: 'tree', url: 'https://tree.com' }],
-  manifest: '/api/manifest',
-  creator: 'shu',
-  publisher: 'vercel',
-  robots: 'index, follow',
-  alternates: {},
-  formatDetection: {
-    email: false,
-    address: false,
-    telephone: false,
-  },
+export const generateMetadata = async () => {
+  await new Promise((resolve) => setTimeout(resolve, 1000 * 5))
+  return {
+    generator: 'next.js',
+    applicationName: 'test',
+    referrer: 'origin-when-cross-origin',
+    keywords: ['next.js', 'react', 'javascript'],
+    authors: [{ name: 'huozhi' }, { name: 'tree', url: 'https://tree.com' }],
+    manifest: '/api/manifest',
+    creator: 'shu',
+    publisher: 'vercel',
+    robots: 'index, follow',
+    alternates: {},
+    formatDetection: {
+      email: false,
+      address: false,
+      telephone: false,
+    },
+  }
 }
 
 export const viewport = {

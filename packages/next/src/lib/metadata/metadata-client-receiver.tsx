@@ -1,27 +1,40 @@
 'use client'
 
-import { use, Suspense } from 'react'
-import { useServerInsertedHTML } from 'next/navigation'
+import { Suspense, use, useRef } from 'react'
+import { useServerInsertedHTML } from '../../client/components/navigation'
 
-function MetadataClientReceiverInner({ promise }: { promise: Promise<any> }) {
-  const metadataNode = use(promise)
-  if (typeof window === 'undefined') return null
-  console.log('metadataNode', metadataNode)
-  useServerInsertedHTML(() => {
-    return <>{metadataNode}</>
+function InnerMetadataClient({ promise }: { promise: Promise<any> }) {
+  let onceRef = useRef(false)
+  // const metadataNode = use(promise)
+  let metadataNode: React.ReactNode = null
+  promise.then((resolvedMetadata) => {
+    metadataNode = resolvedMetadata
   })
+  
+  useServerInsertedHTML(() => {
+    if (!onceRef.current && metadataNode) {
+      onceRef.current = true
+      return metadataNode
+    }
+  })
+  
+  return null
+}
+
+function EnsurePromiseIsResolved({ promise }: { promise: Promise<any> }) {
+  use(promise)
   return null
 }
 
 export function MetadataClientReceiver({ promise }: { promise: Promise<any> }) {
-  console.log('MetadataClientReceiver', typeof window === 'undefined')
-  
-
   return (
     <>
-      <Suspense fallback={null}>
-        <MetadataClientReceiverInner promise={promise} />
-      </Suspense>
+      {typeof window === 'undefined' && <InnerMetadataClient promise={promise} />}
+        <Suspense>
+          {typeof window !== 'undefined' && (
+            <EnsurePromiseIsResolved promise={promise} />
+          )}
+        </Suspense>
     </>
   )
 }
