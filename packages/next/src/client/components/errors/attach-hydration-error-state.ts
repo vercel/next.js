@@ -1,3 +1,4 @@
+import React from 'react'
 import {
   // isHydrationError,
   getDefaultHydrationErrorMessage,
@@ -27,22 +28,58 @@ export function attachHydrationErrorState(
 
   // if it's hydration warning
   let parsedHydrationErrorState: HydrationErrorState = {}
+  let warning: [string, string, string] = ['', '', '']
+  let parsedComponentStack = (error as any)._componentStack || React.captureOwnerStack()
   if (reactHydrationDiffSegments) {
-    parsedHydrationErrorState = {
-      // ...(error as any).details,
-      // ...hydrationErrorStatePayload,
-      // componentStack,
-      warning:
-        hydrationErrorStatePayload?.warning ||
-        ([getDefaultHydrationErrorMessage(), '', ''] as [
-          string,
-          string,
-          string,
-        ]),
-      notes: reactHydrationDiffSegments[0],
-      componentStack: reactHydrationDiffSegments[1],
+    if (hydrationErrorStatePayload?.warning) {
+      // If it's from console.error, read the warning from parsed console.error message
+      warning = hydrationErrorStatePayload.warning
+    } else {
+      const components = []
+      // If the react hydration diff is from the error message itself, extract it from the message.
+      // Extract the `> <text>` or `+/- <text>` from the line as first or second content.
+      const diff = reactHydrationDiffSegments[1]
+      const diffLines = diff.split('\n')
+      let firstContent = ''
+      let secondContent = ''
+      for (let line of diffLines) {
+        line = line.trim()
+
+        if (/^[>+-]\s/.test(line)) {
+          const content = line.slice(2)
+          if (!firstContent) {
+            firstContent = content
+          } else if (!secondContent) {
+            secondContent = content
+          }
+        }
+
+        if (line !== '...' && !line.startsWith('+') && !line.startsWith('-')) {
+          if (line.startsWith('> ')) {
+            line = line.slice(2).trim()
+          }
+          components.push(line.replace(/<|>/g, ''))
+        }
+      }
+      if (!parsedComponentStack) {
+        parsedComponentStack = components
+          .map((component) => {
+            return 'at ' + component + ' (<anonymous>)'
+          })
+          .join('\n')
+      }
+      warning = [getDefaultHydrationErrorMessage(), firstContent, secondContent]
     }
+    console.log('componentStackFromDiff', parsedComponentStack)
+    parsedHydrationErrorState = {
+      warning: warning,
+      notes: reactHydrationDiffSegments[0],
+      componentStack: parsedComponentStack,
+      reactOutputComponentDiff: reactHydrationDiffSegments[1],
+    }
+    console.log('parsedHydrationErrorState 1', parsedHydrationErrorState)
   } else {
+    console.log('else parsedComponentStack', parsedComponentStack)
     // If there's any extra information in the error message to display,
     // append it to the error message details property
     if (hydrationErrorStatePayload?.warning) {
@@ -52,7 +89,9 @@ export function attachHydrationErrorState(
         // ...(error as any).details,
         // It contains the warning, component stack, server and client tag names
         ...hydrationErrorStatePayload,
+        componentStack: parsedComponentStack,
       }
+      console.log('parsedHydrationErrorState 2', parsedHydrationErrorState, reactHydrationDiffSegments)
     }
   }
   ;(error as any).details = parsedHydrationErrorState

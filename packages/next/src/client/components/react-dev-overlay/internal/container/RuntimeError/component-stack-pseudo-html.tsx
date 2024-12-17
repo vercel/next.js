@@ -55,14 +55,14 @@ function getAdjacentProps(isAdj: boolean) {
  *
  */
 export function PseudoHtmlDiff({
-  componentStackFrames,
+  componentStackNames,
   firstContent,
   secondContent,
   hydrationMismatchType,
   reactOutputComponentDiff,
   ...props
 }: {
-  componentStackFrames: ComponentStackFrame[]
+  componentStackNames: string[]
   firstContent: string
   secondContent: string
   reactOutputComponentDiff: string | undefined
@@ -79,7 +79,7 @@ export function PseudoHtmlDiff({
     const componentStacks: React.ReactNode[] = []
     // React 19 unified mismatch
     if (isReactHydrationDiff) {
-      let currentComponentIndex = componentStackFrames.length - 1
+      let currentComponentIndex = componentStackNames.length - 1
       const reactComponentDiffLines = reactOutputComponentDiff.split('\n')
       const diffHtmlStack: React.ReactNode[] = []
       reactComponentDiffLines.forEach((line, index) => {
@@ -90,6 +90,11 @@ export function PseudoHtmlDiff({
         if (isDiffLine) {
           const sign = trimmedLine[0]
           trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
+          // if (sign === '+') {
+          //   firstContent = trimmedLine
+          // } else if (sign === '-') {
+          //   secondContent = trimmedLine
+          // }
           diffHtmlStack.push(
             <span
               key={'comp-diff' + index}
@@ -105,7 +110,7 @@ export function PseudoHtmlDiff({
           )
         } else if (currentComponentIndex >= 0) {
           const isUserLandComponent = trimmedLine.startsWith(
-            '<' + componentStackFrames[currentComponentIndex].component
+            '<' + componentStackNames[currentComponentIndex]
           )
           // If it's matched userland component or it's ... we will keep the component stack in diff
           if (isUserLandComponent || trimmedLine === '...') {
@@ -148,9 +153,7 @@ export function PseudoHtmlDiff({
 
     let lastText = ''
 
-    const componentStack = componentStackFrames
-      .map((frame) => frame.component)
-      .reverse()
+    const componentStack = componentStackNames.slice().reverse()
 
     // [child index, parent index]
     const matchedIndex = [-1, -1]
@@ -281,7 +284,7 @@ export function PseudoHtmlDiff({
 
     return nestedHtmlStack
   }, [
-    componentStackFrames,
+    componentStackNames,
     isHtmlCollapsed,
     firstContent,
     secondContent,
