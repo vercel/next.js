@@ -20,6 +20,7 @@ import {
   CLIENT_REFERENCE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
   DYNAMIC_CSS_MANIFEST,
+  SUBRESOURCE_INTEGRITY_MANIFEST,
 } from '../shared/lib/constants'
 import { join } from 'path'
 import { requirePage } from './require'
@@ -136,11 +137,13 @@ async function loadComponentsImpl<N = any>({
   page,
   isAppPath,
   isDev,
+  sriEnabled,
 }: {
   distDir: string
   page: string
   isAppPath: boolean
   isDev: boolean
+  sriEnabled: boolean
 }): Promise<LoadComponentsReturnType<N>> {
   let DocumentMod = {}
   let AppMod = {}
@@ -167,6 +170,7 @@ async function loadComponentsImpl<N = any>({
     dynamicCssManifest,
     clientReferenceManifest,
     serverActionsManifest,
+    subresourceIntegrityManifest,
   ] = await Promise.all([
     loadManifestWithRetries<BuildManifest>(
       join(distDir, BUILD_MANIFEST),
@@ -201,6 +205,11 @@ async function loadComponentsImpl<N = any>({
           manifestLoadAttempts
         ).catch(() => null)
       : null,
+    sriEnabled
+      ? loadManifestWithRetries<DeepReadonly<Record<string, string>>>(
+          join(distDir, 'server', SUBRESOURCE_INTEGRITY_MANIFEST + '.json')
+        ).catch(() => undefined)
+      : undefined,
   ])
 
   // Before requiring the actual page module, we have to set the reference
@@ -231,6 +240,7 @@ async function loadComponentsImpl<N = any>({
     Document,
     Component,
     buildManifest,
+    subresourceIntegrityManifest,
     reactLoadableManifest,
     dynamicCssManifest,
     pageConfig: ComponentMod.config || {},
