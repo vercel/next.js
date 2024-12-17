@@ -258,7 +258,7 @@ export function Button() {
 
 ### Revalidating the cache
 
-After performing a mutation, you can revalidate a cache entry by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
+After performing a mutation, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
