@@ -61,7 +61,7 @@ export default async function Page() {
 }
 ```
 
-Alternatively, you can add the `'use cache'` directive at the top of the file to mark all components in the file as cacheable. Each component will be cached separately, with its own [cache key](/docs/app/api-reference/directives/use-cache#cache-keys).
+Alternatively, you can add the `'use cache'` directive at the top of the file to mark all components in the file as cacheable. Each component will be cached separately, with its own cache key.
 
 ```tsx filename="app/blog/page.tsx" highlight={1} switcher
 'use cache'
@@ -177,7 +177,7 @@ You can use the [`cacheLife` function](/docs/app/api-reference/functions/cacheLi
 To use `cacheLife`, import it from `next/cache` and nest it within the **scope** of the `'use cache'` directive and the function. For example, to revalidate the blog page after one hour:
 
 ```tsx filename="app/blog/page.tsx" highlight={3,6} switcher
-'use cache'o/>:.
+'use cache'
 
 import { cacheLife } from 'next/cache'
 
