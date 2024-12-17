@@ -1,7 +1,7 @@
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
 use serde::Serialize;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_browser::ecmascript::EcmascriptDevChunk;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
@@ -13,11 +13,12 @@ pub async fn generate_webpack_stats<'a, I>(
     entry_assets: I,
 ) -> Result<WebpackStats>
 where
-    I: IntoIterator<Item = &'a Vc<Box<dyn OutputAsset>>>,
+    I: IntoIterator<Item = &'a ResolvedVc<Box<dyn OutputAsset>>>,
 {
     let mut assets = vec![];
     let mut chunks = vec![];
-    let mut chunk_items: IndexMap<Vc<Box<dyn ChunkItem>>, IndexSet<RcStr>> = IndexMap::new();
+    let mut chunk_items: FxIndexMap<Vc<Box<dyn ChunkItem>>, FxIndexSet<RcStr>> =
+        FxIndexMap::default();
     let mut modules = vec![];
     for asset in entry_assets {
         let path = normalize_client_path(&asset.ident().path().await?.path);
@@ -26,7 +27,7 @@ where
             continue;
         };
 
-        if let Some(chunk) = Vc::try_resolve_downcast_type::<EcmascriptDevChunk>(*asset).await? {
+        if let Some(chunk) = ResolvedVc::try_downcast_type::<EcmascriptDevChunk>(*asset).await? {
             let chunk_ident = normalize_client_path(&chunk.ident().path().await?.path);
             chunks.push(WebpackStatsChunk {
                 size: asset_len,
@@ -38,7 +39,7 @@ where
             for item in chunk.chunk().chunk_items().await? {
                 // let name =
                 chunk_items
-                    .entry(*item)
+                    .entry(**item)
                     .or_default()
                     .insert(chunk_ident.clone().into());
             }
@@ -64,7 +65,7 @@ where
         });
     }
 
-    let mut entrypoints = IndexMap::new();
+    let mut entrypoints = FxIndexMap::default();
     entrypoints.insert(
         entry_name.clone(),
         WebpackStatsEntrypoint {
@@ -150,7 +151,7 @@ pub struct WebpackStatsEntrypoint {
 #[serde(rename_all = "camelCase")]
 pub struct WebpackStats {
     pub assets: Vec<WebpackStatsAsset>,
-    pub entrypoints: IndexMap<RcStr, WebpackStatsEntrypoint>,
+    pub entrypoints: FxIndexMap<RcStr, WebpackStatsEntrypoint>,
     pub chunks: Vec<WebpackStatsChunk>,
     pub modules: Vec<WebpackStatsModule>,
 }

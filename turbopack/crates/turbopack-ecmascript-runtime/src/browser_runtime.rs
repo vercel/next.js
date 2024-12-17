@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::Result;
 use indoc::writedoc;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     context::AssetContext,
@@ -20,7 +21,7 @@ pub async fn get_browser_runtime_code(
     runtime_type: Value<RuntimeType>,
     output_root: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
-    let asset_context = get_runtime_asset_context(environment);
+    let asset_context = get_runtime_asset_context(environment).await?;
 
     let shared_runtime_utils_code =
         embed_static_code(asset_context, "shared/runtime-utils.ts".into());

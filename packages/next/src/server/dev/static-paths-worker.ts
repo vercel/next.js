@@ -3,13 +3,9 @@ import type { NextConfigComplete } from '../config-shared'
 import '../require-hook'
 import '../node-environment'
 
-import {
-  buildAppStaticPaths,
-  buildStaticPaths,
-  reduceAppConfig,
-} from '../../build/utils'
+import { reduceAppConfig } from '../../build/utils'
 import { collectSegments } from '../../build/segment-config/app/app-segments'
-import type { PartialStaticPathsResult } from '../../build/utils'
+import type { StaticPathsResult } from '../../build/static-paths/types'
 import { loadComponents } from '../load-components'
 import { setHttpClientAndAgentOptions } from '../setup-http-agent-env'
 import type { IncrementalCache } from '../lib/incremental-cache'
@@ -19,6 +15,8 @@ import {
   type ExperimentalPPRConfig,
 } from '../lib/experimental/ppr'
 import { InvariantError } from '../../shared/lib/invariant-error'
+import { buildAppStaticPaths } from '../../build/static-paths/app'
+import { buildStaticPaths } from '../../build/static-paths/pages'
 
 type RuntimeConfig = {
   pprConfig: ExperimentalPPRConfig | undefined
@@ -46,9 +44,10 @@ export async function loadStaticPaths({
   maxMemoryCacheSize,
   requestHeaders,
   cacheHandler,
+  cacheLifeProfiles,
   nextConfigOutput,
-  isAppPPRFallbacksEnabled,
   buildId,
+  authInterrupts,
 }: {
   dir: string
   distDir: string
@@ -64,10 +63,13 @@ export async function loadStaticPaths({
   maxMemoryCacheSize?: number
   requestHeaders: IncrementalCache['requestHeaders']
   cacheHandler?: string
+  cacheLifeProfiles?: {
+    [profile: string]: import('../../server/use-cache/cache-life').CacheLife
+  }
   nextConfigOutput: 'standalone' | 'export' | undefined
-  isAppPPRFallbacksEnabled: boolean | undefined
   buildId: string
-}): Promise<PartialStaticPathsResult> {
+  authInterrupts: boolean
+}): Promise<Partial<StaticPathsResult>> {
   // update work memory runtime-config
   require('../../shared/lib/runtime-config.external').setConfig(config)
   setHttpClientAndAgentOptions({
@@ -79,6 +81,7 @@ export async function loadStaticPaths({
     // In `pages/`, the page is the same as the pathname.
     page: page || pathname,
     isAppPath,
+    isDev: true,
   })
 
   if (isAppPath) {
@@ -97,14 +100,15 @@ export async function loadStaticPaths({
       distDir,
       requestHeaders,
       cacheHandler,
+      cacheLifeProfiles,
       isrFlushToDisk,
       fetchCacheKeyPrefix,
       maxMemoryCacheSize,
       ComponentMod: components.ComponentMod,
       nextConfigOutput,
       isRoutePPREnabled,
-      isAppPPRFallbacksEnabled,
       buildId,
+      authInterrupts,
     })
   } else if (!components.getStaticPaths) {
     // We shouldn't get to this point since the worker should only be called for

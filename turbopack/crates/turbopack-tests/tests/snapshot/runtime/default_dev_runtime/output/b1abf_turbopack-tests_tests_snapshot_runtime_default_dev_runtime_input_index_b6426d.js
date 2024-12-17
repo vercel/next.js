@@ -214,7 +214,7 @@ function createPromise() {
 const turbopackQueues = Symbol("turbopack queues");
 const turbopackExports = Symbol("turbopack exports");
 const turbopackError = Symbol("turbopack error");
-var QueueStatus;
+;
 function resolveQueue(queue) {
     if (queue && queue.status !== 1) {
         queue.status = 1;
@@ -354,8 +354,7 @@ relativeURL.prototype = URL.prototype;
  * shared runtime utils.
  */ /* eslint-disable @typescript-eslint/no-unused-vars */ /// <reference path="../base/globals.d.ts" />
 /// <reference path="../../../shared/runtime-utils.ts" />
-var SourceType;
-(function(SourceType) {
+var SourceType = /*#__PURE__*/ function(SourceType) {
     /**
    * The module was instantiated because it was included in an evaluated chunk's
    * runtime.
@@ -367,7 +366,8 @@ var SourceType;
    * The module was instantiated because it was included in a chunk's hot module
    * update.
    */ SourceType[SourceType["Update"] = 2] = "Update";
-})(SourceType || (SourceType = {}));
+    return SourceType;
+}(SourceType || {});
 const moduleFactories = Object.create(null);
 /**
  * Module IDs that are instantiated as part of the runtime of a chunk.
@@ -489,7 +489,7 @@ async function loadChunkPath(source, chunkPath) {
     return `/ROOT/${modulePath ?? ""}`;
 }
 function getWorkerBlobURL(chunks) {
-    let bootstrap = `TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
+    let bootstrap = `self.TURBOPACK_WORKER_LOCATION = ${JSON.stringify(location.origin)};importScripts(${chunks.map((c)=>`self.TURBOPACK_WORKER_LOCATION + ${JSON.stringify(getChunkRelativeUrl(c))}`).join(", ")});`;
     let blob = new Blob([
         bootstrap
     ], {

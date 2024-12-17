@@ -26,6 +26,7 @@ pub mod package_json;
 pub mod proxied_asset;
 pub mod raw_module;
 pub mod raw_output;
+pub mod rebase;
 pub mod reference;
 pub mod reference_type;
 pub mod resolve;
@@ -49,7 +50,7 @@ pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
 
 #[doc(hidden)]
 pub mod __private {
-    pub use indexmap::IndexMap;
+    pub use turbo_tasks::FxIndexMap;
 }
 
 pub fn register() {

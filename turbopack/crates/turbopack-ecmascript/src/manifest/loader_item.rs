@@ -2,7 +2,8 @@ use std::io::Write as _;
 
 use anyhow::{anyhow, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, TryJoinIterExt, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{
         ChunkData, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext, ChunksData,
@@ -42,16 +43,16 @@ fn modifier() -> Vc<RcStr> {
 /// import appears in.
 #[turbo_tasks::value]
 pub struct ManifestLoaderChunkItem {
-    manifest: Vc<ManifestAsyncModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    manifest: ResolvedVc<ManifestAsyncModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     pub fn new(
-        manifest: Vc<ManifestAsyncModule>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        manifest: ResolvedVc<ManifestAsyncModule>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Self> {
         Self::cell(ManifestLoaderChunkItem {
             manifest,
@@ -99,24 +100,41 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
         let chunks = this.manifest.manifest_chunks();
 
-        let mut references: Vec<Vc<Box<dyn ModuleReference>>> = chunks
+        let mut references: Vec<ResolvedVc<Box<dyn ModuleReference>>> = chunks
             .await?
             .iter()
-            .map(|&chunk| {
-                Vc::upcast(SingleOutputAssetReference::new(
-                    chunk,
-                    manifest_loader_chunk_reference_description(),
+            .map(|&chunk| async move {
+                Ok(ResolvedVc::upcast(
+                    SingleOutputAssetReference::new(
+                        *chunk,
+                        manifest_loader_chunk_reference_description(),
+                    )
+                    .to_resolved()
+                    .await?,
                 ))
             })
-            .collect();
+            .try_join()
+            .await?;
 
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleOutputAssetReference::new(
-                    output_asset,
-                    chunk_data_reference_description(),
-                ))
-            }));
+            references.extend(
+                chunk_data
+                    .references()
+                    .await?
+                    .iter()
+                    .map(|&output_asset| async move {
+                        Ok(ResolvedVc::upcast(
+                            SingleOutputAssetReference::new(
+                                *output_asset,
+                                chunk_data_reference_description(),
+                            )
+                            .to_resolved()
+                            .await?,
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+            );
         }
 
         Ok(Vc::cell(references))
@@ -124,7 +142,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -136,7 +154,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.manifest)
+        *ResolvedVc::upcast(self.manifest)
     }
 }
 
@@ -144,7 +162,7 @@ impl ChunkItem for ManifestLoaderChunkItem {
 impl EcmascriptChunkItem for ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     async fn chunking_context(&self) -> Result<Vc<Box<dyn ChunkingContext>>> {
-        Ok(self.manifest.await?.chunking_context)
+        Ok(*self.manifest.await?.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -164,18 +182,18 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .as_chunk_item(Vc::upcast(manifest.chunking_context))
+            .as_chunk_item(*ResolvedVc::upcast(manifest.chunking_context))
             .id()
             .await?;
 
         // Finally, we need the id of the module that we're actually trying to
         // dynamically import.
         let placeable =
-            Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
+            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
                 .await?
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
-            .as_chunk_item(Vc::upcast(manifest.chunking_context))
+            .as_chunk_item(*ResolvedVc::upcast(manifest.chunking_context))
             .id()
             .await?;
 

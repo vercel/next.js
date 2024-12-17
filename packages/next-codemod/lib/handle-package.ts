@@ -42,7 +42,10 @@ export function uninstallPackage(
   }
 
   try {
-    execa.sync(pkgManager, [command, packageToUninstall], { stdio: 'inherit' })
+    execa.sync(pkgManager, [command, packageToUninstall], {
+      stdio: 'inherit',
+      shell: true,
+    })
   } catch (error) {
     throw new Error(
       `Failed to uninstall "${packageToUninstall}". Please uninstall it manually.`,
@@ -51,19 +54,50 @@ export function uninstallPackage(
   }
 }
 
+const ADD_CMD_FLAG = {
+  npm: 'install',
+  yarn: 'add',
+  pnpm: 'add',
+  bun: 'add',
+}
+
+const DEV_DEP_FLAG = {
+  npm: '--save-dev',
+  yarn: '--dev',
+  pnpm: '--save-dev',
+  bun: '--dev',
+}
+
 export function installPackages(
   packageToInstall: string[],
-  options: { packageManager?: PackageManager; silent?: boolean } = {}
+  options: {
+    packageManager?: PackageManager
+    silent?: boolean
+    dev?: boolean
+  } = {}
 ) {
-  const { packageManager = getPkgManager(process.cwd()), silent = false } =
-    options
+  if (packageToInstall.length === 0) return
+
+  const {
+    packageManager = getPkgManager(process.cwd()),
+    silent = false,
+    dev = false,
+  } = options
 
   if (!packageManager) throw new Error('Failed to find package manager')
 
+  const addCmd = ADD_CMD_FLAG[packageManager]
+  const devDepFlag = dev ? DEV_DEP_FLAG[packageManager] : undefined
+
+  const installFlags = [addCmd]
+  if (devDepFlag) {
+    installFlags.push(devDepFlag)
+  }
   try {
-    execa.sync(packageManager, ['add', ...packageToInstall], {
+    execa.sync(packageManager, [...installFlags, ...packageToInstall], {
       // Keeping stderr since it'll likely be relevant later when it fails.
       stdio: silent ? ['ignore', 'ignore', 'inherit'] : 'inherit',
+      shell: true,
     })
   } catch (error) {
     throw new Error(
@@ -71,4 +105,36 @@ export function installPackages(
       { cause: error }
     )
   }
+}
+
+export function runInstallation(
+  packageManager: PackageManager,
+  options: { cwd: string }
+) {
+  try {
+    execa.sync(packageManager, ['install'], {
+      cwd: options.cwd,
+      stdio: 'inherit',
+      shell: true,
+    })
+  } catch (error) {
+    throw new Error('Failed to install dependencies', { cause: error })
+  }
+}
+
+export function addPackageDependency(
+  packageJson: Record<string, any>,
+  name: string,
+  version: string,
+  dev: boolean
+): void {
+  if (dev) {
+    packageJson.devDependencies = packageJson.devDependencies || {}
+  } else {
+    packageJson.dependencies = packageJson.dependencies || {}
+  }
+
+  const deps = dev ? packageJson.devDependencies : packageJson.dependencies
+
+  deps[name] = version
 }

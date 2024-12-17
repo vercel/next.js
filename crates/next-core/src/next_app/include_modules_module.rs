@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -18,14 +19,17 @@ use turbopack_ecmascript::chunk::{
 /// runtime. It can be used to include modules into a chunk.
 #[turbo_tasks::value]
 pub struct IncludeModulesModule {
-    ident: Vc<AssetIdent>,
-    modules: Vec<Vc<Box<dyn Module>>>,
+    ident: ResolvedVc<AssetIdent>,
+    modules: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludeModulesModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>, modules: Vec<Vc<Box<dyn Module>>>) -> Vc<Self> {
+    pub fn new(
+        ident: ResolvedVc<AssetIdent>,
+        modules: Vec<ResolvedVc<Box<dyn Module>>>,
+    ) -> Vc<Self> {
         Self { ident, modules }.cell()
     }
 }
@@ -40,7 +44,7 @@ impl Asset for IncludeModulesModule {
 impl Module for IncludeModulesModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident
+        *self.ident
     }
 
     #[turbo_tasks::function]
@@ -49,8 +53,8 @@ impl Module for IncludeModulesModule {
             self.modules
                 .iter()
                 .map(|&module| async move {
-                    Ok(Vc::upcast(
-                        IncludedModuleReference::new(module).resolve().await?,
+                    Ok(ResolvedVc::upcast(
+                        IncludedModuleReference::new(*module).to_resolved().await?,
                     ))
                 })
                 .try_join()
@@ -76,8 +80,8 @@ impl EcmascriptChunkPlaceable for IncludeModulesModule {
 impl ChunkableModule for IncludeModulesModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             IncludeModulesChunkItem {
@@ -92,15 +96,15 @@ impl ChunkableModule for IncludeModulesModule {
 /// The chunk item for [`IncludeModulesModule`].
 #[turbo_tasks::value]
 struct IncludeModulesChunkItem {
-    module: Vc<IncludeModulesModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<IncludeModulesModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        Vc::upcast(*self.chunking_context)
     }
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
@@ -119,7 +123,7 @@ impl ChunkItem for IncludeModulesChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 }
 
@@ -127,7 +131,7 @@ impl ChunkItem for IncludeModulesChunkItem {
 impl EcmascriptChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -143,13 +147,13 @@ impl EcmascriptChunkItem for IncludeModulesChunkItem {
 /// [`IncludeModulesModule`].
 #[turbo_tasks::value]
 pub struct IncludedModuleReference {
-    pub module: Vc<Box<dyn Module>>,
+    pub module: ResolvedVc<Box<dyn Module>>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludedModuleReference {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<Box<dyn Module>>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
         IncludedModuleReference { module }.cell()
     }
 }

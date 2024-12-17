@@ -2,42 +2,42 @@
 title: Dynamic API was called outside request
 ---
 
-#### Why This Error Occurred
+## Why This Error Occurred
 
 A Dynamic API was called outside a request scope. (Eg.: Global scope).
 
 Note that Dynamic APIs could have been called deep inside other modules/functions (eg.: third-party libraries) that are not immediately visible.
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 Make sure that all Dynamic API calls happen in a request scope.
 
 Example:
 
-```jsx filename="app/page.js"
+```diff filename="app/page.js"
 import { cookies } from 'next/headers'
 
-- const cookieStore = cookies()
-export default function Page() {
-+ const cookieStore = cookies()
+- const cookieStore = await cookies()
+export default async function Page() {
++ const cookieStore = await cookies()
   return ...
 }
 ```
 
-```jsx filename="app/foo/route.js"
+```diff filename="app/foo/route.js"
 import { headers } from 'next/headers'
 
-- const headersList = headers()
+- const headersList = await headers()
 export async function GET() {
-+ const headersList = headers()
++ const headersList = await headers()
   return ...
 }
 ```
 
-### Useful Links
+## Useful Links
 
-- [`headers()` function](https://nextjs.org/docs/app/api-reference/functions/headers)
-- [`cookies()` function](https://nextjs.org/docs/app/api-reference/functions/cookies)
-- [`draftMode()` function](https://nextjs.org/docs/app/api-reference/functions/draft-mode)
-- [`unstable_noStore()` function](https://nextjs.org/docs/app/api-reference/functions/unstable_noStore)
-- [`unstable_cache()` function](https://nextjs.org/docs/app/api-reference/functions/unstable_cache)
+- [`headers()` function](/docs/app/api-reference/functions/headers)
+- [`cookies()` function](/docs/app/api-reference/functions/cookies)
+- [`draftMode()` function](/docs/app/api-reference/functions/draft-mode)
+- [`unstable_noStore()` function](/docs/app/api-reference/functions/unstable_noStore)
+- [`unstable_cache()` function](/docs/app/api-reference/functions/unstable_cache)

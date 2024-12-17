@@ -44,6 +44,7 @@ import { omit } from './utils/omit'
 import { interpolateAs } from './utils/interpolate-as'
 import { handleSmoothScroll } from './utils/handle-smooth-scroll'
 import type { Params } from '../../../server/request/params'
+import { MATCHED_PATH_HEADER } from '../../../lib/constants'
 
 declare global {
   interface Window {
@@ -174,7 +175,7 @@ function getMiddlewareData<T extends FetchDataOutput>(
   let rewriteTarget =
     rewriteHeader || response.headers.get('x-nextjs-matched-path')
 
-  const matchedPath = response.headers.get('x-matched-path')
+  const matchedPath = response.headers.get(MATCHED_PATH_HEADER)
 
   if (
     matchedPath &&
@@ -1094,13 +1095,6 @@ export default class Router implements BaseRouter {
       let matchesBflDynamic = false
       const pathsToCheck: Array<{ as?: string; allowMatchCurrent?: boolean }> =
         [{ as }, { as: resolvedAs }]
-
-      if (process.env.__NEXT_FLYING_SHUTTLE) {
-        // if existing page changed we hard navigate to
-        // avoid runtime conflict with new page
-        // TODO: check buildManifest files instead?
-        pathsToCheck.push({ as: this.asPath, allowMatchCurrent: true })
-      }
 
       for (const { as: curAs, allowMatchCurrent } of pathsToCheck) {
         if (curAs) {

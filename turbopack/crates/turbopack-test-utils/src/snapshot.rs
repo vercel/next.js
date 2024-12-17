@@ -8,7 +8,8 @@ use anyhow::{anyhow, bail, Context, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
 use similar::TextDiff;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ReadRef, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_fs::{
     DirectoryContent, DirectoryEntry, DiskFileSystem, File, FileContent, FileSystemEntryType,
     FileSystemPath,

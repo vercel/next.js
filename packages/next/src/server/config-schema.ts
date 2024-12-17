@@ -38,6 +38,7 @@ const zExportMap: zod.ZodType<ExportPathMap> = z.record(
     _isAppDir: z.boolean().optional(),
     _isDynamicError: z.boolean().optional(),
     _isRoutePPREnabled: z.boolean().optional(),
+    _isProspectiveRender: z.boolean().optional(),
   })
 )
 
@@ -217,6 +218,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             useLightningcss: z.boolean().optional(),
           }),
         ]),
+        define: z.record(z.string(), z.string()).optional(),
       })
       .optional(),
     compress: z.boolean().optional(),
@@ -270,6 +272,16 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             static: z.number().optional(),
           })
           .optional(),
+        cacheLife: z
+          .record(
+            z.object({
+              stale: z.number().optional(),
+              revalidate: z.number().optional(),
+              expire: z.number().optional(),
+            })
+          )
+          .optional(),
+        cacheHandlers: z.record(z.string(), z.string().optional()).optional(),
         clientRouterFilter: z.boolean().optional(),
         clientRouterFilterRedirects: z.boolean().optional(),
         clientRouterFilterAllowedRate: z.number().optional(),
@@ -277,9 +289,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         memoryBasedWorkersCount: z.boolean().optional(),
         craCompat: z.boolean().optional(),
         caseSensitiveRoutes: z.boolean().optional(),
+        clientSegmentCache: z.boolean().optional(),
         disableOptimizedLoading: z.boolean().optional(),
         disablePostcssPresetEnv: z.boolean().optional(),
         dynamicIO: z.boolean().optional(),
+        inlineCss: z.boolean().optional(),
         esmExternals: z.union([z.boolean(), z.literal('loose')]).optional(),
         serverActions: z
           .object({
@@ -293,16 +307,13 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         externalMiddlewareRewritesResolve: z.boolean().optional(),
         fallbackNodePolyfills: z.literal(false).optional(),
         fetchCacheKeyPrefix: z.string().optional(),
-        flyingShuttle: z
-          .strictObject({
-            mode: z
-              .union([z.literal('full'), z.literal('store-only')])
-              .optional(),
-          })
-          .optional(),
         forceSwcTransforms: z.boolean().optional(),
         fullySpecified: z.boolean().optional(),
         gzipSize: z.boolean().optional(),
+        imgOptConcurrency: z.number().int().optional().nullable(),
+        imgOptTimeoutInSeconds: z.number().int().optional(),
+        imgOptMaxInputPixels: z.number().int().optional(),
+        imgOptSequentialRead: z.boolean().optional().nullable(),
         internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
@@ -310,7 +321,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         manualClientBasePath: z.boolean().optional(),
         middlewarePrefetch: z.enum(['strict', 'flexible']).optional(),
         multiZoneDraftMode: z.boolean().optional(),
-        cssChunking: z.enum(['strict', 'loose']).optional(),
+        cssChunking: z.union([z.boolean(), z.literal('strict')]).optional(),
         nextScriptWorkers: z.boolean().optional(),
         // The critter option is unknown, use z.any() here
         optimizeCss: z.union([z.boolean(), z.any()]).optional(),
@@ -321,8 +332,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
           .union([z.boolean(), z.literal('incremental')])
           .readonly()
           .optional(),
-        pprFallbacks: z.boolean().optional(),
         taint: z.boolean().optional(),
+        reactOwnerStack: z.boolean().optional(),
         prerenderEarlyExit: z.boolean().optional(),
         proxyTimeout: z.number().gte(0).optional(),
         scrollRestoration: z.boolean().optional(),
@@ -389,39 +400,18 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               )
               .optional(),
             resolveExtensions: z.array(z.string()).optional(),
-            useSwcCss: z.boolean().optional(),
             treeShaking: z.boolean().optional(),
             persistentCaching: z
               .union([z.number(), z.literal(false)])
               .optional(),
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
+            minify: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
         optimizeServerReact: z.boolean().optional(),
         clientTraceMetadata: z.array(z.string()).optional(),
-        turbotrace: z
-          .object({
-            logLevel: z
-              .enum([
-                'bug',
-                'fatal',
-                'error',
-                'warning',
-                'hint',
-                'note',
-                'suggestions',
-                'info',
-              ])
-              .optional(),
-            logAll: z.boolean().optional(),
-            logDetail: z.boolean().optional(),
-            contextDirectory: z.string().optional(),
-            processCwd: z.string().optional(),
-            memoryLimit: z.number().int().optional(),
-          })
-          .optional(),
         serverMinification: z.boolean().optional(),
         serverSourceMaps: z.boolean().optional(),
         useWasmBinary: z.boolean().optional(),
@@ -448,6 +438,8 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         staticGenerationMinPagesPerWorker: z.number().int().optional(),
         typedEnv: z.boolean().optional(),
         serverComponentsHmrCache: z.boolean().optional(),
+        authInterrupts: z.boolean().optional(),
+        newDevOverlay: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

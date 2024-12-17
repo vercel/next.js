@@ -2,25 +2,18 @@ import { Deferred, sleep } from './sleep'
 
 export function Streamable(write: number) {
   const encoder = new TextEncoder()
-  const cleanedUp = new Deferred()
+  const canceled = new Deferred()
   const aborted = new Deferred()
   let i = 0
-  let startedConsuming = false
 
   const streamable = {
-    finished: Promise.all([cleanedUp.promise, aborted.promise]).then(() => i),
+    finished: Promise.any([canceled.promise, aborted.promise]).then(() => i),
 
     abort() {
       aborted.resolve()
-
-      if (!startedConsuming) {
-        cleanedUp.resolve()
-      }
     },
     stream: new ReadableStream({
       async pull(controller) {
-        startedConsuming = true
-
         if (i >= write) {
           return
         }
@@ -29,7 +22,7 @@ export function Streamable(write: number) {
         controller.enqueue(encoder.encode(String(i++)))
       },
       cancel() {
-        cleanedUp.resolve()
+        canceled.resolve()
       },
     }),
   }

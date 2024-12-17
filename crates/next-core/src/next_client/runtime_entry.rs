@@ -4,7 +4,6 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
     context::AssetContext,
-    issue::IssueSeverity,
     module::Module,
     resolve::{origin::PlainResolveOrigin, parse::Request},
     source::Source,
@@ -13,8 +12,8 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 #[turbo_tasks::value(shared)]
 pub enum RuntimeEntry {
-    Request(Vc<Request>, Vc<FileSystemPath>),
-    Evaluatable(Vc<Box<dyn EvaluatableAsset>>),
+    Request(ResolvedVc<Request>, ResolvedVc<FileSystemPath>),
+    Evaluatable(ResolvedVc<Box<dyn EvaluatableAsset>>),
     Source(ResolvedVc<Box<dyn Source>>),
 }
 
@@ -26,7 +25,7 @@ impl RuntimeEntry {
         asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<EvaluatableAssets>> {
         let (request, path) = match *self.await? {
-            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(e)),
+            RuntimeEntry::Evaluatable(e) => return Ok(EvaluatableAssets::one(*e)),
             RuntimeEntry::Source(source) => {
                 return Ok(EvaluatableAssets::one(source.to_evaluatable(asset_context)));
             }
@@ -34,10 +33,10 @@ impl RuntimeEntry {
         };
 
         let modules = cjs_resolve(
-            Vc::upcast(PlainResolveOrigin::new(asset_context, path)),
-            request,
+            Vc::upcast(PlainResolveOrigin::new(asset_context, *path)),
+            *request,
             None,
-            IssueSeverity::Error.cell(),
+            false,
         )
         .resolve()
         .await?
@@ -47,7 +46,7 @@ impl RuntimeEntry {
         let mut runtime_entries = Vec::with_capacity(modules.len());
         for &module in &modules {
             if let Some(entry) =
-                Vc::try_resolve_downcast::<Box<dyn EvaluatableAsset>>(module).await?
+                ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module).await?
             {
                 runtime_entries.push(entry);
             } else {
@@ -63,7 +62,7 @@ impl RuntimeEntry {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct RuntimeEntries(Vec<Vc<RuntimeEntry>>);
+pub struct RuntimeEntries(Vec<ResolvedVc<RuntimeEntry>>);
 
 #[turbo_tasks::value_impl]
 impl RuntimeEntries {

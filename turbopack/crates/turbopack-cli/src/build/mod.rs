@@ -6,8 +6,10 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    RcStr, ReadConsistency, TransientInstance, TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
+    Value, Vc,
 };
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_memory::MemoryBackend;
@@ -118,7 +120,7 @@ impl TurbopackBuildBuilder {
                     self.entry_requests
                         .iter()
                         .cloned()
-                        .map(EntryRequest::cell)
+                        .map(EntryRequest::resolved_cell)
                         .collect(),
                 )
                 .cell(),
@@ -127,7 +129,9 @@ impl TurbopackBuildBuilder {
             );
 
             // Await the result to propagate any errors.
-            build_result.await?;
+            build_result.strongly_consistent().await?;
+
+            apply_effects(build_result).await?;
 
             let issue_reporter: Vc<Box<dyn IssueReporter>> =
                 Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
@@ -173,8 +177,10 @@ async fn build_internal(
             service_worker: false,
             browserslist_query: browserslist_query.clone(),
         }
-        .into(),
-    )));
+        .resolved_cell(),
+    )))
+    .to_resolved()
+    .await?;
     let output_fs = output_fs(project_dir.clone());
     let project_fs = project_fs(root_dir.clone());
     let project_relative = project_dir.strip_prefix(&*root_dir).unwrap();
@@ -183,8 +189,12 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let project_path = project_fs.root().join(project_relative);
-    let build_output_root = output_fs.root().join("dist".into());
+    let project_path = project_fs
+        .root()
+        .join(project_relative)
+        .to_resolved()
+        .await?;
+    let build_output_root = output_fs.root().join("dist".into()).to_resolved().await?;
 
     let node_env = NodeEnv::Production.cell();
 
@@ -207,9 +217,13 @@ async fn build_internal(
 
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let execution_context =
-        ExecutionContext::new(project_path, chunking_context, load_env(project_path));
-    let asset_context =
-        get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
+        ExecutionContext::new(*project_path, chunking_context, load_env(*project_path));
+    let asset_context = get_client_asset_context(
+        *project_path,
+        execution_context,
+        compile_time_info,
+        node_env,
+    );
 
     let entry_requests = (*entry_requests
         .await?
@@ -235,7 +249,7 @@ async fn build_internal(
         .await?)
         .to_vec();
 
-    let origin = PlainResolveOrigin::new(asset_context, output_fs.root().join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, project_fs.root().join("_".into()));
     let project_dir = &project_dir;
     let entries = entry_requests
         .into_iter()
@@ -262,7 +276,7 @@ async fn build_internal(
         .map(|entry_module| async move {
             Ok(
                 if let Some(ecmascript) =
-                    Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
                 {
                     Vc::cell(vec![
                         Vc::try_resolve_downcast_type::<NodeJsChunkingContext>(chunking_context)
@@ -281,8 +295,8 @@ async fn build_internal(
                                             .into(),
                                     )
                                     .with_extension("entry.js".into()),
-                                Vc::upcast(ecmascript),
-                                EvaluatableAssets::one(Vc::upcast(ecmascript)),
+                                *ResolvedVc::upcast(ecmascript),
+                                EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
                                 OutputAssets::empty(),
                                 Value::new(AvailabilityInfo::Root),
                             )
@@ -290,9 +304,9 @@ async fn build_internal(
                             .asset,
                     ])
                 } else if let Some(chunkable) =
-                    Vc::try_resolve_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(entry_module).await?
                 {
-                    chunking_context.root_chunk_group_assets(chunkable)
+                    chunking_context.root_chunk_group_assets(*chunkable)
                 } else {
                     // TODO convert into a serve-able asset
                     bail!(
@@ -305,7 +319,7 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let mut chunks: HashSet<Vc<Box<dyn OutputAsset>>> = HashSet::new();
+    let mut chunks: HashSet<ResolvedVc<Box<dyn OutputAsset>>> = HashSet::new();
     for chunk_group in entry_chunk_groups {
         chunks.extend(&*all_assets_from_entries(chunk_group).await?);
     }

@@ -17,8 +17,9 @@ use std::collections::BTreeSet;
 use anyhow::Result;
 use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, RcStr, ResolvedVc, Upcast, Value,
+    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, ResolvedVc, Upcast, Value,
     ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
@@ -75,13 +76,13 @@ pub trait GetContentSourceContent {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct GetContentSourceContents(Vec<Vc<Box<dyn GetContentSourceContent>>>);
+pub struct GetContentSourceContents(Vec<ResolvedVc<Box<dyn GetContentSourceContent>>>);
 
 #[turbo_tasks::value]
 pub struct StaticContent {
-    pub content: Vc<Box<dyn VersionedContent>>,
+    pub content: ResolvedVc<Box<dyn VersionedContent>>,
     pub status_code: u16,
-    pub headers: Vc<HeaderList>,
+    pub headers: ResolvedVc<HeaderList>,
 }
 
 #[turbo_tasks::value(shared)]
@@ -89,9 +90,9 @@ pub struct StaticContent {
 /// The content of a result that is returned by a content source.
 pub enum ContentSourceContent {
     NotFound,
-    Static(Vc<StaticContent>),
-    HttpProxy(Vc<ProxyResult>),
-    Rewrite(Vc<Rewrite>),
+    Static(ResolvedVc<StaticContent>),
+    HttpProxy(ResolvedVc<ProxyResult>),
+    Rewrite(ResolvedVc<Rewrite>),
     /// Continue with the next route
     Next,
 }
@@ -119,23 +120,25 @@ impl GetContentSourceContent for ContentSourceContent {
 #[turbo_tasks::value_impl]
 impl ContentSourceContent {
     #[turbo_tasks::function]
-    pub fn static_content(content: Vc<Box<dyn VersionedContent>>) -> Vc<ContentSourceContent> {
-        ContentSourceContent::Static(
+    pub async fn static_content(
+        content: ResolvedVc<Box<dyn VersionedContent>>,
+    ) -> Result<Vc<ContentSourceContent>> {
+        Ok(ContentSourceContent::Static(
             StaticContent {
                 content,
                 status_code: 200,
-                headers: HeaderList::empty(),
+                headers: HeaderList::empty().to_resolved().await?,
             }
-            .cell(),
+            .resolved_cell(),
         )
-        .cell()
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub fn static_with_headers(
-        content: Vc<Box<dyn VersionedContent>>,
+        content: ResolvedVc<Box<dyn VersionedContent>>,
         status_code: u16,
-        headers: Vc<HeaderList>,
+        headers: ResolvedVc<HeaderList>,
     ) -> Vc<ContentSourceContent> {
         ContentSourceContent::Static(
             StaticContent {
@@ -143,7 +146,7 @@ impl ContentSourceContent {
                 status_code,
                 headers,
             }
-            .cell(),
+            .resolved_cell(),
         )
         .cell()
     }
@@ -198,7 +201,7 @@ pub struct ContentSourceData {
     /// requested.
     pub raw_headers: Option<Vec<(RcStr, RcStr)>>,
     /// Request body, if requested.
-    pub body: Option<Vc<Body>>,
+    pub body: Option<ResolvedVc<Body>>,
     /// See [ContentSourceDataVary::cache_buster].
     pub cache_buster: u64,
 }
@@ -248,7 +251,7 @@ impl ValueDefault for Body {
 }
 
 /// Filter function that describes which information is required.
-#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, TraceRawVcs, Hash, Serialize, Deserialize, NonLocalValue)]
 pub enum ContentSourceDataFilter {
     All,
     Subset(BTreeSet<String>),
@@ -415,7 +418,7 @@ pub trait ContentSource {
     }
 }
 
-pub trait ContentSourceExt: Send {
+pub trait ContentSourceExt {
     fn issue_file_path(
         self: Vc<Self>,
         file_path: Vc<FileSystemPath>,
@@ -441,7 +444,7 @@ where
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ContentSources(Vec<Vc<Box<dyn ContentSource>>>);
+pub struct ContentSources(Vec<ResolvedVc<Box<dyn ContentSource>>>);
 
 #[turbo_tasks::value_impl]
 impl ContentSources {
@@ -497,7 +500,7 @@ pub enum RewriteType {
 
 /// A rewrite returned from a [ContentSource]. This tells the dev server to
 /// update its parsed url, path, and queries with this new information.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Debug)]
 pub struct Rewrite {
     pub ty: RewriteType,

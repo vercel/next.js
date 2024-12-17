@@ -2,11 +2,13 @@ import type { RequestData, FetchEventResult } from './types'
 import type { RequestInit } from './spec-extension/request'
 import { PageSignatureError } from './error'
 import { fromNodeOutgoingHttpHeaders, normalizeNextQueryParam } from './utils'
-import { NextFetchEvent } from './spec-extension/fetch-event'
+import {
+  NextFetchEvent,
+  getWaitUntilPromiseFromEvent,
+} from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
 import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
-import { waitUntilSymbol } from './spec-extension/fetch-event'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
@@ -14,10 +16,7 @@ import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import {
-  withWorkStore,
-  type WorkStoreContext,
-} from '../async-storage/with-work-store'
+import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -25,10 +24,11 @@ import type { TextMapGetter } from 'next/dist/compiled/@opentelemetry/api'
 import { MiddlewareSpan } from '../lib/trace/constants'
 import { CloseController } from './web-on-close'
 import { getEdgePreviewProps } from './get-edge-preview-props'
+import { getBuiltinRequestContext } from '../after/builtin-request-context'
 
 export class NextRequestHint extends NextRequest {
   sourcePage: string
-  fetchMetrics?: FetchEventResult['fetchMetrics']
+  fetchMetrics: FetchEventResult['fetchMetrics'] | undefined
 
   constructor(params: {
     init: RequestInit
@@ -199,7 +199,16 @@ export async function adapter(
     })
   }
 
-  const event = new NextFetchEvent({ request, page: params.page })
+  // if we're in an edge runtime sandbox, we should use the waitUntil
+  // that we receive from the enclosing NextServer
+  const outerWaitUntil =
+    params.request.waitUntil ?? getBuiltinRequestContext()?.waitUntil
+
+  const event = new NextFetchEvent({
+    request,
+    page: params.page,
+    context: outerWaitUntil ? { waitUntil: outerWaitUntil } : undefined,
+  })
   let response
   let cookiesFromResponse
 
@@ -213,17 +222,8 @@ export async function adapter(
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
 
-      const isAfterEnabled =
-        params.request.nextConfig?.experimental?.after ??
-        !!process.env.__NEXT_AFTER
-
-      let waitUntil: WorkStoreContext['renderOpts']['waitUntil'] = undefined
-      let closeController: CloseController | undefined = undefined
-
-      if (isAfterEnabled) {
-        waitUntil = event.waitUntil.bind(event)
-        closeController = new CloseController()
-      }
+      const waitUntil = event.waitUntil.bind(event)
+      const closeController = new CloseController()
 
       return getTracer().trace(
         MiddlewareSpan.execute,
@@ -249,47 +249,46 @@ export async function adapter(
               previewProps
             )
 
-            return await withWorkStore(
-              workAsyncStorage,
-              {
-                page: '/', // Fake Work
-                fallbackRouteParams: null,
-                renderOpts: {
-                  experimental: {
-                    after: isAfterEnabled,
-                    isRoutePPREnabled: false,
-                    dynamicIO: false,
-                  },
-                  buildId: buildId ?? '',
-                  supportsDynamicResponse: true,
-                  waitUntil,
-                  onClose: closeController
-                    ? closeController.onClose.bind(closeController)
-                    : undefined,
+            const workStore = createWorkStore({
+              page: '/', // Fake Work
+              fallbackRouteParams: null,
+              renderOpts: {
+                cacheLifeProfiles:
+                  params.request.nextConfig?.experimental?.cacheLife,
+                experimental: {
+                  isRoutePPREnabled: false,
+                  dynamicIO: false,
+                  authInterrupts:
+                    !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
-                requestEndedState: { ended: false },
-                isPrefetchRequest: request.headers.has(
-                  NEXT_ROUTER_PREFETCH_HEADER
-                ),
+                buildId: buildId ?? '',
+                supportsDynamicResponse: true,
+                waitUntil,
+                onClose: closeController.onClose.bind(closeController),
+                onAfterTaskError: undefined,
               },
-              () =>
-                workUnitAsyncStorage.run(
-                  requestStore,
-                  params.handler,
-                  request,
-                  event
-                )
+              requestEndedState: { ended: false },
+              isPrefetchRequest: request.headers.has(
+                NEXT_ROUTER_PREFETCH_HEADER
+              ),
+            })
+
+            return await workAsyncStorage.run(workStore, () =>
+              workUnitAsyncStorage.run(
+                requestStore,
+                params.handler,
+                request,
+                event
+              )
             )
           } finally {
             // middleware cannot stream, so we can consider the response closed
             // as soon as the handler returns.
-            if (closeController) {
-              // we can delay running it until a bit later --
-              // if it's needed, we'll have a `waitUntil` lock anyway.
-              setTimeout(() => {
-                closeController!.dispatchClose()
-              }, 0)
-            }
+            // we can delay running it until a bit later --
+            // if it's needed, we'll have a `waitUntil` lock anyway.
+            setTimeout(() => {
+              closeController.dispatchClose()
+            }, 0)
           }
         }
       )
@@ -414,7 +413,7 @@ export async function adapter(
 
   return {
     response: finalResponse,
-    waitUntil: Promise.all(event[waitUntilSymbol]),
+    waitUntil: getWaitUntilPromiseFromEvent(event) ?? Promise.resolve(),
     fetchMetrics: request.fetchMetrics,
   }
 }

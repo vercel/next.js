@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::quote;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use super::AstPath;
@@ -20,13 +20,13 @@ pub enum ConstantConditionValue {
 #[turbo_tasks::value]
 pub struct ConstantCondition {
     value: ConstantConditionValue,
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl ConstantCondition {
     #[turbo_tasks::function]
-    pub fn new(value: Value<ConstantConditionValue>, path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(value: Value<ConstantConditionValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(ConstantCondition {
             value: value.into_value(),
             path,

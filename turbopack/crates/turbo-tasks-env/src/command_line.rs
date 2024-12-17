@@ -1,5 +1,5 @@
-use indexmap::IndexMap;
-use turbo_tasks::{mark_session_dependent, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{mark_session_dependent, FxIndexMap, Vc};
 
 use crate::{sorted_env_vars, EnvMap, ProcessEnv, GLOBAL_ENV_LOCK};
 
@@ -15,8 +15,8 @@ impl CommandLineProcessEnv {
     }
 }
 
-/// Clones the current env vars into a IndexMap.
-fn env_snapshot() -> IndexMap<RcStr, RcStr> {
+/// Clones the current env vars into a FxIndexMap.
+fn env_snapshot() -> FxIndexMap<RcStr, RcStr> {
     let _lock = GLOBAL_ENV_LOCK.lock().unwrap();
     sorted_env_vars()
 }

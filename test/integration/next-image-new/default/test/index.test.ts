@@ -14,6 +14,7 @@ import {
   nextBuild,
   nextStart,
   renderViaHTTP,
+  retry,
   waitFor,
 } from 'next-test-utils'
 import webdriver from 'next-webdriver'
@@ -899,6 +900,18 @@ function runTests(mode) {
       await check(async () => {
         return (await browser.log()).map((log) => log.message).join('\n')
       }, /Image is missing required "src" property/gm)
+    })
+
+    it('should show null src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-null')
+
+      await assertNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
     })
 
     it('should show invalid src error', async () => {

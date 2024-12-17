@@ -2,11 +2,11 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, Upcast, ValueToString, Vc};
-use turbo_tasks_fs::rope::Rope;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Upcast, ValueToString, Vc};
+use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
-    code_builder::{Code, CodeBuilder},
+    code_builder::{fileify_source_map, Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
     source_map::GenerateSourceMap,
@@ -22,8 +22,9 @@ use crate::{
 #[derive(Default, Clone)]
 pub struct EcmascriptChunkItemContent {
     pub inner_code: Rope,
-    pub source_map: Option<Vc<Box<dyn GenerateSourceMap>>>,
+    pub source_map: Option<ResolvedVc<Box<dyn GenerateSourceMap>>>,
     pub options: EcmascriptChunkItemOptions,
+    pub rewrite_source_path: Option<ResolvedVc<FileSystemPath>>,
     pub placeholder_for_future_extensions: (),
 }
 
@@ -46,6 +47,11 @@ impl EcmascriptChunkItemContent {
         let async_module = async_module_options.await?.clone_value();
 
         Ok(EcmascriptChunkItemContent {
+            rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
+                Some(chunking_context.context_path().to_resolved().await?)
+            } else {
+                None
+            },
             inner_code: content.inner_code.clone(),
             source_map: content.source_map,
             options: if content.is_esm {
@@ -115,9 +121,9 @@ impl EcmascriptChunkItemContent {
             args.push("e: exports");
         }
         if self.options.stub_require {
-            args.push("z: require");
+            args.push("z: __turbopack_require_stub__");
         } else {
-            args.push("t: require");
+            args.push("t: __turbopack_require_real__");
         }
         if self.options.wasm {
             args.push("w: __turbopack_wasm__");
@@ -144,7 +150,20 @@ impl EcmascriptChunkItemContent {
             code += "{\n";
         }
 
-        code.push_source(&self.inner_code, self.source_map);
+        let source_map = if let Some(rewrite_source_path) = self.rewrite_source_path {
+            let source_map = self.source_map.map(|m| m.generate_source_map());
+            match source_map {
+                Some(map) => fileify_source_map(map, *rewrite_source_path)
+                    .await?
+                    .map(|v| *v)
+                    .map(Vc::upcast),
+                None => None,
+            }
+        } else {
+            self.source_map.map(|v| *v)
+        };
+
+        code.push_source(&self.inner_code, source_map);
 
         if let Some(opts) = &self.options.async_module {
             write!(
@@ -162,7 +181,9 @@ impl EcmascriptChunkItemContent {
     }
 }
 
-#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item should be in "use strict" mode.
     pub strict: bool,
@@ -175,8 +196,8 @@ pub struct EcmascriptChunkItemOptions {
     /// Whether this chunk item's module factory should include an `exports`
     /// argument.
     pub exports: bool,
-    /// Whether this chunk item's module factory should include an argument for the real `require`,
-    /// or just a throwing stub (for ESM)
+    /// Whether this chunk item's module factory should include an argument for a throwing require
+    /// stub (for ESM)
     pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
     /// `__turbopack_external_require__` argument.
@@ -209,7 +230,7 @@ pub trait EcmascriptChunkItem: ChunkItem {
     }
 }
 
-pub trait EcmascriptChunkItemExt: Send {
+pub trait EcmascriptChunkItemExt {
     /// Generates the module factory for this chunk item.
     fn code(self: Vc<Self>, async_module_info: Option<Vc<AsyncModuleInfo>>) -> Vc<Code>;
 }
@@ -247,13 +268,13 @@ async fn module_factory_with_code_generation_issue(
                 let error_message = format!("{}", PrettyPrintError(&error)).into();
                 let js_error_message = serde_json::to_string(&error_message)?;
                 CodeGenerationIssue {
-                    severity: IssueSeverity::Error.cell(),
-                    path: chunk_item.asset_ident().path(),
+                    severity: IssueSeverity::Error.resolved_cell(),
+                    path: chunk_item.asset_ident().path().to_resolved().await?,
                     title: StyledString::Text("Code generation for chunk item errored".into())
-                        .cell(),
-                    message: StyledString::Text(error_message).cell(),
+                        .resolved_cell(),
+                    message: StyledString::Text(error_message).resolved_cell(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
                 let mut code = CodeBuilder::default();
                 code += "(() => {{\n\n";

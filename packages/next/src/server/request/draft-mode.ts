@@ -4,8 +4,14 @@ import type { DraftModeProvider } from '../async-storage/draft-mode-provider'
 
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import { trackDynamicDataAccessed } from '../app-render/dynamic-rendering'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import {
+  abortAndThrowOnSynchronousRequestDataAccess,
+  postponeWithTracking,
+  trackSynchronousRequestDataAccessInDev,
+} from '../app-render/dynamic-rendering'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
+import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
+import { DynamicServerError } from '../../client/components/hooks-server-context'
 
 /**
  * In this version of Next.js `draftMode()` returns a Promise however you can still reference the properties of the underlying draftMode object
@@ -35,23 +41,24 @@ export function draftMode(): Promise<DraftMode> {
   const workStore = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
 
-  if (
-    workUnitStore &&
-    (workUnitStore.type === 'cache' ||
+  if (workUnitStore) {
+    if (
+      workUnitStore.type === 'cache' ||
       workUnitStore.type === 'unstable-cache' ||
       workUnitStore.type === 'prerender' ||
       workUnitStore.type === 'prerender-ppr' ||
-      workUnitStore.type === 'prerender-legacy')
-  ) {
-    // Return empty draft mode
-    if (
-      process.env.NODE_ENV === 'development' &&
-      !workStore?.isPrefetchRequest
+      workUnitStore.type === 'prerender-legacy'
     ) {
-      const route = workStore?.route
-      return createExoticDraftModeWithDevWarnings(null, route)
-    } else {
-      return createExoticDraftMode(null)
+      // Return empty draft mode
+      if (
+        process.env.NODE_ENV === 'development' &&
+        !workStore?.isPrefetchRequest
+      ) {
+        const route = workStore?.route
+        return createExoticDraftModeWithDevWarnings(null, route)
+      } else {
+        return createExoticDraftMode(null)
+      }
     }
   }
 
@@ -114,8 +121,8 @@ function createExoticDraftModeWithDevWarnings(
 
   Object.defineProperty(promise, 'isEnabled', {
     get() {
-      const expression = 'draftMode().isEnabled'
-      warnForSyncAccess(route, expression)
+      const expression = '`draftMode().isEnabled`'
+      syncIODev(route, expression)
       return instance.isEnabled
     },
     set(newValue) {
@@ -131,16 +138,16 @@ function createExoticDraftModeWithDevWarnings(
 
   Object.defineProperty(promise, 'enable', {
     value: function get() {
-      const expression = 'draftMode().enable()'
-      warnForSyncAccess(route, expression)
+      const expression = '`draftMode().enable()`'
+      syncIODev(route, expression)
       return instance.enable.apply(instance, arguments as any)
     },
   })
 
   Object.defineProperty(promise, 'disable', {
     value: function get() {
-      const expression = 'draftMode().disable()'
-      warnForSyncAccess(route, expression)
+      const expression = '`draftMode().disable()`'
+      syncIODev(route, expression)
       return instance.disable.apply(instance, arguments as any)
     },
   })
@@ -164,43 +171,120 @@ class DraftMode {
     return false
   }
   public enable() {
-    const store = workAsyncStorage.getStore()
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (store) {
-      // We we have a store we want to track dynamic data access to ensure we
-      // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, workUnitStore, 'draftMode().enable()')
-    }
+    // We have a store we want to track dynamic data access to ensure we
+    // don't statically generate routes that manipulate draft mode.
+    trackDynamicDraftMode('draftMode().enable()')
     if (this._provider !== null) {
       this._provider.enable()
     }
   }
   public disable() {
-    const store = workAsyncStorage.getStore()
-    const workUnitStore = workUnitAsyncStorage.getStore()
-    if (store) {
-      // We we have a store we want to track dynamic data access to ensure we
-      // don't statically generate routes that manipulate draft mode.
-      trackDynamicDataAccessed(store, workUnitStore, 'draftMode().disable()')
-    }
+    trackDynamicDraftMode('draftMode().disable()')
     if (this._provider !== null) {
       this._provider.disable()
     }
   }
 }
 
+function syncIODev(route: string | undefined, expression: string) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (
+    workUnitStore &&
+    workUnitStore.type === 'request' &&
+    workUnitStore.prerenderPhase === true
+  ) {
+    // When we're rendering dynamically in dev we need to advance out of the
+    // Prerender environment when we read Request data synchronously
+    const requestStore = workUnitStore
+    trackSynchronousRequestDataAccessInDev(requestStore)
+  }
+  // In all cases we warn normally
+  warnForSyncAccess(route, expression)
+}
+
 const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessWarning(
-      route: undefined | string,
-      expression: string
-    ) {
-      const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
-        `${prefix}\`draftMode()\` property was accessed directly with \`${expression}\`. ` +
-        `\`draftMode()\` should be awaited before using its value. ` +
-        `Learn more: https://nextjs.org/docs/messages/draft-mode-sync-access`
+  : createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError)
+
+function createDraftModeAccessError(
+  route: string | undefined,
+  expression: string
+) {
+  const prefix = route ? `Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`draftMode()\` should be awaited before using its value. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
+
+function trackDynamicDraftMode(expression: string) {
+  const store = workAsyncStorage.getStore()
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (store) {
+    // We have a store we want to track dynamic data access to ensure we
+    // don't statically generate routes that manipulate draft mode.
+    if (workUnitStore) {
+      if (workUnitStore.type === 'cache') {
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside "use cache". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      } else if (workUnitStore.type === 'unstable-cache') {
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside a function cached with "unstable_cache(...)". The enabled status of draftMode can be read in caches but you must not enable or disable draftMode inside a cache. See more info here: https://nextjs.org/docs/app/api-reference/functions/unstable_cache`
+        )
+      } else if (workUnitStore.phase === 'after') {
+        throw new Error(
+          `Route ${store.route} used "${expression}" inside \`after\`. The enabled status of draftMode can be read inside \`after\` but you cannot enable or disable draftMode. See more info here: https://nextjs.org/docs/app/api-reference/functions/after`
+        )
+      }
+    }
+
+    if (store.dynamicShouldError) {
+      throw new StaticGenBailoutError(
+        `Route ${store.route} with \`dynamic = "error"\` couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering`
       )
-    })
+    }
+
+    if (workUnitStore) {
+      if (workUnitStore.type === 'prerender') {
+        // dynamicIO Prerender
+        const error = new Error(
+          `Route ${store.route} used ${expression} without first calling \`await connection()\`. See more info here: https://nextjs.org/docs/messages/next-prerender-sync-headers`
+        )
+        abortAndThrowOnSynchronousRequestDataAccess(
+          store.route,
+          expression,
+          error,
+          workUnitStore
+        )
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // PPR Prerender
+        postponeWithTracking(
+          store.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        // legacy Prerender
+        workUnitStore.revalidate = 0
+
+        const err = new DynamicServerError(
+          `Route ${store.route} couldn't be rendered statically because it used \`${expression}\`. See more info here: https://nextjs.org/docs/messages/dynamic-server-error`
+        )
+        store.dynamicUsageDescription = expression
+        store.dynamicUsageStack = err.stack
+
+        throw err
+      } else if (
+        process.env.NODE_ENV === 'development' &&
+        workUnitStore &&
+        workUnitStore.type === 'request'
+      ) {
+        workUnitStore.usedDynamic = true
+      }
+    }
+  }
+}

@@ -1,5 +1,6 @@
 pub mod indexed;
 mod operation;
+mod persisted_storage_log;
 mod storage;
 
 use std::{
@@ -41,11 +42,12 @@ use crate::{
         operation::{
             get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
-            ExecuteContext, Operation, OutdatedEdge,
+            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
         },
+        persisted_storage_log::PersistedStorageLog,
         storage::{get, get_many, get_mut, iter_many, remove, Storage},
     },
-    backing_storage::{BackingStorage, ReadTransaction},
+    backing_storage::BackingStorage,
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
         CachedDataItemValue, CachedDataUpdate, CellRef, CollectibleRef, CollectiblesRef,
@@ -95,21 +97,60 @@ pub enum TransientTask {
     Once(TransientTaskOnce),
 }
 
-pub struct TurboTasksBackend(Arc<TurboTasksBackendInner>);
+pub enum StorageMode {
+    /// Queries the storage for cache entries that don't exist locally.
+    ReadOnly,
+    /// Queries the storage for cache entries that don't exist locally.
+    /// Keeps a log of all changes and regularly push them to the backing storage.
+    ReadWrite,
+}
 
-struct TurboTasksBackendInner {
+pub struct BackendOptions {
+    /// Enables dependency tracking.
+    ///
+    /// When disabled: No state changes are allowed. Tasks will never reexecute and stay cached
+    /// forever.
+    pub dependency_tracking: bool,
+
+    /// Enables children tracking.
+    ///
+    /// When disabled: Strongly consistent reads are only eventually consistent. All tasks are
+    /// considered as active. Collectibles are disabled.
+    pub children_tracking: bool,
+
+    /// Enables the backing storage.
+    pub storage_mode: Option<StorageMode>,
+}
+
+impl Default for BackendOptions {
+    fn default() -> Self {
+        Self {
+            dependency_tracking: true,
+            children_tracking: true,
+            storage_mode: Some(StorageMode::ReadWrite),
+        }
+    }
+}
+
+pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
+
+type TaskCacheLog = Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>;
+
+struct TurboTasksBackendInner<B: BackingStorage> {
+    options: BackendOptions,
+
     start_time: Instant,
     session_id: SessionId,
 
     persisted_task_id_factory: IdFactoryWithReuse<TaskId>,
     transient_task_id_factory: IdFactoryWithReuse<TaskId>,
 
-    persisted_task_cache_log: Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
+    persisted_task_cache_log: Option<TaskCacheLog>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
-    transient_tasks: DashMap<TaskId, Arc<TransientTask>>,
+    transient_tasks: DashMap<TaskId, Arc<TransientTask>, BuildHasherDefault<FxHasher>>,
 
-    persisted_storage_data_log: Sharded<ChunkedVec<CachedDataUpdate>>,
-    persisted_storage_meta_log: Sharded<ChunkedVec<CachedDataUpdate>>,
+    persisted_storage_data_log: Option<PersistedStorageLog>,
+    persisted_storage_meta_log: Option<PersistedStorageLog>,
     storage: Storage<TaskId, CachedDataItem>,
 
     /// Number of executing operations + Highest bit is set when snapshot is
@@ -135,20 +176,25 @@ struct TurboTasksBackendInner {
     idle_start_event: Event,
     idle_end_event: Event,
 
-    backing_storage: Arc<dyn BackingStorage + Sync + Send>,
+    backing_storage: B,
 }
 
-impl TurboTasksBackend {
-    pub fn new(backing_storage: Arc<dyn BackingStorage + Sync + Send>) -> Self {
-        Self(Arc::new(TurboTasksBackendInner::new(backing_storage)))
+impl<B: BackingStorage> TurboTasksBackend<B> {
+    pub fn new(options: BackendOptions, backing_storage: B) -> Self {
+        Self(Arc::new(TurboTasksBackendInner::new(
+            options,
+            backing_storage,
+        )))
     }
 }
 
-impl TurboTasksBackendInner {
-    pub fn new(backing_storage: Arc<dyn BackingStorage + Sync + Send>) -> Self {
+impl<B: BackingStorage> TurboTasksBackendInner<B> {
+    pub fn new(options: BackendOptions, backing_storage: B) -> Self {
         let shard_amount =
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
+        let need_log = matches!(options.storage_mode, Some(StorageMode::ReadWrite));
         Self {
+            options,
             start_time: Instant::now(),
             session_id: backing_storage.next_session_id(),
             persisted_task_id_factory: IdFactoryWithReuse::new(
@@ -159,11 +205,11 @@ impl TurboTasksBackendInner {
                 TRANSIENT_TASK_BIT as u64,
                 u32::MAX as u64,
             ),
-            persisted_task_cache_log: Sharded::new(shard_amount),
+            persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
-            transient_tasks: DashMap::new(),
-            persisted_storage_data_log: Sharded::new(shard_amount),
-            persisted_storage_meta_log: Sharded::new(shard_amount),
+            transient_tasks: DashMap::default(),
+            persisted_storage_data_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
+            persisted_storage_meta_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -180,9 +226,9 @@ impl TurboTasksBackendInner {
 
     fn execute_context<'a>(
         &'a self,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
-    ) -> ExecuteContext<'a> {
-        ExecuteContext::new(self, turbo_tasks)
+        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> impl ExecuteContext<'a> {
+        ExecuteContextImpl::new(self, turbo_tasks)
     }
 
     fn session_id(&self) -> SessionId {
@@ -192,45 +238,61 @@ impl TurboTasksBackendInner {
     /// # Safety
     ///
     /// `tx` must be a transaction from this TurboTasksBackendInner instance.
-    unsafe fn execute_context_with_tx<'a>(
-        &'a self,
-        tx: Option<ReadTransaction>,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
-    ) -> ExecuteContext<'a> {
+    unsafe fn execute_context_with_tx<'e, 'tx>(
+        &'e self,
+        tx: Option<&'e B::ReadTransaction<'tx>>,
+        turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) -> impl ExecuteContext<'e> + use<'e, 'tx, B>
+    where
+        'tx: 'e,
+    {
         // Safety: `tx` is from `self`.
-        unsafe { ExecuteContext::new_with_tx(self, tx, turbo_tasks) }
+        let ctx = unsafe { ExecuteContextImpl::new_with_tx(self, tx, turbo_tasks) };
+        ctx
     }
 
     fn suspending_requested(&self) -> bool {
-        (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0
+        self.should_persist()
+            && (self.in_progress_operations.load(Ordering::Relaxed) & SNAPSHOT_REQUESTED_BIT) != 0
     }
 
     fn operation_suspend_point(&self, suspend: impl FnOnce() -> AnyOperation) {
-        if self.suspending_requested() {
+        #[cold]
+        fn operation_suspend_point_cold<B: BackingStorage>(
+            this: &TurboTasksBackendInner<B>,
+            suspend: impl FnOnce() -> AnyOperation,
+        ) {
             let operation = Arc::new(suspend());
-            let mut snapshot_request = self.snapshot_request.lock();
+            let mut snapshot_request = this.snapshot_request.lock();
             if snapshot_request.snapshot_requested {
                 snapshot_request
                     .suspended_operations
                     .insert(operation.clone().into());
-                let value = self.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
+                let value = this.in_progress_operations.fetch_sub(1, Ordering::AcqRel) - 1;
                 assert!((value & SNAPSHOT_REQUESTED_BIT) != 0);
                 if value == SNAPSHOT_REQUESTED_BIT {
-                    self.operations_suspended.notify_all();
+                    this.operations_suspended.notify_all();
                 }
-                self.snapshot_completed
+                this.snapshot_completed
                     .wait_while(&mut snapshot_request, |snapshot_request| {
                         snapshot_request.snapshot_requested
                     });
-                self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
+                this.in_progress_operations.fetch_add(1, Ordering::AcqRel);
                 snapshot_request
                     .suspended_operations
                     .remove(&operation.into());
             }
         }
+
+        if self.suspending_requested() {
+            operation_suspend_point_cold(self, suspend);
+        }
     }
 
-    pub(crate) fn start_operation(&self) -> OperationGuard<'_> {
+    pub(crate) fn start_operation(&self) -> OperationGuard<'_, B> {
+        if !self.should_persist() {
+            return OperationGuard { backend: None };
+        }
         let fetch_add = self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
         if (fetch_add & SNAPSHOT_REQUESTED_BIT) != 0 {
             let mut snapshot_request = self.snapshot_request.lock();
@@ -246,48 +308,65 @@ impl TurboTasksBackendInner {
                 self.in_progress_operations.fetch_add(1, Ordering::AcqRel);
             }
         }
-        OperationGuard { backend: self }
+        OperationGuard {
+            backend: Some(self),
+        }
     }
 
-    fn persisted_storage_log(
-        &self,
-        category: TaskDataCategory,
-    ) -> &Sharded<ChunkedVec<CachedDataUpdate>> {
+    fn persisted_storage_log(&self, category: TaskDataCategory) -> Option<&PersistedStorageLog> {
         match category {
             TaskDataCategory::Data => &self.persisted_storage_data_log,
             TaskDataCategory::Meta => &self.persisted_storage_meta_log,
             TaskDataCategory::All => unreachable!(),
         }
+        .as_ref()
+    }
+
+    fn should_persist(&self) -> bool {
+        matches!(self.options.storage_mode, Some(StorageMode::ReadWrite))
+    }
+
+    fn should_restore(&self) -> bool {
+        self.options.storage_mode.is_some()
+    }
+
+    fn should_track_dependencies(&self) -> bool {
+        self.options.dependency_tracking
+    }
+
+    fn should_track_children(&self) -> bool {
+        self.options.children_tracking
     }
 }
 
-pub(crate) struct OperationGuard<'a> {
-    backend: &'a TurboTasksBackendInner,
+pub(crate) struct OperationGuard<'a, B: BackingStorage> {
+    backend: Option<&'a TurboTasksBackendInner<B>>,
 }
 
-impl Drop for OperationGuard<'_> {
+impl<B: BackingStorage> Drop for OperationGuard<'_, B> {
     fn drop(&mut self) {
-        let fetch_sub = self
-            .backend
-            .in_progress_operations
-            .fetch_sub(1, Ordering::AcqRel);
-        if fetch_sub - 1 == SNAPSHOT_REQUESTED_BIT {
-            self.backend.operations_suspended.notify_all();
+        if let Some(backend) = self.backend {
+            let fetch_sub = backend
+                .in_progress_operations
+                .fetch_sub(1, Ordering::AcqRel);
+            if fetch_sub - 1 == SNAPSHOT_REQUESTED_BIT {
+                backend.operations_suspended.notify_all();
+            }
         }
     }
 }
 
 // Operations
-impl TurboTasksBackendInner {
+impl<B: BackingStorage> TurboTasksBackendInner<B> {
     /// # Safety
     ///
     /// `tx` must be a transaction from this TurboTasksBackendInner instance.
-    unsafe fn connect_child_with_tx(
-        &self,
-        tx: Option<ReadTransaction>,
+    unsafe fn connect_child_with_tx<'l, 'tx: 'l>(
+        &'l self,
+        tx: Option<&'l B::ReadTransaction<'tx>>,
         parent_task: TaskId,
         child_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &'l dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::ConnectChildOperation::run(parent_task, child_task, unsafe {
             self.execute_context_with_tx(tx, turbo_tasks)
@@ -298,7 +377,7 @@ impl TurboTasksBackendInner {
         &self,
         parent_task: TaskId,
         child_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::ConnectChildOperation::run(
             parent_task,
@@ -312,7 +391,7 @@ impl TurboTasksBackendInner {
         task_id: TaskId,
         reader: Option<TaskId>,
         consistency: ReadConsistency,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<RawVc, EventListener>> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -334,7 +413,7 @@ impl TurboTasksBackendInner {
             }
         }
 
-        if matches!(consistency, ReadConsistency::Strong) {
+        if self.should_track_children() && matches!(consistency, ReadConsistency::Strong) {
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -397,9 +476,7 @@ impl TurboTasksBackendInner {
                 drop(task);
                 if !task_ids_to_schedule.is_empty() {
                     let mut queue = AggregationUpdateQueue::new();
-                    queue.push(AggregationUpdateJob::FindAndScheduleDirty {
-                        task_ids: task_ids_to_schedule,
-                    });
+                    queue.extend_find_and_schedule_dirty(task_ids_to_schedule);
                     queue.execute(&mut ctx);
                 }
 
@@ -416,22 +493,26 @@ impl TurboTasksBackendInner {
                 }
             };
             if let Some(result) = result {
-                if let Some(reader) = reader {
-                    let _ = task.add(CachedDataItem::OutputDependent {
-                        task: reader,
-                        value: (),
-                    });
-                    drop(task);
-
-                    let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
-                    if reader_task
-                        .remove(&CachedDataItemKey::OutdatedOutputDependency { target: task_id })
-                        .is_none()
-                    {
-                        let _ = reader_task.add(CachedDataItem::OutputDependency {
-                            target: task_id,
+                if self.should_track_dependencies() {
+                    if let Some(reader) = reader {
+                        let _ = task.add(CachedDataItem::OutputDependent {
+                            task: reader,
                             value: (),
                         });
+                        drop(task);
+
+                        let mut reader_task = ctx.task(reader, TaskDataCategory::Data);
+                        if reader_task
+                            .remove(&CachedDataItemKey::OutdatedOutputDependency {
+                                target: task_id,
+                            })
+                            .is_none()
+                        {
+                            let _ = reader_task.add(CachedDataItem::OutputDependency {
+                                target: task_id,
+                                value: (),
+                            });
+                        }
                     }
                 }
 
@@ -462,12 +543,19 @@ impl TurboTasksBackendInner {
         task_id: TaskId,
         reader: Option<TaskId>,
         cell: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<Result<TypedCellContent, EventListener>> {
-        let mut ctx = self.execute_context(turbo_tasks);
-        let mut task = ctx.task(task_id, TaskDataCategory::Data);
-        if let Some(content) = get!(task, CellData { cell }) {
-            let content = content.clone();
+        fn add_cell_dependency<B: BackingStorage>(
+            backend: &TurboTasksBackendInner<B>,
+            mut task: impl TaskGuard,
+            reader: Option<TaskId>,
+            cell: CellId,
+            task_id: TaskId,
+            ctx: &mut impl ExecuteContext<'_>,
+        ) {
+            if !backend.should_track_dependencies() {
+                return;
+            }
             if let Some(reader) = reader {
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
@@ -488,6 +576,13 @@ impl TurboTasksBackendInner {
                     let _ = reader_task.add(CachedDataItem::CellDependency { target, value: () });
                 }
             }
+        }
+
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::Data);
+        if let Some(content) = get!(task, CellData { cell }) {
+            let content = content.clone();
+            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             return Ok(Ok(TypedCellContent(
                 cell.type_id,
                 CellContent(Some(content.1)),
@@ -501,12 +596,18 @@ impl TurboTasksBackendInner {
                 cell_type: cell.type_id
             }
         ) else {
+            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             bail!(
-                "Cell {cell:?} no longer exists in task {task_id:?} (no cell of this type exists)"
+                "Cell {cell:?} no longer exists in task {} (no cell of this type exists)",
+                ctx.get_task_description(task_id)
             );
         };
-        if cell.index > *max_id {
-            bail!("Cell {cell:?} no longer exists in task {task_id:?} (index out of bounds)");
+        if cell.index >= *max_id {
+            add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
+            bail!(
+                "Cell {cell:?} no longer exists in task {} (index out of bounds)",
+                ctx.get_task_description(task_id)
+            );
         }
 
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
@@ -551,12 +652,14 @@ impl TurboTasksBackendInner {
         if let Some(task_type) = self.task_cache.lookup_reverse(&task_id) {
             return Some(task_type);
         }
-        if let Some(task_type) = unsafe {
-            self.backing_storage
-                .reverse_lookup_task_cache(None, task_id)
-        } {
-            let _ = self.task_cache.try_insert(task_type.clone(), task_id);
-            return Some(task_type);
+        if self.should_restore() && !task_id.is_transient() {
+            if let Some(task_type) = unsafe {
+                self.backing_storage
+                    .reverse_lookup_task_cache(None, task_id)
+            } {
+                let _ = self.task_cache.try_insert(task_type.clone(), task_id);
+                return Some(task_type);
+            }
         }
         None
     }
@@ -573,6 +676,7 @@ impl TurboTasksBackendInner {
     }
 
     fn snapshot(&self) -> Option<(Instant, bool)> {
+        debug_assert!(self.should_persist());
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = true;
         let active_operations = self
@@ -590,9 +694,16 @@ impl TurboTasksBackendInner {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
-        let persisted_storage_meta_log = self.persisted_storage_meta_log.take();
-        let persisted_storage_data_log = self.persisted_storage_data_log.take();
-        let persisted_task_cache_log = self.persisted_task_cache_log.take();
+        fn take_from_log(log: &Option<PersistedStorageLog>) -> Vec<ChunkedVec<CachedDataUpdate>> {
+            log.as_ref().map(|l| l.take()).unwrap_or_default()
+        }
+        let persisted_storage_meta_log = take_from_log(&self.persisted_storage_meta_log);
+        let persisted_storage_data_log = take_from_log(&self.persisted_storage_data_log);
+        let persisted_task_cache_log = self
+            .persisted_task_cache_log
+            .as_ref()
+            .map(|l| l.take(|i| i))
+            .unwrap_or_default();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
@@ -601,15 +712,18 @@ impl TurboTasksBackendInner {
         let snapshot_time = Instant::now();
         drop(snapshot_request);
 
-        let mut counts: HashMap<TaskId, u32> = HashMap::new();
-        for log in persisted_storage_meta_log
-            .iter()
-            .chain(persisted_storage_data_log.iter())
-        {
-            for CachedDataUpdate { task, .. } in log.iter() {
-                *counts.entry(*task).or_default() += 1;
-            }
-        }
+        // TODO track which items are persisting
+        // TODO This is very inefficient, maybe the BackingStorage could compute that since it need
+        // to iterate items anyway.
+        // let mut counts: FxHashMap<TaskId, u32> =
+        // FxHashMap::with_capacity_and_hasher(); for log in persisted_storage_meta_log
+        //     .iter()
+        //     .chain(persisted_storage_data_log.iter())
+        // {
+        //     for CachedDataUpdate { task, .. } in log.iter() {
+        //         *counts.entry(*task).or_default() += 1;
+        //     }
+        // }
 
         let mut new_items = false;
 
@@ -629,40 +743,51 @@ impl TurboTasksBackendInner {
                 persisted_storage_meta_log,
                 persisted_storage_data_log,
             ) {
-                println!("Persising failed: {:#?}", err);
+                println!("Persisting failed: {:?}", err);
                 return None;
             }
         }
 
-        for (task_id, count) in counts {
-            self.storage
-                .access_mut(task_id)
-                .persistance_state_mut()
-                .finish_persisting_items(count);
-        }
+        // TODO add when we need to track persisted items
+        // for (task_id, count) in counts {
+        //     self.storage
+        //         .access_mut(task_id)
+        //         .persistance_state_mut()
+        //         .finish_persisting_items(count);
+        // }
 
         Some((snapshot_time, new_items))
     }
 
-    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>) {
-        // Continue all uncompleted operations
-        // They can't be interrupted by a snapshot since the snapshotting job has not been scheduled
-        // yet.
-        let uncompleted_operations = self.backing_storage.uncompleted_operations();
-        if !uncompleted_operations.is_empty() {
-            let mut ctx = self.execute_context(turbo_tasks);
-            for op in uncompleted_operations {
-                op.execute(&mut ctx);
+    fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
+        if self.should_restore() {
+            // Continue all uncompleted operations
+            // They can't be interrupted by a snapshot since the snapshotting job has not been
+            // scheduled yet.
+            let uncompleted_operations = self.backing_storage.uncompleted_operations();
+            if !uncompleted_operations.is_empty() {
+                let mut ctx = self.execute_context(turbo_tasks);
+                for op in uncompleted_operations {
+                    op.execute(&mut ctx);
+                }
             }
         }
 
-        // Schedule the snapshot job
-        turbo_tasks.schedule_backend_background_job(BACKEND_JOB_INITIAL_SNAPSHOT);
+        if self.should_persist() {
+            // Schedule the snapshot job
+            turbo_tasks.schedule_backend_background_job(BACKEND_JOB_INITIAL_SNAPSHOT);
+        }
     }
 
     fn stopping(&self) {
         self.stopping.store(true, Ordering::Release);
         self.stopping_event.notify(usize::MAX);
+    }
+
+    fn stop(&self) {
+        if let Err(err) = self.backing_storage.shutdown() {
+            println!("Shutting down failed: {}", err);
+        }
     }
 
     fn idle_start(&self) {
@@ -677,45 +802,48 @@ impl TurboTasksBackendInner {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
-        let tx = self.backing_storage.start_read_transaction();
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        if let Some(task_id) = unsafe {
-            self.backing_storage
-                .forward_lookup_task_cache(tx, &task_type)
-        } {
-            let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
+        let tx = self
+            .should_restore()
+            .then(|| self.backing_storage.start_read_transaction())
+            .flatten();
+        let task_id = {
             // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-            unsafe { self.connect_child_with_tx(tx, parent_task, task_id, turbo_tasks) };
-            return task_id;
-        }
-
-        let task_type = Arc::new(task_type);
-        let task_id = self.persisted_task_id_factory.get();
-        if let Err(existing_task_id) = self.task_cache.try_insert(task_type.clone(), task_id) {
-            // Safety: We just created the id and failed to insert it.
-            unsafe {
-                self.persisted_task_id_factory.reuse(task_id);
+            if let Some(task_id) = unsafe {
+                self.backing_storage
+                    .forward_lookup_task_cache(tx.as_ref(), &task_type)
+            } {
+                let _ = self.task_cache.try_insert(Arc::new(task_type), task_id);
+                task_id
+            } else {
+                let task_type = Arc::new(task_type);
+                let task_id = self.persisted_task_id_factory.get();
+                let task_id = if let Err(existing_task_id) =
+                    self.task_cache.try_insert(task_type.clone(), task_id)
+                {
+                    // Safety: We just created the id and failed to insert it.
+                    unsafe {
+                        self.persisted_task_id_factory.reuse(task_id);
+                    }
+                    existing_task_id
+                } else {
+                    task_id
+                };
+                if let Some(log) = &self.persisted_task_cache_log {
+                    log.lock(task_id).push((task_type, task_id));
+                }
+                task_id
             }
-            self.persisted_task_cache_log
-                .lock(existing_task_id)
-                .push((task_type, existing_task_id));
-            // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-            unsafe { self.connect_child_with_tx(tx, parent_task, existing_task_id, turbo_tasks) };
-            return existing_task_id;
-        }
-        self.persisted_task_cache_log
-            .lock(task_id)
-            .push((task_type, task_id));
+        };
 
         // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
-        unsafe { self.connect_child_with_tx(tx, parent_task, task_id, turbo_tasks) };
+        unsafe { self.connect_child_with_tx(tx.as_ref(), parent_task, task_id, turbo_tasks) };
 
         task_id
     }
@@ -724,7 +852,7 @@ impl TurboTasksBackendInner {
         &self,
         task_type: CachedTaskType,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if !parent_task.is_transient() {
             let parent_task_type = self.lookup_task_type(parent_task);
@@ -761,18 +889,29 @@ impl TurboTasksBackendInner {
     fn invalidate_task(
         &self,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
-        operation::InvalidateOperation::run(smallvec![task_id], self.execute_context(turbo_tasks));
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
+        operation::InvalidateOperation::run(
+            smallvec![task_id],
+            TaskDirtyCause::Invalidator,
+            self.execute_context(turbo_tasks),
+        );
     }
 
     fn invalidate_tasks(
         &self,
         tasks: &[TaskId],
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
+            TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
     }
@@ -780,10 +919,14 @@ impl TurboTasksBackendInner {
     fn invalidate_tasks_set(
         &self,
         tasks: &AutoSet<TaskId, BuildHasherDefault<FxHasher>, 2>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_dependencies() {
+            panic!("Dependency tracking is disabled so invalidation is not allowed");
+        }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
+            TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
     }
@@ -791,7 +934,7 @@ impl TurboTasksBackendInner {
     fn invalidate_serialization(
         &self,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         if task_id.is_transient() {
             return;
@@ -801,9 +944,11 @@ impl TurboTasksBackendInner {
         task.invalidate_serialization();
     }
 
-    fn get_task_description(&self, task: TaskId) -> std::string::String {
-        let task_type = self.lookup_task_type(task).expect("Task not found");
-        task_type.to_string()
+    fn get_task_description(&self, task_id: TaskId) -> std::string::String {
+        self.lookup_task_type(task_id).map_or_else(
+            || format!("{task_id:?} transient"),
+            |task_type| task_type.to_string(),
+        )
     }
 
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
@@ -817,7 +962,7 @@ impl TurboTasksBackendInner {
     fn try_start_task_execution(
         &self,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Option<TaskExecutionSpec<'_>> {
         enum TaskType {
             Cached(Arc<CachedTaskType>),
@@ -850,116 +995,126 @@ impl TurboTasksBackendInner {
                 },
             });
 
-            // Make all current children outdated (remove left-over outdated children)
-            enum Child {
-                Current(TaskId),
-                Outdated(TaskId),
-            }
-            let children = task
-                .iter(CachedDataItemIndex::Children)
-                .filter_map(|(key, _)| match *key {
-                    CachedDataItemKey::Child { task } => Some(Child::Current(task)),
-                    CachedDataItemKey::OutdatedChild { task } => Some(Child::Outdated(task)),
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            for child in children {
-                match child {
-                    Child::Current(child) => {
-                        let _ = task.add(CachedDataItem::OutdatedChild {
-                            task: child,
-                            value: (),
-                        });
+            if self.should_track_children() {
+                // Make all current children outdated (remove left-over outdated children)
+                enum Child {
+                    Current(TaskId),
+                    Outdated(TaskId),
+                }
+                let children = task
+                    .iter(CachedDataItemIndex::Children)
+                    .filter_map(|(key, _)| match *key {
+                        CachedDataItemKey::Child { task } => Some(Child::Current(task)),
+                        CachedDataItemKey::OutdatedChild { task } => Some(Child::Outdated(task)),
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                for child in children {
+                    match child {
+                        Child::Current(child) => {
+                            let _ = task.add(CachedDataItem::OutdatedChild {
+                                task: child,
+                                value: (),
+                            });
+                        }
+                        Child::Outdated(child) => {
+                            if !task.has_key(&CachedDataItemKey::Child { task: child }) {
+                                task.remove(&CachedDataItemKey::OutdatedChild { task: child });
+                            }
+                        }
                     }
-                    Child::Outdated(child) => {
-                        if !task.has_key(&CachedDataItemKey::Child { task: child }) {
-                            task.remove(&CachedDataItemKey::OutdatedChild { task: child });
+                }
+
+                // Make all current collectibles outdated (remove left-over outdated collectibles)
+                enum Collectible {
+                    Current(CollectibleRef, i32),
+                    Outdated(CollectibleRef),
+                }
+                let collectibles = task
+                    .iter(CachedDataItemIndex::Collectibles)
+                    .filter_map(|(key, value)| match (key, value) {
+                        (
+                            &CachedDataItemKey::Collectible { collectible },
+                            &CachedDataItemValue::Collectible { value },
+                        ) => Some(Collectible::Current(collectible, value)),
+                        (&CachedDataItemKey::OutdatedCollectible { collectible }, _) => {
+                            Some(Collectible::Outdated(collectible))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                for collectible in collectibles {
+                    match collectible {
+                        Collectible::Current(collectible, value) => {
+                            let _ = task
+                                .insert(CachedDataItem::OutdatedCollectible { collectible, value });
+                        }
+                        Collectible::Outdated(collectible) => {
+                            if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
+                                task.remove(&CachedDataItemKey::OutdatedCollectible {
+                                    collectible,
+                                });
+                            }
                         }
                     }
                 }
             }
 
-            // Make all current collectibles outdated (remove left-over outdated collectibles)
-            enum Collectible {
-                Current(CollectibleRef, i32),
-                Outdated(CollectibleRef),
-            }
-            let collectibles = task
-                .iter(CachedDataItemIndex::Collectibles)
-                .filter_map(|(key, value)| match (key, value) {
-                    (
-                        &CachedDataItemKey::Collectible { collectible },
-                        &CachedDataItemValue::Collectible { value },
-                    ) => Some(Collectible::Current(collectible, value)),
-                    (&CachedDataItemKey::OutdatedCollectible { collectible }, _) => {
-                        Some(Collectible::Outdated(collectible))
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            for collectible in collectibles {
-                match collectible {
-                    Collectible::Current(collectible, value) => {
-                        let _ =
-                            task.insert(CachedDataItem::OutdatedCollectible { collectible, value });
-                    }
-                    Collectible::Outdated(collectible) => {
-                        if !task.has_key(&CachedDataItemKey::Collectible { collectible }) {
-                            task.remove(&CachedDataItemKey::OutdatedCollectible { collectible });
-                        }
-                    }
+            if self.should_track_dependencies() {
+                // Make all dependencies outdated
+                enum Dep {
+                    CurrentCell(CellRef),
+                    CurrentOutput(TaskId),
+                    OutdatedCell(CellRef),
+                    OutdatedOutput(TaskId),
                 }
-            }
-
-            // Make all dependencies outdated
-            enum Dep {
-                CurrentCell(CellRef),
-                CurrentOutput(TaskId),
-                OutdatedCell(CellRef),
-                OutdatedOutput(TaskId),
-            }
-            let dependencies = task
-                .iter(CachedDataItemIndex::Dependencies)
-                .filter_map(|(key, _)| match *key {
-                    CachedDataItemKey::CellDependency { target } => Some(Dep::CurrentCell(target)),
-                    CachedDataItemKey::OutputDependency { target } => {
-                        Some(Dep::CurrentOutput(target))
-                    }
-                    CachedDataItemKey::OutdatedCellDependency { target } => {
-                        Some(Dep::OutdatedCell(target))
-                    }
-                    CachedDataItemKey::OutdatedOutputDependency { target } => {
-                        Some(Dep::OutdatedOutput(target))
-                    }
-                    _ => None,
-                })
-                .collect::<Vec<_>>();
-            for dep in dependencies {
-                match dep {
-                    Dep::CurrentCell(cell) => {
-                        let _ = task.add(CachedDataItem::OutdatedCellDependency {
-                            target: cell,
-                            value: (),
-                        });
-                    }
-                    Dep::CurrentOutput(output) => {
-                        let _ = task.add(CachedDataItem::OutdatedOutputDependency {
-                            target: output,
-                            value: (),
-                        });
-                    }
-                    Dep::OutdatedCell(cell) => {
-                        if !task.has_key(&CachedDataItemKey::CellDependency { target: cell }) {
-                            task.remove(&CachedDataItemKey::OutdatedCellDependency {
+                let dependencies = task
+                    .iter(CachedDataItemIndex::Dependencies)
+                    .filter_map(|(key, _)| match *key {
+                        CachedDataItemKey::CellDependency { target } => {
+                            Some(Dep::CurrentCell(target))
+                        }
+                        CachedDataItemKey::OutputDependency { target } => {
+                            Some(Dep::CurrentOutput(target))
+                        }
+                        CachedDataItemKey::OutdatedCellDependency { target } => {
+                            Some(Dep::OutdatedCell(target))
+                        }
+                        CachedDataItemKey::OutdatedOutputDependency { target } => {
+                            Some(Dep::OutdatedOutput(target))
+                        }
+                        _ => None,
+                    })
+                    .collect::<Vec<_>>();
+                for dep in dependencies {
+                    match dep {
+                        Dep::CurrentCell(cell) => {
+                            let _ = task.add(CachedDataItem::OutdatedCellDependency {
                                 target: cell,
+                                value: (),
                             });
                         }
-                    }
-                    Dep::OutdatedOutput(output) => {
-                        if !task.has_key(&CachedDataItemKey::OutputDependency { target: output }) {
-                            task.remove(&CachedDataItemKey::OutdatedOutputDependency {
+                        Dep::CurrentOutput(output) => {
+                            let _ = task.add(CachedDataItem::OutdatedOutputDependency {
                                 target: output,
+                                value: (),
                             });
+                        }
+                        Dep::OutdatedCell(cell) => {
+                            if !task.has_key(&CachedDataItemKey::CellDependency { target: cell }) {
+                                task.remove(&CachedDataItemKey::OutdatedCellDependency {
+                                    target: cell,
+                                });
+                            }
+                        }
+                        Dep::OutdatedOutput(output) => {
+                            if !task
+                                .has_key(&CachedDataItemKey::OutputDependency { target: output })
+                            {
+                                task.remove(&CachedDataItemKey::OutdatedOutputDependency {
+                                    target: output,
+                                });
+                            }
                         }
                     }
                 }
@@ -969,11 +1124,11 @@ impl TurboTasksBackendInner {
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
-                    registry::get_function(*fn_type).span(),
+                    registry::get_function(*fn_type).span(task_id),
                     registry::get_function(*fn_type).execute(*this, &**arg),
                 ),
                 CachedTaskType::ResolveNative { fn_type, .. } => {
-                    let span = registry::get_function(*fn_type).resolve_span();
+                    let span = registry::get_function(*fn_type).resolve_span(task_id);
                     let turbo_tasks = turbo_tasks.pin();
                     (
                         span,
@@ -1042,7 +1197,7 @@ impl TurboTasksBackendInner {
         &self,
         task_id: TaskId,
         result: Result<Result<RawVc>, Option<Cow<'static, str>>>,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
     }
@@ -1054,7 +1209,7 @@ impl TurboTasksBackendInner {
         _memory_usage: usize,
         cell_counters: &AutoMap<ValueTypeId, u32, BuildHasherDefault<FxHasher>, 8>,
         stateful: bool,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> bool {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
@@ -1081,7 +1236,6 @@ impl TurboTasksBackendInner {
         let _ = stateful;
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let mut removed_cells = HashMap::new();
         let mut old_counters: HashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (*cell_type, *max_index));
         for (&cell_type, &max_index) in cell_counters.iter() {
@@ -1091,9 +1245,6 @@ impl TurboTasksBackendInner {
                         cell_type,
                         value: max_index,
                     });
-                    if old_max_index > max_index {
-                        removed_cells.insert(cell_type, max_index + 1..=old_max_index);
-                    }
                 }
             } else {
                 task.add_new(CachedDataItem::CellTypeMaxIndex {
@@ -1102,34 +1253,60 @@ impl TurboTasksBackendInner {
                 });
             }
         }
-        for (cell_type, old_max_index) in old_counters {
+        for (cell_type, _) in old_counters {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
-            removed_cells.insert(cell_type, 0..=old_max_index);
-        }
-        let mut removed_data = Vec::new();
-        for (&cell_type, range) in removed_cells.iter() {
-            for index in range.clone() {
-                removed_data.extend(
-                    task.remove(&CachedDataItemKey::CellData {
-                        cell: CellId {
-                            type_id: cell_type,
-                            index,
-                        },
-                    })
-                    .into_iter(),
-                );
-            }
         }
 
+        let mut removed_data = Vec::new();
+        let mut old_edges = Vec::new();
+
+        // Remove no longer existing cells and notify in progress cells
         // find all outdated data items (removed cells, outdated edges)
-        let old_edges = if task.is_indexed() {
-            task.iter(CachedDataItemIndex::Children)
-                .filter_map(|(key, _)| match *key {
-                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
-                    _ => None,
-                })
-                .chain(task.iter(CachedDataItemIndex::Dependencies).filter_map(
+        if task.is_indexed() {
+            removed_data.extend(task.extract_if(
+                CachedDataItemIndex::InProgressCell,
+                |key, value| {
+                    match (key, value) {
+                        (
+                            &CachedDataItemKey::InProgressCell { cell },
+                            CachedDataItemValue::InProgressCell { value },
+                        ) if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
+                        {
+                            value.event.notify(usize::MAX);
+                            true
+                        }
+                        _ => false,
+                    }
+                },
+            ));
+            removed_data.extend(task.extract_if(CachedDataItemIndex::CellData, |key, _| {
+                matches!(key, &CachedDataItemKey::CellData { cell } if cell_counters
+                        .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
+            }));
+            if self.should_track_children() {
+                old_edges.extend(task.iter(CachedDataItemIndex::Children).filter_map(
                     |(key, _)| match *key {
+                        CachedDataItemKey::OutdatedChild { task } => {
+                            Some(OutdatedEdge::Child(task))
+                        }
+                        _ => None,
+                    },
+                ));
+                old_edges.extend(task.iter(CachedDataItemIndex::Collectibles).filter_map(
+                    |(key, value)| match (key, value) {
+                        (
+                            CachedDataItemKey::OutdatedCollectible { collectible },
+                            CachedDataItemValue::OutdatedCollectible { value },
+                        ) => Some(OutdatedEdge::Collectible(*collectible, *value)),
+                        _ => None,
+                    },
+                ));
+            }
+            if self.should_track_dependencies() {
+                old_edges.extend(task.iter(CachedDataItemIndex::Dependencies).filter_map(
+                    |(key, _): (&CachedDataItemKey, &CachedDataItemValue)| match *key {
                         CachedDataItemKey::OutdatedCellDependency { target } => {
                             Some(OutdatedEdge::CellDependency(target))
                         }
@@ -1138,51 +1315,69 @@ impl TurboTasksBackendInner {
                         }
                         _ => None,
                     },
-                ))
-                .chain(
-                    task.iter(CachedDataItemIndex::CellDependent).filter_map(
-                        |(key, _)| match *key {
+                ));
+                old_edges.extend(task.iter(CachedDataItemIndex::CellDependent).filter_map(
+                    |(key, _)| {
+                        match *key {
                             CachedDataItemKey::CellDependent { cell, task }
-                                if removed_cells
+                                if cell_counters
                                     .get(&cell.type_id)
-                                    .map_or(false, |range| range.contains(&cell.index)) =>
+                                    .is_none_or(|start_index| cell.index >= *start_index) =>
                             {
-                                Some(OutdatedEdge::RemovedCellDependent(task))
+                                Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
                             }
                             _ => None,
-                        },
-                    ),
-                )
-                .collect::<Vec<_>>()
+                        }
+                    },
+                ));
+            }
         } else {
-            task.iter_all()
-                .filter_map(|(key, value)| match *key {
-                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
-                    CachedDataItemKey::OutdatedCollectible { collectible } => {
-                        let CachedDataItemValue::OutdatedCollectible { value } = *value else {
-                            unreachable!();
-                        };
-                        Some(OutdatedEdge::Collectible(collectible, value))
-                    }
-                    CachedDataItemKey::OutdatedCellDependency { target } => {
-                        Some(OutdatedEdge::CellDependency(target))
-                    }
-                    CachedDataItemKey::OutdatedOutputDependency { target } => {
-                        Some(OutdatedEdge::OutputDependency(target))
-                    }
-                    CachedDataItemKey::OutdatedCollectiblesDependency { target } => {
-                        Some(OutdatedEdge::CollectiblesDependency(target))
-                    }
-                    CachedDataItemKey::CellDependent { cell, task }
-                        if removed_cells
-                            .get(&cell.type_id)
-                            .map_or(false, |range| range.contains(&cell.index)) =>
+            removed_data.extend(task.extract_if_all(|key, value| {
+                match (key, value) {
+                    (
+                        &CachedDataItemKey::InProgressCell { cell },
+                        CachedDataItemValue::InProgressCell { value },
+                    ) if cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index) =>
                     {
-                        Some(OutdatedEdge::RemovedCellDependent(task))
+                        value.event.notify(usize::MAX);
+                        return true;
                     }
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
+                    (&CachedDataItemKey::CellData { cell }, _)
+                        if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
+                    {
+                        return true;
+                    }
+                    (&CachedDataItemKey::OutdatedChild { task }, _) => {
+                        old_edges.push(OutdatedEdge::Child(task));
+                    }
+                    (
+                        &CachedDataItemKey::OutdatedCollectible { collectible },
+                        &CachedDataItemValue::OutdatedCollectible { value },
+                    ) => old_edges.push(OutdatedEdge::Collectible(collectible, value)),
+                    (&CachedDataItemKey::OutdatedCellDependency { target }, _) => {
+                        old_edges.push(OutdatedEdge::CellDependency(target));
+                    }
+                    (&CachedDataItemKey::OutdatedOutputDependency { target }, _) => {
+                        old_edges.push(OutdatedEdge::OutputDependency(target));
+                    }
+                    (&CachedDataItemKey::OutdatedCollectiblesDependency { target }, _) => {
+                        old_edges.push(OutdatedEdge::CollectiblesDependency(target));
+                    }
+                    (&CachedDataItemKey::CellDependent { cell, task }, _)
+                        if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
+                    {
+                        old_edges.push(OutdatedEdge::RemovedCellDependent(task, cell.type_id));
+                    }
+                    _ => {}
+                }
+                false
+            }));
         };
         drop(task);
 
@@ -1202,7 +1397,7 @@ impl TurboTasksBackendInner {
         let InProgressState::InProgress {
             done_event,
             once_task: _,
-            stale: _,
+            stale,
             session_dependent,
         } = in_progress
         else {
@@ -1239,7 +1434,9 @@ impl TurboTasksBackendInner {
             _ => unreachable!(),
         });
 
-        let data_update = if old_dirty_state.is_some() || new_dirty_state.is_some() {
+        let data_update = if self.should_track_children()
+            && (old_dirty_state.is_some() || new_dirty_state.is_some())
+        {
             let mut dirty_containers = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
                 .unwrap_or_default();
@@ -1288,16 +1485,18 @@ impl TurboTasksBackendInner {
     fn run_backend_job<'a>(
         self: &'a Arc<Self>,
         id: BackendJobId,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Pin<Box<dyn Future<Output = ()> + Send + 'a>> {
         Box::pin(async move {
             if id == BACKEND_JOB_INITIAL_SNAPSHOT || id == BACKEND_JOB_FOLLOW_UP_SNAPSHOT {
+                debug_assert!(self.should_persist());
+
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
                 let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
                 loop {
-                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(30);
-                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(15);
-                    const IDLE_TIMEOUT: Duration = Duration::from_secs(1);
+                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(60);
+                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(30);
+                    const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
                     let time = if id == BACKEND_JOB_INITIAL_SNAPSHOT {
                         FIRST_SNAPSHOT_WAIT
@@ -1367,7 +1566,7 @@ impl TurboTasksBackendInner {
         &self,
         task_id: TaskId,
         cell: CellId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Result<TypedCellContent> {
         let mut ctx = self.execute_context(turbo_tasks);
         let task = ctx.task(task_id, TaskDataCategory::Data);
@@ -1383,12 +1582,16 @@ impl TurboTasksBackendInner {
         task_id: TaskId,
         collectible_type: TraitTypeId,
         reader_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> AutoMap<RawVc, i32, BuildHasherDefault<FxHasher>, 1> {
+        if !self.should_track_children() {
+            return AutoMap::default();
+        }
+
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
-            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -1454,8 +1657,12 @@ impl TurboTasksBackendInner {
         collectible_type: TraitTypeId,
         collectible: RawVc,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_children() {
+            return;
+        }
+
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
         };
@@ -1480,8 +1687,12 @@ impl TurboTasksBackendInner {
         collectible: RawVc,
         count: u32,
         task_id: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
+        if !self.should_track_children() {
+            return;
+        }
+
         let RawVc::TaskCell(collectible_task, cell) = collectible else {
             panic!("Collectibles need to be resolved");
         };
@@ -1505,7 +1716,7 @@ impl TurboTasksBackendInner {
         task_id: TaskId,
         cell: CellId,
         content: CellContent,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         operation::UpdateCellOperation::run(
             task_id,
@@ -1518,7 +1729,7 @@ impl TurboTasksBackendInner {
     fn mark_own_task_as_session_dependent(
         &self,
         task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
@@ -1534,7 +1745,7 @@ impl TurboTasksBackendInner {
         &self,
         task: TaskId,
         parent_task: TaskId,
-        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend>,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) {
         ConnectChildOperation::run(parent_task, task, self.execute_context(turbo_tasks));
     }
@@ -1572,15 +1783,43 @@ impl TurboTasksBackendInner {
         }
         task_id
     }
+
+    fn dispose_root_task(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        let is_dirty = get!(task, Dirty).map_or(false, |dirty| dirty.get(self.session_id));
+        let has_dirty_containers = get!(task, AggregatedDirtyContainerCount)
+            .map_or(false, |dirty_containers| {
+                dirty_containers.get(self.session_id) > 0
+            });
+        if is_dirty || has_dirty_containers {
+            if let Some(root_state) = get_mut!(task, AggregateRoot) {
+                // We will finish the task, but it would be removed after the task is done
+                root_state.ty = ActiveType::CachedActiveUntilClean;
+            };
+        } else if let Some(root_state) = remove!(task, AggregateRoot) {
+            // Technically nobody should be listening to this event, but just in case
+            // we notify it anyway
+            root_state.all_clean_event.notify(usize::MAX);
+        }
+    }
 }
 
-impl Backend for TurboTasksBackend {
+impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
     fn startup(&self, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.startup(turbo_tasks);
     }
 
     fn stopping(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.stopping();
+    }
+
+    fn stop(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.stop();
     }
 
     fn idle_start(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
@@ -1810,8 +2049,8 @@ impl Backend for TurboTasksBackend {
         self.0.create_transient_task(task_type)
     }
 
-    fn dispose_root_task(&self, _: TaskId, _: &dyn TurboTasksBackendApi<Self>) {
-        // TODO implement
+    fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.dispose_root_task(task_id, turbo_tasks);
     }
 }
 

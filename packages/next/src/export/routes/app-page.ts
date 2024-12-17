@@ -25,6 +25,8 @@ import { NEXT_IS_PRERENDER_HEADER } from '../../client/components/app-router-hea
 import type { FetchMetrics } from '../../server/base-http'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
+import { AfterRunner } from '../../server/after/run-with-after'
+import type { RequestLifecycleOpts } from '../../server/base-server'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -33,6 +35,56 @@ export const enum ExportedAppPageFiles {
   PREFETCH_FLIGHT_SEGMENT = 'PREFETCH_FLIGHT_SEGMENT',
   META = 'META',
   POSTPONED = 'POSTPONED',
+}
+
+export async function prospectiveRenderAppPage(
+  req: MockedRequest,
+  res: MockedResponse,
+  page: string,
+  pathname: string,
+  query: NextParsedUrlQuery,
+  fallbackRouteParams: FallbackRouteParams | null,
+  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>
+): Promise<undefined> {
+  const afterRunner = new AfterRunner()
+
+  // If the page is `/_not-found`, then we should update the page to be `/404`.
+  // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
+  if (page === '/_not-found/page') {
+    pathname = '/404'
+  }
+
+  try {
+    await lazyRenderAppPage(
+      new NodeNextRequest(req),
+      new NodeNextResponse(res),
+      pathname,
+      query,
+      fallbackRouteParams,
+      {
+        ...partialRenderOpts,
+        waitUntil: afterRunner.context.waitUntil,
+        onClose: afterRunner.context.onClose,
+        onAfterTaskError: afterRunner.context.onTaskError,
+      },
+      undefined,
+      false
+    )
+
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
+  } catch (err) {
+    if (!isDynamicUsageError(err)) {
+      throw err
+    }
+
+    // We should fail rendering if a client side rendering bailout
+    // occurred at the page level.
+    if (isBailoutToCSRError(err)) {
+      throw err
+    }
+  }
 }
 
 /**
@@ -46,12 +98,21 @@ export async function exportAppPage(
   pathname: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: FallbackRouteParams | null,
-  renderOpts: RenderOpts,
+  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
   fileWriter: FileWriter
 ): Promise<ExportRouteResult> {
+  const afterRunner = new AfterRunner()
+
+  const renderOpts: RenderOpts = {
+    ...partialRenderOpts,
+    waitUntil: afterRunner.context.waitUntil,
+    onClose: afterRunner.context.onClose,
+    onAfterTaskError: afterRunner.context.onTaskError,
+  }
+
   let isDefaultNotFound = false
   // If the page is `/_not-found`, then we should update the page to be `/404`.
   // UNDERSCORE_NOT_FOUND_ROUTE value used here, however we don't want to import it here as it causes constants to be inlined which we don't want here.
@@ -67,10 +128,16 @@ export async function exportAppPage(
       pathname,
       query,
       fallbackRouteParams,
-      renderOpts
+      renderOpts,
+      undefined,
+      false
     )
 
     const html = result.toUnchunkedString()
+
+    // TODO(after): if we abort a prerender because of an error in an after-callback
+    // we should probably communicate that better (and not log the error twice)
+    await afterRunner.executeAfter()
 
     const { metadata } = result
     const {
@@ -79,7 +146,7 @@ export async function exportAppPage(
       postponed,
       fetchTags,
       fetchMetrics,
-      segmentFlightData,
+      segmentData,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -133,7 +200,7 @@ export async function exportAppPage(
           flightData
         )
 
-        if (segmentFlightData) {
+        if (segmentData) {
           // Emit the per-segment prefetch data. We emit them as separate files
           // so that the cache handler has the option to treat each as a
           // separate entry.
@@ -143,7 +210,7 @@ export async function exportAppPage(
             RSC_SEGMENTS_DIR_SUFFIX
           )
           const tasks = []
-          for (const [segmentPath, buffer] of segmentFlightData.entries()) {
+          for (const [segmentPath, buffer] of segmentData) {
             segmentPaths.push(segmentPath)
             const segmentDataFilePath =
               segmentPath === '/'

@@ -1,10 +1,10 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 
 use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Module: Asset {
     /// The identifier of the [Module]. It's expected to be unique and capture
     /// all properties of the [Module].
@@ -22,10 +22,10 @@ pub trait Module: Asset {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionModule(Option<Vc<Box<dyn Module>>>);
+pub struct OptionModule(Option<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value(transparent)]
-pub struct Modules(Vec<Vc<Box<dyn Module>>>);
+pub struct Modules(Vec<ResolvedVc<Box<dyn Module>>>);
 
 #[turbo_tasks::value_impl]
 impl Modules {

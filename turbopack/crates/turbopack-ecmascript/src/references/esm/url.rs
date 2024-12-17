@@ -3,7 +3,8 @@ use swc_core::{
     ecma::ast::{Expr, ExprOrSpread, NewExpr},
     quote,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -17,7 +18,6 @@ use turbopack_core::{
         origin::ResolveOrigin, parse::Request, url_resolve, ExternalType, ModuleResolveResult,
     },
 };
-use turbopack_resolve::ecmascript::try_to_severity;
 
 use super::base::ReferencedAsset;
 use crate::{
@@ -48,26 +48,26 @@ pub enum UrlRewriteBehavior {
 /// referenced file to be imported/fetched/etc.
 #[turbo_tasks::value]
 pub struct UrlAssetReference {
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    rendering: Vc<Rendering>,
-    ast_path: Vc<AstPath>,
-    issue_source: Vc<IssueSource>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    rendering: ResolvedVc<Rendering>,
+    ast_path: ResolvedVc<AstPath>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
-    url_rewrite_behavior: Vc<UrlRewriteBehavior>,
+    url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
 }
 
 #[turbo_tasks::value_impl]
 impl UrlAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        rendering: Vc<Rendering>,
-        ast_path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        rendering: ResolvedVc<Rendering>,
+        ast_path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
-        url_rewrite_behavior: Vc<UrlRewriteBehavior>,
+        url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
     ) -> Vc<Self> {
         UrlAssetReference {
             origin,
@@ -92,11 +92,11 @@ impl ModuleReference for UrlAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
-            Some(self.issue_source),
-            try_to_severity(self.in_try),
+            Some(*self.issue_source),
+            self.in_try,
         )
     }
 }
@@ -206,7 +206,7 @@ impl CodeGenerateable for UrlAssetReference {
                             request
                         )
                     }
-                    ReferencedAsset::None => {}
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::Full => {
@@ -294,7 +294,7 @@ impl CodeGenerateable for UrlAssetReference {
                             request
                         )
                     }
-                    ReferencedAsset::None => {}
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => {}
                 }
             }
             UrlRewriteBehavior::None => {

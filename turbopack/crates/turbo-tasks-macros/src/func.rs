@@ -10,9 +10,9 @@ use syn::{
     spanned::Spanned,
     token::Paren,
     visit_mut::VisitMut,
-    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
-    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
-    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
+    GenericArgument, Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment,
+    Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -28,8 +28,8 @@ pub struct TurboFn<'a> {
     output: Type,
     this: Option<Input>,
     inputs: Vec<Input>,
-    /// Should we check that the return type contains a `ResolvedValue`?
-    resolved: Option<Span>,
+    /// Should we check that the return type contains a `NonLocalValue`?
+    non_local: Option<Span>,
     /// Should this function use `TaskPersistence::LocalCells`?
     local_cells: bool,
 }
@@ -273,7 +273,7 @@ impl TurboFn<'_> {
             output,
             this,
             inputs,
-            resolved: args.resolved,
+            non_local: args.non_local_return,
             local_cells: args.local_cells.is_some(),
             inline_ident,
         })
@@ -496,12 +496,12 @@ impl TurboFn<'_> {
     }
 
     fn get_assertions(&self) -> TokenStream {
-        if let Some(span) = self.resolved {
+        if let Some(span) = self.non_local {
             let return_type = &self.output;
             quote_spanned! {
                 span =>
                 {
-                    turbo_tasks::macro_helpers::assert_returns_resolved_value::<#return_type, _>()
+                    turbo_tasks::macro_helpers::assert_returns_non_local_value::<#return_type, _>()
                 }
             }
         } else {
@@ -649,18 +649,18 @@ pub struct FunctionArguments {
     /// This should only be used by the task that directly performs the IO. Tasks that transitively
     /// perform IO should not be manually annotated.
     io_markers: HashSet<IoMarker>,
-    /// Should we check that the return type contains a `ResolvedValue`?
+    /// Should we check that the return type contains a `NonLocalValue`?
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     ///
     /// If [`Self::local_cells`] is set, this will also be set to the same span.
-    resolved: Option<Span>,
+    non_local_return: Option<Span>,
     /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
     /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     ///
-    /// Setting this option will also set [`Self::resolved`] to the same span.
+    /// Setting this option will also set [`Self::non_local`] to the same span.
     pub local_cells: Option<Span>,
 }
 
@@ -683,19 +683,19 @@ impl Parse for FunctionArguments {
                 ("network", Meta::Path(_)) => {
                     parsed_args.io_markers.insert(IoMarker::Network);
                 }
-                ("resolved", Meta::Path(_)) => {
-                    parsed_args.resolved = Some(meta.span());
+                ("non_local_return", Meta::Path(_)) => {
+                    parsed_args.non_local_return = Some(meta.span());
                 }
                 ("local_cells", Meta::Path(_)) => {
                     let span = Some(meta.span());
                     parsed_args.local_cells = span;
-                    parsed_args.resolved = span;
+                    parsed_args.non_local_return = span;
                 }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", \"resolved\", \
-                         \"local_cells\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", \
+                         \"non_local_return\", \"local_cells\"",
                     ))
                 }
             }
@@ -979,10 +979,10 @@ impl NativeFn {
     }
 
     pub fn ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::Lazy<turbo_tasks::NativeFunction> }
+        parse_quote! { turbo_tasks::NativeFunction }
     }
 
-    pub fn definition(&self) -> Expr {
+    pub fn definition(&self) -> TokenStream {
         let Self {
             function_path_string,
             function_path,
@@ -996,8 +996,8 @@ impl NativeFn {
             quote! { new_function }
         };
 
-        parse_quote! {
-            turbo_tasks::macro_helpers::Lazy::new(|| {
+        quote! {
+            {
                 #[allow(deprecated)]
                 turbo_tasks::NativeFunction::#constructor(
                     #function_path_string.to_owned(),
@@ -1006,19 +1006,27 @@ impl NativeFn {
                     },
                     #function_path,
                 )
-            })
+            }
         }
     }
 
     pub fn id_ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::Lazy<turbo_tasks::FunctionId> }
+        parse_quote! { turbo_tasks::FunctionId }
     }
 
-    pub fn id_definition(&self, native_function_id_path: &Path) -> Expr {
-        parse_quote! {
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_function_id(&*#native_function_id_path)
-            })
+    pub fn id_definition(&self, native_function_id_path: &Path) -> TokenStream {
+        quote! {
+            turbo_tasks::registry::get_function_id(&*#native_function_id_path)
         }
     }
+}
+
+pub fn filter_inline_attributes<'a>(
+    attrs: impl IntoIterator<Item = &'a Attribute>,
+) -> Vec<&'a Attribute> {
+    // inline functions use #[doc(hidden)], so it's not useful to preserve/duplicate docs
+    attrs
+        .into_iter()
+        .filter(|attr| attr.path.get_ident().is_none_or(|id| id != "doc"))
+        .collect()
 }

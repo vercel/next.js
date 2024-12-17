@@ -16,6 +16,7 @@
     "typescript",
     "typescriptreact"
   ],
+  "eslint.useFlatConfig": false,
   // Set Jest runMode to on-demand as otherwise it will start running all tests the first time.
   // Equivalent to deprecated option "jest.autoRun": "off"
   "jest.runMode": "on-demand",
@@ -42,6 +43,25 @@
     "[ ]",
     "[x]",
     "TODO-APP"
+  ],
+  "typescript.preferences.autoImportFileExcludePatterns": [
+    // templates reexport many things (see e.g. entry-base.ts), so they clutter import suggestions
+    "packages/next/src/build/templates/app-page.ts",
+    "packages/next/src/build/templates/app-route.ts",
+    "packages/next/src/build/templates/edge-app-route.ts",
+    "packages/next/src/build/templates/edge-ssr-app.ts",
+    "packages/next/src/build/templates/edge-ssr.ts",
+    "packages/next/src/build/templates/middleware.ts",
+    "packages/next/src/build/templates/pages-api.ts",
+    "packages/next/src/build/templates/pages-edge-api.ts",
+    "packages/next/src/build/templates/pages.ts",
+    "packages/next/src/server/app-render/entry-base.ts",
+    // singleton modules should always use "*.external" instead of "*-instance"
+    "packages/next/src/server/app-render/action-async-storage-instance.ts",
+    "packages/next/src/server/app-render/after-task-async-storage-instance.ts",
+    "packages/next/src/server/app-render/clean-async-snapshot-instance.ts",
+    "packages/next/src/server/app-render/work-async-storage-instance.ts",
+    "packages/next/src/server/app-render/work-unit-async-storage-instance.ts"
   ],
   // Disable TypeScript surveys.
   "typescript.surveys.enabled": false,

@@ -36,6 +36,7 @@ impl CollectExportedConstVisitor {
             expr_ctx: ExprCtx {
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
                 is_unresolved_ref_safe: false,
+                in_strict: false,
             },
         }
     }

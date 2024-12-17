@@ -26,6 +26,7 @@ describe('required server files app router', () => {
   }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
@@ -97,8 +98,35 @@ describe('required server files app router', () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
+  })
+
+  it('should send the right cache headers for an app route', async () => {
+    const res = await fetchViaHTTP(appPort, '/api/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/api/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=31536000, stale-while-revalidate'
+    )
+  })
+
+  it('should send the right cache headers for an app page', async () => {
+    const res = await fetchViaHTTP(appPort, '/test/123', undefined, {
+      headers: {
+        'x-matched-path': '/test/[slug]',
+        'x-now-route-matches': '1=123&nxtPslug=123',
+      },
+    })
+    expect(res.status).toBe(200)
+    expect(res.headers.get('cache-control')).toBe(
+      's-maxage=3600, stale-while-revalidate'
+    )
   })
 
   it('should not fail caching', async () => {

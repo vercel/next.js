@@ -1,5 +1,5 @@
 use anyhow::Result;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -14,13 +14,13 @@ use super::CssChunk;
 /// Represents the source map of an css chunk.
 #[turbo_tasks::value]
 pub struct CssChunkSourceMapAsset {
-    chunk: Vc<CssChunk>,
+    chunk: ResolvedVc<CssChunk>,
 }
 
 #[turbo_tasks::value_impl]
 impl CssChunkSourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(chunk: Vc<CssChunk>) -> Vc<Self> {
+    pub fn new(chunk: ResolvedVc<CssChunk>) -> Vc<Self> {
         CssChunkSourceMapAsset { chunk }.cell()
     }
 }
@@ -38,7 +38,7 @@ impl Asset for CssChunkSourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let sm = if let Some(sm) = *self.chunk.generate_source_map().await? {
-            sm
+            *sm
         } else {
             SourceMap::empty()
         };

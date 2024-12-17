@@ -313,6 +313,9 @@ pub enum CachedDataItem {
         task: TaskId,
         value: (),
     },
+    ChildrenCount {
+        value: u32,
+    },
 
     // Cells
     CellData {
@@ -365,6 +368,10 @@ pub enum CachedDataItem {
     Upper {
         task: TaskId,
         value: i32,
+    },
+    PersistentUpperCount {
+        // Only counting persistent tasks
+        value: u32,
     },
 
     // Aggregated Data
@@ -438,6 +445,7 @@ impl CachedDataItem {
             }
             CachedDataItem::Dirty { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
+            CachedDataItem::ChildrenCount { .. } => true,
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
             CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
@@ -449,6 +457,7 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
+            CachedDataItem::PersistentUpperCount { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -464,10 +473,6 @@ impl CachedDataItem {
             CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
-    }
-
-    pub fn is_optional(&self) -> bool {
-        matches!(self, CachedDataItem::CellData { .. })
     }
 
     pub fn new_scheduled(description: impl Fn() -> String + Sync + Send + 'static) -> Self {
@@ -491,6 +496,42 @@ impl CachedDataItem {
             listener,
         )
     }
+
+    pub fn category(&self) -> TaskDataCategory {
+        match self {
+            Self::Collectible { .. }
+            | Self::Child { .. }
+            | Self::ChildrenCount { .. }
+            | Self::CellData { .. }
+            | Self::CellTypeMaxIndex { .. }
+            | Self::OutputDependency { .. }
+            | Self::CellDependency { .. }
+            | Self::CollectiblesDependency { .. }
+            | Self::OutputDependent { .. }
+            | Self::CellDependent { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
+
+            Self::Output { .. }
+            | Self::AggregationNumber { .. }
+            | Self::Dirty { .. }
+            | Self::Follower { .. }
+            | Self::Upper { .. }
+            | Self::PersistentUpperCount { .. }
+            | Self::AggregatedDirtyContainer { .. }
+            | Self::AggregatedCollectible { .. }
+            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+
+            Self::OutdatedCollectible { .. }
+            | Self::OutdatedOutputDependency { .. }
+            | Self::OutdatedCellDependency { .. }
+            | Self::OutdatedCollectiblesDependency { .. }
+            | Self::OutdatedChild { .. }
+            | Self::InProgressCell { .. }
+            | Self::InProgress { .. }
+            | Self::Error { .. }
+            | Self::AggregateRoot { .. } => TaskDataCategory::All,
+        }
+    }
 }
 
 impl CachedDataItemKey {
@@ -502,6 +543,7 @@ impl CachedDataItemKey {
             }
             CachedDataItemKey::Dirty { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
+            CachedDataItemKey::ChildrenCount {} => true,
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
             CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
@@ -513,6 +555,7 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
+            CachedDataItemKey::PersistentUpperCount {} => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -530,36 +573,43 @@ impl CachedDataItemKey {
         }
     }
 
+    pub fn is_optional(&self) -> bool {
+        matches!(self, CachedDataItemKey::CellData { .. })
+    }
+
     pub fn category(&self) -> TaskDataCategory {
         match self {
-            CachedDataItemKey::Collectible { .. }
-            | CachedDataItemKey::Child { .. }
-            | CachedDataItemKey::CellData { .. }
-            | CachedDataItemKey::CellTypeMaxIndex { .. }
-            | CachedDataItemKey::OutputDependency { .. }
-            | CachedDataItemKey::CellDependency { .. }
-            | CachedDataItemKey::CollectiblesDependency { .. }
-            | CachedDataItemKey::OutputDependent { .. }
-            | CachedDataItemKey::CellDependent { .. }
-            | CachedDataItemKey::CollectiblesDependent { .. }
-            | CachedDataItemKey::InProgress { .. }
-            | CachedDataItemKey::InProgressCell { .. }
-            | CachedDataItemKey::OutdatedCollectible { .. }
-            | CachedDataItemKey::OutdatedOutputDependency { .. }
-            | CachedDataItemKey::OutdatedCellDependency { .. }
-            | CachedDataItemKey::OutdatedCollectiblesDependency { .. }
-            | CachedDataItemKey::OutdatedChild { .. }
-            | CachedDataItemKey::Error { .. } => TaskDataCategory::Data,
+            Self::Collectible { .. }
+            | Self::Child { .. }
+            | Self::ChildrenCount { .. }
+            | Self::CellData { .. }
+            | Self::CellTypeMaxIndex { .. }
+            | Self::OutputDependency { .. }
+            | Self::CellDependency { .. }
+            | Self::CollectiblesDependency { .. }
+            | Self::OutputDependent { .. }
+            | Self::CellDependent { .. }
+            | Self::CollectiblesDependent { .. } => TaskDataCategory::Data,
 
-            CachedDataItemKey::Output { .. }
-            | CachedDataItemKey::AggregationNumber { .. }
-            | CachedDataItemKey::Dirty { .. }
-            | CachedDataItemKey::Follower { .. }
-            | CachedDataItemKey::Upper { .. }
-            | CachedDataItemKey::AggregatedDirtyContainer { .. }
-            | CachedDataItemKey::AggregatedCollectible { .. }
-            | CachedDataItemKey::AggregatedDirtyContainerCount { .. }
-            | CachedDataItemKey::AggregateRoot { .. } => TaskDataCategory::Meta,
+            Self::Output { .. }
+            | Self::AggregationNumber { .. }
+            | Self::Dirty { .. }
+            | Self::Follower { .. }
+            | Self::Upper { .. }
+            | Self::PersistentUpperCount { .. }
+            | Self::AggregatedDirtyContainer { .. }
+            | Self::AggregatedCollectible { .. }
+            | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
+
+            Self::OutdatedCollectible { .. }
+            | Self::OutdatedOutputDependency { .. }
+            | Self::OutdatedCellDependency { .. }
+            | Self::OutdatedCollectiblesDependency { .. }
+            | Self::OutdatedChild { .. }
+            | Self::InProgressCell { .. }
+            | Self::InProgress { .. }
+            | Self::Error { .. }
+            | Self::AggregateRoot { .. } => TaskDataCategory::All,
         }
     }
 }
@@ -570,6 +620,7 @@ impl CachedDataItemKey {
 #[allow(non_upper_case_globals, dead_code)]
 pub mod allow_mut_access {
     pub const InProgress: () = ();
+    pub const AggregateRoot: () = ();
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
@@ -586,6 +637,7 @@ pub enum CachedDataItemIndex {
     OutputDependent,
     CollectiblesDependent,
     Dependencies,
+    InProgressCell,
 }
 
 #[allow(non_upper_case_globals, dead_code)]
@@ -617,6 +669,7 @@ pub mod indicies {
         CachedDataItemIndex::Dependencies;
     pub const OutdatedCollectibleDependency: CachedDataItemIndex =
         CachedDataItemIndex::Dependencies;
+    pub const InProgressCell: CachedDataItemIndex = CachedDataItemIndex::InProgressCell;
 }
 
 impl Indexed for CachedDataItemKey {
@@ -658,6 +711,7 @@ impl Indexed for CachedDataItemKey {
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => {
                 Some(CachedDataItemIndex::Dependencies)
             }
+            CachedDataItemKey::InProgressCell { .. } => Some(CachedDataItemIndex::InProgressCell),
             _ => None,
         }
     }
@@ -676,9 +730,15 @@ impl CachedDataItemValue {
 }
 
 #[derive(Debug)]
-pub struct CachedDataUpdate {
-    pub task: TaskId,
-    pub key: CachedDataItemKey,
-    pub value: Option<CachedDataItemValue>,
-    pub old_value: Option<CachedDataItemValue>,
+pub enum CachedDataUpdate {
+    /// Sets the current task id.
+    Task { task: TaskId },
+    /// An item was added. There was no old value.
+    New { item: CachedDataItem },
+    /// An item was removed.
+    Removed { old_item: CachedDataItem },
+    /// An item was replaced. This is step 1 and tells about the key and the old value
+    Replace1 { old_item: CachedDataItem },
+    /// An item was replaced. This is step 2 and tells about the new value.
+    Replace2 { value: CachedDataItemValue },
 }

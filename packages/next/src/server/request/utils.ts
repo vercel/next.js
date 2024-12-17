@@ -1,18 +1,5 @@
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
-
-/**
- * React annotates Promises with extra properties to make unwrapping them synchronous
- * after they have resolved. We sometimes create promises that are compatible with this
- * internal implementation detail when we want to construct a promise that is already resolved.
- *
- * @internal
- */
-export function makeResolvedReactPromise<T>(value: T): Promise<T> {
-  const promise = Promise.resolve(value)
-  ;(promise as any).status = 'fulfilled'
-  ;(promise as any).value = value
-  return promise
-}
+import { afterTaskAsyncStorage } from '../app-render/after-task-async-storage.external'
 
 // This regex will have fast negatives meaning valid identifiers may not pass
 // this test. However this is only used during static generation to provide hints
@@ -54,6 +41,11 @@ export function throwWithStaticGenerationBailoutErrorWithDynamicError(
   )
 }
 
+export function isRequestAPICallableInsideAfter() {
+  const afterTaskStore = afterTaskAsyncStorage.getStore()
+  return afterTaskStore?.rootTaskSpawnPhase === 'action'
+}
+
 export const wellKnownProperties = new Set([
   'hasOwnProperty',
   'isPrototypeOf',
@@ -71,6 +63,9 @@ export const wellKnownProperties = new Set([
   // React Promise extension
   // fallthrough
   'status',
+
+  // React introspection
+  'displayName',
 
   // Common tested properties
   // fallthrough

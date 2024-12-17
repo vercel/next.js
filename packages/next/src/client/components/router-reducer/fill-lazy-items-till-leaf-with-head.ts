@@ -1,4 +1,7 @@
-import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
+import type {
+  CacheNode,
+  HeadData,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import type {
   FlightRouterState,
   CacheNodeSeedData,
@@ -14,8 +17,8 @@ export function fillLazyItemsTillLeafWithHead(
   existingCache: CacheNode | undefined,
   routerState: FlightRouterState,
   cacheNodeSeedData: CacheNodeSeedData | null,
-  head: React.ReactNode,
-  prefetchEntry?: PrefetchCacheEntry
+  head: HeadData,
+  prefetchEntry: PrefetchCacheEntry | undefined
 ): void {
   const isLastSegment = Object.keys(routerState[1]).length === 0
   if (isLastSegment) {
@@ -66,7 +69,7 @@ export function fillLazyItemsTillLeafWithHead(
             // `prefetchRsc`. As an incremental step, we'll just de-opt to the
             // old behavior — no PPR value.
             prefetchRsc: null,
-            head: null,
+            head: [null, null],
             prefetchHead: null,
             loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
@@ -93,7 +96,7 @@ export function fillLazyItemsTillLeafWithHead(
             lazyData: null,
             rsc: null,
             prefetchRsc: null,
-            head: null,
+            head: [null, null],
             prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             loading: null,
@@ -126,7 +129,7 @@ export function fillLazyItemsTillLeafWithHead(
         lazyData: null,
         rsc: seedNode,
         prefetchRsc: null,
-        head: null,
+        head: [null, null],
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
@@ -138,7 +141,7 @@ export function fillLazyItemsTillLeafWithHead(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
-        head: null,
+        head: [null, null],
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,

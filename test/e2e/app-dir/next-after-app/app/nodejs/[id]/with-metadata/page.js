@@ -1,7 +1,8 @@
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 import { cliLog } from '../../../../utils/log'
 
-export function generateMetadata({ params }) {
+export async function generateMetadata(props) {
+  const params = await props.params
   after(() => {
     cliLog({
       source: '[metadata] /[id]/with-metadata',

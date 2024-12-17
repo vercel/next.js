@@ -2,14 +2,15 @@ import { parse } from 'next/dist/compiled/stacktrace-parser'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import {
   getHydrationErrorStackInfo,
-  isReactHydrationErrorStack,
+  isReactHydrationErrorMessage,
 } from '../../../is-hydration-error'
 
 const regexNextStatic = /\/_next(\/static\/.+)/
 
-export function parseStack(stack: string): StackFrame[] {
+export function parseStack(stack: string | undefined): StackFrame[] {
+  if (!stack) return []
   const messageAndStack = stack.replace(/^Error: /, '')
-  if (isReactHydrationErrorStack(messageAndStack)) {
+  if (isReactHydrationErrorMessage(messageAndStack)) {
     const { stack: parsedStack } = getHydrationErrorStackInfo(messageAndStack)
     if (parsedStack) {
       stack = parsedStack

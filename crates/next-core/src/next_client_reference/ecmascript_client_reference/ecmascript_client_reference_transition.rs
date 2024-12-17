@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{
     transition::{ContextTransition, Transition},
     ModuleAssetContext,
@@ -16,16 +17,16 @@ use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferencePr
 
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
-    client_transition: Vc<Box<dyn Transition>>,
-    ssr_transition: Vc<ContextTransition>,
+    client_transition: ResolvedVc<Box<dyn Transition>>,
+    ssr_transition: ResolvedVc<ContextTransition>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     pub fn new(
-        client_transition: Vc<Box<dyn Transition>>,
-        ssr_transition: Vc<ContextTransition>,
+        client_transition: ResolvedVc<Box<dyn Transition>>,
+        ssr_transition: ResolvedVc<ContextTransition>,
     ) -> Vc<Self> {
         NextEcmascriptClientReferenceTransition {
             client_transition,
@@ -61,7 +62,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         let this = self.await?;
 
         let ident = match part {
-            Some(part) => source.ident().with_part(part),
+            Some(part) => source.ident().with_part(*part),
             None => source.ident(),
         };
         let ident_ref = ident.await?;
@@ -73,7 +74,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
                     .replace("next/dist/esm/", "next/dist/")
                     .into(),
             );
-            Vc::upcast(FileSource::new_with_query(path, ident_ref.query))
+            Vc::upcast(FileSource::new_with_query(path, *ident_ref.query))
         } else {
             source
         };
@@ -101,13 +102,13 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         };
 
         let Some(client_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(client_module).await?
         else {
             bail!("client asset is not ecmascript chunk placeable");
         };
 
         let Some(ssr_module) =
-            Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
+            ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(ssr_module).await?
         else {
             bail!("SSR asset is not ecmascript chunk placeable");
         };
@@ -116,21 +117,23 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         // the context.
         let module_asset_context = module_asset_context.await?;
         let server_context = ModuleAssetContext::new(
-            module_asset_context.transitions,
-            module_asset_context.compile_time_info,
-            module_asset_context.module_options_context,
-            module_asset_context.resolve_options_context,
-            module_asset_context.layer,
+            *module_asset_context.transitions,
+            *module_asset_context.compile_time_info,
+            *module_asset_context.module_options_context,
+            *module_asset_context.resolve_options_context,
+            *module_asset_context.layer,
         );
 
-        Ok(
-            ProcessResult::Module(Vc::upcast(EcmascriptClientReferenceProxyModule::new(
+        Ok(ProcessResult::Module(ResolvedVc::upcast(
+            EcmascriptClientReferenceProxyModule::new(
                 ident,
                 Vc::upcast(server_context),
-                client_module,
-                ssr_module,
-            )))
-            .cell(),
-        )
+                *client_module,
+                *ssr_module,
+            )
+            .to_resolved()
+            .await?,
+        ))
+        .cell())
     }
 }

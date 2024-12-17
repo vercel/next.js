@@ -30,6 +30,10 @@ export function unstable_noStore() {
     return
   } else {
     store.isUnstableNoStore = true
-    markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
+    if (workUnitStore && workUnitStore.type === 'prerender') {
+      // unstable_noStore() is a noop in Dynamic I/O.
+    } else {
+      markCurrentScopeAsDynamic(store, workUnitStore, callingExpression)
+    }
   }
 }

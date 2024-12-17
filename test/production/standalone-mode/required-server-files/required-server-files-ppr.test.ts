@@ -28,6 +28,7 @@ describe('required server files app router', () => {
   }) => {
     // test build against environment with next support
     process.env.NOW_BUILDER = nextEnv ? '1' : ''
+    process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
 
     next = await createNext({
       files: {
@@ -44,7 +45,6 @@ describe('required server files app router', () => {
         cacheHandler: './cache-handler.js',
         experimental: {
           ppr: true,
-          pprFallbacks: true,
         },
         eslint: {
           ignoreDuringBuilds: true,
@@ -108,6 +108,7 @@ describe('required server files app router', () => {
     await setupNext({ nextEnv: true, minimalMode: true })
   })
   afterAll(async () => {
+    delete process.env.NEXT_PRIVATE_TEST_HEADERS
     await next.destroy()
     if (server) await killApp(server)
   })
@@ -116,21 +117,12 @@ describe('required server files app router', () => {
     expect(next.cliOutput).not.toContain('ERR_INVALID_URL')
   })
 
-  it.each([
-    {
-      name: 'with Next-Resume',
+  it('should properly stream resume with Next-Resume', async () => {
+    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
       headers: {
         'x-matched-path': '/delayed',
         'next-resume': '1',
       },
-    },
-    {
-      name: 'without Next-Resume',
-      headers: { 'x-matched-path': '/_next/postponed/resume/delayed' },
-    },
-  ])('should properly stream resume $name', async ({ headers }) => {
-    const res = await fetchViaHTTP(appPort, '/delayed', undefined, {
-      headers,
       method: 'POST',
       body: delayedPostpone,
     })
@@ -214,21 +206,7 @@ describe('required server files app router', () => {
   })
 
   describe('middleware rewrite', () => {
-    it.each([
-      {
-        name: 'with Next-Resume',
-        headers: {
-          'x-matched-path': '/rewrite/first-cookie',
-          'next-resume': '1',
-        },
-      },
-      {
-        name: 'without Next-Resume',
-        headers: {
-          'x-matched-path': '/_next/postponed/resume/rewrite/first-cookie',
-        },
-      },
-    ])('should work with a dynamic path ($name)', async ({ headers }) => {
+    it('should work with a dynamic path with Next-Resume', async () => {
       const res = await fetchViaHTTP(
         appPort,
         '/rewrite-with-cookie',
@@ -252,41 +230,27 @@ describe('required server files app router', () => {
     })
   })
 
-  it.each([
-    {
-      name: 'with Next-Resume',
-      headers: () => ({
+  it('should still render when postponed is corrupted with Next-Resume', async () => {
+    const random = Math.random().toString(36).substring(2)
+
+    const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
+      method: 'POST',
+      headers: {
         'x-matched-path': '/dyn/[slug]',
         'next-resume': '1',
-      }),
-    },
-    {
-      name: 'without Next-Resume',
-      headers: (random) => ({
-        'x-matched-path': '/_next/postponed/resume/dyn/' + random,
-      }),
-    },
-  ])(
-    'should still render when postponed is corrupted $name',
-    async ({ headers }) => {
-      const random = Math.random().toString(36).substring(2)
+      },
+      // This is a corrupted postponed JSON payload.
+      body: '{',
+    })
 
-      const res = await fetchViaHTTP(appPort, '/dyn/' + random, undefined, {
-        method: 'POST',
-        headers: headers(random),
-        // This is a corrupted postponed JSON payload.
-        body: '{',
-      })
+    expect(res.status).toBe(200)
 
-      expect(res.status).toBe(200)
+    const html = await res.text()
 
-      const html = await res.text()
-
-      // Expect that the closing HTML tag is still present, indicating a
-      // successful render.
-      expect(html).toContain('</html>')
-    }
-  )
+    // Expect that the closing HTML tag is still present, indicating a
+    // successful render.
+    expect(html).toContain('</html>')
+  })
 
   it('should send cache tags in minimal mode for ISR', async () => {
     for (const [path, tags] of [

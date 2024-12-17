@@ -1,8 +1,8 @@
 use anyhow::Result;
-use indexmap::{IndexMap, IndexSet};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    RcStr, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -18,42 +18,43 @@ pub struct PreprocessedChildrenIdents {
     // ident.to_string() -> full hash
     // We save the full hash to avoid re-hashing in `merge_preprocessed_module_ids`
     // if this endpoint did not change.
-    modules_idents: IndexMap<RcStr, u64>,
+    modules_idents: FxIndexMap<RcStr, u64>,
 }
 
 #[derive(Clone, Hash)]
 #[turbo_tasks::value(shared)]
 pub enum ReferencedModule {
-    Module(Vc<Box<dyn Module>>),
-    AsyncLoaderModule(Vc<Box<dyn Module>>),
+    Module(ResolvedVc<Box<dyn Module>>),
+    AsyncLoaderModule(ResolvedVc<Box<dyn Module>>),
 }
 
 impl ReferencedModule {
     fn module(&self) -> Vc<Box<dyn Module>> {
         match *self {
-            ReferencedModule::Module(module) => module,
-            ReferencedModule::AsyncLoaderModule(module) => module,
+            ReferencedModule::Module(module) => *module,
+            ReferencedModule::AsyncLoaderModule(module) => *module,
         }
     }
 }
 
-// TODO(LichuAcu): Reduce type complexity
-#[allow(clippy::type_complexity)]
-type ModulesAndAsyncLoaders = Vec<(Vec<Vc<Box<dyn Module>>>, Option<Vc<Box<dyn Module>>>)>;
-
 #[turbo_tasks::value(transparent)]
-pub struct ReferencedModules(Vec<Vc<ReferencedModule>>);
+pub struct ReferencedModules(Vec<ResolvedVc<ReferencedModule>>);
 
 #[turbo_tasks::function]
 async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<ReferencedModules>> {
     let references = module.references().await?;
 
-    let mut set = IndexSet::new();
+    // TODO(LichuAcu): Reduce type complexity
+    #[allow(clippy::type_complexity)]
+    type ModulesAndAsyncLoaders = Vec<(
+        Vec<ResolvedVc<Box<dyn Module>>>,
+        Option<ResolvedVc<Box<dyn Module>>>,
+    )>;
     let modules_and_async_loaders: ModulesAndAsyncLoaders = references
         .iter()
         .map(|reference| async move {
             let async_loader =
-                if Vc::try_resolve_downcast_type::<EsmAsyncAssetReference>(*reference)
+                if ResolvedVc::try_downcast_type::<EsmAsyncAssetReference>(*reference)
                     .await?
                     .is_some()
                 {
@@ -80,17 +81,18 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
         .try_join()
         .await?;
 
+    let mut set = FxIndexSet::default();
     let mut modules = Vec::new();
-
     for (module_list, async_loader) in modules_and_async_loaders {
         for module in module_list {
             if set.insert(module) {
-                modules.push(ReferencedModule::Module(module).cell());
+                modules.push(ReferencedModule::Module(module).resolved_cell());
             }
         }
         if let Some(async_loader_module) = async_loader {
             if set.insert(async_loader_module) {
-                modules.push(ReferencedModule::AsyncLoaderModule(async_loader_module).cell());
+                modules
+                    .push(ReferencedModule::AsyncLoaderModule(async_loader_module).resolved_cell());
             }
         }
     }
@@ -99,12 +101,12 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
 }
 
 pub async fn get_children_modules(
-    parent: Vc<ReferencedModule>,
-) -> Result<impl Iterator<Item = Vc<ReferencedModule>> + Send> {
+    parent: ResolvedVc<ReferencedModule>,
+) -> Result<impl Iterator<Item = ResolvedVc<ReferencedModule>> + Send> {
     let parent_module = parent.await?.module();
     let mut modules = referenced_modules(parent_module).await?.clone_value();
     for module in parent_module.additional_layers_modules().await? {
-        modules.push(ReferencedModule::Module(*module).cell());
+        modules.push(ReferencedModule::Module(*module).resolved_cell());
     }
     Ok(modules.into_iter())
 }
@@ -123,7 +125,7 @@ pub async fn children_modules_idents(
             root_modules
                 .await?
                 .iter()
-                .map(|module| ReferencedModule::Module(*module).cell())
+                .map(|module| ReferencedModule::Module(*module).resolved_cell())
                 .collect::<Vec<_>>(),
             get_children_modules,
         )
@@ -133,7 +135,7 @@ pub async fn children_modules_idents(
         .into_reverse_topological();
 
     // module_id -> full hash
-    let mut modules_idents = IndexMap::new();
+    let mut modules_idents = FxIndexMap::default();
     for child_module in children_modules_iter {
         match *child_module.await? {
             ReferencedModule::Module(module) => {
@@ -169,8 +171,8 @@ const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
 // ids and another that generates the final, optimized module ids. Thoughts?
 pub async fn merge_preprocessed_module_ids(
     preprocessed_module_ids: Vec<Vc<PreprocessedChildrenIdents>>,
-) -> Result<IndexMap<RcStr, ModuleId>> {
-    let mut merged_module_ids = IndexMap::new();
+) -> Result<FxIndexMap<RcStr, ModuleId>> {
+    let mut merged_module_ids = FxIndexMap::default();
 
     for preprocessed_module_ids in preprocessed_module_ids {
         for (module_ident, full_hash) in &preprocessed_module_ids.await?.modules_idents {
@@ -186,8 +188,8 @@ pub async fn merge_preprocessed_module_ids(
         JS_MAX_SAFE_INTEGER,
     );
 
-    let mut module_id_map = IndexMap::new();
-    let mut used_ids = IndexSet::new();
+    let mut module_id_map = FxIndexMap::default();
+    let mut used_ids = FxIndexSet::default();
 
     for (module_ident, full_hash) in merged_module_ids.iter() {
         let mut trimmed_hash = full_hash % digit_mask;

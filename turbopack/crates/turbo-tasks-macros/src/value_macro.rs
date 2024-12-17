@@ -110,10 +110,10 @@ struct ValueArguments {
     cell_mode: CellMode,
     manual_eq: bool,
     transparent: bool,
-    /// Should we `#[derive(turbo_tasks::ResolvedValue)]`?
-    ///
-    /// `Some(...)` if enabled, containing the span that enabled the derive.
-    resolved: Option<Span>,
+    /// Should we skip `#[derive(turbo_tasks::NonLocalValue)]`?
+    local: bool,
+    /// Should we `#[derive(turbo_tasks::OperationValue)]`?
+    operation: Option<Span>,
 }
 
 impl Parse for ValueArguments {
@@ -123,8 +123,9 @@ impl Parse for ValueArguments {
             into_mode: IntoMode::None,
             cell_mode: CellMode::Shared,
             manual_eq: false,
-            resolved: None,
             transparent: false,
+            local: false,
+            operation: None,
         };
         let punctuated: Punctuated<Meta, Token![,]> = input.parse_terminated(Meta::parse)?;
         for meta in punctuated {
@@ -179,15 +180,18 @@ impl Parse for ValueArguments {
                 ("transparent", Meta::Path(_)) => {
                     result.transparent = true;
                 }
-                ("resolved", Meta::Path(path)) => {
-                    result.resolved = Some(path.span());
+                ("local", Meta::Path(_)) => {
+                    result.local = true;
+                }
+                ("operation", Meta::Path(path)) => {
+                    result.operation = Some(path.span());
                 }
                 (_, meta) => {
                     return Err(Error::new_spanned(
                         &meta,
                         format!(
                             "unexpected {:?}, expected \"shared\", \"into\", \"serialization\", \
-                             \"cell\", \"eq\", \"transparent\"",
+                             \"cell\", \"eq\", \"transparent\", \"non_local\", or \"operation\"",
                             meta
                         ),
                     ))
@@ -207,7 +211,8 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         cell_mode,
         manual_eq,
         transparent,
-        resolved,
+        local,
+        operation,
     } = parse_macro_input!(args as ValueArguments);
 
     let mut inner_type = None;
@@ -349,49 +354,51 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let derive = match serialization_mode {
+    let mut struct_attributes = vec![quote! {
+        #[derive(turbo_tasks::ShrinkToFit, turbo_tasks::trace::TraceRawVcs)]
+    }];
+    match serialization_mode {
+        SerializationMode::Auto | SerializationMode::AutoForInput => {
+            struct_attributes.push(quote! {
+                #[derive(
+                    turbo_tasks::macro_helpers::serde::Serialize,
+                    turbo_tasks::macro_helpers::serde::Deserialize,
+                )]
+                #[serde(crate = "turbo_tasks::macro_helpers::serde")]
+            })
+        }
         SerializationMode::None | SerializationMode::Custom | SerializationMode::CustomForInput => {
-            quote! {
-                #[derive(turbo_tasks::trace::TraceRawVcs)]
-            }
         }
-        SerializationMode::Auto | SerializationMode::AutoForInput => quote! {
-            #[derive(
-                turbo_tasks::trace::TraceRawVcs,
-                turbo_tasks::macro_helpers::serde::Serialize,
-                turbo_tasks::macro_helpers::serde::Deserialize,
-            )]
-            #[serde(crate = "turbo_tasks::macro_helpers::serde")]
-        },
     };
-    let debug_derive = if inner_type.is_some() {
+    if inner_type.is_some() {
         // Transparent structs have their own manual `ValueDebug` implementation.
-        quote! {
+        struct_attributes.push(quote! {
             #[repr(transparent)]
-        }
+        });
     } else {
-        quote! {
+        struct_attributes.push(quote! {
             #[derive(
                 turbo_tasks::debug::ValueDebugFormat,
                 turbo_tasks::debug::internal::ValueDebug,
             )]
-        }
-    };
-    let eq_derive = if manual_eq {
-        quote!()
-    } else {
-        quote!(
+        });
+    }
+    if !manual_eq {
+        struct_attributes.push(quote! {
             #[derive(PartialEq, Eq)]
-        )
-    };
-    let resolved_derive = if let Some(span) = resolved {
-        quote_spanned!(
+        });
+    }
+    if !local {
+        struct_attributes.push(quote! {
+            #[derive(turbo_tasks::NonLocalValue)]
+        });
+    }
+    if let Some(span) = operation {
+        struct_attributes.push(quote_spanned! {
             span =>
-            #[derive(turbo_tasks::ResolvedValue)]
-        )
-    } else {
-        quote!()
-    };
+            #[derive(turbo_tasks::OperationValue)]
+        });
+    }
 
     let new_value_type = match serialization_mode {
         SerializationMode::None => quote! {
@@ -449,10 +456,7 @@ pub fn value(args: TokenStream, input: TokenStream) -> TokenStream {
     );
 
     let expanded = quote! {
-        #derive
-        #debug_derive
-        #eq_derive
-        #resolved_derive
+        #(#struct_attributes)*
         #item
 
         impl #ident {

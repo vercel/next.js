@@ -4,8 +4,6 @@ import type { CacheNode } from '../../../shared/lib/app-router-context.shared-ru
 import { createInitialRouterState } from './create-initial-router-state'
 import { PrefetchCacheEntryStatus, PrefetchKind } from './router-reducer-types'
 
-const buildId = 'development'
-
 const getInitialRouterStateTree = (): FlightRouterState => [
   '',
   {
@@ -34,7 +32,6 @@ describe('createInitialRouterState', () => {
     const initialParallelRoutes: CacheNode['parallelRoutes'] = new Map()
 
     const state = createInitialRouterState({
-      buildId,
       initialFlightData: [
         [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
@@ -47,7 +44,6 @@ describe('createInitialRouterState', () => {
     })
 
     const state2 = createInitialRouterState({
-      buildId,
       initialFlightData: [
         [initialTree, ['', children, {}, null], <title>Test</title>],
       ],
@@ -63,7 +59,7 @@ describe('createInitialRouterState', () => {
       lazyData: null,
       rsc: children,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -85,7 +81,7 @@ describe('createInitialRouterState', () => {
                           prefetchRsc: null,
                           parallelRoutes: new Map(),
                           loading: null,
-                          head: <title>Test</title>,
+                          head: [null, <title>Test</title>],
                           prefetchHead: null,
                         },
                       ],
@@ -95,7 +91,7 @@ describe('createInitialRouterState', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
-                head: null,
+                head: [null, null],
                 prefetchHead: null,
                 loading: null,
               },
@@ -106,7 +102,6 @@ describe('createInitialRouterState', () => {
     }
 
     const expected: ReturnType<typeof createInitialRouterState> = {
-      buildId,
       tree: initialTree,
       canonicalUrl: initialCanonicalUrl,
       prefetchCache: new Map([
@@ -121,6 +116,7 @@ describe('createInitialRouterState', () => {
             treeAtTimeOfPrefetch: initialTree,
             status: PrefetchCacheEntryStatus.fresh,
             url: new URL('/linking', 'https://localhost'),
+            staleTime: -1,
           },
         ],
       ]),

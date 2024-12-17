@@ -13,6 +13,7 @@ export async function createIncrementalCache({
   distDir,
   dir,
   flushToDisk,
+  cacheHandlers,
 }: {
   dynamicIO: boolean
   cacheHandler?: string
@@ -21,6 +22,7 @@ export async function createIncrementalCache({
   distDir: string
   dir: string
   flushToDisk?: boolean
+  cacheHandlers?: Record<string, string | undefined>
 }) {
   // Custom cache handler overrides.
   let CacheHandler: any
@@ -32,12 +34,25 @@ export async function createIncrementalCache({
     )
   }
 
+  if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
+    ;(globalThis as any).__nextCacheHandlers = {}
+
+    for (const key of Object.keys(cacheHandlers)) {
+      if (cacheHandlers[key]) {
+        ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
+          await import(formatDynamicImportPath(dir, cacheHandlers[key])).then(
+            (mod) => mod.default || mod
+          )
+        )
+      }
+    }
+  }
+
   const incrementalCache = new IncrementalCache({
     dev: false,
     requestHeaders: {},
     flushToDisk,
     dynamicIO,
-    fetchCache: true,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({

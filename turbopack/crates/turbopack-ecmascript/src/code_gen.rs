@@ -3,7 +3,8 @@ use swc_core::ecma::{
     ast::Stmt,
     visit::{AstParentKind, VisitMut},
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
 use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
 
 /// impl of code generation inferred from a ModuleReference.
@@ -88,7 +89,7 @@ pub trait VisitorFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
@@ -108,10 +109,10 @@ pub trait CodeGenerateableWithAsyncModuleInfo {
 #[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
 pub enum CodeGen {
     CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
-    CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
+    CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
 }
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct CodeGenerateables(Vec<CodeGen>);
 
 pub fn path_to(

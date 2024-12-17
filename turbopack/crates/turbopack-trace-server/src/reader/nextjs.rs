@@ -5,11 +5,10 @@ use std::{
     sync::Arc,
 };
 
-use indexmap::IndexMap;
 use serde::Deserialize;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer};
+use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
@@ -28,7 +27,9 @@ impl NextJsFormat {
 }
 
 impl TraceFormat for NextJsFormat {
-    fn read(&mut self, mut buffer: &[u8]) -> anyhow::Result<usize> {
+    type Reused = ();
+
+    fn read(&mut self, mut buffer: &[u8], _reuse: &mut Self::Reused) -> anyhow::Result<usize> {
         let mut bytes_read = 0;
         let mut outdated_spans = HashSet::new();
         loop {
@@ -134,7 +135,7 @@ struct NextJsSpan<'a> {
     timestamp: u64,
     id: u64,
     parent_id: Option<u64>,
-    tags: IndexMap<Cow<'a, str>, Option<TagValue<'a>>>,
+    tags: FxIndexMap<Cow<'a, str>, Option<TagValue<'a>>>,
     #[allow(dead_code)]
     start_time: u64,
     #[allow(dead_code)]

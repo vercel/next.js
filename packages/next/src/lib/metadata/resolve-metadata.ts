@@ -67,6 +67,8 @@ type ViewportResolver = (
   parent: ResolvingViewport
 ) => Viewport | Promise<Viewport>
 
+export type MetadataErrorType = 'not-found' | 'forbidden' | 'unauthorized'
+
 export type MetadataItems = [
   Metadata | MetadataResolver | null,
   StaticMetadata,
@@ -129,7 +131,7 @@ function mergeStaticMetadata(
     const resolvedTwitter = resolveTwitter(
       { ...target.twitter, images: twitter } as Twitter,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.twitter
     )
     target.twitter = resolvedTwitter
@@ -140,7 +142,7 @@ function mergeStaticMetadata(
     const resolvedOpenGraph = resolveOpenGraph(
       { ...target.openGraph, images: openGraph } as OpenGraph,
       target.metadataBase,
-      metadataContext,
+      { ...metadataContext, isStaticMetadataRouteFile: true },
       titleTemplates.openGraph
     )
     target.openGraph = resolvedOpenGraph
@@ -325,11 +327,11 @@ function mergeViewport({
   }
 }
 
-async function getDefinedViewport(
+function getDefinedViewport(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<Viewport | ViewportResolver | null> {
+): Viewport | ViewportResolver | null {
   if (typeof mod.generateViewport === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingViewport) =>
@@ -347,11 +349,11 @@ async function getDefinedViewport(
   return mod.viewport || null
 }
 
-async function getDefinedMetadata(
+function getDefinedMetadata(
   mod: any,
   props: any,
   tracingProps: { route: string }
-): Promise<Metadata | MetadataResolver | null> {
+): Metadata | MetadataResolver | null {
   if (typeof mod.generateMetadata === 'function') {
     const { route } = tracingProps
     return (parent: ResolvingMetadata) =>
@@ -425,7 +427,7 @@ async function collectMetadata({
   errorMetadataItem: MetadataItems[number]
   props: any
   route: string
-  errorConvention?: 'not-found'
+  errorConvention?: MetadataErrorType
 }) {
   let mod
   let modType
@@ -447,23 +449,19 @@ async function collectMetadata({
   }
 
   const staticFilesMetadata = await resolveStaticMetadata(tree[2], props)
-  const metadataExport = mod
-    ? await getDefinedMetadata(mod, props, { route })
-    : null
+  const metadataExport = mod ? getDefinedMetadata(mod, props, { route }) : null
 
-  const viewportExport = mod
-    ? await getDefinedViewport(mod, props, { route })
-    : null
+  const viewportExport = mod ? getDefinedViewport(mod, props, { route }) : null
 
   metadataItems.push([metadataExport, staticFilesMetadata, viewportExport])
 
   if (hasErrorConventionComponent && errorConvention) {
     const errorMod = await getComponentTypeModule(tree, errorConvention)
     const errorViewportExport = errorMod
-      ? await getDefinedViewport(errorMod, props, { route })
+      ? getDefinedViewport(errorMod, props, { route })
       : null
     const errorMetadataExport = errorMod
-      ? await getDefinedMetadata(errorMod, props, { route })
+      ? getDefinedMetadata(errorMod, props, { route })
       : null
 
     errorMetadataItem[0] = errorMetadataExport
@@ -477,7 +475,7 @@ export { cachedResolveMetadataItems as resolveMetadataItems }
 async function resolveMetadataItems(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
-  errorConvention: 'not-found' | undefined,
+  errorConvention: MetadataErrorType | undefined,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore
@@ -507,7 +505,7 @@ async function resolveMetadataItemsImpl(
   treePrefix: undefined | string[],
   parentParams: Params,
   searchParams: Promise<ParsedUrlQuery>,
-  errorConvention: 'not-found' | undefined,
+  errorConvention: MetadataErrorType | undefined,
   errorMetadataItem: MetadataItems[number],
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
@@ -603,6 +601,7 @@ function inheritFromMetadata(
   }
 }
 
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 const commonOgKeys = ['title', 'description', 'images'] as const
 function postProcessMetadata(
   metadata: ResolvedMetadata,

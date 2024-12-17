@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export async function revalidateTimestampPage(/** @type {string} */ key) {
   const path = `/timestamp/key/${encodeURIComponent(key)}`
@@ -10,7 +10,7 @@ export async function revalidateTimestampPage(/** @type {string} */ key) {
   }
 
   console.log('revalidateTimestampPage :: revalidating', path)
-  revalidatePath(path)
+  unstable_expirePath(path)
 }
 
 const WAIT_BEFORE_REVALIDATING_DEFAULT = 1000

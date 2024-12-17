@@ -25,15 +25,15 @@
     function resolveClientReference(bundlerConfig, metadata) {
       if (bundlerConfig) {
         var moduleExports = bundlerConfig[metadata[0]];
-        if ((bundlerConfig = moduleExports[metadata[2]]))
+        if ((bundlerConfig = moduleExports && moduleExports[metadata[2]]))
           moduleExports = bundlerConfig.name;
         else {
-          bundlerConfig = moduleExports["*"];
+          bundlerConfig = moduleExports && moduleExports["*"];
           if (!bundlerConfig)
             throw Error(
               'Could not find the module "' +
                 metadata[0] +
-                '" in the React SSR Manifest. This is probably a bug in the React Server Components bundler.'
+                '" in the React Server Consumer Manifest. This is probably a bug in the React Server Components bundler.'
             );
           moduleExports = metadata[2];
         }
@@ -42,6 +42,24 @@
           : [bundlerConfig.id, bundlerConfig.chunks, moduleExports];
       }
       return metadata;
+    }
+    function resolveServerReference(bundlerConfig, id) {
+      var name = "",
+        resolvedModuleData = bundlerConfig[id];
+      if (resolvedModuleData) name = resolvedModuleData.name;
+      else {
+        var idx = id.lastIndexOf("#");
+        -1 !== idx &&
+          ((name = id.slice(idx + 1)),
+          (resolvedModuleData = bundlerConfig[id.slice(0, idx)]));
+        if (!resolvedModuleData)
+          throw Error(
+            'Could not find the module "' +
+              id +
+              '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
+          );
+      }
+      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
     function requireAsyncModule(id) {
       var promise = __turbopack_require__(id);
@@ -85,6 +103,20 @@
         : 0 < promises.length
           ? Promise.all(promises)
           : null;
+    }
+    function requireModule(metadata) {
+      var moduleExports = __turbopack_require__(metadata[0]);
+      if (4 === metadata.length && "function" === typeof moduleExports.then)
+        if ("fulfilled" === moduleExports.status)
+          moduleExports = moduleExports.value;
+        else throw moduleExports.reason;
+      return "*" === metadata[2]
+        ? moduleExports
+        : "" === metadata[2]
+          ? moduleExports.__esModule
+            ? moduleExports.default
+            : moduleExports
+          : moduleExports[metadata[2]];
     }
     function getIteratorFn(maybeIterable) {
       if (null === maybeIterable || "object" !== typeof maybeIterable)
@@ -594,7 +626,7 @@
           ) {
             if (void 0 === temporaryReferences)
               throw Error(
-                "Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported." +
+                "Only plain objects, and a few built-ins, can be passed to Server Functions. Classes or null prototypes are not supported." +
                   describeObjectForErrorMessage(this, key)
               );
             return "$T";
@@ -1016,20 +1048,7 @@
     }
     function initializeModuleChunk(chunk) {
       try {
-        var metadata = chunk.value,
-          moduleExports = __turbopack_require__(metadata[0]);
-        if (4 === metadata.length && "function" === typeof moduleExports.then)
-          if ("fulfilled" === moduleExports.status)
-            moduleExports = moduleExports.value;
-          else throw moduleExports.reason;
-        var value =
-          "*" === metadata[2]
-            ? moduleExports
-            : "" === metadata[2]
-              ? moduleExports.__esModule
-                ? moduleExports.default
-                : moduleExports
-              : moduleExports[metadata[2]];
+        var value = requireModule(chunk.value);
         chunk.status = "fulfilled";
         chunk.value = value;
       } catch (error) {
@@ -1097,7 +1116,7 @@
             }
           value = value[path[i]];
         }
-        i = map(response, value);
+        i = map(response, value, parentObject, key);
         parentObject[key] = i;
         "" === key && null === handler.value && (handler.value = i);
         if (
@@ -1164,13 +1183,97 @@
       referencedChunk.then(fulfill, reject);
       return null;
     }
-    function createServerReferenceProxy(response, metaData) {
-      return createBoundServerReference(
-        metaData,
-        response._callServer,
-        response._encodeFormAction,
-        response._debugFindSourceMapURL
+    function loadServerReference(response, metaData, parentObject, key) {
+      if (!response._serverReferenceConfig)
+        return createBoundServerReference(
+          metaData,
+          response._callServer,
+          response._encodeFormAction,
+          response._debugFindSourceMapURL
+        );
+      var serverReference = resolveServerReference(
+        response._serverReferenceConfig,
+        metaData.id
       );
+      if ((response = preloadModule(serverReference)))
+        metaData.bound && (response = Promise.all([response, metaData.bound]));
+      else if (metaData.bound) response = Promise.resolve(metaData.bound);
+      else return requireModule(serverReference);
+      if (initializingHandler) {
+        var handler = initializingHandler;
+        handler.deps++;
+      } else
+        handler = initializingHandler = {
+          parent: null,
+          chunk: null,
+          value: null,
+          deps: 1,
+          errored: !1
+        };
+      response.then(
+        function () {
+          var resolvedValue = requireModule(serverReference);
+          if (metaData.bound) {
+            var boundArgs = metaData.bound.value.slice(0);
+            boundArgs.unshift(null);
+            resolvedValue = resolvedValue.bind.apply(resolvedValue, boundArgs);
+          }
+          parentObject[key] = resolvedValue;
+          "" === key &&
+            null === handler.value &&
+            (handler.value = resolvedValue);
+          if (
+            parentObject[0] === REACT_ELEMENT_TYPE &&
+            "object" === typeof handler.value &&
+            null !== handler.value &&
+            handler.value.$$typeof === REACT_ELEMENT_TYPE
+          )
+            switch (((boundArgs = handler.value), key)) {
+              case "3":
+                boundArgs.props = resolvedValue;
+                break;
+              case "4":
+                boundArgs._owner = resolvedValue;
+            }
+          handler.deps--;
+          0 === handler.deps &&
+            ((resolvedValue = handler.chunk),
+            null !== resolvedValue &&
+              "blocked" === resolvedValue.status &&
+              ((boundArgs = resolvedValue.value),
+              (resolvedValue.status = "fulfilled"),
+              (resolvedValue.value = handler.value),
+              null !== boundArgs && wakeChunk(boundArgs, handler.value)));
+        },
+        function (error) {
+          if (!handler.errored) {
+            var blockedValue = handler.value;
+            handler.errored = !0;
+            handler.value = error;
+            var chunk = handler.chunk;
+            if (null !== chunk && "blocked" === chunk.status) {
+              if (
+                "object" === typeof blockedValue &&
+                null !== blockedValue &&
+                blockedValue.$$typeof === REACT_ELEMENT_TYPE
+              ) {
+                var erroredComponent = {
+                  name: getComponentNameFromType(blockedValue.type) || "",
+                  owner: blockedValue._owner
+                };
+                erroredComponent.debugStack = blockedValue._debugStack;
+                supportsCreateTask &&
+                  (erroredComponent.debugTask = blockedValue._debugTask);
+                (chunk._debugInfo || (chunk._debugInfo = [])).push(
+                  erroredComponent
+                );
+              }
+              triggerErrorOnChunk(chunk, error);
+            }
+          }
+        }
+      );
+      return null;
     }
     function getOutlinedModel(response, reference, parentObject, key, map) {
       reference = reference.split(":");
@@ -1200,7 +1303,7 @@
                 );
             value = value[reference[i]];
           }
-          response = map(response, value);
+          response = map(response, value, parentObject, key);
           id._debugInfo &&
             ("object" !== typeof response ||
               null === response ||
@@ -1300,7 +1403,7 @@
                 value,
                 parentObject,
                 key,
-                createServerReferenceProxy
+                loadServerReference
               )
             );
           case "T":
@@ -1381,7 +1484,7 @@
             return (
               Object.defineProperty(parentObject, key, {
                 get: function () {
-                  throw "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
+                  return "This object has been omitted by React in the console log to avoid sending too much data from the server. Try logging smaller or more specific objects.";
                 },
                 enumerable: !0,
                 configurable: !1
@@ -1404,6 +1507,7 @@
     }
     function ResponseInstance(
       bundlerConfig,
+      serverReferenceConfig,
       moduleLoading,
       callServer,
       encodeFormAction,
@@ -1415,6 +1519,7 @@
     ) {
       var chunks = new Map();
       this._bundlerConfig = bundlerConfig;
+      this._serverReferenceConfig = serverReferenceConfig;
       this._moduleLoading = moduleLoading;
       this._callServer = void 0 !== callServer ? callServer : missingCall;
       this._encodeFormAction = encodeFormAction;
@@ -1806,11 +1911,13 @@
             "\n//# sourceURL=rsc://React/" +
             encodeURIComponent(environmentName) +
             "/" +
-            filename +
+            encodeURI(filename) +
             "?" +
             fakeFunctionIdx++),
           (col += "\n//# sourceMappingURL=" + sourceMap))
-        : filename && (col += "\n//# sourceURL=" + filename);
+        : (col = filename
+            ? col + ("\n//# sourceURL=" + encodeURI(filename))
+            : col + "\n//# sourceURL=<anonymous>");
       try {
         var fn = (0, eval)(col)[name];
       } catch (x) {
@@ -2258,6 +2365,7 @@
       return new ResponseInstance(
         null,
         null,
+        null,
         options && options.callServer ? options.callServer : void 0,
         void 0,
         void 0,
@@ -2546,10 +2654,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-experimental-70fb1363-20241010",
+      version: "19.0.0-experimental-7283a213-20241206",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-experimental-70fb1363-20241010",
+      reconcilerVersion: "19.0.0-experimental-7283a213-20241206",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

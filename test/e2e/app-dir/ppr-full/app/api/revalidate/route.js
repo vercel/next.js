@@ -1,4 +1,4 @@
-import { revalidatePath } from 'next/cache'
+import { unstable_expirePath } from 'next/cache'
 
 export async function GET(request) {
   const url = new URL(request.url)
@@ -12,7 +12,7 @@ export async function GET(request) {
       type = 'page'
     }
 
-    revalidatePath(pathname, type)
+    unstable_expirePath(pathname, type)
   }
 
   return new Response(

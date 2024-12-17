@@ -562,9 +562,8 @@
               1
             );
             request.pendingChunks++;
-            var id = request.nextChunkId++,
-              owner = resolveOwner();
-            emitConsoleChunk(request, id, methodName, owner, stack, arguments);
+            var owner = resolveOwner();
+            emitConsoleChunk(request, methodName, owner, stack, arguments);
           }
           return originalMethod.apply(this, arguments);
         };
@@ -869,9 +868,7 @@
     }
     function emitHint(request, code, model) {
       model = stringify(model);
-      var id = request.nextChunkId++;
-      code = serializeRowHeader("H" + code, id) + model + "\n";
-      code = stringToChunk(code);
+      code = stringToChunk(":H" + code + model + "\n");
       request.completedHintChunks.push(code);
       enqueueFlush(request);
     }
@@ -1234,9 +1231,6 @@
             ? "$-Infinity"
             : "$NaN";
     }
-    function serializeRowHeader(tag, id) {
-      return id.toString(16) + ":" + tag;
-    }
     function encodeReferenceChunk(request, id, reference) {
       request = stringify(reference);
       id = id.toString(16) + ":" + request + "\n";
@@ -1288,7 +1282,7 @@
         request.pendingChunks++;
         var importId = request.nextChunkId++,
           json = stringify(clientReferenceMetadata),
-          row = serializeRowHeader("I", importId) + json + "\n",
+          row = importId.toString(16) + ":I" + json + "\n",
           processedChunk = stringToChunk(row);
         request.completedImportChunks.push(processedChunk);
         writtenClientReferences.set(clientReferenceKey, importId);
@@ -1851,7 +1845,7 @@
           (stack = []);
       }
       digest = { digest: digest, message: message, stack: stack, env: env };
-      id = serializeRowHeader("E", id) + stringify(digest) + "\n";
+      id = id.toString(16) + ":E" + stringify(digest) + "\n";
       id = stringToChunk(id);
       request.completedErrorChunks.push(id);
     }
@@ -1875,7 +1869,7 @@
           value
         );
       });
-      id = serializeRowHeader("D", id) + debugInfo + "\n";
+      id = id.toString(16) + ":D" + debugInfo + "\n";
       id = stringToChunk(id);
       request.completedRegularChunks.push(id);
     }
@@ -1961,7 +1955,14 @@
             return (
               null != value._owner &&
                 outlineComponentInfo(request, value._owner),
+              "object" === typeof value.type &&
+                null !== value.type &&
+                doNotLimit.add(value.type),
+              "object" === typeof value.key &&
+                null !== value.key &&
+                doNotLimit.add(value.key),
               doNotLimit.add(value.props),
+              null !== value._owner && doNotLimit.add(value._owner),
               [
                 REACT_ELEMENT_TYPE,
                 value.type,
@@ -2094,8 +2095,7 @@
           : "unknown type " + typeof value;
     }
     function outlineConsoleValue(request, counter, model) {
-      "object" === typeof model && null !== model && doNotLimit.add(model);
-      var json = stringify(model, function (parentPropertyName, value) {
+      function replacer(parentPropertyName, value) {
         try {
           return renderConsoleValue(
             request,
@@ -2110,7 +2110,16 @@
             x.message
           );
         }
-      });
+      }
+      "object" === typeof model && null !== model && doNotLimit.add(model);
+      try {
+        var json = stringify(model, replacer);
+      } catch (x) {
+        json = stringify(
+          "Unknown Value: React could not send it from the server.\n" +
+            x.message
+        );
+      }
       request.pendingChunks++;
       model = request.nextChunkId++;
       json = model.toString(16) + ":" + json + "\n";
@@ -2118,20 +2127,8 @@
       request.completedRegularChunks.push(json);
       return model;
     }
-    function emitConsoleChunk(
-      request,
-      id,
-      methodName,
-      owner,
-      stackTrace,
-      args
-    ) {
-      var counter = { objectLimit: 500 };
-      null != owner && outlineComponentInfo(request, owner);
-      var env = (0, request.environmentName)();
-      methodName = [methodName, stackTrace, owner, env];
-      methodName.push.apply(methodName, args);
-      args = stringify(methodName, function (parentPropertyName, value) {
+    function emitConsoleChunk(request, methodName, owner, stackTrace, args) {
+      function replacer(parentPropertyName, value) {
         try {
           return renderConsoleValue(
             request,
@@ -2146,10 +2143,29 @@
             x.message
           );
         }
-      });
-      id = serializeRowHeader("W", id) + args + "\n";
-      id = stringToChunk(id);
-      request.completedRegularChunks.push(id);
+      }
+      var counter = { objectLimit: 500 };
+      null != owner && outlineComponentInfo(request, owner);
+      var env = (0, request.environmentName)(),
+        payload = [methodName, stackTrace, owner, env];
+      payload.push.apply(payload, args);
+      try {
+        var json = stringify(payload, replacer);
+      } catch (x) {
+        json = stringify(
+          [
+            methodName,
+            stackTrace,
+            owner,
+            env,
+            "Unknown Value: React could not send it from the server.",
+            x
+          ],
+          replacer
+        );
+      }
+      methodName = stringToChunk(":W" + json + "\n");
+      request.completedRegularChunks.push(methodName);
     }
     function forwardDebugInfo(request, id, debugInfo) {
       for (var i = 0; i < debugInfo.length; i++)
@@ -2454,7 +2470,9 @@
               '" in the React Server Manifest. This is probably a bug in the React Server Components bundler.'
           );
       }
-      return [resolvedModuleData.id, resolvedModuleData.chunks, name];
+      return resolvedModuleData.async
+        ? [resolvedModuleData.id, resolvedModuleData.chunks, name, 1]
+        : [resolvedModuleData.id, resolvedModuleData.chunks, name];
     }
     function requireAsyncModule(id) {
       var promise = globalThis.__next_require__(id);
@@ -3383,7 +3401,7 @@
       }
     };
     var frameRegExp =
-        /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
+        /^ {3} at (?:(.+) \((?:(.+):(\d+):(\d+)|<anonymous>)\)|(?:async )?(.+):(\d+):(\d+)|<anonymous>)$/,
       supportsRequestStorage = "function" === typeof AsyncLocalStorage,
       requestStorage = supportsRequestStorage ? new AsyncLocalStorage() : null,
       supportsComponentStorage = supportsRequestStorage,
@@ -3445,7 +3463,7 @@
     var MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       SuspenseException = Error(
-        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
       suspendedThenable = null,
       currentRequest$1 = null,

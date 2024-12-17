@@ -2,7 +2,7 @@ use std::{path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
-    bindgen_prelude::External,
+    bindgen_prelude::{within_runtime_if_available, External},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, Status,
 };
@@ -18,12 +18,18 @@ use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
     TRACING_NEXT_TURBO_TASKS_TARGETS,
 };
+use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
-use turbo_tasks::{Completion, RcStr, ReadRef, TransientInstance, UpdateInfo, Vc};
-use turbo_tasks_fs::{DiskFileSystem, FileContent, FileSystem, FileSystemPath};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    get_effects, Completion, Effects, ReadRef, ResolvedVc, TransientInstance, UpdateInfo, Vc,
+};
+use turbo_tasks_fs::{
+    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -35,6 +41,7 @@ use turbopack_core::{
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
+    filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
 };
@@ -52,6 +59,8 @@ use crate::register;
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
 const SLOW_FILESYSTEM_THRESHOLD: Duration = Duration::from_millis(100);
+static SOURCE_MAP_PREFIX_PROJECT: Lazy<String> =
+    Lazy::new(|| format!("{}[project]/", SOURCE_MAP_PREFIX));
 
 #[napi(object)]
 #[derive(Clone, Debug)]
@@ -289,7 +298,7 @@ pub async fn project_new(
     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -309,7 +318,7 @@ pub async fn project_new(
 
         let subscriber = Registry::default();
 
-        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
@@ -521,14 +530,14 @@ impl NapiRoute {
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(html_endpoint),
-                data_endpoint: convert_endpoint(data_endpoint),
+                html_endpoint: convert_endpoint(*html_endpoint),
+                data_endpoint: convert_endpoint(*data_endpoint),
                 ..Default::default()
             },
             Route::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::AppPage(pages) => NapiRoute {
@@ -553,7 +562,7 @@ impl NapiRoute {
                 pathname,
                 original_name: Some(original_name),
                 r#type: "app-route",
-                endpoint: convert_endpoint(endpoint),
+                endpoint: convert_endpoint(*endpoint),
                 ..Default::default()
             },
             Route::Conflict => NapiRoute {
@@ -612,11 +621,12 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", local)]
 struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -627,10 +637,12 @@ async fn get_entrypoints_with_issues(
     let entrypoints = entrypoints_operation.strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    let effects = Arc::new(get_effects(entrypoints_operation).await?);
     Ok(EntrypointsWithIssues {
         entrypoints,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -647,13 +659,14 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
+                let operation = get_entrypoints_with_issues(container);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
-                } = &*get_entrypoints_with_issues(container)
-                    .strongly_consistent()
-                    .await?;
+                    effects,
+                } = &*operation.strongly_consistent().await?;
+                effects.apply().await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
             .instrument(tracing::info_span!("entrypoints subscription"))
@@ -686,15 +699,15 @@ pub fn project_entrypoints_subscribe(
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_document_endpoint,
+                        *entrypoints.pages_document_endpoint,
                     ))),
                     pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_app_endpoint,
+                        *entrypoints.pages_app_endpoint,
                     ))),
                     pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        entrypoints.pages_error_endpoint,
+                        *entrypoints.pages_error_endpoint,
                     ))),
                 },
                 issues: issues
@@ -712,6 +725,7 @@ struct HmrUpdateWithIssues {
     update: ReadRef<Update>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -724,10 +738,12 @@ async fn hmr_update(
     let update = update_operation.strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
+    let effects = Arc::new(get_effects(update_operation).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -754,14 +770,15 @@ pub fn project_hmr_events(
                     let project = project.project().resolve().await?;
                     let state = project.hmr_version_state(identifier.clone(), session);
 
-                    let update = hmr_update(project, identifier.clone(), state)
-                        .strongly_consistent()
-                        .await?;
+                    let operation = hmr_update(project, identifier.clone(), state);
+                    let update = operation.strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
                         diagnostics,
+                        effects,
                     } = &*update;
+                    effects.apply().await?;
                     match &**update {
                         Update::Missing | Update::None => {}
                         Update::Total(TotalUpdate { to }) => {
@@ -826,6 +843,7 @@ struct HmrIdentifiersWithIssues {
     identifiers: ReadRef<Vec<RcStr>>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
 }
 
 #[turbo_tasks::function]
@@ -836,10 +854,12 @@ async fn get_hmr_identifiers_with_issues(
     let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
+    let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
     Ok(HmrIdentifiersWithIssues {
         identifiers: hmr_identifiers,
         issues,
         diagnostics,
+        effects,
     }
     .cell())
 }
@@ -855,13 +875,14 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
+            let operation = get_hmr_identifiers_with_issues(container);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
-            } = &*get_hmr_identifiers_with_issues(container)
-                .strongly_consistent()
-                .await?;
+                effects,
+            } = &*operation.strongly_consistent().await?;
+            effects.apply().await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
         },
@@ -1005,7 +1026,7 @@ pub struct StackFrame {
 pub async fn get_source_map(
     container: Vc<ProjectContainer>,
     file_path: String,
-) -> Result<Option<Vc<SourceMap>>> {
+) -> Result<Option<ResolvedVc<SourceMap>>> {
     let (file, module) = match Url::parse(&file_path) {
         Ok(url) => match url.scheme() {
             "file" => {
@@ -1085,7 +1106,7 @@ pub async fn project_trace_source(
 
             let (original_file, line, column, name) = match &*token {
                 Token::Original(token) => (
-                    &token.original_file,
+                    urlencoding::decode(&token.original_file)?.into_owned(),
                     // JS stack frames are 1-indexed, source map tokens are 0-indexed
                     Some(token.original_line as u32 + 1),
                     Some(token.original_column as u32 + 1),
@@ -1095,19 +1116,27 @@ pub async fn project_trace_source(
                     let Some(file) = &token.guessed_original_file else {
                         return Ok(None);
                     };
-                    (file, None, None, None)
+                    (file.to_owned(), None, None, None)
                 }
             };
 
-            let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) else {
-                bail!("Original file ({}) outside project", original_file)
-            };
-
+            let project_path_uri =
+                uri_from_file(project.container.project().project_path(), None).await? + "/";
             let (source_file, is_internal) =
-                if let Some(source_file) = source_file.strip_prefix("[project]/") {
+                if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
+                    // Client code uses file://
                     (source_file, false)
-                } else {
+                } else if let Some(source_file) =
+                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+                {
+                    // Server code uses turbopack://[project]
+                    // TODO should this also be file://?
+                    (source_file, false)
+                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                    // All other code like turbopack://[turbopack] is internal code
                     (source_file, true)
+                } else {
+                    bail!("Original file ({}) outside project", original_file)
                 };
 
             Ok(Some(StackFrame {
@@ -1174,6 +1203,16 @@ pub async fn project_get_source_map(
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
 
     Ok(source_map)
+}
+
+#[napi]
+pub fn project_get_source_map_sync(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    file_path: String,
+) -> napi::Result<Option<String>> {
+    within_runtime_if_available(|| {
+        tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
+    })
 }
 
 /// Runs exit handlers for the project registered using the [`ExitHandler`] API.

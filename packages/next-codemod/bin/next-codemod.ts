@@ -12,6 +12,7 @@
 import { Command } from 'commander'
 import { runUpgrade } from './upgrade'
 import { runTransform } from './transform'
+import { BadInput } from './shared'
 
 const packageJson = require('../package.json')
 const program = new Command(packageJson.name)
@@ -68,6 +69,17 @@ program
   )
   .usage('[revision] [options]')
   .option('--verbose', 'Verbose output', false)
-  .action(runUpgrade)
+  .action(async (revision, options) => {
+    try {
+      await runUpgrade(revision, options)
+    } catch (error) {
+      if (!options.verbose && error instanceof BadInput) {
+        console.error(error.message)
+      } else {
+        console.error(error)
+      }
+      process.exit(1)
+    }
+  })
 
 program.parse(process.argv)

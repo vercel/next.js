@@ -23,7 +23,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _randomUUID = nodeCrypto.randomUUID
     nodeCrypto.randomUUID = function randomUUID() {
-      io(randomUUIDExpression)
+      io(randomUUIDExpression, 'random')
       return _randomUUID.apply(this, arguments as any)
     }
   } catch {
@@ -38,7 +38,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     nodeCrypto.randomBytes = function randomBytes() {
       if (typeof arguments[1] !== 'function') {
         // randomBytes is sync if the second arg is undefined
-        io(randomBytesExpression)
+        io(randomBytesExpression, 'random')
       }
       return _randomBytes.apply(this, arguments as any)
     }
@@ -53,7 +53,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _randomFillSync = nodeCrypto.randomFillSync
     nodeCrypto.randomFillSync = function randomFillSync() {
-      io(randomFillSyncExpression)
+      io(randomFillSyncExpression, 'random')
       return _randomFillSync.apply(this, arguments as any)
     }
   } catch {
@@ -68,7 +68,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
     nodeCrypto.randomInt = function randomInt() {
       if (typeof arguments[2] !== 'function') {
         // randomInt is sync if the third arg is undefined
-        io(randomIntExpression)
+        io(randomIntExpression, 'random')
       }
       return _randomInt.apply(this, arguments as any)
     }
@@ -83,7 +83,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _generatePrimeSync = nodeCrypto.generatePrimeSync
     nodeCrypto.generatePrimeSync = function generatePrimeSync() {
-      io(generatePrimeSyncExpression)
+      io(generatePrimeSyncExpression, 'random')
       return _generatePrimeSync.apply(this, arguments as any)
     }
   } catch {
@@ -97,7 +97,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _generateKeyPairSync = nodeCrypto.generateKeyPairSync
     nodeCrypto.generateKeyPairSync = function generateKeyPairSync() {
-      io(generateKeyPairSyncExpression)
+      io(generateKeyPairSyncExpression, 'random')
       return _generateKeyPairSync.apply(this, arguments as any)
     }
   } catch {
@@ -111,7 +111,7 @@ if (process.env.NEXT_RUNTIME === 'edge') {
   try {
     const _generateKeySync = nodeCrypto.generateKeySync
     nodeCrypto.generateKeySync = function generateKeySync() {
-      io(generateKeySyncExpression)
+      io(generateKeySyncExpression, 'random')
       return _generateKeySync.apply(this, arguments as any)
     }
   } catch {

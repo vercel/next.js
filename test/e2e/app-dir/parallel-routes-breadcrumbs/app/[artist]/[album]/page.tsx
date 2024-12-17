@@ -5,7 +5,7 @@ export default async function Page({ params }) {
   const { artist, album } = await params
   return (
     <div>
-      <h2>Album: {params.album}</h2>
+      <h2>Album: {album}</h2>
       <ul>
         {tracks.map((track) => (
           <li key={track}>

@@ -26,12 +26,13 @@ export const projectSpecification: ProjectSpecification = {
   global: {
     files: [
       'package.json',
-      '.eslintrc.json',
+      'eslint.config.mjs',
       'node_modules/next',
       '.gitignore',
     ],
     deps: ['next', 'react', 'react-dom'],
-    devDeps: ['eslint', 'eslint-config-next'],
+    // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
+    devDeps: ['eslint', 'eslint-config-next', '@eslint/eslintrc'],
   },
   default: {
     js: {
@@ -91,7 +92,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/api/hello.js',
         'pages/index.js',
         'postcss.config.mjs',
-        'tailwind.config.js',
+        'tailwind.config.mjs',
       ],
       deps: [],
       devDeps: ['postcss', 'tailwindcss'],
@@ -124,7 +125,7 @@ export const projectSpecification: ProjectSpecification = {
         'pages/_app.js',
         'pages/index.js',
         'postcss.config.mjs',
-        'tailwind.config.js',
+        'tailwind.config.mjs',
       ],
       deps: [],
       devDeps: ['postcss', 'tailwindcss'],
@@ -202,7 +203,7 @@ export const projectSpecification: ProjectSpecification = {
         'app/page.js',
         'jsconfig.json',
         'postcss.config.mjs',
-        'tailwind.config.js',
+        'tailwind.config.mjs',
       ],
     },
     ts: {
@@ -234,7 +235,7 @@ export const projectSpecification: ProjectSpecification = {
         'app/page.js',
         'jsconfig.json',
         'postcss.config.mjs',
-        'tailwind.config.js',
+        'tailwind.config.mjs',
       ],
     },
     ts: {

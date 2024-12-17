@@ -1,7 +1,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
@@ -49,7 +49,7 @@ impl SwcPluginModule {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSwcEcmaTransformPluginsIssue {
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -72,7 +72,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -83,7 +83,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
                  platform."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }
@@ -228,7 +228,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             UnsupportedSwcEcmaTransformPluginsIssue {
                 file_path: ctx.file_path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

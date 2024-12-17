@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, ReadRef, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{chunk::ModuleId, version::Version};
@@ -10,7 +10,7 @@ use super::content_entry::EcmascriptDevChunkContentEntries;
 #[turbo_tasks::value(serialization = "none")]
 pub(super) struct EcmascriptDevChunkVersion {
     pub(super) chunk_path: String,
-    pub(super) entries_hashes: IndexMap<ReadRef<ModuleId>, u64>,
+    pub(super) entries_hashes: FxIndexMap<ReadRef<ModuleId>, u64>,
 }
 
 #[turbo_tasks::value_impl]
@@ -33,7 +33,8 @@ impl EcmascriptDevChunkVersion {
             );
         };
         let entries = entries.await?;
-        let mut entries_hashes = IndexMap::with_capacity(entries.len());
+        let mut entries_hashes =
+            FxIndexMap::with_capacity_and_hasher(entries.len(), Default::default());
         for (id, entry) in entries.iter() {
             entries_hashes.insert(id.clone(), *entry.hash.await?);
         }

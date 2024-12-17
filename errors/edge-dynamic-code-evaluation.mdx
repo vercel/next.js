@@ -33,11 +33,11 @@ export default async function middleware() {
 In rare cases, your code could contain (or import) some dynamic code evaluation statements which _can not be reached at runtime_ and which can not be removed by tree-shaking.
 You can relax the check to allow specific files with your Middleware [configuration](/docs/pages/api-reference/edge#unsupported-apis):
 
-```tsx filename="pages/api/example.ts"
+```ts filename="pages/api/example.ts"
 export const config = {
   unstable_allowDynamic: [
     '/lib/utilities.js', // allows a single file
-    '/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module
+    '**/node_modules/function-bind/**', // use a glob to allow anything in the function-bind 3rd party module
   ],
 }
 ```

@@ -105,7 +105,7 @@ const buffer = Buffer.from(${JSON.stringify(
 if (${isTwitter || isOpenGraph}) {
   const fileSizeInMB = buffer.byteLength / 1024 / 1024
   if (fileSizeInMB > ${fileSizeLimit}) {
-    throw new Error('File size for ${imgName} image "${resourcePath}" exceeds ${fileSizeLimit}MB. ' +
+    throw new Error('File size for ${imgName} image ${JSON.stringify(resourcePath)} exceeds ${fileSizeLimit}MB. ' +
     \`(Current: \${fileSizeInMB.toFixed(2)}MB)\n\` +
     'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
     )

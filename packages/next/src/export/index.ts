@@ -341,6 +341,7 @@ async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
+    cacheLifeProfiles: nextConfig.experimental.cacheLife,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -355,8 +356,9 @@ async function exportAppImpl(
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
       expireTime: nextConfig.expireTime,
-      after: nextConfig.experimental.after ?? false,
       dynamicIO: nextConfig.experimental.dynamicIO ?? false,
+      inlineCss: nextConfig.experimental.inlineCss ?? false,
+      authInterrupts: !!nextConfig.experimental.authInterrupts,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

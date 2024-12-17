@@ -2,7 +2,7 @@ import type { IncomingMessage } from 'http'
 import type { DevBundler } from './router-utils/setup-dev-bundler'
 import type { WorkerRequestHandler } from './types'
 
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from './lru-cache'
 import { createRequestResponseMocks } from './mock-request'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
 
@@ -11,25 +11,19 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../dev/hot-reloader-types'
  * bundler while in development.
  */
 export class DevBundlerService {
-  // can't leverage LRU type directly here as it
-  // isn't a direct dependency
-  public appIsrManifestInner: {
-    get(key: string): boolean
-    set(key: string, value: boolean): void
-    del(key: string): void
-    keys(): string[]
-  }
+  public appIsrManifestInner: InstanceType<typeof LRUCache>
 
   constructor(
     private readonly bundler: DevBundler,
     private readonly handler: WorkerRequestHandler
   ) {
-    this.appIsrManifestInner = new LRUCache({
-      max: 8_000,
-      length() {
+    this.appIsrManifestInner = new LRUCache(
+      8_000,
+
+      function length() {
         return 16
-      },
-    }) as any
+      }
+    ) as any
   }
 
   public ensurePage: typeof this.bundler.hotReloader.ensurePage = async (
@@ -39,10 +33,8 @@ export class DevBundlerService {
     return await this.bundler.hotReloader.ensurePage(definition)
   }
 
-  public logErrorWithOriginalStack: typeof this.bundler.logErrorWithOriginalStack =
-    async (...args) => {
-      return await this.bundler.logErrorWithOriginalStack(...args)
-    }
+  public logErrorWithOriginalStack =
+    this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 
   public async getFallbackErrorComponents(url?: string) {
     await this.bundler.hotReloader.buildFallbackError()
@@ -102,7 +94,7 @@ export class DevBundlerService {
 
   public setAppIsrStatus(key: string, value: boolean | null) {
     if (value === null) {
-      this.appIsrManifestInner.del(key)
+      this.appIsrManifestInner.remove(key)
     } else {
       this.appIsrManifestInner.set(key, value)
     }

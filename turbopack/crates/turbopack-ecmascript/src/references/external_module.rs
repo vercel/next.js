@@ -2,14 +2,15 @@ use std::{fmt::Display, io::Write};
 
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
 use turbo_tasks_fs::{glob::Glob, rope::RopeBuilder, FileContent, FileSystem, VirtualFileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
 };
 
 use crate::{
@@ -28,7 +29,17 @@ fn layer() -> Vc<RcStr> {
 }
 
 #[derive(
-    Copy, Clone, Debug, Eq, PartialEq, Serialize, Deserialize, TraceRawVcs, TaskInput, Hash,
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    Hash,
+    NonLocalValue,
 )]
 pub enum CachedExternalType {
     CommonJs,
@@ -50,15 +61,21 @@ impl Display for CachedExternalType {
 pub struct CachedExternalModule {
     pub request: RcStr,
     pub external_type: CachedExternalType,
+    pub additional_references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl CachedExternalModule {
     #[turbo_tasks::function]
-    pub fn new(request: RcStr, external_type: CachedExternalType) -> Vc<Self> {
+    pub fn new(
+        request: RcStr,
+        external_type: CachedExternalType,
+        additional_references: Vec<ResolvedVc<Box<dyn ModuleReference>>>,
+    ) -> Vc<Self> {
         Self::cell(CachedExternalModule {
             request,
             external_type,
+            additional_references,
         })
     }
 
@@ -75,7 +92,8 @@ impl CachedExternalModule {
         } else {
             writeln!(
                 code,
-                "const mod = __turbopack_external_require__({});",
+                "const mod = __turbopack_external_require__({}, () => require({}));",
+                StringifyJs(&self.request),
                 StringifyJs(&self.request)
             )?;
         }
@@ -103,7 +121,7 @@ impl Module for CachedExternalModule {
     fn ident(&self) -> Vc<AssetIdent> {
         let fs = VirtualFileSystem::new_with_name("externals".into());
 
-        AssetIdent::from_path(fs.root())
+        AssetIdent::from_path(fs.root().join(self.request.clone()))
             .with_layer(layer())
             .with_modifier(Vc::cell(self.request.clone()))
             .with_modifier(Vc::cell(self.external_type.to_string().into()))
@@ -123,8 +141,8 @@ impl Asset for CachedExternalModule {
 impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             CachedExternalModuleChunkItem {
@@ -156,7 +174,7 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
                         has_top_level_await: true,
                         import_externals: true,
                     }
-                    .cell(),
+                    .resolved_cell(),
                 )
             } else {
                 None
@@ -175,8 +193,14 @@ impl EcmascriptChunkPlaceable for CachedExternalModule {
 
 #[turbo_tasks::value]
 pub struct CachedExternalModuleChunkItem {
-    module: Vc<CachedExternalModule>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<CachedExternalModule>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+}
+
+// Without this wrapper, VirtualFileSystem::new_with_name always returns a new filesystem
+#[turbo_tasks::function]
+fn external_fs() -> Vc<VirtualFileSystem> {
+    VirtualFileSystem::new_with_name("externals".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -187,8 +211,15 @@ impl ChunkItem for CachedExternalModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        let additional_references = &self.module.await?.additional_references;
+        if !additional_references.is_empty() {
+            let mut module_references = self.module.references().await?.clone_value();
+            module_references.extend(additional_references.iter().copied());
+            Ok(Vc::cell(module_references))
+        } else {
+            Ok(self.module.references())
+        }
     }
 
     #[turbo_tasks::function]
@@ -198,12 +229,12 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -218,7 +249,7 @@ impl ChunkItem for CachedExternalModuleChunkItem {
 impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -238,7 +269,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 
         EcmascriptChunkItemContent::new(
             self.module.content(),
-            self.chunking_context,
+            *self.chunking_context,
             EcmascriptOptions::default().cell(),
             async_module_options,
         )
@@ -252,13 +283,13 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 /// "client modules" and "client modules ssr".
 #[turbo_tasks::value]
 pub struct IncludeIdentModule {
-    ident: Vc<AssetIdent>,
+    ident: ResolvedVc<AssetIdent>,
 }
 
 #[turbo_tasks::value_impl]
 impl IncludeIdentModule {
     #[turbo_tasks::function]
-    pub fn new(ident: Vc<AssetIdent>) -> Vc<Self> {
+    pub fn new(ident: ResolvedVc<AssetIdent>) -> Vc<Self> {
         Self { ident }.cell()
     }
 }
@@ -273,6 +304,6 @@ impl Asset for IncludeIdentModule {
 impl Module for IncludeIdentModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.ident
+        *self.ident
     }
 }

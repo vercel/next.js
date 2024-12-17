@@ -15,10 +15,23 @@ jobs:
         name: 'Close stale issues with no reproduction'
         with:
           repo-token: ${{ secrets.STALE_TOKEN }}
-          any-of-labels: 'please add a complete reproduction,please simplify reproduction'
-          close-issue-message: 'This issue has been automatically closed because it received no activity for a month and had no reproduction to investigate. If you think it was closed by accident, please leave a comment. If you are running into a similar issue, please open a new issue with a reproduction. Thank you.'
+          any-of-labels: 'please add a complete reproduction'
+          close-issue-message: 'This issue has been automatically closed due to 2 days of inactivity and the absence of a complete reproduction. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a complete reproduction. Thank you.'
           days-before-issue-close: 1
-          days-before-issue-stale: 30
+          days-before-issue-stale: 2
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
+          exempt-issue-labels: 'blocked,must,should,keep'
+          operations-per-run: 300 # 1 operation per 100 issues, the rest is to label/comment/close
+      - uses: actions/stale@v9
+        id: stale-simple-repro
+        name: 'Close issues with no simple repro'
+        with:
+          repo-token: ${{ secrets.STALE_TOKEN }}
+          any-of-labels: 'please simplify reproduction'
+          close-issue-message: 'This issue has been automatically closed due to 14 days of inactivity and the absence of a simple reproduction for investigation. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a simple reproduction. Thank you.'
+          days-before-issue-close: 1
+          days-before-issue-stale: 14
           days-before-pr-close: -1
           days-before-pr-stale: -1
           exempt-issue-labels: 'blocked,must,should,keep'
@@ -29,9 +42,9 @@ jobs:
         with:
           repo-token: ${{ secrets.STALE_TOKEN }}
           any-of-labels: 'please verify canary'
-          close-issue-message: "This issue has been automatically closed because it wasn't verified against next@canary. If you think it was closed by accident, please leave a comment. If you are running into a similar issue, please open a new issue with a reproduction. Thank you."
+          close-issue-message: 'This issue has been automatically closed due to 14 days of inactivity and the absence of testing against next@canary. If you believe this was done in error, please leave a comment. If you are experiencing a similar issue, consider opening a new issue with a reproduction. Thank you.'
           days-before-issue-close: 1
-          days-before-issue-stale: 30
+          days-before-issue-stale: 14
           days-before-pr-close: -1
           days-before-pr-stale: -1
           exempt-issue-labels: 'blocked,must,should,keep'

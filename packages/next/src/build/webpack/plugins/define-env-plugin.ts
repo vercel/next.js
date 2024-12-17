@@ -143,6 +143,9 @@ export function getDefineEnv({
   const nextPublicEnv = getNextPublicEnvironmentVariables()
   const nextConfigEnv = getNextConfigEnv(config)
 
+  const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+  const isDynamicIOEnabled = !!config.experimental.dynamicIO
+
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
     __NEXT_DEFINE_ENV: true,
@@ -183,9 +186,8 @@ export function getDefineEnv({
     'process.env.__NEXT_APP_ISR_INDICATOR': Boolean(
       config.devIndicators.appIsrStatus
     ),
-    'process.env.__NEXT_PPR': checkIsAppPPREnabled(config.experimental.ppr),
-    'process.env.__NEXT_DYNAMIC_IO': !!config.experimental.dynamicIO,
-    'process.env.__NEXT_AFTER': config.experimental.after ?? false,
+    'process.env.__NEXT_PPR': isPPREnabled,
+    'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
@@ -205,15 +207,15 @@ export function getDefineEnv({
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
     ),
-    'process.env.__NEXT_FLYING_SHUTTLE': Boolean(
-      config.experimental.flyingShuttle
-    ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
     'process.env.__NEXT_CLIENT_ROUTER_S_FILTER':
       clientRouterFilters?.staticFilter ?? false,
     'process.env.__NEXT_CLIENT_ROUTER_D_FILTER':
       clientRouterFilters?.dynamicFilter ?? false,
+    'process.env.__NEXT_CLIENT_SEGMENT_CACHE': Boolean(
+      config.experimental.clientSegmentCache
+    ),
     'process.env.__NEXT_OPTIMISTIC_CLIENT_CACHE':
       config.experimental.optimisticClientCache ?? true,
     'process.env.__NEXT_MIDDLEWARE_PREFETCH':
@@ -270,6 +272,8 @@ export function getDefineEnv({
       // Internal only so untyped to avoid discovery
       (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
       false,
+    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
+      !!config.experimental.authInterrupts,
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -284,23 +288,21 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
-  }
-  const serializedDefineEnv = serializeDefineEnv(defineEnv)
-
-  if (!dev && Boolean(config.experimental.flyingShuttle)) {
-    // we delay inlining these values until after the build
-    // with flying shuttle enabled so we can update them
-    // without invalidating entries
-    for (const key in nextPublicEnv) {
-      serializedDefineEnv[key] = key
-    }
-
-    for (const key in nextConfigEnv) {
-      serializedDefineEnv[key] = key
-    }
+    'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
+      config.experimental.newDevOverlay ?? false,
   }
 
-  return serializedDefineEnv
+  const userDefines = config.compiler?.define ?? {}
+  for (const key in userDefines) {
+    if (defineEnv.hasOwnProperty(key)) {
+      throw new Error(
+        `The \`compiler.define\` option is configured to replace the \`${key}\` variable. This variable is either part of a Next.js built-in or is already configured via the \`env\` option.`
+      )
+    }
+    defineEnv[key] = userDefines[key]
+  }
+
+  return serializeDefineEnv(defineEnv)
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

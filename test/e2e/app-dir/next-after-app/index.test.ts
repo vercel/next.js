@@ -3,12 +3,12 @@ import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { createProxyServer } from 'next/experimental/testmode/proxy'
 import { outdent } from 'outdent'
-import { sandbox } from '../../../lib/development-sandbox'
+import { createSandbox } from '../../../lib/development-sandbox'
 import * as Log from './utils/log'
 
 const runtimes = ['nodejs', 'edge']
 
-describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
+describe.each(runtimes)('after() in %s runtime', (runtimeValue) => {
   const { next, isNextDeploy, skipped } = nextTestSetup({
     files: __dirname,
     // `patchFile` and reading runtime logs are not supported in a deployed environment
@@ -19,9 +19,13 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
   const pathPrefix = '/' + runtimeValue
 
   let currentCliOutputIndex = 0
-  beforeEach(() => {
+
+  const ignorePreviousLogs = () => {
     currentCliOutputIndex = next.cliOutput.length
-  })
+  }
+  const resetLogIsolation = () => {
+    currentCliOutputIndex = 0
+  }
 
   const getLogs = () => {
     if (next.cliOutput.length < currentCliOutputIndex) {
@@ -30,6 +34,10 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     }
     return Log.readCliLogs(next.cliOutput.slice(currentCliOutputIndex))
   }
+
+  beforeEach(() => {
+    ignorePreviousLogs()
+  })
 
   it('runs in dynamic pages', async () => {
     const response = await next.fetch(pathPrefix + '/123/dynamic')
@@ -41,7 +49,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         value: '123',
         assertions: {
           'cache() works in after()': true,
-          'headers() works in after()': true,
         },
       })
     })
@@ -69,14 +76,13 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
         assertions: {
           // cache() does not currently work in actions, and after() shouldn't affect that
           'cache() works in after()': false,
-          'headers() works in after()': true,
         },
       })
     })
     // TODO: server seems to close before the response fully returns?
   })
 
-  it('runs callbacks from nested unstable_after calls', async () => {
+  it('runs callbacks from nested after calls', async () => {
     await next.browser(pathPrefix + '/nested-after')
 
     await retry(() => {
@@ -85,7 +91,6 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
           source: `[page] /nested-after (after #${id})`,
           assertions: {
             'cache() works in after()': true,
-            'headers() works in after()': true,
           },
         })
       }
@@ -239,7 +244,7 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
 
   it('does not allow modifying cookies in a callback', async () => {
     const EXPECTED_ERROR =
-      /An error occurred in a function passed to `unstable_after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
+      /An error occurred in a function passed to `after\(\)`: .+?: Cookies can only be modified in a Server Action or Route Handler\./
 
     const browser = await next.browser(pathPrefix + '/123/setting-cookies')
     // after() from render
@@ -264,38 +269,62 @@ describe.each(runtimes)('unstable_after() in %s runtime', (runtimeValue) => {
     }
   })
 
-  it('uses waitUntil from request context if available', async () => {
-    const { cleanup } = await sandbox(
-      next,
-      new Map([
-        [
-          // this needs to be injected as early as possible, before the server tries to read the context
-          // (which may be even before we load the page component in dev mode)
-          'instrumentation.js',
-          outdent`
+  describe('uses waitUntil from request context if available', () => {
+    it.each([
+      {
+        name: 'in a page',
+        path: '/provided-request-context/page',
+        expectedLog: { source: '[page] /provided-request-context/page' },
+      },
+      {
+        name: 'in a route handler',
+        path: '/provided-request-context/route',
+        expectedLog: {
+          source: '[route handler] /provided-request-context/route',
+        },
+      },
+      {
+        name: 'in middleware',
+        path: '/provided-request-context/middleware',
+        expectedLog: {
+          source: '[middleware] /provided-request-context/middleware',
+        },
+      },
+    ])('$name', async ({ path, expectedLog }) => {
+      resetLogIsolation() // sandbox resets `next.cliOutput` to empty
+      await using _sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            // this needs to be injected as early as possible, before the server tries to read the context
+            // (which may be even before we load the page component in dev mode)
+            'instrumentation.js',
+            outdent`
             import { injectRequestContext } from './utils/provided-request-context'
             export function register() {
+             if (process.env.NEXT_RUNTIME === 'edge') {
+               // these tests only run 'next dev/start', and for edge things,
+               // instrumentation runs *again* inside the sandbox.
+               // we don't want that, because the sandbox wouldn't have access to globals from outside
+               // and thus wouldn't normally see the request context
+               return;
+             }
               injectRequestContext();
             }
           `,
-        ],
-      ]),
-      pathPrefix + '/provided-request-context'
-    )
+          ],
+        ])
+      )
 
-    try {
+      await next.browser(pathPrefix + path)
       await retry(() => {
         const logs = getLogs()
         expect(logs).toContainEqual(
           'waitUntil from "@next/request-context" was called'
         )
-        expect(logs).toContainEqual({
-          source: '[page] /provided-request-context',
-        })
+        expect(logs).toContainEqual(expectedLog)
       })
-    } finally {
-      await cleanup()
-    }
+    })
   })
 })
 

@@ -1,12 +1,14 @@
 use anyhow::Result;
-use indexmap::IndexSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{ArrayLit, ArrayPat, Expr, Ident},
     quote,
 };
-use turbo_tasks::{trace::TraceRawVcs, ReadRef, TryFlatJoinIterExt, TryJoinIterExt, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryFlatJoinIterExt,
+    TryJoinIterExt, Vc,
+};
 use turbopack_core::{
     chunk::{
         AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
@@ -20,7 +22,9 @@ use crate::code_gen::{CodeGeneration, CodeGenerationHoistedStmt};
 
 /// Information needed for generating the async module wrapper for
 /// [EcmascriptChunkItem](crate::chunk::EcmascriptChunkItem)s.
-#[derive(PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    PartialEq, Eq, Default, Debug, Clone, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub struct AsyncModuleOptions {
     pub has_top_level_await: bool,
 }
@@ -50,7 +54,7 @@ pub struct AsyncModule {
 
 /// Option<[AsyncModule]>.
 #[turbo_tasks::value(transparent)]
-pub struct OptionAsyncModule(Option<Vc<AsyncModule>>);
+pub struct OptionAsyncModule(Option<ResolvedVc<AsyncModule>>);
 
 #[turbo_tasks::value_impl]
 impl OptionAsyncModule {
@@ -74,7 +78,7 @@ impl OptionAsyncModule {
 }
 
 #[turbo_tasks::value(transparent)]
-struct AsyncModuleIdents(IndexSet<String>);
+struct AsyncModuleIdents(FxIndexSet<String>);
 
 async fn get_inherit_async_referenced_asset(
     r: Vc<Box<dyn ModuleReference>>,
@@ -82,7 +86,7 @@ async fn get_inherit_async_referenced_asset(
     let Some(r) = Vc::try_resolve_downcast::<Box<dyn ChunkableModuleReference>>(r).await? else {
         return Ok(None);
     };
-    let Some(ty) = *r.chunking_type().await? else {
+    let Some(ty) = &*r.chunking_type().await? else {
         return Ok(None);
     };
     if !matches!(ty, ChunkingType::ParallelInheritAsync) {
@@ -108,7 +112,7 @@ impl AsyncModule {
             .await?
             .iter()
             .map(|r| async {
-                let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await? else {
+                let Some(referenced_asset) = get_inherit_async_referenced_asset(**r).await? else {
                     return Ok(None);
                 };
                 Ok(match &*referenced_asset {
@@ -122,7 +126,7 @@ impl AsyncModule {
                     ReferencedAsset::Some(placeable) => {
                         let chunk_item = placeable
                             .as_chunk_item(Vc::upcast(chunking_context))
-                            .resolve()
+                            .to_resolved()
                             .await?;
                         if async_module_info
                             .referenced_async_modules
@@ -134,13 +138,13 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::External(..) => None,
-                    ReferencedAsset::None => None,
+                    ReferencedAsset::None | ReferencedAsset::Unresolvable => None,
                 })
             })
             .try_flat_join()
             .await?;
 
-        Ok(Vc::cell(IndexSet::from_iter(reference_idents)))
+        Ok(Vc::cell(FxIndexSet::from_iter(reference_idents)))
     }
 
     #[turbo_tasks::function]
@@ -155,7 +159,8 @@ impl AsyncModule {
                     .await?
                     .iter()
                     .map(|r| async {
-                        let Some(referenced_asset) = get_inherit_async_referenced_asset(*r).await?
+                        let Some(referenced_asset) =
+                            get_inherit_async_referenced_asset(**r).await?
                         else {
                             return Ok(false);
                         };

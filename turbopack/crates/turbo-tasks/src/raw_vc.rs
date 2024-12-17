@@ -54,6 +54,15 @@ impl Display for CellId {
     }
 }
 
+/// A type-erased representation of [`Vc`].
+///
+/// Type erasure reduces the [monomorphization] (and therefore binary size and compilation time)
+/// required to support `Vc`.
+///
+/// This type is heavily used within the [`Backend`][crate::backend::Backend] trait, but should
+/// otherwise be treated as an internal implementation detail of `turbo-tasks`.
+///
+/// [monomorphization]: https://doc.rust-lang.org/book/ch10-01-syntax.html#performance-of-code-using-generics
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum RawVc {
     TaskOutput(TaskId),
@@ -252,7 +261,7 @@ impl RawVc {
 }
 
 impl CollectiblesSource for RawVc {
-    fn peek_collectibles<T: VcValueTrait + Send>(self) -> AutoSet<Vc<T>> {
+    fn peek_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<Vc<T>> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
         let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
@@ -261,7 +270,7 @@ impl CollectiblesSource for RawVc {
             .collect()
     }
 
-    fn take_collectibles<T: VcValueTrait + Send>(self) -> AutoSet<Vc<T>> {
+    fn take_collectibles<T: VcValueTrait + ?Sized>(self) -> AutoSet<Vc<T>> {
         let tt = turbo_tasks();
         tt.notify_scheduled_tasks();
         let map = tt.read_task_collectibles(self.get_task_id(), T::get_trait_type_id());
@@ -429,8 +438,5 @@ impl Future for ReadRawVcFuture {
         }
     }
 }
-
-unsafe impl Send for ReadRawVcFuture {}
-unsafe impl Sync for ReadRawVcFuture {}
 
 impl Unpin for ReadRawVcFuture {}

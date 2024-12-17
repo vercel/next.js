@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
     chunk::{ChunkData, ChunkItem, ChunkType, ChunkingContext, ChunksData},
     ident::AssetIdent,
@@ -22,8 +22,8 @@ use crate::{
 /// __turbopack_import__ the actual module that was dynamically imported.
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
-    pub chunking_context: Vc<Box<dyn ChunkingContext>>,
-    pub manifest: Vc<ManifestAsyncModule>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub manifest: ResolvedVc<ManifestAsyncModule>,
 }
 
 #[turbo_tasks::value_impl]
@@ -38,7 +38,7 @@ impl ManifestChunkItem {
 impl EcmascriptChunkItem for ManifestChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -85,9 +85,21 @@ impl ChunkItem for ManifestChunkItem {
         let key = Vc::cell("chunk data reference".into());
 
         for chunk_data in &*self.chunks_data().await? {
-            references.extend(chunk_data.references().await?.iter().map(|&output_asset| {
-                Vc::upcast(SingleOutputAssetReference::new(output_asset, key))
-            }));
+            references.extend(
+                chunk_data
+                    .references()
+                    .await?
+                    .iter()
+                    .map(|&output_asset| async move {
+                        Ok(ResolvedVc::upcast(
+                            SingleOutputAssetReference::new(*output_asset, key)
+                                .to_resolved()
+                                .await?,
+                        ))
+                    })
+                    .try_join()
+                    .await?,
+            );
         }
 
         Ok(Vc::cell(references))
@@ -95,7 +107,7 @@ impl ChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -107,6 +119,6 @@ impl ChunkItem for ManifestChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.manifest)
+        *ResolvedVc::upcast(self.manifest)
     }
 }

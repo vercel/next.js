@@ -11,25 +11,34 @@ describe('edge-render-getserversideprops', () => {
   })
 
   if ((global as any).isNextStart) {
-    it('should not output trace files for edge routes', async () => {
-      expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(false)
-      expect(
-        await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
-      ).toBe(true)
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/server/pages/[id].js.nft.json')
+    // Turbopack doesn't have entry chunks for edge routes like Webpack does, so there is no fixed
+    // known path where the nft file would be written to.
+    ;(process.env.TURBOPACK ? it.skip : it)(
+      'should not output trace files for edge routes',
+      async () => {
+        /* eslint-disable jest/no-standalone-expect */
+        expect(await fs.pathExists(join(next.testDir, '.next/pages'))).toBe(
+          false
         )
-      ).toBe(false)
-      expect(
-        await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
-      ).toBe(true)
-      expect(
-        await fs.pathExists(
-          join(next.testDir, '.next/server/pages/index.js.nft.json')
-        )
-      ).toBe(false)
-    })
+        expect(
+          await fs.pathExists(join(next.testDir, '.next/server/pages/[id].js'))
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/server/pages/[id].js.nft.json')
+          )
+        ).toBe(false)
+        expect(
+          await fs.pathExists(join(next.testDir, '.next/server/pages/index.js'))
+        ).toBe(true)
+        expect(
+          await fs.pathExists(
+            join(next.testDir, '.next/server/pages/index.js.nft.json')
+          )
+        ).toBe(false)
+        /* eslint-enable jest/no-standalone-expect */
+      }
+    )
   }
 
   it('should have correct query for pages/api', async () => {
@@ -154,7 +163,7 @@ describe('edge-render-getserversideprops', () => {
       expect(manifest.dataRoutes).toEqual([
         {
           dataRouteRegex: normalizeRegEx(
-            `^/_next/data/${escapeStringRegexp(next.buildId)}/index.json$`
+            `^/_next/data/${escapeStringRegexp(next.buildId)}/index\\.json$`
           ),
           page: '/',
         },

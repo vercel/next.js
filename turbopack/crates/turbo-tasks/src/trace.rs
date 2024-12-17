@@ -1,4 +1,5 @@
 use std::{
+    borrow::Cow,
     cell::RefCell,
     collections::{BTreeMap, BTreeSet, HashMap, HashSet},
     marker::PhantomData,
@@ -9,8 +10,9 @@ use std::{
 
 use auto_hash_map::{AutoMap, AutoSet};
 use indexmap::{IndexMap, IndexSet};
+use turbo_rcstr::RcStr;
 
-use crate::{RawVc, RcStr};
+use crate::RawVc;
 
 pub struct TraceRawVcsContext {
     list: Vec<RawVc>,
@@ -73,7 +75,7 @@ ignore!(
 );
 ignore!((), str, String, Duration, anyhow::Error, RcStr);
 ignore!(Path, PathBuf);
-ignore!(serde_json::Value);
+ignore!(serde_json::Value, serde_json::Map<String, serde_json::Value>);
 
 impl<T: ?Sized> TraceRawVcs for PhantomData<T> {
     fn trace_raw_vcs(&self, _trace_context: &mut TraceRawVcsContext) {}
@@ -202,6 +204,12 @@ impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Box<T> {
 }
 
 impl<T: TraceRawVcs + ?Sized> TraceRawVcs for Arc<T> {
+    fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
+        TraceRawVcs::trace_raw_vcs(&**self, trace_context);
+    }
+}
+
+impl<B: TraceRawVcs + ToOwned + ?Sized> TraceRawVcs for Cow<'_, B> {
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         TraceRawVcs::trace_raw_vcs(&**self, trace_context);
     }

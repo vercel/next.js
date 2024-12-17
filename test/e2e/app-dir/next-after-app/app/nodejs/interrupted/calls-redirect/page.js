@@ -1,11 +1,12 @@
-import { unstable_after as after } from 'next/server'
+import { after, connection } from 'next/server'
 import { redirect } from 'next/navigation'
 import { cliLog } from '../../../../utils/log'
 
 // NOTE: this page is forked in /edge
 
 export function createPage(pathPrefix) {
-  return function Page() {
+  return async function Page() {
+    await connection()
     after(() => {
       cliLog({
         source: '[page] /interrupted/calls-redirect',

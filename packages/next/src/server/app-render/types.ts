@@ -16,6 +16,7 @@ import type { InstrumentationOnRequestError } from '../instrumentation/types'
 import type { NextRequestHint } from '../web/adapter'
 import type { BaseNextRequest } from '../base-http'
 import type { IncomingMessage } from 'http'
+import type { RenderResumeDataCache } from '../resume-data-cache/resume-data-cache'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -95,14 +96,16 @@ export type CacheNodeSeedData = [
   parallelRoutes: {
     [parallelRouterKey: string]: CacheNodeSeedData | null
   },
-  loading: LoadingModuleData,
+  loading: LoadingModuleData | Promise<LoadingModuleData>,
+  isPartial: boolean,
 ]
 
 export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head */ React.ReactNode | null,
+  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
+  /* isHeadPartial */ boolean,
 ]
 
 export type FlightDataPath =
@@ -147,6 +150,9 @@ export interface RenderOptsPartial {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   isBot?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
+  cacheLifeProfiles?: {
+    [profile: string]: import('../use-cache/cache-life').CacheLife
+  }
   setAppIsrStatus?: (key: string, value: boolean | null) => void
   isRevalidate?: boolean
   nextExport?: boolean
@@ -176,10 +182,18 @@ export interface RenderOptsPartial {
     isRoutePPREnabled?: boolean
     expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
-    after: boolean
     dynamicIO: boolean
+    inlineCss: boolean
+    authInterrupts: boolean
   }
   postponed?: string
+
+  /**
+   * The resume data cache that was generated for this partially prerendered
+   * page during dev warmup.
+   */
+  devRenderResumeDataCache?: RenderResumeDataCache
+
   /**
    * When true, only the static shell of the page will be rendered. This will
    * also enable other debugging features such as logging in development.
@@ -222,7 +236,7 @@ export type InitialRSCPayload = {
   /** missingSlots */
   m: Set<string> | undefined
   /** GlobalError */
-  G: React.ComponentType<any>
+  G: [React.ComponentType<any>, React.ReactNode | undefined]
   /** postponed */
   s: boolean
   /** prerendered */

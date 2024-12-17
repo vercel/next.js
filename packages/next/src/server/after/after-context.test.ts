@@ -16,7 +16,7 @@ describe('AfterContext', () => {
   let workAsyncStorage: WASMod['workAsyncStorage']
   let workUnitAsyncStorage: WSMod['workUnitAsyncStorage']
   let AfterContext: AfterContextMod['AfterContext']
-  let after: AfterMod['unstable_after']
+  let after: AfterMod['after']
 
   beforeAll(async () => {
     // @ts-expect-error
@@ -32,7 +32,7 @@ describe('AfterContext', () => {
     AfterContext = AfterContextMod.AfterContext
 
     const AfterMod = await import('./after')
-    after = AfterMod.unstable_after
+    after = AfterMod.after
   })
 
   const createRun =
@@ -55,6 +55,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -121,6 +122,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -168,6 +170,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -258,6 +261,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -317,6 +321,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -351,9 +356,12 @@ describe('AfterContext', () => {
       onCloseCallback = cb
     })
 
+    const onTaskError = jest.fn()
+
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -363,25 +371,30 @@ describe('AfterContext', () => {
     const promise1 = new DetachedPromise<string>()
     const afterCallback1 = jest.fn(() => promise1.promise)
 
+    const thrownFromCallback2 = new Error('2')
     const afterCallback2 = jest.fn(() => {
-      throw new Error('2')
+      throw thrownFromCallback2
     })
 
     const promise3 = new DetachedPromise<string>()
     const afterCallback3 = jest.fn(() => promise3.promise)
+
+    const thrownFromPromise4 = new Error('4')
+    const promise4 = Promise.reject(thrownFromPromise4)
 
     workAsyncStorage.run(workStore, () =>
       workUnitAsyncStorage.run(createMockWorkUnitStore(), () => {
         after(afterCallback1)
         after(afterCallback2)
         after(afterCallback3)
+        after(promise4)
       })
     )
 
     expect(afterCallback1).not.toHaveBeenCalled()
     expect(afterCallback2).not.toHaveBeenCalled()
     expect(afterCallback3).not.toHaveBeenCalled()
-    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
 
     // the response is done.
     onCloseCallback!()
@@ -390,13 +403,18 @@ describe('AfterContext', () => {
     expect(afterCallback1).toHaveBeenCalledTimes(1)
     expect(afterCallback2).toHaveBeenCalledTimes(1)
     expect(afterCallback3).toHaveBeenCalledTimes(1)
-    expect(waitUntil).toHaveBeenCalledTimes(1)
+    expect(waitUntil).toHaveBeenCalledTimes(1 + 1) // once for callbacks, once for the promise
 
-    promise1.reject(new Error('1'))
+    // resolve any pending promises we have
+    const thrownFromCallback1 = new Error('1')
+    promise1.reject(thrownFromCallback1)
     promise3.resolve('3')
 
     const results = await Promise.all(waitUntilPromises)
     expect(results).toEqual([undefined])
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback2)
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromCallback1)
+    expect(onTaskError).toHaveBeenCalledWith(thrownFromPromise4)
   })
 
   it('throws from after() if waitUntil is not provided', async () => {
@@ -406,6 +424,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -426,35 +445,6 @@ describe('AfterContext', () => {
     expect(afterCallback1).not.toHaveBeenCalled()
   })
 
-  it('throws from after() if onClose is not provided', async () => {
-    const waitUntilPromises: Promise<unknown>[] = []
-    const waitUntil = jest.fn((promise) => waitUntilPromises.push(promise))
-
-    const onClose = undefined
-
-    const afterContext = new AfterContext({
-      waitUntil,
-      onClose,
-    })
-
-    const workStore = createMockWorkStore(afterContext)
-
-    const run = createRun(afterContext, workStore)
-
-    // ==================================
-
-    const afterCallback1 = jest.fn()
-
-    expect(() =>
-      run(() => {
-        after(afterCallback1)
-      })
-    ).toThrow(/Missing `onClose` implementation/)
-
-    expect(waitUntil).not.toHaveBeenCalled()
-    expect(afterCallback1).not.toHaveBeenCalled()
-  })
-
   it('does NOT shadow workAsyncStorage within after callbacks', async () => {
     const waitUntil = jest.fn()
 
@@ -466,6 +456,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)
@@ -510,6 +501,7 @@ describe('AfterContext', () => {
     const afterContext = new AfterContext({
       waitUntil,
       onClose,
+      onTaskError: undefined,
     })
 
     const workStore = createMockWorkStore(afterContext)

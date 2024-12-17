@@ -45,7 +45,6 @@ export function refreshReducer(
       'refetch',
     ],
     nextUrl: includeNextUrl ? state.nextUrl : null,
-    buildId: state.buildId,
   })
 
   return cache.lazyData.then(
@@ -119,7 +118,8 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head
+            head,
+            undefined
           )
           mutable.prefetchCache = new Map()
         }
