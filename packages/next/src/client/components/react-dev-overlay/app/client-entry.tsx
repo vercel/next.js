@@ -1,8 +1,8 @@
 import React from 'react'
-import ReactDevOverlay from './app/ReactDevOverlay'
-import { getSocketUrl } from './internal/helpers/get-socket-url'
-import { INITIAL_OVERLAY_STATE } from './shared'
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../server/dev/hot-reloader-types'
+import ReactDevOverlay from './ReactDevOverlay'
+import { getSocketUrl } from '../internal/helpers/get-socket-url'
+import { INITIAL_OVERLAY_STATE } from '../shared'
+import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
 
 // if an error is thrown while rendering an RSC stream, this will catch it in dev
 // and show the error overlay

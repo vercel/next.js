@@ -1,6 +1,5 @@
 import * as React from 'react'
 
-import * as Bus from './bus'
 import { ShadowPortal } from '../internal/components/ShadowPortal'
 import { BuildError } from '../internal/container/BuildError'
 import { Errors } from '../internal/container/Errors'
@@ -8,19 +7,9 @@ import { ErrorBoundary } from './ErrorBoundary'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
-import { useErrorOverlayReducer } from '../shared'
+import { usePagesReactDevOverlay } from './hooks'
 
-type ErrorType = 'runtime' | 'build'
-
-const shouldPreventDisplay = (
-  errorType?: ErrorType | null,
-  preventType?: ErrorType[] | null
-) => {
-  if (!preventType || !errorType) {
-    return false
-  }
-  return preventType.includes(errorType)
-}
+export type ErrorType = 'runtime' | 'build'
 
 interface ReactDevOverlayProps {
   children?: React.ReactNode
@@ -33,32 +22,14 @@ export default function ReactDevOverlay({
   preventDisplay,
   globalOverlay,
 }: ReactDevOverlayProps) {
-  const [state, dispatch] = useErrorOverlayReducer()
-
-  React.useEffect(() => {
-    Bus.on(dispatch)
-    return function () {
-      Bus.off(dispatch)
-    }
-  }, [dispatch])
-
-  const onComponentError = React.useCallback(
-    (_error: Error, _componentStack: string | null) => {
-      // TODO: special handling
-    },
-    []
-  )
-
-  const hasBuildError = state.buildError != null
-  const hasRuntimeErrors = Boolean(state.errors.length)
-  const errorType = hasBuildError
-    ? 'build'
-    : hasRuntimeErrors
-      ? 'runtime'
-      : null
-  const isMounted = errorType !== null
-
-  const displayPrevented = shouldPreventDisplay(errorType, preventDisplay)
+  const {
+    isMounted,
+    displayPrevented,
+    hasBuildError,
+    hasRuntimeErrors,
+    state,
+    onComponentError,
+  } = usePagesReactDevOverlay(preventDisplay)
 
   return (
     <>
