@@ -2,9 +2,8 @@
 const HEADLESS_BOT_UA_RE =
   /Googlebot|Google-PageRenderer|AdsBot-Google|googleweblight|Storebot-Google/i
 
-// This regex contains the bots that we need to do static rendering for.
-// - Static fetcher bot crawler that doesn't spin up a headless browser or execute JS
-// - Bots that possible can do headless browser crawling but the crawler is limited to some restrictions.
+// This regex contains the bots that we need to do a blocking render for and can't safely stream the response
+// due to how they parse the DOM. For example, they might explicitly check for metadata in the `head` tag, so we can't stream metadata tags after the `head` was sent.
 const HTML_LIMITED_BOT_UA_RE =
   /Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview/i
 
