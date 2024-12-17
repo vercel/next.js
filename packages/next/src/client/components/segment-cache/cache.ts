@@ -3,7 +3,11 @@ import type {
   RootTreePrefetch,
   SegmentPrefetch,
 } from '../../../server/app-render/collect-segment-data'
-import type { LoadingModuleData } from '../../../shared/lib/app-router-context.shared-runtime'
+import type { Segment as FlightRouterStateSegment } from '../../../server/app-render/types'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../../shared/lib/app-router-context.shared-runtime'
 import {
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
@@ -22,7 +26,6 @@ import {
   trackPrefetchRequestBandwidth,
   pingPrefetchTask,
   type PrefetchTask,
-  spawnPrefetchSubtask,
 } from './scheduler'
 import { getAppBuildId } from '../../app-build-id'
 import { createHrefFromUrl } from '../router-reducer/create-href-from-url'
@@ -33,6 +36,11 @@ import type {
 } from './cache-key'
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
 import { createLRU, type LRU } from './lru'
+import {
+  encodeChildSegmentKey,
+  encodeSegment,
+  ROOT_SEGMENT_KEY,
+} from '../../../server/app-render/segment-value-encoding'
 
 // A note on async/await when working in the prefetch cache:
 //
@@ -55,6 +63,16 @@ import { createLRU, type LRU } from './lru'
 // the root, then it's effectively canceled. This is similar to the design of
 // Rust Futures, or React Suspense.
 
+export type RouteTree = {
+  key: string
+  token: string
+  segment: FlightRouterStateSegment
+  slots: null | {
+    [parallelRouteKey: string]: RouteTree
+  }
+  isRootLayout: boolean
+}
+
 type RouteCacheEntryShared = {
   staleAt: number
   // This is false only if we're certain the route cannot be intercepted. It's
@@ -69,18 +87,24 @@ type RouteCacheEntryShared = {
   size: number
 }
 
+/**
+ * Tracks the status of a cache entry as it progresses from no data (Empty),
+ * waiting for server data (Pending), and finished (either Fulfilled or
+ * Rejected depending on the response from the server.
+ */
 export const enum EntryStatus {
+  Empty,
   Pending,
   Rejected,
   Fulfilled,
 }
 
 type PendingRouteCacheEntry = RouteCacheEntryShared & {
-  status: EntryStatus.Pending
+  status: EntryStatus.Empty | EntryStatus.Pending
   blockedTasks: Set<PrefetchTask> | null
   canonicalUrl: null
   tree: null
-  head: null
+  head: HeadData | null
   isHeadPartial: true
 }
 
@@ -97,8 +121,8 @@ export type FulfilledRouteCacheEntry = RouteCacheEntryShared & {
   status: EntryStatus.Fulfilled
   blockedTasks: null
   canonicalUrl: string
-  tree: TreePrefetch
-  head: React.ReactNode | null
+  tree: RouteTree
+  head: HeadData
   isHeadPartial: boolean
 }
 
@@ -118,7 +142,7 @@ type SegmentCacheEntryShared = {
 }
 
 type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
-  status: EntryStatus.Pending
+  status: EntryStatus.Empty | EntryStatus.Pending
   rsc: null
   loading: null
   isPartial: true
@@ -257,41 +281,29 @@ export function waitForSegmentCacheEntry(
 }
 
 /**
- * Reads the route cache for a matching entry *and* spawns a request if there's
- * no match. Because this may issue a network request, it should only be called
- * from within the context of a prefetch task.
+ * Checks if an entry for a route exists in the cache. If so, it returns the
+ * entry, If not, it adds an empty entry to the cache and returns it.
  */
-export function requestRouteCacheEntryFromCache(
+export function readOrCreateRouteCacheEntry(
   now: number,
   task: PrefetchTask
 ): RouteCacheEntry {
   const key = task.key
-  // First check if there's a non-intercepted entry. Most routes cannot be
-  // intercepted, so this is the common case.
-  const nonInterceptedEntry = readExactRouteCacheEntry(now, key.href, null)
-  if (nonInterceptedEntry !== null && !nonInterceptedEntry.couldBeIntercepted) {
-    // Found a match, and the route cannot be intercepted. We can reuse it.
-    return nonInterceptedEntry
+  const existingEntry = readRouteCacheEntry(now, key)
+  if (existingEntry !== null) {
+    return existingEntry
   }
-  // There was no match. Check again but include the Next-Url this time.
-  const exactEntry = readExactRouteCacheEntry(now, key.href, key.nextUrl)
-  if (exactEntry !== null) {
-    return exactEntry
-  }
-  // Create a pending entry and spawn a request for its data.
+  // Create a pending entry and add it to the cache.
   const pendingEntry: PendingRouteCacheEntry = {
     canonicalUrl: null,
-    status: EntryStatus.Pending,
+    status: EntryStatus.Empty,
     blockedTasks: null,
     tree: null,
-    head: null,
+    head: [null, null],
     isHeadPartial: true,
-    // If the request takes longer than a minute, a subsequent request should
-    // retry instead of waiting for this one.
-    //
-    // When the response is received, this value will be replaced by a new value
-    // based on the stale time sent from the server.
-    staleAt: now + 60 * 1000,
+    // Since this is an empty entry, there's no reason to ever evict it. It will
+    // be updated when the data is populated.
+    staleAt: Infinity,
     // This is initialized to true because we don't know yet whether the route
     // could be intercepted. It's only set to false once we receive a response
     // from the server.
@@ -303,7 +315,6 @@ export function requestRouteCacheEntryFromCache(
     prev: null,
     size: 0,
   }
-  spawnPrefetchSubtask(fetchRouteOnCacheMiss(pendingEntry, task))
   const keypath: Prefix<RouteCacheKeypath> =
     key.nextUrl === null ? [key.href] : [key.href, key.nextUrl]
   routeCacheMap.set(keypath, pendingEntry)
@@ -315,24 +326,21 @@ export function requestRouteCacheEntryFromCache(
 }
 
 /**
- * Reads the route cache for a matching entry *and* spawns a request if there's
- * no match. Because this may issue a network request, it should only be called
- * from within the context of a prefetch task.
+ * Checks if an entry for a segment exists in the cache. If so, it returns the
+ * entry, If not, it adds an empty entry to the cache and returns it.
  */
-export function requestSegmentEntryFromCache(
+export function readOrCreateSegmentCacheEntry(
   now: number,
-  task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
-  path: string,
-  accessToken: string
+  path: string
 ): SegmentCacheEntry {
   const existingEntry = readSegmentCacheEntry(now, path)
   if (existingEntry !== null) {
     return existingEntry
   }
-  // Create a pending entry and spawn a request for its data.
+  // Create a pending entry and add it to the cache.
   const pendingEntry: PendingSegmentCacheEntry = {
-    status: EntryStatus.Pending,
+    status: EntryStatus.Empty,
     rsc: null,
     loading: null,
     staleAt: route.staleAt,
@@ -345,15 +353,6 @@ export function requestSegmentEntryFromCache(
     prev: null,
     size: 0,
   }
-  spawnPrefetchSubtask(
-    fetchSegmentEntryOnCacheMiss(
-      route,
-      pendingEntry,
-      task.key,
-      path,
-      accessToken
-    )
-  )
   segmentCacheMap.set(path, pendingEntry)
   // Stash the keypath on the entry so we know how to remove it from the map
   // if it gets evicted from the LRU.
@@ -423,8 +422,8 @@ function pingBlockedTasks(entry: {
 
 function fulfillRouteCacheEntry(
   entry: PendingRouteCacheEntry,
-  tree: TreePrefetch,
-  head: React.ReactNode,
+  tree: RouteTree,
+  head: HeadData,
   isHeadPartial: boolean,
   staleAt: number,
   couldBeIntercepted: boolean,
@@ -488,7 +487,50 @@ function rejectSegmentCacheEntry(
   }
 }
 
-async function fetchRouteOnCacheMiss(
+function convertRootTreePrefetchToRouteTree(rootTree: RootTreePrefetch) {
+  return convertTreePrefetchToRouteTree(rootTree.tree, ROOT_SEGMENT_KEY)
+}
+
+function convertTreePrefetchToRouteTree(
+  prefetch: TreePrefetch,
+  key: string
+): RouteTree {
+  // Converts the route tree sent by the server into the format used by the
+  // cache. The cached version of the tree includes additional fields, such as a
+  // cache key for each segment. Since this is frequently accessed, we compute
+  // it once instead of on every access. This same cache key is also used to
+  // request the segment from the server.
+  let slots: { [parallelRouteKey: string]: RouteTree } | null = null
+  const prefetchSlots = prefetch.slots
+  if (prefetchSlots !== null) {
+    slots = {}
+    for (let parallelRouteKey in prefetchSlots) {
+      const childPrefetch = prefetchSlots[parallelRouteKey]
+      const childSegment = childPrefetch.segment
+      // TODO: Eventually, the param values will not be included in the response
+      // from the server. We'll instead fill them in on the client by parsing
+      // the URL. This is where we'll do that.
+      const childKey = encodeChildSegmentKey(
+        key,
+        parallelRouteKey,
+        encodeSegment(childSegment)
+      )
+      slots[parallelRouteKey] = convertTreePrefetchToRouteTree(
+        childPrefetch,
+        childKey
+      )
+    }
+  }
+  return {
+    key,
+    token: prefetch.token,
+    segment: prefetch.segment,
+    slots,
+    isRootLayout: prefetch.isRootLayout,
+  }
+}
+
+export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
   task: PrefetchTask
 ): Promise<void> {
@@ -551,7 +593,7 @@ async function fetchRouteOnCacheMiss(
 
     fulfillRouteCacheEntry(
       entry,
-      serverData.tree,
+      convertRootTreePrefetchToRouteTree(serverData),
       serverData.head,
       serverData.isHeadPartial,
       Date.now() + serverData.staleTime,
@@ -589,11 +631,11 @@ async function fetchRouteOnCacheMiss(
   }
 }
 
-async function fetchSegmentEntryOnCacheMiss(
+export async function fetchSegmentOnCacheMiss(
   route: FulfilledRouteCacheEntry,
   segmentCacheEntry: PendingSegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentPath: string,
+  segmentKeyPath: string,
   accessToken: string | null
 ): Promise<void> {
   // This function is allowed to use async/await because it contains the actual
@@ -606,7 +648,7 @@ async function fetchSegmentEntryOnCacheMiss(
   try {
     const response = await fetchSegmentPrefetchResponse(
       href,
-      accessToken === '' ? segmentPath : `${segmentPath}.${accessToken}`,
+      accessToken === '' ? segmentKeyPath : `${segmentKeyPath}.${accessToken}`,
       routeKey.nextUrl
     )
     if (

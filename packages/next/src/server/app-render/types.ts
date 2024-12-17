@@ -104,7 +104,7 @@ export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head */ React.ReactNode | null,
+  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
   /* isHeadPartial */ boolean,
 ]
 
@@ -183,6 +183,7 @@ export interface RenderOptsPartial {
     expireTime: ExpireTime | undefined
     clientTraceMetadata: string[] | undefined
     dynamicIO: boolean
+    clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
   }

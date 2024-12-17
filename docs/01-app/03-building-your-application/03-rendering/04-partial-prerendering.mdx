@@ -57,20 +57,20 @@ module.exports = nextConfig
 ```
 
 ```tsx filename="app/page.tsx" switcher
-import { Suspense } from "react"
-import { StaticComponent, DynamicComponent, Fallback } from "@/app/ui"
+import { Suspense } from 'react'
+import { StaticComponent, DynamicComponent, Fallback } from '@/app/ui'
 
 export const experimental_ppr = true
 
 export default function Page() {
-  return {
-     <>
+  return (
+    <>
       <StaticComponent />
       <Suspense fallback={<Fallback />}>
         <DynamicComponent />
       </Suspense>
-     </>
-  };
+    </>
+  )
 }
 ```
 

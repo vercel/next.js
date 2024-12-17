@@ -3,7 +3,9 @@ use quote::quote;
 use syn::{parse_macro_input, parse_quote, ItemFn};
 use turbo_tasks_macros_shared::{get_native_function_id_ident, get_native_function_ident};
 
-use crate::func::{DefinitionContext, FunctionArguments, NativeFn, TurboFn};
+use crate::func::{
+    filter_inline_attributes, DefinitionContext, FunctionArguments, NativeFn, TurboFn,
+};
 
 /// This macro generates the virtual function that powers turbo tasks.
 /// An annotated task is replaced with a stub function that returns a
@@ -50,6 +52,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
 
     let inline_function_ident = turbo_fn.inline_ident();
     let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(&block);
+    let inline_attrs = filter_inline_attributes(&attrs[..]);
 
     let native_fn = NativeFn::new(
         &ident.to_string(),
@@ -72,15 +75,19 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         #(#attrs)*
         #vis #exposed_signature #exposed_block
 
-        #(#attrs)*
+        #(#inline_attrs)*
         #[doc(hidden)]
         #inline_signature #inline_block
 
         #[doc(hidden)]
-        pub(crate) static #native_function_ident: #native_function_ty = #native_function_def;
+        pub(crate) static #native_function_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_ty> =
+                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_def);
 
         #[doc(hidden)]
-        pub(crate) static #native_function_id_ident: #native_function_id_ty = #native_function_id_def;
+        pub(crate) static #native_function_id_ident:
+            turbo_tasks::macro_helpers::Lazy<#native_function_id_ty> =
+                turbo_tasks::macro_helpers::Lazy::new(|| #native_function_id_def);
 
         #(#errors)*
     }

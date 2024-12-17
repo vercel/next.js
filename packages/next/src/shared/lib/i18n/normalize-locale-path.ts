@@ -14,7 +14,7 @@ export interface PathLocale {
  */
 export function normalizeLocalePath(
   pathname: string,
-  locales?: string[]
+  locales?: readonly string[]
 ): PathLocale {
   let detectedLocale: string | undefined
   // first item will be empty string from splitting at first char

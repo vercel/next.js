@@ -592,6 +592,8 @@ export default abstract class Server<
         expireTime: this.nextConfig.expireTime,
         clientTraceMetadata: this.nextConfig.experimental.clientTraceMetadata,
         dynamicIO: this.nextConfig.experimental.dynamicIO ?? false,
+        clientSegmentCache:
+          this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
       },
@@ -1435,7 +1437,7 @@ export default abstract class Server<
         }
         const normalizeResult = normalizeLocalePath(
           removePathPrefix(parsedUrl.pathname, this.nextConfig.basePath || ''),
-          this.nextConfig.i18n?.locales || []
+          this.nextConfig.i18n?.locales
         )
 
         if (normalizeResult.detectedLocale) {

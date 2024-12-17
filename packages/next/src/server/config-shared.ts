@@ -23,20 +23,20 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
-export type I18NDomains = DomainLocale[]
+export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
   defaultLocale: string
   domains?: I18NDomains
   localeDetection?: false
-  locales: string[]
+  locales: readonly string[]
 }
 
 export interface DomainLocale {
   defaultLocale: string
   domain: string
   http?: true
-  locales?: string[]
+  locales?: readonly string[]
 }
 
 export interface ESLintConfig {
@@ -562,6 +562,11 @@ export interface ExperimentalConfig {
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
+
+  /**
+   * Enables the new dev overlay.
+   */
+  newDevOverlay?: boolean
 }
 
 export type ExportPathMap = {
@@ -1163,6 +1168,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
+    newDevOverlay: false,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -611,5 +611,14 @@
   "610": "Could not find a production build in the '%s' directory. Try building your app with 'next build' before starting the static export. https://nextjs.org/docs/messages/next-export-no-build-id",
   "611": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`request.%s\\`.",
   "612": "ServerPrerenderStreamResult cannot be consumed as a stream because it is not yet complete. status: %s",
-  "613": "Expected the input to be `string | string[]`"
+  "613": "Expected the input to be `string | string[]`",
+  "614": "Route %s used \"unstable_rootParams\" inside \"use cache\". This is not currently supported.",
+  "615": "Missing workStore in unstable_rootParams",
+  "616": "App config not found",
+  "617": "A required parameter (%s) was not provided as a string received %s in generateStaticParams for %s",
+  "618": "A required parameter (%s) was not provided as an array received %s in generateStaticParams for %s",
+  "619": "Page not found",
+  "620": "A required parameter (%s) was not provided as %s received %s in getStaticPaths for %s",
+  "621": "Required root params (%s) were not provided in generateStaticParams for %s, please provide at least one value for each.",
+  "622": "A required root parameter (%s) was not provided in generateStaticParams for %s, please provide at least one value."
 }
