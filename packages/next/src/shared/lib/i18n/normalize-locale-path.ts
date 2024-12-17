@@ -39,7 +39,7 @@ export function normalizeLocalePath(
   // there is no further segment, there is no locale (or it's the default).
   const segments = pathname.split('/', 2)
 
-  // If there's no first segment (ie, the pathname is just `/`), there's no
+  // If there's no second segment (ie, the pathname is just `/`), there's no
   // locale.
   if (!segments[1]) return { pathname }
 
