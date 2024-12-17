@@ -114,7 +114,7 @@ You can cache the return value of an **asynchronous** function, including data r
 ```ts filename="app/lib/data.ts" switcher
 export async function getPosts(slug: string) {
   'use cache'
-  const data = await fetch(`/api/posts/${slug}`)
+  const data = await fetch(`https://api.vercel.app/posts/${slug}`)
   return data.json()
 }
 ```
@@ -122,7 +122,7 @@ export async function getPosts(slug: string) {
 ```js filename="app/lib/data.js" switcher
 export async function getPosts(slug) {
   'use cache'
-  const data = await fetch(`/api/posts/${slug}`)
+  const data = await fetch(`https://api.vercel.app/posts/${slug}`)
   return data.json()
 }
 ```
@@ -135,12 +135,12 @@ Alternatively, you can also cache all functions within a file by adding the `'us
 'use cache'
 
 export async function getPosts() {
-  const data = await fetch(`/api/posts`)
+  const data = await fetch(`https://api.vercel.app/posts`)
   return data.json()
 }
 
 export async function getPostBySlug(slug: string) {
-  const data = await fetch(`/api/posts/${slug}`)
+  const data = await fetch(`https://api.vercel.app/posts/${slug}`)
   return data.json()
 }
 ```
@@ -149,12 +149,12 @@ export async function getPostBySlug(slug: string) {
 'use cache'
 
 export async function getPosts() {
-  const data = await fetch(`/api/posts/`)
+  const data = await fetch(`https://api.vercel.app/posts/`)
   return data.json()
 }
 
 export async function getPostBySlug(slug: string) {
-  const data = await fetch(`/api/posts/${slug}`)
+  const data = await fetch(`https://api.vercel.app/posts/${slug}`)
   return data.json()
 }
 ```
