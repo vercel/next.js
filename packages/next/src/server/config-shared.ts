@@ -562,6 +562,11 @@ export interface ExperimentalConfig {
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
+
+  /**
+   * Enables the new dev overlay.
+   */
+  newDevOverlay?: boolean
 }
 
 export type ExportPathMap = {
@@ -1163,6 +1168,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
+    newDevOverlay: false,
   },
   bundlePagesRouterDependencies: false,
 }
