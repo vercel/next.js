@@ -497,12 +497,8 @@ function fetchNextData({
       headers: Object.assign(
         {} as HeadersInit,
         isPrefetch ? { purpose: 'prefetch' } : {},
-        isPrefetch && hasMiddleware
-          ? {
-              'x-middleware-prefetch': '1',
-              'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID,
-            }
-          : {}
+        isPrefetch && hasMiddleware ? { 'x-middleware-prefetch': '1' } : {},
+        { 'x-deployment-id': process.env.NEXT_DEPLOYMENT_ID }
       ),
       method: params?.method ?? 'GET',
     })
