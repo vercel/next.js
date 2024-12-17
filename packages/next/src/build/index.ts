@@ -377,13 +377,13 @@ export type RoutesManifest = {
   dynamicRoutes: Array<ManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
   i18n?: {
-    domains?: Array<{
+    domains?: ReadonlyArray<{
       http?: true
       domain: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale: string
     }>
-    locales: string[]
+    locales: readonly string[]
     defaultLocale: string
     localeDetection?: false
   }
@@ -473,7 +473,11 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-  }: { buildId: string; distDir: string; locales: string[] }
+  }: {
+    buildId: string
+    distDir: string
+    locales: readonly string[] | undefined
+  }
 ) {
   const ssgPages = new Set<string>(
     [
@@ -3622,7 +3626,7 @@ export default async function build(
         await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
-          locales: config.i18n?.locales || [],
+          locales: config.i18n?.locales,
         })
       } else {
         await writePrerenderManifest(distDir, {

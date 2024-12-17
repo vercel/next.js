@@ -19,7 +19,7 @@ export async function buildPagesStaticPaths({
   page: string
   getStaticPaths: GetStaticPaths
   configFileName: string
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
 }): Promise<StaticPathsResult> {
   const prerenderedRoutes: PrerenderedRoute[] = []
@@ -28,7 +28,13 @@ export async function buildPagesStaticPaths({
 
   // Get the default list of allowed params.
   const routeParameterKeys = Object.keys(_routeMatcher(page))
-  const staticPathsResult = await getStaticPaths({ locales, defaultLocale })
+  const staticPathsResult = await getStaticPaths({
+    // We create a copy here to avoid having the types of `getStaticPaths`
+    // change. This ensures that users can't mutate this array and have it
+    // poison the reference.
+    locales: [...(locales ?? [])],
+    defaultLocale,
+  })
 
   const expectedReturnVal =
     `Expected: { paths: [], fallback: boolean }\n` +
