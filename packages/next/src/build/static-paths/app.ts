@@ -51,12 +51,12 @@ function areParamValuesEqual(a: ParamValue, b: ParamValue) {
 /**
  * Filters out duplicate parameters from a list of parameters.
  *
- * @param paramKeys - The keys of the parameters.
+ * @param routeParamKeys - The keys of the parameters.
  * @param routeParams - The list of parameters to filter.
  * @returns The list of unique parameters.
  */
 function filterUniqueParams(
-  paramKeys: readonly string[],
+  routeParamKeys: readonly string[],
   routeParams: readonly Params[]
 ): Params[] {
   const unique: Params[] = []
@@ -66,8 +66,8 @@ function filterUniqueParams(
     for (; i < unique.length; i++) {
       const item = unique[i]
       let j = 0
-      for (; j < paramKeys.length; j++) {
-        const key = paramKeys[j]
+      for (; j < routeParamKeys.length; j++) {
+        const key = routeParamKeys[j]
 
         // If the param is not the same, then we need to break out of the loop.
         if (!areParamValuesEqual(item[key], params[key])) {
@@ -77,7 +77,7 @@ function filterUniqueParams(
 
       // If we got to the end of the paramKeys array, then it means that we
       // found a duplicate. Skip it.
-      if (j === paramKeys.length) {
+      if (j === routeParamKeys.length) {
         break
       }
     }
@@ -159,7 +159,8 @@ function filterRootParamsCombinations(
  * @param page - The page to validate.
  * @param regex - The route regex.
  * @param isRoutePPREnabled - Whether the route has partial prerendering enabled.
- * @param paramKeys - The keys of the parameters.
+ * @param routeParamKeys - The keys of the parameters.
+ * @param rootParamKeys - The keys of the root params.
  * @param routeParams - The list of parameters to validate.
  * @returns The list of validated parameters.
  */
@@ -167,15 +168,37 @@ function validateParams(
   page: string,
   regex: RouteRegex,
   isRoutePPREnabled: boolean,
-  paramKeys: readonly string[],
+  routeParamKeys: readonly string[],
+  rootParamKeys: readonly string[],
   routeParams: readonly Params[]
 ): Params[] {
   const valid: Params[] = []
 
+  // Validate that if there are any root params, that the user has provided at
+  // least one value for them only if we're using partial prerendering.
+  if (isRoutePPREnabled && rootParamKeys.length > 0) {
+    if (
+      routeParams.length === 0 ||
+      rootParamKeys.some((key) =>
+        routeParams.some((params) => !(key in params))
+      )
+    ) {
+      if (rootParamKeys.length === 1) {
+        throw new Error(
+          `A required root parameter (${rootParamKeys[0]}) was not provided in generateStaticParams for ${page}, please provide at least one value.`
+        )
+      }
+
+      throw new Error(
+        `Required root params (${rootParamKeys.join(', ')}) were not provided in generateStaticParams for ${page}, please provide at least one value for each.`
+      )
+    }
+  }
+
   for (const params of routeParams) {
     const item: Params = {}
 
-    for (const key of paramKeys) {
+    for (const key of routeParamKeys) {
       const { repeat, optional } = regex.groups[key]
 
       let paramValue = params[key]
@@ -309,7 +332,7 @@ export async function buildAppStaticPaths({
   })
 
   const regex = getRouteRegex(page)
-  const paramKeys = Object.keys(getRouteMatcher(regex)(page) || {})
+  const routeParamKeys = Object.keys(getRouteMatcher(regex)(page) || {})
 
   const afterRunner = new AfterRunner()
 
@@ -425,10 +448,10 @@ export async function buildAppStaticPaths({
 
   // Determine if all the segments have had their parameters provided.
   const hadAllParamsGenerated =
-    paramKeys.length === 0 ||
+    routeParamKeys.length === 0 ||
     (routeParams.length > 0 &&
       routeParams.every((params) => {
-        for (const key of paramKeys) {
+        for (const key of routeParamKeys) {
           if (key in params) continue
           return false
         }
@@ -463,25 +486,44 @@ export async function buildAppStaticPaths({
   if (hadAllParamsGenerated || isRoutePPREnabled) {
     if (isRoutePPREnabled) {
       // Discover all unique combinations of the rootParams so we can generate
-      // shells for each of them.
+      // shells for each of them if they're available.
       routeParams.unshift(
-        // We're inserting an empty object at the beginning of the array so that
-        // we can generate a shell for when all params are unknown.
-        {},
         ...filterRootParamsCombinations(rootParamKeys, routeParams)
       )
+
+      result.prerenderedRoutes ??= []
+      result.prerenderedRoutes.push({
+        pathname: page,
+        encodedPathname: page,
+        fallbackRouteParams: routeParamKeys,
+        fallbackMode: dynamicParams
+          ? // If the fallback params includes any root params, then we need to
+            // perform a blocking static render.
+            rootParamKeys.length > 0
+            ? FallbackMode.BLOCKING_STATIC_RENDER
+            : fallbackMode
+          : FallbackMode.NOT_FOUND,
+        fallbackRootParams: rootParamKeys,
+      })
     }
 
     filterUniqueParams(
-      paramKeys,
-      validateParams(page, regex, isRoutePPREnabled, paramKeys, routeParams)
+      routeParamKeys,
+      validateParams(
+        page,
+        regex,
+        isRoutePPREnabled,
+        routeParamKeys,
+        rootParamKeys,
+        routeParams
+      )
     ).forEach((params) => {
       let pathname: string = page
       let encodedPathname: string = page
 
       const fallbackRouteParams: string[] = []
 
-      for (const key of paramKeys) {
+      for (const key of routeParamKeys) {
         if (fallbackRouteParams.length > 0) {
           // This is a partial route, so we should add the value to the
           // fallbackRouteParams.

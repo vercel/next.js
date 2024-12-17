@@ -618,5 +618,7 @@
   "617": "A required parameter (%s) was not provided as a string received %s in generateStaticParams for %s",
   "618": "A required parameter (%s) was not provided as an array received %s in generateStaticParams for %s",
   "619": "Page not found",
-  "620": "A required parameter (%s) was not provided as %s received %s in getStaticPaths for %s"
+  "620": "A required parameter (%s) was not provided as %s received %s in getStaticPaths for %s",
+  "621": "Required root params (%s) were not provided in generateStaticParams for %s, please provide at least one value for each.",
+  "622": "A required root parameter (%s) was not provided in generateStaticParams for %s, please provide at least one value."
 }
