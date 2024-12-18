@@ -21,3 +21,29 @@ s
 3. Using special [file conventions](/docs/app/api-reference/file-conventions/metadata) to add static or dynamically generated special files.
 
 With all these options, Next.js will automatically generate the relevant `<head>` elements for your pages.
+
+## Static metadata
+
+To define static metadata, export a [`Metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object) from a [`layout.js`](/docs/app/api-reference/file-conventions/layout) or static [`page.js`](/docs/app/api-reference/file-conventions/page) file.
+
+```tsx filename="app/blog/layout.tsx" switcher
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: '...',
+  description: '...',
+}
+
+export default function Page() {}
+```
+
+```jsx filename="app/blog/layout.tsx" switcher
+export const metadata = {
+  title: '...',
+  description: '...',
+}
+
+export default function Page() {}
+```
+
+To learn more about the available options, see the [API Reference](/docs/app/api-reference/functions/generate-metadata).
