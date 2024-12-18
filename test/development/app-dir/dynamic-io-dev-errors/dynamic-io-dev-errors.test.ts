@@ -77,7 +77,7 @@ describe('Dynamic IO Dev Errors', () => {
             '\n    at html (<anonymous>)' +
             '\n    at Root [Server] (<anonymous>)'
           : // TODO(veil): Should be ignore-listed (see https://linear.app/vercel/issue/NDX-464/next-internals-not-ignore-listed-in-terminal-in-webpack#comment-1164a36a)
-            '\n    at tree (..')
+            '\n    at InnerLayoutRouter (..')
     )
 
     const description = await getRedboxDescription(browser)

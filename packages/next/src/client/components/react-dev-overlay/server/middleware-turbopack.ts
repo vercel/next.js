@@ -80,7 +80,12 @@ export async function batchedTraceSource(
     file: sourceFrame.file,
     lineNumber: sourceFrame.line ?? 0,
     column: sourceFrame.column ?? 0,
-    methodName: sourceFrame.methodName ?? frame.methodName ?? '<unknown>',
+    methodName:
+      // We ignore the sourcemapped name since it won't be the correct name.
+      // The callsite will point to the column of the variable name instead of the
+      // name of the enclosing function.
+      // TODO(NDX-531): Spy on prepareStackTrace to get the enclosing line number for method name mapping.
+      frame.methodName ?? '<unknown>',
     ignored,
     arguments: [],
   }
@@ -222,13 +227,13 @@ async function nativeTraceSource(
 
       const originalStackFrame: IgnorableStackFrame = {
         methodName:
-          originalPosition.name ||
-          // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
-          // Resolve it back to `default` for the method name if the source position didn't have the method.
+          // We ignore the sourcemapped name since it won't be the correct name.
+          // The callsite will point to the column of the variable name instead of the
+          // name of the enclosing function.
+          // TODO(NDX-531): Spy on prepareStackTrace to get the enclosing line number for method name mapping.
           frame.methodName
             ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
-            ?.replace('__webpack_exports__.', '') ||
-          '<unknown>',
+            ?.replace('__webpack_exports__.', '') || '<unknown>',
         column: (originalPosition.column ?? 0) + 1,
         file: originalPosition.source?.startsWith('file://')
           ? path.relative(
