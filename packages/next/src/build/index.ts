@@ -2754,12 +2754,12 @@ export default async function build(
                     if (i18n) {
                       defaultMap[`/${i18n.defaultLocale}${page}`] = {
                         page,
-                        query: { __nextFallback: 'true' },
+                        _pagesFallback: true,
                       }
                     } else {
                       defaultMap[page] = {
                         page,
-                        query: { __nextFallback: 'true' },
+                        _pagesFallback: true,
                       }
                     }
                   } else {
@@ -2776,7 +2776,7 @@ export default async function build(
                 routes.forEach((route) => {
                   defaultMap[route.pathname] = {
                     page,
-                    query: { __nextSsgPath: route.encodedPathname },
+                    _ssgPath: route.encodedPathname,
                   }
                 })
               })
@@ -2816,7 +2816,7 @@ export default async function build(
 
                   defaultMap[route.pathname] = {
                     page: originalAppPath,
-                    query: { __nextSsgPath: route.encodedPathname },
+                    _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
@@ -2835,7 +2835,7 @@ export default async function build(
               } of prospectiveRenders.values()) {
                 defaultMap[page] = {
                   page: originalAppPath,
-                  query: { __nextSsgPath: page },
+                  _ssgPath: page,
                   _fallbackRouteParams: getParamKeys(page),
                   // Prospective renders are only enabled for app pages.
                   _isAppDir: true,
@@ -2865,10 +2865,8 @@ export default async function build(
 
                     defaultMap[outputPath] = {
                       page: defaultMap[page]?.page || page,
-                      query: {
-                        __nextLocale: locale,
-                        __nextFallback: isFallback ? 'true' : undefined,
-                      },
+                      _locale: locale,
+                      _pagesFallback: isFallback,
                     }
                   }
 

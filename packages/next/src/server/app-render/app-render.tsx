@@ -196,7 +196,12 @@ export type GetDynamicParamFromSegment = (
 
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
+export type AppSharedContext = {
+  buildId: string
+}
+
 export type AppRenderContext = {
+  sharedContext: AppSharedContext
   workStore: WorkStore
   url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
@@ -499,13 +504,13 @@ async function generateDynamicRSCPayload(
     return {
       a: options.actionResult,
       f: flightData,
-      b: ctx.renderOpts.buildId,
+      b: ctx.sharedContext.buildId,
     }
   }
 
   // Otherwise, it's a regular RSC response.
   return {
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
   }
@@ -812,7 +817,7 @@ async function getRSCPayload(
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
@@ -924,7 +929,7 @@ async function getErrorRSCPayload(
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
   return {
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
@@ -1066,7 +1071,8 @@ async function renderToHTMLOrFlightImpl(
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
   implicitTags: Array<string>,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  sharedContext: AppSharedContext
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1233,6 +1239,7 @@ async function renderToHTMLOrFlightImpl(
     isNotFoundPath,
     nonce,
     res,
+    sharedContext,
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
@@ -1477,7 +1484,8 @@ export type AppPageRender = (
   fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
-  isDevWarmup: boolean
+  isDevWarmup: boolean,
+  sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1488,7 +1496,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   fallbackRouteParams,
   renderOpts,
   serverComponentsHmrCache,
-  isDevWarmup
+  isDevWarmup,
+  sharedContext
 ) => {
   if (!req.url) {
     throw new Error('Invalid URL')
@@ -1545,6 +1554,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     requestEndedState,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
+    buildId: sharedContext.buildId,
   })
 
   return workAsyncStorage.run(
@@ -1563,7 +1573,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     requestEndedState,
     postponedState,
     implicitTags,
-    serverComponentsHmrCache
+    serverComponentsHmrCache,
+    sharedContext
   )
 }
 

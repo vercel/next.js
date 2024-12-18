@@ -96,6 +96,10 @@ export class WrappedNextRouterError {
  */
 export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
+export type AppRouteSharedContext = {
+  buildId: string
+}
+
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
@@ -105,6 +109,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+  sharedContext: AppRouteSharedContext
 }
 
 type CollectedCacheInfo = {
@@ -637,6 +642,7 @@ export class AppRouteRouteModule extends RouteModule<
       fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      buildId: context.sharedContext.buildId,
     }
 
     // Add the fetchCache option to the renderOpts.
