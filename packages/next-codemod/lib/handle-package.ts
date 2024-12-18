@@ -7,7 +7,7 @@ export type PackageManager = 'npm' | 'pnpm' | 'yarn' | 'bun'
 export function getPkgManager(baseDir: string): PackageManager {
   try {
     const lockFile = findUp.sync(
-      ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lockb', 'bun.lock'],
+      ['package-lock.json', 'yarn.lock', 'pnpm-lock.yaml', 'bun.lock', 'bun.lockb'],
       { cwd: baseDir }
     )
     if (lockFile) {

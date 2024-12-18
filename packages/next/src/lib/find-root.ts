@@ -3,7 +3,7 @@ import findUp from 'next/dist/compiled/find-up'
 
 export function findRootLockFile(cwd: string) {
   return findUp.sync(
-    ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lockb', 'bun.lock'],
+    ['pnpm-lock.yaml', 'package-lock.json', 'yarn.lock', 'bun.lock', 'bun.lockb'],
     {
       cwd,
     }
