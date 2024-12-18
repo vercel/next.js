@@ -409,13 +409,12 @@ pub async fn expand_star_exports(
 }
 
 async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -> Result<()> {
-    AnalyzeIssue::new(
+    AnalyzeIssue::new_with_asset_ident(
         IssueSeverity::Warning.cell(),
-        source_ident,
         Vc::cell("unexpected export *".into()),
         StyledString::Text(message).cell(),
         None,
-        None,
+        source_ident,
     )
     .to_resolved()
     .await?

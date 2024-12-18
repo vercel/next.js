@@ -8420,6 +8420,7 @@ dependencies = [
  "auto-hash-map",
  "concurrent-queue",
  "dashmap 6.1.0",
+ "either",
  "erased-serde",
  "event-listener 2.5.3",
  "futures",
@@ -8829,6 +8830,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "browserslist-rs",
+ "either",
  "futures",
  "indexmap 2.5.0",
  "lazy_static",
@@ -9177,6 +9179,7 @@ name = "turbopack-swc-utils"
 version = "0.1.0"
 dependencies = [
  "anyhow",
+ "either",
  "parking_lot",
  "swc_core",
  "turbo-rcstr",

@@ -47,7 +47,8 @@ pub async fn module_references(
                 source,
                 source_map.clone(),
                 Some("Parsing webpack bundle failed".into()),
-            );
+            )
+            .await?;
             let handler = Handler::with_emitter(true, false, Box::new(emitter));
             HANDLER.set(&handler, || {
                 program.visit_with(&mut visitor);

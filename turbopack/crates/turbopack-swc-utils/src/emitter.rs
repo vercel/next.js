@@ -1,6 +1,7 @@
 use std::{mem::take, sync::Arc};
 
 use anyhow::Result;
+use either::Either;
 use parking_lot::Mutex;
 use swc_core::common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
@@ -8,8 +9,9 @@ use swc_core::common::{
     SourceMap,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack_core::{
+    ident::AssetIdent,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     source::Source,
 };
@@ -30,19 +32,19 @@ impl IssueCollector {
         };
 
         for issue in issues {
-            issue.to_resolved().await?.emit();
+            issue.emit();
         }
         Ok(())
     }
 
-    pub fn last_emitted_issue(&self) -> Option<Vc<AnalyzeIssue>> {
+    pub fn last_emitted_issue(&self) -> Option<ResolvedVc<AnalyzeIssue>> {
         let inner = self.inner.lock();
         inner.emitted_issues.last().copied()
     }
 }
 
 struct IssueCollectorInner {
-    emitted_issues: Vec<Vc<AnalyzeIssue>>,
+    emitted_issues: Vec<ResolvedVc<AnalyzeIssue>>,
     emitted: bool,
 }
 
@@ -59,30 +61,32 @@ impl Drop for IssueCollectorInner {
 
 pub struct IssueEmitter {
     pub source: ResolvedVc<Box<dyn Source>>,
+    source_asset_ident: ResolvedVc<AssetIdent>,
     pub source_map: Arc<SourceMap>,
     pub title: Option<RcStr>,
     inner: Arc<Mutex<IssueCollectorInner>>,
 }
 
 impl IssueEmitter {
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         source_map: Arc<SourceMap>,
         title: Option<RcStr>,
-    ) -> (Self, IssueCollector) {
+    ) -> Result<(Self, IssueCollector)> {
         let inner = Arc::new(Mutex::new(IssueCollectorInner {
             emitted_issues: vec![],
             emitted: false,
         }));
-        (
+        Ok((
             Self {
                 source,
+                source_asset_ident: source.ident().to_resolved().await?,
                 source_map,
                 title,
                 inner: inner.clone(),
             },
             IssueCollector { inner },
-        )
+        ))
     }
 }
 
@@ -129,19 +133,27 @@ impl Emitter for IssueEmitter {
             message = message_split.remainder().unwrap_or("").to_string();
         }
 
-        let source = db.span.primary_span().map(|span| {
-            IssueSource::from_swc_offsets(*self.source, span.lo.to_usize(), span.hi.to_usize())
+        let issue_source = db.span.primary_span().map(|span| {
+            IssueSource::from_swc_offsets_inline(
+                self.source,
+                span.lo.to_usize(),
+                span.hi.to_usize(),
+            )
         });
         // TODO add other primary and secondary spans with labels as sub_issues
 
-        let issue = AnalyzeIssue::new(
-            *severity,
-            self.source.ident(),
-            Vc::cell(title),
-            StyledString::Text(message.into()).cell(),
+        let issue = AnalyzeIssue {
+            severity,
+            title: ResolvedVc::cell(title),
+            message: StyledString::Text(message.into()).resolved_cell(),
             code,
-            source,
-        );
+            source_or_ident: if let Some(issue_source) = issue_source {
+                Either::Left(issue_source)
+            } else {
+                Either::Right(self.source_asset_ident)
+            },
+        }
+        .resolved_cell();
 
         let mut inner = self.inner.lock();
         inner.emitted = false;

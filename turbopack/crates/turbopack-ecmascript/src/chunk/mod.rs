@@ -86,7 +86,7 @@ impl Chunk for EcmascriptChunk {
         };
 
         // The included chunk items describe the chunk uniquely
-        let chunk_item_key = chunk_item_key();
+        let chunk_item_key = chunk_item_key().to_resolved().await?;
         for &(chunk_item, _) in chunk_items.iter() {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
@@ -101,7 +101,7 @@ impl Chunk for EcmascriptChunk {
                 }
             }
             assets.push((
-                chunk_item_key.to_resolved().await?,
+                chunk_item_key,
                 chunk_item.content_ident().to_resolved().await?,
             ));
         }

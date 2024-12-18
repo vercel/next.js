@@ -262,14 +262,16 @@ async fn parse_file_content(
         source,
         source_map.clone(),
         Some("Ecmascript file had an error".into()),
-    );
+    )
+    .await?;
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let (emitter, collector_parse) = IssueEmitter::new(
         source,
         source_map.clone(),
         Some("Parsing ecmascript source code failed".into()),
-    );
+    )
+    .await?;
     let parser_handler = Handler::with_emitter(true, false, Box::new(emitter));
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;

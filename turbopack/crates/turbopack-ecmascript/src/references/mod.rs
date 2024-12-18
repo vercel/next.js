@@ -590,7 +590,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         }
     }
 
-    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None);
+    let (emitter, collector) = IssueEmitter::new(source, source_map.clone(), None).await?;
     let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
     let mut var_graph =
@@ -846,13 +846,12 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .resolved_cell();
         analysis.set_async_module(async_module);
     } else if let Some(span) = top_level_await_span {
-        AnalyzeIssue::new(
+        AnalyzeIssue::new_with_source(
             IssueSeverity::Error.cell(),
-            source.ident(),
             Vc::cell("unexpected top level await".into()),
             StyledString::Text("top level await is only supported in ESM modules.".into()).cell(),
             None,
-            Some(issue_source(*source, span)),
+            issue_source(*source, span),
         )
         .to_resolved()
         .await?

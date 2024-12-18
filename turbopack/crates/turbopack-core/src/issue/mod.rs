@@ -524,17 +524,7 @@ impl IssueSource {
         start: usize,
         end: usize,
     ) -> Vc<Self> {
-        Self::cell(IssueSource {
-            source,
-            range: match (start == 0, end == 0) {
-                (true, true) => None,
-                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
-                (false, true) => {
-                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
-                }
-                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
-            },
-        })
+        *Self::from_swc_offsets_inline(source, start, end)
     }
 
     #[turbo_tasks::function]
@@ -588,6 +578,24 @@ impl IssueSource {
                 }
             },
             _ => None,
+        })
+    }
+
+    pub fn from_swc_offsets_inline(
+        source: ResolvedVc<Box<dyn Source>>,
+        start: usize,
+        end: usize,
+    ) -> ResolvedVc<Self> {
+        Self::resolved_cell(IssueSource {
+            source,
+            range: match (start == 0, end == 0) {
+                (true, true) => None,
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
+                (false, true) => {
+                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
+                }
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
+            },
         })
     }
 }
