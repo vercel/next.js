@@ -13,7 +13,7 @@
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
-    "@types/react": "^19.0.1",
+    "@types/react": "^19.0.2",
     "@types/react-dom": "^19.0.2",
     "typescript": "^5.7.2"
   }
