@@ -22,6 +22,9 @@ overrides:
   scheduler: 0.25.0-rc-372ec00c-20241209
 
 patchedDependencies:
+  '@storybook/react@8.4.7':
+    hash: 3vtnbaj5dhujyrhznezprlo624
+    path: patches/@storybook__react@8.4.7.patch
   webpack-sources@3.2.3:
     hash: jbynf5dc46ambamq3wuyho6hkq
     path: patches/webpack-sources@3.2.3.patch
@@ -1013,7 +1016,7 @@ importers:
         version: 8.4.7(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))
       '@storybook/react':
         specifier: ^8.4.7
-        version: 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+        version: 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react-webpack5':
         specifier: ^8.4.7
         version: 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
@@ -20612,7 +20615,7 @@ snapshots:
   '@storybook/preset-react-webpack@8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
       '@storybook/core-webpack': 8.4.7(storybook@8.4.7(prettier@3.3.3))
-      '@storybook/react': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+      '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react-docgen-typescript-plugin': 1.0.6--canary.9.0c3f3b7.0(typescript@5.7.2)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       '@types/node': 20.17.6
       '@types/semver': 7.5.6
@@ -20664,7 +20667,7 @@ snapshots:
     dependencies:
       '@storybook/builder-webpack5': 8.4.7(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/preset-react-webpack': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-      '@storybook/react': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+      '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@types/node': 20.17.6
       react: 19.0.0-rc-372ec00c-20241209
       react-dom: 19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209)
@@ -20680,7 +20683,7 @@ snapshots:
       - uglify-js
       - webpack-cli
 
-  '@storybook/react@8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
+  '@storybook/react@8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.0.0-rc-372ec00c-20241209(react@19.0.0-rc-372ec00c-20241209))(react@19.0.0-rc-372ec00c-20241209)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
       '@storybook/components': 8.4.7(storybook@8.4.7(prettier@3.3.3))
       '@storybook/global': 5.0.0
