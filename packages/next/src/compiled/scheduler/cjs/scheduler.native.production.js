@@ -78,6 +78,7 @@ var taskQueue = [],
   isPerformingWork = !1,
   isHostCallbackScheduled = !1,
   isHostTimeoutScheduled = !1,
+  needsPaint = !1,
   localSetTimeout = "function" === typeof setTimeout ? setTimeout : null,
   localClearTimeout = "function" === typeof clearTimeout ? clearTimeout : null,
   localSetImmediate = "undefined" !== typeof setImmediate ? setImmediate : null;
@@ -168,10 +169,13 @@ var isMessageLoopRunning = !1,
   taskTimeoutID = -1,
   startTime = -1;
 function shouldYieldToHost() {
-  return 5 > getCurrentTime() - startTime ? !1 : !0;
+  return needsPaint ? !0 : 5 > getCurrentTime() - startTime ? !1 : !0;
 }
-function requestPaint() {}
+function requestPaint() {
+  needsPaint = !0;
+}
 function performWorkUntilDeadline() {
+  needsPaint = !1;
   if (isMessageLoopRunning) {
     var currentTime = getCurrentTime();
     startTime = currentTime;

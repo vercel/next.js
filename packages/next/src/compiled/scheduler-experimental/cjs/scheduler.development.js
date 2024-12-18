@@ -28,15 +28,7 @@
             try {
               b: {
                 advanceTimers(currentTime);
-                for (
-                  currentTask = peek(taskQueue);
-                  null !== currentTask &&
-                  !(
-                    currentTask.expirationTime > currentTime &&
-                    shouldYieldToHost()
-                  );
-
-                ) {
+                for (currentTask = peek(taskQueue); null !== currentTask; ) {
                   var callback = currentTask.callback;
                   if ("function" === typeof callback) {
                     currentTask.callback = null;
@@ -55,6 +47,11 @@
                     advanceTimers(currentTime);
                   } else pop(taskQueue);
                   currentTask = peek(taskQueue);
+                  if (
+                    null === currentTask ||
+                    currentTask.expirationTime > currentTime
+                  )
+                    break;
                 }
                 if (null !== currentTask) hasMoreWork = !0;
                 else {
@@ -159,9 +156,6 @@
               firstTimer.startTime - currentTime
             );
         }
-    }
-    function shouldYieldToHost() {
-      return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
     }
     function requestHostCallback() {
       isMessageLoopRunning ||
@@ -344,7 +338,9 @@
             ((isHostCallbackScheduled = !0), requestHostCallback()));
       return priorityLevel;
     };
-    exports.unstable_shouldYield = shouldYieldToHost;
+    exports.unstable_shouldYield = function () {
+      return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
+    };
     exports.unstable_wrapCallback = function (callback) {
       var parentPriorityLevel = currentPriorityLevel;
       return function () {

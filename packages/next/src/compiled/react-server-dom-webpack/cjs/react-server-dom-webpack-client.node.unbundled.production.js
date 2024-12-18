@@ -1538,6 +1538,7 @@ function processFullStringRow(response, id, tag, row) {
         ? chunk.reason.enqueueValue(row)
         : tag.set(id, new ReactPromise("fulfilled", row, null, response));
       break;
+    case 78:
     case 68:
     case 87:
       throw Error(
