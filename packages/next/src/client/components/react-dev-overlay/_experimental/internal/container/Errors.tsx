@@ -34,7 +34,7 @@ import {
   isUnhandledConsoleOrRejection,
 } from '../helpers/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
-import { ErrorIndicator } from '../components/ErrorIndicator/ErrorIndicator'
+import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
 
 export type SupportedErrorEvent = {
   id: number

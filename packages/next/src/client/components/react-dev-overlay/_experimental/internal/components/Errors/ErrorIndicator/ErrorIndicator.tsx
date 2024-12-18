@@ -1,6 +1,6 @@
-import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
-import { Toast } from '../Toast'
-import { CloseIcon } from '../../icons/CloseIcon'
+import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+import { Toast } from '../../Toast'
+import { CloseIcon } from '../../../icons/CloseIcon'
 
 type ErrorIndicatorProps = {
   readyErrors: ReadyRuntimeError[]

@@ -1,7 +1,7 @@
-import type { VersionInfo } from '../../../../../../../server/dev/parse-version-info'
-import { Dialog, DialogHeader, DialogBody, DialogContent } from '../Dialog'
-import { Overlay } from '../Overlay'
-import { VersionStalenessInfo } from '../VersionStalenessInfo'
+import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
+import { Dialog, DialogHeader, DialogBody, DialogContent } from '../../Dialog'
+import { Overlay } from '../../Overlay'
+import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 
 type ErrorOverlayLayoutProps = {
   errorType:

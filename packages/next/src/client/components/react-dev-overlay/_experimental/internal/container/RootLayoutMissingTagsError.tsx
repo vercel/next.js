@@ -1,7 +1,7 @@
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { useCallback } from 'react'
 import { HotlinkedText } from '../components/hot-linked-text'
-import { ErrorOverlayLayout } from '../components/ErrorOverlayLayout/ErrorOverlayLayout'
+import { ErrorOverlayLayout } from '../components/Errors/ErrorOverlayLayout/ErrorOverlayLayout'
 
 type RootLayoutMissingTagsErrorProps = {
   missingTags: string[]
