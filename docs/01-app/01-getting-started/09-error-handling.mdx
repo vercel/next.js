@@ -14,13 +14,13 @@ related:
 
 Errors can be divided into two categories: [expected errors](#handling-expected-errors) and [uncaught exceptions](#handling-uncaught-exceptions). This page will walk you through how you can handle these errors in your Next.js application.
 
-## Handling Expected Errors
+## Handling expected errors
 
 Expected errors are those that can occur during the normal operation of the application, such as those from [server-side form validation](/docs/app/building-your-application/data-fetching/server-actions-and-mutations#server-side-form-validation) or failed requests. These errors should be handled explicitly and returned to the client.
 
 ### Server Actions
 
-You can use the `useActionState` hook to manage the state of [Server Functions](https://react.dev/reference/rsc/server-functions) and handle expected errors. Avoid using `try`/`catch` blocks for expected errors. Instead, you can model expected errors as return values, not as thrown exceptions.
+You can use the [`useActionState`](https://react.dev/reference/react/useActionState) hook to manage the state of [Server Functions](https://react.dev/reference/rsc/server-functions) and handle expected errors. Avoid using `try`/`catch` blocks for expected errors. Instead, you can model expected errors as return values, not as thrown exceptions.
 
 ```ts filename="app/actions.ts" switcher
 'use server'
@@ -144,9 +144,9 @@ export default async function Page() {
 }
 ```
 
-### Not Found
+### Not found
 
-You can call the [`notFound`](/docs/app/api-reference/functions/not-found) function within a route segment and use the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file to show a 404 fallback UI when a route is not found.
+You can call the [`notFound`](/docs/app/api-reference/functions/not-found) function within a route segment and use the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file to show a 404 UI.
 
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import { getPostBySlug } from '@/lib/posts'
