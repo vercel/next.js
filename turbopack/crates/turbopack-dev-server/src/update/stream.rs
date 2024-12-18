@@ -25,7 +25,7 @@ use crate::source::{resolve::ResolveSourceRequestResult, ProxyResult};
 
 type GetContentFn = Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>;
 
-async fn peek_issues<T: Send>(source: Vc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
+async fn peek_issues<T: Send>(source: OperationVc<T>) -> Result<Vec<ReadRef<PlainIssue>>> {
     let captured = source.peek_issues_with_path().await?;
 
     captured.get_plain_issues().await
@@ -41,15 +41,24 @@ fn extend_issues(issues: &mut Vec<ReadRef<PlainIssue>>, new_issues: Vec<ReadRef<
     }
 }
 
+#[turbo_tasks::function(operation)]
+fn versioned_content_update_operation(
+    content: ResolvedVc<Box<dyn VersionedContent>>,
+    from: ResolvedVc<Box<dyn Version>>,
+) -> Vc<Update> {
+    content.update(*from)
+}
+
 #[turbo_tasks::function]
 async fn get_update_stream_item(
     resource: RcStr,
     from: Vc<VersionState>,
     get_content: TransientInstance<GetContentFn>,
 ) -> Result<Vc<UpdateStreamItem>> {
-    let content_vc = get_content().connect();
+    let content_op = get_content();
+    let content_vc = content_op.connect();
     let content_result = content_vc.strongly_consistent().await;
-    let mut plain_issues = peek_issues(content_vc).await?;
+    let mut plain_issues = peek_issues(content_op).await?;
 
     let content_value = match content_result {
         Ok(content) => content,
@@ -89,27 +98,26 @@ async fn get_update_stream_item(
             }
 
             let resolved_content = static_content.content;
-            let from = from.get();
-            let update = resolved_content.update(from);
+            let from = from.get().to_resolved().await?;
+            let update_op = versioned_content_update_operation(resolved_content, from);
 
-            extend_issues(&mut plain_issues, peek_issues(update).await?);
-
-            let update = update.await?;
+            extend_issues(&mut plain_issues, peek_issues(update_op).await?);
 
             Ok(UpdateStreamItem::Found {
-                update,
+                update: update_op.connect().await?,
                 issues: plain_issues,
             }
             .cell())
         }
-        ResolveSourceRequestResult::HttpProxy(proxy_result) => {
-            let proxy_result_value = proxy_result.await?;
+        ResolveSourceRequestResult::HttpProxy(proxy_result_op) => {
+            let proxy_result_vc = proxy_result_op.connect();
+            let proxy_result_value = proxy_result_vc.await?;
 
             if proxy_result_value.status == 404 {
                 return Ok(UpdateStreamItem::NotFound.cell());
             }
 
-            extend_issues(&mut plain_issues, peek_issues(proxy_result).await?);
+            extend_issues(&mut plain_issues, peek_issues(proxy_result_op).await?);
 
             let from = from.get();
             if let Some(from) = Vc::try_resolve_downcast_type::<ProxyResult>(from).await? {
@@ -124,7 +132,7 @@ async fn get_update_stream_item(
 
             Ok(UpdateStreamItem::Found {
                 update: Update::Total(TotalUpdate {
-                    to: Vc::upcast::<Box<dyn Version>>(proxy_result)
+                    to: Vc::upcast::<Box<dyn Version>>(proxy_result_vc)
                         .into_trait_ref()
                         .await?,
                 })
@@ -195,7 +203,9 @@ impl UpdateStream {
             ResolveSourceRequestResult::Static(static_content, _) => {
                 static_content.await?.content.version()
             }
-            ResolveSourceRequestResult::HttpProxy(proxy_result) => Vc::upcast(proxy_result),
+            ResolveSourceRequestResult::HttpProxy(proxy_result) => {
+                Vc::upcast(proxy_result.connect())
+            }
             _ => Vc::upcast(NotFoundVersion::new()),
         };
         let version_state = VersionState::new(version.into_trait_ref().await?).await?;
