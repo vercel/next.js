@@ -12,6 +12,7 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function performWorkUntilDeadline() {
+      needsPaint = !1;
       if (isMessageLoopRunning) {
         var currentTime = getCurrentTime();
         startTime = currentTime;
@@ -222,9 +223,15 @@
       return currentPriorityLevel;
     }
     function shouldYieldToHost() {
-      return getCurrentTime() - startTime < frameInterval ? !1 : !0;
+      return needsPaint
+        ? !0
+        : getCurrentTime() - startTime < frameInterval
+          ? !1
+          : !0;
     }
-    function requestPaint() {}
+    function requestPaint() {
+      needsPaint = !0;
+    }
     function requestHostTimeout(callback, ms) {
       taskTimeoutID = localSetTimeout(function () {
         callback(getCurrentTime());
@@ -256,6 +263,7 @@
       isPerformingWork = !1,
       isHostCallbackScheduled = !1,
       isHostTimeoutScheduled = !1,
+      needsPaint = !1,
       localSetTimeout = "function" === typeof setTimeout ? setTimeout : null,
       localClearTimeout =
         "function" === typeof clearTimeout ? clearTimeout : null,

@@ -188,14 +188,7 @@ function performWorkUntilDeadline() {
         try {
           b: {
             advanceTimers(currentTime);
-            for (
-              currentTask = peek(taskQueue);
-              null !== currentTask &&
-              !(
-                currentTask.expirationTime > currentTime && shouldYieldToHost()
-              );
-
-            ) {
+            for (currentTask = peek(taskQueue); null !== currentTask; ) {
               var callback = currentTask.callback;
               if ("function" === typeof callback) {
                 currentTask.callback = null;
@@ -214,6 +207,11 @@ function performWorkUntilDeadline() {
                 advanceTimers(currentTime);
               } else pop(taskQueue);
               currentTask = peek(taskQueue);
+              if (
+                null === currentTask ||
+                currentTask.expirationTime > currentTime
+              )
+                break;
             }
             if (null !== currentTask) hasMoreWork = !0;
             else {

@@ -108,9 +108,6 @@ var isMessageLoopRunning = !1,
   taskTimeoutID = -1,
   frameInterval = 5,
   startTime = -1;
-function shouldYieldToHost() {
-  return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
-}
 function performWorkUntilDeadline() {
   if (isMessageLoopRunning) {
     var currentTime = exports.unstable_now();
@@ -128,14 +125,7 @@ function performWorkUntilDeadline() {
         try {
           b: {
             advanceTimers(currentTime);
-            for (
-              currentTask = peek(taskQueue);
-              null !== currentTask &&
-              !(
-                currentTask.expirationTime > currentTime && shouldYieldToHost()
-              );
-
-            ) {
+            for (currentTask = peek(taskQueue); null !== currentTask; ) {
               var callback = currentTask.callback;
               if ("function" === typeof callback) {
                 currentTask.callback = null;
@@ -154,6 +144,11 @@ function performWorkUntilDeadline() {
                 advanceTimers(currentTime);
               } else pop(taskQueue);
               currentTask = peek(taskQueue);
+              if (
+                null === currentTask ||
+                currentTask.expirationTime > currentTime
+              )
+                break;
             }
             if (null !== currentTask) hasMoreWork = !0;
             else {
@@ -326,7 +321,9 @@ exports.unstable_scheduleCallback = function (
         ((isHostCallbackScheduled = !0), requestHostCallback()));
   return priorityLevel;
 };
-exports.unstable_shouldYield = shouldYieldToHost;
+exports.unstable_shouldYield = function () {
+  return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
+};
 exports.unstable_wrapCallback = function (callback) {
   var parentPriorityLevel = currentPriorityLevel;
   return function () {

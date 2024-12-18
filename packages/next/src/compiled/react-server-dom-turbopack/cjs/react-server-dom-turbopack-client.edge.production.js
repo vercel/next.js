@@ -1567,6 +1567,7 @@ function processFullBinaryRow(response, id, tag, buffer, chunk) {
         ? chunk.reason.enqueueValue(buffer)
         : tag.set(id, new ReactPromise("fulfilled", buffer, null, response));
       break;
+    case 78:
     case 68:
     case 87:
       throw Error(

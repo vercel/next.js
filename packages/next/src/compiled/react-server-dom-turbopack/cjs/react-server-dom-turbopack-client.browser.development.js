@@ -2073,6 +2073,7 @@
         case 84:
           resolveText(response, id, row);
           break;
+        case 78:
         case 68:
           tag = new ReactPromise("resolved_model", row, null, response);
           initializeModelChunk(tag);
@@ -2451,10 +2452,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-372ec00c-20241209",
+      version: "19.1.0-canary-7eb8234f-20241218",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-372ec00c-20241209",
+      reconcilerVersion: "19.1.0-canary-7eb8234f-20241218",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

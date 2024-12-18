@@ -12,6 +12,7 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function performWorkUntilDeadline() {
+      needsPaint = !1;
       if (isMessageLoopRunning) {
         var currentTime = exports.unstable_now();
         startTime = currentTime;
@@ -161,7 +162,11 @@
         }
     }
     function shouldYieldToHost() {
-      return exports.unstable_now() - startTime < frameInterval ? !1 : !0;
+      return needsPaint
+        ? !0
+        : exports.unstable_now() - startTime < frameInterval
+          ? !1
+          : !0;
     }
     function requestHostCallback() {
       isMessageLoopRunning ||
@@ -200,6 +205,7 @@
       isPerformingWork = !1,
       isHostCallbackScheduled = !1,
       isHostTimeoutScheduled = !1,
+      needsPaint = !1,
       localSetTimeout = "function" === typeof setTimeout ? setTimeout : null,
       localClearTimeout =
         "function" === typeof clearTimeout ? clearTimeout : null,
@@ -270,7 +276,9 @@
       }
     };
     exports.unstable_pauseExecution = function () {};
-    exports.unstable_requestPaint = function () {};
+    exports.unstable_requestPaint = function () {
+      needsPaint = !0;
+    };
     exports.unstable_runWithPriority = function (priorityLevel, eventHandler) {
       switch (priorityLevel) {
         case 1:

@@ -28,15 +28,7 @@
             try {
               b: {
                 advanceTimers(currentTime);
-                for (
-                  currentTask = peek(taskQueue);
-                  null !== currentTask &&
-                  !(
-                    currentTask.expirationTime > currentTime &&
-                    shouldYieldToHost()
-                  );
-
-                ) {
+                for (currentTask = peek(taskQueue); null !== currentTask; ) {
                   var callback = currentTask.callback;
                   if ("function" === typeof callback) {
                     currentTask.callback = null;
@@ -55,6 +47,11 @@
                     advanceTimers(currentTime);
                   } else pop(taskQueue);
                   currentTask = peek(taskQueue);
+                  if (
+                    null === currentTask ||
+                    currentTask.expirationTime > currentTime
+                  )
+                    break;
                 }
                 if (null !== currentTask) hasMoreWork = !0;
                 else {
@@ -222,7 +219,7 @@
       return currentPriorityLevel;
     }
     function shouldYieldToHost() {
-      return getCurrentTime() - startTime < frameInterval ? !1 : !0;
+      return 5 > getCurrentTime() - startTime ? !1 : !0;
     }
     function requestPaint() {}
     function requestHostTimeout(callback, ms) {
@@ -263,7 +260,6 @@
         "undefined" !== typeof setImmediate ? setImmediate : null,
       isMessageLoopRunning = !1,
       taskTimeoutID = -1,
-      frameInterval = 5,
       startTime = -1;
     if ("function" === typeof localSetImmediate)
       var schedulePerformWorkUntilDeadline = function () {

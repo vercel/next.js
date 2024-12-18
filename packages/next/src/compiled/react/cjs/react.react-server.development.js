@@ -361,7 +361,7 @@
       if ("object" === typeof type)
         switch (type.$$typeof) {
           case REACT_FORWARD_REF_TYPE:
-            return (type = describeNativeComponentFrame(type.render, !1)), type;
+            return describeNativeComponentFrame(type.render, !1);
           case REACT_MEMO_TYPE:
             return describeUnknownElementTypeFrameInDEV(type.type);
           case REACT_LAZY_TYPE:
@@ -1110,5 +1110,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.0.0-rc-372ec00c-20241209";
+    exports.version = "19.1.0-canary-7eb8234f-20241218";
   })();

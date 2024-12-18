@@ -2251,6 +2251,7 @@
         case 84:
           resolveText(response, id, row);
           break;
+        case 78:
         case 68:
           tag = new ReactPromise("resolved_model", row, null, response);
           initializeModelChunk(tag);
