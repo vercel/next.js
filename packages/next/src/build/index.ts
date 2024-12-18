@@ -293,6 +293,12 @@ export interface DynamicSsgRoute {
    */
   fallbackRootParams: readonly string[] | undefined
 
+  /**
+   * The source route that this fallback route is based on. This is a reference
+   * so that we can associate this dynamic route with the correct source.
+   */
+  fallbackSourceRoute: string | undefined
+
   prefetchDataRoute: string | null | undefined
   prefetchDataRouteRegex: string | null | undefined
   routeRegex: string
@@ -3181,6 +3187,9 @@ export default async function build(
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
                   fallbackRootParams: route.fallbackRootParams,
+                  fallbackSourceRoute: route.fallbackRouteParams?.length
+                    ? page
+                    : undefined,
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
@@ -3608,6 +3617,7 @@ export default async function build(
                 ? `${normalizedRoute}.html`
                 : false,
             fallbackRevalidate: undefined,
+            fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
