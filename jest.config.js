@@ -5,6 +5,7 @@ const createJestConfig = nextJest()
 // Any custom config you want to pass to Jest
 /** @type {import('jest').Config} */
 const customJestConfig = {
+  displayName: 'default',
   testMatch: ['**/*.test.js', '**/*.test.ts', '**/*.test.jsx', '**/*.test.tsx'],
   setupFilesAfterEnv: ['<rootDir>/jest-setup-after-env.ts'],
   verbose: true,

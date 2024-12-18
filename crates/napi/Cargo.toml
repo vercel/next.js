@@ -135,8 +135,8 @@ tokio = { workspace = true, features = ["full"] }
 
 [build-dependencies]
 napi-build = "2"
-serde = "1"
-serde_json = "1"
+serde = { workspace = true }
+serde_json = { workspace = true }
 # It is not a mistake this dependency is specified in dep / build-dep both.
 shadow-rs = { workspace = true }
 

@@ -50,6 +50,8 @@ When a redirect is applied, any query values provided in the request will be pas
 }
 ```
 
+> **Good to know**: Remember to include the forward slash `/` before the colon `:` in path parameters of the `source` and `destination` paths, otherwise the path will be treated as a literal string and you run the risk of causing infinite redirects.
+
 When `/old-blog/post-1?hello=world` is requested, the client will be redirected to `/blog/post-1?hello=world`.
 
 ## Path Matching

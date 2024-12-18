@@ -1,3 +1,3 @@
 export default function PPREnabled() {
-  return '(intentionally empty)'
+  return <div id="page-content">Page content</div>
 }

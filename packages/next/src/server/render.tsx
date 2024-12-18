@@ -142,9 +142,9 @@ class ServerRouter implements NextRouter {
   isFallback: boolean
   locale?: string
   isReady: boolean
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  domainLocales?: readonly DomainLocale[]
   isPreview: boolean
   isLocaleDomain: boolean
 
@@ -156,9 +156,9 @@ class ServerRouter implements NextRouter {
     isReady: boolean,
     basePath: string,
     locale?: string,
-    locales?: string[],
+    locales?: readonly string[],
     defaultLocale?: string,
-    domainLocales?: DomainLocale[],
+    domainLocales?: readonly DomainLocale[],
     isPreview?: boolean,
     isLocaleDomain?: boolean
   ) {
@@ -261,9 +261,9 @@ export type RenderOptsPartial = {
   nextFontManifest?: DeepReadonly<NextFontManifest>
   distDir?: string
   locale?: string
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  domainLocales?: readonly DomainLocale[]
   disableOptimizedLoading?: boolean
   supportsDynamicResponse: boolean
   isBot?: boolean
@@ -848,7 +848,7 @@ export async function renderToHTMLImpl(
             ...(isPreview
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
-            locales: renderOpts.locales,
+            locales: [...(renderOpts.locales ?? [])],
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
             revalidateReason: renderOpts.isOnDemandRevalidate
@@ -1071,7 +1071,10 @@ export async function renderToHTMLImpl(
             ...(previewData !== false
               ? { draftMode: true, preview: true, previewData: previewData }
               : undefined),
-            locales: renderOpts.locales,
+            // We create a copy here to avoid having the types of
+            // `getServerSideProps` change. This ensures that users can't
+            // mutate this array and have it poison the reference.
+            locales: [...(renderOpts.locales ?? [])],
             locale: renderOpts.locale,
             defaultLocale: renderOpts.defaultLocale,
           })

@@ -33,13 +33,14 @@ use self::{
 };
 
 /// The result of proxying a request to another HTTP server.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 pub struct ProxyResult {
     /// The HTTP status code to return.
     pub status: u16,
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<(RcStr, RcStr)>,
     /// The body to return.
+    #[turbo_tasks(trace_ignore)]
     pub body: Body,
 }
 
