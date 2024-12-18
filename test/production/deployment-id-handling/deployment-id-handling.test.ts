@@ -90,16 +90,20 @@ describe.each(['NEXT_DEPLOYMENT_ID', 'CUSTOM_DEPLOYMENT_ID'])(
         beforePageLoad(page) {
           page.on('request', async (req) => {
             const headers = await req.allHeaders()
-            if (headers['x-next-data']) {
+            if (headers['x-nextjs-data']) {
               dataHeaders.push(headers)
             }
           })
         },
       })
 
-      await browser.elementById('edge-link').click()
+      await browser.elementByCss('#edge-link').click()
 
-      expect(dataHeaders.length).toBeGreaterThan(0)
+      await retry(async () => {
+        expect(await browser.elementByCss('h1').text()).toBe('hello pages edge')
+        expect(await browser.url()).toContain('/pages-edge')
+        expect(dataHeaders.length).toBeGreaterThan(0)
+      })
 
       expect(
         dataHeaders.every(
