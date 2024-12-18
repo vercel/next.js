@@ -2753,12 +2753,6 @@ async function prerenderToStream(
                   clientReferenceManifest.clientModules,
                   {
                     onError: (err: unknown) => {
-                      // TODO we can remove this once https://github.com/facebook/react/pull/31715 lands
-                      // because we won't have onError calls when halting the prerender
-                      if (finalServerController.signal.aborted) {
-                        return
-                      }
-
                       return serverComponentsErrorHandler(err)
                     },
                     signal: finalServerController.signal,
