@@ -1,4 +1,4 @@
-# Deploying to GitHub Pages with GitHub Actions
+# Deploying Next.js Application to GitHub Pages with GitHub Actions
 
 This example supports deploying a statically exported Next.js application to GitHub Pages eliminating the need to run a script for deployment after making changes. It also omits the need for a separate branch.
 
