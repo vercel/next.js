@@ -278,7 +278,8 @@
       "scheduler": "0.25.0-rc-372ec00c-20241209"
     },
     "patchedDependencies": {
-      "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"
+      "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
+      "@storybook/react@8.4.7": "patches/@storybook__react@8.4.7.patch"
     }
   }
 }
