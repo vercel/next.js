@@ -4,7 +4,6 @@ use anyhow::{bail, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
@@ -39,16 +38,6 @@ impl NextDynamicEntryModule {
     pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
         NextDynamicEntryModule { module }.cell()
     }
-
-    #[turbo_tasks::function]
-    pub fn server_path(&self) -> Vc<FileSystemPath> {
-        self.module.ident().path()
-    }
-}
-
-#[turbo_tasks::function]
-fn dynamic_modifier() -> Vc<RcStr> {
-    Vc::cell("next/dynamic entry".into())
 }
 
 #[turbo_tasks::function]
