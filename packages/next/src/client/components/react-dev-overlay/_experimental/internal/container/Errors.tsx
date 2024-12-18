@@ -26,8 +26,6 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
-import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
-import { CopyButton } from '../components/copy-button'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
@@ -35,6 +33,7 @@ import {
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
 import { ErrorPagination } from '../components/Errors/ErrorPagination/ErrorPagination'
+import { ToolButtonsGroup } from '../components/ToolButtonsGroup/ToolButtonsGroup'
 
 export type SupportedErrorEvent = {
   id: number
@@ -297,19 +296,7 @@ export function Errors({
                     ? 'Console Error'
                     : 'Unhandled Runtime Error'}
               </h1>
-              <span>
-                <CopyButton
-                  data-nextjs-data-runtime-error-copy-stack
-                  actionLabel="Copy error stack"
-                  successLabel="Copied"
-                  content={error.stack || ''}
-                  disabled={!error.stack}
-                />
-
-                <NodejsInspectorCopyButton
-                  devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
-                />
-              </span>
+              <ToolButtonsGroup error={error} debugInfo={debugInfo} />
             </div>
             <p
               id="nextjs__container_errors_desc"
