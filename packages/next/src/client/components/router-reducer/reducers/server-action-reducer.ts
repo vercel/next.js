@@ -247,7 +247,7 @@ export function serverActionReducer(
       }
 
       if (!flightData) {
-        resolve(actionResult)
+        reject(actionResult)
 
         // If there is a redirect but no flight data we need to do a mpaNavigation.
         if (redirectLocation) {
