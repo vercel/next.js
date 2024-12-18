@@ -7,6 +7,9 @@ related:
   description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
     - app/api-reference/functions/redirect
+    - app/api-reference/file-conventions/error
+    - app/api-reference/functions/not-found
+    - app/api-reference/file-conventions/not-found
 ---
 
 Errors can be divided into two categories: [expected errors](#handling-expected-errors) and [uncaught exceptions](#handling-uncaught-exceptions). This page will walk you through how you can handle these errors in your Next.js application.
@@ -138,5 +141,49 @@ export default async function Page() {
   }
 
   return '...'
+}
+```
+
+### Not Found
+
+You can call the [`notFound`](/docs/app/api-reference/functions/not-found) function within a route segment and use the [`not-found.js`](/docs/app/api-reference/file-conventions/not-found) file to show a 404 fallback UI when a route is not found.
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+import { getPostBySlug } from '@/lib/posts'
+
+export default function Page({ params }: { params: { slug: string } }) {
+  const post = getPostBySlug(params.slug)
+
+  if (!post) {
+    notFound()
+  }
+
+  return <div>{post.title}</div>
+}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+import { getPostBySlug } from '@/lib/posts'
+
+export default function Page({ params }) {
+  const post = getPostBySlug(params.slug)
+
+  if (!post) {
+    notFound()
+  }
+
+  return <div>{post.title}</div>
+}
+```
+
+```tsx filename="app/blog/[slug]/not-found.tsx" switcher
+export default function NotFound() {
+  return <div>404 - Page Not Found</div>
+}
+```
+
+```jsx filename="app/blog/[slug]/not-found.js" switcher
+export default function NotFound() {
+  return <div>404 - Page Not Found</div>
 }
 ```
