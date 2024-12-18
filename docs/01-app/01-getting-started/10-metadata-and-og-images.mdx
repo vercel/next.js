@@ -10,3 +10,14 @@ related:
     - app/api-reference/file-conventions/metadata/opengraph-image
     - app/api-reference/functions/generate-metadata
 ---
+
+Next.js comes with Metadata APIs and [file conventions](/docs/app/api-reference/file-conventions/metadata) that can be used to add metadata to your pages and create [Open Graph (OG) images](/docs/app/api-reference/file-conventions/metadata/opengraph-image). This page will walk you through how to use these features to improve your application's SEO and web shareability.
+
+There are three ways you can add metadata to your application:
+s
+
+1. Using the [static `metadata` object](/docs/app/api-reference/functions/generate-metadata#metadata-object)
+2. Using the [dynamic `generateMetadata` function](/docs/app/api-reference/functions/generate-metadata#generatemetadata-function) in a `layout.js` or `page.js` file.
+3. Using special [file conventions](/docs/app/api-reference/file-conventions/metadata) to add static or dynamically generated special files.
+
+With all these options, Next.js will automatically generate the relevant `<head>` elements for your pages.
