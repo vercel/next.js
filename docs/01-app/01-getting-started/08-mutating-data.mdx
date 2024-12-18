@@ -15,7 +15,7 @@ You can mutate data in Next.js using React's [Server Functions](https://react.de
 
 ## Creating Server Functions
 
-A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
+A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file. We recommend using a separate file in most instances.
 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
