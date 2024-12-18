@@ -588,22 +588,24 @@ async fn get_module_graph_for_endpoint(
     };
 
     // ast-grep-ignore: to-resolved-in-loop
-    for module in server_component_entries
-        .iter()
-        .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
-    {
+    for module in server_component_entries.iter() {
         let graph = SingleModuleGraph::new_with_entries_visited(
             *entry,
-            vec![*module],
+            vec![Vc::upcast(**module)],
             Vc::cell(visited_modules.clone()),
         )
         .to_resolved()
         .await?;
-        visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
         graphs.push(graph);
+        let is_layout = module.server_path().file_stem().await?.as_deref() == Some("layout");
+        if is_layout {
+            // Only propagate the visited_modules of the parent layout(s), not across siblings such
+            // as loading.js and page.js.
+            visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
+        }
     }
 
-    // The previous iterations above (might) have added the entry node, but not actually visited it.
+    // Any previous iteration above would have added the entry node, but not actually visited it.
     visited_modules.remove(&entry);
     let graph = SingleModuleGraph::new_with_entries_visited(
         *entry,
