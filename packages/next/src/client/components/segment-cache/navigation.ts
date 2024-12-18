@@ -136,6 +136,9 @@ function navigateUsingPrefetchedRouteTree(
   // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
   // read from the Segment Cache directly. It's only structured this way for now
   // so we can share code with the old prefetching implementation.
+  // TODO: Need to detect whether we're navigating to a new root layout, i.e.
+  // reimplement the isNavigatingToNewRootLayout logic
+  // inside updateCacheNodeOnNavigation.
   const task = updateCacheNodeOnNavigation(
     currentCacheNode,
     currentFlightRouterState,
