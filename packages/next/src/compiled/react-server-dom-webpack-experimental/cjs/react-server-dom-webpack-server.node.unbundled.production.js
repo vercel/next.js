@@ -2369,6 +2369,8 @@ function initializeModelChunk(chunk) {
   }
 }
 function reportGlobalError(response, error) {
+  response._closed = !0;
+  response._closedReason = error;
   response._chunks.forEach(function (chunk) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
@@ -2381,7 +2383,9 @@ function getChunk(response, id) {
     (chunk =
       null != chunk
         ? new Chunk("resolved_model", chunk, id, response)
-        : createPendingChunk(response)),
+        : response._closed
+          ? new Chunk("rejected", null, response._closedReason, response)
+          : createPendingChunk(response)),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -2778,6 +2782,8 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
     _prefix: formFieldPrefix,
     _formData: backingFormData,
     _chunks: chunks,
+    _closed: !1,
+    _closedReason: null,
     _temporaryReferences: temporaryReferences
   };
 }
