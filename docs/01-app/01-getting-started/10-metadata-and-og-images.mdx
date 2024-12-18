@@ -46,4 +46,62 @@ export const metadata = {
 export default function Page() {}
 ```
 
+## Dynamic metadata
+
+You can use `generateMetadata` function to `fetch` metadata that requires dynamic values. For example, to fetch the title for a blog post:
+
+```tsx filename="app/blog/[slug]/page.tsx" switcher
+import type { Metadata, ResolvingMetadata } from 'next'
+
+type Props = {
+  params: Promise<{ id: string }>
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>
+}
+
+export async function generateMetadata(
+  { params, searchParams }: Props,
+  parent: ResolvingMetadata
+): Promise<Metadata> {
+  const slug = (await params).slug
+
+  // fetch post information
+  const post = await fetch(`https://api.vercel.app/blog/${slug}`).then((res) =>
+    res.json()
+  )
+
+  return {
+    title: post.title,
+    description: post.description,
+    openGraph: {
+      url: `https://example.com/blog/${slug}`,
+      images: [{ url: post.imageUrl, width: 1800, height: 1600 }],
+    },
+  }
+}
+
+export default function Page({ params, searchParams }: Props) {}
+```
+
+```jsx filename="app/blog/[slug]/page.js" switcher
+export async function generateMetadata({ params, searchParams }, parent) {
+  const slug = (await params).slug
+
+  // fetch post information
+  const post = await fetch(`https://api.vercel.app/blog/${slug}`).then((res) =>
+    res.json()
+  )
+
+  return {
+    title: post.title,
+    description: post.description,
+    openGraph: {
+      url: `https://example.com/blog/${slug}`,
+      images: [{ url: post.imageUrl, width: 1800, height: 1600 }],
+    },
+  }
+}
+
+export default function Page({ params, searchParams }) {}
+```
+
 To learn more about the available options, see the [API Reference](/docs/app/api-reference/functions/generate-metadata).
