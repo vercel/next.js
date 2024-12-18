@@ -21,8 +21,8 @@ import {
   readRouteCacheEntry,
   readSegmentCacheEntry,
   waitForSegmentCacheEntry,
+  type RouteTree,
 } from './cache'
-import type { TreePrefetch } from '../../../server/app-render/collect-segment-data'
 import { createCacheKey } from './cache-key'
 
 export const enum NavigationResultTag {
@@ -136,6 +136,9 @@ function navigateUsingPrefetchedRouteTree(
   // TODO: Eventually updateCacheNodeOnNavigation (or the equivalent) should
   // read from the Segment Cache directly. It's only structured this way for now
   // so we can share code with the old prefetching implementation.
+  // TODO: Need to detect whether we're navigating to a new root layout, i.e.
+  // reimplement the isNavigatingToNewRootLayout logic
+  // inside updateCacheNodeOnNavigation.
   const task = updateCacheNodeOnNavigation(
     currentCacheNode,
     currentFlightRouterState,
@@ -180,7 +183,7 @@ function navigationTaskToResult(
 
 function readRenderSnapshotFromCache(
   now: number,
-  tree: TreePrefetch
+  tree: RouteTree
 ): { flightRouterState: FlightRouterState; seedData: CacheNodeSeedData } {
   let childRouterStates: { [parallelRouteKey: string]: FlightRouterState } = {}
   let childSeedDatas: {
@@ -200,7 +203,7 @@ function readRenderSnapshotFromCache(
   let loading: LoadingModuleData | Promise<LoadingModuleData> = null
   let isPartial: boolean = true
 
-  const segmentEntry = readSegmentCacheEntry(now, tree.path)
+  const segmentEntry = readSegmentCacheEntry(now, tree.key)
   if (segmentEntry !== null) {
     switch (segmentEntry.status) {
       case EntryStatus.Fulfilled: {
@@ -210,6 +213,7 @@ function readRenderSnapshotFromCache(
         isPartial = segmentEntry.isPartial
         break
       }
+      case EntryStatus.Empty:
       case EntryStatus.Pending: {
         // We haven't received data for this segment yet, but there's already
         // an in-progress request. Since it's extremely likely to arrive
@@ -236,25 +240,15 @@ function readRenderSnapshotFromCache(
     }
   }
 
-  const extra = tree.extra
-  const flightRouterStateSegment = extra[0]
-  const isRootLayout = extra[1]
-
   return {
     flightRouterState: [
-      flightRouterStateSegment,
+      tree.segment,
       childRouterStates,
       null,
       null,
-      isRootLayout,
+      tree.isRootLayout,
     ],
-    seedData: [
-      flightRouterStateSegment,
-      rsc,
-      childSeedDatas,
-      loading,
-      isPartial,
-    ],
+    seedData: [tree.segment, rsc, childSeedDatas, loading, isPartial],
   }
 }
 

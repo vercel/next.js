@@ -133,7 +133,8 @@ import {
   collectRoutesUsingEdgeRuntime,
   collectMeta,
 } from './utils'
-import type { PageInfo, PageInfos, PrerenderedRoute } from './utils'
+import type { PageInfo, PageInfos } from './utils'
+import type { PrerenderedRoute } from './static-paths/types'
 import type { AppSegmentConfig } from './segment-config/app/app-segment-config'
 import { writeBuildId } from './write-build-id'
 import { normalizeLocalePath } from '../shared/lib/i18n/normalize-locale-path'
@@ -212,6 +213,7 @@ import {
   formatNodeOptions,
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
+import { InvariantError } from '../shared/lib/invariant-error'
 
 type Fallback = null | boolean | string
 
@@ -285,6 +287,18 @@ export interface DynamicSsgRoute {
    * The status code that should be used when serving the fallback.
    */
   fallbackStatus?: number
+
+  /**
+   * The root params that are unknown for this fallback route.
+   */
+  fallbackRootParams: readonly string[] | undefined
+
+  /**
+   * The source route that this fallback route is based on. This is a reference
+   * so that we can associate this dynamic route with the correct source.
+   */
+  fallbackSourceRoute: string | undefined
+
   prefetchDataRoute: string | null | undefined
   prefetchDataRouteRegex: string | null | undefined
   routeRegex: string
@@ -369,13 +383,13 @@ export type RoutesManifest = {
   dynamicRoutes: Array<ManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
   i18n?: {
-    domains?: Array<{
+    domains?: ReadonlyArray<{
       http?: true
       domain: string
-      locales?: string[]
+      locales?: readonly string[]
       defaultLocale: string
     }>
-    locales: string[]
+    locales: readonly string[]
     defaultLocale: string
     localeDetection?: false
   }
@@ -465,7 +479,11 @@ async function writeClientSsgManifest(
     buildId,
     distDir,
     locales,
-  }: { buildId: string; distDir: string; locales: string[] }
+  }: {
+    buildId: string
+    distDir: string
+    locales: readonly string[] | undefined
+  }
 ) {
   const ssgPages = new Set<string>(
     [
@@ -1852,6 +1870,7 @@ export default async function build(
         const { configFileName, publicRuntimeConfig, serverRuntimeConfig } =
           config
         const runtimeEnvConfig = { publicRuntimeConfig, serverRuntimeConfig }
+        const sriEnabled = Boolean(config.experimental.sri?.algorithm)
 
         const nonStaticErrorPageSpan = staticCheckSpan.traceChild(
           'check-static-error-page'
@@ -1865,6 +1884,7 @@ export default async function build(
                 distDir,
                 runtimeEnvConfig,
                 checkingApp: false,
+                sriEnabled,
               }))
           )
 
@@ -1886,6 +1906,7 @@ export default async function build(
               pprConfig: config.experimental.ppr,
               cacheLifeProfiles: config.experimental.cacheLife,
               buildId,
+              sriEnabled,
             })
         )
 
@@ -1897,6 +1918,7 @@ export default async function build(
             distDir,
             runtimeEnvConfig,
             checkingApp: true,
+            sriEnabled,
           }
         )
 
@@ -1904,6 +1926,7 @@ export default async function build(
           page: appPageToCheck,
           distDir,
           runtimeEnvConfig,
+          sriEnabled,
         })
 
         // eslint-disable-next-line @typescript-eslint/no-shadow
@@ -2113,6 +2136,7 @@ export default async function build(
                             pprConfig: config.experimental.ppr,
                             cacheLifeProfiles: config.experimental.cacheLife,
                             buildId,
+                            sriEnabled,
                           })
                         }
                       )
@@ -2130,11 +2154,16 @@ export default async function build(
                         } else {
                           const isDynamic = isDynamicRoute(page)
 
+                          if (
+                            typeof workerResult.isRoutePPREnabled === 'boolean'
+                          ) {
+                            isRoutePPREnabled = workerResult.isRoutePPREnabled
+                          }
+
                           // If this route can be partially pre-rendered, then
                           // mark it as such and mark that it can be
                           // generated server-side.
                           if (workerResult.isRoutePPREnabled) {
-                            isRoutePPREnabled = workerResult.isRoutePPREnabled
                             isSSG = true
                             isStatic = true
 
@@ -2159,7 +2188,7 @@ export default async function build(
                               workerResult.prerenderedRoutes
                             )
                             ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.path
+                              (route) => route.pathname
                             )
                             isSSG = true
                           }
@@ -2187,9 +2216,12 @@ export default async function build(
                             if (!isDynamic) {
                               staticPaths.set(originalAppPath, [
                                 {
-                                  path: page,
-                                  encoded: page,
+                                  pathname: page,
+                                  encodedPathname: page,
                                   fallbackRouteParams: undefined,
+                                  fallbackMode:
+                                    workerResult.prerenderFallbackMode,
+                                  fallbackRootParams: undefined,
                                 },
                               ])
                               isStatic = true
@@ -2255,7 +2287,7 @@ export default async function build(
                               workerResult.prerenderedRoutes
                             )
                             ssgPageRoutes = workerResult.prerenderedRoutes.map(
-                              (route) => route.path
+                              (route) => route.pathname
                             )
                           }
 
@@ -2691,7 +2723,7 @@ export default async function build(
             new Map(
               Array.from(additionalPaths.entries()).map(
                 ([page, routes]): [string, string[]] => {
-                  return [page, routes.map((route) => route.path)]
+                  return [page, routes.map((route) => route.pathname)]
                 }
               )
             )
@@ -2742,9 +2774,9 @@ export default async function build(
               // post slugs.
               additionalPaths.forEach((routes, page) => {
                 routes.forEach((route) => {
-                  defaultMap[route.path] = {
+                  defaultMap[route.pathname] = {
                     page,
-                    query: { __nextSsgPath: route.encoded },
+                    query: { __nextSsgPath: route.encodedPathname },
                   }
                 })
               })
@@ -2772,9 +2804,19 @@ export default async function build(
                   : undefined
 
                 routes.forEach((route) => {
-                  defaultMap[route.path] = {
+                  // If the route has any dynamic root segments, we need to skip
+                  // rendering the route. This is because we don't support
+                  // revalidating the shells without the parameters present.
+                  if (
+                    route.fallbackRootParams &&
+                    route.fallbackRootParams.length > 0
+                  ) {
+                    return
+                  }
+
+                  defaultMap[route.pathname] = {
                     page: originalAppPath,
-                    query: { __nextSsgPath: route.encoded },
+                    query: { __nextSsgPath: route.encodedPathname },
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
@@ -2884,8 +2926,11 @@ export default async function build(
           }
 
           staticPaths.forEach((prerenderedRoutes, originalAppPath) => {
-            const page = appNormalizedPaths.get(originalAppPath) || ''
-            const appConfig = appDefaultConfigs.get(originalAppPath) || {}
+            const page = appNormalizedPaths.get(originalAppPath)
+            if (!page) throw new InvariantError('Page not found')
+
+            const appConfig = appDefaultConfigs.get(originalAppPath)
+            if (!appConfig) throw new InvariantError('App config not found')
 
             let hasRevalidateZero =
               appConfig.revalidate === 0 ||
@@ -2927,8 +2972,8 @@ export default async function build(
             // route), any routes that were generated with unknown route params
             // should be collected and included in the dynamic routes part
             // of the manifest instead.
-            const routes: string[] = []
-            const dynamicRoutes: string[] = []
+            const routes: PrerenderedRoute[] = []
+            const dynamicRoutes: PrerenderedRoute[] = []
 
             // Sort the outputted routes to ensure consistent output. Any route
             // though that has unknown route params will be pulled and sorted
@@ -2950,11 +2995,11 @@ export default async function build(
 
             unknownPrerenderRoutes = getSortedRouteObjects(
               unknownPrerenderRoutes,
-              (prerenderedRoute) => prerenderedRoute.path
+              (prerenderedRoute) => prerenderedRoute.pathname
             )
             knownPrerenderRoutes = getSortedRouteObjects(
               knownPrerenderRoutes,
-              (prerenderedRoute) => prerenderedRoute.path
+              (prerenderedRoute) => prerenderedRoute.pathname
             )
 
             prerenderedRoutes = [
@@ -2965,7 +3010,7 @@ export default async function build(
             for (const prerenderedRoute of prerenderedRoutes) {
               // TODO: check if still needed?
               // Exclude the /_not-found route.
-              if (prerenderedRoute.path === UNDERSCORE_NOT_FOUND_ROUTE) {
+              if (prerenderedRoute.pathname === UNDERSCORE_NOT_FOUND_ROUTE) {
                 continue
               }
 
@@ -2976,28 +3021,28 @@ export default async function build(
               ) {
                 // If the route has unknown params, then we need to add it to
                 // the list of dynamic routes.
-                dynamicRoutes.push(prerenderedRoute.path)
+                dynamicRoutes.push(prerenderedRoute)
               } else {
                 // If the route doesn't have unknown params, then we need to
                 // add it to the list of routes.
-                routes.push(prerenderedRoute.path)
+                routes.push(prerenderedRoute)
               }
             }
 
             // Handle all the static routes.
             for (const route of routes) {
-              if (isDynamicRoute(page) && route === page) continue
-              if (route === UNDERSCORE_NOT_FOUND_ROUTE) continue
+              if (isDynamicRoute(page) && route.pathname === page) continue
+              if (route.pathname === UNDERSCORE_NOT_FOUND_ROUTE) continue
 
               const {
                 revalidate = appConfig.revalidate ?? false,
                 metadata = {},
                 hasEmptyPrelude,
                 hasPostponed,
-              } = exportResult.byPath.get(route) ?? {}
+              } = exportResult.byPath.get(route.pathname) ?? {}
 
-              pageInfos.set(route, {
-                ...(pageInfos.get(route) as PageInfo),
+              pageInfos.set(route.pathname, {
+                ...(pageInfos.get(route.pathname) as PageInfo),
                 hasPostponed,
                 hasEmptyPrelude,
               })
@@ -3010,7 +3055,7 @@ export default async function build(
               })
 
               if (revalidate !== 0) {
-                const normalizedRoute = normalizePagePath(route)
+                const normalizedRoute = normalizePagePath(route.pathname)
 
                 let dataRoute: string | null
                 if (isAppRouteHandler) {
@@ -3032,7 +3077,7 @@ export default async function build(
 
                 const meta = collectMeta(metadata)
 
-                prerenderManifest.routes[route] = {
+                prerenderManifest.routes[route.pathname] = {
                   initialStatus: meta.status,
                   initialHeaders: meta.headers,
                   renderingMode: isAppPPREnabled
@@ -3052,8 +3097,8 @@ export default async function build(
                 hasRevalidateZero = true
                 // we might have determined during prerendering that this page
                 // used dynamic data
-                pageInfos.set(route, {
-                  ...(pageInfos.get(route) as PageInfo),
+                pageInfos.set(route.pathname, {
+                  ...(pageInfos.get(route.pathname) as PageInfo),
                   isSSG: false,
                   isStatic: false,
                 })
@@ -3065,14 +3110,22 @@ export default async function build(
               // they are enabled, then it'll already be included in the
               // prerendered routes.
               if (!isRoutePPREnabled) {
-                dynamicRoutes.push(page)
+                dynamicRoutes.push({
+                  pathname: page,
+                  encodedPathname: page,
+                  fallbackRouteParams: undefined,
+                  fallbackMode:
+                    fallbackModes.get(originalAppPath) ??
+                    FallbackMode.NOT_FOUND,
+                  fallbackRootParams: undefined,
+                })
               }
 
               for (const route of dynamicRoutes) {
-                const normalizedRoute = normalizePagePath(route)
+                const normalizedRoute = normalizePagePath(route.pathname)
 
                 const { metadata, revalidate } =
-                  exportResult.byPath.get(route) ?? {}
+                  exportResult.byPath.get(route.pathname) ?? {}
 
                 let dataRoute: string | null = null
                 if (!isAppRouteHandler) {
@@ -3086,8 +3139,8 @@ export default async function build(
                   )
                 }
 
-                pageInfos.set(route, {
-                  ...(pageInfos.get(route) as PageInfo),
+                pageInfos.set(route.pathname, {
+                  ...(pageInfos.get(route.pathname) as PageInfo),
                   isDynamicAppRoute: true,
                   // if PPR is turned on and the route contains a dynamic segment,
                   // we assume it'll be partially prerendered
@@ -3095,7 +3148,7 @@ export default async function build(
                 })
 
                 const fallbackMode =
-                  fallbackModes.get(originalAppPath) ?? FallbackMode.NOT_FOUND
+                  route.fallbackMode ?? FallbackMode.NOT_FOUND
 
                 // When we're configured to serve a prerender, we should use the
                 // fallback revalidate from the export result. If it can't be
@@ -3107,7 +3160,7 @@ export default async function build(
 
                 const fallback: Fallback = fallbackModeToFallbackField(
                   fallbackMode,
-                  route
+                  route.pathname
                 )
 
                 const meta =
@@ -3117,7 +3170,7 @@ export default async function build(
                     ? collectMeta(metadata)
                     : {}
 
-                prerenderManifest.dynamicRoutes[route] = {
+                prerenderManifest.dynamicRoutes[route.pathname] = {
                   experimentalPPR: isRoutePPREnabled,
                   renderingMode: isAppPPREnabled
                     ? isRoutePPREnabled
@@ -3126,13 +3179,17 @@ export default async function build(
                     : undefined,
                   experimentalBypassFor: bypassFor,
                   routeRegex: normalizeRouteRegex(
-                    getNamedRouteRegex(route, false).re.source
+                    getNamedRouteRegex(route.pathname, false).re.source
                   ),
                   dataRoute,
                   fallback,
                   fallbackRevalidate,
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
+                  fallbackRootParams: route.fallbackRootParams,
+                  fallbackSourceRoute: route.fallbackRouteParams?.length
+                    ? page
+                    : undefined,
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
@@ -3416,10 +3473,10 @@ export default async function build(
                 // We must also copy specific versions of this page as defined by
                 // `getStaticPaths` (additionalSsgPaths).
                 for (const route of additionalPaths.get(page) ?? []) {
-                  const pageFile = normalizePagePath(route.path)
+                  const pageFile = normalizePagePath(route.pathname)
                   await moveExportedPage(
                     page,
-                    route.path,
+                    route.pathname,
                     pageFile,
                     isSsg,
                     'html',
@@ -3427,7 +3484,7 @@ export default async function build(
                   )
                   await moveExportedPage(
                     page,
-                    route.path,
+                    route.pathname,
                     pageFile,
                     isSsg,
                     'json',
@@ -3455,13 +3512,13 @@ export default async function build(
                   }
 
                   const initialRevalidateSeconds =
-                    exportResult.byPath.get(route.path)?.revalidate ?? false
+                    exportResult.byPath.get(route.pathname)?.revalidate ?? false
 
                   if (typeof initialRevalidateSeconds === 'undefined') {
                     throw new Error("Invariant: page wasn't built")
                   }
 
-                  prerenderManifest.routes[route.path] = {
+                  prerenderManifest.routes[route.pathname] = {
                     initialRevalidateSeconds,
                     experimentalPPR: undefined,
                     renderingMode: undefined,
@@ -3469,7 +3526,7 @@ export default async function build(
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
-                      `${normalizePagePath(route.path)}.json`
+                      `${normalizePagePath(route.pathname)}.json`
                     ),
                     // Pages does not have a prefetch data route.
                     prefetchDataRoute: undefined,
@@ -3560,6 +3617,8 @@ export default async function build(
                 ? `${normalizedRoute}.html`
                 : false,
             fallbackRevalidate: undefined,
+            fallbackSourceRoute: undefined,
+            fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(
                 dataRoute.replace(/\.json$/, ''),
@@ -3583,7 +3642,7 @@ export default async function build(
         await writeClientSsgManifest(prerenderManifest, {
           distDir,
           buildId,
-          locales: config.i18n?.locales || [],
+          locales: config.i18n?.locales,
         })
       } else {
         await writePrerenderManifest(distDir, {
