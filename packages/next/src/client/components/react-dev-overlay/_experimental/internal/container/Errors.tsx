@@ -12,7 +12,6 @@ import {
   DialogContent,
   DialogHeader,
 } from '../components/Dialog'
-import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { getErrorByType } from '../helpers/get-error-by-type'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
@@ -35,6 +34,7 @@ import {
 } from '../helpers/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
+import { ErrorPagination } from '../components/Errors/ErrorPagination/ErrorPagination'
 
 export type SupportedErrorEvent = {
   id: number
@@ -273,21 +273,15 @@ export function Errors({
       >
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
-            <LeftRightDialogHeader
-              previous={activeIdx > 0 ? previous : null}
-              next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={isServerError ? undefined : minimize}
-            >
-              <small>
-                <span>{activeIdx + 1}</span> of{' '}
-                <span data-nextjs-dialog-header-total-count>
-                  {readyErrors.length}
-                </span>
-                {' issue'}
-                {readyErrors.length < 2 ? '' : 's'}
-              </small>
-              <VersionStalenessInfo versionInfo={versionInfo} />
-            </LeftRightDialogHeader>
+            <ErrorPagination
+              activeIdx={activeIdx}
+              readyErrors={readyErrors}
+              previous={previous}
+              next={next}
+              minimize={minimize}
+              isServerError={isServerError}
+            />
+            <VersionStalenessInfo versionInfo={versionInfo} />
 
             <div
               className="nextjs__container_errors__error_title"
