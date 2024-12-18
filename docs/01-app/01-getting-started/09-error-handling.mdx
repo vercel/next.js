@@ -6,7 +6,7 @@ related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
   links:
-    -
+    - app/api-reference/functions/redirect
 ---
 
 Errors can be divided into two categories: [expected errors](#handling-expected-errors) and [uncaught exceptions](#handling-uncaught-exceptions). This page will walk you through how you can handle these errors in your Next.js application.
@@ -108,5 +108,35 @@ export function Form() {
       <button disabled={pending}>Create Post</button>
     </form>
   )
+}
+```
+
+### Server Components
+
+When fetching data inside of a Server Component, you can use the response to conditionally render an error message or [`redirect`](/docs/app/api-reference/functions/redirect).
+
+```tsx filename="app/page.tsx" switcher
+export default async function Page() {
+  const res = await fetch(`https://...`)
+  const data = await res.json()
+
+  if (!res.ok) {
+    return 'There was an error.'
+  }
+
+  return '...'
+}
+```
+
+```jsx filename="app/page.js" switcher
+export default async function Page() {
+  const res = await fetch(`https://...`)
+  const data = await res.json()
+
+  if (!res.ok) {
+    return 'There was an error.'
+  }
+
+  return '...'
 }
 ```
