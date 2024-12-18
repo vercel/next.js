@@ -1333,8 +1333,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
       postcss-modules-local-by-default:
-        specifier: 4.0.4
-        version: 4.0.4(postcss@8.4.31)
+        specifier: 4.2.0
+        version: 4.2.0(postcss@8.4.31)
       postcss-modules-scope:
         specifier: 3.0.0
         version: 3.0.0(postcss@8.4.31)
@@ -12365,8 +12365,8 @@ packages:
     peerDependencies:
       postcss: ^8.1.0
 
-  postcss-modules-local-by-default@4.0.4:
-    resolution: {integrity: sha512-L4QzMnOdVwRm1Qb8m4x8jsZzKAaPAgrUF1r/hjDR2Xj7R+8Zsf97jAlSQzWtKx5YNiNGN8QxmPFIc/sh+RQl+Q==}
+  postcss-modules-local-by-default@4.2.0:
+    resolution: {integrity: sha512-5kcJm/zk+GJDSfw+V/42fJ5fhjL5YbFDl8nVdXkJPLLW+Vf9mTD5Xe0wqIaDnLuL2U6cDNpTr+UQ+v2HWIBhzw==}
     engines: {node: ^10 || ^12 || >= 14}
     peerDependencies:
       postcss: ^8.1.0
@@ -12603,6 +12603,10 @@ packages:
 
   postcss-selector-parser@6.1.2:
     resolution: {integrity: sha512-Q8qQfPiZ+THO/3ZrOrO0cJJKfpYCagtMUkXbnEfmgUjwXg6z/WBeOyS9APBBPCTSiDV+s4SwQGu8yFsiMRIudg==}
+    engines: {node: '>=4'}
+
+  postcss-selector-parser@7.0.0:
+    resolution: {integrity: sha512-9RbEr1Y7FFfptd/1eEdntyjMwLeghW1bHX9GWjXo19vx4ytPQhANltvVxDggzJl7mnWM+dX28kb6cyS/4iQjlQ==}
     engines: {node: '>=4'}
 
   postcss-short-size@4.0.0:
@@ -17641,7 +17645,7 @@ snapshots:
   '@csstools/postcss-is-pseudo-class@2.0.2(postcss@8.4.31)':
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   '@csstools/postcss-normalize-display-values@1.0.0(postcss@8.4.31)':
     dependencies:
@@ -22398,7 +22402,7 @@ snapshots:
   css-blank-pseudo@3.0.3(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   css-box-shadow@1.0.0-3: {}
 
@@ -22420,7 +22424,7 @@ snapshots:
   css-has-pseudo@3.0.4(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   css-prefers-color-scheme@6.0.3(postcss@8.4.31):
     dependencies:
@@ -29030,7 +29034,7 @@ snapshots:
   postcss-attribute-case-insensitive@5.0.0(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-calc@10.0.2(postcss@8.4.31):
     dependencies:
@@ -29104,12 +29108,12 @@ snapshots:
   postcss-custom-selectors@6.0.0(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-dir-pseudo-class@6.0.4(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-discard-comments@4.0.2:
     dependencies:
@@ -29162,12 +29166,12 @@ snapshots:
   postcss-focus-visible@6.0.4(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-focus-within@5.0.4(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-font-variant@5.0.0(postcss@8.4.31):
     dependencies:
@@ -29311,11 +29315,11 @@ snapshots:
     dependencies:
       postcss: 8.4.31
 
-  postcss-modules-local-by-default@4.0.4(postcss@8.4.31):
+  postcss-modules-local-by-default@4.2.0(postcss@8.4.31):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.31)
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 7.0.0
       postcss-value-parser: 4.2.0
 
   postcss-modules-scope@3.0.0(postcss@8.4.31):
@@ -29335,7 +29339,7 @@ snapshots:
       lodash.camelcase: 4.3.0
       postcss: 8.4.31
       postcss-modules-extract-imports: 3.0.0(postcss@8.4.31)
-      postcss-modules-local-by-default: 4.0.4(postcss@8.4.31)
+      postcss-modules-local-by-default: 4.2.0(postcss@8.4.31)
       postcss-modules-scope: 3.0.0(postcss@8.4.31)
       postcss-modules-values: 4.0.0(postcss@8.4.31)
       string-hash: 1.1.3
@@ -29353,7 +29357,7 @@ snapshots:
   postcss-nesting@10.1.4(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-normalize-charset@4.0.1:
     dependencies:
@@ -29531,7 +29535,7 @@ snapshots:
   postcss-pseudo-class-any-link@7.1.1(postcss@8.4.31):
     dependencies:
       postcss: 8.4.31
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
 
   postcss-pseudoelements@5.0.0:
     dependencies:
@@ -29606,6 +29610,11 @@ snapshots:
       util-deprecate: 1.0.2
 
   postcss-selector-parser@6.1.2:
+    dependencies:
+      cssesc: 3.0.0
+      util-deprecate: 1.0.2
+
+  postcss-selector-parser@7.0.0:
     dependencies:
       cssesc: 3.0.0
       util-deprecate: 1.0.2
@@ -29897,7 +29906,7 @@ snapshots:
     dependencies:
       glob: 7.1.7
       postcss: 7.0.32
-      postcss-selector-parser: 6.0.11
+      postcss-selector-parser: 6.1.2
       yargs: 14.2.2
 
   q@1.5.1: {}
