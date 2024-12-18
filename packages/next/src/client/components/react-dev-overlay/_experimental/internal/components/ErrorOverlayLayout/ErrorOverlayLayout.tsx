@@ -12,6 +12,7 @@ type ErrorOverlayLayoutProps = {
     | 'Missing Required HTML Tag'
   errorMessage: string | React.ReactNode
   onClose: () => void
+  isBuildError?: boolean
   versionInfo?: VersionInfo
   children?: React.ReactNode
 }
@@ -22,8 +23,8 @@ export function ErrorOverlayLayout({
   onClose,
   children,
   versionInfo,
+  isBuildError,
 }: ErrorOverlayLayoutProps) {
-  const isBuildError = errorType === 'Build Error'
   return (
     <Overlay fixed={isBuildError}>
       <Dialog
