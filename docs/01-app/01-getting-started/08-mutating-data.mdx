@@ -263,6 +263,8 @@ After performing a mutation, you can revalidate the Next.js cache and show the u
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
 
+import { revalidatePath } from 'next/cache'
+
 export async function createPost(formData: FormData) {
   // Mutate data
   // ...
@@ -273,6 +275,8 @@ export async function createPost(formData: FormData) {
 
 ```js filename="app/actions.js" switcher
 'use server'
+
+import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData) {
   // Mutate data
@@ -288,6 +292,8 @@ You may want to redirect the user to a different page after performing a mutatio
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
 
+import { redirect } from 'next/navigation'
+
 export async function createPost(formData: FormData) {
   // Mutate data
   // ...
@@ -298,6 +304,8 @@ export async function createPost(formData: FormData) {
 
 ```js filename="app/actions.js" switcher
 'use server'
+
+import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
   // Mutate data
