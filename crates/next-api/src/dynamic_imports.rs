@@ -34,8 +34,7 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
-    output::{OutputAsset, OutputAssets},
-    reference::ModuleReference,
+    output::OutputAssets,
 };
 
 use crate::module_graph::{DynamicImportEntriesWithImporter, SingleModuleGraph};
@@ -75,15 +74,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
 
             let async_loader =
                 chunking_context.async_loader_chunk_item(*module, Value::new(availability_info));
-            let async_chunk_group = async_loader
-                .references()
-                .await?
-                .iter()
-                .map(|reference| reference.resolve_reference().primary_output_assets())
-                .try_join()
-                .await?;
-            let async_chunk_group: Vec<ResolvedVc<Box<dyn OutputAsset>>> =
-                async_chunk_group.iter().flatten().copied().collect();
+            let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
                 .as_chunk_item(Vc::upcast(chunking_context))
@@ -91,10 +82,7 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 .to_resolved()
                 .await?;
 
-            Ok((
-                *dynamic_entry,
-                (module_id, ResolvedVc::cell(async_chunk_group)),
-            ))
+            Ok((*dynamic_entry, (module_id, async_chunk_group)))
         })
         .try_join()
         .await?;
