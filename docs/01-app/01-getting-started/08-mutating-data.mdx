@@ -13,8 +13,6 @@ related:
 
 You can mutate data in Next.js using React's [Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
 
-> **Good to know:** When used in a mutation context, Server Functions are also known as _Server Actions_.
-
 ## Creating Server Functions
 
 A Server Function can be defined by using the [`use server`](https://react.dev/reference/rsc/use-server) directive. You can place the directive at the top of an **asynchronous** function to mark the function as a Server Function, or at the top of a separate file to mark all exports of that file.
@@ -86,7 +84,7 @@ export async function createPost() {}
 import { createPost } from '@/app/actions'
 
 export function Button() {
-  return <button onClick={() => createPost()}>Create</button>
+  return <button formAction={createPost}>Create</button>
 }
 ```
 
@@ -96,7 +94,7 @@ export function Button() {
 import { createPost } from '@/app/actions'
 
 export function Button() {
-  return <button onClick={() => createPost()}>Create</button>
+  return <button formAction={createPost}>Create</button>
 }
 ```
 
@@ -111,7 +109,7 @@ There are two mains ways you can invoke a Server Function:
 
 React extends the HTML [`<form>`](https://react.dev/reference/react-dom/components/form) element to allow Server Function to be invoked with the HTML `action` prop.
 
-When invoked in a form, the action automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. You can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
+When invoked in a form, the function automatically receives the [`FormData`](https://developer.mozilla.org/docs/Web/API/FormData/FormData) object. You can extract the data using the native [`FormData` methods](https://developer.mozilla.org/en-US/docs/Web/API/FormData#instance_methods):
 
 ```tsx filename="app/ui/form.tsx" switcher
 import { createPost } from '@/app/actions'
@@ -148,8 +146,8 @@ export async function createPost(formData: FormData) {
   const title = formData.get('title')
   const content = formData.get('content')
 
-  // mutate data
-  // revalidate cache
+  // Mutate data
+  // Revalidate cache
 }
 ```
 
@@ -160,10 +158,12 @@ export async function createPost(formData) {
   const title = formData.get('title')
   const content = formData.get('content')
 
-  // mutate data
-  // revalidate cache
+  // Mutate data
+  // Revalidate cache
 }
 ```
+
+> **Good to know:** When passed to the `action` prop, Server Functions are also known as _Server Actions_.
 
 ### Event Handlers
 
