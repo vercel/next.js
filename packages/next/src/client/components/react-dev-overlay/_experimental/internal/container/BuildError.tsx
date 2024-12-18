@@ -2,7 +2,7 @@ import * as React from 'react'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { Terminal } from '../components/Terminal'
 import { noop as css } from '../helpers/noop-template'
-import { ErrorOverlay } from '../components/ErrorOverlay/ErrorOverlay'
+import { ErrorOverlayLayout } from '../components/ErrorOverlayLayout/ErrorOverlayLayout'
 
 export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
 
@@ -12,7 +12,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
 }) {
   const noop = React.useCallback(() => {}, [])
   return (
-    <ErrorOverlay
+    <ErrorOverlayLayout
       errorType="Build Error"
       errorMessage="Failed to compile"
       onClose={noop}
@@ -27,7 +27,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
           </small>
         </p>
       </footer>
-    </ErrorOverlay>
+    </ErrorOverlayLayout>
   )
 }
 

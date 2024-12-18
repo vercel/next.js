@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { ErrorOverlay } from './ErrorOverlay'
+import { ErrorOverlayLayout } from './ErrorOverlayLayout'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 
-const meta: Meta<typeof ErrorOverlay> = {
-  title: 'Overlays/ErrorOverlay',
-  component: ErrorOverlay,
+const meta: Meta<typeof ErrorOverlayLayout> = {
+  title: 'ErrorOverlayLayout',
+  component: ErrorOverlayLayout,
   parameters: {
     layout: 'fullscreen',
   },
@@ -12,7 +12,7 @@ const meta: Meta<typeof ErrorOverlay> = {
 }
 
 export default meta
-type Story = StoryObj<typeof ErrorOverlay>
+type Story = StoryObj<typeof ErrorOverlayLayout>
 
 export const Default: Story = {
   args: {

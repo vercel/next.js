@@ -1,7 +1,7 @@
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { useCallback } from 'react'
 import { HotlinkedText } from '../components/hot-linked-text'
-import { ErrorOverlay } from '../components/ErrorOverlay/ErrorOverlay'
+import { ErrorOverlayLayout } from '../components/ErrorOverlayLayout/ErrorOverlayLayout'
 
 type RootLayoutMissingTagsErrorProps = {
   missingTags: string[]
@@ -14,7 +14,7 @@ export function RootLayoutMissingTagsError({
 }: RootLayoutMissingTagsErrorProps) {
   const noop = useCallback(() => {}, [])
   return (
-    <ErrorOverlay
+    <ErrorOverlayLayout
       errorType="Missing Required HTML Tag"
       errorMessage={
         <HotlinkedText

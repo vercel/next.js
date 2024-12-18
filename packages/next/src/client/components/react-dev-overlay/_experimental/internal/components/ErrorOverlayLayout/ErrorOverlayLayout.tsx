@@ -3,7 +3,7 @@ import { Dialog, DialogHeader, DialogBody, DialogContent } from '../Dialog'
 import { Overlay } from '../Overlay'
 import { VersionStalenessInfo } from '../VersionStalenessInfo'
 
-type ErrorOverlayProps = {
+type ErrorOverlayLayoutProps = {
   errorType:
     | 'Build Error'
     | 'Runtime Error'
@@ -16,13 +16,13 @@ type ErrorOverlayProps = {
   children?: React.ReactNode
 }
 
-export function ErrorOverlay({
+export function ErrorOverlayLayout({
   errorType,
   errorMessage,
   onClose,
   children,
   versionInfo,
-}: ErrorOverlayProps) {
+}: ErrorOverlayLayoutProps) {
   const isBuildError = errorType === 'Build Error'
   return (
     <Overlay fixed={isBuildError}>
