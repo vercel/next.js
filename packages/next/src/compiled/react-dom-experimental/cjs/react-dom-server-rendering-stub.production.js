@@ -12,7 +12,7 @@
 
 var React = require("next/dist/compiled/react-experimental");
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-178c267a4e-20241218';
 
 const Internals = {
   usingClientEntryPoint: false,
