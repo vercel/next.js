@@ -306,6 +306,19 @@ where
                 )),
                 None => Either::Right(noop_pass()),
             },
+            // TODO: probably should use serparate options, but this works for now
+            match &opts.server_actions {
+                Some(config) => {
+                    if config.is_react_server_layer && config.dynamic_io_enabled {
+                        Either::Left(
+                            crate::transforms::track_dynamic_imports::track_dynamic_imports(),
+                        )
+                    } else {
+                        Either::Right(noop_pass())
+                    }
+                }
+                None => Either::Right(noop_pass()),
+            },
             match &opts.cjs_require_optimizer {
                 Some(config) => Either::Left(visit_mut_pass(
                     crate::transforms::cjs_optimizer::cjs_optimizer(
