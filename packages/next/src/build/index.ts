@@ -293,6 +293,12 @@ export interface DynamicSsgRoute {
    */
   fallbackRootParams: readonly string[] | undefined
 
+  /**
+   * The source route that this fallback route is based on. This is a reference
+   * so that we can associate this dynamic route with the correct source.
+   */
+  fallbackSourceRoute: string | undefined
+
   prefetchDataRoute: string | null | undefined
   prefetchDataRouteRegex: string | null | undefined
   routeRegex: string
@@ -2478,10 +2484,15 @@ export default async function build(
               PRERENDER_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              path.join(
-                SERVER_DIRECTORY,
-                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-              ),
+              ...(!process.env.TURBOPACK
+                ? [
+                    path.join(
+                      SERVER_DIRECTORY,
+                      MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+                    ),
+                    REACT_LOADABLE_MANIFEST,
+                  ]
+                : []),
               ...(appDir
                 ? [
                     ...(config.experimental.sri
@@ -2515,7 +2526,6 @@ export default async function build(
                     path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
                   ]
                 : []),
-              REACT_LOADABLE_MANIFEST,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
@@ -3181,6 +3191,9 @@ export default async function build(
                   fallbackStatus: meta.status,
                   fallbackHeaders: meta.headers,
                   fallbackRootParams: route.fallbackRootParams,
+                  fallbackSourceRoute: route.fallbackRouteParams?.length
+                    ? page
+                    : undefined,
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
@@ -3608,6 +3621,7 @@ export default async function build(
                 ? `${normalizedRoute}.html`
                 : false,
             fallbackRevalidate: undefined,
+            fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(

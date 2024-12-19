@@ -91,6 +91,7 @@ import {
   setBundlerFindSourceMapImplementation,
   type ModernSourceMapPayload,
 } from '../patch-error-inspect'
+import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -627,6 +628,7 @@ export async function createHotReloaderTurbopack(
   const middlewares = [
     getOverlayMiddleware(project),
     getSourceMapMiddleware(project),
+    getNextErrorFeedbackMiddleware(opts.telemetry),
   ]
 
   const versionInfoPromise = getVersionInfo(

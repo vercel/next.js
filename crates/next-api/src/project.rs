@@ -28,8 +28,8 @@ use turbo_tasks::{
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, State,
-    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, ReadRef,
+    ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -73,7 +73,17 @@ use crate::{
 };
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
@@ -95,6 +105,7 @@ pub struct DraftModeOptions {
     Hash,
     TraceRawVcs,
     NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WatchOptions {
@@ -107,7 +118,17 @@ pub struct WatchOptions {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
@@ -192,7 +213,17 @@ pub struct PartialProjectOptions {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
@@ -600,7 +631,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    pub fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.project_fs().root()
     }
 
@@ -662,7 +693,7 @@ impl Project {
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
-                self.project_path().to_resolved().await?,
+                self.project_root_path().to_resolved().await?,
                 node_root,
                 node_root,
                 node_root.join("build/chunks".into()).to_resolved().await?,
@@ -789,7 +820,7 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn client_chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>> {
         get_client_chunking_context(
-            self.project_path(),
+            self.project_root_path(),
             self.client_relative_path(),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
@@ -807,7 +838,7 @@ impl Project {
         if client_assets {
             get_server_chunking_context_with_client_assets(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
@@ -818,7 +849,7 @@ impl Project {
         } else {
             get_server_chunking_context(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
@@ -835,7 +866,7 @@ impl Project {
         if client_assets {
             get_edge_chunking_context_with_client_assets(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
@@ -846,7 +877,7 @@ impl Project {
         } else {
             get_edge_chunking_context(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),

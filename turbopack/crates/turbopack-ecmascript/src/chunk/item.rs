@@ -48,7 +48,7 @@ impl EcmascriptChunkItemContent {
 
         Ok(EcmascriptChunkItemContent {
             rewrite_source_path: if *chunking_context.should_use_file_source_map_uris().await? {
-                Some(chunking_context.context_path().to_resolved().await?)
+                Some(chunking_context.root_path().to_resolved().await?)
             } else {
                 None
             },
@@ -155,12 +155,11 @@ impl EcmascriptChunkItemContent {
             match source_map {
                 Some(map) => fileify_source_map(map, *rewrite_source_path)
                     .await?
-                    .map(|v| *v)
-                    .map(Vc::upcast),
+                    .map(ResolvedVc::upcast),
                 None => None,
             }
         } else {
-            self.source_map.map(|v| *v)
+            self.source_map
         };
 
         code.push_source(&self.inner_code, source_map);

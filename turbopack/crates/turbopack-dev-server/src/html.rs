@@ -164,7 +164,7 @@ impl DevHtmlAsset {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 struct DevHtmlAssetContent {
     chunk_paths: Vec<RcStr>,
     body: Option<RcStr>,
@@ -234,7 +234,7 @@ impl VersionedContent for DevHtmlAssetContent {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 struct DevHtmlAssetVersion {
     content: ReadRef<DevHtmlAssetContent>,
 }
