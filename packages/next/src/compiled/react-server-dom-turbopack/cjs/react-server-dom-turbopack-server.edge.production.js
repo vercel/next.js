@@ -524,6 +524,10 @@ var HooksDispatcher = {
   useImperativeHandle: unsupportedHook,
   useEffect: unsupportedHook,
   useId: useId,
+  useHostTransitionStatus: unsupportedHook,
+  useOptimistic: unsupportedHook,
+  useFormState: unsupportedHook,
+  useActionState: unsupportedHook,
   useSyncExternalStore: unsupportedHook,
   useCacheRefresh: function () {
     return unsupportedRefresh;
@@ -782,13 +786,7 @@ function serializeThenable(request, task, thenable) {
         (newTask.model = thenable.value), pingTask(request, newTask), newTask.id
       );
     case "rejected":
-      return (
-        (task = logRecoverableError(request, thenable.reason, null)),
-        emitErrorChunk(request, newTask.id, task),
-        (newTask.status = 4),
-        request.abortableTasks.delete(newTask),
-        newTask.id
-      );
+      return erroredTask(request, newTask, thenable.reason), newTask.id;
     default:
       if (12 === request.status)
         return (
@@ -819,11 +817,7 @@ function serializeThenable(request, task, thenable) {
     },
     function (reason) {
       0 === newTask.status &&
-        ((reason = logRecoverableError(request, reason, newTask)),
-        emitErrorChunk(request, newTask.id, reason),
-        (newTask.status = 4),
-        request.abortableTasks.delete(newTask),
-        enqueueFlush(request));
+        (erroredTask(request, newTask, reason), enqueueFlush(request));
     }
   );
   return newTask.id;
@@ -844,29 +838,25 @@ function serializeReadableStream(request, task, stream) {
             emitChunk(request, streamTask, streamTask.model),
             enqueueFlush(request),
             reader.read().then(progress, error);
-        } catch (x$8) {
-          error(x$8);
+        } catch (x$7) {
+          error(x$7);
         }
   }
   function error(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortStream);
-      var digest = logRecoverableError(request, reason, streamTask);
-      emitErrorChunk(request, streamTask.id, digest);
-      enqueueFlush(request);
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortStream),
+      erroredTask(request, streamTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
   }
   function abortStream(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortStream);
-      var digest = logRecoverableError(request, reason, streamTask);
-      emitErrorChunk(request, streamTask.id, digest);
-      enqueueFlush(request);
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortStream),
+      erroredTask(request, streamTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
   }
   var supportsBYOB = stream.supportsBYOB;
   if (void 0 === supportsBYOB)
@@ -921,31 +911,27 @@ function serializeAsyncIterable(request, task, iterable, iterator) {
             emitChunk(request, streamTask, streamTask.model),
             enqueueFlush(request),
             iterator.next().then(progress, error);
-        } catch (x$9) {
-          error(x$9);
+        } catch (x$8) {
+          error(x$8);
         }
   }
   function error(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortIterable);
-      var digest = logRecoverableError(request, reason, streamTask);
-      emitErrorChunk(request, streamTask.id, digest);
-      enqueueFlush(request);
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortIterable),
+      erroredTask(request, streamTask, reason),
+      enqueueFlush(request),
       "function" === typeof iterator.throw &&
-        iterator.throw(reason).then(error, error);
-    }
+        iterator.throw(reason).then(error, error));
   }
   function abortIterable(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortIterable);
-      var digest = logRecoverableError(request, reason, streamTask);
-      emitErrorChunk(request, streamTask.id, digest);
-      enqueueFlush(request);
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortIterable),
+      erroredTask(request, streamTask, reason),
+      enqueueFlush(request),
       "function" === typeof iterator.throw &&
-        iterator.throw(reason).then(error, error);
-    }
+        iterator.throw(reason).then(error, error));
   }
   iterable = iterable === iterator;
   var streamTask = createTask(
@@ -1307,24 +1293,20 @@ function serializeBlob(request, blob) {
         );
   }
   function error(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortBlob);
-      var digest = logRecoverableError(request, reason, newTask);
-      emitErrorChunk(request, newTask.id, digest);
-      enqueueFlush(request);
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortBlob),
+      erroredTask(request, newTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
   }
   function abortBlob(reason) {
-    if (!aborted) {
-      aborted = !0;
-      request.abortListeners.delete(abortBlob);
-      var digest = logRecoverableError(request, reason, newTask);
-      emitErrorChunk(request, newTask.id, digest);
-      enqueueFlush(request);
-      reader.cancel(reason).then(error, error);
-    }
+    aborted ||
+      ((aborted = !0),
+      request.abortListeners.delete(abortBlob),
+      erroredTask(request, newTask, reason),
+      enqueueFlush(request),
+      reader.cancel(reason).then(error, error));
   }
   var model = [blob.type],
     newTask = createTask(request, model, null, !1, request.abortableTasks),
@@ -1728,6 +1710,12 @@ function emitChunk(request, task, value) {
                               : ((value = stringify(value, task.toJSON)),
                                 emitModelChunk(request, task.id, value));
 }
+function erroredTask(request, task, error) {
+  request.abortableTasks.delete(task);
+  task.status = 4;
+  error = logRecoverableError(request, error, task);
+  emitErrorChunk(request, task.id, error);
+}
 var emptyRoot = {};
 function retryTask(request, task) {
   if (0 === task.status) {
@@ -1773,12 +1761,7 @@ function retryTask(request, task) {
           task.thenableState = getThenableStateAfterSuspending();
           var ping = task.ping;
           x.then(ping, ping);
-        } else {
-          request.abortableTasks.delete(task);
-          task.status = 4;
-          var digest = logRecoverableError(request, x, task);
-          emitErrorChunk(request, task.id, digest);
-        }
+        } else erroredTask(request, task, x);
       }
     } finally {
     }
@@ -1871,6 +1854,18 @@ function enqueueFlush(request) {
       destination && flushCompletedChunks(request, destination);
     }, 0));
 }
+function startFlowing(request, destination) {
+  if (13 === request.status)
+    (request.status = 14), closeWithError(destination, request.fatalError);
+  else if (14 !== request.status && null === request.destination) {
+    request.destination = destination;
+    try {
+      flushCompletedChunks(request, destination);
+    } catch (error) {
+      logRecoverableError(request, error, null), fatalError(request, error);
+    }
+  }
+}
 function abort(request, reason) {
   try {
     11 >= request.status && (request.status = 12);
@@ -1903,7 +1898,7 @@ function abort(request, reason) {
     }
     var abortListeners = request.abortListeners;
     if (0 < abortListeners.size) {
-      var error$23 =
+      var error$22 =
         void 0 === reason
           ? Error("The render was aborted by the server without a reason.")
           : "object" === typeof reason &&
@@ -1912,14 +1907,14 @@ function abort(request, reason) {
             ? Error("The render was aborted by the server with a promise.")
             : reason;
       abortListeners.forEach(function (callback) {
-        return callback(error$23);
+        return callback(error$22);
       });
       abortListeners.clear();
     }
     null !== request.destination &&
       flushCompletedChunks(request, request.destination);
-  } catch (error$24) {
-    logRecoverableError(request, error$24, null), fatalError(request, error$24);
+  } catch (error$23) {
+    logRecoverableError(request, error$23, null), fatalError(request, error$23);
   }
 }
 function resolveServerReference(bundlerConfig, id) {
@@ -2193,6 +2188,8 @@ function initializeModelChunk(chunk) {
   }
 }
 function reportGlobalError(response, error) {
+  response._closed = !0;
+  response._closedReason = error;
   response._chunks.forEach(function (chunk) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
@@ -2205,7 +2202,9 @@ function getChunk(response, id) {
     (chunk =
       null != chunk
         ? new Chunk("resolved_model", chunk, id, response)
-        : createPendingChunk(response)),
+        : response._closed
+          ? new Chunk("rejected", null, response._closedReason, response)
+          : createPendingChunk(response)),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -2361,8 +2360,8 @@ function parseReadableStream(response, reference, type) {
             (previousBlockedChunk = chunk));
       } else {
         chunk = previousBlockedChunk;
-        var chunk$27 = createPendingChunk(response);
-        chunk$27.then(
+        var chunk$26 = createPendingChunk(response);
+        chunk$26.then(
           function (v) {
             return controller.enqueue(v);
           },
@@ -2370,10 +2369,10 @@ function parseReadableStream(response, reference, type) {
             return controller.error(e);
           }
         );
-        previousBlockedChunk = chunk$27;
+        previousBlockedChunk = chunk$26;
         chunk.then(function () {
-          previousBlockedChunk === chunk$27 && (previousBlockedChunk = null);
-          resolveModelChunk(chunk$27, json, -1);
+          previousBlockedChunk === chunk$26 && (previousBlockedChunk = null);
+          resolveModelChunk(chunk$26, json, -1);
         });
       }
     },
@@ -2602,6 +2601,8 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
     _prefix: formFieldPrefix,
     _formData: backingFormData,
     _chunks: chunks,
+    _closed: !1,
+    _closedReason: null,
     _temporaryReferences: temporaryReferences
   };
 }
@@ -2756,17 +2757,7 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
         startWork(request);
       },
       pull: function (controller) {
-        if (13 === request.status)
-          (request.status = 14), closeWithError(controller, request.fatalError);
-        else if (14 !== request.status && null === request.destination) {
-          request.destination = controller;
-          try {
-            flushCompletedChunks(request, controller);
-          } catch (error) {
-            logRecoverableError(request, error, null),
-              fatalError(request, error);
-          }
-        }
+        startFlowing(request, controller);
       },
       cancel: function (reason) {
         request.destination = null;
@@ -2775,4 +2766,51 @@ exports.renderToReadableStream = function (model, turbopackMap, options) {
     },
     { highWaterMark: 0 }
   );
+};
+exports.unstable_prerender = function (model, turbopackMap, options) {
+  return new Promise(function (resolve, reject) {
+    var request = new RequestInstance(
+      21,
+      model,
+      turbopackMap,
+      options ? options.onError : void 0,
+      options ? options.identifierPrefix : void 0,
+      options ? options.onPostpone : void 0,
+      options ? options.temporaryReferences : void 0,
+      void 0,
+      void 0,
+      function () {
+        var stream = new ReadableStream(
+          {
+            type: "bytes",
+            start: function () {
+              startWork(request);
+            },
+            pull: function (controller) {
+              startFlowing(request, controller);
+            },
+            cancel: function (reason) {
+              request.destination = null;
+              abort(request, reason);
+            }
+          },
+          { highWaterMark: 0 }
+        );
+        resolve({ prelude: stream });
+      },
+      reject
+    );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
 };
