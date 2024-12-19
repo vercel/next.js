@@ -27,7 +27,7 @@ impl ImportReplacer {
     pub fn new() -> Self {
         ImportReplacer {
             has_dynamic_import: false,
-            wrapper_function_ident: private_ident!("$$trackDynamicImport__").into(),
+            wrapper_function_ident: private_ident!("$$trackDynamicImport__"),
         }
     }
 }
@@ -47,7 +47,7 @@ impl VisitMut for ImportReplacer {
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         imported: Some(quote_ident!("trackDynamicImport").into()),
-                        local: self.wrapper_function_ident.clone().into(),
+                        local: self.wrapper_function_ident.clone(),
                         is_type_only: false,
                     })],
                     src: Box::new(Str {
