@@ -455,7 +455,7 @@ const moduleCache = Object.create(null);
         }
         const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
         const resolved = path.resolve(ABSOLUTE_ROOT, OUTPUT_ROOT, strippedAssetPrefix);
-        return url.pathToFileURL(resolved);
+        return url.pathToFileURL(resolved).href;
     };
 }
 function loadChunk(chunkData, source) {
