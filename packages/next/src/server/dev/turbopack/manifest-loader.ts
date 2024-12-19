@@ -2,7 +2,13 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
-import type { StatsAsset, StatsChunk, StatsChunkGroup, StatsModule, StatsCompilation as WebpackStats } from 'webpack'
+import type {
+  StatsAsset,
+  StatsChunk,
+  StatsChunkGroup,
+  StatsModule,
+  StatsCompilation as WebpackStats,
+} from 'webpack'
 import type { BuildManifest } from '../../get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
@@ -43,7 +49,11 @@ import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
 import { getSortedRoutes } from '../../../shared/lib/router/utils'
 import { existsSync } from 'fs'
-import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
+import {
+  addMetadataIdToRoute,
+  addRouteSuffix,
+  removeRouteSuffix,
+} from '../turbopack-utils'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
 
 interface InstrumentationDefinition {
@@ -55,7 +65,12 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
-const getManifestPath = (page: string, distDir: string, name: string, type: string) => {
+const getManifestPath = (
+  page: string,
+  distDir: string,
+  name: string,
+  type: string
+) => {
   let manifestPath = posix.join(
     distDir,
     `server`,
@@ -84,22 +99,41 @@ async function readPartialManifest<T>(
     | typeof REACT_LOADABLE_MANIFEST,
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
-): Promise<T> {
+): Promise<T | undefined> {
   const page = pageName
   const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
   let manifestPath = getManifestPath(page, distDir, name, type)
 
   // Check the ambiguity of /sitemap and /sitemap.xml
   if (isSitemapRoute && !existsSync(manifestPath)) {
-    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
+    manifestPath = getManifestPath(
+      pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'),
+      distDir,
+      name,
+      type
+    )
   }
   // existsSync is faster than using the async version
-  if(!existsSync(manifestPath) && page.endsWith('/route')) {
+  if (!existsSync(manifestPath) && page.endsWith('/route')) {
     // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
-    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
+    let metadataPage = addRouteSuffix(
+      addMetadataIdToRoute(removeRouteSuffix(page))
+    )
     manifestPath = getManifestPath(metadataPage, distDir, name, type)
   }
-  return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
+  if (existsSync(manifestPath)) {
+    return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
+  } else {
+    return undefined
+  }
+}
+
+function updateMap<K, T>(map: Map<K, T>, key: K, value: T | undefined) {
+  if (value) {
+    map.set(key, value)
+  } else {
+    map.delete(key)
+  }
 }
 
 export class TurbopackManifestLoader {
@@ -145,7 +179,8 @@ export class TurbopackManifestLoader {
   }
 
   async loadActionManifest(pageName: string): Promise<void> {
-    this.actionManifests.set(
+    updateMap(
+      this.actionManifests,
       getEntryKey('app', 'server', pageName),
       await readPartialManifest(
         this.distDir,
@@ -211,7 +246,8 @@ export class TurbopackManifestLoader {
   }
 
   async loadAppBuildManifest(pageName: string): Promise<void> {
-    this.appBuildManifests.set(
+    updateMap(
+      this.appBuildManifests,
       getEntryKey('app', 'server', pageName),
       await readPartialManifest(
         this.distDir,
@@ -245,7 +281,8 @@ export class TurbopackManifestLoader {
   }
 
   async loadAppPathsManifest(pageName: string): Promise<void> {
-    this.appPathsManifests.set(
+    updateMap(
+      this.appPathsManifests,
       getEntryKey('app', 'server', pageName),
       await readPartialManifest(
         this.distDir,
@@ -273,26 +310,18 @@ export class TurbopackManifestLoader {
   }
 
   private async writeWebpackStats(): Promise<void> {
-    const webpackStats = this.mergeWebpackStats(
-      this.webpackStats.values()
-    )
-    const path = join(
-      this.distDir,
-      'server',
-      WEBPACK_STATS
-    )
+    const webpackStats = this.mergeWebpackStats(this.webpackStats.values())
+    const path = join(this.distDir, 'server', WEBPACK_STATS)
     deleteCache(path)
-    await writeFileAtomic(
-      path,
-      JSON.stringify(webpackStats, null, 2)
-    )
+    await writeFileAtomic(path, JSON.stringify(webpackStats, null, 2))
   }
 
   async loadBuildManifest(
     pageName: string,
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
-    this.buildManifests.set(
+    updateMap(
+      this.buildManifests,
       getEntryKey(type, 'server', pageName),
       await readPartialManifest(this.distDir, BUILD_MANIFEST, pageName, type)
     )
@@ -302,23 +331,22 @@ export class TurbopackManifestLoader {
     pageName: string,
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
-    this.webpackStats.set(
+    updateMap(
+      this.webpackStats,
       getEntryKey(type, 'client', pageName),
       await readPartialManifest(this.distDir, WEBPACK_STATS, pageName, type)
     )
   }
 
   private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
-    const entrypoints: Record<string, StatsChunkGroup> = {};
+    const entrypoints: Record<string, StatsChunkGroup> = {}
     const assets: Map<string, StatsAsset> = new Map()
     const chunks: Map<string, StatsChunk> = new Map()
     const modules: Map<string | number, StatsModule> = new Map()
 
     for (const statsFile of statsFiles) {
       if (statsFile.entrypoints) {
-        for (const [k, v] of Object.entries(
-          statsFile.entrypoints
-        )) {
+        for (const [k, v] of Object.entries(statsFile.entrypoints)) {
           if (!entrypoints[k]) {
             entrypoints[k] = v
           }
@@ -343,10 +371,10 @@ export class TurbopackManifestLoader {
 
       if (statsFile.modules) {
         for (const module of statsFile.modules) {
-          const id = module.id;
+          const id = module.id
           if (id != null) {
             // Merge the chunk list for the module. This can vary across endpoints.
-            const existing = modules.get(id);
+            const existing = modules.get(id)
             if (existing == null) {
               modules.set(id, module)
             } else if (module.chunks != null && existing.chunks != null) {
@@ -514,7 +542,8 @@ export class TurbopackManifestLoader {
     pageName: string,
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
-    this.fontManifests.set(
+    updateMap(
+      this.fontManifests,
       getEntryKey(type, 'server', pageName),
       await readPartialManifest(
         this.distDir,
@@ -571,7 +600,8 @@ export class TurbopackManifestLoader {
     pageName: string,
     type: 'app' | 'pages' = 'pages'
   ): Promise<void> {
-    this.loadableManifests.set(
+    updateMap(
+      this.loadableManifests,
       getEntryKey(type, 'server', pageName),
       await readPartialManifest(
         this.distDir,
@@ -616,7 +646,8 @@ export class TurbopackManifestLoader {
     pageName: string,
     type: 'pages' | 'app' | 'middleware' | 'instrumentation'
   ): Promise<void> {
-    this.middlewareManifests.set(
+    updateMap(
+      this.middlewareManifests,
       getEntryKey(
         type === 'middleware' || type === 'instrumentation' ? 'root' : type,
         'server',
@@ -721,7 +752,8 @@ export class TurbopackManifestLoader {
   }
 
   async loadPagesManifest(pageName: string): Promise<void> {
-    this.pagesManifests.set(
+    updateMap(
+      this.pagesManifests,
       getEntryKey('pages', 'server', pageName),
       await readPartialManifest(this.distDir, PAGES_MANIFEST, pageName)
     )
