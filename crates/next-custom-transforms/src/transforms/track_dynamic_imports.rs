@@ -20,14 +20,14 @@ pub fn track_dynamic_imports() -> impl VisitMut + Pass {
 
 struct ImportReplacer {
     has_dynamic_import: bool,
-    wrapper_function_ident: Ident,
+    wrapper_function_local_ident: Ident,
 }
 
 impl ImportReplacer {
     pub fn new() -> Self {
         ImportReplacer {
             has_dynamic_import: false,
-            wrapper_function_ident: private_ident!("$$trackDynamicImport__"),
+            wrapper_function_local_ident: private_ident!("$$trackDynamicImport__"),
         }
     }
 }
@@ -39,7 +39,12 @@ impl VisitMut for ImportReplacer {
         stmts.visit_mut_children_with(self);
 
         if self.has_dynamic_import {
-            // import { trackDynamicImport } from 'private-next-rsc-track-dynamic-import'
+            // if we wrapped a dynamic import above, we need to import the wrapper
+            //
+            // import {
+            //   trackDynamicImport as $$trackDynamicImport__
+            // } from 'private-next-rsc-track-dynamic-import'
+
             stmts.insert(
                 0,
                 ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
@@ -47,7 +52,7 @@ impl VisitMut for ImportReplacer {
                     specifiers: vec![ImportSpecifier::Named(ImportNamedSpecifier {
                         span: DUMMY_SP,
                         imported: Some(quote_ident!("trackDynamicImport").into()),
-                        local: self.wrapper_function_ident.clone(),
+                        local: self.wrapper_function_local_ident.clone(),
                         is_type_only: false,
                     })],
                     src: Box::new(Str {
@@ -66,6 +71,9 @@ impl VisitMut for ImportReplacer {
     fn visit_mut_expr(&mut self, expr: &mut Expr) {
         expr.visit_mut_children_with(self);
 
+        // before: `import(...)`
+        // after:  `$$trackDynamicImport__(import(...))`
+
         if let Expr::Call(CallExpr {
             callee: Callee::Import(_),
             ..
@@ -74,7 +82,7 @@ impl VisitMut for ImportReplacer {
             self.has_dynamic_import = true;
             *expr = Expr::Call(CallExpr {
                 span: DUMMY_SP,
-                callee: Callee::Expr(self.wrapper_function_ident.clone().into()),
+                callee: Callee::Expr(self.wrapper_function_local_ident.clone().into()),
                 args: vec![expr.clone().as_arg()],
                 ..Default::default()
             })
