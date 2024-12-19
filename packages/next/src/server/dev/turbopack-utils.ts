@@ -448,7 +448,6 @@ export async function handleRouteType({
         }
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
-        await manifestLoader.loadLoadableManifest(page, 'pages')
 
         if (shouldCreateWebpackStats) {
           await manifestLoader.loadWebpackStats(page, 'pages')
@@ -544,7 +543,6 @@ export async function handleRouteType({
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
-      await manifestLoader.loadLoadableManifest(page, 'pages')
 
       await manifestLoader.writeManifests({
         devRewrites,
@@ -601,7 +599,6 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {

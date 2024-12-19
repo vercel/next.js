@@ -18,6 +18,7 @@ use turbopack_core::{issue::IssueSource, source::Source};
 
 use super::{top_level_await::has_top_level_await, JsValue, ModuleValue};
 use crate::{
+    analyzer::{ConstantValue, ObjectPart},
     tree_shake::{find_turbopack_part_id_in_asserts, PartId},
     SpecifiedModuleType,
 };
@@ -72,6 +73,31 @@ impl ImportAnnotations {
         }
 
         ImportAnnotations { map }
+    }
+
+    pub fn parse_dynamic(with: &JsValue) -> Option<ImportAnnotations> {
+        let mut map = BTreeMap::new();
+
+        let JsValue::Object { parts, .. } = with else {
+            return None;
+        };
+
+        for part in parts.iter() {
+            let ObjectPart::KeyValue(key, value) = part else {
+                continue;
+            };
+            let (
+                JsValue::Constant(ConstantValue::Str(key)),
+                JsValue::Constant(ConstantValue::Str(value)),
+            ) = (key, value)
+            else {
+                continue;
+            };
+
+            map.insert(key.as_str().into(), value.as_str().into());
+        }
+
+        Some(ImportAnnotations { map })
     }
 
     /// Returns the content on the transition annotation
