@@ -232,7 +232,7 @@ pub fn make_task_dirty_internal(
                 AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
             ));
         }
-        task.has_key(&CachedDataItemKey::AggregateRoot {})
+        task.has_key(&CachedDataItemKey::Activeness {})
     } else {
         true
     };

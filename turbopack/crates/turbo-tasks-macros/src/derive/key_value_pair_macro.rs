@@ -152,6 +152,19 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                                     .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
                             }
                         },
+                        get_mut_or_insert_with: quote! {
+                            (#storage_name::#variant_name { storage }, #key_name::#variant_name {}) => {
+                                #value_ref_mut_name::#variant_name {
+                                    #(#value_fields)*: storage
+                                        .get_or_insert_with(|| {
+                                            let #value_name::#variant_name { #(#value_fields)* } = insert_with() else {
+                                                unreachable!();
+                                            };
+                                            #(#value_fields)*
+                                        })
+                                }
+                            }
+                        },
                         shrink_to_fit: quote! {
                             #storage_name::#variant_name { .. } => {
                                 // nothing to do
@@ -227,6 +240,20 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                             (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
                                 storage.get_mut(#(#key_fields)*)
                                     .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
+                            }
+                        },
+                        get_mut_or_insert_with: quote! {
+                            (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
+                                #value_ref_mut_name::#variant_name {
+                                    #(#value_fields)*: storage
+                                        .entry(*#(#key_fields)*)
+                                        .or_insert_with(|| {
+                                            let #value_name::#variant_name { #(#value_fields)* } = insert_with() else {
+                                                unreachable!();
+                                            };
+                                            #(#value_fields)*
+                                        })
+                                }
                             }
                         },
                         shrink_to_fit: quote! {
@@ -307,6 +334,20 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                                     .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
                             }
                         },
+                        get_mut_or_insert_with: quote! {
+                            (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields),* }) => {
+                                #value_ref_mut_name::#variant_name {
+                                    #(#value_fields)*: storage
+                                        .entry((#(*#key_fields),*))
+                                        .or_insert_with(|| {
+                                            let #value_name::#variant_name { #(#value_fields)* } = insert_with() else {
+                                                unreachable!();
+                                            };
+                                            #(#value_fields)*
+                                        })
+                                }
+                            }
+                        },
                         shrink_to_fit: quote! {
                             #storage_name::#variant_name { storage } => {
                                 storage.shrink_to_fit()
@@ -351,6 +392,10 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
     let storage_get = storage.iter().map(|decl| &decl.get).collect::<Vec<_>>();
     let storage_get_mut = storage.iter().map(|decl| &decl.get_mut).collect::<Vec<_>>();
+    let storage_get_mut_or_insert_with = storage
+        .iter()
+        .map(|decl| &decl.get_mut_or_insert_with)
+        .collect::<Vec<_>>();
     let storage_shrink_to_fit = storage
         .iter()
         .map(|decl| &decl.shrink_to_fit)
@@ -590,6 +635,15 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            pub fn get_mut_or_insert_with(&mut self, key: &#key_name, insert_with: impl FnOnce() -> #value_name) -> #value_ref_mut_name {
+                match (self, key) {
+                    #(
+                        #storage_get_mut_or_insert_with
+                    )*
+                    _ => unreachable!(),
+                }
+            }
+
             pub fn shrink_to_fit(&mut self) {
                 match self {
                     #(
@@ -786,6 +840,7 @@ struct StorageDecl {
     contains_key: proc_macro2::TokenStream,
     get: proc_macro2::TokenStream,
     get_mut: proc_macro2::TokenStream,
+    get_mut_or_insert_with: proc_macro2::TokenStream,
     shrink_to_fit: proc_macro2::TokenStream,
     is_empty: proc_macro2::TokenStream,
     len: proc_macro2::TokenStream,

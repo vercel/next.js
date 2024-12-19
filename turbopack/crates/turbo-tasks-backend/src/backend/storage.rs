@@ -193,6 +193,15 @@ impl InnerStorage {
         self.get_map_mut(key.ty()).and_then(|m| m.get_mut(key))
     }
 
+    pub fn get_mut_or_insert_with(
+        &mut self,
+        key: &CachedDataItemKey,
+        f: impl FnOnce() -> CachedDataItemValue,
+    ) -> CachedDataItemValueRefMut<'_> {
+        self.get_or_create_map_mut(key.ty())
+            .get_mut_or_insert_with(&key, f)
+    }
+
     pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.get_map(key.ty())
             .map(|m| m.contains_key(key))
@@ -366,6 +375,24 @@ macro_rules! get_mut {
     };
 }
 
+macro_rules! get_mut_or_insert_with {
+    ($task:ident, $key:ident $input:tt, $f:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        let () = $crate::data::allow_mut_access::$key;
+        let functor = $f;
+        let $crate::data::CachedDataItemValueRefMut::$key {
+            value,
+        } = $task.get_mut_or_insert_with(&$crate::data::CachedDataItemKey::$key $input, move || $crate::data::CachedDataItemValue::$key { value: functor() }) else {
+            unreachable!()
+        };
+        value
+    }};
+    ($task:ident, $key:ident, $f:expr) => {
+        $crate::backend::storage::get_mut_or_insert_with!($task, $key {}, $f)
+    };
+}
+
 /// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
 /// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
 ///
@@ -530,6 +557,7 @@ pub(crate) use count;
 pub(crate) use get;
 pub(crate) use get_many;
 pub(crate) use get_mut;
+pub(crate) use get_mut_or_insert_with;
 pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;

@@ -67,23 +67,67 @@ impl OutputValue {
 }
 
 #[derive(Debug)]
-pub struct RootState {
-    pub ty: ActiveType,
+pub struct ActivenessState {
+    /// The task is a root or once task and is active due to that.
+    pub root_ty: Option<RootType>,
+    /// The subgraph is active as long it's dirty. Once it become clean, it will unset this flag.
+    ///
+    /// This happens primarily when a dirty subgraph wants to be scheduled. It will set this flag
+    /// to "cache" the activeness.
+    ///
+    /// It also happens when a task is strongly consistently read. We need the `all_clean_event` in
+    /// that case and want to keep the task active to not stale the task.
+    pub active_until_clean: bool,
+    /// An event which is notifies when the subgraph is no longer dirty. It must be combined with
+    /// `active_until_clean` to avoid staling the task.
     pub all_clean_event: Event,
 }
 
-impl RootState {
-    pub fn new(ty: ActiveType, id: TaskId) -> Self {
+impl ActivenessState {
+    pub fn new(id: TaskId) -> Self {
         Self {
-            ty,
-            all_clean_event: Event::new(move || format!("RootState::all_clean_event {:?}", id)),
+            root_ty: None,
+            active_until_clean: false,
+            all_clean_event: Event::new(move || {
+                format!("ActivenessState::all_clean_event {:?}", id)
+            }),
         }
+    }
+
+    pub fn new_root(root_ty: RootType, id: TaskId) -> Self {
+        Self {
+            root_ty: Some(root_ty),
+            active_until_clean: false,
+            all_clean_event: Event::new(move || {
+                format!("ActivenessState::all_clean_event {:?}", id)
+            }),
+        }
+    }
+
+    pub fn set_root(&mut self, root_ty: RootType) {
+        self.root_ty = Some(root_ty);
+    }
+
+    pub fn set_active_until_clean(&mut self) {
+        self.active_until_clean = true;
+    }
+
+    pub fn unset_root_type(&mut self) {
+        self.root_ty = None;
+    }
+
+    pub fn unset_active_until_clean(&mut self) {
+        self.active_until_clean = false;
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.root_ty.is_none() && !self.active_until_clean
     }
 }
 
-transient_traits!(RootState);
+transient_traits!(ActivenessState);
 
-impl Eq for RootState {}
+impl Eq for ActivenessState {}
 
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub struct DirtyState {
@@ -239,13 +283,9 @@ impl DirtyContainerCount {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum ActiveType {
+pub enum RootType {
     RootTask,
     OnceTask,
-    /// The aggregated task graph was scheduled because it has reached an AggregatedRoot while
-    /// propagating the dirty container or is read strongly consistent. This state is reset when
-    /// all this sub graph becomes clean again.
-    CachedActiveUntilClean,
 }
 
 #[derive(Debug)]
@@ -390,8 +430,8 @@ pub enum CachedDataItem {
 
     // Transient Root Type
     #[serde(skip)]
-    AggregateRoot {
-        value: RootState,
+    Activeness {
+        value: ActivenessState,
     },
 
     // Transient In Progress state
@@ -464,7 +504,7 @@ impl CachedDataItem {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItem::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItem::AggregateRoot { .. } => false,
+            CachedDataItem::Activeness { .. } => false,
             CachedDataItem::InProgress { .. } => false,
             CachedDataItem::InProgressCell { .. } => false,
             CachedDataItem::OutdatedCollectible { .. } => false,
@@ -530,7 +570,7 @@ impl CachedDataItem {
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }
-            | Self::AggregateRoot { .. } => TaskDataCategory::All,
+            | Self::Activeness { .. } => TaskDataCategory::All,
         }
     }
 }
@@ -562,7 +602,7 @@ impl CachedDataItemKey {
                 !collectible.cell.task.is_transient()
             }
             CachedDataItemKey::AggregatedDirtyContainerCount { .. } => true,
-            CachedDataItemKey::AggregateRoot { .. } => false,
+            CachedDataItemKey::Activeness { .. } => false,
             CachedDataItemKey::InProgress { .. } => false,
             CachedDataItemKey::InProgressCell { .. } => false,
             CachedDataItemKey::OutdatedCollectible { .. } => false,
@@ -616,7 +656,7 @@ impl CachedDataItemType {
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }
-            | Self::AggregateRoot { .. } => TaskDataCategory::All,
+            | Self::Activeness { .. } => TaskDataCategory::All,
         }
     }
 }
@@ -627,7 +667,7 @@ impl CachedDataItemType {
 #[allow(non_upper_case_globals, dead_code)]
 pub mod allow_mut_access {
     pub const InProgress: () = ();
-    pub const AggregateRoot: () = ();
+    pub const Activeness: () = ();
 }
 
 impl CachedDataItemValue {

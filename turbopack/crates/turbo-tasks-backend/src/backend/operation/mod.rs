@@ -370,6 +370,11 @@ pub trait TaskGuard: Debug {
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
     fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>>;
+    fn get_mut_or_insert_with(
+        &mut self,
+        key: &CachedDataItemKey,
+        insert: impl FnOnce() -> CachedDataItemValue,
+    ) -> CachedDataItemValueRefMut<'_>;
     fn has_key(&self, key: &CachedDataItemKey) -> bool;
     fn count(&self, ty: CachedDataItemType) -> usize;
     fn iter(
@@ -594,6 +599,15 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         self.check_access(key.category());
         self.task.get_mut(key)
+    }
+
+    fn get_mut_or_insert_with(
+        &mut self,
+        key: &CachedDataItemKey,
+        insert: impl FnOnce() -> CachedDataItemValue,
+    ) -> CachedDataItemValueRefMut<'_> {
+        self.check_access(key.category());
+        self.task.get_mut_or_insert_with(key, insert)
     }
 
     fn has_key(&self, key: &CachedDataItemKey) -> bool {

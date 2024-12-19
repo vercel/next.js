@@ -18,6 +18,7 @@ use turbo_tasks::{FxIndexMap, SessionId, TaskId, TraitTypeId};
 
 use crate::{
     backend::{
+        get_mut,
         operation::{
             invalidate::{make_task_dirty, TaskDirtyCause},
             ExecuteContext, Operation, TaskGuard,
@@ -26,8 +27,8 @@ use crate::{
         TaskDataCategory,
     },
     data::{
-        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef,
-        DirtyContainerCount, RootState,
+        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CollectibleRef,
+        DirtyContainerCount,
     },
     utils::deque_set::DequeSet,
 };
@@ -244,9 +245,9 @@ impl AggregatedDataUpdate {
         let mut result = Self::default();
         if let Some((dirty_container_id, count)) = dirty_container_update {
             // When a dirty container count is increased and the task is considered as active
-            // `AggregateRoot` we need to schedule the dirty tasks in the new dirty container
+            // we need to schedule the dirty tasks in the new dirty container
             let current_session_update = count.get(session_id);
-            if current_session_update > 0 && task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+            if current_session_update > 0 && task.has_key(&CachedDataItemKey::Activeness {}) {
                 queue.push_find_and_schedule_dirty(*dirty_container_id)
             }
 
@@ -286,10 +287,11 @@ impl AggregatedDataUpdate {
                     if count.get(session_id) < 0 {
                         // When the current task is no longer dirty, we need to fire the aggregate
                         // root events and do some cleanup
-                        if let Some(root_state) = get!(task, AggregateRoot) {
+                        if let Some(root_state) = get_mut!(task, Activeness) {
                             root_state.all_clean_event.notify(usize::MAX);
-                            if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
-                                task.remove(&CachedDataItemKey::AggregateRoot {});
+                            root_state.unset_active_until_clean();
+                            if root_state.is_empty() {
+                                task.remove(&CachedDataItemKey::Activeness {});
                             }
                         }
                     }
@@ -921,8 +923,8 @@ impl AggregationUpdateQueue {
                             });
                         }
 
-                        if upper.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                            // If the upper node is an `AggregateRoot` we need to schedule the
+                        if upper.has_key(&CachedDataItemKey::Activeness {}) {
+                            // If the upper node is has `Activeness` we need to schedule the
                             // dirty tasks in the new dirty container
                             self.push_find_and_schedule_dirty(task_id);
                         }
@@ -1025,13 +1027,15 @@ impl AggregationUpdateQueue {
             }
         }
         if is_aggregating_node(get_aggregation_number(&task)) {
-            // if it has an `AggregateRoot` we can skip visiting the nested nodes since
-            // this would already be scheduled by the `AggregateRoot`
-            if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
+            // if it has `Activeness` we can skip visiting the nested nodes since
+            // this would already be scheduled by the `Activeness`
+            if !task.has_key(&CachedDataItemKey::Activeness {}) {
                 let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
                 if !dirty_containers.is_empty() || dirty {
-                    task.insert(CachedDataItem::AggregateRoot {
-                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
+                    let mut activeness_state = ActivenessState::new(task_id);
+                    activeness_state.set_active_until_clean();
+                    task.insert(CachedDataItem::Activeness {
+                        value: activeness_state,
                     });
 
                     self.extend_find_and_schedule_dirty(dirty_containers);
@@ -1245,7 +1249,7 @@ impl AggregationUpdateQueue {
             get_aggregation_number(&follower)
         };
         let mut upper_upper_ids_with_new_follower = Vec::new();
-        let mut is_aggregate_root = false;
+        let mut is_active = false;
         swap_retain(&mut upper_ids, |&mut upper_id| {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
             // decide if it should be an inner or follower
@@ -1277,8 +1281,8 @@ impl AggregationUpdateQueue {
                 false
             } else {
                 // It's an inner node, continue with the list
-                if upper.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                    is_aggregate_root = true;
+                if upper.has_key(&CachedDataItemKey::Activeness {}) {
+                    is_active = true;
                 }
                 true
             }
@@ -1346,7 +1350,7 @@ impl AggregationUpdateQueue {
                 drop(follower);
             }
         }
-        if is_aggregate_root {
+        if is_active {
             self.push_find_and_schedule_dirty(new_follower_id);
         }
         if !upper_upper_ids_with_new_follower.is_empty() {
@@ -1381,12 +1385,12 @@ impl AggregationUpdateQueue {
             .collect::<Vec<_>>();
 
         let mut new_followers_of_upper_uppers = Vec::new();
-        let is_aggregate_root;
+        let is_active;
         let mut upper_upper_ids_for_new_followers = Vec::new();
         let upper_aggregation_number;
         {
             let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
-            is_aggregate_root = upper.has_key(&CachedDataItemKey::AggregateRoot {});
+            is_active = upper.has_key(&CachedDataItemKey::Activeness {});
             // decide if it should be an inner or follower
             upper_aggregation_number = get_aggregation_number(&upper);
 
@@ -1493,7 +1497,7 @@ impl AggregationUpdateQueue {
                     });
                 }
             }
-            if is_aggregate_root {
+            if is_active {
                 self.extend_find_and_schedule_dirty(
                     followers_with_aggregation_number
                         .into_iter()
@@ -1527,7 +1531,7 @@ impl AggregationUpdateQueue {
         };
 
         let mut upper = ctx.task(upper_id, TaskDataCategory::Meta);
-        if upper.has_key(&CachedDataItemKey::AggregateRoot {}) {
+        if upper.has_key(&CachedDataItemKey::Activeness {}) {
             self.push_find_and_schedule_dirty(new_follower_id);
         }
         // decide if it should be an inner or follower
