@@ -145,7 +145,7 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
-    head: null,
+    head: [null, null],
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
@@ -280,7 +280,12 @@ function Router({
           ? // Unlike the old implementation, the Segment Cache doesn't store its
             // data in the router reducer state; it writes into a global mutable
             // cache. So we don't need to dispatch an action.
-            (href) => prefetchWithSegmentCache(href, actionQueue.state.nextUrl)
+            (href) =>
+              prefetchWithSegmentCache(
+                href,
+                actionQueue.state.nextUrl,
+                actionQueue.state.tree
+              )
           : (href, options) => {
               // Use the old prefetch implementation.
               const url = createPrefetchURL(href)

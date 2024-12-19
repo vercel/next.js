@@ -59,10 +59,10 @@ pub enum GraphTraversalAction {
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 pub struct SingleModuleGraphNode {
     pub module: ResolvedVc<Box<dyn Module>>,
-    pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
+    issues: Vec<ResolvedVc<Box<dyn Issue>>>,
     pub layer: Option<ReadRef<RcStr>>,
-    // pub ident: ReadRef<RcStr>,
 }
+
 impl SingleModuleGraphNode {
     fn emit_issues(&self) {
         for issue in &self.issues {
@@ -95,10 +95,10 @@ impl<N: TraceRawVcs, E: TraceRawVcs> Deref for TracedDiGraph<N, E> {
     }
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
+#[turbo_tasks::value(cell = "new", eq = "manual", into = "new", local)]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
-    graph: TracedDiGraph<SingleModuleGraphNode, ()>,
+    graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
     //
@@ -114,19 +114,30 @@ pub struct SingleModuleGraph {
 #[derive(Clone, Debug)]
 struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
+// These nodes are created while walking the Turbopack modules references, and are used to then
+// afterwards build the SingleModuleGraph.
 #[derive(Clone, Hash, PartialEq, Eq)]
 enum SingleModuleGraphBuilderNode {
+    /// This edge is represented as a node: source Module -> ChunkableReference ->  target Module
+    ChunkableReference {
+        chunking_type: ChunkingType,
+        source: ResolvedVc<Box<dyn Module>>,
+        source_ident: ReadRef<RcStr>,
+        target: ResolvedVc<Box<dyn Module>>,
+        target_ident: ReadRef<RcStr>,
+    },
     Module {
         module: ResolvedVc<Box<dyn Module>>,
         layer: Option<ReadRef<RcStr>>,
         ident: ReadRef<RcStr>,
     },
+    /// Issues to be added to the parent Module node
     #[allow(dead_code)]
     Issues(Vec<ResolvedVc<Box<dyn Issue>>>),
 }
 
 impl SingleModuleGraphBuilderNode {
-    async fn new(module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
+    async fn new_module(module: ResolvedVc<Box<dyn Module>>) -> Result<Self> {
         let ident = module.ident();
         Ok(Self::Module {
             module,
@@ -137,16 +148,29 @@ impl SingleModuleGraphBuilderNode {
             ident: ident.to_string().await?,
         })
     }
-    fn module(&self) -> Option<ResolvedVc<Box<dyn Module>>> {
-        match self {
-            SingleModuleGraphBuilderNode::Module { module, .. } => Some(*module),
-            SingleModuleGraphBuilderNode::Issues(_) => None,
-        }
+    async fn new_chunkable_ref(
+        source: ResolvedVc<Box<dyn Module>>,
+        target: ResolvedVc<Box<dyn Module>>,
+        chunking_type: ChunkingType,
+    ) -> Result<Self> {
+        Ok(Self::ChunkableReference {
+            chunking_type,
+            source,
+            source_ident: source.ident().to_string().await?,
+            target,
+            target_ident: target.ident().to_string().await?,
+        })
     }
 }
 struct SingleModuleGraphBuilderEdge {
+    // ty: Option<ChunkingType>,
     to: SingleModuleGraphBuilderNode,
 }
+
+/// The chunking type that occurs most often, is handled more efficiently by not creating
+/// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
+const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::Parallel;
+
 struct SingleModuleGraphBuilder {}
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
     type Edge = SingleModuleGraphBuilderEdge;
@@ -155,50 +179,67 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<SingleModuleGraphBuilderNode> {
         match edge.to {
-            SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue(edge.to),
+            SingleModuleGraphBuilderNode::Module { .. }
+            | SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
+                VisitControlFlow::Continue(edge.to)
+            }
             SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
         }
     }
 
     fn edges(&mut self, node: &SingleModuleGraphBuilderNode) -> Self::EdgesFuture {
-        let module = node.module();
+        // Destructure beforehand to not have to clone the whole node when entering the async block
+        let (module, chunkable_ref_target) = match node {
+            SingleModuleGraphBuilderNode::Module { module, .. } => (Some(*module), None),
+            SingleModuleGraphBuilderNode::ChunkableReference { target, .. } => {
+                (None, Some(*target))
+            }
+            SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
+        };
         async move {
-            // This error should never occur since we always skip visiting these
-            let module = module.context("visiting SingleModuleGraphBuilderNode::Issues")?;
+            Ok(match (module, chunkable_ref_target) {
+                (Some(module), None) => {
+                    let refs_cell = primary_chunkable_referenced_modules(*module);
+                    let refs = refs_cell.await?;
+                    // TODO This is currently too slow
+                    // let refs_issues = refs_cell
+                    //     .take_collectibles::<Box<dyn Issue>>()
+                    //     .iter()
+                    //     .map(|issue| issue.to_resolved())
+                    //     .try_join()
+                    // .await?;
 
-            let refs_cell = primary_chunkable_referenced_modules(*module);
-            let refs = refs_cell.await?;
-            // TODO This is currently too slow
-            // let refs_issues = refs_cell
-            //     .take_collectibles::<Box<dyn Issue>>()
-            //     .iter()
-            //     .map(|issue| issue.to_resolved())
-            //     .try_join()
-            // .await?;
-
-            let edges = refs
-                .iter()
-                .flat_map(|(ty, modules)| {
-                    if matches!(ty, ChunkingType::Traced) {
-                        None
-                    } else {
-                        Some(modules.iter())
-                    }
-                })
-                .flatten()
-                .map(|m| async move {
-                    Ok(SingleModuleGraphBuilderEdge {
-                        to: SingleModuleGraphBuilderNode::new(*m).await?,
-                    })
-                })
-                .try_join()
-                .await?;
-            // if !refs_issues.is_empty() {
-            //     x.push(SingleModuleGraphBuilderEdge {
-            //         to: SingleModuleGraphBuilderNode::Issues(refs_issues),
-            //     });
-            // }
-            Ok(edges)
+                    refs.iter()
+                        .flat_map(|(ty, modules)| {
+                            if matches!(ty, ChunkingType::Traced) {
+                                None
+                            } else {
+                                Some(modules.iter().map(|m| (ty.clone(), *m)))
+                            }
+                        })
+                        .flatten()
+                        .map(|(ty, target)| async move {
+                            Ok(SingleModuleGraphBuilderEdge {
+                                to: if ty == COMMON_CHUNKING_TYPE {
+                                    SingleModuleGraphBuilderNode::new_module(target).await?
+                                } else {
+                                    SingleModuleGraphBuilderNode::new_chunkable_ref(
+                                        module, target, ty,
+                                    )
+                                    .await?
+                                },
+                            })
+                        })
+                        .try_join()
+                        .await?
+                }
+                (None, Some(chunkable_ref_target)) => {
+                    vec![SingleModuleGraphBuilderEdge {
+                        to: SingleModuleGraphBuilderNode::new_module(chunkable_ref_target).await?,
+                    }]
+                }
+                _ => unreachable!(),
+            })
         }
     }
 
@@ -209,6 +250,19 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
             }
             SingleModuleGraphBuilderNode::Issues(_) => {
                 tracing::info_span!("issues")
+            }
+            SingleModuleGraphBuilderNode::ChunkableReference {
+                chunking_type,
+                source_ident,
+                target_ident,
+                ..
+            } => {
+                tracing::info_span!(
+                    "chunkable reference",
+                    ty = debug(chunking_type),
+                    source = display(source_ident),
+                    target = display(target_ident)
+                )
             }
         }
     }
@@ -230,16 +284,17 @@ impl SingleModuleGraph {
             .iter()
             .map(|e| async move {
                 Ok(SingleModuleGraphBuilderEdge {
-                    to: SingleModuleGraphBuilderNode::new(*e).await?,
+                    to: SingleModuleGraphBuilderNode::new_module(*e).await?,
                 })
             })
             .try_join()
             .await?;
-        let children_modules_iter = AdjacencyMap::new()
+
+        let children_nodes_iter = AdjacencyMap::new()
             .skip_duplicates_with_visited_nodes(VisitedNodes(
                 visited_modules
                     .iter()
-                    .map(|&module| SingleModuleGraphBuilderNode::new(module))
+                    .map(|&module| SingleModuleGraphBuilderNode::new_module(module))
                     .try_join()
                     .await?
                     .into_iter()
@@ -253,9 +308,18 @@ impl SingleModuleGraph {
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         {
             let _span = tracing::info_span!("build module graph").entered();
-            for (parent, current) in children_modules_iter.into_breadth_first_edges() {
-                let parent_idx =
-                    parent.map(|parent| *modules.get(&parent.module().unwrap()).unwrap());
+            for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
+                let parent_edge = parent.map(|parent| match parent {
+                    SingleModuleGraphBuilderNode::Module { module, .. } => {
+                        (*modules.get(&module).unwrap(), COMMON_CHUNKING_TYPE)
+                    }
+                    SingleModuleGraphBuilderNode::ChunkableReference {
+                        source,
+                        chunking_type,
+                        ..
+                    } => (*modules.get(&source).unwrap(), chunking_type),
+                    SingleModuleGraphBuilderNode::Issues { .. } => unreachable!(),
+                });
 
                 match current {
                     SingleModuleGraphBuilderNode::Module {
@@ -263,30 +327,34 @@ impl SingleModuleGraph {
                         layer,
                         ident: _,
                     } => {
-                        if let Some(idx) = modules.get(&module) {
-                            if let Some(parent_idx) = parent_idx {
-                                graph.add_edge(parent_idx, *idx, ());
-                            }
+                        // Find the current node, if it was already added
+                        let current_idx = if let Some(current_idx) = modules.get(&module) {
+                            *current_idx
                         } else {
                             let idx = graph.add_node(SingleModuleGraphNode {
                                 module,
                                 issues: Default::default(),
                                 layer,
-                                // ident,
                             });
                             modules.insert(module, idx);
-                            if let Some(parent_idx) = parent_idx {
-                                graph.add_edge(parent_idx, idx, ());
-                            }
+                            idx
+                        };
+                        // Add the edge
+                        if let Some((parent_idx, chunking_type)) = parent_edge {
+                            graph.add_edge(parent_idx, current_idx, chunking_type);
                         }
                     }
-                    SingleModuleGraphBuilderNode::Issues(issues) => {
-                        let parent_idx = parent_idx.unwrap();
+                    SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
+                        // Ignore. They are handled when visiting the next edge
+                        // (ChunkableReference -> Module)
+                    }
+                    SingleModuleGraphBuilderNode::Issues(new_issues) => {
+                        let (parent_idx, _) = parent_edge.unwrap();
                         graph
                             .node_weight_mut(parent_idx)
                             .unwrap()
                             .issues
-                            .extend(issues)
+                            .extend(new_issues);
                     }
                 }
             }
@@ -301,7 +369,11 @@ impl SingleModuleGraph {
                     // ident: root.ident().to_string().await?,
                 });
                 for entry in entries {
-                    graph.add_edge(root_idx, *modules.get(entry).unwrap(), ());
+                    graph.add_edge(
+                        root_idx,
+                        *modules.get(entry).unwrap(),
+                        ChunkingType::Parallel,
+                    );
                 }
                 Some((root, root_idx))
             } else {
@@ -616,8 +688,9 @@ impl NextDynamicGraph {
 
                 let mut result = FxIndexMap::default();
                 graph.traverse_from_entry(entry, |node| {
-                    if let Some(node_data) = data.get(&node.module) {
-                        result.insert(node.module, node_data.clone());
+                    let module = node.module;
+                    if let Some(node_data) = data.get(&module) {
+                        result.insert(module, node_data.clone());
                     }
                 })?;
                 Ok(Vc::cell(result))

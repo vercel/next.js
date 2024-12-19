@@ -16,8 +16,44 @@ struct NewError {
 }
 
 fn is_error_class_name(name: &str) -> bool {
-    // TODO: handle other error classes
-    name == "Error"
+    // Error classes are collected by https://gist.github.com/eps1lon/6cce3059dfa061f2a7dc28305fdaddae#file-collect-error-constructors-mjs
+    name == "AggregateError"
+        // built-in error classes
+        || name == "Error"
+        || name == "EvalError"
+        || name == "RangeError"
+        || name == "ReferenceError"
+        || name == "SyntaxError"
+        || name == "TypeError"
+        || name == "URIError"
+        // custom error classes
+        || name == "ApiError"
+        || name == "BailoutToCSRError"
+        || name == "BubbledError"
+        || name == "CanaryOnlyError"
+        || name == "Cancel"
+        || name == "CompileError"
+        || name == "CssSyntaxError"
+        || name == "DecodeError"
+        || name == "DynamicServerError"
+        || name == "ExportError"
+        || name == "FatalError"
+        || name == "ImageError"
+        || name == "InvariantError"
+        || name == "ModuleBuildError"
+        || name == "NestedMiddlewareError"
+        || name == "NoFallbackError"
+        || name == "NoSuchDeclarationError"
+        || name == "PageSignatureError"
+        || name == "PostCSSSyntaxError"
+        || name == "ReadonlyHeadersError"
+        || name == "ReadonlyRequestCookiesError"
+        || name == "ReadonlyURLSearchParamsError"
+        || name == "ResponseAborted"
+        || name == "SerializableError"
+        || name == "StaticGenBailoutError"
+        || name == "TimeoutError"
+        || name == "Warning"
 }
 
 // Get the string representation of the first argument of `new Error(...)`
@@ -115,9 +151,13 @@ impl VisitMut for TransformVisitor {
         }
 
         let new_error_expr: NewExpr = new_error_expr.unwrap();
-        let error_message = error_message.unwrap();
+
+        // Normalize line endings by converting Windows CRLF (\r\n) to Unix LF (\n)
+        // This ensures the comparison works consistently across different operating systems
+        let error_message = error_message.unwrap().replace("\r\n", "\n");
 
         let code = self.errors.iter().find_map(|(key, value)| {
+            // We assume `errors.json` uses Unix LF (\n) as line endings
             if *value == error_message {
                 Some(key)
             } else {

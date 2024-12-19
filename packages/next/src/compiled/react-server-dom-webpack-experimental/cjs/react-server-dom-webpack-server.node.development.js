@@ -322,14 +322,6 @@
       suspendedThenable = null;
       return thenable;
     }
-    function prepareToUseHooksForComponent(
-      prevThenableState,
-      componentDebugInfo
-    ) {
-      thenableIndexCounter = 0;
-      thenableState = prevThenableState;
-      currentComponentDebugInfo = componentDebugInfo;
-    }
     function getThenableStateAfterSuspending() {
       var state = thenableState || [];
       state._componentDebugInfo = currentComponentDebugInfo;
@@ -1069,6 +1061,71 @@
         currentOwner = null;
       }
     }
+    function processServerComponentReturnValue(
+      request,
+      task,
+      Component,
+      result
+    ) {
+      if (
+        "object" !== typeof result ||
+        null === result ||
+        isClientReference(result)
+      )
+        return result;
+      if ("function" === typeof result.then)
+        return (
+          result.then(function (resolvedValue) {
+            "object" === typeof resolvedValue &&
+              null !== resolvedValue &&
+              resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
+              (resolvedValue._store.validated = 1);
+          }, voidHandler),
+          "fulfilled" === result.status
+            ? result.value
+            : createLazyWrapperAroundWakeable(result)
+        );
+      result.$$typeof === REACT_ELEMENT_TYPE && (result._store.validated = 1);
+      var iteratorFn = getIteratorFn(result);
+      if (iteratorFn) {
+        var multiShot = _defineProperty({}, Symbol.iterator, function () {
+          var iterator = iteratorFn.call(result);
+          iterator !== result ||
+            ("[object GeneratorFunction]" ===
+              Object.prototype.toString.call(Component) &&
+              "[object Generator]" ===
+                Object.prototype.toString.call(result)) ||
+            callWithDebugContextInDEV(request, task, function () {
+              console.error(
+                "Returning an Iterator from a Server Component is not supported since it cannot be looped over more than once. "
+              );
+            });
+          return iterator;
+        });
+        multiShot._debugInfo = result._debugInfo;
+        return multiShot;
+      }
+      return "function" !== typeof result[ASYNC_ITERATOR] ||
+        ("function" === typeof ReadableStream &&
+          result instanceof ReadableStream)
+        ? result
+        : ((multiShot = _defineProperty({}, ASYNC_ITERATOR, function () {
+            var iterator = result[ASYNC_ITERATOR]();
+            iterator !== result ||
+              ("[object AsyncGeneratorFunction]" ===
+                Object.prototype.toString.call(Component) &&
+                "[object AsyncGenerator]" ===
+                  Object.prototype.toString.call(result)) ||
+              callWithDebugContextInDEV(request, task, function () {
+                console.error(
+                  "Returning an AsyncIterator from a Server Component is not supported since it cannot be looped over more than once. "
+                );
+              });
+            return iterator;
+          })),
+          (multiShot._debugInfo = result._debugInfo),
+          multiShot);
+    }
     function renderFunctionComponent(
       request,
       task,
@@ -1106,7 +1163,9 @@
         2 === validated &&
           warnForMissingKey(request, key, componentDebugInfo, task.debugTask);
       }
-      prepareToUseHooksForComponent(prevThenableState, componentDebugInfo);
+      thenableIndexCounter = 0;
+      thenableState = prevThenableState;
+      currentComponentDebugInfo = componentDebugInfo;
       props = task.debugTask
         ? task.debugTask.run(
             componentStorage.run.bind(
@@ -1134,74 +1193,21 @@
             props.then(voidHandler, voidHandler),
           null)
         );
-      if (
-        "object" === typeof props &&
-        null !== props &&
-        !isClientReference(props)
-      ) {
-        if ("function" === typeof props.then) {
-          validated = props;
-          validated.then(function (resolvedValue) {
-            "object" === typeof resolvedValue &&
-              null !== resolvedValue &&
-              resolvedValue.$$typeof === REACT_ELEMENT_TYPE &&
-              (resolvedValue._store.validated = 1);
-          }, voidHandler);
-          if ("fulfilled" === validated.status) return validated.value;
-          props = createLazyWrapperAroundWakeable(props);
-        }
-        var iteratorFn = getIteratorFn(props);
-        if (iteratorFn) {
-          var iterableChild = props;
-          props = _defineProperty({}, Symbol.iterator, function () {
-            var iterator = iteratorFn.call(iterableChild);
-            iterator !== iterableChild ||
-              ("[object GeneratorFunction]" ===
-                Object.prototype.toString.call(Component) &&
-                "[object Generator]" ===
-                  Object.prototype.toString.call(iterableChild)) ||
-              callWithDebugContextInDEV(request, task, function () {
-                console.error(
-                  "Returning an Iterator from a Server Component is not supported since it cannot be looped over more than once. "
-                );
-              });
-            return iterator;
-          });
-          props._debugInfo = iterableChild._debugInfo;
-        } else if (
-          "function" !== typeof props[ASYNC_ITERATOR] ||
-          ("function" === typeof ReadableStream &&
-            props instanceof ReadableStream)
-        )
-          props.$$typeof === REACT_ELEMENT_TYPE && (props._store.validated = 1);
-        else {
-          var _iterableChild = props;
-          props = _defineProperty({}, ASYNC_ITERATOR, function () {
-            var iterator = _iterableChild[ASYNC_ITERATOR]();
-            iterator !== _iterableChild ||
-              ("[object AsyncGeneratorFunction]" ===
-                Object.prototype.toString.call(Component) &&
-                "[object AsyncGenerator]" ===
-                  Object.prototype.toString.call(_iterableChild)) ||
-              callWithDebugContextInDEV(request, task, function () {
-                console.error(
-                  "Returning an AsyncIterator from a Server Component is not supported since it cannot be looped over more than once. "
-                );
-              });
-            return iterator;
-          });
-          props._debugInfo = _iterableChild._debugInfo;
-        }
-      }
-      validated = task.keyPath;
-      prevThenableState = task.implicitSlot;
+      props = processServerComponentReturnValue(
+        request,
+        task,
+        Component,
+        props
+      );
+      Component = task.keyPath;
+      validated = task.implicitSlot;
       null !== key
-        ? (task.keyPath = null === validated ? key : validated + "," + key)
-        : null === validated && (task.implicitSlot = !0);
-      key = renderModelDestructive(request, task, emptyRoot, "", props);
-      task.keyPath = validated;
-      task.implicitSlot = prevThenableState;
-      return key;
+        ? (task.keyPath = null === Component ? key : Component + "," + key)
+        : null === Component && (task.implicitSlot = !0);
+      request = renderModelDestructive(request, task, emptyRoot, "", props);
+      task.keyPath = Component;
+      task.implicitSlot = validated;
+      return request;
     }
     function warnForMissingKey(request, key, componentDebugInfo, debugTask) {
       function logKeyError() {
@@ -4210,12 +4216,12 @@
             "React doesn't accept base64 encoded file uploads because we don't expect form data passed from a browser to ever encode data that way. If that's the wrong assumption, we can easily fix it."
           );
         pendingFiles++;
-        var JSCompiler_object_inline_chunks_146 = [];
+        var JSCompiler_object_inline_chunks_149 = [];
         value.on("data", function (chunk) {
-          JSCompiler_object_inline_chunks_146.push(chunk);
+          JSCompiler_object_inline_chunks_149.push(chunk);
         });
         value.on("end", function () {
-          var blob = new Blob(JSCompiler_object_inline_chunks_146, {
+          var blob = new Blob(JSCompiler_object_inline_chunks_149, {
             type: mimeType
           });
           response._formData.append(name, blob, filename);

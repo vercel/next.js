@@ -92,6 +92,17 @@ describe('app dir - css', () => {
         const html = await next.render('/css/css-page')
         expect(html).not.toContain('/pages/_app.css')
       })
+
+      it('should support css modules shared between server pages', async () => {
+        const browser = await next.browser('/css/css-page-shared-loading')
+        await check(
+          async () =>
+            await browser.eval(
+              `window.getComputedStyle(document.querySelector('#cssm')).color`
+            ),
+          'rgb(0, 0, 255)'
+        )
+      })
     })
 
     describe('client layouts', () => {

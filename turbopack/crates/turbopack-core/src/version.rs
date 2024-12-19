@@ -149,7 +149,7 @@ pub trait VersionedContentMerger {
 #[turbo_tasks::value(transparent)]
 pub struct VersionedContents(Vec<ResolvedVc<Box<dyn VersionedContent>>>);
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 pub struct NotFoundVersion;
 
 #[turbo_tasks::value_impl]
@@ -209,7 +209,7 @@ pub struct PartialUpdate {
 
 /// [`Version`] implementation that hashes a file at a given path and returns
 /// the hex encoded hash as a version identifier.
-#[turbo_tasks::value]
+#[turbo_tasks::value(operation)]
 #[derive(Clone)]
 pub struct FileHashVersion {
     hash: RcStr,

@@ -19,7 +19,7 @@ use swc_core::{
         transforms::base::fixer::paren_remover,
     },
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
@@ -106,8 +106,8 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
     let mut builder = CodeBuilder::default();
     builder.push_source(
         &src.into(),
-        Some(Vc::upcast(
-            ParseResultSourceMap::new(cm, src_map_buf, original_map).cell(),
+        Some(ResolvedVc::upcast(
+            ParseResultSourceMap::new(cm, src_map_buf, original_map).resolved_cell(),
         )),
     );
 

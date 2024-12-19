@@ -22,7 +22,9 @@ module.exports = function (task) {
       if (file.base.endsWith('.d.ts') || file.base.endsWith('.json')) return
 
       const plugins = [
-        [path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}],
+        ...(file.base.includes('.test.') || file.base.includes('.stories.')
+          ? []
+          : [[path.join(__dirname, 'next_error_code_swc_plugin.wasm'), {}]]),
       ]
 
       const isClient = serverOrClient === 'client'

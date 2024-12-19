@@ -5,14 +5,23 @@ use async_trait::async_trait;
 use modularize_imports::{modularize_imports, PackageConfig};
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::ast::Program;
-use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc};
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, OperationValue, ResolvedVc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
 
 use super::module_rule_match_js_no_url;
 
 #[derive(
-    Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
@@ -24,7 +33,16 @@ pub struct ModularizeImportPackageConfig {
 }
 
 #[derive(
-    Clone, Debug, Default, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+    Clone,
+    Debug,
+    Default,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(untagged)]
 pub enum Transform {
