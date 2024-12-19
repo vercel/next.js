@@ -1719,10 +1719,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     effective: u32::MAX,
                 },
             });
-            let mut activeness_state = ActivenessState::new(task_id);
-            activeness_state.set_root(root_type);
             task.add(CachedDataItem::Activeness {
-                value: activeness_state,
+                value: ActivenessState::new_root(root_type, task_id),
             });
             task.add(CachedDataItem::new_scheduled(move || match root_type {
                 RootType::RootTask => "Root Task".to_string(),

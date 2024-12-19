@@ -95,13 +95,9 @@ impl ActivenessState {
     }
 
     pub fn new_root(root_ty: RootType, id: TaskId) -> Self {
-        Self {
-            root_ty: Some(root_ty),
-            active_until_clean: false,
-            all_clean_event: Event::new(move || {
-                format!("ActivenessState::all_clean_event {:?}", id)
-            }),
-        }
+        let mut this = Self::new(id);
+        this.set_root(root_ty);
+        this
     }
 
     pub fn set_root(&mut self, root_ty: RootType) {
