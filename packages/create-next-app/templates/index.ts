@@ -221,7 +221,7 @@ export const installTemplate = async ({
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
       postcss: "^8",
-      tailwindcss: "^3.4.1",
+      tailwindcss: "^3.4.17",
     };
   }
 
