@@ -89,11 +89,11 @@ describe('non-root-project-monorepo', () => {
         } else {
           // TODO the function name is incorrect
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "app/separate-file.ts (1:11) @ Error
+           "app/separate-file.ts (1:11) @ eval
 
-            > 1 | throw new Error('Expected error')
-                |           ^
-              2 |"
+           > 1 | throw new Error('Expected error')
+               |           ^
+             2 |"
           `)
           // TODO webpack runtime code shouldn't be included in stack trace
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
@@ -102,11 +102,11 @@ describe('non-root-project-monorepo', () => {
            rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js
            __webpack_require__
            file://<full-path>/apps/web/.next/server/webpack-runtime.js
-           require
-           app/source-maps-rsc/page.tsx (14:3)
            innerArrowFunction
-           app/source-maps-rsc/page.tsx (10:3)
+           app/source-maps-rsc/page.tsx (14:3)
            innerFunction
+           app/source-maps-rsc/page.tsx (10:3)
+           Page
            app/source-maps-rsc/page.tsx (4:5)"
           `)
         }
@@ -120,11 +120,11 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
 
-            > 1 | throw new Error('Expected error')
-                |       ^
-              2 |"
+           > 1 | throw new Error('Expected error')
+               |       ^
+             2 |"
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
@@ -155,11 +155,11 @@ describe('non-root-project-monorepo', () => {
            file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
            fn
            file://<full-path>/apps/web/.next/static/chunks/webpack.js (357:21)
-           require
-           app/source-maps-ssr/page.tsx (16:3)
            innerArrowFunction
-           app/source-maps-ssr/page.tsx (12:3)
+           app/source-maps-ssr/page.tsx (16:3)
            innerFunction
+           app/source-maps-ssr/page.tsx (12:3)
+           Page
            app/source-maps-ssr/page.tsx (6:5)"
           `)
         }
@@ -173,20 +173,20 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
+           "app/separate-file.ts (1:7) @ [project]/apps/web/app/separate-file.ts [app-client] (ecmascript)
 
-            > 1 | throw new Error('Expected error')
-                |       ^
-              2 |"
+           > 1 | throw new Error('Expected error')
+               |       ^
+             2 |"
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-            "innerArrowFunction
-            app/source-maps-client/page.tsx (16:28)
-            innerFunction
-            app/source-maps-client/page.tsx (13:3)
-            effectCallback
-            app/source-maps-client/page.tsx (7:5)"
+           "innerArrowFunction
+           app/source-maps-client/page.tsx (16:28)
+           innerFunction
+           app/source-maps-client/page.tsx (13:3)
+           effectCallback
+           app/source-maps-client/page.tsx (7:5)"
           `)
         } else {
           // TODO the function name should be hidden
@@ -200,20 +200,20 @@ describe('non-root-project-monorepo', () => {
           // TODO webpack runtime code shouldn't be included in stack trace
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-            "./app/separate-file.ts
-            file://<full-path>/apps/web/.next/static/chunks/app/source-maps-client/page.js (27:1)
-            options.factory
-            file://<full-path>/apps/web/.next/static/chunks/webpack.js (712:31)
-            __webpack_require__
-            file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
-            fn
-            file://<full-path>/apps/web/.next/static/chunks/webpack.js (369:21)
-            require
-            app/source-maps-client/page.tsx (17:3)
-            innerArrowFunction
-            app/source-maps-client/page.tsx (13:3)
-            innerFunction
-            app/source-maps-client/page.tsx (7:5)"
+           "./app/separate-file.ts
+           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-client/page.js (27:1)
+           options.factory
+           file://<full-path>/apps/web/.next/static/chunks/webpack.js (712:31)
+           __webpack_require__
+           file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
+           fn
+           file://<full-path>/apps/web/.next/static/chunks/webpack.js (369:21)
+           innerArrowFunction
+           app/source-maps-client/page.tsx (17:3)
+           innerFunction
+           app/source-maps-client/page.tsx (13:3)
+           effectCallback
+           app/source-maps-client/page.tsx (7:5)"
           `)
         }
         await browser.close()
