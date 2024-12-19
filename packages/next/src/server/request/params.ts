@@ -22,7 +22,8 @@ import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
 
-export type Params = Record<string, string | Array<string> | undefined>
+export type ParamValue = string | Array<string> | undefined
+export type Params = Record<string, ParamValue>
 
 /**
  * In this version of Next.js the `params` prop passed to Layouts, Pages, and other Segments is a Promise.
