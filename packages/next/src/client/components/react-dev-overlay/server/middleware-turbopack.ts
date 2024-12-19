@@ -18,6 +18,7 @@ import { SourceMapConsumer } from 'next/dist/compiled/source-map08'
 import type { Project, TurbopackStackFrame } from '../../../../build/swc/types'
 import { getSourceMapFromFile } from '../internal/helpers/get-source-map-from-file'
 import { findSourceMap, type SourceMapPayload } from 'node:module'
+import { pathToFileURL } from 'node:url'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -40,7 +41,9 @@ export async function batchedTraceSource(
     : undefined
   if (!file) return
 
-  const sourceFrame = await project.traceSource(frame)
+  const currentDirectoryFileUrl = pathToFileURL(process.cwd()).href
+
+  const sourceFrame = await project.traceSource(frame, currentDirectoryFileUrl)
   if (!sourceFrame) {
     return {
       frame: {
@@ -56,20 +59,21 @@ export async function batchedTraceSource(
   }
 
   let source = null
+  const originalFile = sourceFrame.originalFile
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
-    shouldIgnorePath(sourceFrame.file) ||
+    shouldIgnorePath(originalFile ?? sourceFrame.file) ||
     // isInternal means resource starts with turbopack://[turbopack]
     !!sourceFrame.isInternal
-  if (sourceFrame && sourceFrame.file && !ignored) {
-    let sourcePromise = currentSourcesByFile.get(sourceFrame.file)
+  if (originalFile && !ignored) {
+    let sourcePromise = currentSourcesByFile.get(originalFile)
     if (!sourcePromise) {
-      sourcePromise = project.getSourceForAsset(sourceFrame.file)
-      currentSourcesByFile.set(sourceFrame.file, sourcePromise)
+      sourcePromise = project.getSourceForAsset(originalFile)
+      currentSourcesByFile.set(originalFile, sourcePromise)
       setTimeout(() => {
         // Cache file reads for 100ms, as frames will often reference the same
         // files and can be large.
-        currentSourcesByFile.delete(sourceFrame.file!)
+        currentSourcesByFile.delete(originalFile!)
       }, 100)
     }
     source = await sourcePromise
@@ -231,10 +235,7 @@ async function nativeTraceSource(
           '<unknown>',
         column: (originalPosition.column ?? 0) + 1,
         file: originalPosition.source?.startsWith('file://')
-          ? path.relative(
-              process.cwd(),
-              url.fileURLToPath(originalPosition.source)
-            )
+          ? relativeToCwd(originalPosition.source)
           : originalPosition.source,
         lineNumber: originalPosition.line ?? 0,
         // TODO: c&p from async createOriginalStackFrame but why not frame.arguments?
@@ -250,6 +251,12 @@ async function nativeTraceSource(
   }
 
   return undefined
+}
+
+function relativeToCwd(file: string): string {
+  const relPath = path.relative(process.cwd(), url.fileURLToPath(file))
+  // TODO(sokra) include a ./ here to make it a relative path
+  return relPath
 }
 
 async function createOriginalStackFrame(
@@ -288,7 +295,7 @@ export function getOverlayMiddleware(project: Project) {
       try {
         originalStackFrame = await createOriginalStackFrame(project, frame)
       } catch (e: any) {
-        return internalServerError(res, e.message)
+        return internalServerError(res, e.stack)
       }
 
       if (!originalStackFrame) {
