@@ -24,7 +24,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("mdx".into())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
@@ -35,7 +35,7 @@ pub enum MdxParseConstructs {
 /// Subset of mdxjs::Options to allow to inherit turbopack's jsx-related configs
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {

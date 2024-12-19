@@ -155,11 +155,6 @@ impl ChunkItem for HmrEntryChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
     fn ty(&self) -> Vc<Box<dyn ChunkType>> {
         Vc::upcast(Vc::<EcmascriptChunkType>::default())
     }

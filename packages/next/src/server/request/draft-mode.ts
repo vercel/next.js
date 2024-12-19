@@ -171,7 +171,7 @@ class DraftMode {
     return false
   }
   public enable() {
-    // We we have a store we want to track dynamic data access to ensure we
+    // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
     trackDynamicDraftMode('draftMode().enable()')
     if (this._provider !== null) {
@@ -224,7 +224,7 @@ function trackDynamicDraftMode(expression: string) {
   const store = workAsyncStorage.getStore()
   const workUnitStore = workUnitAsyncStorage.getStore()
   if (store) {
-    // We we have a store we want to track dynamic data access to ensure we
+    // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
     if (workUnitStore) {
       if (workUnitStore.type === 'cache') {

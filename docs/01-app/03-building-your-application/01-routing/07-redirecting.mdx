@@ -237,7 +237,32 @@ The `redirects` option in the `next.config.js` file allows you to redirect an in
 
 To use `redirects`, add the option to your `next.config.js` file:
 
-```js filename="next.config.js"
+```ts filename="next.config.ts" switcher
+import type { NextConfig } from 'next'
+
+const nextConfig: NextConfig = {
+  async redirects() {
+    return [
+      // Basic redirect
+      {
+        source: '/about',
+        destination: '/',
+        permanent: true,
+      },
+      // Wildcard path matching
+      {
+        source: '/blog/:slug',
+        destination: '/news/:slug',
+        permanent: true,
+      },
+    ]
+  },
+}
+
+export default nextConfig
+```
+
+```js filename="next.config.js" switcher
 module.exports = {
   async redirects() {
     return [

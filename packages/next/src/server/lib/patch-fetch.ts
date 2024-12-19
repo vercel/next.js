@@ -670,7 +670,7 @@ export function createPatchedFetcher(
                 )
                 await handleUnlock()
 
-                // We we return a new Response to the caller.
+                // We return a new Response to the caller.
                 return new Response(bodyBuffer, {
                   headers: res.headers,
                   status: res.status,

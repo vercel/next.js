@@ -178,10 +178,15 @@ export default class NextNodeServer extends BaseServer<
 
   protected cleanupListeners = new AsyncCallbackSet()
   protected internalWaitUntil: WaitUntil | undefined
+  private isDev: boolean
+  private sriEnabled: boolean
 
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    this.isDev = options.dev ?? false
+    this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -214,11 +219,15 @@ export default class NextNodeServer extends BaseServer<
         distDir: this.distDir,
         page: '/_document',
         isAppPath: false,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         page: '/_app',
         isAppPath: false,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
     }
 
@@ -279,11 +288,19 @@ export default class NextNodeServer extends BaseServer<
         distDir: this.distDir,
         page,
         isAppPath: false,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
-      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: true,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
+      })
         .then(async ({ ComponentMod }) => {
           // we need to ensure fetch is patched before we require the page,
           // otherwise if the fetch is patched by user code, we will be patching it
@@ -793,6 +810,8 @@ export default class NextNodeServer extends BaseServer<
           distDir: this.distDir,
           page: pagePath,
           isAppPath,
+          isDev: this.isDev,
+          sriEnabled: this.sriEnabled,
         })
 
         if (

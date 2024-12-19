@@ -2114,7 +2114,8 @@
       null === debugInfo.owner && null != response._debugRootOwner
         ? ((debugInfo.owner = response._debugRootOwner),
           (debugInfo.debugStack = response._debugRootStack))
-        : initializeFakeStack(response, debugInfo);
+        : void 0 !== debugInfo.stack &&
+          initializeFakeStack(response, debugInfo);
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }

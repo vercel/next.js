@@ -81,6 +81,7 @@ async function exportPageImpl(
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
+    sriEnabled,
   } = input
 
   if (enableExperimentalReact) {
@@ -233,6 +234,8 @@ async function exportPageImpl(
     distDir,
     page,
     isAppPath: isAppDir,
+    isDev: false,
+    sriEnabled,
   })
 
   // Handle App Routes.
@@ -395,6 +398,7 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
+            sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {

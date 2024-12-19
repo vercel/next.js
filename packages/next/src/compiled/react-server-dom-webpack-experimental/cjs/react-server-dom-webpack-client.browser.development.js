@@ -2030,15 +2030,17 @@
           initializeFakeStack(response, debugInfo.owner));
     }
     function resolveDebugInfo(response, id, debugInfo) {
-      initializeFakeTask(
-        response,
-        debugInfo,
-        void 0 === debugInfo.env ? response._rootEnvironmentName : debugInfo.env
-      );
+      var env =
+        void 0 === debugInfo.env
+          ? response._rootEnvironmentName
+          : debugInfo.env;
+      void 0 !== debugInfo.stack &&
+        initializeFakeTask(response, debugInfo, env);
       null === debugInfo.owner && null != response._debugRootOwner
         ? ((debugInfo.owner = response._debugRootOwner),
           (debugInfo.debugStack = response._debugRootStack))
-        : initializeFakeStack(response, debugInfo);
+        : void 0 !== debugInfo.stack &&
+          initializeFakeStack(response, debugInfo);
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }
@@ -2669,10 +2671,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-experimental-7283a213-20241206",
+      version: "19.0.0-experimental-372ec00c-20241209",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-experimental-7283a213-20241206",
+      reconcilerVersion: "19.0.0-experimental-372ec00c-20241209",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -73,6 +73,7 @@ export interface ExportPageInput {
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
+  sriEnabled: boolean
 }
 
 export type ExportedPageFile = {
