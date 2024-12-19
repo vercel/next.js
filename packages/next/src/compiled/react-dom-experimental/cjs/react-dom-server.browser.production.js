@@ -13,7 +13,7 @@
 var React = require("next/dist/compiled/react-experimental");
 var ReactDOM = require('react-dom');
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-178c267a4e-20241218';
 
 // Do not require this module directly! Use normal `invariant` calls with
 // template literal strings. The messages will be replaced with error codes

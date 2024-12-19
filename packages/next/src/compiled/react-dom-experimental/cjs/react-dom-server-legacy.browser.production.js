@@ -30,7 +30,7 @@ function formatProdErrorMessage(code) {
   return "Minified React error #" + code + "; visit " + url + " for the full message or " + 'use the non-minified dev environment for full errors and additional ' + 'helpful warnings.';
 }
 
-var ReactVersion = '18.3.0-experimental-14898b6a9-20240318';
+var ReactVersion = '18.3.0-experimental-178c267a4e-20241218';
 
 // ATTENTION
 // When adding new symbols to this file,

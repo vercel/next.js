@@ -48,7 +48,7 @@
     "loose-envify": "^1.1.0"
   },
   "peerDependencies": {
-    "react": "18.3.0-canary-14898b6a9-20240318",
-    "react-dom": "18.3.0-canary-14898b6a9-20240318"
+    "react": "18.3.0-canary-178c267a4e-20241218",
+    "react-dom": "18.3.0-canary-178c267a4e-20241218"
   }
 }
