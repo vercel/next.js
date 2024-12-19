@@ -7,7 +7,7 @@
   },
   "dependencies": {
     "@xstate/react": "^3.0.1",
-    "next": "12.2.5",
+    "next": "14.2.15",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "xstate": "^4.33.3"
