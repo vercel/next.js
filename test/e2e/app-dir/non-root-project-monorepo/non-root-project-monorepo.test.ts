@@ -66,25 +66,25 @@ describe('non-root-project-monorepo', () => {
         if (isTurbopack) {
           // TODO the function name should be hidden
           expect(await getRedboxSource(browser)).toMatchInlineSnapshot(`
-            "app/source-maps-rsc/page.tsx (9:28) @ innerArrowFunction
+           "app/source-maps-rsc/page.tsx (13:28) @ innerArrowFunction
 
-               7 | }
-               8 |
-            >  9 | const innerArrowFunction = () => {
-                 |                            ^
-              10 |   require('../separate-file')
-              11 | }
-              12 |"
+             11 | }
+             12 |
+           > 13 | const innerArrowFunction = () => {
+                |                            ^
+             14 |   require('../separate-file')
+             15 | }
+             16 |"
           `)
           // TODO stacktrace-parser breaks in some cases with the rsc:// protocol
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-            "<unknown>
-            [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_8d1c0a._.js (7:7)
-            innerFunction
-            app/source-maps-rsc/page.tsx (6:3)
-            Page
-            app/source-maps-rsc/page.tsx (2:3)"
+           "<unknown>
+           [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_8d1c0a._.js (7:7)
+           innerFunction
+           app/source-maps-rsc/page.tsx (10:3)
+           Page
+           app/source-maps-rsc/page.tsx (4:5)"
           `)
         } else {
           // TODO the function name is incorrect
@@ -98,16 +98,16 @@ describe('non-root-project-monorepo', () => {
           // TODO webpack runtime code shouldn't be included in stack trace
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-            "<unknown>
-            rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js
-            __webpack_require__
-            file://<full-path>/apps/web/.next/server/webpack-runtime.js
-            require
-            app/source-maps-rsc/page.tsx (10:3)
-            innerArrowFunction
-            app/source-maps-rsc/page.tsx (6:3)
-            innerFunction
-            app/source-maps-rsc/page.tsx (2:3)"
+           "<unknown>
+           rsc)/./app/separate-file.ts (rsc://React/Server/file://<full-path>/apps/web/.next/server/app/source-maps-rsc/page.js
+           __webpack_require__
+           file://<full-path>/apps/web/.next/server/webpack-runtime.js
+           require
+           app/source-maps-rsc/page.tsx (14:3)
+           innerArrowFunction
+           app/source-maps-rsc/page.tsx (10:3)
+           innerFunction
+           app/source-maps-rsc/page.tsx (4:5)"
           `)
         }
         await browser.close()
@@ -128,12 +128,12 @@ describe('non-root-project-monorepo', () => {
           `)
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-            "innerArrowFunction
-            app/source-maps-ssr/page.tsx (11:28)
-            innerFunction
-            app/source-maps-ssr/page.tsx (8:3)
-            Page
-            app/source-maps-ssr/page.tsx (4:3)"
+           "innerArrowFunction
+           app/source-maps-ssr/page.tsx (15:28)
+           innerFunction
+           app/source-maps-ssr/page.tsx (12:3)
+           Page
+           app/source-maps-ssr/page.tsx (6:5)"
           `)
         } else {
           // TODO the function name should be hidden
@@ -147,20 +147,20 @@ describe('non-root-project-monorepo', () => {
           // TODO webpack runtime code shouldn't be included in stack trace
           expect(normalizeStackTrace(await getRedboxCallStack(browser)))
             .toMatchInlineSnapshot(`
-            "./app/separate-file.ts
-            file://<full-path>/apps/web/.next/static/chunks/app/source-maps-ssr/page.js (27:1)
-            options.factory
-            file://<full-path>/apps/web/.next/static/chunks/webpack.js (700:31)
-            __webpack_require__
-            file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
-            fn
-            file://<full-path>/apps/web/.next/static/chunks/webpack.js (357:21)
-            require
-            app/source-maps-ssr/page.tsx (12:3)
-            innerArrowFunction
-            app/source-maps-ssr/page.tsx (8:3)
-            innerFunction
-            app/source-maps-ssr/page.tsx (4:3)"
+           "./app/separate-file.ts
+           file://<full-path>/apps/web/.next/static/chunks/app/source-maps-ssr/page.js (27:1)
+           options.factory
+           file://<full-path>/apps/web/.next/static/chunks/webpack.js (700:31)
+           __webpack_require__
+           file://<full-path>/apps/web/.next/static/chunks/webpack.js (37:33)
+           fn
+           file://<full-path>/apps/web/.next/static/chunks/webpack.js (357:21)
+           require
+           app/source-maps-ssr/page.tsx (16:3)
+           innerArrowFunction
+           app/source-maps-ssr/page.tsx (12:3)
+           innerFunction
+           app/source-maps-ssr/page.tsx (6:5)"
           `)
         }
         await browser.close()
