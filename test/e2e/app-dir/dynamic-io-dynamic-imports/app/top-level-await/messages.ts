@@ -1,3 +1,5 @@
 import { setTimeout } from 'node:timers/promises'
-await setTimeout(1)
+console.log('messages :: imported, sleeping')
+await setTimeout(500)
+console.log('messages :: ready')
 export default { title: 'hello' }
