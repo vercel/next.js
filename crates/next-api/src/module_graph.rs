@@ -169,7 +169,7 @@ struct SingleModuleGraphBuilderEdge {
 
 /// The chunking type that occurs most often, is handled more efficiently by not creating
 /// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
-const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::Parallel;
+const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
 
 struct SingleModuleGraphBuilder {}
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
