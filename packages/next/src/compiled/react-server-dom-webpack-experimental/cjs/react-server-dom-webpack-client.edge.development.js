@@ -1131,6 +1131,7 @@
       this.value = value;
       this.reason = reason;
       this._response = response;
+      this._children = [];
       this._debugInfo = null;
     }
     function readChunk(chunk) {
@@ -1153,6 +1154,9 @@
     }
     function createPendingChunk(response) {
       return new ReactPromise("pending", null, null, response);
+    }
+    function createErrorChunk(response, error) {
+      return new ReactPromise("rejected", null, error, response);
     }
     function wakeChunk(listeners, value) {
       for (var i = 0; i < listeners.length; i++) (0, listeners[i])(value);
@@ -1234,12 +1238,14 @@
       }
     }
     function initializeModelChunk(chunk) {
-      var prevHandler = initializingHandler;
+      var prevHandler = initializingHandler,
+        prevChunk = initializingChunk;
       initializingHandler = null;
       var resolvedModel = chunk.value;
       chunk.status = "blocked";
       chunk.value = null;
       chunk.reason = null;
+      initializingChunk = chunk;
       try {
         var value = JSON.parse(resolvedModel, chunk._response._fromJSON),
           resolveListeners = chunk.value;
@@ -1260,7 +1266,7 @@
       } catch (error) {
         (chunk.status = "rejected"), (chunk.reason = error);
       } finally {
-        initializingHandler = prevHandler;
+        (initializingHandler = prevHandler), (initializingChunk = prevChunk);
       }
     }
     function initializeModuleChunk(chunk) {
@@ -1273,9 +1279,20 @@
       }
     }
     function reportGlobalError(response, error) {
+      response._closed = !0;
+      response._closedReason = error;
       response._chunks.forEach(function (chunk) {
         "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
       });
+      supportsUserTiming &&
+        performance.mark("Server Components Track", componentsTrackMarker);
+      flushComponentPerformance(
+        response,
+        getChunk(response, 0),
+        0,
+        -Infinity,
+        -Infinity
+      );
     }
     function nullRefGetter() {
       return null;
@@ -1309,7 +1326,11 @@
     function getChunk(response, id) {
       var chunks = response._chunks,
         chunk = chunks.get(id);
-      chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
+      chunk ||
+        ((chunk = response._closed
+          ? createErrorChunk(response, response._closedReason)
+          : createPendingChunk(response)),
+        chunks.set(id, chunk));
       return chunk;
     }
     function waitForReference(
@@ -1496,6 +1517,9 @@
       reference = reference.split(":");
       var id = parseInt(reference[0], 16);
       id = getChunk(response, id);
+      null !== initializingChunk &&
+        isArrayImpl(initializingChunk._children) &&
+        initializingChunk._children.push(id);
       switch (id.status) {
         case "resolved_model":
           initializeModelChunk(id);
@@ -1604,12 +1628,19 @@
             return (
               (parentObject = parseInt(value.slice(2), 16)),
               (response = getChunk(response, parentObject)),
+              null !== initializingChunk &&
+                isArrayImpl(initializingChunk._children) &&
+                initializingChunk._children.push(response),
               createLazyChunkWrapper(response)
             );
           case "@":
             if (2 === value.length) return new Promise(function () {});
             parentObject = parseInt(value.slice(2), 16);
-            return getChunk(response, parentObject);
+            response = getChunk(response, parentObject);
+            null !== initializingChunk &&
+              isArrayImpl(initializingChunk._children) &&
+              initializingChunk._children.push(response);
+            return response;
           case "S":
             return Symbol.for(value.slice(2));
           case "F":
@@ -1746,7 +1777,10 @@
       this._fromJSON = null;
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
+      this._closed = !1;
+      this._closedReason = null;
       this._tempRefs = temporaryReferences;
+      this._timeOrigin = 0;
       this._debugRootOwner = bundlerConfig =
         void 0 === ReactSharedInteralsServer ||
         null === ReactSharedInteralsServer.A
@@ -2055,7 +2089,7 @@
       stack = response._chunks;
       (env = stack.get(id))
         ? triggerErrorOnChunk(env, reason)
-        : stack.set(id, new ReactPromise("rejected", null, reason, response));
+        : stack.set(id, createErrorChunk(response, reason));
     }
     function resolveHint(response, code, model) {
       response = JSON.parse(model, response._fromJSON);
@@ -2252,10 +2286,13 @@
       void 0 !== debugInfo.stack &&
         initializeFakeTask(response, debugInfo, env);
       null === debugInfo.owner && null != response._debugRootOwner
-        ? ((debugInfo.owner = response._debugRootOwner),
-          (debugInfo.debugStack = response._debugRootStack))
+        ? ((env = debugInfo),
+          (env.owner = response._debugRootOwner),
+          (env.debugStack = response._debugRootStack))
         : void 0 !== debugInfo.stack &&
           initializeFakeStack(response, debugInfo);
+      "number" === typeof debugInfo.time &&
+        (debugInfo = { time: debugInfo.time + response._timeOrigin });
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }
@@ -2367,6 +2404,134 @@
       );
       resolveBuffer(response, id, constructor);
     }
+    function flushComponentPerformance(
+      response,
+      root,
+      trackIdx$jscomp$0,
+      trackTime,
+      parentEndTime
+    ) {
+      if (!isArrayImpl(root._children)) {
+        response = root._children;
+        var previousEndTime = response.endTime;
+        if (
+          -Infinity < parentEndTime &&
+          parentEndTime < previousEndTime &&
+          null !== response.component
+        ) {
+          var trackIdx = trackIdx$jscomp$0;
+          root = parentEndTime;
+          supportsUserTiming &&
+            0 <= previousEndTime &&
+            10 > trackIdx &&
+            ((parentEndTime = response.component.name),
+            (reusableComponentDevToolDetails.color = "tertiary-light"),
+            (reusableComponentDevToolDetails.track = trackNames[trackIdx]),
+            (reusableComponentOptions.start = 0 > root ? 0 : root),
+            (reusableComponentOptions.end = previousEndTime),
+            performance.measure(
+              parentEndTime + " [deduped]",
+              reusableComponentOptions
+            ));
+        }
+        response.track = trackIdx$jscomp$0;
+        return response;
+      }
+      var children = root._children;
+      "resolved_model" === root.status && initializeModelChunk(root);
+      if ((previousEndTime = root._debugInfo)) {
+        for (trackIdx = 1; trackIdx < previousEndTime.length; trackIdx++)
+          if ("string" === typeof previousEndTime[trackIdx].name) {
+            var startTimeInfo = previousEndTime[trackIdx - 1];
+            if ("number" === typeof startTimeInfo.time) {
+              trackIdx = startTimeInfo.time;
+              trackIdx < trackTime && trackIdx$jscomp$0++;
+              trackTime = trackIdx;
+              break;
+            }
+          }
+        for (trackIdx = previousEndTime.length - 1; 0 <= trackIdx; trackIdx--)
+          (startTimeInfo = previousEndTime[trackIdx]),
+            "number" === typeof startTimeInfo.time &&
+              startTimeInfo.time > parentEndTime &&
+              (parentEndTime = startTimeInfo.time);
+      }
+      trackIdx = {
+        track: trackIdx$jscomp$0,
+        endTime: -Infinity,
+        component: null
+      };
+      root._children = trackIdx;
+      root = -Infinity;
+      startTimeInfo = trackIdx$jscomp$0;
+      var childTrackTime = trackTime;
+      for (trackTime = 0; trackTime < children.length; trackTime++) {
+        childTrackTime = flushComponentPerformance(
+          response,
+          children[trackTime],
+          startTimeInfo,
+          childTrackTime,
+          parentEndTime
+        );
+        null !== childTrackTime.component &&
+          (trackIdx.component = childTrackTime.component);
+        startTimeInfo = childTrackTime.track;
+        var childEndTime = childTrackTime.endTime;
+        childTrackTime = childEndTime;
+        childEndTime > root && (root = childEndTime);
+      }
+      if (previousEndTime)
+        for (
+          parentEndTime = 0, children = previousEndTime.length - 1;
+          0 <= children;
+          children--
+        )
+          if (
+            ((trackTime = previousEndTime[children]),
+            "number" === typeof trackTime.time &&
+              ((parentEndTime = trackTime.time),
+              parentEndTime > root && (root = parentEndTime)),
+            "string" === typeof trackTime.name &&
+              0 < children &&
+              ((childTrackTime = previousEndTime[children - 1]),
+              "number" === typeof childTrackTime.time))
+          ) {
+            startTimeInfo = trackIdx$jscomp$0;
+            childTrackTime = childTrackTime.time;
+            childEndTime = root;
+            if (supportsUserTiming && 0 <= childEndTime && 10 > startTimeInfo) {
+              var env = trackTime.env,
+                name = trackTime.name,
+                isPrimaryEnv = env === response._rootEnvironmentName,
+                selfTime = parentEndTime - childTrackTime;
+              reusableComponentDevToolDetails.color =
+                0.5 > selfTime
+                  ? isPrimaryEnv
+                    ? "primary-light"
+                    : "secondary-light"
+                  : 50 > selfTime
+                    ? isPrimaryEnv
+                      ? "primary"
+                      : "secondary"
+                    : 500 > selfTime
+                      ? isPrimaryEnv
+                        ? "primary-dark"
+                        : "secondary-dark"
+                      : "error";
+              reusableComponentDevToolDetails.track = trackNames[startTimeInfo];
+              reusableComponentOptions.start =
+                0 > childTrackTime ? 0 : childTrackTime;
+              reusableComponentOptions.end = childEndTime;
+              performance.measure(
+                isPrimaryEnv || void 0 === env ? name : name + " [" + env + "]",
+                reusableComponentOptions
+              );
+            }
+            trackIdx.component = trackTime;
+          }
+      trackIdx.endTime = root;
+      return trackIdx;
+    }
     function processFullBinaryRow(response, id, tag, buffer, chunk) {
       switch (tag) {
         case 65:
@@ -2438,10 +2603,13 @@
           var chunk = row.get(id);
           chunk
             ? triggerErrorOnChunk(chunk, tag)
-            : row.set(id, new ReactPromise("rejected", null, tag, response));
+            : row.set(id, createErrorChunk(response, tag));
           break;
         case 84:
           resolveText(response, id, row);
+          break;
+        case 78:
+          response._timeOrigin = +row - performance.timeOrigin;
           break;
         case 68:
           tag = new ReactPromise("resolved_model", row, null, response);
@@ -2557,12 +2725,7 @@
               ? ((stack = initializingHandler),
                 (initializingHandler = stack.parent),
                 stack.errored
-                  ? ((key = new ReactPromise(
-                      "rejected",
-                      null,
-                      stack.value,
-                      response
-                    )),
+                  ? ((key = createErrorChunk(response, stack.value)),
                     (stack = {
                       name: getComponentNameFromType(value.type) || "",
                       owner: value._owner
@@ -2740,6 +2903,33 @@
       v8FrameRegExp =
         /^ {3} at (?:(.+) \((.+):(\d+):(\d+)\)|(?:async )?(.+):(\d+):(\d+))$/,
       jscSpiderMonkeyFrameRegExp = /(?:(.*)@)?(.*):(\d+):(\d+)/,
+      supportsUserTiming =
+        "undefined" !== typeof performance &&
+        "function" === typeof performance.measure,
+      componentsTrackMarker = {
+        startTime: 0.001,
+        detail: {
+          devtools: {
+            color: "primary-light",
+            track: "Primary",
+            trackGroup: "Server Components \u269b"
+          }
+        }
+      },
+      reusableComponentDevToolDetails = {
+        color: "primary",
+        track: "",
+        trackGroup: "Server Components \u269b"
+      },
+      reusableComponentOptions = {
+        start: -0,
+        end: -0,
+        detail: { devtools: reusableComponentDevToolDetails }
+      },
+      trackNames =
+        "Primary Parallel Parallel\u200b Parallel\u200b\u200b Parallel\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b\u200b\u200b Parallel\u200b\u200b\u200b\u200b\u200b\u200b\u200b\u200b".split(
+          " "
+        ),
       REACT_CLIENT_REFERENCE = Symbol.for("react.client.reference"),
       prefix,
       suffix;
@@ -2776,6 +2966,7 @@
       }
     };
     var initializingHandler = null,
+      initializingChunk = null,
       supportsCreateTask = !!console.createTask,
       fakeFunctionCache = new Map(),
       fakeFunctionIdx = 0,

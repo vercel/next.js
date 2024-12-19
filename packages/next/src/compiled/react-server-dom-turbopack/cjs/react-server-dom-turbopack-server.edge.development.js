@@ -12,6 +12,14 @@
 "production" !== process.env.NODE_ENV &&
   (function () {
     function voidHandler() {}
+    function getIteratorFn(maybeIterable) {
+      if (null === maybeIterable || "object" !== typeof maybeIterable)
+        return null;
+      maybeIterable =
+        (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
+        maybeIterable["@@iterator"];
+      return "function" === typeof maybeIterable ? maybeIterable : null;
+    }
     function _defineProperty(obj, key, value) {
       key in obj
         ? Object.defineProperty(obj, key, {
@@ -234,14 +242,6 @@
       reference = new Proxy(reference, proxyHandlers);
       temporaryReferences.set(reference, id);
       return reference;
-    }
-    function getIteratorFn(maybeIterable) {
-      if (null === maybeIterable || "object" !== typeof maybeIterable)
-        return null;
-      maybeIterable =
-        (MAYBE_ITERATOR_SYMBOL && maybeIterable[MAYBE_ITERATOR_SYMBOL]) ||
-        maybeIterable["@@iterator"];
-      return "function" === typeof maybeIterable ? maybeIterable : null;
     }
     function noop$1() {}
     function trackUsedThenable(thenableState, thenable, index) {
@@ -671,12 +671,7 @@
             newTask.id
           );
         case "rejected":
-          task = thenable.reason;
-          var digest = logRecoverableError(request, task, null);
-          emitErrorChunk(request, newTask.id, digest, task);
-          newTask.status = ERRORED$1;
-          request.abortableTasks.delete(newTask);
-          return newTask.id;
+          return erroredTask(request, newTask, thenable.reason), newTask.id;
         default:
           if (request.status === ABORTING)
             return (
@@ -706,13 +701,8 @@
           pingTask(request, newTask);
         },
         function (reason) {
-          if (newTask.status === PENDING$1) {
-            var _digest = logRecoverableError(request, reason, newTask);
-            emitErrorChunk(request, newTask.id, _digest, reason);
-            newTask.status = ERRORED$1;
-            request.abortableTasks.delete(newTask);
-            enqueueFlush(request);
-          }
+          newTask.status === PENDING$1 &&
+            (erroredTask(request, newTask, reason), enqueueFlush(request));
         }
       );
       return newTask.id;
@@ -738,24 +728,20 @@
             }
       }
       function error(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortStream);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortStream),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       function abortStream(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortStream);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortStream),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       var supportsBYOB = stream.supportsBYOB;
       if (void 0 === supportsBYOB)
@@ -817,26 +803,22 @@
             }
       }
       function error(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortIterable);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortIterable),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error);
-        }
+            iterator.throw(reason).then(error, error));
       }
       function abortIterable(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortIterable);
-          var digest = logRecoverableError(request, reason, streamTask);
-          emitErrorChunk(request, streamTask.id, digest, reason);
-          enqueueFlush(request);
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortIterable),
+          erroredTask(request, streamTask, reason),
+          enqueueFlush(request),
           "function" === typeof iterator.throw &&
-            iterator.throw(reason).then(error, error);
-        }
+            iterator.throw(reason).then(error, error));
       }
       var isIterator = iterable === iterator,
         streamTask = createTask(
@@ -1381,24 +1363,20 @@
             );
       }
       function error(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortBlob);
-          var digest = logRecoverableError(request, reason, newTask);
-          emitErrorChunk(request, newTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortBlob),
+          erroredTask(request, newTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       function abortBlob(reason) {
-        if (!aborted) {
-          aborted = !0;
-          request.abortListeners.delete(abortBlob);
-          var digest = logRecoverableError(request, reason, newTask);
-          emitErrorChunk(request, newTask.id, digest, reason);
-          enqueueFlush(request);
-          reader.cancel(reason).then(error, error);
-        }
+        aborted ||
+          ((aborted = !0),
+          request.abortListeners.delete(abortBlob),
+          erroredTask(request, newTask, reason),
+          enqueueFlush(request),
+          reader.cancel(reason).then(error, error));
       }
       var model = [blob.type],
         newTask = createTask(
@@ -2173,10 +2151,11 @@
     }
     function forwardDebugInfo(request, id, debugInfo) {
       for (var i = 0; i < debugInfo.length; i++)
-        request.pendingChunks++,
+        "number" !== typeof debugInfo[i].time &&
+          (request.pendingChunks++,
           "string" === typeof debugInfo[i].name &&
             outlineComponentInfo(request, debugInfo[i]),
-          emitDebugChunk(request, id, debugInfo[i]);
+          emitDebugChunk(request, id, debugInfo[i]));
     }
     function emitChunk(request, task, value) {
       var id = task.id;
@@ -2211,6 +2190,12 @@
                                   : ((value = stringify(value, task.toJSON)),
                                     emitModelChunk(request, task.id, value));
     }
+    function erroredTask(request, task, error) {
+      request.abortableTasks.delete(task);
+      task.status = ERRORED$1;
+      var digest = logRecoverableError(request, error, task);
+      emitErrorChunk(request, task.id, digest, error);
+    }
     function retryTask(request, task) {
       if (task.status === PENDING$1) {
         var prevDebugID = debugID;
@@ -2229,22 +2214,18 @@
           modelRoot = resolvedModel;
           task.keyPath = null;
           task.implicitSlot = !1;
-          if ("object" === typeof resolvedModel && null !== resolvedModel) {
+          var currentEnv = (0, request.environmentName)();
+          currentEnv !== task.environmentName &&
+            (request.pendingChunks++,
+            emitDebugChunk(request, task.id, { env: currentEnv }));
+          if ("object" === typeof resolvedModel && null !== resolvedModel)
             request.writtenObjects.set(
               resolvedModel,
               serializeByValueID(task.id)
-            );
-            var currentEnv = (0, request.environmentName)();
-            currentEnv !== task.environmentName &&
-              (request.pendingChunks++,
-              emitDebugChunk(request, task.id, { env: currentEnv }));
-            emitChunk(request, task, resolvedModel);
-          } else {
-            var json = stringify(resolvedModel),
-              _currentEnv = (0, request.environmentName)();
-            _currentEnv !== task.environmentName &&
-              (request.pendingChunks++,
-              emitDebugChunk(request, task.id, { env: _currentEnv }));
+            ),
+              emitChunk(request, task, resolvedModel);
+          else {
+            var json = stringify(resolvedModel);
             emitModelChunk(request, task.id, json);
           }
           request.abortableTasks.delete(task);
@@ -2269,12 +2250,7 @@
               task.thenableState = getThenableStateAfterSuspending();
               var ping = task.ping;
               x.then(ping, ping);
-            } else {
-              request.abortableTasks.delete(task);
-              task.status = ERRORED$1;
-              var digest = logRecoverableError(request, x, task);
-              emitErrorChunk(request, task.id, digest, x);
-            }
+            } else erroredTask(request, task, x);
           }
         } finally {
           debugID = prevDebugID;
@@ -2401,6 +2377,19 @@
           var destination = request.destination;
           destination && flushCompletedChunks(request, destination);
         }, 0));
+    }
+    function startFlowing(request, destination) {
+      if (request.status === CLOSING)
+        (request.status = CLOSED),
+          closeWithError(destination, request.fatalError);
+      else if (request.status !== CLOSED && null === request.destination) {
+        request.destination = destination;
+        try {
+          flushCompletedChunks(request, destination);
+        } catch (error) {
+          logRecoverableError(request, error, null), fatalError(request, error);
+        }
+      }
     }
     function abort(request, reason) {
       try {
@@ -2725,6 +2714,8 @@
       }
     }
     function reportGlobalError(response, error) {
+      response._closed = !0;
+      response._closedReason = error;
       response._chunks.forEach(function (chunk) {
         "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
       });
@@ -2737,7 +2728,9 @@
         (chunk =
           null != chunk
             ? new Chunk("resolved_model", chunk, id, response)
-            : createPendingChunk(response)),
+            : response._closed
+              ? new Chunk("rejected", null, response._closedReason, response)
+              : createPendingChunk(response)),
         chunks.set(id, chunk));
       return chunk;
     }
@@ -3164,6 +3157,8 @@
         _prefix: formFieldPrefix,
         _formData: backingFormData,
         _chunks: chunks,
+        _closed: !1,
+        _closedReason: null,
         _temporaryReferences: temporaryReferences
       };
     }
@@ -3195,6 +3190,19 @@
     }
     var ReactDOM = require("react-dom"),
       React = require("react"),
+      REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
+      REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
+      REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
+      REACT_CONTEXT_TYPE = Symbol.for("react.context"),
+      REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
+      REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
+      REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
+      REACT_MEMO_TYPE = Symbol.for("react.memo"),
+      REACT_LAZY_TYPE = Symbol.for("react.lazy"),
+      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
+    Symbol.for("react.postpone");
+    var MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
+      ASYNC_ITERATOR = Symbol.asyncIterator,
       LocalPromise = Promise,
       scheduleMicrotask =
         "function" === typeof queueMicrotask
@@ -3450,19 +3458,6 @@
           );
         }
       },
-      REACT_LEGACY_ELEMENT_TYPE = Symbol.for("react.element"),
-      REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
-      REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
-      REACT_CONTEXT_TYPE = Symbol.for("react.context"),
-      REACT_FORWARD_REF_TYPE = Symbol.for("react.forward_ref"),
-      REACT_SUSPENSE_TYPE = Symbol.for("react.suspense"),
-      REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
-      REACT_MEMO_TYPE = Symbol.for("react.memo"),
-      REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel");
-    Symbol.for("react.postpone");
-    var MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
-      ASYNC_ITERATOR = Symbol.asyncIterator,
       SuspenseException = Error(
         "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
@@ -3502,6 +3497,10 @@
             ":"
           );
         },
+        useHostTransitionStatus: unsupportedHook,
+        useOptimistic: unsupportedHook,
+        useFormState: unsupportedHook,
+        useActionState: unsupportedHook,
         useSyncExternalStore: unsupportedHook,
         useCacheRefresh: function () {
           return unsupportedRefresh;
@@ -3717,6 +3716,44 @@
       close(body);
       return turbopackMap;
     };
+    exports.decodeReplyFromAsyncIterable = function (
+      iterable,
+      turbopackMap,
+      options
+    ) {
+      function progress(entry) {
+        if (entry.done) close(response$jscomp$0);
+        else {
+          entry = entry.value;
+          var name = entry[0];
+          entry = entry[1];
+          if ("string" === typeof entry) {
+            var response = response$jscomp$0;
+            response._formData.append(name, entry);
+            var prefix = response._prefix;
+            name.startsWith(prefix) &&
+              ((response = response._chunks),
+              (name = +name.slice(prefix.length)),
+              (prefix = response.get(name)) &&
+                resolveModelChunk(prefix, entry, name));
+          } else response$jscomp$0._formData.append(name, entry);
+          iterator.next().then(progress, error);
+        }
+      }
+      function error(reason) {
+        reportGlobalError(response$jscomp$0, reason);
+        "function" === typeof iterator.throw &&
+          iterator.throw(reason).then(error, error);
+      }
+      var iterator = iterable[ASYNC_ITERATOR](),
+        response$jscomp$0 = createResponse(
+          turbopackMap,
+          "",
+          options ? options.temporaryReferences : void 0
+        );
+      iterator.next().then(progress, error);
+      return getChunk(response$jscomp$0, 0);
+    };
     exports.registerClientReference = function (
       proxyImplementation,
       id,
@@ -3783,21 +3820,7 @@ const setTimeoutOrImmediate =
             startWork(request);
           },
           pull: function (controller) {
-            if (request.status === CLOSING)
-              (request.status = CLOSED),
-                closeWithError(controller, request.fatalError);
-            else if (
-              request.status !== CLOSED &&
-              null === request.destination
-            ) {
-              request.destination = controller;
-              try {
-                flushCompletedChunks(request, controller);
-              } catch (error) {
-                logRecoverableError(request, error, null),
-                  fatalError(request, error);
-              }
-            }
+            startFlowing(request, controller);
           },
           cancel: function (reason) {
             request.destination = null;
@@ -3806,5 +3829,52 @@ const setTimeoutOrImmediate =
         },
         { highWaterMark: 0 }
       );
+    };
+    exports.unstable_prerender = function (model, turbopackMap, options) {
+      return new Promise(function (resolve, reject) {
+        var request = new RequestInstance(
+          PRERENDER,
+          model,
+          turbopackMap,
+          options ? options.onError : void 0,
+          options ? options.identifierPrefix : void 0,
+          options ? options.onPostpone : void 0,
+          options ? options.temporaryReferences : void 0,
+          options ? options.environmentName : void 0,
+          options ? options.filterStackFrame : void 0,
+          function () {
+            var stream = new ReadableStream(
+              {
+                type: "bytes",
+                start: function () {
+                  startWork(request);
+                },
+                pull: function (controller) {
+                  startFlowing(request, controller);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            );
+            resolve({ prelude: stream });
+          },
+          reject
+        );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
     };
   })();

@@ -1267,6 +1267,8 @@
       }
     }
     function reportGlobalError(response, error) {
+      response._closed = !0;
+      response._closedReason = error;
       response._chunks.forEach(function (chunk) {
         "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
       });
@@ -1287,7 +1289,11 @@
     function getChunk(response, id) {
       var chunks = response._chunks,
         chunk = chunks.get(id);
-      chunk || ((chunk = createPendingChunk(response)), chunks.set(id, chunk));
+      chunk ||
+        ((chunk = response._closed
+          ? new ReactPromise("rejected", null, response._closedReason, response)
+          : createPendingChunk(response)),
+        chunks.set(id, chunk));
       return chunk;
     }
     function waitForReference(
@@ -1710,6 +1716,8 @@
       this._fromJSON = null;
       this._rowLength = this._rowTag = this._rowID = this._rowState = 0;
       this._buffer = [];
+      this._closed = !1;
+      this._closedReason = null;
       this._tempRefs = temporaryReferences;
       this._debugRootOwner = bundlerConfig =
         void 0 === ReactSharedInteralsServer ||
@@ -2289,6 +2297,7 @@
         case 84:
           resolveText(response, id, row);
           break;
+        case 78:
         case 68:
           tag = new ReactPromise("resolved_model", row, null, response);
           initializeModelChunk(tag);
