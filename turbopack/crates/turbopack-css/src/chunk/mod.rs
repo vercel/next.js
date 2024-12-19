@@ -254,8 +254,6 @@ fn chunk_item_key() -> Vc<RcStr> {
 impl OutputAsset for CssChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut assets = Vec::new();
-
         let CssChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some(chunk_item) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().to_resolved().await?;
@@ -266,7 +264,7 @@ impl OutputAsset for CssChunk {
 
         // The included chunk items and the availability info describe the chunk
         // uniquely
-        let chunk_item_key = chunk_item_key();
+        let chunk_item_key = chunk_item_key().to_resolved().await?;
         for &chunk_item in chunk_items.iter() {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
@@ -280,11 +278,17 @@ impl OutputAsset for CssChunk {
                     *common_path_ref = (*common_path_vc).await?;
                 }
             }
-            assets.push((
-                chunk_item_key.to_resolved().await?,
-                chunk_item.content_ident().to_resolved().await?,
-            ));
         }
+        let assets = chunk_items
+            .iter()
+            .map(|chunk_item| async move {
+                Ok((
+                    chunk_item_key,
+                    chunk_item.content_ident().to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         let ident = AssetIdent {
             path: if let Some((common_path, _)) = common_path {
