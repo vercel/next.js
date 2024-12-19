@@ -27,6 +27,7 @@ export type GAParams = {
   dataLayerName?: string
   debugMode?: boolean
   nonce?: string
+  config?: { [key: string]: JSONValue }
 }
 
 export type GoogleMapsEmbed = {
