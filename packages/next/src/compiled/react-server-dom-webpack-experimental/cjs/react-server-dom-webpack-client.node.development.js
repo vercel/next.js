@@ -2245,17 +2245,15 @@
           initializeFakeStack(response, debugInfo.owner));
     }
     function resolveDebugInfo(response, id, debugInfo) {
-      var env =
-        void 0 === debugInfo.env
-          ? response._rootEnvironmentName
-          : debugInfo.env;
-      void 0 !== debugInfo.stack &&
-        initializeFakeTask(response, debugInfo, env);
+      initializeFakeTask(
+        response,
+        debugInfo,
+        void 0 === debugInfo.env ? response._rootEnvironmentName : debugInfo.env
+      );
       null === debugInfo.owner && null != response._debugRootOwner
         ? ((debugInfo.owner = response._debugRootOwner),
           (debugInfo.debugStack = response._debugRootStack))
-        : void 0 !== debugInfo.stack &&
-          initializeFakeStack(response, debugInfo);
+        : initializeFakeStack(response, debugInfo);
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }

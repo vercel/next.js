@@ -1936,8 +1936,7 @@
       null === debugInfo.owner && null != response._debugRootOwner
         ? ((debugInfo.owner = response._debugRootOwner),
           (debugInfo.debugStack = response._debugRootStack))
-        : void 0 !== debugInfo.stack &&
-          initializeFakeStack(response, debugInfo);
+        : initializeFakeStack(response, debugInfo);
       response = getChunk(response, id);
       (response._debugInfo || (response._debugInfo = [])).push(debugInfo);
     }
@@ -2451,10 +2450,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.0.0-rc-372ec00c-20241209",
+      version: "19.0.0-rc-65e06cb7-20241218",
       rendererPackageName: "react-server-dom-turbopack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.0.0-rc-372ec00c-20241209",
+      reconcilerVersion: "19.0.0-rc-65e06cb7-20241218",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

@@ -993,57 +993,63 @@ function createLazyWrapperAroundWakeable(wakeable) {
   return { $$typeof: REACT_LAZY_TYPE, _payload: wakeable, _init: readThenable };
 }
 function voidHandler() {}
-function processServerComponentReturnValue(request, task, Component, result) {
-  if (
-    "object" !== typeof result ||
-    null === result ||
-    result.$$typeof === CLIENT_REFERENCE_TAG$1
-  )
-    return result;
-  if ("function" === typeof result.then)
-    return "fulfilled" === result.status
-      ? result.value
-      : createLazyWrapperAroundWakeable(result);
-  var iteratorFn = getIteratorFn(result);
-  return iteratorFn
-    ? ((request = {}),
-      (request[Symbol.iterator] = function () {
-        return iteratorFn.call(result);
-      }),
-      request)
-    : "function" !== typeof result[ASYNC_ITERATOR] ||
-        ("function" === typeof ReadableStream &&
-          result instanceof ReadableStream)
-      ? result
-      : ((request = {}),
-        (request[ASYNC_ITERATOR] = function () {
-          return result[ASYNC_ITERATOR]();
-        }),
-        request);
-}
 function renderFunctionComponent(request, task, key, Component, props) {
   var prevThenableState = task.thenableState;
   task.thenableState = null;
   thenableIndexCounter = 0;
   thenableState = prevThenableState;
-  props = Component(props, void 0);
+  Component = Component(props, void 0);
   if (12 === request.status)
     throw (
-      ("object" === typeof props &&
-        null !== props &&
-        "function" === typeof props.then &&
-        props.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
-        props.then(voidHandler, voidHandler),
+      ("object" === typeof Component &&
+        null !== Component &&
+        "function" === typeof Component.then &&
+        Component.$$typeof !== CLIENT_REFERENCE_TAG$1 &&
+        Component.then(voidHandler, voidHandler),
       null)
     );
-  props = processServerComponentReturnValue(request, task, Component, props);
-  Component = task.keyPath;
+  if (
+    "object" === typeof Component &&
+    null !== Component &&
+    Component.$$typeof !== CLIENT_REFERENCE_TAG$1
+  ) {
+    if ("function" === typeof Component.then) {
+      props = Component;
+      if ("fulfilled" === props.status) return props.value;
+      Component = createLazyWrapperAroundWakeable(Component);
+    }
+    var iteratorFn = getIteratorFn(Component);
+    if (iteratorFn) {
+      var iterableChild = Component;
+      Component = {};
+      Component =
+        ((Component[Symbol.iterator] = function () {
+          return iteratorFn.call(iterableChild);
+        }),
+        Component);
+    } else if (
+      !(
+        "function" !== typeof Component[ASYNC_ITERATOR] ||
+        ("function" === typeof ReadableStream &&
+          Component instanceof ReadableStream)
+      )
+    ) {
+      var iterableChild$10 = Component;
+      Component = {};
+      Component =
+        ((Component[ASYNC_ITERATOR] = function () {
+          return iterableChild$10[ASYNC_ITERATOR]();
+        }),
+        Component);
+    }
+  }
+  props = task.keyPath;
   prevThenableState = task.implicitSlot;
   null !== key
-    ? (task.keyPath = null === Component ? key : Component + "," + key)
-    : null === Component && (task.implicitSlot = !0);
-  request = renderModelDestructive(request, task, emptyRoot, "", props);
-  task.keyPath = Component;
+    ? (task.keyPath = null === props ? key : props + "," + key)
+    : null === props && (task.implicitSlot = !0);
+  request = renderModelDestructive(request, task, emptyRoot, "", Component);
+  task.keyPath = props;
   task.implicitSlot = prevThenableState;
   return request;
 }
@@ -2194,6 +2200,8 @@ function initializeModelChunk(chunk) {
   }
 }
 function reportGlobalError(response, error) {
+  response._closed = !0;
+  response._closedReason = error;
   response._chunks.forEach(function (chunk) {
     "pending" === chunk.status && triggerErrorOnChunk(chunk, error);
   });
@@ -2206,7 +2214,9 @@ function getChunk(response, id) {
     (chunk =
       null != chunk
         ? new Chunk("resolved_model", chunk, id, response)
-        : createPendingChunk(response)),
+        : response._closed
+          ? new Chunk("rejected", null, response._closedReason, response)
+          : createPendingChunk(response)),
     chunks.set(id, chunk));
   return chunk;
 }
@@ -2603,6 +2613,8 @@ function createResponse(bundlerConfig, formFieldPrefix, temporaryReferences) {
     _prefix: formFieldPrefix,
     _formData: backingFormData,
     _chunks: chunks,
+    _closed: !1,
+    _closedReason: null,
     _temporaryReferences: temporaryReferences
   };
 }
