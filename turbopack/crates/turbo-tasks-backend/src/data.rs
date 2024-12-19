@@ -68,6 +68,8 @@ impl OutputValue {
 
 #[derive(Debug)]
 pub struct ActivenessState {
+    /// When this counter is > 0, the task is active.
+    pub active_counter: i32,
     /// The task is a root or once task and is active due to that.
     pub root_ty: Option<RootType>,
     /// The subgraph is active as long it's dirty. Once it become clean, it will unset this flag.
@@ -86,6 +88,7 @@ pub struct ActivenessState {
 impl ActivenessState {
     pub fn new(id: TaskId) -> Self {
         Self {
+            active_counter: 0,
             root_ty: None,
             active_until_clean: false,
             all_clean_event: Event::new(move || {
@@ -108,6 +111,18 @@ impl ActivenessState {
         self.active_until_clean = true;
     }
 
+    /// Increment the active counter and return true if the counter was 0 before.
+    pub fn increment_active_counter(&mut self) -> bool {
+        self.active_counter += 1;
+        self.active_counter == 1
+    }
+
+    /// Decrement the active counter and return true if the counter is 0 after.
+    pub fn decrement_active_counter(&mut self) -> bool {
+        self.active_counter -= 1;
+        self.active_counter == 0
+    }
+
     pub fn unset_root_type(&mut self) {
         self.root_ty = None;
     }
@@ -117,7 +132,7 @@ impl ActivenessState {
     }
 
     pub fn is_empty(&self) -> bool {
-        self.root_ty.is_none() && !self.active_until_clean
+        self.root_ty.is_none() && !self.active_until_clean && self.active_counter == 0
     }
 }
 
