@@ -517,7 +517,12 @@ export async function handleAction({
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
-  } else if (!host || originDomain !== host.value) {
+  } else if (
+    !host ||
+    // ensure that the origin matches either the host header or forwarded host header
+    originDomain !== hostHeader ||
+    originDomain !== forwardedHostHeader
+  ) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
@@ -525,16 +530,24 @@ export async function handleAction({
       // Ignore it
     } else {
       if (host) {
-        // This seems to be an CSRF attack. We should not proceed the action.
-        console.error(
-          `\`${
-            host.type
-          }\` header with value \`${limitUntrustedHeaderValueForLogs(
-            host.value
-          )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
-            originDomain
-          )}\` from a forwarded Server Actions request. Aborting the action.`
-        )
+        // This seems to be an CSRF attack. We should not proceed with the action
+        // We have have either the `x-forwarded-host` or `host` header, but neither match the `origin` header.
+        if (hostHeader && originDomain !== hostHeader) {
+          logCSRFError({
+            originDomain,
+            headerType: HostType.Host,
+            headerValue: hostHeader,
+          })
+        } else if (
+          forwardedHostHeader &&
+          originDomain !== forwardedHostHeader
+        ) {
+          logCSRFError({
+            originDomain,
+            headerType: HostType.XForwardedHost,
+            headerValue: forwardedHostHeader,
+          })
+        }
       } else {
         // This is an attack. We should not proceed the action.
         console.error(
@@ -1064,4 +1077,22 @@ function getActionModIdOrError(
       }`
     )
   }
+}
+
+function logCSRFError({
+  originDomain,
+  headerType,
+  headerValue,
+}: {
+  originDomain: string
+  headerType: HostType
+  headerValue: string
+}) {
+  console.error(
+    `\`${headerType}\` header with value \`${limitUntrustedHeaderValueForLogs(
+      headerValue
+    )}\` does not match \`origin\` header with value \`${limitUntrustedHeaderValueForLogs(
+      originDomain
+    )}\` from a forwarded Server Actions request. Aborting the action.`
+  )
 }
