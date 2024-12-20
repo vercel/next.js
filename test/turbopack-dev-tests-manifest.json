@@ -500,11 +500,34 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/helpers/webpack-module-path.test.ts": {
+    "passed": [
+      "webpack-module-path formatFrameSourceFile should return the original file path",
+      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
+      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/internal/helpers/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
       "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
       "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/client/components/react-dev-overlay/server/get-next-error-feedback-middleware.test.ts": {
+    "passed": [
+      "getNextErrorFeedbackMiddleware calls next() if path does not match",
+      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
+      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
+      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
     ],
     "failed": [],
     "pending": [],
@@ -3816,6 +3839,7 @@
       "app dir - css css support server layouts should support external css imports",
       "app dir - css css support server pages should not contain pages css in app dir page",
       "app dir - css css support server pages should support css modules inside server pages",
+      "app dir - css css support server pages should support css modules shared between server pages",
       "app dir - css css support server pages should support global css inside server pages",
       "app dir - css css support should not affect css orders during HMR",
       "app dir - css css support should reload @import styles during HMR",
@@ -6151,6 +6175,7 @@
       "app dir - navigation hash should scroll to the specified hash",
       "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+      "app dir - navigation locale warnings should have no warnings in pages router",
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
       "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
@@ -6192,9 +6217,7 @@
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back"
     ],
-    "failed": [
-      "app dir - navigation locale warnings should have no warnings in pages router"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6582,6 +6605,20 @@
       "Node Extensions Random Legacy should not error when accessing pages that use Math.random() in Pages Router",
       "Node Extensions Random Legacy should not error when accessing routes that use Math.random() in App Router",
       "Node Extensions Random Legacy should not error when accessing routes that use Math.random() in Pages Router"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts": {
+    "passed": [
+      "non-root-project-monorepo monorepo-package should work during RSC",
+      "non-root-project-monorepo monorepo-package should work during SSR",
+      "non-root-project-monorepo monorepo-package should work on client-side",
+      "non-root-project-monorepo source-maps should work on RSC",
+      "non-root-project-monorepo source-maps should work on SSR",
+      "non-root-project-monorepo source-maps should work on client-side"
     ],
     "failed": [],
     "pending": [],
@@ -7067,6 +7104,17 @@
     "passed": [],
     "failed": [],
     "pending": ["ppr-incremental should skip next dev"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-missing-root-params/ppr-missing-root-params.test.ts": {
+    "passed": [
+      "ppr-missing-root-params (multiple) should result in a build error",
+      "ppr-missing-root-params (nested) should result in a build error",
+      "ppr-missing-root-params (single) should result in a build error"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8051,11 +8099,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": [
-      "static-shell-debugging ppr = false, debugging = false should render the full page",
-      "static-shell-debugging ppr = true, debugging = true should only render the static shell",
-      "static-shell-debugging ppr = true, debugging = true should skip hydration to avoid blanking out the page"
-    ],
+    "passed": ["static-shell-debugging should render the full page"],
     "failed": [],
     "pending": [],
     "flakey": [],
