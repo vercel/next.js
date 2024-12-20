@@ -1897,7 +1897,6 @@ async function renderToStream(
     const generateStaticHTML = renderOpts.supportsDynamicResponse !== true
     const validateRootLayout = renderOpts.dev
     return await continueFizzStream(htmlStream, {
-      // metadataStream: createMetadataReadableStream({}),
       inlinedDataStream: createInlinedDataReadableStream(
         reactServerResult.consume(),
         ctx.nonce,

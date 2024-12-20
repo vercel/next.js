@@ -204,6 +204,7 @@ export async function walkTreeWithFlightRouterState({
         getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
+        MetadataTree,
       }
     )
 
