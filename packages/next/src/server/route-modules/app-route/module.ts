@@ -597,7 +597,14 @@ export class AppRouteRouteModule extends RouteModule<
         workStore.revalidatedTags || []
       ),
       ...Object.values(workStore.pendingRevalidates || {}),
-    ])
+    ]).finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log(
+          'pending revalidates promise finished for:',
+          requestStore.url
+        )
+      }
+    })
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')

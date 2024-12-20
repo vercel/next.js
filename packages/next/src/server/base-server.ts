@@ -2541,6 +2541,16 @@ export default abstract class Server<
 
               return cacheEntry
             }
+            let pendingWaitUntil = context.renderOpts.pendingWaitUntil
+
+            // Attempt using provided waitUntil if available
+            // if it's not we fallback to sendResponse's handling
+            if (pendingWaitUntil) {
+              if (context.renderOpts.waitUntil) {
+                context.renderOpts.waitUntil(pendingWaitUntil)
+                pendingWaitUntil = undefined
+              }
+            }
 
             // Send the response now that we have copied it into the cache.
             await sendResponse(
