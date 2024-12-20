@@ -226,7 +226,7 @@ impl TurbopackDevServerBuilder {
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 async fn source(
     root_dir: RcStr,
     project_dir: RcStr,

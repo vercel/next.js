@@ -1123,11 +1123,6 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.output().output_assets()
-    }
-
-    #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<PageEndpointOutput>> {
         let this = self.await?;
 
@@ -1338,7 +1333,7 @@ pub struct InternalSsrChunkModule {
 #[turbo_tasks::value_impl]
 impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
         let original_name = this.original_name.await?;
         let span = {
@@ -1359,14 +1354,13 @@ impl Endpoint for PageEndpoint {
         };
         async move {
             let output = self.output().await?;
-            // Must use self.output_assets() instead of output.output_assets() to make it a
-            // single operation
-            let output_assets = self.output_assets();
+            let output_assets_op = output_assets_operation(self);
+            let output_assets = output_assets_op.connect();
 
             let _ = this
                 .pages_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets))
+                .emit_all_output_assets(output_assets_op)
                 .resolve()
                 .await?;
 
@@ -1449,6 +1443,11 @@ impl Endpoint for PageEndpoint {
 
         Ok(Vc::cell(modules))
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn output_assets_operation(endpoint: ResolvedVc<PageEndpoint>) -> Vc<OutputAssets> {
+    endpoint.output().output_assets()
 }
 
 #[turbo_tasks::value]

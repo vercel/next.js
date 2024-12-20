@@ -905,11 +905,6 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.output().output_assets()
-    }
-
-    #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
@@ -1633,7 +1628,7 @@ async fn create_app_paths_manifest(
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
         let page_name = this.page.to_string();
         let span = match this.ty {
@@ -1658,9 +1653,8 @@ impl Endpoint for AppEndpoint {
         };
         async move {
             let output = self.output().await?;
-            // Must use self.output_assets() instead of output.output_assets() to make it a
-            // single operation
-            let output_assets = self.output_assets();
+            let output_assets_op = output_assets_operation(self);
+            let output_assets = output_assets_op.connect();
 
             let node_root = this.app_project.project().node_root();
 
@@ -1669,7 +1663,7 @@ impl Endpoint for AppEndpoint {
             let _ = this
                 .app_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets));
+                .emit_all_output_assets(output_assets_op);
 
             let (server_paths, client_paths) = if this
                 .app_project
@@ -1738,6 +1732,11 @@ impl Endpoint for AppEndpoint {
         let rsc_entry = self.app_endpoint_entry().await?.rsc_entry;
         Ok(Vc::cell(vec![rsc_entry]))
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn output_assets_operation(endpoint: ResolvedVc<AppEndpoint>) -> Vc<OutputAssets> {
+    endpoint.output().output_assets()
 }
 
 #[turbo_tasks::value]
