@@ -136,6 +136,9 @@
     "sharp": "^0.33.5"
   },
   "devDependencies": {
+    "enhanced-resolve": "5.17.1",
+    "@rspack/core": "1.1.8",
+    "@rspack/plugin-react-refresh": "1.0.1",
     "@ampproject/toolbox-optimizer": "2.8.3",
     "@babel/code-frame": "7.22.5",
     "@babel/core": "7.22.5",

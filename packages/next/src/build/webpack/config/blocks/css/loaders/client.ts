@@ -44,7 +44,7 @@ export function getClientStyleLoader({
 
   const MiniCssExtractPlugin = isRspack
     ? // eslint-disable-next-line
-      require('@rspack/core').rspack.CssExtractRspackPlugin
+      require('@rspack/core').rspack.CssExtractRspackPlugin.loader
     : require('../../../../plugins/mini-css-extract-plugin').default
 
   return {
