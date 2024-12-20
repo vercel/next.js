@@ -5,6 +5,8 @@ export function Base() {
   return (
     <style>
       {css`
+        @import url('https://fonts.googleapis.com/css2?family=Geist:wght@400;900&family=Geist+Mono:wght@400;900&display=swap');
+
         :host {
           --size-gap-half: 4px;
           --size-gap: 8px;
@@ -35,9 +37,10 @@ export function Base() {
           --color-text-color-red-1: #ff5555;
           --color-text-background-red-1: #fff9f9;
 
-          --font-stack-monospace: 'SFMono-Regular', Consolas, 'Liberation Mono',
-            Menlo, Courier, monospace;
-          --font-stack-sans: -apple-system, 'Source Sans Pro', sans-serif;
+          --font-stack-monospace: 'Geist Mono', 'SFMono-Regular', Consolas,
+            'Liberation Mono', Menlo, Courier, monospace;
+          --font-stack-sans: 'Geist', -apple-system, 'Source Sans Pro',
+            sans-serif;
 
           --color-ansi-selection: rgba(95, 126, 151, 0.48);
           --color-ansi-bg: #111111;
@@ -59,6 +62,8 @@ export function Base() {
           --color-ansi-bright-magenta: #cebbff;
           --color-ansi-bright-red: #ff8888;
           --color-ansi-bright-yellow: #ffd966;
+
+          font-family: var(--font-stack-sans);
         }
 
         @media (prefers-color-scheme: dark) {
