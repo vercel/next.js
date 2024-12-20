@@ -30,7 +30,7 @@ pub struct TurboFn<'a> {
     inputs: Vec<Input>,
     /// Should we check that the return type contains a `NonLocalValue`?
     non_local: Option<Span>,
-    /// Should we return `OperationVc` and require that all arguments are `OperationValue`s?
+    /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
     /// Should this function use `TaskPersistence::LocalCells`?
     local_cells: bool,
@@ -632,12 +632,12 @@ impl TurboFn<'_> {
             block = parse_quote! {
                 {
                     let vc_output = #block;
-                    // SAFETY: The turbo-tasks manager will not create a local task for a function
-                    // where all task inputs are "resolved" (where "resolved" in this case includes
-                    // `OperationVc`). This is checked with a debug_assert, but not in release mode.
-                    unsafe {
-                        turbo_tasks::OperationVc::cell_private(vc_output)
-                    }
+                    // Assumption: The turbo-tasks manager will not create a local task for a
+                    // function where all task inputs are "resolved" (where "resolved" in this case
+                    // includes `OperationVc`). This is checked with a debug_assert, but not in
+                    // release mode.
+                    #[allow(deprecated)]
+                    turbo_tasks::OperationVc::cell_private(vc_output)
                 }
             };
         }

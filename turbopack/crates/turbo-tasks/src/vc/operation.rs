@@ -58,7 +58,8 @@ impl<T: ?Sized> OperationVc<T> {
     ///
     /// The macro ensures that the `Vc` is not a local task and it points to a single operation.
     #[doc(hidden)]
-    pub unsafe fn cell_private(node: Vc<T>) -> Self {
+    #[deprecated = "This is an internal function. Use #[turbo_tasks::function(operation)] instead."]
+    pub fn cell_private(node: Vc<T>) -> Self {
         debug_assert!(
             matches!(node.node, RawVc::TaskOutput(..)),
             "OperationVc::cell_private must be called on the immediate return value of a task \
