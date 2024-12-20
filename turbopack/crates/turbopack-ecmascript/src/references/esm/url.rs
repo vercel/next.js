@@ -23,7 +23,7 @@ use super::base::ReferencedAsset;
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, EcmascriptModuleReferenceable},
     utils::module_id_to_lit,
 };
 
@@ -39,6 +39,54 @@ pub enum UrlRewriteBehavior {
     Full,
     /// Do not attempt to rewrite the URL.
     None,
+}
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct UrlAssetReferenceable {
+    pub request: ResolvedVc<Request>,
+    pub rendering: ResolvedVc<Rendering>,
+    pub ast_path: ResolvedVc<AstPath>,
+    pub issue_source: ResolvedVc<IssueSource>,
+    pub in_try: bool,
+    pub url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
+}
+
+#[turbo_tasks::value_impl]
+impl UrlAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        request: ResolvedVc<Request>,
+        rendering: ResolvedVc<Rendering>,
+        ast_path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
+        in_try: bool,
+        url_rewrite_behavior: ResolvedVc<UrlRewriteBehavior>,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            request,
+            rendering,
+            ast_path,
+            issue_source,
+            in_try,
+            url_rewrite_behavior,
+        })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for UrlAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(UrlAssetReference::new(
+            origin,
+            *self.request,
+            *self.rendering,
+            *self.ast_path,
+            *self.issue_source,
+            self.in_try,
+            *self.url_rewrite_behavior,
+        ))
+    }
 }
 
 /// URL Asset References are injected during code analysis when we find a
@@ -142,6 +190,7 @@ impl CodeGenerateable for UrlAssetReference {
     async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = self.await?;
         let mut visitors = vec![];

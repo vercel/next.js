@@ -11,7 +11,28 @@ use turbopack_core::{
 };
 use turbopack_resolve::typescript::type_resolve;
 
-use crate::typescript::TsConfigModuleAsset;
+use crate::{references::EcmascriptModuleReferenceable, typescript::TsConfigModuleAsset};
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct TsConfigReferenceable {
+    pub tsconfig: ResolvedVc<FileSystemPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl TsConfigReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(tsconfig: ResolvedVc<FileSystemPath>) -> Vc<Self> {
+        Self::cell(Self { tsconfig })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for TsConfigReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(TsConfigReference::new(origin, *self.tsconfig))
+    }
+}
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
@@ -27,7 +48,7 @@ impl TsConfigReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         tsconfig: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
-        Self::cell(TsConfigReference { tsconfig, origin })
+        Self::cell(Self { tsconfig, origin })
     }
 }
 
@@ -50,6 +71,30 @@ impl ValueToString for TsConfigReference {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
             format!("tsconfig {}", self.tsconfig.to_string().await?,).into(),
+        ))
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct TsReferencePathAssetReferenceable {
+    pub path: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl TsReferencePathAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(path: RcStr) -> Vc<Self> {
+        Self::cell(Self { path })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for TsReferencePathAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(TsReferencePathAssetReference::new(
+            origin,
+            self.path.clone(),
         ))
     }
 }
@@ -106,6 +151,30 @@ impl ValueToString for TsReferencePathAssetReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(format!("typescript reference path comment {}", self.path,).into())
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct TsReferenceTypeAssetReferenceable {
+    pub module: RcStr,
+}
+
+#[turbo_tasks::value_impl]
+impl TsReferenceTypeAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(module: RcStr) -> Vc<Self> {
+        Self::cell(Self { module })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for TsReferenceTypeAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(TsReferenceTypeAssetReference::new(
+            origin,
+            self.module.clone(),
+        ))
     }
 }
 

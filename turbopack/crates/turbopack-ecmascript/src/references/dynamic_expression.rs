@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, resolve::origin::ResolveOrigin};
 
 use super::AstPath;
 use crate::{
@@ -47,6 +47,7 @@ impl CodeGenerateable for DynamicExpression {
     async fn code_generation(
         &self,
         _context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let path = &self.path.await?;
 

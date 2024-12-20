@@ -397,6 +397,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             *analyze.async_module,
             *analyze.source_map,
             *analyze.exports,
+            Vc::upcast(self),
             async_module_info,
         ))
     }
@@ -728,6 +729,7 @@ impl EcmascriptModuleContent {
         async_module: Vc<OptionAsyncModule>,
         source_map: ResolvedVc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
         let mut code_gens = Vec::new();
@@ -736,11 +738,15 @@ impl EcmascriptModuleContent {
             if let Some(code_gen) =
                 ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(
+                    chunking_context,
+                    origin,
+                    async_module_info,
+                ));
             } else if let Some(code_gen) =
                 ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context));
+                code_gens.push(code_gen.code_generation(chunking_context, origin));
             }
         }
         if let Some(async_module) = *async_module.await? {
@@ -753,15 +759,15 @@ impl EcmascriptModuleContent {
         for c in code_generation.await?.iter() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(chunking_context));
+                    code_gens.push(c.code_generation(chunking_context, origin));
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    code_gens.push(c.code_generation(chunking_context, async_module_info));
+                    code_gens.push(c.code_generation(chunking_context, origin, async_module_info));
                 }
             }
         }
         if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gens.push(exports.code_generation(chunking_context));
+            code_gens.push(exports.code_generation(chunking_context, origin));
         }
 
         // need to keep that around to allow references into that

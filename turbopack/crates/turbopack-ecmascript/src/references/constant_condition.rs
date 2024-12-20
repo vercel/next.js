@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::quote;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, resolve::origin::ResolveOrigin};
 
 use super::AstPath;
 use crate::{
@@ -40,6 +40,7 @@ impl CodeGenerateable for ConstantCondition {
     async fn code_generation(
         &self,
         _context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let value = self.value;
         let visitors = [

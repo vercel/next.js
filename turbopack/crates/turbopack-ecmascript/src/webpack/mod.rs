@@ -19,7 +19,7 @@ use turbopack_core::{
 use turbopack_resolve::ecmascript::apply_cjs_specific_options;
 
 use self::{parse::WebpackRuntime, references::module_references};
-use crate::EcmascriptInputTransforms;
+use crate::{references::EcmascriptModuleReferenceable, EcmascriptInputTransforms};
 
 pub mod parse;
 pub(crate) mod references;
@@ -79,6 +79,17 @@ pub struct WebpackChunkAssetReference {
     pub chunk_id: Lit,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for WebpackChunkAssetReference {
+    #[turbo_tasks::function]
+    fn as_reference(
+        self: Vc<Self>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(self)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -146,6 +157,17 @@ impl ModuleReference for WebpackEntryAssetReference {
 }
 
 #[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for WebpackEntryAssetReference {
+    #[turbo_tasks::function]
+    fn as_reference(
+        self: Vc<Self>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(self)
+    }
+}
+
+#[turbo_tasks::value_impl]
 impl ValueToString for WebpackEntryAssetReference {
     #[turbo_tasks::function]
     fn to_string(&self) -> Vc<RcStr> {
@@ -153,12 +175,67 @@ impl ValueToString for WebpackEntryAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct WebpackRuntimeAssetReferenceable {
+    pub request: ResolvedVc<Request>,
+    pub runtime: ResolvedVc<WebpackRuntime>,
+    pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+}
+
+#[turbo_tasks::value_impl]
+impl WebpackRuntimeAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        request: ResolvedVc<Request>,
+        runtime: ResolvedVc<WebpackRuntime>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            request,
+            runtime,
+            transforms,
+        })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for WebpackRuntimeAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(WebpackRuntimeAssetReference::new(
+            origin,
+            *self.request,
+            *self.runtime,
+            *self.transforms,
+        ))
+    }
+}
+
+#[turbo_tasks::value]
 pub struct WebpackRuntimeAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub runtime: ResolvedVc<WebpackRuntime>,
     pub transforms: ResolvedVc<EcmascriptInputTransforms>,
+}
+
+#[turbo_tasks::value_impl]
+impl WebpackRuntimeAssetReference {
+    #[turbo_tasks::function]
+    async fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        runtime: ResolvedVc<WebpackRuntime>,
+        transforms: ResolvedVc<EcmascriptInputTransforms>,
+    ) -> Vc<Self> {
+        Self {
+            origin,
+            request,
+            runtime,
+            transforms,
+        }
+        .cell()
+    }
 }
 
 #[turbo_tasks::value_impl]

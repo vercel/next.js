@@ -8,16 +8,49 @@ use turbopack_core::{
         ChunkingTypeOption,
     },
     reference::ModuleReference,
-    resolve::ModuleResolveResult,
+    resolve::{origin::ResolveOrigin, ModuleResolveResult},
 };
 
 use super::{base::ReferencedAsset, EsmAssetReference};
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{esm::base::EsmAssetReferenceable, AstPath, EcmascriptModuleReferenceable},
     utils::module_id_to_lit,
 };
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct EsmModuleIdAssetReferenceable {
+    inner: ResolvedVc<EsmAssetReferenceable>,
+    ast_path: ResolvedVc<AstPath>,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmModuleIdAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        inner: ResolvedVc<EsmAssetReferenceable>,
+        ast_path: ResolvedVc<AstPath>,
+    ) -> Vc<Self> {
+        Self::cell(Self { inner, ast_path })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for EsmModuleIdAssetReferenceable {
+    #[turbo_tasks::function]
+    async fn as_reference(
+        &self,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Result<Vc<Box<dyn ModuleReference>>> {
+        Ok(Vc::upcast(EsmModuleIdAssetReference::new(
+            Vc::try_resolve_downcast_type(self.inner.as_reference(origin))
+                .await?
+                .unwrap(),
+            *self.ast_path,
+        )))
+    }
+}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -66,6 +99,7 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
     async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 

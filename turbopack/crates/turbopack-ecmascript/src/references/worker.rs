@@ -18,9 +18,49 @@ use turbopack_core::{
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, EcmascriptModuleReferenceable},
     worker_chunk::module::WorkerLoaderModule,
 };
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct WorkerAssetReferenceable {
+    pub request: ResolvedVc<Request>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: ResolvedVc<IssueSource>,
+    pub in_try: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl WorkerAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
+        in_try: bool,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            request,
+            path,
+            issue_source,
+            in_try,
+        })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for WorkerAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(WorkerAssetReference::new(
+            origin,
+            *self.request,
+            *self.path,
+            *self.issue_source,
+            self.in_try,
+        ))
+    }
+}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -120,6 +160,7 @@ impl CodeGenerateable for WorkerAssetReference {
     async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let Some(loader) = self.worker_loader_module().await? else {
             bail!("Worker loader could not be created");

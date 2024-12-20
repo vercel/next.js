@@ -38,7 +38,7 @@ use crate::{
     create_visitor,
     references::{
         pattern_mapping::{PatternMapping, ResolveType},
-        AstPath,
+        AstPath, EcmascriptModuleReferenceable,
     },
     utils::module_id_to_lit,
     CodeGenerateable, EcmascriptChunkPlaceable,
@@ -201,6 +201,58 @@ impl RequireContextMap {
     }
 }
 
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct RequireContextAssetReferenceable {
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub dir: RcStr,
+    pub include_subdirs: bool,
+    pub filter: ResolvedVc<Regex>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: Option<ResolvedVc<IssueSource>>,
+    pub in_try: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl RequireContextAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        source: ResolvedVc<Box<dyn Source>>,
+        dir: RcStr,
+        include_subdirs: bool,
+        filter: ResolvedVc<Regex>,
+        path: ResolvedVc<AstPath>,
+        issue_source: Option<ResolvedVc<IssueSource>>,
+        in_try: bool,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            source,
+            dir,
+            include_subdirs,
+            filter,
+            path,
+            issue_source,
+            in_try,
+        })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for RequireContextAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(RequireContextAssetReference::new(
+            *self.source,
+            origin,
+            self.dir.clone(),
+            self.include_subdirs,
+            *self.filter,
+            *self.path,
+            self.issue_source.map(|v| *v),
+            self.in_try,
+        ))
+    }
+}
+
 /// A reference for `require.context()`, will replace it with an inlined map
 /// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
@@ -291,6 +343,7 @@ impl CodeGenerateable for RequireContextAssetReference {
     async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let chunk_item = self.inner.as_chunk_item(Vc::upcast(chunking_context));
         let module_id = chunk_item.id().await?.clone_value();

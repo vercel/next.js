@@ -65,6 +65,10 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
         let mut code = RopeBuilder::default();
 
+        let origin = *ResolvedVc::try_sidecast(self.module.await?.module)
+            .await?
+            .unwrap();
+
         let references = self.module.references();
         let references_ref = references.await?;
         let mut code_gens = Vec::with_capacity(references_ref.len() + 2);
@@ -73,11 +77,15 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(*chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(
+                    *chunking_context,
+                    origin,
+                    async_module_info,
+                ));
             } else if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(*chunking_context));
+                code_gens.push(code_gen.code_generation(*chunking_context, origin));
             }
         }
         code_gens.push(self.module.async_module().code_generation(
@@ -85,7 +93,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             async_module_info,
             references,
         ));
-        code_gens.push(exports.code_generation(*chunking_context));
+        code_gens.push(exports.code_generation(*chunking_context, origin));
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 

@@ -57,6 +57,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             *analyze_result.async_module,
             *analyze_result.source_map,
             exports,
+            Vc::upcast(*module.module),
             async_module_info,
         );
 

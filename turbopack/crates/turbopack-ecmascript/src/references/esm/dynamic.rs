@@ -25,8 +25,56 @@ use crate::{
     analyzer::imports::ImportAnnotations,
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, EcmascriptModuleReferenceable},
 };
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct EsmAsyncAssetReferenceable {
+    pub request: ResolvedVc<Request>,
+    pub path: ResolvedVc<AstPath>,
+    pub annotations: ImportAnnotations,
+    pub issue_source: ResolvedVc<IssueSource>,
+    pub in_try: bool,
+    pub import_externals: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmAsyncAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
+        annotations: Value<ImportAnnotations>,
+        in_try: bool,
+        import_externals: bool,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            request,
+            path,
+            issue_source,
+            annotations: annotations.into_value(),
+            in_try,
+            import_externals,
+        })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for EsmAsyncAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(EsmAsyncAssetReference::new(
+            origin,
+            *self.request,
+            *self.path,
+            *self.issue_source,
+            Value::new(self.annotations.clone()),
+            self.in_try,
+            self.import_externals,
+        ))
+    }
+}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -112,6 +160,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
     async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             *self.request,

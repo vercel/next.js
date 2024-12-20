@@ -21,7 +21,7 @@ use turbopack_core::{
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
-        origin::{ResolveOrigin, ResolveOriginExt},
+        origin::{PlainResolveOrigin, ResolveOrigin, ResolveOriginExt},
         parse::Request,
         ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
     },
@@ -34,7 +34,10 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
     magic_identifier,
-    references::util::{request_to_string, throw_module_not_found_expr},
+    references::{
+        util::{request_to_string, throw_module_not_found_expr},
+        EcmascriptModuleReferenceable,
+    },
     tree_shake::{asset::EcmascriptModulePartAsset, TURBOPACK_PART_IMPORT_SOURCE},
     utils::module_id_to_lit,
 };
@@ -98,6 +101,66 @@ impl ReferencedAsset {
             }
         }
         Ok(ReferencedAsset::None.cell())
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct EsmAssetReferenceable {
+    pub lookup_path: Option<ResolvedVc<FileSystemPath>>,
+    pub request: ResolvedVc<Request>,
+    pub annotations: ImportAnnotations,
+    pub issue_source: ResolvedVc<IssueSource>,
+    pub export_name: Option<ResolvedVc<ModulePart>>,
+    pub import_externals: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl EsmAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        lookup_path: Option<ResolvedVc<FileSystemPath>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
+        annotations: Value<ImportAnnotations>,
+        export_name: Option<ResolvedVc<ModulePart>>,
+        import_externals: bool,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            lookup_path,
+            request,
+            issue_source,
+            annotations: annotations.into_value(),
+            export_name,
+            import_externals,
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub fn as_esm_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<EsmAssetReference> {
+        EsmAssetReference::new(
+            self.lookup_path.map_or(origin, |lookup_path| {
+                Vc::upcast(PlainResolveOrigin::new(
+                    origin.asset_context(),
+                    *lookup_path,
+                ))
+            }),
+            *self.request,
+            *self.issue_source,
+            Value::new(self.annotations.clone()),
+            self.export_name.map(|v| *v),
+            self.import_externals,
+        )
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for EsmAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(
+        self: Vc<Self>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(self.as_esm_reference(origin))
     }
 }
 
@@ -252,6 +315,7 @@ impl CodeGenerateable for EsmAssetReference {
     async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = &*self.await?;
 
