@@ -112,7 +112,8 @@ describe('app-fetch-deduping', () => {
         expect(invocation(next.cliOutput)).toBe(1)
 
         // wait for the revalidation to finish
-        await retry(() => {
+        await retry(async () => {
+          await next.render('/test')
           expect(invocation(next.cliOutput)).toBe(2)
         })
       })
