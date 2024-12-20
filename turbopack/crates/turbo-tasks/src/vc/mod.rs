@@ -424,11 +424,6 @@ impl<T> Vc<T>
 where
     T: ?Sized,
 {
-    /// Connects the operation pointed to by this `Vc` to the current task.
-    pub fn connect(vc: Self) {
-        vc.node.connect()
-    }
-
     /// Returns a debug identifier for this `Vc`.
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.resolve().await?;
