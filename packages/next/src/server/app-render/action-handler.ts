@@ -667,12 +667,19 @@ export async function handleAction({
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
-              const actionReturnedState = await action()
-              formState = decodeFormState(
+
+              const actionReturnedState = await workUnitAsyncStorage.run(
+                requestStore,
+                action
+              )
+
+              formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
+
+              requestStore.phase = 'render'
             }
 
             // Skip the fetch path
@@ -814,12 +821,19 @@ export async function handleAction({
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
               warnBadServerActionRequest()
-              const actionReturnedState = await action()
+
+              const actionReturnedState = await workUnitAsyncStorage.run(
+                requestStore,
+                action
+              )
+
               formState = await decodeFormState(
                 actionReturnedState,
                 formData,
                 serverModuleMap
               )
+
+              requestStore.phase = 'render'
             }
 
             // Skip the fetch path

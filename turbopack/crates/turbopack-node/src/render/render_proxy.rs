@@ -32,8 +32,8 @@ use crate::{
 };
 
 /// Renders a module as static HTML in a node.js process.
-#[turbo_tasks::function]
-pub async fn render_proxy(
+#[turbo_tasks::function(operation)]
+pub async fn render_proxy_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
