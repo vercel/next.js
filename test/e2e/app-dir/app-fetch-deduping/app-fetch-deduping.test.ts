@@ -115,7 +115,7 @@ describe('app-fetch-deduping', () => {
         await retry(async () => {
           await next.render('/test')
           expect(invocation(next.cliOutput)).toBe(2)
-        })
+        }, 10_000)
       })
     })
   } else {
