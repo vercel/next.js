@@ -901,3 +901,44 @@ export async function accumulateViewport(
   }
   return resolvedViewport
 }
+
+// Exposed API for metadata component, that directly resolve the loader tree and related context as resolved metadata.
+export async function resolveMetadata(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  metadataContext: MetadataContext
+): Promise<ResolvedMetadata> {
+  const metadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+  return await accumulateMetadata(metadataItems, metadataContext)
+}
+
+// Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
+export async function resolveViewport(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  errorConvention: MetadataErrorType | undefined,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore
+): Promise<ResolvedViewport> {
+  const metadataItems = await resolveMetadataItems(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore
+  )
+  return await accumulateViewport(metadataItems)
+}
