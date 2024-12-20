@@ -84,12 +84,12 @@ struct EmittedEvaluatePoolAssets {
     entrypoint: ResolvedVc<FileSystemPath>,
 }
 
-#[turbo_tasks::function]
-async fn emit_evaluate_pool_assets(
+#[turbo_tasks::function(operation)]
+async fn emit_evaluate_pool_assets_operation(
     module_asset: ResolvedVc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let runtime_asset = asset_context
         .process(
@@ -174,18 +174,18 @@ async fn emit_evaluate_pool_assets(
 
 #[turbo_tasks::function]
 async fn emit_evaluate_pool_assets_with_effects(
-    module_asset: Vc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    let operation = emit_evaluate_pool_assets(
+    let operation = emit_evaluate_pool_assets_operation(
         module_asset,
         asset_context,
         chunking_context,
         runtime_entries,
     );
-    let result = operation.resolve_strongly_consistent().await?;
+    let result = operation.connect().resolve_strongly_consistent().await?;
     apply_effects(operation).await?;
     Ok(result)
 }

@@ -43,7 +43,7 @@ enum GetFromSourceResult {
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
 /// corresponding content as a
 #[turbo_tasks::function(operation)]
-async fn get_from_source(
+async fn get_from_source_operation(
     source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
 ) -> Result<Vc<GetFromSourceResult>> {
@@ -63,7 +63,7 @@ async fn get_from_source(
                 }
             }
             ResolveSourceRequestResult::HttpProxy(proxy) => {
-                GetFromSourceResult::HttpProxy(proxy.await?)
+                GetFromSourceResult::HttpProxy(proxy.connect().await?)
             }
             ResolveSourceRequestResult::NotFound => GetFromSourceResult::NotFound,
         }
@@ -83,7 +83,7 @@ pub async fn process_request_with_content_source(
 )> {
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
-    let result_op = get_from_source(source, TransientInstance::new(request));
+    let result_op = get_from_source_operation(source, TransientInstance::new(request));
     let result_vc = result_op.connect();
     let resolved_result = result_vc.resolve_strongly_consistent().await?;
     apply_effects(result_op).await?;
@@ -93,7 +93,7 @@ pub async fn process_request_with_content_source(
         issue_reporter,
         IssueSeverity::Fatal.cell(),
         Some(&original_path),
-        Some("get_from_source"),
+        Some("get_from_source_operation"),
     )
     .await?;
     match &*resolved_result.await? {

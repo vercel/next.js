@@ -1098,9 +1098,9 @@ impl ReducedGraphs {
     }
 }
 
-#[turbo_tasks::function]
-async fn get_reduced_graphs_for_endpoint_inner(
-    project: Vc<Project>,
+#[turbo_tasks::function(operation)]
+async fn get_reduced_graphs_for_endpoint_inner_operation(
+    project: ResolvedVc<Project>,
     entry: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<ReducedGraphs>> {
     let (is_single_page, graphs) = match &*project.next_mode().await? {
@@ -1172,15 +1172,16 @@ async fn get_reduced_graphs_for_endpoint_inner(
 /// references, etc).
 #[turbo_tasks::function]
 pub async fn get_reduced_graphs_for_endpoint(
-    project: Vc<Project>,
-    entry: Vc<Box<dyn Module>>,
+    project: ResolvedVc<Project>,
+    entry: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<ReducedGraphs>> {
     // TODO get rid of this function once everything inside of
     // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result = get_reduced_graphs_for_endpoint_inner(project, entry);
+    let result_op = get_reduced_graphs_for_endpoint_inner_operation(project, entry);
+    let result_vc = result_op.connect();
     if project.next_mode().await?.is_production() {
-        result.strongly_consistent().await?;
-        let _issues = result.take_collectibles::<Box<dyn Issue>>();
+        result_vc.strongly_consistent().await?;
+        let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
     }
-    Ok(result)
+    Ok(result_vc)
 }
