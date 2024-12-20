@@ -1298,13 +1298,23 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.revalidatedTags
     ) {
-      options.waitUntil = Promise.all([
+      const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
           workStore.revalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
-      ])
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     if (response.collectedTags) {
@@ -1455,13 +1465,23 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.revalidatedTags
     ) {
-      options.waitUntil = Promise.all([
+      const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
           workStore.revalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
-      ])
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     // Create the new render result for the response.
