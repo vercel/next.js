@@ -8,7 +8,6 @@ import React, {
   startTransition,
   useInsertionEffect,
   useDeferredValue,
-  Suspense,
 } from 'react'
 import {
   AppRouterContext,
@@ -18,7 +17,6 @@ import {
 import type {
   CacheNode,
   AppRouterInstance,
-  HeadData,
 } from '../../shared/lib/app-router-context.shared-runtime'
 import {
   ACTION_HMR_REFRESH,
@@ -148,7 +146,7 @@ export function createEmptyCacheNode(): CacheNode {
     rsc: null,
     prefetchRsc: null,
     head: [null, null],
-    prefetchHead: [null, null],
+    prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
   }
@@ -213,7 +211,11 @@ function copyNextJsInternalHistoryState(data: any) {
   return data
 }
 
-function getHeadAndPrefetchHead(headCacheNode: CacheNode | null): [HeadData, HeadData] {
+function Head({
+  headCacheNode,
+}: {
+  headCacheNode: CacheNode | null
+}): React.ReactNode {
   // If this segment has a `prefetchHead`, it's the statically prefetched data.
   // We should use that on initial render instead of `head`. Then we'll switch
   // to `head` when the dynamic response streams in.
@@ -224,19 +226,6 @@ function getHeadAndPrefetchHead(headCacheNode: CacheNode | null): [HeadData, Hea
   // If no prefetch data is available, then we go straight to rendering `head`.
   const resolvedPrefetchRsc = prefetchHead !== null ? prefetchHead : head
 
-  return [
-    head || [null, null],
-    resolvedPrefetchRsc || [null, null],
-  ]
-}
-
-function ViewportHead({
-  headCacheNode,
-}: {
-  headCacheNode: CacheNode | null
-}): React.ReactNode {
-  const [head, resolvedPrefetchRsc] = getHeadAndPrefetchHead(headCacheNode)
-
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
@@ -244,24 +233,7 @@ function ViewportHead({
   // @ts-expect-error The second argument to `useDeferredValue` is only
   // available in the experimental builds. When its disabled, it will always
   // return `head`.
-  return useDeferredValue(head[0], resolvedPrefetchRsc[0])
-}
-
-function MetadataHead({
-  headCacheNode,
-}: {
-  headCacheNode: CacheNode | null
-}): React.ReactNode {
-  const [head, resolvedPrefetchRsc] = getHeadAndPrefetchHead(headCacheNode)
-
-  // We use `useDeferredValue` to handle switching between the prefetched and
-  // final values. The second argument is returned on initial render, then it
-  // re-renders with the first argument.
-  //
-  // @ts-expect-error The second argument to `useDeferredValue` is only
-  // available in the experimental builds. When its disabled, it will always
-  // return `head`.
-  return useDeferredValue(head[1], resolvedPrefetchRsc[1])
+  return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
 /**
@@ -616,7 +588,6 @@ function Router({
   }, [changeByServerResponse, tree, focusAndScrollRef, nextUrl])
 
   let head
-
   if (matchingHead !== null) {
     // The head is wrapped in an extra component so we can use
     // `useDeferredValue` to swap between the prefetched and final versions of
@@ -625,10 +596,7 @@ function Router({
     // The `key` is used to remount the component whenever the head moves to
     // a different segment.
     const [headCacheNode, headKey] = matchingHead
-    head = [
-      <ViewportHead key={headKey + 'v'} headCacheNode={headCacheNode} />,
-      <MetadataHead key={headKey + 'm'} headCacheNode={headCacheNode} />,
-    ]
+    head = <Head key={headKey} headCacheNode={headCacheNode} />
   } else {
     head = null
   }

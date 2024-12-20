@@ -131,7 +131,7 @@ export function createMetadataComponents({
   }
   Viewport.displayName = VIEWPORT_BOUNDARY_NAME
 
-  async function Mimetadata() {
+  async function metadata() {
     return getResolvedMetadata(
       tree,
       searchParams,
@@ -144,29 +144,27 @@ export function createMetadataComponents({
   }
 
   async function Metadata() {
-    return <Mimetadata />
-    // return await metadata()
-  //   try {
-  //     return await metadata()
-  //   } catch (error) {
-  //     if (!errorType && isHTTPAccessFallbackError(error)) {
-  //       try {
-  //         return await getNotFoundMetadata(
-  //           tree,
-  //           searchParams,
-  //           getDynamicParamFromSegment,
-  //           metadataContext,
-  //           createServerParamsForMetadata,
-  //           workStore
-  //         )
-  //       } catch {}
-  //     }
-  //     // We don't actually want to error in this component. We will
-  //     // also error in the MetadataOutlet which causes the error to
-  //     // bubble from the right position in the page to be caught by the
-  //     // appropriate boundaries
-  //     return null
-  //   }
+    try {
+      return await metadata()
+    } catch (error) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
+        try {
+          return await getNotFoundMetadata(
+            tree,
+            searchParams,
+            getDynamicParamFromSegment,
+            metadataContext,
+            createServerParamsForMetadata,
+            workStore
+          )
+        } catch {}
+      }
+      // We don't actually want to error in this component. We will
+      // also error in the MetadataOutlet which causes the error to
+      // bubble from the right position in the page to be caught by the
+      // appropriate boundaries
+      return null
+    }
   }
   Metadata.displayName = METADATA_BOUNDARY_NAME
 
@@ -209,7 +207,10 @@ async function getResolvedMetadataHelper(
     createServerParamsForMetadata,
     workStore
   )
-  const resolvedMetadata = await accumulateMetadata(metadataItems, metadataContext)
+  const resolvedMetadata = await accumulateMetadata(
+    metadataItems,
+    metadataContext
+  )
   return resolvedMetadata
 }
 
@@ -232,9 +233,8 @@ async function getAsyncMetadata(
     workStore,
     errorType
   )
-  const elements: Array<React.ReactNode> = createMetadataElements(
-    resolvedMetadata 
-  )
+  const elements: Array<React.ReactNode> =
+    createMetadataElements(resolvedMetadata)
   return (
     <>
       {elements.map((el, index) => {
@@ -263,9 +263,9 @@ async function getResolvedMetadataImpl(
     errorType
   )
   return (
-    // TODO: for static bots: directly return the resolved metadata;
-    // Otherwise for async case
+    // <Suspense fallback={null}>
     <MetadataClientReceiver promise={metadataPromise} />
+    // </Suspense>
   )
 }
 

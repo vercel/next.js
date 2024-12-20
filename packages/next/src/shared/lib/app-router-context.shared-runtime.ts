@@ -56,7 +56,7 @@ export type LazyCacheNode = {
    */
   lazyData: Promise<FetchServerResponseResult> | null
 
-  prefetchHead: HeadData
+  prefetchHead: React.ReactNode
 
   head: HeadData
 
@@ -99,7 +99,7 @@ export type ReadyCacheNode = {
    * There should never be a lazy data request in this case.
    */
   lazyData: null
-  prefetchHead: HeadData
+  prefetchHead: React.ReactNode
 
   head: HeadData
 

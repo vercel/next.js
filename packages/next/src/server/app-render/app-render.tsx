@@ -27,7 +27,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { BaseNextRequest, BaseNextResponse } from '../base-http'
 import type { IncomingHttpHeaders } from 'http'
 
-import React, { Suspense, type ErrorInfo, type JSX } from 'react'
+import React, { type ErrorInfo, type JSX } from 'react'
 
 import RenderResult, {
   type AppPageRenderResultMetadata,
@@ -462,7 +462,6 @@ async function generateDynamicRSCPayload(
         MetadataBoundary,
         ViewportBoundary,
       })
-
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
@@ -877,7 +876,10 @@ async function getErrorRSCPayload(
   } = ctx
 
   const searchParams = createServerSearchParamsForMetadata(query, workStore)
-  const { MetadataTree, ViewportTree } = createMetadataComponents({
+  const {
+    // MetadataTree,
+    ViewportTree,
+  } = createMetadataComponents({
     tree,
     searchParams,
     // We create an untracked metadata context here because we can't postpone
@@ -892,7 +894,7 @@ async function getErrorRSCPayload(
     ViewportBoundary,
   })
 
-  const initialHeadMetadata = null 
+  const initialHeadMetadata = null
   // (
   //   <React.Fragment key={flightDataPathMetadataKey}>
   //     {/* Adding requestId as react key to make metadata remount for each render */}
