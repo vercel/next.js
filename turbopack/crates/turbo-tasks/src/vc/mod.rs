@@ -17,7 +17,6 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
 pub use self::{
@@ -35,7 +34,7 @@ use crate::{
     manager::{create_local_cell, try_get_function_meta},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
+    CellId, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
@@ -584,19 +583,6 @@ where
             node: raw_vc,
             _t: PhantomData,
         }))
-    }
-}
-
-impl<T> CollectiblesSource for Vc<T>
-where
-    T: ?Sized,
-{
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.take_collectibles()
-    }
-
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.peek_collectibles()
     }
 }
 
