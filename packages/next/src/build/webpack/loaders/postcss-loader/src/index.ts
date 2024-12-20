@@ -1,6 +1,7 @@
 import Warning from './Warning'
 import SyntaxError from './Error'
 import { normalizeSourceMap, normalizeSourceMapAfterPostcss } from './utils'
+import { Span } from '../../../../../trace'
 
 /**
  * **PostCSS Loader**
@@ -15,7 +16,9 @@ export default async function loader(
   sourceMap: any,
   meta: any
 ): Promise<void> {
-  const loaderSpan = this.currentTraceSpan.traceChild('postcss-loader')
+  const loaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('postcss-loader')
   const callback = this.async()
 
   loaderSpan

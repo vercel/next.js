@@ -272,6 +272,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public activeWebpackConfigs?: Array<
     UnwrapPromise<ReturnType<typeof getBaseWebpackConfig>>
   >
+  private isRspack = Boolean(process.env.NEXT_RSPACK)
 
   constructor(
     dir: string,
@@ -1209,10 +1210,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                       chunksHash.add(hash)
                     } else {
                       // for non-pages we can use the module hash directly
-                      const hash = stats.chunkGraph.getModuleHash(
-                        mod,
-                        chunk.runtime
-                      )
+                      const hash = this.isRspack
+                        ? mod.identifier()
+                        : stats.chunkGraph.getModuleHash(mod, chunk.runtime)
 
                       if (
                         mod.layer === WEBPACK_LAYERS.reactServerComponents &&

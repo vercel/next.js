@@ -5,10 +5,12 @@ import { bold, cyan } from '../../../../lib/picocolors'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import postcssNextFontPlugin from './postcss-next-font'
 import { promisify } from 'util'
+import { Span } from '../../../../trace'
 
 export default async function nextFontLoader(this: any) {
-  const nextFontLoaderSpan =
-    this.currentTraceSpan.traceChild('next-font-loader')
+  const nextFontLoaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('next-font-loader')
   return nextFontLoaderSpan.traceAsyncFn(async () => {
     const callback = this.async()
 

@@ -5,6 +5,7 @@
 import CssSyntaxError from './CssSyntaxError'
 import Warning from '../../postcss-loader/src/Warning'
 import { stringifyRequest } from '../../../stringify-request'
+import { Span } from '../../../../../trace'
 
 const moduleRegExp = /\.module\.\w+$/i
 
@@ -142,7 +143,9 @@ export default async function loader(
   const plugins: any[] = []
   const callback = this.async()
 
-  const loaderSpan = this.currentTraceSpan.traceChild('css-loader')
+  const loaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('css-loader')
 
   loaderSpan
     .traceAsyncFn(async () => {

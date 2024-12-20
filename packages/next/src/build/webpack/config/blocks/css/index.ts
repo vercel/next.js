@@ -147,6 +147,7 @@ export const css = curry(async function css(
   ctx: ConfigurationContext,
   config: webpack.Configuration
 ) {
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const {
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
@@ -576,6 +577,8 @@ export const css = curry(async function css(
             // Exclude extensions that webpack handles by default
             exclude: [
               /\.(js|mjs|jsx|ts|tsx)$/,
+              // TODO investigate why this is needed
+              ...(isRspack ? [/^$/] : []),
               /\.html$/,
               /\.json$/,
               /\.webpack\[[^\]]+\]$/,
@@ -592,8 +595,11 @@ export const css = curry(async function css(
   // Enable full mini-css-extract-plugin hmr for prod mode pages or app dir
   if (ctx.isClient && (ctx.isProduction || ctx.hasAppDir)) {
     // Extract CSS as CSS file(s) in the client-side production bundle.
-    const MiniCssExtractPlugin =
-      require('../../../plugins/mini-css-extract-plugin').default
+    const MiniCssExtractPlugin = isRspack
+      ? // eslint-disable-next-line
+        require('@rspack/core').CssExtractRspackPlugin
+      : require('../../../plugins/mini-css-extract-plugin').default
+
     fns.push(
       plugin(
         // @ts-ignore webpack 5 compat

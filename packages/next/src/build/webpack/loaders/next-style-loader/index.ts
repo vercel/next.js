@@ -1,10 +1,13 @@
 import path from 'path'
 import { stringifyRequest } from '../../stringify-request'
+import { Span } from '../../../../trace'
 
 const loaderApi = () => {}
 
 loaderApi.pitch = function loader(this: any, request: any): any {
-  const loaderSpan = this.currentTraceSpan.traceChild('next-style-loader')
+  const loaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('next-style-loader')
 
   return loaderSpan.traceFn(() => {
     const options = this.getOptions()
