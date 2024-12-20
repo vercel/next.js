@@ -29,7 +29,6 @@ use turbopack_core::{
     NonLocalValue,
 )]
 struct MapEntry {
-    // must not be resolved
     assets_operation: OperationVc<OutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
     path_to_asset: HashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,

@@ -119,8 +119,10 @@ impl VersionedContentExt for AssetContent {
     }
 }
 
-/// Describes the current version of an object, and how to update them from an
-/// earlier version.
+/// Describes the current version of an object, and how to update them from an earlier version.
+///
+/// **Important:** Implementations must not contain instances of [`Vc`]! This should describe a
+/// specific version, and the value of a [`Vc`] can change due to invalidations or cache eviction.
 #[turbo_tasks::value_trait]
 pub trait Version {
     /// Get a unique identifier of the version as a string. There is no way
@@ -191,7 +193,10 @@ pub enum Update {
 #[derive(PartialEq, Eq, Debug, Clone, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct TotalUpdate {
     /// The version this update will bring the object to.
-    // TODO: This trace_ignore is *very* wrong, and could cause problems if/when we add a GC
+    //
+    // TODO: This trace_ignore is wrong, and could cause problems if/when we add a GC. While
+    // `Version` assumes the implementation does not contain `Vc`, `EcmascriptDevChunkListVersion`
+    // is broken and violates this assumption.
     #[turbo_tasks(trace_ignore)]
     pub to: TraitRef<Box<dyn Version>>,
 }
