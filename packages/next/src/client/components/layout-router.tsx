@@ -550,7 +550,7 @@ export default function OuterLayoutRouter({
       rsc: null,
       prefetchRsc: null,
       head: [null, null],
-      prefetchHead: [null, null],
+      prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
     }

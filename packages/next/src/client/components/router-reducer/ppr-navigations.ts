@@ -71,7 +71,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: HeadData,
+  prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
@@ -388,7 +388,7 @@ function createCacheNodeOnNavigation(
       rsc,
       prefetchRsc: null,
       head: isLeafSegment ? possiblyPartialPrefetchHead : [null, null],
-      prefetchHead: [null, null],
+      prefetchHead: null,
       loading,
       parallelRoutes: cacheNodeChildren,
     },

@@ -41,7 +41,7 @@ export function clearCacheNodeDataForSegmentPath(
         rsc: null,
         prefetchRsc: null,
         head: [null, null],
-        prefetchHead: [null, null],
+        prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
       })
@@ -57,7 +57,7 @@ export function clearCacheNodeDataForSegmentPath(
         rsc: null,
         prefetchRsc: null,
         head: [null, null],
-        prefetchHead: [null, null],
+        prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
       })
