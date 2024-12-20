@@ -286,7 +286,7 @@ export function updateCacheNodeOnNavigation(
 function createCacheNodeOnNavigation(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  possiblyPartialPrefetchHead: HeadData,
+  possiblyPartialPrefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean
 ): Task {
   // Same traversal as updateCacheNodeNavigation, but we switch to this path
@@ -387,7 +387,10 @@ function createCacheNodeOnNavigation(
       // `prefetchRsc` field.
       rsc,
       prefetchRsc: null,
-      head: isLeafSegment ? possiblyPartialPrefetchHead : [null, null],
+      head: (isLeafSegment ? possiblyPartialPrefetchHead : null) ?? [
+        null,
+        null,
+      ],
       prefetchHead: null,
       loading,
       parallelRoutes: cacheNodeChildren,
@@ -685,7 +688,7 @@ function createPendingCacheNode(
     parallelRoutes: parallelRoutes,
 
     prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
-    prefetchHead: (isLeafSegment ? prefetchHead : null) ?? [null, null],
+    prefetchHead: isLeafSegment ? prefetchHead : null,
 
     // TODO: Technically, a loading boundary could contain dynamic data. We must
     // have separate `loading` and `prefetchLoading` fields to handle this, like
@@ -940,7 +943,7 @@ export function updateCacheNodeOnPopstateRestoration(
     rsc,
     head: oldCacheNode.head,
 
-    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : [null, null],
+    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
     prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
     loading: oldCacheNode.loading,
 

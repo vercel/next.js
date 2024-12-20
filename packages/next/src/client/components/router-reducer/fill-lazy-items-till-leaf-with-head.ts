@@ -70,7 +70,7 @@ export function fillLazyItemsTillLeafWithHead(
             // old behavior — no PPR value.
             prefetchRsc: null,
             head: [null, null],
-            prefetchHead: [null, null],
+            prefetchHead: null,
             loading,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
           }
@@ -97,7 +97,7 @@ export function fillLazyItemsTillLeafWithHead(
             rsc: null,
             prefetchRsc: null,
             head: [null, null],
-            prefetchHead: [null, null],
+            prefetchHead: null,
             parallelRoutes: new Map(existingCacheNode?.parallelRoutes),
             loading: null,
           }
@@ -130,7 +130,7 @@ export function fillLazyItemsTillLeafWithHead(
         rsc: seedNode,
         prefetchRsc: null,
         head: [null, null],
-        prefetchHead: [null, null],
+        prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
       }
@@ -142,7 +142,7 @@ export function fillLazyItemsTillLeafWithHead(
         rsc: null,
         prefetchRsc: null,
         head: [null, null],
-        prefetchHead: [null, null],
+        prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,
       }
