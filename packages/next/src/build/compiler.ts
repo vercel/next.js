@@ -58,6 +58,12 @@ export function runCompiler(
     }
     compiler.fsStartTime = Date.now()
     compiler.run((err, stats) => {
+      const result = runWebpackSpan
+        .traceChild('webpack-generate-error-stats')
+        .traceFn(() =>
+          generateStats({ errors: [], warnings: [], stats }, stats!)
+        )
+
       const webpackCloseSpan = runWebpackSpan.traceChild('webpack-close', {
         name: config.name || 'unknown',
       })
@@ -78,12 +84,6 @@ export function runCompiler(
             }
             return reject(err)
           } else if (!stats) throw new Error('No Stats from webpack')
-
-          const result = webpackCloseSpan
-            .traceChild('webpack-generate-error-stats')
-            .traceFn(() =>
-              generateStats({ errors: [], warnings: [], stats }, stats)
-            )
           return resolve([result, compiler.inputFileSystem])
         })
     })
