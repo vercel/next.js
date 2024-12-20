@@ -1,0 +1,5 @@
+
+npm install --global vercel@latest
+vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+npm build
+vercel deploy --prebuilt
