@@ -103,17 +103,18 @@ export function generateClientManifest(
   compiler?: any,
   compilation?: any
 ): string | undefined {
-  const compilationSpan = compilation
-    ? spans.get(compilation)
-    : compiler
-      ? spans.get(compiler)
-      : new Span({ name: 'client-manifest' })
+  const compilationSpan =
+    (compilation
+      ? spans.get(compilation)
+      : compiler
+        ? spans.get(compiler)
+        : undefined) || new Span({ name: 'client-manifest' })
 
-  const genClientManifestSpan = compilationSpan?.traceChild(
+  const genClientManifestSpan = compilationSpan.traceChild(
     'NextJsBuildManifest-generateClientManifest'
   )
 
-  return genClientManifestSpan?.traceFn(() => {
+  return genClientManifestSpan.traceFn(() => {
     const clientManifest: ClientBuildManifest = {
       __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
       __routerFilterStatic: clientRouterFilters?.staticFilter as any,
@@ -200,10 +201,11 @@ export default class BuildManifestPlugin {
 
   createAssets(compiler: any, compilation: any, assets: any) {
     const compilationSpan = spans.get(compilation) || spans.get(compiler)
-    const createAssetsSpan = compilationSpan?.traceChild(
-      'NextJsBuildManifest-createassets'
-    )
-    return createAssetsSpan?.traceFn(() => {
+    const createAssetsSpan = (
+      compilationSpan || new Span({ name: '' })
+    ).traceChild('NextJsBuildManifest-createassets')
+
+    return createAssetsSpan.traceFn(() => {
       const entrypoints: Map<string, any> = compilation.entrypoints
       const assetMap: DeepMutable<BuildManifest> = {
         polyfillFiles: [],
