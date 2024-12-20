@@ -255,13 +255,13 @@ function getSourcemappedFrameIfPossible(
   }
 
   const originalFrame: IgnoreableStackFrame = {
-    methodName:
-      sourcePosition.name ||
-      // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
-      // Resolve it back to `default` for the method name if the source position didn't have the method.
-      frame.methodName
-        ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
-        ?.replace('__webpack_exports__.', ''),
+    // We ignore the sourcemapped name since it won't be the correct name.
+    // The callsite will point to the column of the variable name instead of the
+    // name of the enclosing function.
+    // TODO(NDX-531): Spy on prepareStackTrace to get the enclosing line number for method name mapping.
+    methodName: frame.methodName
+      ?.replace('__WEBPACK_DEFAULT_EXPORT__', 'default')
+      ?.replace('__webpack_exports__.', ''),
     column: sourcePosition.column,
     file: sourcePosition.source,
     lineNumber: sourcePosition.line,

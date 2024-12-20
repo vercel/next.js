@@ -218,9 +218,14 @@ impl OutputAsset for EcmascriptDevEvaluateChunk {
                 .await?,
         );
 
-        for chunk in &*self.other_chunks.await? {
-            ident.add_modifier(chunk.ident().to_string().to_resolved().await?);
-        }
+        ident.modifiers.extend(
+            self.other_chunks
+                .await?
+                .iter()
+                .map(|chunk| chunk.ident().to_string().to_resolved())
+                .try_join()
+                .await?,
+        );
 
         let ident = AssetIdent::new(Value::new(ident));
         Ok(AssetIdent::from_path(

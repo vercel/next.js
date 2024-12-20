@@ -1298,13 +1298,23 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.revalidatedTags
     ) {
-      options.waitUntil = Promise.all([
+      const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
           workStore.revalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
-      ])
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     if (response.collectedTags) {
@@ -1455,13 +1465,23 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.revalidatedTags
     ) {
-      options.waitUntil = Promise.all([
+      const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
           workStore.revalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
-      ])
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     // Create the new render result for the response.
@@ -2753,12 +2773,6 @@ async function prerenderToStream(
                   clientReferenceManifest.clientModules,
                   {
                     onError: (err: unknown) => {
-                      // TODO we can remove this once https://github.com/facebook/react/pull/31715 lands
-                      // because we won't have onError calls when halting the prerender
-                      if (finalServerController.signal.aborted) {
-                        return
-                      }
-
                       return serverComponentsErrorHandler(err)
                     },
                     signal: finalServerController.signal,

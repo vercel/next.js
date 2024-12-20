@@ -14,8 +14,8 @@ use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, ReadRef, ResolvedVc, TransientInstance, TransientValue,
-    TryJoinIterExt, Upcast, ValueToString, Vc,
+    emit, CollectiblesSource, OperationVc, RawVc, ReadRef, ResolvedVc, TransientInstance,
+    TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -1036,18 +1036,19 @@ where
 }
 
 pub async fn handle_issues<T: Send>(
-    source: Vc<T>,
+    source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
     min_failing_severity: Vc<IssueSeverity>,
     path: Option<&str>,
     operation: Option<&str>,
 ) -> Result<()> {
-    let _ = source.resolve_strongly_consistent().await?;
-    let issues = source.peek_issues_with_path().await?;
+    let source_vc = source_op.connect();
+    let _ = source_vc.resolve_strongly_consistent().await?;
+    let issues = source_op.peek_issues_with_path().await?;
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues),
-        TransientValue::new(Vc::into_raw(source)),
+        TransientValue::new(Vc::into_raw(source_vc)),
         min_failing_severity,
     );
 
