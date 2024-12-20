@@ -19,7 +19,7 @@ pub async fn get_browser_runtime_code(
     environment: Vc<Environment>,
     chunk_base_path: Vc<Option<RcStr>>,
     runtime_type: Value<RuntimeType>,
-    output_root: Vc<RcStr>,
+    output_root_to_root_path: Vc<RcStr>,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment).await?;
 
@@ -73,7 +73,7 @@ pub async fn get_browser_runtime_code(
     };
 
     let mut code: CodeBuilder = CodeBuilder::default();
-    let output_root = output_root.await?.to_string();
+    let relative_root_path = output_root_to_root_path.await?;
     let chunk_base_path = &*chunk_base_path.await?;
     let chunk_base_path = chunk_base_path.as_ref().map_or_else(|| "", |f| f.as_str());
 
@@ -86,12 +86,12 @@ pub async fn get_browser_runtime_code(
             }}
 
             const CHUNK_BASE_PATH = {};
+            const RELATIVE_ROOT_PATH = {};
             const RUNTIME_PUBLIC_PATH = {};
-            const OUTPUT_ROOT = {};
         "#,
         StringifyJs(chunk_base_path),
+        StringifyJs(relative_root_path.as_str()),
         StringifyJs(chunk_base_path),
-        StringifyJs(output_root.as_str()),
     )?;
 
     code.push_code(&*shared_runtime_utils_code.await?);

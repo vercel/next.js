@@ -77,8 +77,7 @@ function createResolvePathFromModule(
 
     const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
     const resolved = path.resolve(
-      ABSOLUTE_ROOT,
-      OUTPUT_ROOT,
+      RUNTIME_ROOT,
       strippedAssetPrefix
     );
 

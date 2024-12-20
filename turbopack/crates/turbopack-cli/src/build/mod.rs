@@ -189,19 +189,23 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let project_path = project_fs
-        .root()
-        .join(project_relative)
-        .to_resolved()
-        .await?;
+    let root_path = project_fs.root().to_resolved().await?;
+    let project_path = root_path.join(project_relative).to_resolved().await?;
     let build_output_root = output_fs.root().join("dist".into()).to_resolved().await?;
 
     let node_env = NodeEnv::Production.cell();
 
+    let build_output_root_to_root_path = project_path
+        .join("dist".into())
+        .await?
+        .get_relative_path_to(&*root_path.await?)
+        .context("Project path is in root path")?;
+
     let chunking_context = Vc::upcast(
         NodeJsChunkingContext::builder(
-            project_path,
+            root_path,
             build_output_root,
+            ResolvedVc::cell(build_output_root_to_root_path),
             build_output_root,
             build_output_root,
             build_output_root,
@@ -217,7 +221,7 @@ async fn build_internal(
 
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let execution_context =
-        ExecutionContext::new(*project_path, chunking_context, load_env(*project_path));
+        ExecutionContext::new(*root_path, chunking_context, load_env(*root_path));
     let asset_context = get_client_asset_context(
         *project_path,
         execution_context,
