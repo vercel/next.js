@@ -126,13 +126,14 @@ pub async fn get_jsx_transform_options(
 ) -> Result<Vc<JsxTransformOptions>> {
     let tsconfig = get_typescript_options(project_path).await?;
 
-    let enable_react_refresh = if let Some(resolve_options_context) = resolve_options_context {
-        assert_can_resolve_react_refresh(project_path, resolve_options_context)
-            .await?
-            .is_found()
-    } else {
-        false
-    };
+    let enable_react_refresh = false;
+    // if let Some(resolve_options_context) = resolve_options_context {
+    //     assert_can_resolve_react_refresh(project_path, resolve_options_context)
+    //         .await?
+    //         .is_found()
+    // } else {
+    //     false
+    // };
 
     let is_emotion_enabled = next_config.compiler().await?.emotion.is_some();
 

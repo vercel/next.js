@@ -1,43 +1,44 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{server_actions, Config};
+use serde::{Deserialize, Serialize};
 use swc_core::{common::FileName, ecma::ast::Program};
 use turbo_rcstr::RcStr;
-use turbo_tasks::ResolvedVc;
+use turbo_tasks::{ResolvedVc, TaskInput, Vc};
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
+use turbopack_ecmascript::{
+    CustomTransformer, EcmascriptInputTransform, TransformContext, TransformPlugin,
+};
 
 use super::module_rule_match_js_no_url;
 use crate::next_config::CacheKinds;
 
-#[derive(Debug)]
+#[derive(Debug, TaskInput, Hash, PartialEq, Eq, Clone, Serialize, Deserialize)]
 pub enum ActionsTransform {
     Client,
     Server,
 }
 
 /// Returns a rule which applies the Next.js Server Actions transform.
-pub fn get_server_actions_transform_rule(
+pub async fn get_server_actions_transform_rule(
     transform: ActionsTransform,
     encryption_key: ResolvedVc<RcStr>,
     enable_mdx_rs: bool,
     dynamic_io_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
-) -> ModuleRule {
-    let transformer =
-        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
-            transform,
-            encryption_key,
-            dynamic_io_enabled,
-            cache_kinds,
-        }) as _));
-    ModuleRule::new(
+) -> Result<ModuleRule> {
+    let transformer = EcmascriptInputTransform::Plugin(
+        NextServerActions::new(transform, *encryption_key, dynamic_io_enabled, *cache_kinds)
+            .to_resolved()
+            .await?,
+    );
+    Ok(ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![]),
             append: ResolvedVc::cell(vec![transformer]),
         }],
-    )
+    ))
 }
 
 #[derive(Debug)]
@@ -46,6 +47,24 @@ struct NextServerActions {
     encryption_key: ResolvedVc<RcStr>,
     dynamic_io_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
+}
+
+#[turbo_tasks::value_impl]
+impl NextServerActions {
+    #[turbo_tasks::function]
+    fn new(
+        transform: ActionsTransform,
+        encryption_key: ResolvedVc<RcStr>,
+        dynamic_io_enabled: bool,
+        cache_kinds: ResolvedVc<CacheKinds>,
+    ) -> Vc<TransformPlugin> {
+        Vc::cell(Box::new(Self {
+            transform,
+            encryption_key,
+            dynamic_io_enabled,
+            cache_kinds,
+        }) as _)
+    }
 }
 
 #[async_trait]

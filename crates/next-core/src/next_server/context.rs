@@ -547,7 +547,7 @@ pub async fn get_server_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
+            enable_typeof_window_inlining: None,
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
             ..Default::default()
@@ -664,7 +664,6 @@ pub async fn get_server_module_options_context(
                     .collect();
 
             foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
-            foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))

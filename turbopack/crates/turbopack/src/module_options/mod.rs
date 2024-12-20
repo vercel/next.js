@@ -122,8 +122,8 @@ impl ModuleOptions {
             transforms.push(EcmascriptInputTransform::React {
                 development: jsx.development,
                 refresh: jsx.react_refresh,
-                import_source: ResolvedVc::cell(jsx.import_source.clone()),
-                runtime: ResolvedVc::cell(jsx.runtime.clone()),
+                import_source: jsx.import_source.clone(),
+                runtime: jsx.runtime.clone(),
             });
         }
 
@@ -159,20 +159,23 @@ impl ModuleOptions {
             None
         };
 
-        let decorators_transform = if let Some(options) = &enable_decorators {
-            let options = options.await?;
-            options
-                .decorators_kind
-                .as_ref()
-                .map(|kind| EcmascriptInputTransform::Decorators {
-                    is_legacy: kind == &DecoratorsKind::Legacy,
-                    is_ecma: kind == &DecoratorsKind::Ecma,
-                    emit_decorators_metadata: options.emit_decorators_metadata,
-                    use_define_for_class_fields: options.use_define_for_class_fields,
-                })
-        } else {
-            None
-        };
+        let decorators_transform: Option<EcmascriptInputTransform> = None;
+        // let decorators_transform =
+        // if let Some(options) = &enable_decorators {
+        //     let options = options.await?;
+        //     options
+        //         .decorators_kind
+        //         .as_ref()
+        //         .map(|kind| EcmascriptInputTransform::Decorators {
+        //             is_legacy: kind == &DecoratorsKind::Legacy,
+        //             is_ecma: kind == &DecoratorsKind::Ecma,
+        //             emit_decorators_metadata: options.emit_decorators_metadata,
+        //             use_define_for_class_fields: options.use_define_for_class_fields,
+        //         })
+        // } else {
+        // None
+        // }
+        // ;
 
         let vendor_transforms = Vc::<EcmascriptInputTransforms>::cell(vec![]);
         let ts_app_transforms = if let Some(transform) = &ts_transform {

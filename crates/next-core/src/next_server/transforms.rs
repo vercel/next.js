@@ -38,23 +38,23 @@ pub async fn get_next_server_transforms_rules(
     let modularize_imports_config = &next_config.modularize_imports().await?;
     let mdx_rs = next_config.mdx_rs().await?.is_some();
 
-    rules.push(get_next_lint_transform_rule(mdx_rs));
+    // rules.push(get_next_lint_transform_rule(mdx_rs));
 
-    if !modularize_imports_config.is_empty() {
-        rules.push(get_next_modularize_imports_rule(
-            modularize_imports_config,
-            mdx_rs,
-        ));
-    }
-    rules.push(get_next_font_transform_rule(mdx_rs));
+    // if !modularize_imports_config.is_empty() {
+    //     rules.push(get_next_modularize_imports_rule(
+    //         modularize_imports_config,
+    //         mdx_rs,
+    //     ));
+    // }
+    rules.push(get_next_font_transform_rule(mdx_rs).await?);
 
-    if !foreign_code {
-        rules.push(get_next_page_static_info_assert_rule(
-            mdx_rs,
-            Some(context_ty),
-            None,
-        ));
-    }
+    // if !foreign_code {
+    //     rules.push(get_next_page_static_info_assert_rule(
+    //         mdx_rs,
+    //         Some(context_ty),
+    //         None,
+    //     ));
+    // }
 
     let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
@@ -90,39 +90,48 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppSSR { .. } => {
             // Yah, this is SSR, but this is still treated as a Client transform layer.
             // need to apply to foreign code too
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Client,
-                encryption_key,
-                mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    ActionsTransform::Client,
+                    encryption_key,
+                    mdx_rs,
+                    dynamic_io_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
             false
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                encryption_key,
-                mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    dynamic_io_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
             true
         }
         ServerContextType::AppRoute { .. } => {
-            rules.push(get_server_actions_transform_rule(
-                ActionsTransform::Server,
-                encryption_key,
-                mdx_rs,
-                dynamic_io_enabled,
-                cache_kinds,
-            ));
+            rules.push(
+                get_server_actions_transform_rule(
+                    ActionsTransform::Server,
+                    encryption_key,
+                    mdx_rs,
+                    dynamic_io_enabled,
+                    cache_kinds,
+                )
+                .await?,
+            );
 
             is_app_dir = true;
 
@@ -132,14 +141,14 @@ pub async fn get_next_server_transforms_rules(
     };
 
     if !foreign_code {
-        rules.push(
-            get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs)
-                .await?,
-        );
+        // rules.push(
+        //     get_next_dynamic_transform_rule(true, is_server_components, is_app_dir, mode, mdx_rs)
+        //         .await?,
+        // );
 
-        rules.push(get_next_amp_attr_rule(mdx_rs));
-        rules.push(get_next_cjs_optimizer_rule(mdx_rs));
-        rules.push(get_next_pure_rule(mdx_rs));
+        // rules.push(get_next_amp_attr_rule(mdx_rs));
+        // rules.push(get_next_cjs_optimizer_rule(mdx_rs));
+        // rules.push(get_next_pure_rule(mdx_rs));
 
         // [NOTE]: this rule only works in prod config
         // https://github.com/vercel/next.js/blob/a1d0259ea06592c5ca6df882e9b1d0d0121c5083/packages/next/src/build/swc/options.ts#L409
@@ -176,15 +185,15 @@ pub async fn get_next_server_internal_transforms_rules(
     match context_ty {
         ServerContextType::Pages { .. } => {
             // Apply next/font transforms to foreign code
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::PagesApi { .. } => {}
         ServerContextType::PagesData { .. } => {}
         ServerContextType::AppSSR { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::AppRSC { .. } => {
-            rules.push(get_next_font_transform_rule(mdx_rs));
+            rules.push(get_next_font_transform_rule(mdx_rs).await?);
         }
         ServerContextType::AppRoute { .. } => {}
         ServerContextType::Middleware { .. } => {}

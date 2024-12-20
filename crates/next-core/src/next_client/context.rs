@@ -324,10 +324,10 @@ pub async fn get_client_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            enable_typeof_window_inlining: None,
             ..Default::default()
         },
-        preset_env_versions: Some(env),
+        // preset_env_versions: Some(env),
         execution_context: Some(execution_context),
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         enable_postcss_transform,

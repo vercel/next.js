@@ -465,8 +465,17 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+    pub async fn parse(&self) -> Result<Vc<ParseResult>> {
+        Ok(parse(
+            *self.source,
+            Value::new(self.ty),
+            self.transforms
+                .await?
+                .iter()
+                .cloned()
+                .map(Value::new)
+                .collect(),
+        ))
     }
 
     #[turbo_tasks::function]

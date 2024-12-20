@@ -287,7 +287,7 @@ pub async fn parse_segment_config_from_source(
         } else {
             EcmascriptModuleAssetType::Ecmascript
         }),
-        EcmascriptInputTransforms::empty(),
+        vec![],
     )
     .await?;
 

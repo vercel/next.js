@@ -37,9 +37,9 @@ pub enum EcmascriptInputTransform {
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: ResolvedVc<Option<RcStr>>,
+        import_source: Option<RcStr>,
         // swc.jsc.transform.react.runtime,
-        runtime: ResolvedVc<Option<RcStr>>,
+        runtime: Option<RcStr>,
     },
     GlobalTypeofs {
         window_value: String,
@@ -146,7 +146,7 @@ impl EcmascriptInputTransform {
                 runtime,
             } => {
                 use swc_core::ecma::transforms::react::{Options, Runtime};
-                let runtime = if let Some(runtime) = &*runtime.await? {
+                let runtime = if let Some(runtime) = &*runtime {
                     match runtime.as_str() {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
@@ -164,7 +164,7 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.as_deref().map(ToString::to_string),
+                    import_source: import_source.as_deref().map(ToString::to_string),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
                             refresh_reg: "__turbopack_refresh__.register".to_string(),

@@ -52,7 +52,9 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebug, FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
@@ -141,8 +143,8 @@ use crate::{
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::{module_value_to_well_known_object, AstPathRange},
-    EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
-    TreeShakingMode,
+    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable,
+    SpecifiedModuleType, TreeShakingMode,
 };
 
 #[turbo_tasks::value(shared)]
@@ -433,8 +435,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         EcmascriptModuleAssetType::Ecmascript => false,
     };
 
+    // println!(
+    //     "module {:?} {:?}",
+    //     module.ident().to_string().await?,
+    //     transforms.dbg().await?
+    // );
+    let transforms_ref = transforms.await?;
     let parsed = if let Some(part) = part {
-        let parsed = parse(*source, ty, *transforms);
+        let parsed = parse(
+            *source,
+            ty,
+            transforms_ref.iter().cloned().map(Value::new).collect(),
+        );
         let split_data = split(source.ident(), *source, parsed);
         part_of_module(split_data, part)
     } else {
@@ -722,9 +734,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         let request = Request::parse(Value::new(request.into()))
             .to_resolved()
             .await?;
-        let runtime = resolve_as_webpack_runtime(*origin, *request, *transforms)
-            .to_resolved()
-            .await?;
+        let runtime = resolve_as_webpack_runtime(
+            *origin,
+            *request,
+            transforms_ref.iter().cloned().map(Value::new).collect(),
+        )
+        .to_resolved()
+        .await?;
 
         if let WebpackRuntime::Webpack5 { .. } = &*runtime.await? {
             ignore_effect_span = Some(span);
@@ -3208,7 +3224,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
 async fn resolve_as_webpack_runtime(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: Vec<Value<EcmascriptInputTransform>>,
 ) -> Result<Vc<WebpackRuntime>> {
     let ty = Value::new(ReferenceType::CommonJs(CommonJsReferenceSubType::Undefined));
     let options = origin.resolve_options(ty.clone());

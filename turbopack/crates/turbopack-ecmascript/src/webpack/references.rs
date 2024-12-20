@@ -16,7 +16,7 @@ use turbopack_swc_utils::emitter::IssueEmitter;
 use super::{parse::WebpackRuntime, WebpackChunkAssetReference};
 use crate::{
     parse::{parse, ParseResult},
-    EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
 #[turbo_tasks::function]
@@ -28,7 +28,7 @@ pub async fn module_references(
     let parsed = parse(
         *source,
         Value::new(EcmascriptModuleAssetType::Ecmascript),
-        *transforms,
+        transforms.await?.iter().cloned().map(Value::new).collect(),
     )
     .await?;
     match &*parsed {
