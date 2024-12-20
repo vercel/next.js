@@ -3,7 +3,7 @@ import { CopyButton } from '../copy-button'
 import { NodejsInspectorCopyButton } from '../nodejs-inspector'
 
 type ToolButtonsGroupProps = {
-  error: Error
+  error: Error | undefined
   debugInfo: DebugInfo | undefined
 }
 
@@ -14,8 +14,8 @@ export function ToolButtonsGroup({ error, debugInfo }: ToolButtonsGroupProps) {
         data-nextjs-data-runtime-error-copy-stack
         actionLabel="Copy error stack"
         successLabel="Copied"
-        content={error.stack || ''}
-        disabled={!error.stack}
+        content={error?.stack || ''}
+        disabled={!error?.stack}
       />
       <NodejsInspectorCopyButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}

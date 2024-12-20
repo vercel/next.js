@@ -1,6 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { ErrorPagination } from './ErrorPagination'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import { useState } from 'react'
 
 const meta: Meta<typeof ErrorPagination> = {
   title: 'ErrorPagination',
@@ -37,45 +38,40 @@ const mockErrors = [
 ]
 
 export const SingleError: Story = {
-  args: {
-    activeIdx: 0,
-    previous: () => console.log('Previous clicked'),
-    next: () => console.log('Next clicked'),
-    readyErrors: [mockErrors[0]],
-    minimize: () => console.log('Minimize clicked'),
-    isServerError: false,
+  render: function ErrorPaginationStory() {
+    const [activeIdx, setActiveIdx] = useState(0)
+    return (
+      <ErrorPagination
+        activeIdx={activeIdx}
+        readyErrors={[mockErrors[0]]}
+        onActiveIndexChange={setActiveIdx}
+      />
+    )
   },
 }
 
 export const MultipleErrors: Story = {
-  args: {
-    activeIdx: 1,
-    previous: () => console.log('Previous clicked'),
-    next: () => console.log('Next clicked'),
-    readyErrors: mockErrors,
-    minimize: () => console.log('Minimize clicked'),
-    isServerError: false,
+  render: function ErrorPaginationStory() {
+    const [activeIdx, setActiveIdx] = useState(1)
+    return (
+      <ErrorPagination
+        activeIdx={activeIdx}
+        readyErrors={mockErrors}
+        onActiveIndexChange={setActiveIdx}
+      />
+    )
   },
 }
 
 export const LastError: Story = {
-  args: {
-    activeIdx: 2,
-    previous: () => console.log('Previous clicked'),
-    next: () => console.log('Next clicked'),
-    readyErrors: mockErrors,
-    minimize: () => console.log('Minimize clicked'),
-    isServerError: false,
-  },
-}
-
-export const ServerError: Story = {
-  args: {
-    activeIdx: 0,
-    previous: () => console.log('Previous clicked'),
-    next: () => console.log('Next clicked'),
-    readyErrors: [mockErrors[0]],
-    minimize: () => console.log('Minimize clicked'),
-    isServerError: true,
+  render: function ErrorPaginationStory() {
+    const [activeIdx, setActiveIdx] = useState(2)
+    return (
+      <ErrorPagination
+        activeIdx={activeIdx}
+        readyErrors={mockErrors}
+        onActiveIndexChange={setActiveIdx}
+      />
+    )
   },
 }

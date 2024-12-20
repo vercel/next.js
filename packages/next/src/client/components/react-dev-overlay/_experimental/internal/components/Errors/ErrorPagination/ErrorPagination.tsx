@@ -4,25 +4,31 @@ import { LeftArrow } from '../../../icons/LeftArrow'
 import { RightArrow } from '../../../icons/RightArrow'
 
 type ErrorPaginationProps = {
-  activeIdx: number
-  previous: () => void
-  next: () => void
   readyErrors: ReadyRuntimeError[]
-  minimize: () => void
-  isServerError: boolean
+  activeIdx: number
+  onActiveIndexChange: (index: number) => void
 }
 
 export function ErrorPagination({
-  activeIdx,
-  previous,
-  next,
   readyErrors,
-  minimize,
-  isServerError,
+  activeIdx,
+  onActiveIndexChange,
 }: ErrorPaginationProps) {
-  const previousHandler = activeIdx > 0 ? previous : null
-  const nextHandler = activeIdx < readyErrors.length - 1 ? next : null
-  const close = isServerError ? undefined : minimize
+  const handlePrevious = useCallback(
+    () =>
+      activeIdx > 0 ? onActiveIndexChange(Math.max(0, activeIdx - 1)) : null,
+    [activeIdx, onActiveIndexChange]
+  )
+
+  const handleNext = useCallback(
+    () =>
+      activeIdx < readyErrors.length - 1
+        ? onActiveIndexChange(
+            Math.max(0, Math.min(readyErrors.length - 1, activeIdx + 1))
+          )
+        : null,
+    [activeIdx, readyErrors.length, onActiveIndexChange]
+  )
 
   const buttonLeft = useRef<HTMLButtonElement | null>(null)
   const buttonRight = useRef<HTMLButtonElement | null>(null)
@@ -48,14 +54,14 @@ export function ErrorPagination({
         if (buttonLeft.current) {
           buttonLeft.current.focus()
         }
-        previousHandler && previousHandler()
+        handlePrevious && handlePrevious()
       } else if (e.key === 'ArrowRight') {
         e.preventDefault()
         e.stopPropagation()
         if (buttonRight.current) {
           buttonRight.current.focus()
         }
-        nextHandler && nextHandler()
+        handleNext && handleNext()
       } else if (e.key === 'Escape') {
         e.preventDefault()
         e.stopPropagation()
@@ -81,7 +87,7 @@ export function ErrorPagination({
         d.removeEventListener('keydown', handler)
       }
     }
-  }, [close, nav, nextHandler, previousHandler])
+  }, [nav, handleNext, handlePrevious])
 
   // Unlock focus for browsers like Firefox, that break all user focus if the
   // currently focused item becomes disabled.
@@ -95,17 +101,17 @@ export function ErrorPagination({
     if (root instanceof ShadowRoot) {
       const a = root.activeElement
 
-      if (previousHandler == null) {
+      if (activeIdx === 0) {
         if (buttonLeft.current && a === buttonLeft.current) {
           buttonLeft.current.blur()
         }
-      } else if (nextHandler == null) {
+      } else if (activeIdx === readyErrors.length - 1) {
         if (buttonRight.current && a === buttonRight.current) {
           buttonRight.current.blur()
         }
       }
     }
-  }, [nav, nextHandler, previousHandler])
+  }, [nav, activeIdx, readyErrors.length])
 
   return (
     <div data-nextjs-dialog-left-right>
@@ -113,18 +119,18 @@ export function ErrorPagination({
         <button
           ref={buttonLeft}
           type="button"
-          disabled={previousHandler == null ? true : undefined}
-          aria-disabled={previousHandler == null ? true : undefined}
-          onClick={previousHandler ?? undefined}
+          disabled={activeIdx === 0}
+          aria-disabled={activeIdx === 0}
+          onClick={handlePrevious}
         >
           <LeftArrow title="previous" />
         </button>
         <button
           ref={buttonRight}
           type="button"
-          disabled={nextHandler == null ? true : undefined}
-          aria-disabled={nextHandler == null ? true : undefined}
-          onClick={nextHandler ?? undefined}
+          disabled={activeIdx === readyErrors.length - 1}
+          aria-disabled={activeIdx === readyErrors.length - 1}
+          onClick={handleNext}
         >
           <RightArrow title="next" />
         </button>
