@@ -932,11 +932,13 @@ impl<C: Comments> VisitMut for ServerActions<C> {
     }
 
     fn visit_mut_fn_expr(&mut self, f: &mut FnExpr) {
+        let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
         let old_arrow_or_fn_expr_ident = self.arrow_or_fn_expr_ident.clone();
         if let Some(ident) = &f.ident {
             self.arrow_or_fn_expr_ident = Some(ident.clone());
         }
         f.visit_mut_children_with(self);
+        self.this_status = old_this_status;
         self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
     }
 
@@ -1262,6 +1264,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         n.visit_mut_children_with(self);
         self.arrow_or_fn_expr_ident = old_arrow_or_fn_expr_ident;
         self.in_exported_expr = old_in_exported_expr;
+    }
+
+    fn visit_mut_class(&mut self, n: &mut Class) {
+        let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
+        n.visit_mut_children_with(self);
+        self.this_status = old_this_status;
     }
 
     fn visit_mut_class_member(&mut self, n: &mut ClassMember) {
