@@ -23,3 +23,19 @@ export const createItem = async (title) => {
     })
   })
 }
+
+export async function test() {
+  const MyClass = class {
+    x = 1
+    foo() {
+      // this is allowed here
+      return this.x
+    }
+    bar = () => {
+      // this is allowed here
+      return this.x
+    }
+  }
+  const myObj = new MyClass()
+  return myObj.foo() + myObj.bar()
+}

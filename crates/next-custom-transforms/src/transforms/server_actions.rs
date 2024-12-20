@@ -1266,6 +1266,12 @@ impl<C: Comments> VisitMut for ServerActions<C> {
         self.in_exported_expr = old_in_exported_expr;
     }
 
+    fn visit_mut_class(&mut self, n: &mut Class) {
+        let old_this_status = replace(&mut self.this_status, ThisStatus::Allowed);
+        n.visit_mut_children_with(self);
+        self.this_status = old_this_status;
+    }
+
     fn visit_mut_class_member(&mut self, n: &mut ClassMember) {
         if let ClassMember::Method(ClassMethod {
             is_abstract: false,
