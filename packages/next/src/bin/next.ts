@@ -1,5 +1,11 @@
 #!/usr/bin/env node
 
+if (process.env.NEXT_RSPACK) {
+  console.log('next bin rspack')
+  // silent rspack's schema check
+  process.env.RSPACK_CONFIG_VALIDATE = 'loose-silent'
+}
+
 import '../server/require-hook'
 
 import { Argument, Command, Option } from 'next/dist/compiled/commander'

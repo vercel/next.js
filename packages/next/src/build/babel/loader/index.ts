@@ -1,4 +1,4 @@
-import type { Span } from '../../../trace'
+import { Span } from '../../../trace'
 import transform from './transform'
 import type { NextJsLoaderContext } from './types'
 
@@ -49,7 +49,9 @@ const nextBabelLoaderOuter = function nextBabelLoaderOuter(
 ) {
   const callback = this.async()
 
-  const loaderSpan = this.currentTraceSpan.traceChild('next-babel-turbo-loader')
+  const loaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('next-babel-turbo-loader')
   loaderSpan
     .traceAsyncFn(() =>
       nextBabelLoader.call(this, loaderSpan, inputSource, inputSourceMap)

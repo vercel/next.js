@@ -1,3 +1,4 @@
+import { Span } from '../../../trace'
 import { stringifyRequest } from '../stringify-request'
 
 export type ClientPagesLoaderOptions = {
@@ -7,9 +8,9 @@ export type ClientPagesLoaderOptions = {
 
 // this parameter: https://www.typescriptlang.org/docs/handbook/functions.html#this-parameters
 function nextClientPagesLoader(this: any) {
-  const pagesLoaderSpan = this.currentTraceSpan.traceChild(
-    'next-client-pages-loader'
-  )
+  const pagesLoaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('next-client-pages-loader')
 
   return pagesLoaderSpan.traceFn(() => {
     const { absolutePagePath, page } =

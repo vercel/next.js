@@ -11,6 +11,7 @@ export function getClientStyleLoader({
   isDevelopment: boolean
   assetPrefix: string
 }): webpack.RuleSetUseItem {
+  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const shouldEnableApp = typeof isAppDir === 'boolean' ? isAppDir : hasAppDir
 
   // Keep next-style-loader for development mode in `pages/`
@@ -41,8 +42,11 @@ export function getClientStyleLoader({
     }
   }
 
-  const MiniCssExtractPlugin =
-    require('../../../../plugins/mini-css-extract-plugin').default
+  const MiniCssExtractPlugin = isRspack
+    ? // eslint-disable-next-line
+      require('@rspack/core').rspack.CssExtractRspackPlugin.loader
+    : require('../../../../plugins/mini-css-extract-plugin').default
+
   return {
     loader: MiniCssExtractPlugin.loader,
     options: {

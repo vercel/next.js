@@ -3,7 +3,16 @@ exports.__esModule = true
 exports.default = undefined
 
 exports.init = function () {
-  if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
+  console.log('init webpack');
+
+  if (process.env.NEXT_RSPACK) {
+    console.log('using rspack');
+    // eslint-disable-next-line
+    Object.assign(exports, require('@rspack/core'))
+    Object.assign(exports,{
+        StringXor: require('./StringXor'),
+    })
+  } else if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
     Object.assign(exports, {
       // eslint-disable-next-line import/no-extraneous-dependencies
       BasicEvaluatedExpression: require('webpack/lib/javascript/BasicEvaluatedExpression'),
@@ -30,6 +39,7 @@ exports.init = function () {
       webpack: require('webpack'),
     })
   } else {
+    console.log('loading bundle5');
     Object.assign(exports, require('./bundle5')())
   }
 }

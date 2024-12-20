@@ -4,6 +4,7 @@ import path from 'path'
 import loaderUtils from 'next/dist/compiled/loader-utils3'
 import { getImageSize } from '../../../../server/image-optimizer'
 import { getBlurImage } from './blur'
+import { Span } from '../../../../trace'
 
 interface Options {
   compilerType: CompilerNameValues
@@ -13,7 +14,9 @@ interface Options {
 }
 
 function nextImageLoader(this: any, content: Buffer) {
-  const imageLoaderSpan = this.currentTraceSpan.traceChild('next-image-loader')
+  const imageLoaderSpan = (
+    this.currentTraceSpan || new Span({ name: '' })
+  ).traceChild('next-image-loader')
   return imageLoaderSpan.traceAsyncFn(async () => {
     const options: Options = this.getOptions()
     const { compilerType, isDev, assetPrefix, basePath } = options

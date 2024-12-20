@@ -73,7 +73,7 @@ export const base = curry(function base(
         shouldIgnorePath,
       })
     )
-  } else if (config.devtool === 'eval-source-map') {
+  } else if (config.devtool === 'eval-source-map' && !process.env.NEXT_RSPACK) {
     // We're using a fork of `eval-source-map`
     config.devtool = false
     config.plugins.push(
