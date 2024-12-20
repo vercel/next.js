@@ -1150,13 +1150,26 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // If the task is stale, reschedule it
         if stale {
-            let Some(InProgressState::InProgress { done_event, .. }) = remove!(task, InProgress)
+            let Some(InProgressState::InProgress {
+                done_event,
+                new_children,
+                ..
+            }) = remove!(task, InProgress)
             else {
                 unreachable!();
             };
             task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::Scheduled { done_event },
             });
+
+            // All `new_children` are currently hold active with an active count and we need to undo
+            // that.
+            AggregationUpdateQueue::run(
+                AggregationUpdateJob::DecreaseActiveCounts {
+                    task_ids: new_children.into_iter().collect(),
+                },
+                &mut ctx,
+            );
             return true;
         }
         let mut new_children = take(new_children);
@@ -1283,11 +1296,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             stale,
             session_dependent,
             marked_as_completed: _,
-            new_children: _,
+            new_children,
         } = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
+        debug_assert!(new_children.is_empty());
 
         // If the task is stale, reschedule it
         if stale {
