@@ -48,6 +48,38 @@ describe('non-root-project-monorepo', () => {
     })
   })
 
+  describe('import.meta.url', () => {
+    it('should work during RSC', async () => {
+      const $ = await next.render$('/import-meta-url-rsc')
+      expect($('p').text()).toMatch(
+        /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-rsc\/page.tsx$/
+      )
+    })
+
+    it('should work during SSR', async () => {
+      const $ = await next.render$('/import-meta-url-ssr')
+      expect($('p').text()).toMatch(
+        /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
+      )
+    })
+
+    it('should work on client-side', async () => {
+      const browser = await next.browser('/import-meta-url-ssr')
+      await assertNoRedbox(browser)
+      if (isTurbopack) {
+        // Turbopack intentionally doesn't expose the full path to the browser bundles
+        expect(await browser.elementByCss('p').text()).toBe(
+          'file:///ROOT/apps/web/app/import-meta-url-ssr/page.tsx'
+        )
+      } else {
+        expect(await browser.elementByCss('p').text()).toMatch(
+          /^file:\/\/.*\/next-install-[^/]+\/apps\/web\/app\/import-meta-url-ssr\/page.tsx$/
+        )
+      }
+      await browser.close()
+    })
+  })
+
   if (isNextDev) {
     describe('source-maps', () => {
       function normalizeStackTrace(stack: string): string {

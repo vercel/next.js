@@ -73,7 +73,11 @@ pub trait ChunkingContext {
     fn should_use_file_source_map_uris(self: Vc<Self>) -> Vc<bool>;
     // The root path of the project
     fn root_path(self: Vc<Self>) -> Vc<FileSystemPath>;
+    // The output root path in the output filesystem
     fn output_root(self: Vc<Self>) -> Vc<FileSystemPath>;
+    // A relative path how to reach the root path from the output root. This is used to compute
+    // original paths at runtime relative to the output files. e. g. import.meta.url needs that.
+    fn output_root_to_root_path(self: Vc<Self>) -> Vc<RcStr>;
 
     // TODO remove this, a chunking context should not be bound to a specific
     // environment since this can change due to transitions in the module graph

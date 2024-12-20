@@ -648,6 +648,18 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub async fn node_root_to_root_path(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        let this = self.await?;
+        let output_root_to_root_path = self
+            .project_path()
+            .join(this.dist_dir.clone())
+            .await?
+            .get_relative_path_to(&*self.project_root_path().await?)
+            .context("Project path need to be in root path")?;
+        Ok(Vc::cell(output_root_to_root_path))
+    }
+
+    #[turbo_tasks::function]
     pub async fn project_path(self: Vc<Self>) -> Result<Vc<FileSystemPath>> {
         let this = self.await?;
         let root = self.project_root_path();
@@ -695,6 +707,7 @@ impl Project {
             NodeJsChunkingContext::builder(
                 self.project_root_path().to_resolved().await?,
                 node_root,
+                self.node_root_to_root_path().to_resolved().await?,
                 node_root,
                 node_root.join("build/chunks".into()).to_resolved().await?,
                 node_root.join("build/assets".into()).to_resolved().await?,
@@ -822,6 +835,7 @@ impl Project {
         get_client_chunking_context(
             self.project_root_path(),
             self.client_relative_path(),
+            Vc::cell("/ROOT".into()),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
@@ -840,6 +854,7 @@ impl Project {
                 self.next_mode(),
                 self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
@@ -851,6 +866,7 @@ impl Project {
                 self.next_mode(),
                 self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
@@ -868,6 +884,7 @@ impl Project {
                 self.next_mode(),
                 self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
@@ -879,6 +896,7 @@ impl Project {
                 self.next_mode(),
                 self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),

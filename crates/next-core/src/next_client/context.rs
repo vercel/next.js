@@ -398,8 +398,9 @@ pub async fn get_client_module_options_context(
 
 #[turbo_tasks::function]
 pub async fn get_client_chunking_context(
-    project_path: ResolvedVc<FileSystemPath>,
+    root_path: ResolvedVc<FileSystemPath>,
     client_root: ResolvedVc<FileSystemPath>,
+    client_root_to_root_path: ResolvedVc<RcStr>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
@@ -408,8 +409,9 @@ pub async fn get_client_chunking_context(
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
-        project_path,
+        root_path,
         client_root,
+        client_root_to_root_path,
         client_root,
         client_root
             .join("static/chunks".into())
