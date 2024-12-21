@@ -11,8 +11,9 @@ function getAbsolutePath(value: string): any {
 }
 const config: StorybookConfig = {
   stories: [
-    '../stories/**/*.mdx',
-    '../stories/**/*.stories.@(js|jsx|mjs|ts|tsx)',
+    // Could to '../src/**/*.stories.@(ts|tsx)', but not sure how much it'll affect perf.
+    // Scoped to experimental dev overlay for now.
+    '../src/client/components/react-dev-overlay/_experimental/**/*.stories.@(ts|tsx)',
   ],
   addons: [
     getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
@@ -23,7 +24,20 @@ const config: StorybookConfig = {
   ],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),
-    options: {},
+    options: {
+      builder: {
+        useSWC: true,
+      },
+    },
   },
+  swc: () => ({
+    jsc: {
+      transform: {
+        react: {
+          runtime: 'automatic',
+        },
+      },
+    },
+  }),
 }
 export default config

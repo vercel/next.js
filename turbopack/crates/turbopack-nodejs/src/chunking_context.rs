@@ -83,11 +83,12 @@ impl NodeJsChunkingContextBuilder {
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub struct NodeJsChunkingContext {
-    /// This path get stripped off of chunk paths before generating output asset
-    /// paths.
-    context_path: ResolvedVc<FileSystemPath>,
+    /// The root path of the project
+    root_path: ResolvedVc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
     output_root: ResolvedVc<FileSystemPath>,
+    /// The relative path from the output_root to the root_path.
+    output_root_to_root_path: ResolvedVc<RcStr>,
     /// This path is used to compute the url to request chunks or assets from
     client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
@@ -115,8 +116,9 @@ pub struct NodeJsChunkingContext {
 impl NodeJsChunkingContext {
     /// Creates a new chunking context builder.
     pub fn builder(
-        context_path: ResolvedVc<FileSystemPath>,
+        root_path: ResolvedVc<FileSystemPath>,
         output_root: ResolvedVc<FileSystemPath>,
+        output_root_to_root_path: ResolvedVc<RcStr>,
         client_root: ResolvedVc<FileSystemPath>,
         chunk_root_path: ResolvedVc<FileSystemPath>,
         asset_root_path: ResolvedVc<FileSystemPath>,
@@ -125,8 +127,9 @@ impl NodeJsChunkingContext {
     ) -> NodeJsChunkingContextBuilder {
         NodeJsChunkingContextBuilder {
             chunking_context: NodeJsChunkingContext {
-                context_path,
+                root_path,
                 output_root,
+                output_root_to_root_path,
                 client_root,
                 chunk_root_path,
                 asset_root_path,
@@ -199,13 +202,18 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn context_path(&self) -> Vc<FileSystemPath> {
-        *self.context_path
+    fn root_path(&self) -> Vc<FileSystemPath> {
+        *self.root_path
     }
 
     #[turbo_tasks::function]
     fn output_root(&self) -> Vc<FileSystemPath> {
         *self.output_root
+    }
+
+    #[turbo_tasks::function]
+    fn output_root_to_root_path(&self) -> Vc<RcStr> {
+        *self.output_root_to_root_path
     }
 
     #[turbo_tasks::function]
@@ -247,7 +255,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         extension: RcStr,
     ) -> Result<Vc<FileSystemPath>> {
         let root_path = *self.chunk_root_path;
-        let name = ident.output_name(*self.context_path, extension).await?;
+        let name = ident.output_name(*self.root_path, extension).await?;
         Ok(root_path.join(name.clone_value()))
     }
 

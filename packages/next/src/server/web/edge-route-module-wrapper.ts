@@ -110,8 +110,10 @@ export class EdgeRouteModuleWrapper {
           dynamicIO: !!process.env.__NEXT_DYNAMIC_IO,
           authInterrupts: !!process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS,
         },
-        buildId: '', // TODO: Populate this properly.
         cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
+      },
+      sharedContext: {
+        buildId: '', // TODO: Populate this properly.
       },
     }
 

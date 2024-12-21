@@ -2484,10 +2484,15 @@ export default async function build(
               PRERENDER_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
-              path.join(
-                SERVER_DIRECTORY,
-                MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
-              ),
+              ...(!process.env.TURBOPACK
+                ? [
+                    path.join(
+                      SERVER_DIRECTORY,
+                      MIDDLEWARE_REACT_LOADABLE_MANIFEST + '.js'
+                    ),
+                    REACT_LOADABLE_MANIFEST,
+                  ]
+                : []),
               ...(appDir
                 ? [
                     ...(config.experimental.sri
@@ -2521,7 +2526,6 @@ export default async function build(
                     path.join(SERVER_DIRECTORY, DYNAMIC_CSS_MANIFEST + '.js'),
                   ]
                 : []),
-              REACT_LOADABLE_MANIFEST,
               BUILD_ID_FILE,
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.js'),
               path.join(SERVER_DIRECTORY, NEXT_FONT_MANIFEST + '.json'),
@@ -2754,12 +2758,12 @@ export default async function build(
                     if (i18n) {
                       defaultMap[`/${i18n.defaultLocale}${page}`] = {
                         page,
-                        query: { __nextFallback: 'true' },
+                        _pagesFallback: true,
                       }
                     } else {
                       defaultMap[page] = {
                         page,
-                        query: { __nextFallback: 'true' },
+                        _pagesFallback: true,
                       }
                     }
                   } else {
@@ -2776,7 +2780,7 @@ export default async function build(
                 routes.forEach((route) => {
                   defaultMap[route.pathname] = {
                     page,
-                    query: { __nextSsgPath: route.encodedPathname },
+                    _ssgPath: route.encodedPathname,
                   }
                 })
               })
@@ -2816,7 +2820,7 @@ export default async function build(
 
                   defaultMap[route.pathname] = {
                     page: originalAppPath,
-                    query: { __nextSsgPath: route.encodedPathname },
+                    _ssgPath: route.encodedPathname,
                     _fallbackRouteParams: route.fallbackRouteParams,
                     _isDynamicError: isDynamicError,
                     _isAppDir: true,
@@ -2835,7 +2839,7 @@ export default async function build(
               } of prospectiveRenders.values()) {
                 defaultMap[page] = {
                   page: originalAppPath,
-                  query: { __nextSsgPath: page },
+                  _ssgPath: page,
                   _fallbackRouteParams: getParamKeys(page),
                   // Prospective renders are only enabled for app pages.
                   _isAppDir: true,
@@ -2865,10 +2869,8 @@ export default async function build(
 
                     defaultMap[outputPath] = {
                       page: defaultMap[page]?.page || page,
-                      query: {
-                        __nextLocale: locale,
-                        __nextFallback: isFallback ? 'true' : undefined,
-                      },
+                      _locale: locale,
+                      _pagesFallback: isFallback,
                     }
                   }
 

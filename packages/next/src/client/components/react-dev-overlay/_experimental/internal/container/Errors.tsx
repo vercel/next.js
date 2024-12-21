@@ -6,21 +6,11 @@ import {
   type UnhandledRejectionAction,
 } from '../../../shared'
 import type { DebugInfo } from '../../../types'
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogHeader,
-} from '../components/Dialog'
-import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
-import { Toast } from '../components/Toast'
 import { getErrorByType } from '../helpers/get-error-by-type'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
-import { CloseIcon } from '../icons/CloseIcon'
 import { RuntimeError } from './RuntimeError'
-import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
@@ -29,13 +19,13 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
-import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
-import { CopyButton } from '../components/copy-button'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
 } from '../helpers/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
+import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
+import { ErrorOverlayLayout } from '../components/Errors/ErrorOverlayLayout/ErrorOverlayLayout'
 
 export type SupportedErrorEvent = {
   id: number
@@ -116,7 +106,6 @@ export function Errors({
   isAppDir,
   errors,
   initialDisplayState,
-  versionInfo,
   hasStaticIndicator,
   debugInfo,
 }: ErrorsProps) {
@@ -186,17 +175,6 @@ export function Errors({
   const [displayState, setDisplayState] =
     useState<DisplayState>(initialDisplayState)
   const [activeIdx, setActiveIndex] = useState<number>(0)
-  const previous = useCallback(
-    () => setActiveIndex((v) => Math.max(0, v - 1)),
-    []
-  )
-  const next = useCallback(
-    () =>
-      setActiveIndex((v) =>
-        Math.max(0, Math.min(readyErrors.length - 1, v + 1))
-      ),
-    [readyErrors.length]
-  )
 
   const activeError = useMemo<ReadyErrorEvent | null>(
     () => readyErrors[activeIdx] ?? null,
@@ -234,44 +212,12 @@ export function Errors({
 
   if (displayState === 'minimized') {
     return (
-      <Toast
-        data-nextjs-toast
-        className={`nextjs-toast-errors-parent${hasStaticIndicator ? ' nextjs-error-with-static' : ''}`}
-        onClick={fullscreen}
-      >
-        <div className="nextjs-toast-errors">
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            width="24"
-            height="24"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx="12" cy="12" r="10"></circle>
-            <line x1="12" y1="8" x2="12" y2="12"></line>
-            <line x1="12" y1="16" x2="12.01" y2="16"></line>
-          </svg>
-          <span>
-            {readyErrors.length} issue{readyErrors.length > 1 ? 's' : ''}
-          </span>
-          <button
-            data-nextjs-toast-errors-hide-button
-            className="nextjs-toast-hide-button"
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              hide()
-            }}
-            aria-label="Hide Issues"
-          >
-            <CloseIcon />
-          </button>
-        </div>
-      </Toast>
+      <ErrorIndicator
+        hasStaticIndicator={hasStaticIndicator}
+        readyErrors={readyErrors}
+        fullscreen={fullscreen}
+        hide={hide}
+      />
     )
   }
 
@@ -296,115 +242,73 @@ export function Errors({
         .replace(/^Error: /, '')
     : null
 
+  const errorCode = extractNextErrorCode(error)
+
   return (
-    <Overlay>
-      <Dialog
-        type="error"
-        aria-labelledby="nextjs__container_errors_label"
-        aria-describedby="nextjs__container_errors_desc"
-        onClose={isServerError ? undefined : minimize}
-      >
-        <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
-            <LeftRightDialogHeader
-              previous={activeIdx > 0 ? previous : null}
-              next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={isServerError ? undefined : minimize}
-            >
-              <small>
-                <span>{activeIdx + 1}</span> of{' '}
-                <span data-nextjs-dialog-header-total-count>
-                  {readyErrors.length}
-                </span>
-                {' issue'}
-                {readyErrors.length < 2 ? '' : 's'}
-              </small>
-              <VersionStalenessInfo versionInfo={versionInfo} />
-            </LeftRightDialogHeader>
-
-            <div
-              className="nextjs__container_errors__error_title"
-              data-nextjs-error-code={extractNextErrorCode(error)} // allow assertion in tests before error rating is implemented
-            >
-              <h1
-                id="nextjs__container_errors_label"
-                className="nextjs__container_errors_label"
-              >
-                {isServerError
-                  ? 'Server Error'
-                  : isUnhandledError
-                    ? 'Console Error'
-                    : 'Unhandled Runtime Error'}
-              </h1>
-              <span>
-                <CopyButton
-                  data-nextjs-data-runtime-error-copy-stack
-                  actionLabel="Copy error stack"
-                  successLabel="Copied"
-                  content={error.stack || ''}
-                  disabled={!error.stack}
-                />
-
-                <NodejsInspectorCopyButton
-                  devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
-                />
-              </span>
-            </div>
-            <p
-              id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc"
-            >
-              <ErrorDescription
-                error={error}
-                hydrationWarning={hydrationWarning}
-              />
-            </p>
-            {notes ? (
-              <>
-                <p
-                  id="nextjs__container_errors__notes"
-                  className="nextjs__container_errors__notes"
-                >
-                  {notes}
-                </p>
-              </>
-            ) : null}
-            {hydrationWarning ? (
+    <ErrorOverlayLayout
+      errorCode={errorCode}
+      errorType={
+        isServerError
+          ? 'Runtime Error'
+          : isUnhandledError
+            ? 'Console Error'
+            : 'Unhandled Runtime Error'
+      }
+      errorMessage={
+        <ErrorDescription error={error} hydrationWarning={hydrationWarning} />
+      }
+      onClose={isServerError ? undefined : minimize}
+      debugInfo={debugInfo}
+      error={error}
+      readyErrors={readyErrors}
+      activeIdx={activeIdx}
+      setActiveIndex={setActiveIndex}
+      temporaryHeaderChildren={
+        <>
+          {notes ? (
+            <>
               <p
-                id="nextjs__container_errors__link"
-                className="nextjs__container_errors__link"
+                id="nextjs__container_errors__notes"
+                className="nextjs__container_errors__notes"
               >
-                <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+                {notes}
               </p>
-            ) : null}
+            </>
+          ) : null}
+          {hydrationWarning ? (
+            <p
+              id="nextjs__container_errors__link"
+              className="nextjs__container_errors__link"
+            >
+              <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+            </p>
+          ) : null}
 
-            {hydrationWarning &&
-            (activeError.componentStackFrames?.length ||
-              !!errorDetails.reactOutputComponentDiff) ? (
-              <PseudoHtmlDiff
-                className="nextjs__container_errors__component-stack"
-                hydrationMismatchType={hydrationErrorType}
-                componentStackFrames={activeError.componentStackFrames || []}
-                firstContent={serverContent}
-                secondContent={clientContent}
-                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
-              />
-            ) : null}
-            {isServerError ? (
-              <div>
-                <small>
-                  This error happened while generating the page. Any console
-                  logs will be displayed in the terminal window.
-                </small>
-              </div>
-            ) : undefined}
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError key={activeError.id.toString()} error={activeError} />
-          </DialogBody>
-        </DialogContent>
-      </Dialog>
-    </Overlay>
+          {hydrationWarning &&
+          (activeError.componentStackFrames?.length ||
+            !!errorDetails.reactOutputComponentDiff) ? (
+            <PseudoHtmlDiff
+              className="nextjs__container_errors__component-stack"
+              hydrationMismatchType={hydrationErrorType}
+              componentStackFrames={activeError.componentStackFrames || []}
+              firstContent={serverContent}
+              secondContent={clientContent}
+              reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+            />
+          ) : null}
+          {isServerError ? (
+            <div>
+              <small>
+                This error happened while generating the page. Any console logs
+                will be displayed in the terminal window.
+              </small>
+            </div>
+          ) : undefined}
+        </>
+      }
+    >
+      <RuntimeError key={activeError.id.toString()} error={activeError} />
+    </ErrorOverlayLayout>
   )
 }
 
