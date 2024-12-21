@@ -27000,7 +27000,7 @@ identifierPrefix, onRecoverableError, transitionCallbacks, formState) {
   return root;
 }
 
-var ReactVersion = '18.3.0-canary-3cfcbc5bc-20231018';
+var ReactVersion = '18.3.0-canary-1dba980e1f-20241220';
 
 function createPortal$1(children, containerInfo, // TODO: figure out the API for cross-renderer implementation.
 implementation) {

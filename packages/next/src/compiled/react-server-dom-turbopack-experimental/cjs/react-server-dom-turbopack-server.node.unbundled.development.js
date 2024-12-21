@@ -3077,6 +3077,11 @@ function createResolvedModelChunk(response, value) {
   return new Chunk(RESOLVED_MODEL, value, null, response);
 }
 
+function createErroredChunk(response, reason) {
+  // $FlowFixMe[invalid-constructor] Flow doesn't support functions as constructors
+  return new Chunk(ERRORED, null, reason, response);
+}
+
 function resolveModelChunk(chunk, value) {
   if (chunk.status !== PENDING) {
     // We already resolved. We didn't expect to see this.
@@ -3170,6 +3175,9 @@ function initializeModelChunk(chunk) {
 
 
 function reportGlobalError(response, error) {
+  response._closed = true;
+  response._closedReason = error;
+
   response._chunks.forEach(function (chunk) {
     // If this chunk was already resolved or errored, it won't
     // trigger an error but if it wasn't then we need to
@@ -3193,6 +3201,10 @@ function getChunk(response, id) {
     if (backingEntry != null) {
       // We assume that this is a string entry for now.
       chunk = createResolvedModelChunk(response, backingEntry);
+    } else if (response._closed) {
+      // We have already errored the response and we're not going to get
+      // anything more streaming in so this will immediately error.
+      chunk = createErroredChunk(response, response._closedReason);
     } else {
       // We're still waiting on this entry to stream in.
       chunk = createPendingChunk(response);
@@ -3424,7 +3436,9 @@ function createResponse(bundlerConfig, formFieldPrefix) {
       }
 
       return value;
-    }
+    },
+    _closed: false,
+    _closedReason: null
   };
   return response;
 }
