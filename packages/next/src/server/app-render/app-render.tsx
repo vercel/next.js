@@ -1598,23 +1598,6 @@ export const renderToHTMLOrFlight: AppPageRender = (
   )
 }
 
-const addHeaderToResponse = (
-  res: BaseNextResponse,
-  key: string,
-  value: string | string[]
-) => {
-  if (key === 'link' && res.getHeader(key)) {
-    res.setHeader(
-      key,
-      [res.getHeader(key), ...(Array.isArray(value) ? value : [value])].join(
-        ', '
-      )
-    )
-  } else {
-    res.setHeader(key, value)
-  }
-}
-
 async function renderToStream(
   requestStore: RequestStore,
   req: BaseNextRequest,
@@ -1704,9 +1687,8 @@ async function renderToStream(
 
   let reactServerResult: null | ReactServerResult = null
 
-  const addHeader = (key: string, value: string | string[]) => {
-    addHeaderToResponse(res, key, value)
-  }
+  const setHeader = res.setHeader.bind(res)
+  const appendHeader = res.appendHeader.bind(res)
 
   try {
     if (
@@ -1876,7 +1858,7 @@ async function renderToStream(
         nonce: ctx.nonce,
         onHeaders: (headers: Headers) => {
           headers.forEach((value, key) => {
-            addHeader(key, value)
+            appendHeader(key, value)
           })
         },
         maxHeadersLength: renderOpts.reactMaxHeadersLength,
@@ -1967,10 +1949,10 @@ async function renderToStream(
       // response.
       const headers = new Headers()
       if (appendMutableCookies(headers, requestStore.mutableCookies)) {
-        addHeader('set-cookie', Array.from(headers.values()))
+        setHeader('set-cookie', Array.from(headers.values()))
       }
 
-      addHeader('location', redirectUrl)
+      setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
     }
@@ -2538,14 +2520,24 @@ async function prerenderToStream(
     | null
     | ReactServerPrerenderResult
     | ServerPrerenderStreamResult = null
-
-  const addHeader = (name: string, value: string | string[]) => {
-    addHeaderToResponse(res, name, value)
-
+  const ensureMetadataHeaders = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
-
+  }
+  const setHeader = (name: string, value: string | string[]) => {
+    res.setHeader(name, value)
+    ensureMetadataHeaders(name)
     return res
+  }
+  const appendHeader = (name: string, value: string | string[]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        res.appendHeader(name, item)
+      })
+    } else {
+      res.appendHeader(name, value)
+    }
+    ensureMetadataHeaders(name)
   }
 
   let prerenderStore: PrerenderStore | null = null
@@ -2895,7 +2887,7 @@ async function prerenderToStream(
                 },
                 onHeaders: (headers: Headers) => {
                   headers.forEach((value, key) => {
-                    addHeader(key, value)
+                    appendHeader(key, value)
                   })
                 },
                 maxHeadersLength: renderOpts.reactMaxHeadersLength,
@@ -3513,7 +3505,7 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           onHeaders: (headers: Headers) => {
             headers.forEach((value, key) => {
-              addHeader(key, value)
+              appendHeader(key, value)
             })
           },
           maxHeadersLength: renderOpts.reactMaxHeadersLength,
@@ -3819,7 +3811,7 @@ async function prerenderToStream(
         renderOpts.basePath
       )
 
-      addHeader('location', redirectUrl)
+      setHeader('location', redirectUrl)
     } else if (!shouldBailoutToCSR) {
       res.statusCode = 500
     }
