@@ -197,10 +197,11 @@ export function unstable_cache<T extends Callback>(
           workUnitStore && workUnitStore.type === 'unstable-cache'
 
         const isFullOnDemandRevalidate =
-          workStore.isOnDemandRevalidate && !workStore.isISRRevalidationRequest
+          workStore.isOnDemandRevalidate &&
+          !workStore.isStaleRevalidationRequest
         const isIncrementalOnDemandRevalidate =
           incrementalCache.isOnDemandRevalidate &&
-          !workStore.isISRRevalidationRequest
+          !workStore.isStaleRevalidationRequest
         if (
           // when we are nested inside of other unstable_cache's
           // we should bypass cache similar to fetches

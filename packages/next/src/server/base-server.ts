@@ -2367,13 +2367,13 @@ export default abstract class Server<
 
     let isOnDemandRevalidate = false
     let revalidateOnlyGenerated = false
-    let isISRRevalidationRequest = false
+    let isStaleRevalidationRequest = false
 
     if (isSSG) {
       ;({
         isOnDemandRevalidate,
         revalidateOnlyGenerated,
-        isISRRevalidationRequest,
+        isStaleRevalidationRequest,
       } = checkIsOnDemandRevalidate(req, this.renderOpts.previewProps))
     }
 
@@ -2572,7 +2572,7 @@ export default abstract class Server<
         supportsDynamicResponse,
         shouldWaitOnAllReady,
         isOnDemandRevalidate,
-        isISRRevalidationRequest,
+        isStaleRevalidationRequest: isStaleRevalidationRequest,
         isDraftMode: isPreviewMode,
         isPossibleServerAction,
         postponed,
@@ -2622,7 +2622,7 @@ export default abstract class Server<
               incrementalCache,
               cacheLifeProfiles: this.nextConfig.experimental?.cacheLife,
               isRevalidate: isSSG,
-              isISRRevalidationRequest,
+              isStaleRevalidationRequest: isStaleRevalidationRequest,
               waitUntil: this.getWaitUntil(),
               onClose: res.onClose.bind(res),
               onAfterTaskError: undefined,

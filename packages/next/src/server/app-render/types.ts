@@ -269,7 +269,7 @@ export interface RenderOptsPartial {
    * statically generated.
    */
   doNotThrowOnEmptyStaticShell?: boolean
-  isISRRevalidationRequest?: boolean
+  isStaleRevalidationRequest?: boolean
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &
