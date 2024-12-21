@@ -2520,13 +2520,13 @@ async function prerenderToStream(
     | null
     | ReactServerPrerenderResult
     | ServerPrerenderStreamResult = null
-  const ensureMetadataHeaders = (name: string) => {
+  const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
   }
   const setHeader = (name: string, value: string | string[]) => {
     res.setHeader(name, value)
-    ensureMetadataHeaders(name)
+    setMetadataHeader(name)
     return res
   }
   const appendHeader = (name: string, value: string | string[]) => {
@@ -2537,7 +2537,7 @@ async function prerenderToStream(
     } else {
       res.appendHeader(name, value)
     }
-    ensureMetadataHeaders(name)
+    setMetadataHeader(name)
   }
 
   let prerenderStore: PrerenderStore | null = null
