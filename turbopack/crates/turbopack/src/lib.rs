@@ -609,7 +609,7 @@ async fn process_default_internal(
                                     )
                                     .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 Some(module_type)
                             }
@@ -625,7 +625,7 @@ async fn process_default_internal(
                                     )
                                     .resolved_cell(),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 None
                             }
@@ -953,7 +953,7 @@ pub async fn emit_asset_into_dir(
 
 type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 struct ReferencesList {
     referenced_by: HashMap<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>,
 }

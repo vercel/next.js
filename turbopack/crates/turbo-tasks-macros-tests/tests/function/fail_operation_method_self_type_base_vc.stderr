@@ -1,0 +1,27 @@
+error: methods taking `self` are not supported with `operation`
+  --> tests/function/fail_operation_method_self_type_base_vc.rs:13:36
+   |
+13 |     fn arbitrary_self_type_base_vc(self: Vc<Self>) -> Vc<()> {
+   |                                    ^^^^^^^^^^^^^^
+
+error[E0277]: the trait bound `Vc<Foobar>: NonLocalValue` is not satisfied
+  --> tests/function/fail_operation_method_self_type_base_vc.rs:13:42
+   |
+13 |     fn arbitrary_self_type_base_vc(self: Vc<Self>) -> Vc<()> {
+   |                                          ^^^^^^^^ the trait `NonLocalValue` is not implemented for `Vc<Foobar>`
+   |
+   = help: the following other types implement trait `NonLocalValue`:
+             &T
+             &mut T
+             ()
+             (A, Z, Y, X, W, V, U, T)
+             (B, A, Z, Y, X, W, V, U, T)
+             (C, B, A, Z, Y, X, W, V, U, T)
+             (D, C, B, A, Z, Y, X, W, V, U, T)
+             (E, D, C, B, A, Z, Y, X, W, V, U, T)
+           and $N others
+note: required by a bound in `assert_argument_is_non_local_value`
+  --> $WORKSPACE/turbopack/crates/turbo-tasks/src/macro_helpers.rs
+   |
+   | pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}
+   |                                                     ^^^^^^^^^^^^^ required by this bound in `assert_argument_is_non_local_value`

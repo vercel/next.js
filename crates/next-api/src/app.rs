@@ -18,10 +18,7 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{
-        client_reference_graph, find_server_entries, ClientReferenceGraphResult,
-        NextEcmascriptClientReferenceTransition, ServerEntries, VisitedClientReferenceGraphNodes,
-    },
+    next_client_reference::{ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition},
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
@@ -33,6 +30,7 @@ use next_core::{
         get_server_module_options_context, get_server_resolve_options_context,
         get_server_runtime_entries, ServerContextType,
     },
+    next_server_utility::NextServerUtilityTransition,
     parse_segment_config_from_source,
     util::NextRuntime,
 };
@@ -40,7 +38,7 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexMap, FxIndexSet, ResolvedVc,
+    fxindexmap, fxindexset, trace::TraceRawVcs, Completion, FxIndexSet, NonLocalValue, ResolvedVc,
     TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{CustomProcessEnv, ProcessEnv};
@@ -70,11 +68,11 @@ use turbopack_ecmascript::resolve::cjs_resolve;
 
 use crate::{
     dynamic_imports::{
-        collect_chunk_group, collect_evaluated_chunk_group, collect_next_dynamic_imports,
-        VisitedDynamicImportModules,
+        collect_next_dynamic_chunks, DynamicImportedChunks, NextDynamicChunkAvailability,
     },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -325,8 +323,12 @@ impl AppProject {
             ),
             (
                 "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
                 ResolvedVc::upcast(
-                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
                         .await?,
                 ),
@@ -338,6 +340,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
         .into_iter()
@@ -370,8 +376,12 @@ impl AppProject {
             ),
             (
                 "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
                 ResolvedVc::upcast(
-                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
                         .await?,
                 ),
@@ -383,6 +393,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
         .into_iter()
@@ -413,8 +427,12 @@ impl AppProject {
             ),
             (
                 "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
                 ResolvedVc::upcast(
-                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
                         .await?,
                 ),
@@ -426,6 +444,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
         .into_iter()
@@ -455,8 +477,12 @@ impl AppProject {
             ),
             (
                 "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
                 ResolvedVc::upcast(
-                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
                         .to_resolved()
                         .await?,
                 ),
@@ -468,6 +494,10 @@ impl AppProject {
             (
                 "next-shared".into(),
                 ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
+            ),
+            (
+                "next-server-utility".into(),
+                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
             ),
         ]
         .into_iter()
@@ -486,14 +516,30 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn client_module_context(self: Vc<Self>) -> Vc<ModuleAssetContext> {
-        ModuleAssetContext::new(
-            Default::default(),
+    async fn client_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        let transitions = [
+            (
+                "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+        ]
+        .into_iter()
+        .collect();
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
             Vc::cell("app-client".into()),
-        )
+        ))
     }
 
     #[turbo_tasks::function]
@@ -748,7 +794,7 @@ fn server_utils_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value(transparent)]
 struct OutputAssetsWithAvailability((ResolvedVc<OutputAssets>, AvailabilityInfo));
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue)]
 enum AppPageEndpointType {
     Html,
     Rsc,
@@ -769,7 +815,7 @@ enum AppEndpointType {
     },
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 struct AppEndpoint {
     ty: AppEndpointType,
     app_project: ResolvedVc<AppProject>,
@@ -859,11 +905,6 @@ impl AppEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.output().output_assets()
-    }
-
-    #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
 
@@ -912,7 +953,7 @@ impl AppEndpoint {
             None
         };
 
-        let (client_dynamic_imports, client_references, client_references_chunks) =
+        let (next_dynamic_imports, client_references, client_references_chunks) =
             if process_client_components {
                 let client_shared_chunk_group = get_app_client_shared_chunk_group(
                     AssetIdent::from_path(this.app_project.project().project_path())
@@ -933,59 +974,14 @@ impl AppEndpoint {
                 }
                 let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-                let client_references = {
-                    let ServerEntries {
-                        server_component_entries,
-                        server_utils,
-                    } = &*find_server_entries(*rsc_entry).await?;
+                let reduced_graphs =
+                    get_reduced_graphs_for_endpoint(this.app_project.project(), *rsc_entry);
+                let next_dynamic_imports = reduced_graphs
+                    .get_next_dynamic_imports_for_endpoint(*rsc_entry)
+                    .await?;
 
-                    let mut client_references = client_reference_graph(
-                        server_utils.iter().map(|&v| *v).collect(),
-                        VisitedClientReferenceGraphNodes::empty(),
-                    )
-                    .await?
-                    .clone_value();
-
-                    for module in server_component_entries
-                        .iter()
-                        .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
-                        .chain(std::iter::once(rsc_entry))
-                    {
-                        let current_client_references =
-                            client_reference_graph(vec![*module], *client_references.visited_nodes)
-                                .await?;
-
-                        client_references.extend(&current_client_references);
-                    }
-                    client_references
-                };
-                let client_references_cell = client_references.clone().cell();
-
-                let client_dynamic_imports = {
-                    let mut client_dynamic_imports = FxIndexMap::default();
-                    let mut visited_modules = VisitedDynamicImportModules::empty();
-
-                    for refs in client_references
-                        .client_references_by_server_component
-                        .values()
-                    {
-                        let result = collect_next_dynamic_imports(
-                            refs.iter().map(|v| **v).collect(),
-                            Vc::upcast(this.app_project.client_module_context()),
-                            visited_modules,
-                        )
-                        .await?;
-                        client_dynamic_imports.extend(
-                            result
-                                .client_dynamic_imports
-                                .iter()
-                                .map(|(k, v)| (*k, v.clone())),
-                        );
-                        visited_modules = *result.visited_modules;
-                    }
-
-                    client_dynamic_imports
-                };
+                let client_references_cell =
+                    reduced_graphs.get_client_references_for_endpoint(*rsc_entry);
 
                 let client_references_chunks = get_app_client_references_chunks(
                     client_references_cell,
@@ -1130,7 +1126,7 @@ impl AppEndpoint {
                 }
 
                 (
-                    Some(client_dynamic_imports),
+                    Some(next_dynamic_imports),
                     Some(client_references_cell),
                     Some(client_references_chunks),
                 )
@@ -1139,8 +1135,18 @@ impl AppEndpoint {
             };
 
         let server_action_manifest_loader = if process_client_components {
+            let reduced_graphs =
+                get_reduced_graphs_for_endpoint(this.app_project.project(), *rsc_entry);
+            let actions = reduced_graphs.get_server_actions_for_endpoint(
+                *rsc_entry,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+            );
+
             let server_action_manifest = create_server_actions_manifest(
-                *ResolvedVc::upcast(app_entry.rsc_entry),
+                actions,
                 this.app_project.project().project_path(),
                 node_root,
                 app_entry.original_name.clone(),
@@ -1228,7 +1234,6 @@ impl AppEndpoint {
                 let mut file_paths_from_root = vec![
                     "server/server-reference-manifest.js".into(),
                     "server/middleware-build-manifest.js".into(),
-                    "server/middleware-react-loadable-manifest.js".into(),
                     "server/next-font-manifest.js".into(),
                     "server/interception-route-rewrite-manifest.js".into(),
                 ];
@@ -1254,6 +1259,39 @@ impl AppEndpoint {
                 let entry_file = "app-edge-has-no-entrypoint".into();
 
                 if emit_manifests {
+                    let dynamic_import_entries =
+                        if let (Some(next_dynamic_imports), Some(client_references_chunks)) =
+                            (next_dynamic_imports, client_references_chunks)
+                        {
+                            collect_next_dynamic_chunks(
+                                Vc::upcast(client_chunking_context),
+                                next_dynamic_imports,
+                                NextDynamicChunkAvailability::ClientReferences(
+                                    &*(client_references_chunks.await?),
+                                ),
+                            )
+                            .await?
+                        } else {
+                            DynamicImportedChunks::default().resolved_cell()
+                        };
+                    let loadable_manifest_output = create_react_loadable_manifest(
+                        *dynamic_import_entries,
+                        client_relative_path,
+                        node_root.join(
+                            format!(
+                                "server/app{}/react-loadable-manifest",
+                                &app_entry.original_name
+                            )
+                            .into(),
+                        ),
+                        NextRuntime::Edge,
+                    )
+                    .await?;
+                    server_assets.extend(loadable_manifest_output.iter().copied());
+                    file_paths_from_root.extend(
+                        get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
+                    );
+
                     // create middleware manifest
                     let named_regex = get_named_middleware_regex(&app_entry.pathname);
                     let matchers = MiddlewareMatcher {
@@ -1309,34 +1347,6 @@ impl AppEndpoint {
                         create_app_paths_manifest(node_root, &app_entry.original_name, entry_file)
                             .await?;
                     server_assets.insert(app_paths_manifest_output);
-
-                    // create react-loadable-manifest for next/dynamic
-                    let mut dynamic_import_modules = collect_next_dynamic_imports(
-                        vec![*ResolvedVc::upcast(app_entry.rsc_entry)],
-                        Vc::upcast(this.app_project.client_module_context()),
-                        VisitedDynamicImportModules::empty(),
-                    )
-                    .await?
-                    .client_dynamic_imports
-                    .clone();
-                    dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
-                    let dynamic_import_entries = collect_evaluated_chunk_group(
-                        Vc::upcast(client_chunking_context),
-                        dynamic_import_modules,
-                    )
-                    .await?;
-                    let loadable_manifest_output = create_react_loadable_manifest(
-                        dynamic_import_entries,
-                        client_relative_path,
-                        node_root.join(
-                            format!(
-                                "server/app{}/react-loadable-manifest.json",
-                                &app_entry.original_name
-                            )
-                            .into(),
-                        ),
-                    );
-                    server_assets.extend(loadable_manifest_output.await?.iter().copied());
                 }
 
                 AppEndpointOutput::Edge {
@@ -1351,7 +1361,7 @@ impl AppEndpoint {
                 // For node, there will be exactly one asset in this
                 let rsc_chunk = *app_entry_chunks_ref.first().unwrap();
 
-                if emit_manifests {
+                let loadable_manifest_output = if emit_manifests {
                     // create app paths manifest
                     let app_paths_manifest_output = create_app_paths_manifest(
                         node_root,
@@ -1368,35 +1378,39 @@ impl AppEndpoint {
                     server_assets.insert(app_paths_manifest_output);
 
                     // create react-loadable-manifest for next/dynamic
-                    let availability_info = Value::new(AvailabilityInfo::Root);
-                    let mut dynamic_import_modules = collect_next_dynamic_imports(
-                        vec![*ResolvedVc::upcast(app_entry.rsc_entry)],
-                        Vc::upcast(this.app_project.client_module_context()),
-                        VisitedDynamicImportModules::empty(),
-                    )
-                    .await?
-                    .client_dynamic_imports
-                    .clone();
-                    dynamic_import_modules.extend(client_dynamic_imports.into_iter().flatten());
-                    let dynamic_import_entries = collect_chunk_group(
-                        Vc::upcast(client_chunking_context),
-                        dynamic_import_modules,
-                        availability_info,
-                    )
-                    .await?;
+                    let dynamic_import_entries =
+                        if let (Some(next_dynamic_imports), Some(client_references_chunks)) =
+                            (next_dynamic_imports, client_references_chunks)
+                        {
+                            collect_next_dynamic_chunks(
+                                Vc::upcast(client_chunking_context),
+                                next_dynamic_imports,
+                                NextDynamicChunkAvailability::ClientReferences(
+                                    &*(client_references_chunks.await?),
+                                ),
+                            )
+                            .await?
+                        } else {
+                            DynamicImportedChunks::default().resolved_cell()
+                        };
                     let loadable_manifest_output = create_react_loadable_manifest(
-                        dynamic_import_entries,
+                        *dynamic_import_entries,
                         client_relative_path,
                         node_root.join(
                             format!(
-                                "server/app{}/react-loadable-manifest.json",
+                                "server/app{}/react-loadable-manifest",
                                 &app_entry.original_name
                             )
                             .into(),
                         ),
-                    );
-                    server_assets.extend(loadable_manifest_output.await?.iter().copied());
-                }
+                        NextRuntime::NodeJs,
+                    )
+                    .await?;
+                    server_assets.extend(loadable_manifest_output.iter().copied());
+                    Some(loadable_manifest_output)
+                } else {
+                    None
+                };
 
                 if this
                     .app_project
@@ -1409,7 +1423,12 @@ impl AppEndpoint {
                         NftJsonAsset::new(
                             this.app_project.project(),
                             *rsc_chunk,
-                            client_reference_manifest.iter().map(|m| **m).collect(),
+                            client_reference_manifest
+                                .iter()
+                                .copied()
+                                .chain(loadable_manifest_output.iter().flat_map(|m| &**m).copied())
+                                .map(|m| *m)
+                                .collect(),
                         )
                         .to_resolved()
                         .await?,
@@ -1609,7 +1628,7 @@ async fn create_app_paths_manifest(
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
         let page_name = this.page.to_string();
         let span = match this.ty {
@@ -1634,9 +1653,8 @@ impl Endpoint for AppEndpoint {
         };
         async move {
             let output = self.output().await?;
-            // Must use self.output_assets() instead of output.output_assets() to make it a
-            // single operation
-            let output_assets = self.output_assets();
+            let output_assets_op = output_assets_operation(self);
+            let output_assets = output_assets_op.connect();
 
             let node_root = this.app_project.project().node_root();
 
@@ -1645,7 +1663,7 @@ impl Endpoint for AppEndpoint {
             let _ = this
                 .app_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets));
+                .emit_all_output_assets(output_assets_op);
 
             let (server_paths, client_paths) = if this
                 .app_project
@@ -1714,6 +1732,11 @@ impl Endpoint for AppEndpoint {
         let rsc_entry = self.app_endpoint_entry().await?.rsc_entry;
         Ok(Vc::cell(vec![rsc_entry]))
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn output_assets_operation(endpoint: ResolvedVc<AppEndpoint>) -> Vc<OutputAssets> {
+    endpoint.output().output_assets()
 }
 
 #[turbo_tasks::value]

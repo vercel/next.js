@@ -77,17 +77,17 @@ struct EcmascriptModuleEntry {
     #[serde(with = "turbo_tasks_fs::rope::ser_as_string")]
     code: Rope,
     url: String,
-    map: Option<String>,
+    #[serde(with = "turbo_tasks_fs::rope::ser_option_as_string")]
+    map: Option<Rope>,
 }
 
 impl EcmascriptModuleEntry {
     async fn from_code(id: &ModuleId, code: Vc<Code>, chunk_path: &str) -> Result<Self> {
         let map = match &*code.generate_source_map().await? {
             Some(map) => {
-                let map = map.await?.to_source_map().await?;
-                let mut map_str = vec![];
-                (*map).to_writer(&mut map_str)?;
-                Some(String::from_utf8(map_str)?)
+                let map = map.to_rope().await?;
+                // Cloning a rope is cheap.
+                Some(map.clone_value())
             }
             None => None,
         };
@@ -95,7 +95,7 @@ impl EcmascriptModuleEntry {
         Ok(Self::new(id, code.await?, map, chunk_path))
     }
 
-    fn new(id: &ModuleId, code: ReadRef<Code>, map: Option<String>, chunk_path: &str) -> Self {
+    fn new(id: &ModuleId, code: ReadRef<Code>, map: Option<Rope>, chunk_path: &str) -> Self {
         /// serde_qs can't serialize a lone enum when it's [serde::untagged].
         #[derive(Serialize)]
         struct Id<'a> {
@@ -158,10 +158,9 @@ pub(super) async fn update_ecmascript_merged_chunk(
     let to = to_merged_version.await?;
     let from = from_merged_version.await?;
 
-    // When to and from point to the same value we can skip comparing them.
-    // This will happen since `TraitRef<Vc<Box<dyn Version>>>::cell` will not clone
-    // the value, but only make the cell point to the same immutable value
-    // (Arc).
+    // When to and from point to the same value we can skip comparing them. This will happen since
+    // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
+    // to the same immutable value (`Arc`).
     if from.ptr_eq(&to) {
         return Ok(Update::None);
     }

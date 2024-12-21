@@ -205,7 +205,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
                     request_str: request_str.clone(),
                     reason,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             Ok(ResolveResultOption::none())
@@ -435,7 +435,7 @@ pub struct PackagesGlobs {
 }
 
 // TODO move that to turbo
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]

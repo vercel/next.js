@@ -4,15 +4,17 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TaskInput, TryJoinIterExt,
-    ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, ValueToString, Vc,
 };
 
 use super::{GetContentSourceContent, GetContentSourceContents};
 
 /// The type of the route. THis will decide about the remaining segements of the
 /// route after the base.
-#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub enum RouteType {
     Exact,
     CatchAll,
@@ -21,7 +23,9 @@ pub enum RouteType {
 }
 
 /// Some normal segment of a route.
-#[derive(TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    TaskInput, Clone, Debug, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub enum BaseSegment {
     Static(RcStr),
     Dynamic,

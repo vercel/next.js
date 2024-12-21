@@ -169,8 +169,14 @@ impl AppPageLoaderTreeBuilder {
     ) -> Result<()> {
         match item {
             MetadataWithAltItem::Static { path, alt_path } => {
-                self.write_static_metadata_item(app_page, name, item, *path, *alt_path)
-                    .await?;
+                self.write_static_metadata_item(
+                    app_page,
+                    name,
+                    item,
+                    **path,
+                    alt_path.as_deref().copied(),
+                )
+                .await?;
             }
             MetadataWithAltItem::Dynamic { path, .. } => {
                 let i = self.base.unique_number();
@@ -183,7 +189,7 @@ impl AppPageLoaderTreeBuilder {
 
                 let source = dynamic_image_metadata_source(
                     Vc::upcast(self.base.module_asset_context),
-                    *path,
+                    **path,
                     name.into(),
                     app_page.clone(),
                 );
@@ -213,7 +219,8 @@ impl AppPageLoaderTreeBuilder {
         let identifier = magic_identifier::mangle(&format!("{name} #{i}"));
         let inner_module_id = format!("METADATA_{i}");
         let helper_import: RcStr = "import { fillMetadataSegment } from \
-                                    \"next/dist/lib/metadata/get-metadata-route\""
+                                    'next/dist/lib/metadata/get-metadata-route' with { \
+                                    'turbopack-transition': 'next-server-utility' }"
             .into();
 
         if !self.base.imports.contains(&helper_import) {

@@ -3,7 +3,9 @@ use std::{fmt::Write, ops::Deref};
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ReadRef, ResolvedVc, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, Vc,
+};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 
 use super::issue::Issue;
@@ -12,7 +14,7 @@ use crate::issue::{IssueExt, IssueStage, OptionStyledString, StyledString};
 /// PackageJson wraps the parsed JSON content of a `package.json` file. The
 /// wrapper is necessary so that we can reference the [FileJsonContent]'s inner
 /// [serde_json::Value] without cloning it.
-#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs)]
+#[derive(PartialEq, Eq, ValueDebugFormat, TraceRawVcs, NonLocalValue)]
 pub struct PackageJson(ReadRef<FileJsonContent>);
 
 impl Deref for PackageJson {
@@ -48,7 +50,7 @@ pub async fn read_package_json(path: ResolvedVc<FileSystemPath>) -> Result<Vc<Op
                 error_message: message.into(),
                 path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             Ok(OptionPackageJson(None).cell())
         }

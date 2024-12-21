@@ -118,7 +118,8 @@ export function refreshReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head
+            head,
+            undefined
           )
           mutable.prefetchCache = new Map()
         }

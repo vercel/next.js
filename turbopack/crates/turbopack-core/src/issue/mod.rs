@@ -14,8 +14,8 @@ use auto_hash_map::AutoSet;
 use serde::Serialize;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, ReadRef, ResolvedVc, TransientInstance, TransientValue,
-    TryJoinIterExt, Upcast, ValueToString, Vc,
+    emit, CollectiblesSource, OperationVc, RawVc, ReadRef, ResolvedVc, TransientInstance,
+    TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -97,7 +97,7 @@ pub enum StyledString {
     Strong(RcStr),
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.
@@ -265,12 +265,15 @@ impl OptionIssueProcessingPathItems {
 }
 
 #[turbo_tasks::value]
-struct RootIssueProcessingPath(Vc<Box<dyn Issue>>);
+struct RootIssueProcessingPath(ResolvedVc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
 impl IssueProcessingPath for RootIssueProcessingPath {
     #[turbo_tasks::function]
-    fn shortest_path(&self, issue: Vc<Box<dyn Issue>>) -> Vc<OptionIssueProcessingPathItems> {
+    fn shortest_path(
+        &self,
+        issue: ResolvedVc<Box<dyn Issue>>,
+    ) -> Vc<OptionIssueProcessingPathItems> {
         if self.0 == issue {
             Vc::cell(Some(Vec::new()))
         } else {
@@ -341,15 +344,15 @@ pub trait IssueExt {
     fn emit(self);
 }
 
-impl<T> IssueExt for Vc<T>
+impl<T> IssueExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = Vc::upcast::<Box<dyn Issue>>(self);
+        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
         emit(issue);
-        emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-            RootIssueProcessingPath::cell(RootIssueProcessingPath(issue)),
+        emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+            RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),
         ))
     }
 }
@@ -911,8 +914,8 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
                                 file_path: match file_path.into() {
@@ -950,8 +953,8 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                         Some(IssueProcessingPathItem::resolved_cell(
                             IssueProcessingPathItem {
                                 file_path: match file_path.into() {
@@ -1033,18 +1036,19 @@ where
 }
 
 pub async fn handle_issues<T: Send>(
-    source: Vc<T>,
+    source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
     min_failing_severity: Vc<IssueSeverity>,
     path: Option<&str>,
     operation: Option<&str>,
 ) -> Result<()> {
-    let _ = source.resolve_strongly_consistent().await?;
-    let issues = source.peek_issues_with_path().await?;
+    let source_vc = source_op.connect();
+    let _ = source_vc.resolve_strongly_consistent().await?;
+    let issues = source_op.peek_issues_with_path().await?;
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues),
-        TransientValue::new(Vc::into_raw(source)),
+        TransientValue::new(Vc::into_raw(source_vc)),
         min_failing_severity,
     );
 

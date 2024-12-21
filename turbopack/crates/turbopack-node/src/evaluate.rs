@@ -84,12 +84,12 @@ struct EmittedEvaluatePoolAssets {
     entrypoint: ResolvedVc<FileSystemPath>,
 }
 
-#[turbo_tasks::function]
-async fn emit_evaluate_pool_assets(
+#[turbo_tasks::function(operation)]
+async fn emit_evaluate_pool_assets_operation(
     module_asset: ResolvedVc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let runtime_asset = asset_context
         .process(
@@ -174,18 +174,18 @@ async fn emit_evaluate_pool_assets(
 
 #[turbo_tasks::function]
 async fn emit_evaluate_pool_assets_with_effects(
-    module_asset: Vc<Box<dyn Module>>,
-    asset_context: Vc<Box<dyn AssetContext>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    runtime_entries: Option<Vc<EvaluatableAssets>>,
+    module_asset: ResolvedVc<Box<dyn Module>>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
-    let operation = emit_evaluate_pool_assets(
+    let operation = emit_evaluate_pool_assets_operation(
         module_asset,
         asset_context,
         chunking_context,
         runtime_entries,
     );
-    let result = operation.resolve_strongly_consistent().await?;
+    let result = operation.connect().resolve_strongly_consistent().await?;
     apply_effects(operation).await?;
     Ok(result)
 }
@@ -251,7 +251,7 @@ pub async fn get_evaluate_pool(
         env.iter().map(|(k, v)| (k.clone(), v.clone())).collect(),
         assets_for_source_mapping,
         output_root,
-        chunking_context.context_path().root().to_resolved().await?,
+        chunking_context.root_path().to_resolved().await?,
         available_parallelism().map_or(1, |v| v.get()),
         debug,
     );
@@ -612,14 +612,9 @@ impl EvaluateContext for BasicEvaluateContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self
-                .chunking_context
-                .context_path()
-                .root()
-                .to_resolved()
-                .await?,
+            root_path: self.chunking_context.root_path().to_resolved().await?,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         Ok(())
     }
@@ -668,7 +663,7 @@ pub struct EvaluationIssue {
     pub error: StructuredError,
     pub assets_for_source_mapping: ResolvedVc<AssetsForSourceMapping>,
     pub assets_root: ResolvedVc<FileSystemPath>,
-    pub project_dir: ResolvedVc<FileSystemPath>,
+    pub root_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -696,7 +691,7 @@ impl Issue for EvaluationIssue {
                     .print(
                         *self.assets_for_source_mapping,
                         *self.assets_root,
-                        *self.project_dir,
+                        *self.root_path,
                         FormattingMode::Plain,
                     )
                     .await?

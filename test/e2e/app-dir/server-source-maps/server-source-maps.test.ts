@@ -10,10 +10,11 @@ function normalizeCliOutput(output: string) {
 
 describe('app-dir - server source maps', () => {
   const dependencies =
-    // 'link:' is not suitable for this test since this makes internal-pkg
+    // 'link:' is not suitable for this test since this makes packages
     // not appear in node_modules.
     {
       'internal-pkg': `file:${path.resolve(__dirname, 'fixtures/default/internal-pkg')}`,
+      'external-pkg': `file:${path.resolve(__dirname, 'fixtures/default/external-pkg')}`,
     }
   const { skipped, next, isNextDev, isTurbopack } = nextTestSetup({
     dependencies,
@@ -36,10 +37,7 @@ describe('app-dir - server source maps', () => {
       expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
         '\nError: Boom' +
           '\n    at logError (app/rsc-error-log/page.js:4:16)' +
-          (isTurbopack
-            ? '\n    at Page (app/rsc-error-log/page.js:11:2)'
-            : // TODO(veil): Method name should be "Page"
-              '\n    at logError (app/rsc-error-log/page.js:11:2)') +
+          '\n    at Page (app/rsc-error-log/page.js:11:2)' +
           '\n  2 |' +
           '\n  3 | function logError() {' +
           "\n> 4 |   const error = new Error('Boom')" +
@@ -67,8 +65,7 @@ describe('app-dir - server source maps', () => {
           '\n    at logError (app/rsc-error-log-cause/page.js:4:16)' +
           (isTurbopack
             ? '\n    at Page (app/rsc-error-log-cause/page.js:12:2)'
-            : // FIXME: Method name should be "Page"
-              '\n    at logError (app/rsc-error-log-cause/page.js:12:2)') +
+            : '\n    at Page (app/rsc-error-log-cause/page.js:12:2)') +
           '\n  2 |' +
           '\n  3 | function logError(cause) {' +
           "\n> 4 |   const error = new Error('Boom', { cause })" +
@@ -109,11 +106,14 @@ describe('app-dir - server source maps', () => {
             ? // TODO(veil): Turbopack resolver bug
               "Module not found: Can't resolve 'internal-pkg'"
             : '\nError: Boom' +
-                '\n    at logError (app/ssr-error-log-ignore-listed/page.js:5:16)' +
-                // TODO(veil): Method name should be "Page"
-                '\n    at logError (app/ssr-error-log-ignore-listed/page.js:10:12)' +
-                '\n    at Page (app/ssr-error-log-ignore-listed/page.js:10:6)' +
-                '\n  3 |'
+                '\n    at logError (app/ssr-error-log-ignore-listed/page.js:8:16)' +
+                '\n    at runWithExternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:17:10)' +
+                '\n    at runWithExternal (app/ssr-error-log-ignore-listed/page.js:16:32)' +
+                '\n    at runWithInternalSourceMapped (app/ssr-error-log-ignore-listed/page.js:15:18)' +
+                '\n    at runWithInternal (app/ssr-error-log-ignore-listed/page.js:14:28)' +
+                '\n    at Page (app/ssr-error-log-ignore-listed/page.js:13:14)' +
+                '\n   6 |' +
+                '\n'
         )
       } else {
         // TODO: Test `next build` with `--enable-source-maps`.
@@ -140,11 +140,14 @@ describe('app-dir - server source maps', () => {
             ? // TODO(veil): Turbopack resolver bug
               "Module not found: Can't resolve 'internal-pkg'"
             : '\nError: Boom' +
-                '\n    at logError (app/rsc-error-log-ignore-listed/page.js:5:16)' +
-                // TODO(veil): Method name should be "Page"
-                '\n    at logError (app/rsc-error-log-ignore-listed/page.js:12:12)' +
-                '\n    at Page (app/rsc-error-log-ignore-listed/page.js:12:6)' +
-                '\n  3 |'
+                '\n    at logError (app/rsc-error-log-ignore-listed/page.js:8:16)' +
+                '\n    at runWithExternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:19:10)' +
+                '\n    at runWithExternal (app/rsc-error-log-ignore-listed/page.js:18:32)' +
+                '\n    at runWithInternalSourceMapped (app/rsc-error-log-ignore-listed/page.js:17:18)' +
+                '\n    at runWithInternal (app/rsc-error-log-ignore-listed/page.js:16:28)' +
+                '\n    at Page (app/rsc-error-log-ignore-listed/page.js:15:14)' +
+                '\n   6 |' +
+                '\n'
         )
       } else {
         // TODO: Test `next build` with `--enable-source-maps`.
@@ -163,30 +166,17 @@ describe('app-dir - server source maps', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
       expect(cliOutput).toContain(
-        isTurbopack
-          ? '\n ⨯ Error: Boom' +
-              '\n    at throwError (app/ssr-throw/Thrower.js:4:8)' +
-              '\n    at Thrower (app/ssr-throw/Thrower.js:8:2)' +
-              '\n  2 |' +
-              '\n  3 | function throwError() {' +
-              "\n> 4 |   throw new Error('Boom')" +
-              '\n    |        ^' +
-              '\n  5 | }' +
-              '\n  6 |' +
-              '\n  7 | export function Thrower() { {' +
-              "\n  digest: '"
-          : '\n ⨯ Error: Boom' +
-              '\n    at throwError (app/ssr-throw/Thrower.js:4:8)' +
-              // TODO(veil): Method name should be "Thrower"
-              '\n    at throwError (app/ssr-throw/Thrower.js:8:2)' +
-              '\n  2 |' +
-              '\n  3 | function throwError() {' +
-              "\n> 4 |   throw new Error('Boom')" +
-              '\n    |        ^' +
-              '\n  5 | }' +
-              '\n  6 |' +
-              '\n  7 | export function Thrower() { {' +
-              "\n  digest: '"
+        '\n ⨯ Error: Boom' +
+          '\n    at throwError (app/ssr-throw/Thrower.js:4:8)' +
+          '\n    at Thrower (app/ssr-throw/Thrower.js:8:2)' +
+          '\n  2 |' +
+          '\n  3 | function throwError() {' +
+          "\n> 4 |   throw new Error('Boom')" +
+          '\n    |        ^' +
+          '\n  5 | }' +
+          '\n  6 |' +
+          '\n  7 | export function Thrower() { {' +
+          "\n  digest: '"
       )
       expect(cliOutput).toMatch(/digest: '\d+'/)
     } else {

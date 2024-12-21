@@ -1,0 +1,10 @@
+{
+  "name": "monorepo-root",
+  "version": "0.0.0",
+  "private": true,
+  "scripts": {
+    "build": "pnpm i && pnpm run --dir apps/web build",
+    "start": "pnpm run --dir apps/web start",
+    "dev": "pnpm i && pnpm run --dir apps/web dev"
+  }
+}

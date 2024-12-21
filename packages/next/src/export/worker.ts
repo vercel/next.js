@@ -48,6 +48,8 @@ import {
 import { needsExperimentalReact } from '../lib/needs-experimental-react'
 import type { AppRouteRouteModule } from '../server/route-modules/app-route/module.compiled'
 import { isStaticGenBailoutError } from '../client/components/static-generation-bailout'
+import type { PagesRenderContext, PagesSharedContext } from '../server/render'
+import type { AppSharedContext } from '../server/app-render/app-render'
 
 const envConfig = require('../shared/lib/runtime-config.external')
 
@@ -81,6 +83,7 @@ async function exportPageImpl(
     enableExperimentalReact,
     ampValidatorPath,
     trailingSlash,
+    sriEnabled,
   } = input
 
   if (enableExperimentalReact) {
@@ -123,11 +126,8 @@ async function exportPageImpl(
   const ampPath = `${filePath}.amp`
   let renderAmpPath = ampPath
 
-  let updatedPath = query.__nextSsgPath || path
-  delete query.__nextSsgPath
-
-  let locale = query.__nextLocale || input.renderOpts.locale
-  delete query.__nextLocale
+  let updatedPath = pathMap._ssgPath || path
+  let locale = pathMap._locale || input.renderOpts.locale
 
   if (input.renderOpts.locale) {
     const localePathResult = normalizeLocalePath(path, input.renderOpts.locales)
@@ -233,6 +233,8 @@ async function exportPageImpl(
     distDir,
     page,
     isAppPath: isAppDir,
+    isDev: false,
+    sriEnabled,
   })
 
   // Handle App Routes.
@@ -248,7 +250,7 @@ async function exportPageImpl(
       htmlFilepath,
       fileWriter,
       input.renderOpts.experimental,
-      input.renderOpts.buildId
+      input.buildId
     )
   }
 
@@ -273,6 +275,10 @@ async function exportPageImpl(
 
   // Handle App Pages
   if (isAppDir) {
+    const sharedContext: AppSharedContext = {
+      buildId: input.buildId,
+    }
+
     // If this is a prospective render, don't return any metrics or revalidate
     // timings as we aren't persisting this render (it was only to error).
     if (isProspectiveRender) {
@@ -283,7 +289,8 @@ async function exportPageImpl(
         pathname,
         query,
         fallbackRouteParams,
-        renderOpts
+        renderOpts,
+        sharedContext
       )
     }
 
@@ -299,8 +306,21 @@ async function exportPageImpl(
       htmlFilepath,
       debugOutput,
       isDynamicError,
-      fileWriter
+      fileWriter,
+      sharedContext
     )
+  }
+
+  const sharedContext: PagesSharedContext = {
+    buildId: input.buildId,
+    deploymentId: input.renderOpts.deploymentId,
+    customServer: undefined,
+  }
+
+  const renderContext: PagesRenderContext = {
+    isFallback: pathMap._pagesFallback ?? false,
+    isDraftMode: false,
+    developmentNotFoundSourcePage: undefined,
   }
 
   return exportPagesPage(
@@ -319,6 +339,8 @@ async function exportPageImpl(
     pagesDataDir,
     buildExport,
     isDynamic,
+    sharedContext,
+    renderContext,
     hasOrigQueryValues,
     renderOpts,
     components,
@@ -395,6 +417,8 @@ export async function exportPages(
             httpAgentOptions: nextConfig.httpAgentOptions,
             debugOutput: options.debugOutput,
             enableExperimentalReact: needsExperimentalReact(nextConfig),
+            sriEnabled: Boolean(nextConfig.experimental.sri?.algorithm),
+            buildId: input.buildId,
           }),
           // If exporting the page takes longer than the timeout, reject the promise.
           new Promise((_, reject) => {

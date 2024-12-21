@@ -47,7 +47,7 @@ Read more: https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpac
         )
         .resolved_cell(),
     }
-    .cell()
+    .resolved_cell()
     .emit();
 
     Ok(())

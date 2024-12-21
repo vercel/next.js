@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde_json::Value as JsonValue;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::DirectoryContent;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -59,13 +59,20 @@ impl Module for TsConfigModuleAsset {
             ))),
         )
         .await?;
-        for (_, config_asset) in configs[1..].iter() {
-            references.push(ResolvedVc::upcast(
-                TsExtendsReference::new(**config_asset)
-                    .to_resolved()
-                    .await?,
-            ));
-        }
+        references.extend(
+            configs[1..]
+                .iter()
+                .map(|(_, config_asset)| async move {
+                    Ok(ResolvedVc::upcast(
+                        TsExtendsReference::new(**config_asset)
+                            .to_resolved()
+                            .await?,
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
+
         // ts-node options
         {
             let compiler = read_from_tsconfigs(&configs, |json, source| {

@@ -1949,7 +1949,7 @@ impl JsValue {
                             if var_graph
                                 .free_var_ids
                                 .get(&first_str.into())
-                                .map_or(false, |id| var_graph.values.contains_key(id))
+                                .is_some_and(|id| var_graph.values.contains_key(id))
                             {
                                 // `typeof foo...` but `foo` was reassigned
                                 return None;

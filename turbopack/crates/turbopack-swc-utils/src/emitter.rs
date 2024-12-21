@@ -1,5 +1,7 @@
-use std::sync::Arc;
+use std::{mem::take, sync::Arc};
 
+use anyhow::Result;
+use parking_lot::Mutex;
 use swc_core::common::{
     errors::{DiagnosticBuilder, DiagnosticId, Emitter, Level},
     source_map::SmallPos,
@@ -12,12 +14,54 @@ use turbopack_core::{
     source::Source,
 };
 
-#[derive(Clone)]
+pub struct IssueCollector {
+    inner: Arc<Mutex<IssueCollectorInner>>,
+}
+
+impl IssueCollector {
+    pub async fn emit(self) -> Result<()> {
+        let issues = {
+            let mut inner = self.inner.lock();
+            if inner.emitted {
+                return Ok(());
+            }
+            inner.emitted = true;
+            take(&mut inner.emitted_issues)
+        };
+
+        for issue in issues {
+            issue.to_resolved().await?.emit();
+        }
+        Ok(())
+    }
+
+    pub fn last_emitted_issue(&self) -> Option<Vc<AnalyzeIssue>> {
+        let inner = self.inner.lock();
+        inner.emitted_issues.last().copied()
+    }
+}
+
+struct IssueCollectorInner {
+    emitted_issues: Vec<Vc<AnalyzeIssue>>,
+    emitted: bool,
+}
+
+impl Drop for IssueCollectorInner {
+    fn drop(&mut self) {
+        if !self.emitted {
+            panic!(
+                "IssueCollector and IssueEmitter were dropped without calling \
+                 `collector.emit().await?`"
+            );
+        }
+    }
+}
+
 pub struct IssueEmitter {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub source_map: Arc<SourceMap>,
     pub title: Option<RcStr>,
-    pub emitted_issues: Vec<Vc<AnalyzeIssue>>,
+    inner: Arc<Mutex<IssueCollectorInner>>,
 }
 
 impl IssueEmitter {
@@ -25,13 +69,20 @@ impl IssueEmitter {
         source: ResolvedVc<Box<dyn Source>>,
         source_map: Arc<SourceMap>,
         title: Option<RcStr>,
-    ) -> Self {
-        Self {
-            source,
-            source_map,
-            title,
+    ) -> (Self, IssueCollector) {
+        let inner = Arc::new(Mutex::new(IssueCollectorInner {
             emitted_issues: vec![],
-        }
+            emitted: false,
+        }));
+        (
+            Self {
+                source,
+                source_map,
+                title,
+                inner: inner.clone(),
+            },
+            IssueCollector { inner },
+        )
     }
 }
 
@@ -51,7 +102,7 @@ impl Emitter for IssueEmitter {
         let is_lint = db
             .code
             .as_ref()
-            .map_or(false, |d| matches!(d, DiagnosticId::Lint(_)));
+            .is_some_and(|d| matches!(d, DiagnosticId::Lint(_)));
 
         let severity = (if is_lint {
             IssueSeverity::Suggestion
@@ -92,8 +143,8 @@ impl Emitter for IssueEmitter {
             source,
         );
 
-        self.emitted_issues.push(issue);
-
-        issue.emit();
+        let mut inner = self.inner.lock();
+        inner.emitted = false;
+        inner.emitted_issues.push(issue);
     }
 }

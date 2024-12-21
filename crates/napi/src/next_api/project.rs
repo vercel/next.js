@@ -22,13 +22,14 @@ use once_cell::sync::Lazy;
 use rand::Rng;
 use tokio::{io::AsyncWriteExt, time::Instant};
 use tracing::Instrument;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter, Registry};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     get_effects, Completion, Effects, ReadRef, ResolvedVc, TransientInstance, UpdateInfo, Vc,
 };
 use turbo_tasks_fs::{
-    util::uri_from_file, DiskFileSystem, FileContent, FileSystem, FileSystemPath,
+    get_relative_path_to, util::uri_from_file, DiskFileSystem, FileContent, FileSystem,
+    FileSystemPath,
 };
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
@@ -41,6 +42,7 @@ use turbopack_core::{
 use turbopack_ecmascript_hmr_protocol::{ClientUpdateInstruction, ResourceIdentifier};
 use turbopack_trace_utils::{
     exit::{ExitHandler, ExitReceiver},
+    filter_layer::FilterLayer,
     raw_trace::RawTraceLayer,
     trace_writer::TraceWriter,
 };
@@ -297,7 +299,7 @@ pub async fn project_new(
     let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(mut trace) = trace {
+    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -317,7 +319,7 @@ pub async fn project_new(
 
         let subscriber = Registry::default();
 
-        let subscriber = subscriber.with(EnvFilter::builder().parse(trace).unwrap());
+        let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
 
         let internal_dir = PathBuf::from(&options.project_path).join(dist_dir);
@@ -620,7 +622,7 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", local)]
 struct EntrypointsWithIssues {
     entrypoints: ReadRef<Entrypoints>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
@@ -1014,6 +1016,7 @@ pub fn project_update_info_subscribe(
 pub struct StackFrame {
     pub is_server: bool,
     pub is_internal: Option<bool>,
+    pub original_file: Option<String>,
     pub file: String,
     // 1-indexed, unlike source map tokens
     pub line: Option<u32>,
@@ -1083,6 +1086,7 @@ pub async fn get_source_map(
 pub async fn project_trace_source(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
     frame: StackFrame,
+    current_directory_file_url: String,
 ) -> napi::Result<Option<StackFrame>> {
     let turbo_tasks = project.turbo_tasks.clone();
     let container = project.container;
@@ -1119,27 +1123,50 @@ pub async fn project_trace_source(
                 }
             };
 
-            let project_path_uri =
-                uri_from_file(project.container.project().project_path(), None).await? + "/";
-            let (source_file, is_internal) =
-                if let Some(source_file) = original_file.strip_prefix(&project_path_uri) {
-                    // Client code uses file://
-                    (source_file, false)
-                } else if let Some(source_file) =
-                    original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
-                {
-                    // Server code uses turbopack://[project]
-                    // TODO should this also be file://?
-                    (source_file, false)
-                } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
-                    // All other code like turbopack://[turbopack] is internal code
-                    (source_file, true)
-                } else {
-                    bail!("Original file ({}) outside project", original_file)
-                };
+            let project_root_uri =
+                uri_from_file(project.container.project().project_root_path(), None).await? + "/";
+            let (file, original_file, is_internal) = if let Some(source_file) =
+                original_file.strip_prefix(&project_root_uri)
+            {
+                // Client code uses file://
+                (
+                    get_relative_path_to(&current_directory_file_url, &original_file)
+                        // TODO(sokra) remove this to include a ./ here to make it a relative path
+                        .trim_start_matches("./")
+                        .to_string(),
+                    Some(source_file.to_string()),
+                    false,
+                )
+            } else if let Some(source_file) =
+                original_file.strip_prefix(&*SOURCE_MAP_PREFIX_PROJECT)
+            {
+                // Server code uses turbopack://[project]
+                // TODO should this also be file://?
+                (
+                    get_relative_path_to(
+                        &current_directory_file_url,
+                        &format!("{}{}", project_root_uri, source_file),
+                    )
+                    // TODO(sokra) remove this to include a ./ here to make it a relative path
+                    .trim_start_matches("./")
+                    .to_string(),
+                    Some(source_file.to_string()),
+                    false,
+                )
+            } else if let Some(source_file) = original_file.strip_prefix(SOURCE_MAP_PREFIX) {
+                // All other code like turbopack://[turbopack] is internal code
+                (source_file.to_string(), None, true)
+            } else {
+                bail!(
+                    "Original file ({}) outside project ({})",
+                    original_file,
+                    project_root_uri
+                )
+            };
 
             Ok(Some(StackFrame {
-                file: source_file.to_string(),
+                file,
+                original_file,
                 method_name: name.as_ref().map(ToString::to_string),
                 line,
                 column,

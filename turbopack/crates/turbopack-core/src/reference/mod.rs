@@ -4,7 +4,7 @@ use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -267,6 +267,45 @@ pub async fn primary_referenced_modules(module: Vc<Box<dyn Module>>) -> Result<V
         .flatten()
         .filter(|&module| set.insert(module))
         .collect();
+    Ok(Vc::cell(modules))
+}
+
+type ModulesVec = Vec<ResolvedVc<Box<dyn Module>>>;
+#[turbo_tasks::value(transparent)]
+pub struct ModulesWithChunkingType(Vec<(ChunkingType, ModulesVec)>);
+
+/// Aggregates all primary [Module]s referenced by an [Module] via [ChunkableModuleReference]s.
+/// This does not include transitively references [Module]s, only includes
+/// primary [Module]s referenced.
+///
+/// [Module]: crate::module::Module
+#[turbo_tasks::function]
+pub async fn primary_chunkable_referenced_modules(
+    module: Vc<Box<dyn Module>>,
+) -> Result<Vc<ModulesWithChunkingType>> {
+    let modules = module
+        .references()
+        .await?
+        .iter()
+        .map(|reference| async {
+            if let Some(reference) =
+                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference).await?
+            {
+                if let Some(chunking_type) = &*reference.chunking_type().await? {
+                    let resolved = reference
+                        .resolve_reference()
+                        .resolve()
+                        .await?
+                        .primary_modules()
+                        .await?
+                        .clone_value();
+                    return Ok(Some((chunking_type.clone(), resolved)));
+                }
+            }
+            Ok(None)
+        })
+        .try_flat_join()
+        .await?;
     Ok(Vc::cell(modules))
 }
 
