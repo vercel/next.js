@@ -147,7 +147,7 @@ jobs:
         group: [1, 2, 3, 4, 5]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 16
+      nodeVersion: 18
       skipForDocsOnly: 'yes'
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-tests-manifest.json" TURBOPACK=1 node run-tests.js --timings -g ${{ matrix.group }}/5 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
@@ -212,7 +212,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 16
+      nodeVersion: 18
       skipForDocsOnly: 'yes'
       afterBuild: node run-tests.js --timings -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
     secrets: inherit
