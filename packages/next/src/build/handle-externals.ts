@@ -62,7 +62,6 @@ export async function resolveExternal(
   baseEsmResolveOptions: any = NODE_BASE_ESM_RESOLVE_OPTIONS,
   baseResolveOptions: any = NODE_BASE_RESOLVE_OPTIONS
 ) {
-  const isRspack = Boolean(process.env.NEXT_RSPACK)
   const esmExternals = !!esmExternalsConfig
   const looseEsmExternals = esmExternalsConfig === 'loose'
 
@@ -74,17 +73,7 @@ export async function resolveExternal(
 
   for (const preferEsm of preferEsmOptions) {
     const resolveOptions = preferEsm ? esmResolveOptions : nodeResolveOptions
-
-    let resolve: ReturnType<typeof getResolve>
-
-    // RSPack doesn't support getResolve yet
-    if (isRspack) {
-      // eslint-disable-next-line
-      const { ResolverFactory } = require('enhanced-resolve')
-      resolve = ResolverFactory.createResolver(resolveOptions)
-    } else {
-      resolve = getResolve(resolveOptions)
-    }
+    const resolve = getResolve(resolveOptions)
 
     // Resolve the import with the webpack provided context, this
     // ensures we're resolving the correct version when multiple
