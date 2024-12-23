@@ -718,6 +718,7 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   is404: boolean
 ): Promise<InitialRSCPayload & { P: React.ReactNode }> {
+  console.log('getRSCPayload')
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -794,13 +795,13 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHeadMetadata = null
-  //  (
-  //   <React.Fragment key={flightDataPathMetadataKey}>
-  //     {/* Adding requestId as react key to make metadata remount for each render */}
-  //     <MetadataTree key={ctx.requestId} />
-  //   </React.Fragment>
-  // )
+  const initialHeadMetadata = 
+   (
+    <React.Fragment key={flightDataPathMetadataKey}>
+      {/* Adding requestId as react key to make metadata remount for each render */}
+      <MetadataTree key={ctx.requestId} />
+    </React.Fragment>
+  )
 
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
@@ -860,6 +861,7 @@ async function getErrorRSCPayload(
   ctx: AppRenderContext,
   errorType: MetadataErrorType | 'redirect' | undefined
 ) {
+  console.log('getErrorRSCPayload')
   const {
     getDynamicParamFromSegment,
     query,
@@ -900,6 +902,7 @@ async function getErrorRSCPayload(
   //     <MetadataTree key={requestId} />
   //   </React.Fragment>
   // )
+  
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
       <NonIndex ctx={ctx} />
@@ -923,10 +926,6 @@ async function getErrorRSCPayload(
     initialTree[0],
     <html id="__next_error__">
       <head>
-        <React.Fragment key={flightDataPathMetadataKey}>
-          {/* Adding requestId as react key to make metadata remount for each render */}
-          <MetadataTree key={requestId} />
-        </React.Fragment>
       </head>
       <body />
     </html>,

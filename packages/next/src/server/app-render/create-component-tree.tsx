@@ -603,6 +603,7 @@ async function createComponentTreeInternal({
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
+  const metadata = <MetadataTree />
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -661,7 +662,7 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        <MetadataTree />
+        {metadata}
         {pageElement}
         {layerAssets}
         <OutletBoundary>
