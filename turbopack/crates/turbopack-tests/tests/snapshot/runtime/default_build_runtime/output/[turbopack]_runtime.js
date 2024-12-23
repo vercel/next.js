@@ -1,5 +1,5 @@
 const RUNTIME_PUBLIC_PATH = "output/[turbopack]_runtime.js";
-const OUTPUT_ROOT = "turbopack/crates/turbopack-tests/tests/snapshot/runtime/default_build_runtime";
+const RELATIVE_ROOT_PATH = "../../../../../../..";
 const ASSET_PREFIX = "/";
 /**
  * This file contains runtime types and functions that are shared between all
@@ -378,7 +378,7 @@ externalRequire.resolve = (id, options)=>{
 /* eslint-disable @typescript-eslint/no-unused-vars */ const path = require("path");
 const relativePathToRuntimeRoot = path.relative(RUNTIME_PUBLIC_PATH, ".");
 // Compute the relative path to the `distDir`.
-const relativePathToDistRoot = path.relative(path.join(OUTPUT_ROOT, RUNTIME_PUBLIC_PATH), ".");
+const relativePathToDistRoot = path.join(relativePathToRuntimeRoot, RELATIVE_ROOT_PATH);
 const RUNTIME_ROOT = path.resolve(__filename, relativePathToRuntimeRoot);
 // Compute the absolute path to the root, by stripping distDir from the absolute path to this file.
 const ABSOLUTE_ROOT = path.resolve(__filename, relativePathToDistRoot);
@@ -454,8 +454,8 @@ const moduleCache = Object.create(null);
             return exported;
         }
         const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
-        const resolved = path.resolve(ABSOLUTE_ROOT, OUTPUT_ROOT, strippedAssetPrefix);
-        return url.pathToFileURL(resolved);
+        const resolved = path.resolve(RUNTIME_ROOT, strippedAssetPrefix);
+        return url.pathToFileURL(resolved).href;
     };
 }
 function loadChunk(chunkData, source) {

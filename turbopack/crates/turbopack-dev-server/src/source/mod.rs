@@ -19,8 +19,8 @@ use futures::{stream::Stream as StreamTrait, TryStreamExt};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, ResolvedVc, Upcast, Value,
-    ValueDefault, Vc,
+    trace::TraceRawVcs, util::SharedError, Completion, NonLocalValue, OperationVc, ResolvedVc,
+    Upcast, Value, ValueDefault, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream, StreamRead};
 use turbo_tasks_fs::FileSystemPath;
@@ -33,13 +33,14 @@ use self::{
 };
 
 /// The result of proxying a request to another HTTP server.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 pub struct ProxyResult {
     /// The HTTP status code to return.
     pub status: u16,
     /// Headers arranged as contiguous (name, value) pairs.
     pub headers: Vec<(RcStr, RcStr)>,
     /// The body to return.
+    #[turbo_tasks(trace_ignore)]
     pub body: Body,
 }
 
@@ -91,7 +92,7 @@ pub struct StaticContent {
 pub enum ContentSourceContent {
     NotFound,
     Static(ResolvedVc<StaticContent>),
-    HttpProxy(ResolvedVc<ProxyResult>),
+    HttpProxy(OperationVc<ProxyResult>),
     Rewrite(ResolvedVc<Rewrite>),
     /// Continue with the next route
     Next,
@@ -408,7 +409,7 @@ impl ContentSourceDataVary {
 }
 
 /// A source of content that the dev server uses to respond to http requests.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ContentSource {
     fn get_routes(self: Vc<Self>) -> Vc<RouteTree>;
 

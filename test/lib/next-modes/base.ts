@@ -64,6 +64,7 @@ export class NextInstance {
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
+  tmpRepoDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
   protected childProcess?: ChildProcess
@@ -220,16 +221,17 @@ export class NextInstance {
               recursive: true,
             })
           } else {
-            const { installDir } = await createNextInstall({
+            const { installDir, tmpRepoDir } = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
-              keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+              keepRepoDir: true,
             })
             this.testDir = installDir
+            this.tmpRepoDir = tmpRepoDir
           }
           require('console').log('created next.js install, writing test files')
         }
@@ -463,6 +465,9 @@ export class NextInstance {
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
         // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
+        if (this.tmpRepoDir) {
+          rmSync(this.tmpRepoDir, { recursive: true, force: true })
+        }
       }
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {

@@ -23,20 +23,20 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
-export type I18NDomains = DomainLocale[]
+export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
   defaultLocale: string
   domains?: I18NDomains
   localeDetection?: false
-  locales: string[]
+  locales: readonly string[]
 }
 
 export interface DomainLocale {
   defaultLocale: string
   domain: string
   http?: true
-  locales?: string[]
+  locales?: readonly string[]
 }
 
 export interface ESLintConfig {
@@ -562,12 +562,39 @@ export interface ExperimentalConfig {
    * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
    */
   authInterrupts?: boolean
+
+  /**
+   * Enables the new dev overlay.
+   */
+  newDevOverlay?: boolean
 }
 
 export type ExportPathMap = {
   [path: string]: {
     page: string
     query?: NextParsedUrlQuery
+
+    /**
+     * When true, this indicates that this is a pages router page that should
+     * be rendered as a fallback.
+     *
+     * @internal
+     */
+    _pagesFallback?: boolean
+
+    /**
+     * The locale that this page should be rendered in.
+     *
+     * @internal
+     */
+    _locale?: string
+
+    /**
+     * The path that was used to generate the page.
+     *
+     * @internal
+     */
+    _ssgPath?: string
 
     /**
      * The parameters that are currently unknown.
@@ -1163,6 +1190,7 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
+    newDevOverlay: false,
   },
   bundlePagesRouterDependencies: false,
 }

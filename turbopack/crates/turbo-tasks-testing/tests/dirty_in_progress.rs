@@ -47,7 +47,7 @@ async fn dirty_in_progress() {
     .unwrap()
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
 }

@@ -58,7 +58,7 @@ async fn recompute() {
     .unwrap()
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 struct ChangingInput {
     state: State<u32>,
 }
