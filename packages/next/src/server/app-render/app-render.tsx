@@ -490,7 +490,7 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
-        MetadataTree: () => {
+        MetadataComponent: () => {
           return (
             <React.Fragment key={flightDataPathMetadataKey}>
               {/* Adding requestId as react key to make metadata remount for each render */}
@@ -718,7 +718,6 @@ async function getRSCPayload(
   ctx: AppRenderContext,
   is404: boolean
 ): Promise<InitialRSCPayload & { P: React.ReactNode }> {
-  console.log('getRSCPayload')
   const injectedCSS = new Set<string>()
   const injectedJS = new Set<string>()
   const injectedFontPreloadTags = new Set<string>()
@@ -785,7 +784,7 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    MetadataTree,
+    MetadataComponent: MetadataTree,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -795,13 +794,13 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHeadMetadata = 
-   (
-    <React.Fragment key={flightDataPathMetadataKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={ctx.requestId} />
-    </React.Fragment>
-  )
+  const initialHeadMetadata = null
+  //  (
+  //   <React.Fragment key={flightDataPathMetadataKey}>
+  //     {/* Adding requestId as react key to make metadata remount for each render */}
+  //     <MetadataTree key={ctx.requestId} />
+  //   </React.Fragment>
+  // )
 
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
@@ -950,7 +949,7 @@ async function getErrorRSCPayload(
       [
         initialTree,
         initialSeedData,
-        [initialHeadViewport, initialHeadMetadata],
+        [initialHeadViewport, null],
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],

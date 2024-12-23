@@ -35,7 +35,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  MetadataTree: React.ComponentType<{}>
+  MetadataComponent: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -71,7 +71,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
-  MetadataTree,
+  MetadataComponent,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -85,7 +85,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  MetadataTree: React.ComponentType<{}>
+  MetadataComponent: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -508,7 +508,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            MetadataTree,
+            MetadataComponent: MetadataComponent,
           })
 
           childCacheNodeSeedData = seedData
@@ -603,7 +603,7 @@ async function createComponentTreeInternal({
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
-  const metadata = <MetadataTree />
+  const metadata = <MetadataComponent />
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -662,7 +662,7 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        {metadata}
+        {/* {metadata} */}
         {pageElement}
         {layerAssets}
         <OutletBoundary>
