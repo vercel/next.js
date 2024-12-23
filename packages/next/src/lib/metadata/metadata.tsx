@@ -195,7 +195,86 @@ async function getResolvedMetadataImpl(
   errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
+  return renderMetadata(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    metadataContext,
+    createServerParamsForMetadata,
+    workStore,
+    errorConvention
+  )
+}
 
+const getNotFoundMetadata = cache(getNotFoundMetadataImpl)
+async function getNotFoundMetadataImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore
+): Promise<React.ReactNode> {
+  const notFoundErrorConvention = 'not-found'
+  return renderMetadata(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    metadataContext,
+    createServerParamsForMetadata,
+    workStore,
+    notFoundErrorConvention
+  )
+}
+
+const getResolvedViewport = cache(getResolvedViewportImpl)
+async function getResolvedViewportImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorType?: MetadataErrorType | 'redirect'
+): Promise<React.ReactNode> {
+  const errorConvention = errorType === 'redirect' ? undefined : errorType
+  return renderViewport(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore,
+    errorConvention
+  )
+}
+
+const getNotFoundViewport = cache(getNotFoundViewportImpl)
+async function getNotFoundViewportImpl(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore
+): Promise<React.ReactNode> {
+  const notFoundErrorConvention = 'not-found'
+  return renderViewport(
+    tree,
+    searchParams,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore,
+    notFoundErrorConvention
+  )
+}
+
+async function renderMetadata(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorConvention?: MetadataErrorType
+) {
   const resolvedMetadata = await resolveMetadata(
     tree,
     searchParams,
@@ -216,80 +295,18 @@ async function getResolvedMetadataImpl(
   )
 }
 
-const getNotFoundMetadata = cache(getNotFoundMetadataImpl)
-async function getNotFoundMetadataImpl(
-  tree: LoaderTree,
-  searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  metadataContext: MetadataContext,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
-  workStore: WorkStore
-): Promise<React.ReactNode> {
-  const notFoundErrorConvention = 'not-found'
-  const notFoundResolvedMetadata = await resolveMetadata(
-    tree,
-    searchParams,
-    notFoundErrorConvention,
-    getDynamicParamFromSegment,
-    createServerParamsForMetadata,
-    workStore,
-    metadataContext
-  )
-
-  const elements: Array<React.ReactNode> = createMetadataElements(
-    notFoundResolvedMetadata
-  )
-  return (
-    <>
-      {elements.map((el, index) => {
-        return cloneElement(el as React.ReactElement, { key: index })
-      })}
-    </>
-  )
-}
-
-const getResolvedViewport = cache(getResolvedViewportImpl)
-async function getResolvedViewportImpl(
+async function renderViewport(
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: MetadataErrorType | 'redirect'
-): Promise<React.ReactNode> {
-  const errorConvention = errorType === 'redirect' ? undefined : errorType
-  const resolvedViewport = await resolveViewport(
-    tree,
-    searchParams,
-    errorConvention,
-    getDynamicParamFromSegment,
-    createServerParamsForMetadata,
-    workStore
-  )
-  const elements: Array<React.ReactNode> =
-    createViewportElements(resolvedViewport)
-  return (
-    <>
-      {elements.map((el, index) => {
-        return cloneElement(el as React.ReactElement, { key: index })
-      })}
-    </>
-  )
-}
-
-const getNotFoundViewport = cache(getNotFoundViewportImpl)
-async function getNotFoundViewportImpl(
-  tree: LoaderTree,
-  searchParams: Promise<ParsedUrlQuery>,
-  getDynamicParamFromSegment: GetDynamicParamFromSegment,
-  createServerParamsForMetadata: CreateServerParamsForMetadata,
-  workStore: WorkStore
-): Promise<React.ReactNode> {
-  const notFoundErrorConvention = 'not-found'
+  errorConvention?: MetadataErrorType
+) {
   const notFoundResolvedViewport = await resolveViewport(
     tree,
     searchParams,
-    notFoundErrorConvention,
+    errorConvention,
     getDynamicParamFromSegment,
     createServerParamsForMetadata,
     workStore
