@@ -75,7 +75,7 @@ function defaultLoader({
   }
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || 75
+    quality || config.qualities?.at(-1) || 75 // TODO: is it safe to use .at()?
   }${
     src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
       ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
