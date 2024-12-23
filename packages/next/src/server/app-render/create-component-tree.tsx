@@ -18,6 +18,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -412,6 +413,10 @@ async function createComponentTreeInternal({
     workStore.rootParams = currentParams
   }
 
+  // Only render metadata on the actual SSR'd segment not the `default` segment,
+  // as it's used as a placeholder for navigation.
+  const metadata =
+    actualSegment !== DEFAULT_SEGMENT_KEY ? <MetadataComponent /> : undefined
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
@@ -423,17 +428,26 @@ async function createComponentTreeInternal({
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const notFoundComponent = isChildrenRouteKey
-          ? notFoundElement
-          : undefined
+        const notFoundComponent = isChildrenRouteKey ? (
+          <>
+            {metadata}
+            {notFoundElement}
+          </>
+        ) : undefined
 
-        const forbiddenComponent = isChildrenRouteKey
-          ? forbiddenElement
-          : undefined
+        const forbiddenComponent = isChildrenRouteKey ? (
+          <>
+            {metadata}
+            {forbiddenElement}
+          </>
+        ) : undefined
 
-        const unauthorizedComponent = isChildrenRouteKey
-          ? unauthorizedElement
-          : undefined
+        const unauthorizedComponent = isChildrenRouteKey ? (
+          <>
+            {metadata}
+            {unauthorizedElement}
+          </>
+        ) : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -508,7 +522,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            MetadataComponent: MetadataComponent,
+            MetadataComponent,
           })
 
           childCacheNodeSeedData = seedData
@@ -603,7 +617,6 @@ async function createComponentTreeInternal({
   }
 
   const isClientComponent = isClientReference(layoutOrPageMod)
-  const metadata = <MetadataComponent />
 
   if (
     process.env.NODE_ENV === 'development' &&
@@ -662,7 +675,7 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        {/* {metadata} */}
+        {metadata}
         {pageElement}
         {layerAssets}
         <OutletBoundary>
@@ -727,6 +740,7 @@ async function createComponentTreeInternal({
           layerAssets,
           SegmentComponent,
           currentParams,
+          metadata,
         })
         forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
           ErrorBoundaryComponent: Forbidden,
@@ -735,6 +749,7 @@ async function createComponentTreeInternal({
           layerAssets,
           SegmentComponent,
           currentParams,
+          metadata,
         })
         unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
           ErrorBoundaryComponent: Unauthorized,
@@ -743,6 +758,7 @@ async function createComponentTreeInternal({
           layerAssets,
           SegmentComponent,
           currentParams,
+          metadata,
         })
         if (
           notfoundClientSegment ||
@@ -763,6 +779,7 @@ async function createComponentTreeInternal({
         } else {
           segmentNode = (
             <React.Fragment key={cacheNodeKey}>
+              {metadata}
               {layerAssets}
               {clientSegment}
             </React.Fragment>
@@ -771,6 +788,7 @@ async function createComponentTreeInternal({
       } else {
         segmentNode = (
           <React.Fragment key={cacheNodeKey}>
+            {metadata}
             {layerAssets}
             {clientSegment}
           </React.Fragment>
@@ -798,6 +816,7 @@ async function createComponentTreeInternal({
             notFound={
               NotFound ? (
                 <>
+                  {metadata}
                   {layerAssets}
                   <SegmentComponent params={params}>
                     {notFoundStyles}
@@ -854,6 +873,7 @@ function createErrorBoundaryClientSegmentRoot({
   layerAssets,
   SegmentComponent,
   currentParams,
+  metadata,
 }: {
   ErrorBoundaryComponent: React.ComponentType<any> | undefined
   errorElement: React.ReactNode
@@ -861,10 +881,16 @@ function createErrorBoundaryClientSegmentRoot({
   layerAssets: React.ReactNode
   SegmentComponent: React.ComponentType<any>
   currentParams: Params
+  metadata: React.ReactNode
 }) {
   if (ErrorBoundaryComponent) {
     const notFoundParallelRouteProps = {
-      children: errorElement,
+      children: (
+        <>
+          {metadata}
+          {errorElement}
+        </>
+      ),
     }
     return (
       <>

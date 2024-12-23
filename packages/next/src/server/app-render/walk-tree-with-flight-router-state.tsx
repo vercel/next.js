@@ -204,7 +204,7 @@ export async function walkTreeWithFlightRouterState({
         getMetadataReady,
         preloadCallbacks,
         authInterrupts: experimental.authInterrupts,
-        MetadataComponent: MetadataComponent,
+        MetadataComponent,
       }
     )
 
@@ -264,7 +264,7 @@ export async function walkTreeWithFlightRouterState({
       getViewportReady,
       getMetadataReady,
       preloadCallbacks,
-      MetadataComponent: MetadataComponent,
+      MetadataComponent,
     })
 
     for (const subPath of subPaths) {
