@@ -918,7 +918,7 @@ export async function resolveMetadata(
     createServerParamsForMetadata,
     workStore
   )
-  return await accumulateMetadata(metadataItems, metadataContext)
+  return accumulateMetadata(metadataItems, metadataContext)
 }
 
 // Exposed API for viewport component, that directly resolve the loader tree and related context as resolved viewport.
@@ -938,5 +938,5 @@ export async function resolveViewport(
     createServerParamsForMetadata,
     workStore
   )
-  return await accumulateViewport(metadataItems)
+  return accumulateViewport(metadataItems)
 }
