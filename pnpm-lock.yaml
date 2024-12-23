@@ -1739,8 +1739,8 @@ importers:
         specifier: ^2.0.5
         version: 2.0.5
       playwright-chromium:
-        specifier: ^1.39.0
-        version: 1.41.2
+        specifier: 1.48.0
+        version: 1.48.0
       split2:
         specifier: ^4.2.0
         version: 4.2.0
@@ -12505,11 +12505,6 @@ packages:
 
   platform@1.3.6:
     resolution: {integrity: sha512-fnWVljUchTro6RiCFvCXBbNhJc2NijN7oIQxbwsyL0buWJPG85v81ehlHI9fXrJsMNgTofEoWIQeClKpgxFLrg==}
-
-  playwright-chromium@1.41.2:
-    resolution: {integrity: sha512-1XoW4aGGRbS2BJLldtLcv2QW3deMv8myE5iCtfGRPq99BWqmBLJvJTgY/SyfBCoklwQvl91zUWYWHjCAuvKGkw==}
-    engines: {node: '>=16'}
-    hasBin: true
 
   playwright-chromium@1.48.0:
     resolution: {integrity: sha512-jPFKhB4+zGEcAwc+h1mTLa8L08Rb+FwGKFqd/o7mWSGyxAtwBu5R4QxSG/a8KcHbewOj4DLBUVVK2N/uKrYmiQ==}
@@ -30146,10 +30141,6 @@ snapshots:
       find-up: 3.0.0
 
   platform@1.3.6: {}
-
-  playwright-chromium@1.41.2:
-    dependencies:
-      playwright-core: 1.41.2
 
   playwright-chromium@1.48.0:
     dependencies:
