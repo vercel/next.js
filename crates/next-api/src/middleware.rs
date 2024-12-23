@@ -269,15 +269,16 @@ impl MiddlewareEndpoint {
 #[turbo_tasks::value_impl]
 impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let span = tracing::info_span!("middleware endpoint");
         async move {
             let this = self.await?;
-            let output_assets = self.output_assets();
+            let output_assets_op = output_assets_operation(self);
+            let output_assets = output_assets_op.connect();
             let _ = output_assets.resolve().await?;
             let _ = this
                 .project
-                .emit_all_output_assets(Vc::cell(output_assets))
+                .emit_all_output_assets(output_assets_op)
                 .resolve()
                 .await?;
 
@@ -323,4 +324,9 @@ impl Endpoint for MiddlewareEndpoint {
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn output_assets_operation(endpoint: ResolvedVc<MiddlewareEndpoint>) -> Vc<OutputAssets> {
+    endpoint.output_assets()
 }

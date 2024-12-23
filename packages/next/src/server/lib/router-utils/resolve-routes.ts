@@ -194,9 +194,12 @@ export function getResolveRoutes(
       )
       defaultLocale = domainLocale?.defaultLocale || config.i18n.defaultLocale
 
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
-      parsedUrl.query.__nextLocale =
+      addRequestMeta(req, 'defaultLocale', defaultLocale)
+      addRequestMeta(
+        req,
+        'locale',
         initialLocaleResult.detectedLocale || defaultLocale
+      )
 
       // ensure locale is present for resolving routes
       if (
@@ -217,11 +220,6 @@ export function getResolveRoutes(
           parsedUrl.pathname = maybeAddTrailingSlash(parsedUrl.pathname)
         }
       }
-    } else {
-      // As i18n isn't configured we remove the locale related query params.
-      delete parsedUrl.query.__nextLocale
-      delete parsedUrl.query.__nextDefaultLocale
-      delete parsedUrl.query.__nextInferredLocaleFromDefault
     }
 
     const checkLocaleApi = (pathname: string) => {
@@ -290,7 +288,7 @@ export function getResolveRoutes(
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            parsedUrl.query.__nextDataReq = '1'
+            addRequestMeta(req, 'isNextDataReq', true)
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
@@ -389,7 +387,7 @@ export function getResolveRoutes(
             let updated = false
             if (normalizers.data.match(normalized)) {
               updated = true
-              parsedUrl.query.__nextDataReq = '1'
+              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
             }
 
@@ -400,7 +398,7 @@ export function getResolveRoutes(
               )
 
               if (curLocaleResult.detectedLocale) {
-                parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+                addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
               }
             }
 
@@ -443,7 +441,7 @@ export function getResolveRoutes(
               matchedOutput = output
 
               if (output.locale) {
-                parsedUrl.query.__nextLocale = output.locale
+                addRequestMeta(req, 'locale', output.locale)
               }
               return {
                 parsedUrl,
@@ -629,7 +627,7 @@ export function getResolveRoutes(
                 )
 
                 if (curLocaleResult.detectedLocale) {
-                  parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+                  addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
                 }
               }
             }
@@ -759,7 +757,7 @@ export function getResolveRoutes(
             )
 
             if (curLocaleResult.detectedLocale) {
-              parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
             }
           }
           didRewrite = true

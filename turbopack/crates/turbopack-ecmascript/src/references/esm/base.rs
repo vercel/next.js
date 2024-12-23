@@ -114,11 +114,11 @@ pub struct EsmAssetReference {
 
 impl EsmAssetReference {
     fn get_origin(&self) -> Vc<Box<dyn ResolveOrigin>> {
-        let mut origin = *self.origin;
         if let Some(transition) = self.annotations.transition() {
-            origin = self.origin.with_transition(transition.into());
+            self.origin.with_transition(transition.into())
+        } else {
+            *self.origin
         }
-        origin
     }
 }
 

@@ -164,7 +164,6 @@ export interface RenderOptsPartial {
   previewProps: __ApiPreviewProps | undefined
   err?: Error | null
   dev?: boolean
-  buildId: string
   basePath: string
   trailingSlash: boolean
   clientReferenceManifest?: DeepReadonly<ClientReferenceManifest>
