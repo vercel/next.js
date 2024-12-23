@@ -481,10 +481,7 @@ async function generateDynamicRSCPayload(
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
           </React.Fragment>,
-          <React.Fragment key={flightDataPathMetadataKey}>
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={requestId} />
-          </React.Fragment>,
+          null,
         ],
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -493,6 +490,14 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
+        MetadataTree: () => {
+          return (
+            <React.Fragment key={flightDataPathMetadataKey}>
+              {/* Adding requestId as react key to make metadata remount for each render */}
+              <MetadataTree key={requestId} />
+            </React.Fragment>
+          )
+        },
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -779,6 +784,7 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
+    MetadataTree,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -788,12 +794,13 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHeadMetadata = (
-    <React.Fragment key={flightDataPathMetadataKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={ctx.requestId} />
-    </React.Fragment>
-  )
+  const initialHeadMetadata = null
+  //  (
+  //   <React.Fragment key={flightDataPathMetadataKey}>
+  //     {/* Adding requestId as react key to make metadata remount for each render */}
+  //     <MetadataTree key={ctx.requestId} />
+  //   </React.Fragment>
+  // )
 
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
@@ -886,12 +893,13 @@ async function getErrorRSCPayload(
     ViewportBoundary,
   })
 
-  const initialHeadMetadata = (
-    <React.Fragment key={flightDataPathMetadataKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={requestId} />
-    </React.Fragment>
-  )
+  const initialHeadMetadata = null
+  // (
+  //   <React.Fragment key={flightDataPathMetadataKey}>
+  //     {/* Adding requestId as react key to make metadata remount for each render */}
+  //     <MetadataTree key={requestId} />
+  //   </React.Fragment>
+  // )
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
       <NonIndex ctx={ctx} />
@@ -914,8 +922,13 @@ async function getErrorRSCPayload(
   const initialSeedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head></head>
-      <body></body>
+      <head>
+        <React.Fragment key={flightDataPathMetadataKey}>
+          {/* Adding requestId as react key to make metadata remount for each render */}
+          <MetadataTree key={requestId} />
+        </React.Fragment>
+      </head>
+      <body />
     </html>,
     {},
     null,
