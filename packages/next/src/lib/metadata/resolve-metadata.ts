@@ -470,9 +470,7 @@ async function collectMetadata({
   }
 }
 
-const cachedResolveMetadataItems = cache(resolveMetadataItems)
-export { cachedResolveMetadataItems as resolveMetadataItems }
-async function resolveMetadataItems(
+const resolveMetadataItems = cache(async function (
   tree: LoaderTree,
   searchParams: Promise<ParsedUrlQuery>,
   errorConvention: MetadataErrorType | undefined,
@@ -496,7 +494,7 @@ async function resolveMetadataItems(
     createServerParamsForMetadata,
     workStore
   )
-}
+})
 
 async function resolveMetadataItemsImpl(
   metadataItems: MetadataItems,
