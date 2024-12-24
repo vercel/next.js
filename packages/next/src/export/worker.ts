@@ -257,6 +257,7 @@ async function exportPageImpl(
       distDir,
       page,
       isAppPath: isAppDir,
+      isDev: false,
     })
 
     const renderOpts: WorkerRenderOpts = {

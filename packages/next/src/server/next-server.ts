@@ -179,10 +179,13 @@ export default class NextNodeServer extends BaseServer {
     req: IncomingMessage,
     res: ServerResponse
   ) => void
+  private isDev: boolean
 
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    this.isDev = options.dev ?? false
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -220,11 +223,13 @@ export default class NextNodeServer extends BaseServer {
         distDir: this.distDir,
         page: '/_document',
         isAppPath: false,
+        isDev: this.isDev,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         page: '/_app',
         isAppPath: false,
+        isDev: this.isDev,
       }).catch(() => {})
     }
 
@@ -281,11 +286,17 @@ export default class NextNodeServer extends BaseServer {
         distDir: this.distDir,
         page,
         isAppPath: false,
+        isDev: this.isDev,
       }).catch(() => {})
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
-      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: true,
+        isDev: this.isDev,
+      })
         .then(async ({ ComponentMod }) => {
           const webpackRequire = ComponentMod.__next_app__.require
           if (webpackRequire?.m) {
@@ -758,6 +769,7 @@ export default class NextNodeServer extends BaseServer {
           distDir: this.distDir,
           page: pagePath,
           isAppPath,
+          isDev: this.isDev,
         })
 
         if (
