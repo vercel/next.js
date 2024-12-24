@@ -176,7 +176,7 @@ async function loadComponentsImpl<N = any>({
   // that can occur while app and pages are compiling at the same time, and the
   // build-manifest is still being written to disk while an app path is
   // attempting to load.
-  const manifestLoadAttempts = isDev ? 3 : 1
+  const manifestLoadAttempts = isDev ? 3 : 0
 
   let reactLoadableManifestPath
   if (!process.env.TURBOPACK) {
