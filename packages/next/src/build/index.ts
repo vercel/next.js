@@ -214,6 +214,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { typedEntries } from '../lib/entries'
 
 type Fallback = null | boolean | string
 
@@ -728,8 +729,7 @@ async function writeFullyStaticExport(
   configOutDir: string,
   nextBuildSpan: Span
 ): Promise<void> {
-  const exportApp = require('../export')
-    .default as typeof import('../export').default
+  const exportApp = (await import('../export')).default
 
   const pagesWorker = createStaticWorker(config)
   const appWorker = createStaticWorker(config)
@@ -1269,21 +1269,15 @@ export default async function build(
           } satisfies RoutesManifest
         })
 
+      const buildRewrites = (rewrite: Rewrite): ManifestRewriteRoute =>
+        buildCustomRoute('rewrite', rewrite)
       if (rewrites.beforeFiles.length === 0 && rewrites.fallback.length === 0) {
-        routesManifest.rewrites = rewrites.afterFiles.map((r) =>
-          buildCustomRoute('rewrite', r)
-        )
+        routesManifest.rewrites = rewrites.afterFiles.map(buildRewrites)
       } else {
         routesManifest.rewrites = {
-          beforeFiles: rewrites.beforeFiles.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-          afterFiles: rewrites.afterFiles.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
-          fallback: rewrites.fallback.map((r) =>
-            buildCustomRoute('rewrite', r)
-          ),
+          beforeFiles: rewrites.beforeFiles.map(buildRewrites),
+          afterFiles: rewrites.afterFiles.map(buildRewrites),
+          fallback: rewrites.fallback.map(buildRewrites),
         }
       }
       let clientRouterFilters:
@@ -1292,7 +1286,7 @@ export default async function build(
 
       if (config.experimental.clientRouterFilter) {
         const nonInternalRedirects = (config._originalRedirects || []).filter(
-          (r: any) => !r.internal
+          (r) => !r.internal
         )
         clientRouterFilters = createClientRouterFilter(
           [...appPaths],
@@ -1308,7 +1302,13 @@ export default async function build(
       // Files outside of the distDir can be "type": "module"
       await writeFileUtf8(
         path.join(distDir, 'package.json'),
-        '{"type": "commonjs"}'
+        JSON.stringify(
+          {
+            type: 'commonjs',
+          },
+          null,
+          2
+        )
       )
 
       // These are written to distDir, so they need to come after creating and cleaning distDr.
@@ -1389,16 +1389,6 @@ export default async function build(
         await fs.mkdir(path.join(distDir, 'static', buildId), {
           recursive: true,
         })
-        await fs.writeFile(
-          path.join(distDir, 'package.json'),
-          JSON.stringify(
-            {
-              type: 'commonjs',
-            },
-            null,
-            2
-          )
-        )
 
         // eslint-disable-next-line @typescript-eslint/no-unused-vars
         const entrypointsSubscription = project.entrypointsSubscribe()
@@ -1499,7 +1489,6 @@ export default async function build(
                 page,
                 pathname: page,
                 route,
-
                 currentEntryIssues,
                 entrypoints: currentEntrypoints,
                 manifestLoader,
@@ -1515,7 +1504,7 @@ export default async function build(
           enqueue(() =>
             handleRouteType({
               page,
-              dev: false,
+              dev,
               pathname: normalizeAppPath(page),
               route,
               currentEntryIssues,
@@ -1530,7 +1519,7 @@ export default async function build(
 
         enqueue(() =>
           handlePagesErrorRoute({
-            dev: false,
+            dev,
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
@@ -1891,7 +1880,7 @@ export default async function build(
         const errorPageStaticResult = nonStaticErrorPageSpan.traceAsyncFn(
           async () =>
             hasCustomErrorPage &&
-            worker.isPageStatic({
+            (await worker.isPageStatic({
               dir,
               page: '/_error',
               distDir,
@@ -1907,7 +1896,7 @@ export default async function build(
               cacheLifeProfiles: config.experimental.cacheLife,
               buildId,
               sriEnabled,
-            })
+            }))
         )
 
         const appPageToCheck = '/_app'
@@ -1974,17 +1963,15 @@ export default async function build(
         }
 
         await Promise.all(
-          Object.entries(pageKeys)
+          typedEntries(pageKeys)
             .reduce<Array<{ pageType: keyof typeof pageKeys; page: string }>>(
               (acc, [key, files]) => {
                 if (!files) {
                   return acc
                 }
 
-                const pageType = key as keyof typeof pageKeys
-
                 for (const page of files) {
-                  acc.push({ pageType, page })
+                  acc.push({ pageType: key, page })
                 }
 
                 return acc

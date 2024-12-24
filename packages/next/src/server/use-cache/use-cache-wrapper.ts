@@ -457,7 +457,7 @@ export function cache(
   for (const [key, value] of Object.entries(
     _globalThis.__nextCacheHandlers || {}
   )) {
-    cacheHandlerMap.set(key, value as CacheHandler)
+    cacheHandlerMap.set(key, value)
   }
   const cacheHandler = cacheHandlerMap.get(kind)
 

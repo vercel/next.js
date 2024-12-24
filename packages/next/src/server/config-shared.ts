@@ -1010,6 +1010,11 @@ export interface NextConfig extends Record<string, any> {
   watchOptions?: {
     pollIntervalMs?: number
   }
+
+  /**
+   * @internal
+   */
+  _originalRedirects?: Redirect[]
 }
 
 export const defaultConfig: NextConfig = {
