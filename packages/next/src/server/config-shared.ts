@@ -1012,7 +1012,7 @@ export interface NextConfig extends Record<string, any> {
   }
 
   /**
-   * @internal
+   * @internal - used for internally for preserve original redirects
    */
   _originalRedirects?: Redirect[]
 }
