@@ -225,27 +225,6 @@ async function createComponentTreeInternal({
         })
       : []
 
-  const notFoundElement = NotFound ? (
-    <>
-      {notFoundStyles}
-      <NotFound />
-    </>
-  ) : undefined
-
-  const forbiddenElement = Forbidden ? (
-    <>
-      {forbiddenStyles}
-      <Forbidden />
-    </>
-  ) : undefined
-
-  const unauthorizedElement = Unauthorized ? (
-    <>
-      {unauthorizedStyles}
-      <Unauthorized />
-    </>
-  ) : undefined
-
   let dynamic = layoutOrPageMod?.dynamic
 
   if (nextConfigOutput === 'export') {
@@ -417,7 +396,31 @@ async function createComponentTreeInternal({
   // as it's used as a placeholder for navigation.
   const metadata =
     actualSegment !== DEFAULT_SEGMENT_KEY ? <MetadataComponent /> : undefined
-  //
+
+  const notFoundElement = NotFound ? (
+    <>
+      {metadata}
+      {notFoundStyles}
+      <NotFound />
+    </>
+  ) : undefined
+
+  const forbiddenElement = Forbidden ? (
+    <>
+      {metadata}
+      {forbiddenStyles}
+      <Forbidden />
+    </>
+  ) : undefined
+
+  const unauthorizedElement = Unauthorized ? (
+    <>
+      {metadata}
+      {unauthorizedStyles}
+      <Unauthorized />
+    </>
+  ) : undefined
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -428,26 +431,17 @@ async function createComponentTreeInternal({
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const notFoundComponent = isChildrenRouteKey ? (
-          <>
-            {metadata}
-            {notFoundElement}
-          </>
-        ) : undefined
+        const notFoundComponent = isChildrenRouteKey
+          ? notFoundElement
+          : undefined
 
-        const forbiddenComponent = isChildrenRouteKey ? (
-          <>
-            {metadata}
-            {forbiddenElement}
-          </>
-        ) : undefined
+        const forbiddenComponent = isChildrenRouteKey
+          ? forbiddenElement
+          : undefined
 
-        const unauthorizedComponent = isChildrenRouteKey ? (
-          <>
-            {metadata}
-            {unauthorizedElement}
-          </>
-        ) : undefined
+        const unauthorizedComponent = isChildrenRouteKey
+          ? unauthorizedElement
+          : undefined
 
         // if we're prefetching and that there's a Loading component, we bail out
         // otherwise we keep rendering for the prefetch.
@@ -740,7 +734,6 @@ async function createComponentTreeInternal({
           layerAssets,
           SegmentComponent,
           currentParams,
-          metadata,
         })
         forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
           ErrorBoundaryComponent: Forbidden,
@@ -749,7 +742,6 @@ async function createComponentTreeInternal({
           layerAssets,
           SegmentComponent,
           currentParams,
-          metadata,
         })
         unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
           ErrorBoundaryComponent: Unauthorized,
@@ -758,7 +750,6 @@ async function createComponentTreeInternal({
           layerAssets,
           SegmentComponent,
           currentParams,
-          metadata,
         })
         if (
           notfoundClientSegment ||
@@ -779,7 +770,6 @@ async function createComponentTreeInternal({
         } else {
           segmentNode = (
             <React.Fragment key={cacheNodeKey}>
-              {metadata}
               {layerAssets}
               {clientSegment}
             </React.Fragment>
@@ -788,7 +778,6 @@ async function createComponentTreeInternal({
       } else {
         segmentNode = (
           <React.Fragment key={cacheNodeKey}>
-            {metadata}
             {layerAssets}
             {clientSegment}
           </React.Fragment>
@@ -873,7 +862,6 @@ function createErrorBoundaryClientSegmentRoot({
   layerAssets,
   SegmentComponent,
   currentParams,
-  metadata,
 }: {
   ErrorBoundaryComponent: React.ComponentType<any> | undefined
   errorElement: React.ReactNode
@@ -881,16 +869,10 @@ function createErrorBoundaryClientSegmentRoot({
   layerAssets: React.ReactNode
   SegmentComponent: React.ComponentType<any>
   currentParams: Params
-  metadata: React.ReactNode
 }) {
   if (ErrorBoundaryComponent) {
     const notFoundParallelRouteProps = {
-      children: (
-        <>
-          {metadata}
-          {errorElement}
-        </>
-      ),
+      children: errorElement,
     }
     return (
       <>

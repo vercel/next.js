@@ -467,6 +467,16 @@ async function generateDynamicRSCPayload(
         MetadataBoundary,
         ViewportBoundary,
       })
+
+    const MetadataComponent = () => {
+      return (
+        <React.Fragment key={flightDataPathMetadataKey}>
+          {/* Adding requestId as react key to make metadata remount for each render */}
+          <MetadataTree key={requestId} />
+        </React.Fragment>
+      )
+    }
+
     flightData = (
       await walkTreeWithFlightRouterState({
         ctx,
@@ -490,14 +500,7 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
-        MetadataComponent: () => {
-          return (
-            <React.Fragment key={flightDataPathMetadataKey}>
-              {/* Adding requestId as react key to make metadata remount for each render */}
-              <MetadataTree key={requestId} />
-            </React.Fragment>
-          )
-        },
+        MetadataComponent,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -771,6 +774,15 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
+  function MetadataComponent() {
+    return (
+      <React.Fragment key={flightDataPathMetadataKey}>
+        {/* Adding requestId as react key to make metadata remount for each render */}
+        <MetadataTree key={ctx.requestId} />
+      </React.Fragment>
+    )
+  }
+
   const seedData = await createComponentTree({
     ctx,
     loaderTree: tree,
@@ -784,12 +796,7 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    MetadataComponent: () => (
-      <React.Fragment key={flightDataPathMetadataKey}>
-        {/* Adding requestId as react key to make metadata remount for each render */}
-        <MetadataTree key={ctx.requestId} />
-      </React.Fragment>
-    ),
+    MetadataComponent,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -919,10 +926,8 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <>
-      {/* Place metadata in root and let React Float manages to reposition it properly */}
-      {initialHeadMetadata}
       <html id="__next_error__">
-        <head />
+        <head>{initialHeadMetadata}</head>
         <body />
       </html>
     </>,
