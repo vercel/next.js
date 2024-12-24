@@ -35,6 +35,11 @@ export class Worker {
 
     this._worker = undefined
 
+    // ensure we end workers if they weren't before exit
+    process.on('exit', () => {
+      this.close()
+    })
+
     const createWorker = () => {
       this._worker = new JestWorker(workerPath, {
         ...farmOptions,
