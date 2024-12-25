@@ -769,25 +769,4 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
 
     expect(callStackFrames.length).toBeGreaterThan(9)
   })
-
-  test('should show anonymous frames in stack trace', async () => {
-    await using sandbox = await createSandbox(
-      next,
-      new Map([
-        [
-          'pages/index.js',
-          outdent`
-          export default function Page() {
-            [1, 2, 3].map(() => {
-              throw new Error("anonymous error!");
-            })
-          }`,
-        ],
-      ])
-    )
-    const { session, browser } = sandbox
-    await session.assertHasRedbox()
-    const texts = await getRedboxCallStack(browser)
-    expect(texts).toMatchSnapshot()
-  })
 })

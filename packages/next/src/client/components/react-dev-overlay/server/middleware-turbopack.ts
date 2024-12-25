@@ -29,19 +29,6 @@ function shouldIgnorePath(modulePath: string): boolean {
   )
 }
 
-function createIgnoredStackFrame(
-  frame: TurbopackStackFrame
-): IgnorableStackFrame {
-  return {
-    file: frame.file,
-    lineNumber: frame.line ?? 0,
-    column: frame.column ?? 0,
-    methodName: frame.methodName ?? '<unknown>',
-    ignored: shouldIgnorePath(frame.file),
-    arguments: [],
-  }
-}
-
 type IgnorableStackFrame = StackFrame & { ignored: boolean }
 
 const currentSourcesByFile: Map<string, Promise<string | null>> = new Map()
@@ -60,7 +47,14 @@ export async function batchedTraceSource(
   const sourceFrame = await project.traceSource(frame, currentDirectoryFileUrl)
   if (!sourceFrame) {
     return {
-      frame: createIgnoredStackFrame(frame),
+      frame: {
+        file,
+        lineNumber: frame.line ?? 0,
+        column: frame.column ?? 0,
+        methodName: frame.methodName ?? '<unknown>',
+        ignored: shouldIgnorePath(frame.file),
+        arguments: [],
+      },
       source: null,
     }
   }
@@ -283,6 +277,7 @@ async function createOriginalStackFrame(
   if (!traced) {
     return null
   }
+
   return {
     originalStackFrame: traced.frame,
     originalCodeFrame: getOriginalCodeFrame(traced.frame, traced.source),

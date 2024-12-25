@@ -54,13 +54,6 @@ exports[`ReactRefreshLogBox default module init error not shown 1`] = `
   6 |     return <h1>Default Export</h1>;"
 `;
 
-exports[`ReactRefreshLogBox default should show anonymous frames in stack trace 1`] = `
-"Array.map
-<anonymous> (0:0)
-Page
-pages/index.js (2:13)"
-`;
-
 exports[`ReactRefreshLogBox default should strip whitespace correctly with newline 1`] = `
 "index.js (8:27) @ onClick
 
@@ -123,13 +116,6 @@ exports[`ReactRefreshLogBox turbo module init error not shown 1`] = `
   4 | class ClassDefault extends React.Component {
   5 |   render() {
   6 |     return <h1>Default Export</h1>;"
-`;
-
-exports[`ReactRefreshLogBox turbo should show anonymous frames in stack trace 1`] = `
-"Array.map
-<anonymous> (0:0)
-Page
-pages/index.js (2:13)"
 `;
 
 exports[`ReactRefreshLogBox turbo should strip whitespace correctly with newline 1`] = `

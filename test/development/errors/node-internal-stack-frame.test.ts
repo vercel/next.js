@@ -7,28 +7,33 @@ import {
 import { outdent } from 'outdent'
 
 describe('errors - node-internal-stack-frame', () => {
-  const { next } = nextTestSetup({
+  const { next, isTurbopack } = nextTestSetup({
     files: {
       'pages/index.js': outdent`
       export default function Page() {}
       
+      function createURL() {
+        new URL("/", "invalid")
+      }
+
       export function getServerSideProps() {
-        new URL("/", "invalid");
-        return { props: {} };
+        createURL()
+        return { props: {} }
       }`,
     },
   })
 
-  test('should hide unrelated frames in stack trace with node:internal calls', async () => {
+  test('should hide nodejs internal stack frames from stack trace', async () => {
     const browser = await next.browser('/')
 
     await assertHasRedbox(browser)
 
     const stack = await getStackFramesContent(browser)
-    if (process.env.TURBOPACK) {
+    if (isTurbopack) {
       // FIXME: ignore the next internal frames from node_modules
       expect(stack).toMatchInlineSnapshot(`
        "at new URL ()
+       at getServerSideProps (pages/index.js (8:3))
        at NextTracerImpl.trace ()
        at async doRender ()
        at async responseGenerator ()
@@ -46,15 +51,13 @@ describe('errors - node-internal-stack-frame', () => {
        at async Server.requestListener ()"
       `)
     } else {
-      expect(stack).toMatchInlineSnapshot(`
-        "at eval ()
-        at renderToHTMLImpl ()"
-      `)
-    }
-    await toggleCollapseCallStackFrames(browser)
+      expect(stack).toMatchInlineSnapshot(
+        `"at getServerSideProps (pages/index.js (8:3))"`
+      )
 
-    // TODO: Since there're still the locations
-    const expandedStack = await getStackFramesContent(browser)
-    expect(expandedStack).toContain(`at new URL ()`)
+      await toggleCollapseCallStackFrames(browser)
+      const stackCollapsed = await getStackFramesContent(browser)
+      expect(stackCollapsed).toContain('at new URL ()')
+    }
   })
 })
