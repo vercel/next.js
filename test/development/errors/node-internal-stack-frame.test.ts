@@ -28,22 +28,22 @@ describe('errors - node-internal-stack-frame', () => {
     if (process.env.TURBOPACK) {
       // FIXME: ignore the next internal frames from node_modules
       expect(stack).toMatchInlineSnapshot(`
-        "at getServerSideProps ()
-        at spanContext ()
-        at async doRender ()
-        at async responseGenerator ()
-        at async DevServer.renderToResponseWithComponentsImpl ()
-        at async DevServer.renderPageComponent ()
-        at async DevServer.renderToResponseImpl ()
-        at async DevServer.pipeImpl ()
-        at async NextNodeServer.handleCatchallRenderRequest ()
-        at async DevServer.handleRequestImpl ()
-        at async Span.traceAsyncFn ()
-        at async DevServer.handleRequest ()
-        at async invokeRender ()
-        at async handleRequest ()
-        at async requestHandlerImpl ()
-        at async Server.requestListener ()"
+       "at new URL ()
+       at NextTracerImpl.trace ()
+       at async doRender ()
+       at async responseGenerator ()
+       at async DevServer.renderToResponseWithComponentsImpl ()
+       at async DevServer.renderPageComponent ()
+       at async DevServer.renderToResponseImpl ()
+       at async DevServer.pipeImpl ()
+       at async NextNodeServer.handleCatchallRenderRequest ()
+       at async DevServer.handleRequestImpl ()
+       at async Span.traceAsyncFn ()
+       at async DevServer.handleRequest ()
+       at async invokeRender ()
+       at async handleRequest ()
+       at async requestHandlerImpl ()
+       at async Server.requestListener ()"
       `)
     } else {
       expect(stack).toMatchInlineSnapshot(`
