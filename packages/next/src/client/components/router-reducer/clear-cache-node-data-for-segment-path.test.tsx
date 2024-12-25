@@ -71,28 +71,19 @@ describe('clearCacheNodeDataForSegmentPath', () => {
 
     expect(cache).toMatchInlineSnapshot(`
      {
-       "head": [
-         null,
-         null,
-       ],
+       "head": null,
        "lazyData": null,
        "loading": null,
        "parallelRoutes": Map {
          "children" => Map {
            "linking" => {
-             "head": [
-               null,
-               null,
-             ],
+             "head": null,
              "lazyData": null,
              "loading": null,
              "parallelRoutes": Map {
                "children" => Map {
                  "" => {
-                   "head": [
-                     null,
-                     null,
-                   ],
+                   "head": null,
                    "lazyData": null,
                    "loading": null,
                    "parallelRoutes": Map {},
@@ -111,10 +102,7 @@ describe('clearCacheNodeDataForSegmentPath', () => {
              </React.Fragment>,
            },
            "dashboard" => {
-             "head": [
-               null,
-               null,
-             ],
+             "head": null,
              "lazyData": null,
              "loading": null,
              "parallelRoutes": Map {},
