@@ -777,8 +777,8 @@ async function getRSCPayload(
   function MetadataComponent() {
     return (
       <React.Fragment key={flightDataPathMetadataKey}>
-        {/* Adding requestId as react key to make metadata remount for each render */}
-        <MetadataTree key={ctx.requestId} />
+        {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
+        <MetadataTree />
       </React.Fragment>
     )
   }
