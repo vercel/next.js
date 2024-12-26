@@ -72,8 +72,8 @@ impl StaticResult {
 }
 
 /// Renders a module as static HTML in a node.js process.
-#[turbo_tasks::function]
-pub async fn render_static(
+#[turbo_tasks::function(operation)]
+pub async fn render_static_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,

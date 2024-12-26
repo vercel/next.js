@@ -575,6 +575,28 @@ export type ExportPathMap = {
     query?: NextParsedUrlQuery
 
     /**
+     * When true, this indicates that this is a pages router page that should
+     * be rendered as a fallback.
+     *
+     * @internal
+     */
+    _pagesFallback?: boolean
+
+    /**
+     * The locale that this page should be rendered in.
+     *
+     * @internal
+     */
+    _locale?: string
+
+    /**
+     * The path that was used to generate the page.
+     *
+     * @internal
+     */
+    _ssgPath?: string
+
+    /**
      * The parameters that are currently unknown.
      *
      * @internal
