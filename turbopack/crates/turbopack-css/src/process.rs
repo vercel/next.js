@@ -1,6 +1,5 @@
 use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
+    borrow::Borrow, collections::HashMap, ops::Deref, sync::{Arc, RwLock}
 };
 
 use anyhow::{bail, Result};
@@ -25,8 +24,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     issue::{
-        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
-        StyledString,
+        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
@@ -423,8 +421,24 @@ async fn process_content(
                                 None => None,
                             };
 
+                            let mut path = fs_path_vc.await?.path;
+
+                            for (pattern, removal) in [
+                                 (".module.scss", ".module.css"),
+                                 (".module.sass", ".module.css")
+                                ] {
+
+                                if path.contains(pattern) {
+                                    path = path.replace(removal, "").into();
+                                    break;
+                                }
+                            }
+
                             ParsingIssue {
-                                file: origin.origin_path().to_resolved().await?,
+                                file: ResolvedVc::cell(FileSystemPath {
+                                        path,
+                                        ..fs_path_vc.await?.deref().borrow().clone()
+                                    }),
                                 msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
