@@ -401,8 +401,8 @@ async fn process_content(
 
                 // We need to collect here because we need to avoid holding the lock while calling
                 // `.await` in the loop.
-                let warngins = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
-                for err in warngins.iter() {
+                let warnings = warnings.read().unwrap().iter().cloned().collect::<Vec<_>>();
+                for err in warnings.iter() {
                     match err.kind {
                         lightningcss::error::ParserError::UnexpectedToken(_)
                         | lightningcss::error::ParserError::UnexpectedImportRule
@@ -424,7 +424,7 @@ async fn process_content(
                             };
 
                             ParsingIssue {
-                                file: fs_path_vc,
+                                file: origin.origin_path().to_resolved().await?,
                                 msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
