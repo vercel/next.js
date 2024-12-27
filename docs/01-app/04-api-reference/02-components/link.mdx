@@ -1130,10 +1130,10 @@ In this case, you would want to use the following code in your `<Link />` compon
 'use client'
 
 import Link from 'next/link'
-import useIsAuthed from './hooks/useIsAuthed' // Your auth hook
+import userIsAuthed from './hooks/userIsAuthed' // Your auth hook
 
 export default function Page() {
-  const isAuthed = useIsAuthed()
+  const isAuthed = userIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
     <Link as="/dashboard" href={path}>
@@ -1147,10 +1147,10 @@ export default function Page() {
 'use client'
 
 import Link from 'next/link'
-import useIsAuthed from './hooks/useIsAuthed' // Your auth hook
+import userIsAuthed from './hooks/userIsAuthed' // Your auth hook
 
 export default function Page() {
-  const isAuthed = useIsAuthed()
+  const isAuthed = userIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
     <Link as="/dashboard" href={path}>
@@ -1168,10 +1168,10 @@ export default function Page() {
 'use client'
 
 import Link from 'next/link'
-import useIsAuthed from './hooks/useIsAuthed' // Your auth hook
+import userIsAuthed from './hooks/userIsAuthed' // Your auth hook
 
 export default function Home() {
-  const isAuthed = useIsAuthed()
+  const isAuthed = userIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
     <Link as="/dashboard" href={path}>
@@ -1185,10 +1185,10 @@ export default function Home() {
 'use client'
 
 import Link from 'next/link'
-import useIsAuthed from './hooks/useIsAuthed' // Your auth hook
+import userIsAuthed from './hooks/userIsAuthed' // Your auth hook
 
 export default function Home() {
-  const isAuthed = useIsAuthed()
+  const isAuthed = userIsAuthed()
   const path = isAuthed ? '/auth/dashboard' : '/public/dashboard'
   return (
     <Link as="/dashboard" href={path}>
