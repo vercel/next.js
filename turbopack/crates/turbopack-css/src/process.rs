@@ -1,5 +1,6 @@
 use std::{
-    borrow::Borrow, collections::HashMap, ops::Deref, sync::{Arc, RwLock}
+    collections::HashMap,
+    sync::{Arc, RwLock},
 };
 
 use anyhow::{bail, Result};
@@ -24,7 +25,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, MinifyType},
     issue::{
-        Issue, IssueDescriptionExt, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString, StyledString
+        Issue, IssueExt, IssueSource, IssueStage, OptionIssueSource, OptionStyledString,
+        StyledString,
     },
     reference::ModuleReferences,
     reference_type::ImportContext,
@@ -421,24 +423,26 @@ async fn process_content(
                                 None => None,
                             };
 
-                            let mut path = fs_path_vc.await?.path;
+                            let mut file = fs_path_vc;
 
-                            for (pattern, removal) in [
-                                 (".module.scss", ".module.css"),
-                                 (".module.sass", ".module.css")
-                                ] {
-
-                                if path.contains(pattern) {
-                                    path = path.replace(removal, "").into();
+                            for (pattern, removal, remove_count) in [
+                                (".module.scss", ".module.css", 2),
+                                (".module.sass", ".module.css", 2),
+                                (".scss", ".css", 1),
+                                (".sass", ".css", 1),
+                            ] {
+                                let path = fs_path_vc.await?.path.clone();
+                                if path.contains(pattern) && path.ends_with(removal) {
+                                    // FIXME: To remove ".css" and ".module" multiple times
+                                    for _ in 0..remove_count {
+                                        file = file.with_extension("".into()).to_resolved().await?;
+                                    }
                                     break;
                                 }
                             }
 
                             ParsingIssue {
-                                file: ResolvedVc::cell(FileSystemPath {
-                                        path,
-                                        ..fs_path_vc.await?.deref().borrow().clone()
-                                    }),
+                                file,
                                 msg: ResolvedVc::cell(err.to_string().into()),
                                 source,
                             }
