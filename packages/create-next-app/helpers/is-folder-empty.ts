@@ -3,33 +3,33 @@ import { lstatSync, readdirSync } from 'node:fs'
 import { join } from 'node:path'
 import { green, blue } from 'picocolors'
 
-export function isFolderEmpty(root: string, name: string): boolean {
-  const validFiles = [
-    '.DS_Store',
-    '.git',
-    '.gitattributes',
-    '.gitignore',
-    '.gitlab-ci.yml',
-    '.hg',
-    '.hgcheck',
-    '.hgignore',
-    '.idea',
-    '.npmignore',
-    '.travis.yml',
-    'LICENSE',
-    'Thumbs.db',
-    'docs',
-    'mkdocs.yml',
-    'npm-debug.log',
-    'yarn-debug.log',
-    'yarn-error.log',
-    'yarnrc.yml',
-    '.yarn',
-  ]
+const validFiles = new Set([
+  '.DS_Store',
+  '.git',
+  '.gitattributes',
+  '.gitignore',
+  '.gitlab-ci.yml',
+  '.hg',
+  '.hgcheck',
+  '.hgignore',
+  '.idea',
+  '.npmignore',
+  '.travis.yml',
+  'LICENSE',
+  'Thumbs.db',
+  'docs',
+  'mkdocs.yml',
+  'npm-debug.log',
+  'yarn-debug.log',
+  'yarn-error.log',
+  'yarnrc.yml',
+  '.yarn',
+])
 
+export function isFolderEmpty(root: string, name: string): boolean {
   const conflicts = readdirSync(root).filter(
     (file) =>
-      !validFiles.includes(file) &&
+      !validFiles.has(file) &&
       // Support IntelliJ IDEA-based editors
       !/\.iml$/.test(file)
   )
