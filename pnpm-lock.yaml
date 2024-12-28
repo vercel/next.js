@@ -75,6 +75,9 @@ importers:
       '@fullhuman/postcss-purgecss':
         specifier: 1.3.0
         version: 1.3.0
+      '@jest/expect-utils':
+        specifier: 29.7.0
+        version: 29.7.0
       '@mdx-js/loader':
         specifier: 2.2.1
         version: 2.2.1(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15)))
@@ -354,6 +357,9 @@ importers:
       jest:
         specifier: 29.7.0
         version: 29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0)
+      jest-diff:
+        specifier: 29.7.0
+        version: 29.7.0
       jest-environment-jsdom:
         specifier: 29.7.0
         version: 29.7.0
@@ -14783,7 +14789,7 @@ packages:
   superagent@3.8.3:
     resolution: {integrity: sha512-GLQtLMCoEIK4eDv6OGtkOoSMt3D+oq0y3dsxMuYuDvaNUvuT8eFBuLmfR0iYYzHC1e8hpzC6ZsxbuP6DIalMFA==}
     engines: {node: '>= 4.0'}
-    deprecated: Please upgrade to v9.0.0+ as we have fixed a public vulnerability with formidable dependency. Note that v9.0.0+ requires Node.js v14.18.0+. See https://github.com/ladjs/superagent/pull/1800 for insight. This project is supported and maintained by the team at Forward Email @ https://forwardemail.net
+    deprecated: Please upgrade to v7.0.2+ of superagent.  We have fixed numerous issues with streams, form-data, attach(), filesystem errors not bubbling up (ENOENT on attach()), and all tests are now passing.  See the releases tab for more information at <https://github.com/visionmedia/superagent/releases>.
 
   superstruct@1.0.3:
     resolution: {integrity: sha512-8iTn3oSS8nRGn+C2pgXSKPI3jmpm6FExNazNpjvqS6ZUJQCej3PUXEKM8NjHBOs54ExM+LPW/FBRhymrdcCiSg==}

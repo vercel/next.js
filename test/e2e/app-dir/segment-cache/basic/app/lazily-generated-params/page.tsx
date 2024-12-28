@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { LinkAccordion } from '../../components/link-accordion'
 
 // TODO: Once the appropriate API exists/is implemented, configure the param to
 // be statically generated on demand but not at build time (`dynamicParams =
@@ -14,7 +14,9 @@ export default function LazilyGeneratedParamsStartPage() {
       </p>
       <ul>
         <li>
-          <Link href="/lazily-generated-params/some-param-value">Target</Link>
+          <LinkAccordion href="/lazily-generated-params/some-param-value">
+            Target
+          </LinkAccordion>
         </li>
       </ul>
     </>
