@@ -131,4 +131,186 @@ describe('segment cache (incremental opt in)', () => {
       })
     }
   )
+
+  it(
+    'when a link is prefetched with <Link prefetch=true>, no dynamic request ' +
+      'is made on navigation',
+    async () => {
+      let act
+      const browser = await next.browser('/mixed-fetch-strategies', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      await act(
+        async () => {
+          const checkbox = await browser.elementById(
+            'ppr-enabled-prefetch-true'
+          )
+          await checkbox.click()
+        },
+        {
+          includes: 'Dynamic page content',
+        }
+      )
+
+      // Navigate to fully prefetched route
+      const link = await browser.elementByCss('#ppr-enabled-prefetch-true + a')
+      await act(
+        async () => {
+          await link.click()
+
+          // We should be able to fully load the page content, including the
+          // dynamic data, before the server responds.
+          await browser.elementById('page-content')
+        },
+        // Assert that no network requests are initiated within this block.
+        'no-requests'
+      )
+    }
+  )
+
+  it(
+    'when prefetching with prefetch=true, refetches cache entries that only ' +
+      'contain partial data',
+    async () => {
+      let act
+      const browser = await next.browser('/mixed-fetch-strategies', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // Prefetch a link with PPR
+      await act(
+        async () => {
+          const checkbox = await browser.elementById('ppr-enabled')
+          await checkbox.click()
+        },
+        { includes: 'Loading (PPR shell of shared-layout)...' }
+      )
+
+      // Prefetch the same link again, this time with prefetch=true to include
+      // the dynamic data
+      await act(
+        async () => {
+          const checkbox = await browser.elementById(
+            'ppr-enabled-prefetch-true'
+          )
+          await checkbox.click()
+        },
+        {
+          includes: 'Dynamic content in shared layout',
+        }
+      )
+
+      // Navigate to the PPR-enabled route
+      const link = await browser.elementByCss('#ppr-enabled-prefetch-true + a')
+      await act(
+        async () => {
+          await link.click()
+
+          // If we prefetched all the segments correctly, we should be able to
+          // fully load the page content, including the dynamic data, before the
+          // server responds.
+          //
+          // If this fails, it likely means that the partial cache entry that
+          // resulted from prefetching the normal link (<Link prefetch={false}>)
+          // was not properly re-fetched when the full link (<Link
+          // prefetch={true}>) was prefetched.
+          await browser.elementById('page-content')
+        },
+        // Assert that no network requests are initiated within this block.
+        'no-requests'
+      )
+    }
+  )
+
+  it(
+    'when prefetching with prefetch=true, refetches partial cache entries ' +
+      "even if there's already a pending PPR request",
+    async () => {
+      // This test is hard to describe succinctly because it involves a fairly
+      // complex race condition between a non-PPR prefetch, a PPR prefetch, and
+      // a "full" prefetch. Despite the complexity of the scenario, it's worth
+      // testing because could easily happen in real world conditions.
+
+      let act
+      const browser = await next.browser('/mixed-fetch-strategies', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // Initiate a prefetch for the PPR-disabled route first. This will not
+      // include the /shared-layout/ segment, because it's inside the
+      // loading boundary.
+      await act(
+        async () => {
+          const checkbox = await browser.elementById('ppr-disabled')
+          await checkbox.click()
+        },
+        { includes: 'Loading (has-loading-boundary/loading.tsx)...' }
+      )
+
+      // Then initiate a prefetch for the PPR-enabled route.
+      await act(async () => {
+        // Create an inner act scope so we initate a prefetch but block it
+        // from responding.
+        await act(
+          async () => {
+            const checkbox = await browser.elementById('ppr-enabled')
+            await checkbox.click()
+          },
+          {
+            // This prefetch should include the /shared-layout/ segment despite
+            // the presence of the loading boundary, and despite the earlier
+            // non-PPR attempt.
+            includes: 'Loading (PPR shell of shared-layout)...',
+            // We're going to block it from responding, so we can test what
+            // happens if another prefetch is initiated in the meantime.
+            block: true,
+          }
+        )
+
+        // Before the previous prefetch finishes, prefetch the same link again,
+        // this time with prefetch=true to include the dynamic data.
+        await act(
+          async () => {
+            const checkbox = await browser.elementById(
+              'ppr-enabled-prefetch-true'
+            )
+            await checkbox.click()
+          },
+          // This prefetch should load the dynamic data in the shared layout
+          {
+            includes: 'Dynamic content in shared layout',
+          }
+        )
+      })
+
+      // Navigate to the PPR-enabled route.
+      await act(
+        async () => {
+          const link = await browser.elementByCss(
+            '#ppr-enabled-prefetch-true + a'
+          )
+          await link.click()
+
+          // If we prefetched all the segments correctly, we should be able to
+          // fully load the page content, including the dynamic data, before the
+          // server responds.
+          //
+          // If this fails, it likely means that the pending cache entry that
+          // resulted from prefetching the normal link (<Link prefetch={false}>)
+          // was not properly re-fetched when the full link (<Link
+          // prefetch={true}>) was prefetched.
+          await browser.elementById('page-content')
+        },
+        // Assert that no network requests are initiated within this block.
+        'no-requests'
+      )
+    }
+  )
 })
