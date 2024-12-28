@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, ResolvedVc, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -21,11 +22,11 @@ use crate::NodeJsChunkingContext;
 /// runtime entries.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
-    path: Vc<FileSystemPath>,
-    chunking_context: Vc<NodeJsChunkingContext>,
-    other_chunks: Vc<OutputAssets>,
-    evaluatable_assets: Vc<EvaluatableAssets>,
-    exported_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+    path: ResolvedVc<FileSystemPath>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    other_chunks: ResolvedVc<OutputAssets>,
+    evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -33,11 +34,11 @@ impl EcmascriptBuildNodeEntryChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeEntryChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        path: Vc<FileSystemPath>,
-        chunking_context: Vc<NodeJsChunkingContext>,
-        other_chunks: Vc<OutputAssets>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
-        exported_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        path: ResolvedVc<FileSystemPath>,
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        other_chunks: ResolvedVc<OutputAssets>,
+        evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+        exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeEntryChunk {
             path,
@@ -108,11 +109,11 @@ impl EcmascriptBuildNodeEntryChunk {
         let evaluatable_assets = this.evaluatable_assets.await?;
         for evaluatable_asset in &*evaluatable_assets {
             if let Some(placeable) =
-                Vc::try_resolve_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*evaluatable_asset)
+                ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*evaluatable_asset)
                     .await?
             {
                 let runtime_module_id = placeable
-                    .as_chunk_item(Vc::upcast(this.chunking_context))
+                    .as_chunk_item(Vc::upcast(*this.chunking_context))
                     .id()
                     .await?;
 
@@ -128,7 +129,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
         let runtime_module_id = this
             .exported_module
-            .as_chunk_item(Vc::upcast(this.chunking_context))
+            .as_chunk_item(Vc::upcast(*this.chunking_context))
             .id()
             .await?;
 
@@ -145,7 +146,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
     #[turbo_tasks::function]
     fn runtime_chunk(&self) -> Vc<EcmascriptBuildNodeRuntimeChunk> {
-        EcmascriptBuildNodeRuntimeChunk::new(self.chunking_context)
+        EcmascriptBuildNodeRuntimeChunk::new(*self.chunking_context)
     }
 }
 
@@ -171,7 +172,7 @@ fn chunk_reference_description() -> Vc<RcStr> {
 impl OutputAsset for EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.path)
+        AssetIdent::from_path(*self.path)
     }
 
     #[turbo_tasks::function]

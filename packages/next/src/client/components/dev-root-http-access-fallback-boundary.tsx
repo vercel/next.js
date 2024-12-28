@@ -1,8 +1,9 @@
 'use client'
 
 import React from 'react'
-import { HTTPAccessFallbackBoundary } from './http-access-fallback-boundary'
+import { HTTPAccessFallbackBoundary } from './http-access-fallback/error-boundary'
 
+// TODO: error on using forbidden and unauthorized in root layout
 export function bailOnRootNotFound() {
   throw new Error('notFound() is not allowed to use in root layout')
 }

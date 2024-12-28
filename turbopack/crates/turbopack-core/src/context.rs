@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{RcStr, ResolvedVc, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
 use crate::{
@@ -11,7 +12,7 @@ use crate::{
     source::Source,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 pub enum ProcessResult {
     /// A module was created.
     Module(ResolvedVc<Box<dyn Module>>),

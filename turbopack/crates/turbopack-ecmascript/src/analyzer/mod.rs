@@ -25,7 +25,8 @@ use swc_core::{
         atoms::{Atom, JsWord},
     },
 };
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::{
     CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
 };
@@ -572,6 +573,9 @@ impl From<&FreeVarReference> for JsValue {
     fn from(v: &FreeVarReference) -> Self {
         match v {
             FreeVarReference::Value(v) => v.into(),
+            FreeVarReference::Ident(_) => {
+                JsValue::unknown_empty(false, "compile time injected ident")
+            }
             FreeVarReference::EcmaScriptModule { .. } => {
                 JsValue::unknown_empty(false, "compile time injected free var module")
             }
@@ -1945,7 +1949,7 @@ impl JsValue {
                             if var_graph
                                 .free_var_ids
                                 .get(&first_str.into())
-                                .map_or(false, |id| var_graph.values.contains_key(id))
+                                .is_some_and(|id| var_graph.values.contains_key(id))
                             {
                                 // `typeof foo...` but `foo` was reassigned
                                 return None;
@@ -2075,18 +2079,15 @@ impl JsValue {
                 ObjectPart::KeyValue(k, v) => k.has_side_effects() || v.has_side_effects(),
                 ObjectPart::Spread(v) => v.has_side_effects(),
             }),
-            JsValue::New(_, callee, args) => {
-                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
-            }
-            JsValue::Call(_, callee, args) => {
-                callee.has_side_effects() || args.iter().any(JsValue::has_side_effects)
-            }
-            JsValue::SuperCall(_, args) => args.iter().any(JsValue::has_side_effects),
-            JsValue::MemberCall(_, obj, prop, args) => {
-                obj.has_side_effects()
-                    || prop.has_side_effects()
-                    || args.iter().any(JsValue::has_side_effects)
-            }
+            // As function bodies aren't analyzed for side-effects, we have to assume every call can
+            // have sideeffects as well.
+            // Otherwise it would be
+            // `func_body(callee).has_side_effects() ||
+            //      callee.has_side_effects() || args.iter().any(JsValue::has_side_effects`
+            JsValue::New(_, _callee, _args) => true,
+            JsValue::Call(_, _callee, _args) => true,
+            JsValue::SuperCall(_, _args) => true,
+            JsValue::MemberCall(_, _obj, _prop, _args) => true,
             JsValue::Member(_, obj, prop) => obj.has_side_effects() || prop.has_side_effects(),
             JsValue::Function(_, _, _) => false,
             JsValue::Url(_, _) => false,
@@ -3788,9 +3789,9 @@ pub enum WellKnownFunctionKind {
     Require,
     RequireResolve,
     RequireContext,
-    RequireContextRequire(Vc<RequireContextValue>),
-    RequireContextRequireKeys(Vc<RequireContextValue>),
-    RequireContextRequireResolve(Vc<RequireContextValue>),
+    RequireContextRequire(ResolvedVc<RequireContextValue>),
+    RequireContextRequireKeys(ResolvedVc<RequireContextValue>),
+    RequireContextRequireResolve(ResolvedVc<RequireContextValue>),
     Define,
     FsReadMethod(JsWord),
     PathToFileUrl,
@@ -3837,7 +3838,7 @@ fn is_unresolved_id(i: &Id, unresolved_mark: Mark) -> bool {
 #[doc(hidden)]
 pub mod test_utils {
     use anyhow::Result;
-    use turbo_tasks::{FxIndexMap, Vc};
+    use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
     use turbopack_core::{compile_time_info::CompileTimeInfo, error::PrettyPrintError};
 
     use super::{
@@ -3899,7 +3900,7 @@ pub mod test_utils {
                     map.insert("./c".into(), format!("[context: {}]/c", options.dir).into());
 
                     JsValue::WellKnownFunction(WellKnownFunctionKind::RequireContextRequire(
-                        Vc::cell(map),
+                        ResolvedVc::cell(map),
                     ))
                 }
                 Err(err) => v.into_unknown(true, PrettyPrintError(&err).to_string()),
@@ -3985,10 +3986,10 @@ mod tests {
         },
         testing::{fixture, run_test, NormalizedOutput},
     };
-    use turbo_tasks::{util::FormatDuration, Value};
+    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -4313,8 +4314,8 @@ mod tests {
 
     async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
         turbo_tasks_testing::VcStorage::with(async {
-            let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                ExecutionEnvironment::NodeJsLambda(
+            let compile_time_info = CompileTimeInfo::builder(
+                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {
                             arch: Arch::X64,
@@ -4322,13 +4323,17 @@ mod tests {
                             endianness: Endianness::Little,
                             libc: Libc::Glibc,
                         }
-                        .into(),
-                        ..Default::default()
+                        .resolved_cell(),
+                        node_version: NodeJsVersion::default().resolved_cell(),
+                        cwd: ResolvedVc::cell(None),
                     }
-                    .into(),
-                ),
-            )))
-            .cell();
+                    .resolved_cell(),
+                )))
+                .to_resolved()
+                .await?,
+            )
+            .cell()
+            .await?;
             link(
                 var_graph,
                 val,

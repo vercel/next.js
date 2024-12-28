@@ -188,7 +188,6 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
-    'process.env.__NEXT_AFTER': config.experimental.after ?? false,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
@@ -207,9 +206,6 @@ export function getDefineEnv({
       isNaN(Number(config.experimental.staleTimes?.static))
         ? 5 * 60 // 5 minutes
         : config.experimental.staleTimes?.static
-    ),
-    'process.env.__NEXT_FLYING_SHUTTLE': Boolean(
-      config.experimental.flyingShuttle
     ),
     'process.env.__NEXT_CLIENT_ROUTER_FILTER_ENABLED':
       config.experimental.clientRouterFilter ?? true,
@@ -276,6 +272,8 @@ export function getDefineEnv({
       // Internal only so untyped to avoid discovery
       (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
       false,
+    'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
+      !!config.experimental.authInterrupts,
     ...(isNodeOrEdgeCompilation
       ? {
           // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
@@ -290,6 +288,8 @@ export function getDefineEnv({
             needsExperimentalReact(config),
         }
       : undefined),
+    'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
+      config.experimental.newDevOverlay ?? false,
   }
 
   const userDefines = config.compiler?.define ?? {}
@@ -302,22 +302,7 @@ export function getDefineEnv({
     defineEnv[key] = userDefines[key]
   }
 
-  const serializedDefineEnv = serializeDefineEnv(defineEnv)
-
-  if (!dev && Boolean(config.experimental.flyingShuttle)) {
-    // we delay inlining these values until after the build
-    // with flying shuttle enabled so we can update them
-    // without invalidating entries
-    for (const key in nextPublicEnv) {
-      serializedDefineEnv[key] = key
-    }
-
-    for (const key in nextConfigEnv) {
-      serializedDefineEnv[key] = key
-    }
-  }
-
-  return serializedDefineEnv
+  return serializeDefineEnv(defineEnv)
 }
 
 export function getDefineEnvPlugin(options: DefineEnvPluginOptions) {

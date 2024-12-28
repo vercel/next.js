@@ -8,7 +8,7 @@ export interface OriginalStackFrame extends OriginalStackFrameResponse {
   error: boolean
   reason: string | null
   external: boolean
-  expanded: boolean
+  ignored: boolean
   sourceStackFrame: StackFrame
 }
 
@@ -49,22 +49,16 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: false,
-      expanded: !Boolean(
-        /* collapsed */
-        (source.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.includes('node_modules') ||
-          body.originalStackFrame?.file?.startsWith('[turbopack]/')) ??
-          true
-      ),
       sourceStackFrame: source,
       originalStackFrame: body.originalStackFrame,
       originalCodeFrame: body.originalCodeFrame || null,
       sourcePackage: body.sourcePackage,
+      ignored: body.originalStackFrame?.ignored || false,
     }
   }
 
+  // TODO: merge this section into ignoredList handling
   if (
-    source.file === '<anonymous>' ||
     source.file === 'file://' ||
     source.file?.match(/^node:/) ||
     source.file?.match(/https?:\/\//)
@@ -73,11 +67,11 @@ function getOriginalStackFrame(
       error: false,
       reason: null,
       external: true,
-      expanded: false,
       sourceStackFrame: source,
       originalStackFrame: null,
       originalCodeFrame: null,
       sourcePackage: null,
+      ignored: true,
     })
   }
 
@@ -85,11 +79,11 @@ function getOriginalStackFrame(
     error: true,
     reason: err?.message ?? err?.toString() ?? 'Unknown Error',
     external: false,
-    expanded: false,
     sourceStackFrame: source,
     originalStackFrame: null,
     originalCodeFrame: null,
     sourcePackage: null,
+    ignored: false,
   }))
 }
 
@@ -141,11 +135,6 @@ export function getFrameSource(frame: StackFrame): string {
   }
 
   if (!isWebpackInternalResource(frame.file) && frame.lineNumber != null) {
-    // If the method name is replayed from server, e.g. Page [Server],
-    // and it's formatted to empty string, recover it as <anonymous> to display it.
-    if (!str && frame.methodName.endsWith(' [Server]')) {
-      str = '<anonymous>'
-    }
     if (str) {
       if (frame.column != null) {
         str += ` (${frame.lineNumber}:${frame.column})`

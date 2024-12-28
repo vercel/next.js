@@ -187,7 +187,7 @@ describe('app dir - basic', () => {
         (req) =>
           req.includes(
             encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
-          ) && req.endsWith('.js')
+          ) && req.includes('.js')
       )
         ? 'found'
         : // When it fails will log out the paths.

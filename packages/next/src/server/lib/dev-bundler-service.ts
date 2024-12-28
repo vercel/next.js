@@ -33,10 +33,8 @@ export class DevBundlerService {
     return await this.bundler.hotReloader.ensurePage(definition)
   }
 
-  public logErrorWithOriginalStack: typeof this.bundler.logErrorWithOriginalStack =
-    async (...args) => {
-      return await this.bundler.logErrorWithOriginalStack(...args)
-    }
+  public logErrorWithOriginalStack =
+    this.bundler.logErrorWithOriginalStack.bind(this.bundler)
 
   public async getFallbackErrorComponents(url?: string) {
     await this.bundler.hotReloader.buildFallbackError()

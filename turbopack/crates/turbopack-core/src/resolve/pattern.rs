@@ -9,7 +9,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, ResolvedVc, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
     LinkContent, LinkType,
@@ -1267,7 +1270,7 @@ impl From<RcStr> for Pattern {
 impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Pattern::Constant(c) => write!(f, "\"{c}\""),
+            Pattern::Constant(c) => write!(f, "'{c}'"),
             Pattern::Dynamic => write!(f, "<dynamic>"),
             Pattern::Alternatives(list) => write!(
                 f,
@@ -1297,7 +1300,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat)]
 pub enum PatternMatch {
     File(RcStr, Vc<FileSystemPath>),
     Directory(RcStr, Vc<FileSystemPath>),
@@ -1319,7 +1322,7 @@ impl PatternMatch {
 
 // TODO this isn't super efficient
 // avoid storing a large list of matches
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -1647,7 +1650,7 @@ pub async fn read_matches(
 #[cfg(test)]
 mod tests {
     use rstest::*;
-    use turbo_tasks::RcStr;
+    use turbo_rcstr::RcStr;
 
     use super::{longest_common_prefix, longest_common_suffix, Pattern};
 

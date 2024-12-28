@@ -7,7 +7,7 @@ use turbopack_core::resolve::{
         ConditionValue, ImportMap, ImportMapping, ResolutionConditions, ResolveInPackage,
         ResolveIntoPackage, ResolveModules, ResolveOptions,
     },
-    AliasMap, AliasPattern, ExternalType, FindContextFileResult,
+    AliasMap, AliasPattern, ExternalTraced, ExternalType, FindContextFileResult,
 };
 
 use crate::{
@@ -106,11 +106,13 @@ async fn base_resolve_options(
         for req in NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(None, ExternalType::CommonJs).resolved_cell(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs).resolved_cell(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
         }
     }
@@ -118,12 +120,17 @@ async fn base_resolve_options(
         for req in EDGE_NODE_EXTERNALS {
             direct_mappings.insert(
                 AliasPattern::exact(req),
-                ImportMapping::External(Some(format!("node:{req}").into()), ExternalType::CommonJs)
-                    .resolved_cell(),
+                ImportMapping::External(
+                    Some(format!("node:{req}").into()),
+                    ExternalType::CommonJs,
+                    ExternalTraced::Untraced,
+                )
+                .resolved_cell(),
             );
             direct_mappings.insert(
                 AliasPattern::exact(format!("node:{req}")),
-                ImportMapping::External(None, ExternalType::CommonJs).resolved_cell(),
+                ImportMapping::External(None, ExternalType::CommonJs, ExternalTraced::Untraced)
+                    .resolved_cell(),
             );
         }
     }
@@ -223,10 +230,7 @@ async fn base_resolve_options(
         } else {
             let mut mods = Vec::new();
             if let Some(dir) = opt.enable_node_modules {
-                mods.push(ResolveModules::Nested(
-                    dir.to_resolved().await?,
-                    vec!["node_modules".into()],
-                ));
+                mods.push(ResolveModules::Nested(dir, vec!["node_modules".into()]));
             }
             mods
         },

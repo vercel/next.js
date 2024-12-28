@@ -55,9 +55,7 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
   | undefined
   | ???*0*
   | b
-  | null
   | pj(a, b, c)
-  | b["child"]
   | cj(a, b, b["type"], b["pendingProps"], c)
   | yj(a, b, c)
   | ej(a, b, c)
@@ -117,7 +115,10 @@ $k = (...) => ((bj(a) ? 1 : 0) | 11 | 14 | 2)
 
 *anonymous function 131212* = (...) => sl(null, a, b, !(1), c)
 
-*anonymous function 131315* = (...) => (a["_reactRootContainer"] ? !(0) : !(1))
+*anonymous function 131315* = (...) => (a["_reactRootContainer"] ? ???*0* : !(1))
+- *0* !(0)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 *anonymous function 131389* = (...) => undefined
 
@@ -577,14 +578,17 @@ Fh = Uf(Dh)
 
 Fi = (...) => di()["memoizedState"]
 
-Fj = (...) => (undefined | null | (???*0* ? b : null) | ???*1* | b["child"])
-- *0* unsupported expression
-  ⚠️  This value might have side effects
-- *1* b
+Fj = (...) => (undefined | ???*0* | null | (???*1* ? b : null) | b["child"])
+- *0* null
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
+- *1* unsupported expression
+  ⚠️  This value might have side effects
 
-Fk = (...) => null
+Fk = (...) => (???*0* | null)
+- *0* null
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 G = (...) => undefined
 
@@ -722,7 +726,7 @@ Jh = (...) => undefined
 
 Ji = (...) => undefined
 
-Jj = (...) => (undefined | ???*0* | null | (???*3* ? ???*4* : null))
+Jj = (...) => (undefined | ???*0* | (???*3* ? ???*4* : null) | null)
 - *0* (???*1* ? ???*2* : null)
   ⚠️  sequence with side effects
   ⚠️  This value might have side effects
@@ -1289,7 +1293,10 @@ Vk = (...) => undefined
 
 W = (...) => undefined
 
-Wa = (...) => (!(1) | !(0) | ((a !== c) ? !(0) : !(1)))
+Wa = (...) => (!(1) | !(0) | ((a !== c) ? ???*0* : !(1)))
+- *0* !(0)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 Wb = (...) => (b["dehydrated"] | null)
 
@@ -1373,7 +1380,10 @@ Ya = (...) => A(
 - *2* unsupported expression
   ⚠️  This value might have side effects
 
-Yb = (...) => (((b !== a) ? null : a) | a | b | ((c["stateNode"]["current"] === c) ? a : b))
+Yb = (...) => (((b !== a) ? null : a) | ???*0* | ((c["stateNode"]["current"] === c) ? a : b))
+- *0* a
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 Yc = (...) => (
   | a
@@ -5763,7 +5773,10 @@ kh = (...) => undefined
 
 ki = (...) => c(*anonymous function 67764*)
 
-kj = (...) => ($i(a, b, f) | b["child"])
+kj = (...) => (???*0* | b["child"])
+- *0* $i(a, b, f)
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 kk = (...) => undefined
 
@@ -5990,7 +6003,10 @@ n#292 = (
 
 n#404 = (a | t["payload"])
 
-n#431 = (...) => l
+n#431 = (...) => (???*0* | l)
+- *0* l
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 n#449 = r(e, u, h[w], k)
 
@@ -6356,7 +6372,10 @@ t#292 = ((0 !== ???*0*) | [] | Bd | Td | new t(x, `${w}enter`, n, c, e) | k | vf
 
 t#404 = h
 
-t#431 = (...) => l
+t#431 = (...) => (???*0* | l)
+- *0* l
+  ⚠️  sequence with side effects
+  ⚠️  This value might have side effects
 
 t#454 = r(e, m, n["value"], k)
 

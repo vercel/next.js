@@ -1,5 +1,6 @@
 use std::{
     env::current_dir,
+    iter::FromIterator,
     path::{Path, PathBuf},
 };
 
@@ -21,6 +22,7 @@ use next_custom_transforms::transforms::{
     strip_page_exports::{next_transform_strip_page_exports, ExportFilter},
     warn_for_edge_runtime::warn_for_edge_runtime,
 };
+use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
     common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
@@ -42,6 +44,7 @@ use testing::fixture;
 fn syntax() -> Syntax {
     Syntax::Es(EsSyntax {
         jsx: true,
+        import_attributes: true,
         ..Default::default()
     })
 }
@@ -63,6 +66,9 @@ fn next_dynamic_fixture(input: PathBuf) {
     let output_dev = input.parent().unwrap().join("output-dev.js");
     let output_prod = input.parent().unwrap().join("output-prod.js");
     let output_server = input.parent().unwrap().join("output-server.js");
+    let output_turbo_dev = input.parent().unwrap().join("output-turbo-dev.js");
+    let output_turbo_prod = input.parent().unwrap().join("output-turbo-prod.js");
+    let output_turbo_server = input.parent().unwrap().join("output-turbo-server.js");
     test_fixture(
         syntax(),
         &|_tr| {
@@ -114,6 +120,66 @@ fn next_dynamic_fixture(input: PathBuf) {
         &output_server,
         Default::default(),
     );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                true,
+                false,
+                false,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_dev,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                false,
+                false,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_prod,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                false,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_server,
+        Default::default(),
+    );
 }
 
 #[fixture("tests/fixture/next-dynamic-app-dir/**/input.js")]
@@ -125,6 +191,13 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
         .parent()
         .unwrap()
         .join("output-server-client-layer.js");
+    let output_turbo_dev = input.parent().unwrap().join("output-turbo-dev.js");
+    let output_turbo_prod = input.parent().unwrap().join("output-turbo-prod.js");
+    let output_turbo_server: PathBuf = input.parent().unwrap().join("output-turbo-server.js");
+    let output_turbo_server_client_layer = input
+        .parent()
+        .unwrap()
+        .join("output-turbo-server-client-layer.js");
     test_fixture(
         syntax(),
         &|_tr| {
@@ -191,6 +264,86 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
         },
         &input,
         &output_server_client_layer,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                true,
+                false,
+                true,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_dev,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                false,
+                true,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_prod,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                true,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_server,
+        Default::default(),
+    );
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            next_dynamic(
+                false,
+                true,
+                false,
+                false,
+                NextDynamicMode::Turbopack {
+                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
+                    dynamic_transition_name: "next-dynamic".to_string(),
+                },
+                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
+                Some("/some-project/src".into()),
+            )
+        },
+        &input,
+        &output_turbo_server_client_layer,
         Default::default(),
     );
 }
@@ -416,6 +569,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                         is_react_server_layer: true,
                         dynamic_io_enabled: true,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     _tr.comments.as_ref().clone(),
                 ),
@@ -448,6 +602,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         is_react_server_layer: true,
                         dynamic_io_enabled: true,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
                 ),
@@ -473,6 +628,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                         is_react_server_layer: false,
                         dynamic_io_enabled: true,
                         hash_salt: "".into(),
+                        cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
                 ),

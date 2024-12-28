@@ -1,7 +1,8 @@
 use anyhow::Result;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
-    FxIndexMap, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -23,14 +24,14 @@ pub struct PreprocessedChildrenIdents {
 #[derive(Clone, Hash)]
 #[turbo_tasks::value(shared)]
 pub enum ReferencedModule {
-    Module(Vc<Box<dyn Module>>),
+    Module(ResolvedVc<Box<dyn Module>>),
     AsyncLoaderModule(ResolvedVc<Box<dyn Module>>),
 }
 
 impl ReferencedModule {
     fn module(&self) -> Vc<Box<dyn Module>> {
         match *self {
-            ReferencedModule::Module(module) => module,
+            ReferencedModule::Module(module) => *module,
             ReferencedModule::AsyncLoaderModule(module) => *module,
         }
     }
@@ -53,7 +54,7 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
         .iter()
         .map(|reference| async move {
             let async_loader =
-                if Vc::try_resolve_downcast_type::<EsmAsyncAssetReference>(*reference)
+                if ResolvedVc::try_downcast_type::<EsmAsyncAssetReference>(*reference)
                     .await?
                     .is_some()
                 {
@@ -85,7 +86,7 @@ async fn referenced_modules(module: Vc<Box<dyn Module>>) -> Result<Vc<Referenced
     for (module_list, async_loader) in modules_and_async_loaders {
         for module in module_list {
             if set.insert(module) {
-                modules.push(ReferencedModule::Module(*module).resolved_cell());
+                modules.push(ReferencedModule::Module(module).resolved_cell());
             }
         }
         if let Some(async_loader_module) = async_loader {
@@ -105,7 +106,7 @@ pub async fn get_children_modules(
     let parent_module = parent.await?.module();
     let mut modules = referenced_modules(parent_module).await?.clone_value();
     for module in parent_module.additional_layers_modules().await? {
-        modules.push(ReferencedModule::Module(**module).resolved_cell());
+        modules.push(ReferencedModule::Module(*module).resolved_cell());
     }
     Ok(modules.into_iter())
 }
@@ -124,7 +125,7 @@ pub async fn children_modules_idents(
             root_modules
                 .await?
                 .iter()
-                .map(|module| ReferencedModule::Module(**module).resolved_cell())
+                .map(|module| ReferencedModule::Module(*module).resolved_cell())
                 .collect::<Vec<_>>(),
             get_children_modules,
         )

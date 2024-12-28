@@ -1,4 +1,5 @@
 import { bold, green, magenta, red, yellow, white } from '../../lib/picocolors'
+import { LRUCache } from '../../server/lib/lru-cache'
 
 export const prefixes = {
   wait: white(bold('○')),
@@ -76,11 +77,11 @@ export function trace(...message: any[]) {
   prefixedLog('trace', ...message)
 }
 
-const warnOnceMessages = new Set()
+const warnOnceCache = new LRUCache<string>(10_000, (value) => value.length)
 export function warnOnce(...message: any[]) {
-  if (!warnOnceMessages.has(message[0])) {
-    warnOnceMessages.add(message.join(' '))
-
+  const key = message.join(' ')
+  if (!warnOnceCache.has(key)) {
+    warnOnceCache.set(key, key)
     warn(...message)
   }
 }

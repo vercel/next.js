@@ -47,7 +47,8 @@ import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../../flight-data-helpers'
-import { getRedirectError, RedirectType } from '../../redirect'
+import { getRedirectError } from '../../redirect'
+import { RedirectType } from '../../redirect-error'
 import { createSeededPrefetchCacheEntry } from '../prefetch-cache-utils'
 import { removeBasePath } from '../../../remove-base-path'
 import { hasBasePath } from '../../../has-base-path'
@@ -206,7 +207,6 @@ export function serverActionReducer(
 ): ReducerState {
   const { resolve, reject } = action
   const mutable: ServerActionMutable = {}
-  const href = state.canonicalUrl
 
   let currentTree = state.tree
 
@@ -230,6 +230,8 @@ export function serverActionReducer(
       isPrerender,
       revalidatedParts,
     }) => {
+      let redirectHref: string | undefined
+
       // honor the redirect type instead of defaulting to push in case of server actions.
       if (redirectLocation) {
         if (redirectType === RedirectType.replace) {
@@ -239,6 +241,9 @@ export function serverActionReducer(
           state.pushRef.pendingPush = true
           mutable.pendingPush = true
         }
+
+        redirectHref = createHrefFromUrl(redirectLocation, false)
+        mutable.canonicalUrl = redirectHref
       }
 
       if (!flightData) {
@@ -258,6 +263,8 @@ export function serverActionReducer(
 
       if (typeof flightData === 'string') {
         // Handle case when navigating to page in `pages` from `app`
+        resolve(actionResult)
+
         return handleExternalUrl(
           state,
           mutable,
@@ -282,6 +289,8 @@ export function serverActionReducer(
         if (!isRootRender) {
           // TODO-APP: handle this case better
           console.log('SERVER ACTION APPLY FAILED')
+          resolve(actionResult)
+
           return state
         }
 
@@ -291,20 +300,22 @@ export function serverActionReducer(
           [''],
           currentTree,
           treePatch,
-          redirectLocation
-            ? createHrefFromUrl(redirectLocation)
-            : state.canonicalUrl
+          redirectHref ? redirectHref : state.canonicalUrl
         )
 
         if (newTree === null) {
+          resolve(actionResult)
+
           return handleSegmentMismatch(state, action, treePatch)
         }
 
         if (isNavigatingToNewRootLayout(currentTree, newTree)) {
+          resolve(actionResult)
+
           return handleExternalUrl(
             state,
             mutable,
-            href,
+            redirectHref || state.canonicalUrl,
             state.pushRef.pendingPush
           )
         }
@@ -322,7 +333,8 @@ export function serverActionReducer(
             undefined,
             treePatch,
             cacheNodeSeedData,
-            head
+            head,
+            undefined
           )
 
           mutable.cache = cache
@@ -343,10 +355,7 @@ export function serverActionReducer(
         currentTree = newTree
       }
 
-      if (redirectLocation) {
-        const newHref = createHrefFromUrl(redirectLocation, false)
-        mutable.canonicalUrl = newHref
-
+      if (redirectLocation && redirectHref) {
         // Because the RedirectBoundary will trigger a navigation, we need to seed the prefetch cache
         // with the FlightData that we got from the server action for the target page, so that it's
         // available when the page is navigated to and doesn't need to be re-fetched.
@@ -373,7 +382,7 @@ export function serverActionReducer(
           mutable.prefetchCache = state.prefetchCache
         }
 
-        // If the action triggered a redirect, the action promise promise will be rejected with
+        // If the action triggered a redirect, the action promise will be rejected with
         // a redirect so that it's handled by RedirectBoundary as we won't have a valid
         // action result to resolve the promise with. This will effectively reset the state of
         // the component that called the action as the error boundary will remount the tree.
@@ -381,7 +390,9 @@ export function serverActionReducer(
         // a response with the correct status code.
         reject(
           getRedirectError(
-            hasBasePath(newHref) ? removeBasePath(newHref) : newHref,
+            hasBasePath(redirectHref)
+              ? removeBasePath(redirectHref)
+              : redirectHref,
             redirectType || RedirectType.push
           )
         )

@@ -2,9 +2,10 @@ use std::{collections::BTreeMap, future::Future, pin::Pin};
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, RcStr, ResolvedVc, TryJoinIterExt,
-    Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexSet, NonLocalValue, ResolvedVc,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 
@@ -14,7 +15,7 @@ use super::{
     plugin::BeforeResolvePlugin,
     AliasPattern, ExternalType, ResolveResult, ResolveResultItem,
 };
-use crate::resolve::{parse::Request, plugin::AfterResolvePlugin};
+use crate::resolve::{parse::Request, plugin::AfterResolvePlugin, ExternalTraced};
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
@@ -26,7 +27,16 @@ pub struct ExcludedExtensions(pub FxIndexSet<RcStr>);
 
 /// A location where to resolve modules.
 #[derive(
-    TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, ValueDebugFormat,
+    TraceRawVcs,
+    Hash,
+    PartialEq,
+    Eq,
+    Clone,
+    Debug,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
 )]
 pub enum ResolveModules {
     /// when inside of path, use the list of directories to
@@ -39,7 +49,9 @@ pub enum ResolveModules {
     },
 }
 
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize)]
+#[derive(
+    TraceRawVcs, Hash, PartialEq, Eq, Clone, Copy, Debug, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum ConditionValue {
     Set,
     Unset,
@@ -59,7 +71,7 @@ impl From<bool> for ConditionValue {
 pub type ResolutionConditions = BTreeMap<RcStr, ConditionValue>;
 
 /// The different ways to resolve a package, as described in package.json.
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveIntoPackage {
     /// Using the [exports] field.
     ///
@@ -77,7 +89,7 @@ pub enum ResolveIntoPackage {
 }
 
 // The different ways to resolve a request withing a package
-#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize)]
+#[derive(TraceRawVcs, Hash, PartialEq, Eq, Clone, Debug, Serialize, Deserialize, NonLocalValue)]
 pub enum ResolveInPackage {
     /// Using a alias field which allows to map requests
     AliasField(RcStr),
@@ -93,7 +105,18 @@ pub enum ResolveInPackage {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ImportMapping {
-    External(Option<RcStr>, ExternalType),
+    /// If specified, the optional name overrides the request, importing that external instead.
+    External(Option<RcStr>, ExternalType, ExternalTraced),
+    /// Try to make the request external if it is is resolvable from the specified
+    /// directory, and fall back to resolving the original request if it fails.
+    ///
+    /// If specified, the optional name overrides the request, importing that external instead.
+    PrimaryAlternativeExternal {
+        name: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     /// An already resolved result that will be returned directly.
     Direct(ResolvedVc<ResolveResult>),
     /// A request alias that will be resolved first, and fall back to resolving
@@ -111,7 +134,13 @@ pub enum ImportMapping {
 #[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ReplacedImportMapping {
-    External(Option<RcStr>, ExternalType),
+    External(Option<RcStr>, ExternalType, ExternalTraced),
+    PrimaryAlternativeExternal {
+        name: Option<RcStr>,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     Direct(ResolvedVc<ResolveResult>),
     PrimaryAlternative(Pattern, Option<ResolvedVc<FileSystemPath>>),
     Ignore,
@@ -159,11 +188,22 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name, ty) => {
-                    ReplacedImportMapping::External(name.clone(), *ty)
+                ImportMapping::External(name, ty, traced) => {
+                    ReplacedImportMapping::External(name.clone(), *ty, *traced)
                 }
-                ImportMapping::PrimaryAlternative(name, context) => {
-                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *context)
+                ImportMapping::PrimaryAlternativeExternal {
+                    name,
+                    ty,
+                    traced,
+                    lookup_dir,
+                } => ReplacedImportMapping::PrimaryAlternativeExternal {
+                    name: name.clone(),
+                    ty: *ty,
+                    traced: *traced,
+                    lookup_dir: *lookup_dir,
+                },
+                ImportMapping::PrimaryAlternative(name, lookup_dir) => {
+                    ReplacedImportMapping::PrimaryAlternative((*name).clone().into(), *lookup_dir)
                 }
                 ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
                 ImportMapping::Ignore => ReplacedImportMapping::Ignore,
@@ -175,9 +215,7 @@ impl AliasTemplate for Vc<ImportMapping> {
                         .try_join()
                         .await?,
                 ),
-                ImportMapping::Dynamic(replacement) => {
-                    ReplacedImportMapping::Dynamic(replacement.to_resolved().await?)
-                }
+                ImportMapping::Dynamic(replacement) => ReplacedImportMapping::Dynamic(*replacement),
             }
             .resolved_cell())
         })
@@ -188,20 +226,43 @@ impl AliasTemplate for Vc<ImportMapping> {
         Box::pin(async move {
             let this = &*self.await?;
             Ok(match this {
-                ImportMapping::External(name, ty) => {
+                ImportMapping::External(name, ty, traced) => {
                     if let Some(name) = name {
                         ReplacedImportMapping::External(
                             capture.spread_into_star(name).as_string().map(|s| s.into()),
                             *ty,
+                            *traced,
                         )
                     } else {
-                        ReplacedImportMapping::External(None, *ty)
+                        ReplacedImportMapping::External(None, *ty, *traced)
                     }
                 }
-                ImportMapping::PrimaryAlternative(name, context) => {
+                ImportMapping::PrimaryAlternativeExternal {
+                    name,
+                    ty,
+                    traced,
+                    lookup_dir,
+                } => {
+                    if let Some(name) = name {
+                        ReplacedImportMapping::PrimaryAlternativeExternal {
+                            name: capture.spread_into_star(name).as_string().map(|s| s.into()),
+                            ty: *ty,
+                            traced: *traced,
+                            lookup_dir: *lookup_dir,
+                        }
+                    } else {
+                        ReplacedImportMapping::PrimaryAlternativeExternal {
+                            name: None,
+                            ty: *ty,
+                            traced: *traced,
+                            lookup_dir: *lookup_dir,
+                        }
+                    }
+                }
+                ImportMapping::PrimaryAlternative(name, lookup_dir) => {
                     ReplacedImportMapping::PrimaryAlternative(
                         capture.spread_into_star(name),
-                        *context,
+                        *lookup_dir,
                     )
                 }
                 ImportMapping::Direct(v) => ReplacedImportMapping::Direct(*v),
@@ -323,9 +384,16 @@ pub struct ResolvedMap {
 }
 
 #[turbo_tasks::value(shared)]
-#[derive(Clone, Debug)]
+#[derive(Clone)]
 pub enum ImportMapResult {
     Result(ResolvedVc<ResolveResult>),
+    External(RcStr, ExternalType, ExternalTraced),
+    AliasExternal {
+        name: RcStr,
+        ty: ExternalType,
+        traced: ExternalTraced,
+        lookup_dir: ResolvedVc<FileSystemPath>,
+    },
     Alias(ResolvedVc<Request>, Option<ResolvedVc<FileSystemPath>>),
     Alternatives(Vec<ImportMapResult>),
     NoEntry,
@@ -338,16 +406,34 @@ async fn import_mapping_to_result(
 ) -> Result<ImportMapResult> {
     Ok(match &*mapping.await? {
         ReplacedImportMapping::Direct(result) => ImportMapResult::Result(*result),
-        ReplacedImportMapping::External(name, ty) => ImportMapResult::Result(
-            ResolveResult::primary(if let Some(name) = name {
-                ResolveResultItem::External(name.clone(), *ty)
+        ReplacedImportMapping::External(name, ty, traced) => ImportMapResult::External(
+            if let Some(name) = name {
+                name.clone()
             } else if let Some(request) = request.await?.request() {
-                ResolveResultItem::External(request, *ty)
+                request
             } else {
                 bail!("Cannot resolve external reference without request")
-            })
-            .resolved_cell(),
+            },
+            *ty,
+            *traced,
         ),
+        ReplacedImportMapping::PrimaryAlternativeExternal {
+            name,
+            ty,
+            traced,
+            lookup_dir,
+        } => ImportMapResult::AliasExternal {
+            name: if let Some(name) = name {
+                name.clone()
+            } else if let Some(request) = request.await?.request() {
+                request
+            } else {
+                bail!("Cannot resolve external reference without request")
+            },
+            ty: *ty,
+            traced: *traced,
+            lookup_dir: *lookup_dir,
+        },
         ReplacedImportMapping::Ignore => ImportMapResult::Result(
             ResolveResult::primary(ResolveResultItem::Ignore).resolved_cell(),
         ),
@@ -379,6 +465,8 @@ impl ValueToString for ImportMapResult {
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         match self {
             ImportMapResult::Result(_) => Ok(Vc::cell("Resolved by import map".into())),
+            ImportMapResult::External(_, _, _) => Ok(Vc::cell("TODO external".into())),
+            ImportMapResult::AliasExternal { .. } => Ok(Vc::cell("TODO external".into())),
             ImportMapResult::Alias(request, context) => {
                 let s = if let Some(path) = context {
                     let path = path.to_string().await?;

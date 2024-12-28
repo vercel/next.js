@@ -1,6 +1,6 @@
 use anyhow::Result;
 
-use crate::{self as turbo_tasks, RawVc, TryJoinIterExt, Vc};
+use crate::{self as turbo_tasks, RawVc, ResolvedVc, TryJoinIterExt, Vc};
 /// Just an empty type, but it's never equal to itself.
 ///
 /// [`Vc<Completion>`] can be used as return value instead of `()`
@@ -46,7 +46,7 @@ impl Completion {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Completions(Vec<Vc<Completion>>);
+pub struct Completions(Vec<ResolvedVc<Completion>>);
 
 #[turbo_tasks::value_impl]
 impl Completions {
@@ -56,7 +56,7 @@ impl Completions {
     /// Varying lists should use `Vc::cell(list).completed()`
     /// instead.
     #[turbo_tasks::function]
-    pub fn all(completions: Vec<Vc<Completion>>) -> Vc<Completion> {
+    pub fn all(completions: Vec<ResolvedVc<Completion>>) -> Vc<Completion> {
         Vc::<Completions>::cell(completions).completed()
     }
 
@@ -79,7 +79,7 @@ impl Completions {
                 .map(|&c| async move {
                     // Wraps the completion in a new completion. This makes it cheaper to restore
                     // since it doesn't need to restore the original task resp task chain.
-                    wrap(c).await?;
+                    wrap(*c).await?;
                     Ok(())
                 })
                 .try_join()

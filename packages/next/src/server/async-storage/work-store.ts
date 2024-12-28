@@ -33,7 +33,7 @@ export type WorkStoreContext = {
     pendingWaitUntil?: Promise<any>
     experimental: Pick<
       RenderOpts['experimental'],
-      'isRoutePPREnabled' | 'after' | 'dynamicIO'
+      'isRoutePPREnabled' | 'dynamicIO' | 'authInterrupts'
     >
 
     /**
@@ -60,10 +60,14 @@ export type WorkStoreContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugDynamicAccesses'
-    | 'buildId'
   > &
-    Partial<RequestLifecycleOpts> &
+    RequestLifecycleOpts &
     Partial<Pick<RenderOpts, 'reactLoadableManifest'>>
+
+  /**
+   * The build ID of the current build.
+   */
+  buildId: string
 }
 
 export function createWorkStore({
@@ -72,6 +76,7 @@ export function createWorkStore({
   renderOpts,
   requestEndedState,
   isPrefetchRequest,
+  buildId,
 }: WorkStoreContext): WorkStore {
   /**
    * Rules of Static & Dynamic HTML:
@@ -112,9 +117,11 @@ export function createWorkStore({
 
     isDraftMode: renderOpts.isDraftMode,
 
+    rootParams: {},
+
     requestEndedState,
     isPrefetchRequest,
-    buildId: renderOpts.buildId,
+    buildId,
     reactLoadableManifest: renderOpts?.reactLoadableManifest || {},
     assetPrefix: renderOpts?.assetPrefix || '',
 
@@ -127,15 +134,11 @@ export function createWorkStore({
   return store
 }
 
-function createAfterContext(
-  renderOpts: Partial<RequestLifecycleOpts> & {
-    experimental: Pick<RenderOpts['experimental'], 'after'>
-  }
-): AfterContext | undefined {
-  const isAfterEnabled = renderOpts?.experimental?.after ?? false
-  if (!isAfterEnabled) {
-    return undefined
-  }
+function createAfterContext(renderOpts: RequestLifecycleOpts): AfterContext {
   const { waitUntil, onClose, onAfterTaskError } = renderOpts
-  return new AfterContext({ waitUntil, onClose, onTaskError: onAfterTaskError })
+  return new AfterContext({
+    waitUntil,
+    onClose,
+    onTaskError: onAfterTaskError,
+  })
 }

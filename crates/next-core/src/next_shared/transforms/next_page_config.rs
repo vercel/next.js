@@ -2,7 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::page_config::page_config;
 use swc_core::ecma::ast::*;
-use turbo_tasks::{ReadRef, ResolvedVc, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -13,7 +13,7 @@ pub fn get_next_page_config_rule(
     enable_mdx_rs: bool,
     pages_dir: ReadRef<FileSystemPath>,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextPageConfig {
+    let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPageConfig {
         // [TODO]: update once turbopack build works
         is_development: true,
     }) as _));

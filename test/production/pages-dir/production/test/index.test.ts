@@ -180,7 +180,7 @@ describe('Production Usage', () => {
       {
         page: '/_app',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           isReact18
@@ -192,7 +192,7 @@ describe('Production Usage', () => {
       {
         page: '/client-error',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
@@ -206,7 +206,7 @@ describe('Production Usage', () => {
       {
         page: '/index',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
@@ -223,7 +223,7 @@ describe('Production Usage', () => {
       {
         page: '/next-import',
         tests: [
-          /webpack-runtime\.js/,
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
           /chunks\/.*?\.js/,
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
@@ -242,7 +242,10 @@ describe('Production Usage', () => {
       },
       {
         page: '/api',
-        tests: [/webpack-runtime\.js/, /\/logo\.module\.css/],
+        tests: [
+          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+          /\/logo\.module\.css/,
+        ],
         notTests: [
           /next\/dist\/server\/next\.js/,
           /next\/dist\/bin/,
@@ -569,7 +572,9 @@ describe('Production Usage', () => {
     it('should set Cache-Control header', async () => {
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        join('./.next', REACT_LOADABLE_MANIFEST)
+        process.env.TURBOPACK
+          ? `.next/server/pages/dynamic/css/${REACT_LOADABLE_MANIFEST}`
+          : `.next/${REACT_LOADABLE_MANIFEST}`
       )
       const url = `http://localhost:${next.appPort}`
 
@@ -578,8 +583,13 @@ describe('Production Usage', () => {
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
           .replace(/\\/g, '/')
-          .endsWith('dynamic/css.js -> ../../components/dynamic-css/with-css')
+          .endsWith(
+            process.env.TURBOPACK
+              ? 'components/dynamic-css/with-css.js [client] (ecmascript, next/dynamic entry)'
+              : 'dynamic/css.js -> ../../components/dynamic-css/with-css'
+          )
       })
+      expect(manifestKey).toBeString()
 
       // test dynamic chunk
       reactLoadableManifest[manifestKey].files.forEach((f) => {

@@ -1,8 +1,9 @@
 use anyhow::{bail, Context, Result};
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, Completion, Completions, RcStr, ResolvedVc, TaskInput,
+    fxindexmap, trace::TraceRawVcs, Completion, Completions, NonLocalValue, ResolvedVc, TaskInput,
     TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
@@ -46,7 +47,18 @@ struct PostCssProcessingResult {
 }
 
 #[derive(
-    Default, Copy, Clone, PartialEq, Eq, Hash, Debug, TraceRawVcs, Serialize, Deserialize, TaskInput,
+    Default,
+    Copy,
+    Clone,
+    PartialEq,
+    Eq,
+    Hash,
+    Debug,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum PostCssConfigLocation {
     #[default]
@@ -150,15 +162,22 @@ impl Source for PostCssTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for PostCssTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        Ok(*self
-            .process()
+        Ok(*transform_process_operation(self)
             .issue_file_path(this.source.ident().path(), "PostCSS processing")
             .await?
+            .connect()
             .await?
             .content)
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn transform_process_operation(
+    asset: ResolvedVc<PostCssTransformedAsset>,
+) -> Vc<ProcessPostCssResult> {
+    asset.process()
 }
 
 #[turbo_tasks::value]
@@ -171,19 +190,25 @@ struct ProcessPostCssResult {
 async fn config_changed(
     asset_context: Vc<Box<dyn AssetContext>>,
     postcss_config_path: Vc<FileSystemPath>,
-) -> Vc<Completion> {
+) -> Result<Vc<Completion>> {
     let config_asset = asset_context
         .process(
             Vc::upcast(FileSource::new(postcss_config_path)),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module();
 
-    Vc::<Completions>::cell(vec![
-        any_content_changed_of_module(config_asset),
-        extra_configs_changed(asset_context, postcss_config_path),
+    Ok(Vc::<Completions>::cell(vec![
+        any_content_changed_of_module(config_asset)
+            .to_resolved()
+            .await?,
+        extra_configs_changed(asset_context, postcss_config_path)
+            .to_resolved()
+            .await?,
     ])
-    .completed()
+    .completed())
 }
 
 #[turbo_tasks::function]
@@ -204,16 +229,21 @@ async fn extra_configs_changed(
         .map(|path| async move {
             Ok(
                 if matches!(&*path.get_type().await?, FileSystemEntryType::File) {
-                    asset_context
+                    match *asset_context
                         .process(
                             Vc::upcast(FileSource::new(path)),
-                            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+                            Value::new(ReferenceType::Internal(
+                                InnerAssets::empty().to_resolved().await?,
+                            )),
                         )
                         .try_into_module()
                         .await?
-                        .as_deref()
-                        .copied()
-                        .map(any_content_changed_of_module)
+                    {
+                        Some(module) => {
+                            Some(any_content_changed_of_module(*module).to_resolved().await?)
+                        }
+                        None => None,
+                    }
                 } else {
                     None
                 },
@@ -384,7 +414,7 @@ async fn postcss_executor(
             )
             .cell(),
         )),
-        Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+        Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
             "CONFIG".into() => config_asset
         }))),
     ))
@@ -508,7 +538,10 @@ impl PostCssTransformedAsset {
             asset_context: evaluate_context,
             chunking_context: *chunking_context,
             resolve_options_context: None,
-            args: vec![Vc::cell(content.into()), Vc::cell(css_path.into())],
+            args: vec![
+                ResolvedVc::cell(content.into()),
+                ResolvedVc::cell(css_path.into()),
+            ],
             additional_invalidation: config_changed,
         })
         .await?;
@@ -555,7 +588,9 @@ impl Issue for PostCssTransformIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.description.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.description.clone()).resolved_cell(),
+        ))
     }
 
     #[turbo_tasks::function]

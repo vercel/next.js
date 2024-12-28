@@ -6,9 +6,10 @@ use futures::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, RcStr, ResolvedVc,
-    TaskInput, ValueToString, Vc,
+    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
+    ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
 use turbo_tasks_env::ProcessEnv;
@@ -31,8 +32,8 @@ use crate::{
 };
 
 /// Renders a module as static HTML in a node.js process.
-#[turbo_tasks::function]
-pub async fn render_proxy(
+#[turbo_tasks::function(operation)]
+pub async fn render_proxy_operation(
     cwd: ResolvedVc<FileSystemPath>,
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     path: ResolvedVc<FileSystemPath>,
@@ -124,7 +125,7 @@ async fn proxy_error(
         message: StyledString::Text(message.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     }
-    .cell()
+    .resolved_cell()
     .emit();
 
     Ok((status_code, body))

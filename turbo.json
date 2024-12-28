@@ -9,6 +9,11 @@
       "dependsOn": ["^dev"],
       "outputs": ["dist/**"]
     },
+    "storybook": {},
+    "build-storybook": {
+      "dependsOn": ["^build-storybook"],
+      "outputs": ["storybook-static/**"]
+    },
     "typescript": {},
     "//#typescript": {},
     "//#get-test-timings": {

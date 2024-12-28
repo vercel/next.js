@@ -129,7 +129,11 @@ function isNodeModulesIssue(issue: Issue): boolean {
 
   return (
     issue.severity === 'warning' &&
-    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+    (issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null ||
+      // Ignore Next.js itself when running next directly in the monorepo where it is not inside
+      // node_modules anyway.
+      // TODO(mischnic) prevent matches when this is published to npm
+      issue.filePath.startsWith('[project]/packages/next/'))
   )
 }
 
@@ -444,7 +448,6 @@ export async function handleRouteType({
         }
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
-        await manifestLoader.loadLoadableManifest(page, 'pages')
 
         if (shouldCreateWebpackStats) {
           await manifestLoader.loadWebpackStats(page, 'pages')
@@ -540,7 +543,6 @@ export async function handleRouteType({
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
-      await manifestLoader.loadLoadableManifest(page, 'pages')
 
       await manifestLoader.writeManifests({
         devRewrites,
@@ -597,7 +599,6 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
 
       if (shouldCreateWebpackStats) {
@@ -1205,11 +1206,5 @@ export function normalizedPageToTurbopackStructureRoute(
 export function isPersistentCachingEnabled(
   config: NextConfigComplete
 ): boolean {
-  const unstableValue = config.experimental.turbo?.unstablePersistentCaching
-  if (typeof unstableValue === 'number' && unstableValue > 1) {
-    throw new Error(
-      'Persistent caching in this version of Turbopack is not as stable as expected. Upgrade to a newer version of Turbopack to use this feature with the expected stability.'
-    )
-  }
-  return !!unstableValue
+  return config.experimental.turbo?.unstablePersistentCaching || false
 }

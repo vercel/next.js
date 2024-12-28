@@ -3,7 +3,8 @@ use std::collections::BTreeMap;
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use serde_json::Value as JsonValue;
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt};
 use turbo_tasks_fs::{File, FileContent, FileSystem};
 use turbopack_core::{
     asset::AssetContent, server_fs::ServerFileSystem, virtual_source::VirtualSource,

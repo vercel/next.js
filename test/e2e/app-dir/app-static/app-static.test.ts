@@ -128,7 +128,7 @@ describe('app-dir static/dynamic handling', () => {
       expect(res.status).toBe(200)
       await retry(() => {
         expect(next.cliOutput).toContain('exceeded max tag count for')
-        expect(next.cliOutput).toContain('tag-65')
+        expect(next.cliOutput).toContain('tag-129')
       })
     })
   }
@@ -152,7 +152,7 @@ describe('app-dir static/dynamic handling', () => {
         expect(data1).not.toBe(data2)
       })
 
-      it('should not fetch from memory cache after expireTag is used', async () => {
+      it('should not fetch from memory cache after unstable_expireTag is used', async () => {
         const res1 = await next.fetch('/specify-new-tags/one-tag')
         expect(res1.status).toBe(200)
 
@@ -1136,6 +1136,7 @@ describe('app-dir static/dynamic handling', () => {
         {
           "/": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1159,6 +1160,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/api/large-data": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1186,6 +1188,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/articles/works": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1209,6 +1212,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/seb": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1232,6 +1236,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/seb/second-post": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1255,6 +1260,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/styfle": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1278,6 +1284,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/styfle/first-post": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1301,6 +1308,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/styfle/second-post": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1324,6 +1332,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/tim": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1347,6 +1356,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/tim/first-post": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1370,6 +1380,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/default-config-fetch": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1393,6 +1404,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/force-cache": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1416,6 +1428,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/force-static-fetch-no-store": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1439,6 +1452,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/force-static/first": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1462,6 +1476,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/force-static/second": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1485,6 +1500,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/gen-params-dynamic-revalidate/one": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1508,6 +1524,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/hooks/use-pathname/slug": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1531,6 +1548,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/hooks/use-search-params/force-static": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1554,6 +1572,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/hooks/use-search-params/with-suspense": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1577,6 +1596,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/isr-error-handling": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1600,6 +1620,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/no-config-fetch": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1623,6 +1644,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/no-store/static": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1646,6 +1668,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/en/RAND": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1669,6 +1692,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/en/first": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1692,6 +1716,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/en/second": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1715,6 +1740,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/fr/RAND": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1738,6 +1764,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/fr/first": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1761,6 +1788,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/fr/second": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1784,6 +1812,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/en/RAND": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1807,6 +1836,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/en/first": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1830,6 +1860,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/en/second": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1853,6 +1884,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/fr/RAND": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1876,6 +1908,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/fr/first": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1899,6 +1932,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/fr/second": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1922,6 +1956,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/route-handler/no-store-force-static": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1949,6 +1984,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/route-handler/revalidate-360-isr": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -1976,6 +2012,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/route-handler/static-cookies": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2003,6 +2040,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/ssg-draft-mode": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2026,6 +2064,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/ssg-draft-mode/test": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2049,6 +2088,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/ssg-draft-mode/test-2": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2072,6 +2112,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/strip-header-traceparent": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2095,6 +2136,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/unstable-cache/fetch/no-cache": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2118,6 +2160,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/unstable-cache/fetch/no-store": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2141,6 +2184,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-config-revalidate/revalidate-3": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2164,6 +2208,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate-stable/revalidate-3": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2187,6 +2232,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/authorization": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2210,6 +2256,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/cookie": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2233,6 +2280,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/encoding": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2256,6 +2304,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/headers-instance": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2279,6 +2328,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/post-method": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2302,6 +2352,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/revalidate-3": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2325,6 +2376,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/variable-revalidate/revalidate-360-isr": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2352,6 +2404,7 @@ describe('app-dir static/dynamic handling', () => {
         {
           "/articles/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2376,6 +2429,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/[author]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2400,6 +2454,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/blog/[author]/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2424,6 +2479,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/dynamic-error/[id]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2448,6 +2504,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/force-static/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2472,6 +2529,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/gen-params-dynamic-revalidate/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2496,6 +2554,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/hooks/use-pathname/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2520,6 +2579,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-lang/[lang]/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2544,6 +2604,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/partial-gen-params-no-additional-slug/[lang]/[slug]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2568,6 +2629,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/ssg-draft-mode/[[...route]]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",
@@ -2592,6 +2654,7 @@ describe('app-dir static/dynamic handling', () => {
           },
           "/static-to-dynamic-error-forced/[id]": {
             "allowHeader": [
+              "host",
               "x-matched-path",
               "x-prerender-revalidate",
               "x-prerender-revalidate-if-generated",

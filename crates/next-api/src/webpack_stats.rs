@@ -1,6 +1,7 @@
 use anyhow::Result;
 use serde::Serialize;
-use turbo_tasks::{FxIndexMap, FxIndexSet, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 use turbopack_browser::ecmascript::EcmascriptDevChunk;
 use turbopack_core::{
     chunk::{Chunk, ChunkItem},
@@ -38,7 +39,7 @@ where
             for item in chunk.chunk().chunk_items().await? {
                 // let name =
                 chunk_items
-                    .entry(*item)
+                    .entry(**item)
                     .or_default()
                     .insert(chunk_ident.clone().into());
             }

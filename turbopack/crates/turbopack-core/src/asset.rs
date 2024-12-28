@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{Completion, RcStr, ResolvedVc, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{
     FileContent, FileJsonContent, FileLinesContent, FileSystemPath, LinkContent, LinkType,
 };
@@ -7,7 +8,7 @@ use turbo_tasks_fs::{
 use crate::version::{VersionedAssetContent, VersionedContent};
 
 /// An asset. It also forms a graph when following [Asset::references].
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Asset {
     /// The content of the [Asset].
     fn content(self: Vc<Self>) -> Vc<AssetContent>;
@@ -85,17 +86,22 @@ impl AssetContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<Vc<Completion>> {
+    pub async fn write(self: Vc<Self>, path: Vc<FileSystemPath>) -> Result<()> {
         let this = self.await?;
-        Ok(match &*this {
-            AssetContent::File(file) => path.write(**file),
-            AssetContent::Redirect { target, link_type } => path.write_link(
-                LinkContent::Link {
-                    target: target.clone(),
-                    link_type: *link_type,
-                }
-                .cell(),
-            ),
-        })
+        match &*this {
+            AssetContent::File(file) => {
+                let _ = path.write(**file);
+            }
+            AssetContent::Redirect { target, link_type } => {
+                let _ = path.write_link(
+                    LinkContent::Link {
+                        target: target.clone(),
+                        link_type: *link_type,
+                    }
+                    .cell(),
+                );
+            }
+        }
+        Ok(())
     }
 }

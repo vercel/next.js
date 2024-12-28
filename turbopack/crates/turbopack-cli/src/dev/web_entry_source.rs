@@ -1,5 +1,6 @@
 use anyhow::{anyhow, Result};
-use turbo_tasks::{RcStr, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
@@ -30,32 +31,35 @@ use crate::{
 };
 
 #[turbo_tasks::function]
-pub fn get_client_chunking_context(
-    project_path: Vc<FileSystemPath>,
-    server_root: Vc<FileSystemPath>,
-    environment: Vc<Environment>,
-) -> Vc<Box<dyn ChunkingContext>> {
-    Vc::upcast(
+pub async fn get_client_chunking_context(
+    root_path: ResolvedVc<FileSystemPath>,
+    server_root: ResolvedVc<FileSystemPath>,
+    server_root_to_root_path: ResolvedVc<RcStr>,
+    environment: ResolvedVc<Environment>,
+) -> Result<Vc<Box<dyn ChunkingContext>>> {
+    Ok(Vc::upcast(
         BrowserChunkingContext::builder(
-            project_path,
+            root_path,
             server_root,
+            server_root_to_root_path,
             server_root,
-            server_root.join("/_chunks".into()),
-            server_root.join("/_assets".into()),
+            server_root.join("/_chunks".into()).to_resolved().await?,
+            server_root.join("/_assets".into()).to_resolved().await?,
             environment,
             RuntimeType::Development,
         )
         .hot_module_replacement()
         .use_file_source_map_uris()
         .build(),
-    )
+    ))
 }
 
 #[turbo_tasks::function]
 pub async fn get_client_runtime_entries(
     project_path: ResolvedVc<FileSystemPath>,
+    node_env: Vc<NodeEnv>,
 ) -> Result<Vc<RuntimeEntries>> {
-    let resolve_options_context = get_client_resolve_options_context(*project_path);
+    let resolve_options_context = get_client_resolve_options_context(*project_path, node_env);
 
     let mut runtime_entries = Vec::new();
 
@@ -90,10 +94,11 @@ pub async fn get_client_runtime_entries(
 
 #[turbo_tasks::function]
 pub async fn create_web_entry_source(
-    project_path: Vc<FileSystemPath>,
+    root_path: Vc<FileSystemPath>,
     execution_context: Vc<ExecutionContext>,
     entry_requests: Vec<Vc<Request>>,
     server_root: Vc<FileSystemPath>,
+    server_root_to_root_path: ResolvedVc<RcStr>,
     _env: Vc<Box<dyn ProcessEnv>>,
     eager_compile: bool,
     node_env: Vc<NodeEnv>,
@@ -101,14 +106,18 @@ pub async fn create_web_entry_source(
 ) -> Result<Vc<Box<dyn ContentSource>>> {
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let asset_context =
-        get_client_asset_context(project_path, execution_context, compile_time_info, node_env);
-    let chunking_context =
-        get_client_chunking_context(project_path, server_root, compile_time_info.environment());
-    let entries = get_client_runtime_entries(project_path);
+        get_client_asset_context(root_path, execution_context, compile_time_info, node_env);
+    let chunking_context = get_client_chunking_context(
+        root_path,
+        server_root,
+        *server_root_to_root_path,
+        compile_time_info.environment(),
+    );
+    let entries = get_client_runtime_entries(root_path, node_env);
 
     let runtime_entries = entries.resolve_entries(asset_context);
 
-    let origin = PlainResolveOrigin::new(asset_context, project_path.join("_".into()));
+    let origin = PlainResolveOrigin::new(asset_context, root_path.join("_".into()));
     let entries = entry_requests
         .into_iter()
         .map(|request| async move {
@@ -156,7 +165,7 @@ pub async fn create_web_entry_source(
         .await?;
 
     let entry_asset = Vc::upcast(DevHtmlAsset::new(
-        server_root.join("index.html".into()),
+        server_root.join("index.html".into()).to_resolved().await?,
         entries,
     ));
 

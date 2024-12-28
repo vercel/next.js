@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -27,13 +27,13 @@ use crate::{
 /// from [EcmascriptModuleFacadeModule] instead.
 #[turbo_tasks::value]
 pub struct EcmascriptModuleLocalsModule {
-    pub module: Vc<EcmascriptModuleAsset>,
+    pub module: ResolvedVc<EcmascriptModuleAsset>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
-    pub fn new(module: Vc<EcmascriptModuleAsset>) -> Vc<Self> {
+    pub fn new(module: ResolvedVc<EcmascriptModuleAsset>) -> Vc<Self> {
         EcmascriptModuleLocalsModule { module }.cell()
     }
 }
@@ -50,7 +50,7 @@ impl Module for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let result = self.module.analyze().await?;
-        Ok(result.local_references)
+        Ok(*result.local_references)
     }
 }
 
@@ -113,8 +113,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
 impl ChunkableModule for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModuleLocalsChunkItem {

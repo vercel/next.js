@@ -79,7 +79,10 @@ function parseSetCookie(setCookie) {
     partitioned,
     priority
   } = Object.fromEntries(
-    attributes.map(([key, value2]) => [key.toLowerCase(), value2])
+    attributes.map(([key, value2]) => [
+      key.toLowerCase().replace(/-/g, ""),
+      value2
+    ])
   );
   const cookie = {
     name,
@@ -297,8 +300,8 @@ var ResponseCookies = class {
    * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
    */
   delete(...args) {
-    const [name, path, domain] = typeof args[0] === "string" ? [args[0]] : [args[0].name, args[0].path, args[0].domain];
-    return this.set({ name, path, domain, value: "", expires: /* @__PURE__ */ new Date(0) });
+    const [name, options] = typeof args[0] === "string" ? [args[0]] : [args[0].name, args[0]];
+    return this.set({ ...options, name, value: "", expires: /* @__PURE__ */ new Date(0) });
   }
   [Symbol.for("edge-runtime.inspect.custom")]() {
     return `ResponseCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;

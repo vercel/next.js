@@ -78,14 +78,31 @@ pub enum TaskDirtyCause {
     InitialDirty,
     CellChange { value_type: ValueTypeId },
     CellRemoved { value_type: ValueTypeId },
-    OutputChange,
+    OutputChange { task_id: TaskId },
     CollectiblesChange { collectible_type: TraitTypeId },
+    Invalidator,
     Unknown,
 }
 
-impl Display for TaskDirtyCause {
+struct TaskDirtyCauseInContext<'l, 'e, E: ExecuteContext<'e>> {
+    cause: &'l TaskDirtyCause,
+    ctx: &'l E,
+    _phantom: std::marker::PhantomData<&'e ()>,
+}
+
+impl<'l, 'e, E: ExecuteContext<'e>> TaskDirtyCauseInContext<'l, 'e, E> {
+    fn new(cause: &'l TaskDirtyCause, ctx: &'l E) -> Self {
+        Self {
+            cause,
+            ctx,
+            _phantom: Default::default(),
+        }
+    }
+}
+
+impl<'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'_, 'e, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self {
+        match self.cause {
             TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
             TaskDirtyCause::CellChange { value_type } => {
                 write!(
@@ -101,7 +118,13 @@ impl Display for TaskDirtyCause {
                     registry::get_value_type(*value_type).name
                 )
             }
-            TaskDirtyCause::OutputChange => write!(f, "task output changed"),
+            TaskDirtyCause::OutputChange { task_id } => {
+                write!(
+                    f,
+                    "task {} output changed",
+                    self.ctx.get_task_description(*task_id)
+                )
+            }
             TaskDirtyCause::CollectiblesChange { collectible_type } => {
                 write!(
                     f,
@@ -109,6 +132,7 @@ impl Display for TaskDirtyCause {
                     registry::get_trait(*collectible_type).name
                 )
             }
+            TaskDirtyCause::Invalidator => write!(f, "invalidator"),
             TaskDirtyCause::Unknown => write!(f, "unknown"),
         }
     }
@@ -139,7 +163,15 @@ pub fn make_task_dirty_internal(
 ) {
     if make_stale {
         if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
-            *stale = true;
+            if !*stale {
+                let _span = tracing::trace_span!(
+                    "make task stale",
+                    name = ctx.get_task_description(task_id),
+                    cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+                )
+                .entered();
+                *stale = true;
+            }
         }
     }
     let old = task.insert(CachedDataItem::Dirty {
@@ -153,6 +185,12 @@ pub fn make_task_dirty_internal(
                 clean_in_session: None,
             },
         }) => {
+            let _span = tracing::trace_span!(
+                "task already dirty",
+                name = ctx.get_task_description(task_id),
+                cause = %TaskDirtyCauseInContext::new(&cause, ctx)
+            )
+            .entered();
             // already dirty
             return;
         }
@@ -180,7 +218,7 @@ pub fn make_task_dirty_internal(
     let _span = tracing::trace_span!(
         "make task dirty",
         name = ctx.get_task_description(task_id),
-        cause = cause.to_string()
+        cause = %TaskDirtyCauseInContext::new(&cause, ctx)
     )
     .entered();
 

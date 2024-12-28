@@ -26,7 +26,7 @@ use std::{future::Future, marker::PhantomData, pin::Pin};
 use anyhow::Result;
 
 use super::{TaskInput, TaskOutput};
-use crate::{magic_any::MagicAny, RawVc, Vc, VcRead, VcValueType};
+use crate::{magic_any::MagicAny, OperationVc, RawVc, Vc, VcRead, VcValueType};
 
 pub type NativeTaskFuture = Pin<Box<dyn Future<Output = Result<RawVc>> + Send>>;
 
@@ -151,6 +151,12 @@ impl TaskFnMode for FunctionMode {}
 pub struct AsyncFunctionMode;
 impl TaskFnMode for AsyncFunctionMode {}
 
+pub struct OperationMode;
+impl TaskFnMode for OperationMode {}
+
+pub struct AsyncOperationMode;
+impl TaskFnMode for AsyncOperationMode {}
+
 pub struct MethodMode;
 impl TaskFnMode for MethodMode {}
 
@@ -273,6 +279,29 @@ macro_rules! task_fn_impl {
             }
         }
 
+        impl<F, Output, Recv, $($arg,)*> TaskFnInputFunctionWithThis<OperationMode, Recv, ($($arg,)*)> for F
+        where
+            Recv: Sync + Send + 'static,
+            $($arg: TaskInput + 'static,)*
+            F: Fn(OperationVc<Recv>, $($arg,)*) -> Output + Send + Sync + Clone + 'static,
+            Output: TaskOutput + 'static,
+        {
+            #[allow(non_snake_case)]
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+                let task_fn = self.clone();
+                let recv = OperationVc::<Recv>::from(this);
+
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
+
+                Ok(Box::pin(async move {
+                    Output::try_into_raw_vc((task_fn)(recv, $($arg,)*))
+                }))
+            }
+        }
+
         pub trait $async_fn_trait<A0, $($arg,)*>: Fn(A0, $($arg,)*) -> Self::OutputFuture {
             type OutputFuture: Future<Output = <Self as $async_fn_trait<A0, $($arg,)*>>::Output> + Send;
             type Output: TaskOutput;
@@ -333,6 +362,28 @@ macro_rules! task_fn_impl {
                 }))
             }
         }
+
+        impl<F, Recv, $($arg,)*> TaskFnInputFunctionWithThis<AsyncOperationMode, Recv, ($($arg,)*)> for F
+        where
+            Recv: Sync + Send + 'static,
+            $($arg: TaskInput + 'static,)*
+            F: $async_fn_trait<OperationVc<Recv>, $($arg,)*> + Clone + Send + Sync + 'static,
+        {
+            #[allow(non_snake_case)]
+            fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
+                let task_fn = self.clone();
+                let recv = OperationVc::<Recv>::from(this);
+
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
+                $(
+                    let $arg = $arg.clone();
+                )*
+
+                Ok(Box::pin(async move {
+                    <F as $async_fn_trait<OperationVc<Recv>, $($arg,)*>>::Output::try_into_raw_vc((task_fn)(recv, $($arg,)*).await)
+                }))
+            }
+        }
     };
 }
 
@@ -369,8 +420,10 @@ task_inputs_impl! { A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 A13 }
 
 #[cfg(test)]
 mod tests {
+    use turbo_rcstr::RcStr;
+
     use super::*;
-    use crate::{RcStr, ShrinkToFit, VcCellNewMode, VcDefaultRead};
+    use crate::{ShrinkToFit, VcCellNewMode, VcDefaultRead};
 
     #[test]
     fn test_task_fn() {

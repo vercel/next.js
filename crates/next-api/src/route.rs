@@ -1,6 +1,9 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, Vc,
+};
 use turbopack_core::module::Modules;
 
 use crate::paths::ServerPath;
@@ -25,52 +28,37 @@ impl AppPageRoute {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Clone, Debug)]
 pub enum Route {
     Page {
-        html_endpoint: Vc<Box<dyn Endpoint>>,
-        data_endpoint: Vc<Box<dyn Endpoint>>,
+        html_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+        data_endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     PageApi {
-        endpoint: Vc<Box<dyn Endpoint>>,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     AppPage(Vec<AppPageRoute>),
     AppRoute {
         original_name: String,
-        endpoint: Vc<Box<dyn Endpoint>>,
+        endpoint: ResolvedVc<Box<dyn Endpoint>>,
     },
     Conflict,
 }
 
 impl Route {
     pub async fn resolve(&mut self) -> Result<()> {
-        match self {
-            Route::Page {
-                html_endpoint,
-                data_endpoint,
-            } => {
-                *html_endpoint = html_endpoint.resolve().await?;
-                *data_endpoint = data_endpoint.resolve().await?;
+        if let Route::AppPage(routes) = self {
+            for route in routes {
+                route.resolve().await?;
             }
-            Route::PageApi { endpoint } => {
-                *endpoint = endpoint.resolve().await?;
-            }
-            Route::AppPage(routes) => {
-                for route in routes {
-                    route.resolve().await?;
-                }
-            }
-            Route::AppRoute { endpoint, .. } => {
-                *endpoint = endpoint.resolve().await?;
-            }
-            Route::Conflict => {}
         }
+
         Ok(())
     }
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
@@ -95,5 +83,5 @@ pub enum WrittenEndpoint {
 
 /// The routes as map from pathname to route. (pathname includes the leading
 /// slash)
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct Routes(FxIndexMap<RcStr, Route>);

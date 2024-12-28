@@ -14,7 +14,8 @@ use std::{
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 
 pub use crate::next_app::{
     app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
@@ -37,6 +38,7 @@ pub use crate::next_app::{
     Ord,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
@@ -141,6 +143,7 @@ impl Display for PageSegment {
     Ord,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum PageType {
     Page,
@@ -160,7 +163,17 @@ impl Display for PageType {
 /// intercepting routes, parallel routes and route/page suffixes that are not
 /// part of the pathname.
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct AppPage(pub Vec<PageSegment>);
 
@@ -334,6 +347,7 @@ impl PartialOrd for AppPage {
     Ord,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
@@ -375,7 +389,17 @@ impl Display for PathSegment {
 /// Does not include internal modifiers as it's the equivalent of the http
 /// request path.
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 

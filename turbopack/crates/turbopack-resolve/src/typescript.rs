@@ -2,7 +2,8 @@ use std::{collections::HashMap, fmt::Write, mem::take};
 
 use anyhow::Result;
 use serde_json::Value as JsonValue;
-use turbo_tasks::{fxindexset, RcStr, ResolvedVc, Value, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{fxindexset, ResolvedVc, Value, ValueDefault, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     asset::Asset,
@@ -75,7 +76,7 @@ pub async fn read_tsconfigs(
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: message.into(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             FileJsonContent::NotFound => {
@@ -84,7 +85,7 @@ pub async fn read_tsconfigs(
                     source_ident: tsconfig.ident().to_resolved().await?,
                     message: "tsconfig not found".into(),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             FileJsonContent::Content(json) => {
@@ -102,7 +103,7 @@ pub async fn read_tsconfigs(
                             message: format!("extends: \"{}\" doesn't resolve correctly", extends)
                                 .into(),
                         }
-                        .cell()
+                        .resolved_cell()
                         .emit();
                     }
                 }
@@ -307,7 +308,7 @@ pub async fn tsconfig_resolve_options(
                             )
                             .into(),
                         }
-                        .cell()
+                        .resolved_cell()
                         .emit()
                     }
                 }
@@ -530,7 +531,9 @@ impl Issue for TsConfigIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(Some(StyledString::Text(self.message.clone()).cell()))
+        Vc::cell(Some(
+            StyledString::Text(self.message.clone()).resolved_cell(),
+        ))
     }
 
     #[turbo_tasks::function]

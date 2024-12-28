@@ -25,10 +25,11 @@ pub fn get_next_page_static_info_assert_rule(
     server_context: Option<ServerContextType>,
     client_context: Option<ClientContextType>,
 ) -> ModuleRule {
-    let transformer = EcmascriptInputTransform::Plugin(Vc::cell(Box::new(NextPageStaticInfo {
-        server_context,
-        client_context,
-    }) as _));
+    let transformer =
+        EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextPageStaticInfo {
+            server_context,
+            client_context,
+        }) as _));
     ModuleRule::new(
         module_rule_match_js_no_url(enable_mdx_rs),
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
@@ -75,7 +76,7 @@ impl CustomTransformer for NextPageStaticInfo {
                         ],
                         severity: IssueSeverity::Warning,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
             }
@@ -104,7 +105,7 @@ impl CustomTransformer for NextPageStaticInfo {
                         messages,
                         severity: IssueSeverity::Warning,
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                 }
             }
@@ -118,7 +119,7 @@ impl CustomTransformer for NextPageStaticInfo {
                     messages: vec![format!(r#"Page "{}" cannot use both "use client" and export function "generateStaticParams()"."#, ctx.file_path_str)],
                     severity: IssueSeverity::Error,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
@@ -129,7 +130,7 @@ impl CustomTransformer for NextPageStaticInfo {
 
 #[turbo_tasks::value(shared)]
 pub struct PageStaticInfoIssue {
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
     pub messages: Vec<String>,
     pub severity: IssueSeverity,
 }
@@ -153,7 +154,7 @@ impl Issue for PageStaticInfoIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -165,7 +166,7 @@ impl Issue for PageStaticInfoIssue {
                     .map(|v| StyledString::Text(format!("{}\n", v).into()))
                     .collect::<Vec<StyledString>>(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }

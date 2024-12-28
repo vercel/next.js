@@ -1,5 +1,6 @@
 pub mod indexed;
 mod operation;
+mod persisted_storage_log;
 mod storage;
 
 use std::{
@@ -43,6 +44,7 @@ use crate::{
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
             ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
         },
+        persisted_storage_log::PersistedStorageLog,
         storage::{get, get_many, get_mut, iter_many, remove, Storage},
     },
     backing_storage::BackingStorage,
@@ -133,7 +135,6 @@ impl Default for BackendOptions {
 pub struct TurboTasksBackend<B: BackingStorage>(Arc<TurboTasksBackendInner<B>>);
 
 type TaskCacheLog = Sharded<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>;
-type StorageLog = Sharded<ChunkedVec<CachedDataUpdate>>;
 
 struct TurboTasksBackendInner<B: BackingStorage> {
     options: BackendOptions,
@@ -148,8 +149,8 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
     transient_tasks: DashMap<TaskId, Arc<TransientTask>, BuildHasherDefault<FxHasher>>,
 
-    persisted_storage_data_log: Option<StorageLog>,
-    persisted_storage_meta_log: Option<StorageLog>,
+    persisted_storage_data_log: Option<PersistedStorageLog>,
+    persisted_storage_meta_log: Option<PersistedStorageLog>,
     storage: Storage<TaskId, CachedDataItem>,
 
     /// Number of executing operations + Highest bit is set when snapshot is
@@ -207,8 +208,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
             transient_tasks: DashMap::default(),
-            persisted_storage_data_log: need_log.then(|| Sharded::new(shard_amount)),
-            persisted_storage_meta_log: need_log.then(|| Sharded::new(shard_amount)),
+            persisted_storage_data_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
+            persisted_storage_meta_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
             storage: Storage::new(),
             in_progress_operations: AtomicUsize::new(0),
             snapshot_request: Mutex::new(SnapshotRequest::new()),
@@ -312,10 +313,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
-    fn persisted_storage_log(
-        &self,
-        category: TaskDataCategory,
-    ) -> Option<&Sharded<ChunkedVec<CachedDataUpdate>>> {
+    fn persisted_storage_log(&self, category: TaskDataCategory) -> Option<&PersistedStorageLog> {
         match category {
             TaskDataCategory::Data => &self.persisted_storage_data_log,
             TaskDataCategory::Meta => &self.persisted_storage_meta_log,
@@ -604,7 +602,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 ctx.get_task_description(task_id)
             );
         };
-        if cell.index > *max_id {
+        if cell.index >= *max_id {
             add_cell_dependency(self, task, reader, cell, task_id, &mut ctx);
             bail!(
                 "Cell {cell:?} no longer exists in task {} (index out of bounds)",
@@ -696,12 +694,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             .map(|op| op.arc().clone())
             .collect::<Vec<_>>();
         drop(snapshot_request);
-        fn take_from_log<T: Default>(log: &Option<Sharded<T>>) -> Vec<T> {
+        fn take_from_log(log: &Option<PersistedStorageLog>) -> Vec<ChunkedVec<CachedDataUpdate>> {
             log.as_ref().map(|l| l.take()).unwrap_or_default()
         }
         let persisted_storage_meta_log = take_from_log(&self.persisted_storage_meta_log);
         let persisted_storage_data_log = take_from_log(&self.persisted_storage_data_log);
-        let persisted_task_cache_log = take_from_log(&self.persisted_task_cache_log);
+        let persisted_task_cache_log = self
+            .persisted_task_cache_log
+            .as_ref()
+            .map(|l| l.take(|i| i))
+            .unwrap_or_default();
         let mut snapshot_request = self.snapshot_request.lock();
         snapshot_request.snapshot_requested = false;
         self.in_progress_operations
@@ -741,7 +743,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 persisted_storage_meta_log,
                 persisted_storage_data_log,
             ) {
-                println!("Persising failed: {:#?}", err);
+                println!("Persisting failed: {:?}", err);
                 return None;
             }
         }
@@ -780,6 +782,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn stopping(&self) {
         self.stopping.store(true, Ordering::Release);
         self.stopping_event.notify(usize::MAX);
+    }
+
+    fn stop(&self) {
+        if let Err(err) = self.backing_storage.shutdown() {
+            println!("Shutting down failed: {}", err);
+        }
     }
 
     fn idle_start(&self) {
@@ -888,7 +896,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             smallvec![task_id],
-            TaskDirtyCause::Unknown,
+            TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
         );
     }
@@ -1116,11 +1124,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
-                    registry::get_function(*fn_type).span(),
+                    registry::get_function(*fn_type).span(task_id),
                     registry::get_function(*fn_type).execute(*this, &**arg),
                 ),
                 CachedTaskType::ResolveNative { fn_type, .. } => {
-                    let span = registry::get_function(*fn_type).resolve_span();
+                    let span = registry::get_function(*fn_type).resolve_span(task_id);
                     let turbo_tasks = turbo_tasks.pin();
                     (
                         span,
@@ -1228,7 +1236,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let _ = stateful;
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let mut removed_cells = HashMap::new();
         let mut old_counters: HashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (*cell_type, *max_index));
         for (&cell_type, &max_index) in cell_counters.iter() {
@@ -1238,9 +1245,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         cell_type,
                         value: max_index,
                     });
-                    if old_max_index > max_index {
-                        removed_cells.insert(cell_type, max_index + 1..=old_max_index);
-                    }
                 }
             } else {
                 task.add_new(CachedDataItem::CellTypeMaxIndex {
@@ -1249,28 +1253,38 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 });
             }
         }
-        for (cell_type, old_max_index) in old_counters {
+        for (cell_type, _) in old_counters {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
-            removed_cells.insert(cell_type, 0..=old_max_index);
-        }
-        let mut removed_data = Vec::new();
-        for (&cell_type, range) in removed_cells.iter() {
-            for index in range.clone() {
-                removed_data.extend(
-                    task.remove(&CachedDataItemKey::CellData {
-                        cell: CellId {
-                            type_id: cell_type,
-                            index,
-                        },
-                    })
-                    .into_iter(),
-                );
-            }
         }
 
+        let mut removed_data = Vec::new();
+        let mut old_edges = Vec::new();
+
+        // Remove no longer existing cells and notify in progress cells
         // find all outdated data items (removed cells, outdated edges)
-        let old_edges = if task.is_indexed() {
-            let mut old_edges = Vec::new();
+        if task.is_indexed() {
+            removed_data.extend(task.extract_if(
+                CachedDataItemIndex::InProgressCell,
+                |key, value| {
+                    match (key, value) {
+                        (
+                            &CachedDataItemKey::InProgressCell { cell },
+                            CachedDataItemValue::InProgressCell { value },
+                        ) if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
+                        {
+                            value.event.notify(usize::MAX);
+                            true
+                        }
+                        _ => false,
+                    }
+                },
+            ));
+            removed_data.extend(task.extract_if(CachedDataItemIndex::CellData, |key, _| {
+                matches!(key, &CachedDataItemKey::CellData { cell } if cell_counters
+                        .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
+            }));
             if self.should_track_children() {
                 old_edges.extend(task.iter(CachedDataItemIndex::Children).filter_map(
                     |(key, _)| match *key {
@@ -1306,9 +1320,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     |(key, _)| {
                         match *key {
                             CachedDataItemKey::CellDependent { cell, task }
-                                if removed_cells
+                                if cell_counters
                                     .get(&cell.type_id)
-                                    .map_or(false, |range| range.contains(&cell.index)) =>
+                                    .is_none_or(|start_index| cell.index >= *start_index) =>
                             {
                                 Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
                             }
@@ -1317,36 +1331,53 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     },
                 ));
             }
-            old_edges
         } else {
-            task.iter_all()
-                .filter_map(|(key, value)| match *key {
-                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
-                    CachedDataItemKey::OutdatedCollectible { collectible } => {
-                        let CachedDataItemValue::OutdatedCollectible { value } = *value else {
-                            unreachable!();
-                        };
-                        Some(OutdatedEdge::Collectible(collectible, value))
-                    }
-                    CachedDataItemKey::OutdatedCellDependency { target } => {
-                        Some(OutdatedEdge::CellDependency(target))
-                    }
-                    CachedDataItemKey::OutdatedOutputDependency { target } => {
-                        Some(OutdatedEdge::OutputDependency(target))
-                    }
-                    CachedDataItemKey::OutdatedCollectiblesDependency { target } => {
-                        Some(OutdatedEdge::CollectiblesDependency(target))
-                    }
-                    CachedDataItemKey::CellDependent { cell, task }
-                        if removed_cells
-                            .get(&cell.type_id)
-                            .map_or(false, |range| range.contains(&cell.index)) =>
+            removed_data.extend(task.extract_if_all(|key, value| {
+                match (key, value) {
+                    (
+                        &CachedDataItemKey::InProgressCell { cell },
+                        CachedDataItemValue::InProgressCell { value },
+                    ) if cell_counters
+                        .get(&cell.type_id)
+                        .is_none_or(|start_index| cell.index >= *start_index) =>
                     {
-                        Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
+                        value.event.notify(usize::MAX);
+                        return true;
                     }
-                    _ => None,
-                })
-                .collect::<Vec<_>>()
+                    (&CachedDataItemKey::CellData { cell }, _)
+                        if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
+                    {
+                        return true;
+                    }
+                    (&CachedDataItemKey::OutdatedChild { task }, _) => {
+                        old_edges.push(OutdatedEdge::Child(task));
+                    }
+                    (
+                        &CachedDataItemKey::OutdatedCollectible { collectible },
+                        &CachedDataItemValue::OutdatedCollectible { value },
+                    ) => old_edges.push(OutdatedEdge::Collectible(collectible, value)),
+                    (&CachedDataItemKey::OutdatedCellDependency { target }, _) => {
+                        old_edges.push(OutdatedEdge::CellDependency(target));
+                    }
+                    (&CachedDataItemKey::OutdatedOutputDependency { target }, _) => {
+                        old_edges.push(OutdatedEdge::OutputDependency(target));
+                    }
+                    (&CachedDataItemKey::OutdatedCollectiblesDependency { target }, _) => {
+                        old_edges.push(OutdatedEdge::CollectiblesDependency(target));
+                    }
+                    (&CachedDataItemKey::CellDependent { cell, task }, _)
+                        if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index) =>
+                    {
+                        old_edges.push(OutdatedEdge::RemovedCellDependent(task, cell.type_id));
+                    }
+                    _ => {}
+                }
+                false
+            }));
         };
         drop(task);
 
@@ -1463,9 +1494,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 let last_snapshot = self.last_snapshot.load(Ordering::Relaxed);
                 let mut last_snapshot = self.start_time + Duration::from_millis(last_snapshot);
                 loop {
-                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(30);
-                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(15);
-                    const IDLE_TIMEOUT: Duration = Duration::from_secs(1);
+                    const FIRST_SNAPSHOT_WAIT: Duration = Duration::from_secs(60);
+                    const SNAPSHOT_INTERVAL: Duration = Duration::from_secs(30);
+                    const IDLE_TIMEOUT: Duration = Duration::from_secs(2);
 
                     let time = if id == BACKEND_JOB_INITIAL_SNAPSHOT {
                         FIRST_SNAPSHOT_WAIT
@@ -1560,7 +1591,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut collectibles = AutoMap::default();
         {
-            let mut task = ctx.task(task_id, TaskDataCategory::Data);
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -1785,6 +1816,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn stopping(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.stopping();
+    }
+
+    fn stop(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
+        self.0.stop();
     }
 
     fn idle_start(&self, _turbo_tasks: &dyn TurboTasksBackendApi<Self>) {

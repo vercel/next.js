@@ -10,7 +10,7 @@ import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
 import {
   getOverlayMiddleware,
   getSourceMapMiddleware,
-} from '../../client/components/react-dev-overlay/server/middleware'
+} from '../../client/components/react-dev-overlay/server/middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -83,6 +83,7 @@ import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
+import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 const isTestMode = !!(
@@ -1519,6 +1520,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
+      getNextErrorFeedbackMiddleware(this.telemetry),
     ]
   }
 
@@ -1594,23 +1596,29 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     definition?: RouteDefinition
     url?: string
   }): Promise<void> {
-    // Make sure we don't re-build or dispose prebuilt pages
-    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
-      return
-    }
-    const error = clientOnly
-      ? this.clientError
-      : this.serverError || this.clientError
-    if (error) {
-      throw error
-    }
+    return this.hotReloaderSpan
+      .traceChild('ensure-page', {
+        inputPage: page,
+      })
+      .traceAsyncFn(async () => {
+        // Make sure we don't re-build or dispose prebuilt pages
+        if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
+          return
+        }
+        const error = clientOnly
+          ? this.clientError
+          : this.serverError || this.clientError
+        if (error) {
+          throw error
+        }
 
-    return this.onDemandEntries?.ensurePage({
-      page,
-      appPaths,
-      definition,
-      isApp,
-      url,
-    })
+        return this.onDemandEntries?.ensurePage({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
   }
 }
