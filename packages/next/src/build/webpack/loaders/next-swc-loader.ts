@@ -45,7 +45,7 @@ const maybeExclude = (
   const shouldBeBundled = isResourceInPackages(excludePath, transpilePackages)
   if (shouldBeBundled) return false
 
-  return excludePath.includes('node_modules')
+  return excludePath.split(path.sep).includes('node_modules')
 }
 
 export interface SWCLoaderOptions {
