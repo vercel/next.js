@@ -1,5 +1,6 @@
 import { styles as codeFrame } from '../components/CodeFrame/styles'
 import { styles as dialog } from '../components/Dialog'
+import { styles as pagination } from '../components/Errors/ErrorPagination/styles'
 import { styles as overlay } from '../components/Overlay/styles'
 import { styles as terminal } from '../components/Terminal/styles'
 import { styles as toast } from '../components/Toast'
@@ -16,6 +17,7 @@ export function ComponentStyles() {
         ${overlay}
         ${toast}
         ${dialog}
+        ${pagination}
         ${codeFrame}
         ${terminal}
         ${buildErrorStyles}
