@@ -105,11 +105,12 @@ const enum PrefetchTaskExitStatus {
   Done,
 }
 
-export type PrefetchSubtaskResult = {
+export type PrefetchSubtaskResult<T> = {
   /**
    * A promise that resolves when the network connection is closed.
    */
   closed: Promise<void>
+  value: T
 }
 
 const taskHeap: Array<PrefetchTask> = []
@@ -181,9 +182,9 @@ function hasNetworkBandwidth(): boolean {
   return inProgressRequests < MAX_CONCURRENT_PREFETCH_REQUESTS
 }
 
-function spawnPrefetchSubtask(
-  prefetchSubtask: Promise<PrefetchSubtaskResult | null>
-): void {
+function spawnPrefetchSubtask<T>(
+  prefetchSubtask: Promise<PrefetchSubtaskResult<T> | null>
+): Promise<T | null> {
   // When the scheduler spawns an async task, we don't await its result.
   // Instead, the async task writes its result directly into the cache, then
   // pings the scheduler to continue.
@@ -194,17 +195,17 @@ function spawnPrefetchSubtask(
   // closed. The scheduler uses this to control network bandwidth by tracking
   // and limiting the number of concurrent requests.
   inProgressRequests++
-  prefetchSubtask
-    .then((result) => {
+  return prefetchSubtask.then((result) => {
       if (result === null) {
         // The prefetch task errored before it could start processing the
         // network stream. Assume the connection is closed.
-        return
+      onPrefetchConnectionClosed()
+      return null
       }
       // Wait for the connection to close before freeing up more bandwidth.
-      return result.closed
+    result.closed.then(onPrefetchConnectionClosed)
+    return result.value
     })
-    .then(onPrefetchConnectionClosed, onPrefetchConnectionClosed)
 }
 
 function onPrefetchConnectionClosed(): void {

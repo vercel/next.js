@@ -466,7 +466,7 @@ function fulfillSegmentCacheEntry(
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   staleAt: number,
   isPartial: boolean
-) {
+): FulfilledSegmentCacheEntry {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
@@ -479,6 +479,7 @@ function fulfillSegmentCacheEntry(
     // Free the promise for garbage collection.
     fulfilledEntry.promise = null
   }
+  return fulfilledEntry
 }
 
 function rejectRouteCacheEntry(
@@ -625,11 +626,11 @@ export function convertRouteTreeToFlightRouterState(
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
   task: PrefetchTask
-): Promise<PrefetchSubtaskResult | null> {
+): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
-  // fetch that gets issued on a cache miss. Notice though that it does not
-  // return anything; it writes the result to the cache entry directly, then
-  // pings the scheduler to unblock the corresponding prefetch task.
+  // fetch that gets issued on a cache miss. Notice it writes the result to the
+  // cache entry directly, rather than return data that is then written by
+  // the caller.
   const key = task.key
   const href = key.href
   const nextUrl = key.nextUrl
@@ -754,7 +755,7 @@ export async function fetchRouteOnCacheMiss(
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
-    return { closed: closed.promise }
+    return { value: null, closed: closed.promise }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
@@ -769,10 +770,11 @@ export async function fetchSegmentOnCacheMiss(
   routeKey: RouteCacheKey,
   segmentKeyPath: string,
   accessToken: string | null
-): Promise<PrefetchSubtaskResult | null> {
+): Promise<PrefetchSubtaskResult<FulfilledSegmentCacheEntry> | null> {
   // This function is allowed to use async/await because it contains the actual
-  // fetch that gets issued on a cache miss. Notice though that it does not
-  // return anything; it writes the result to the cache entry directly.
+  // fetch that gets issued on a cache miss. Notice it writes the result to the
+  // cache entry directly, rather than return data that is then written by
+  // the caller.
   //
   // Segment fetches are non-blocking so we don't need to ping the scheduler
   // on completion.
@@ -825,19 +827,20 @@ export async function fetchSegmentOnCacheMiss(
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
-    fulfillSegmentCacheEntry(
-      segmentCacheEntry,
-      serverData.rsc,
-      serverData.loading,
-      // TODO: The server does not currently provide per-segment stale time.
-      // So we use the stale time of the route.
-      route.staleAt,
-      serverData.isPartial
-    )
-
-    // Return a promise that resolves when the network connection closes, so
-    // the scheduler can track the number of concurrent network connections.
-    return { closed: closed.promise }
+    return {
+      value: fulfillSegmentCacheEntry(
+        segmentCacheEntry,
+        serverData.rsc,
+        serverData.loading,
+        // TODO: The server does not currently provide per-segment stale time.
+        // So we use the stale time of the route.
+        route.staleAt,
+        serverData.isPartial
+      ),
+      // Return a promise that resolves when the network connection closes, so
+      // the scheduler can track the number of concurrent network connections.
+      closed: closed.promise,
+    }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
@@ -851,7 +854,7 @@ export async function fetchSegmentPrefetchesForPPRDisabledRoute(
   route: FulfilledRouteCacheEntry,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
-): Promise<PrefetchSubtaskResult | null> {
+): Promise<PrefetchSubtaskResult<null> | null> {
   const href = task.key.href
   const nextUrl = task.key.nextUrl
   const headers: RequestHeaders = {
@@ -912,7 +915,7 @@ export async function fetchSegmentPrefetchesForPPRDisabledRoute(
 
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
-    return { closed: closed.promise }
+    return { value: null, closed: closed.promise }
   } catch (error) {
     rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
     return null
