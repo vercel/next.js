@@ -25,3 +25,5 @@
 - [Adding a new feature](./contributing/core/adding-features.md)
 - [Developing Using Local App](./contributing/core/developing-using-local-app.md)
 <!-- - [Using the VS Code Debugger](./contributing/core/vscode-debugger.md) -->
+
+Minor: clarify PR title format (@ex1234)
