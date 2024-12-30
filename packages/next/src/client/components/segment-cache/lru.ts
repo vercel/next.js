@@ -64,14 +64,15 @@ export function createLRU<T extends LRUNode>(
   }
 
   function updateSize(node: T, newNodeSize: number) {
-    // This is a separate function so that we can resize the entry after it's
-    // already been inserted.
-    if (node.next === null) {
-      // No longer part of LRU.
-      return
-    }
+    // This is a separate function from `put` so that we can resize the entry
+    // regardless of whether it's currently being tracked by the LRU.
     const prevNodeSize = node.size
     node.size = newNodeSize
+    if (node.next === null) {
+      // This entry is not currently being tracked by the LRU.
+      return
+    }
+    // Update the total LRU size
     lruSize = lruSize - prevNodeSize + newNodeSize
     ensureCleanupIsScheduled()
   }
