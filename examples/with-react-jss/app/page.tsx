@@ -1,3 +1,4 @@
+"use client";
 import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
@@ -5,14 +6,13 @@ const useStyles = createUseStyles({
     marginTop: 100,
     textAlign: "center",
   },
-
   header: {
     fontSize: 24,
     lineHeight: 1.25,
   },
 });
 
-export default function IndexPage() {
+export default function HomePage() {
   const classes = useStyles();
 
   return (
