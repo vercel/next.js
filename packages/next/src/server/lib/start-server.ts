@@ -147,12 +147,15 @@ export async function startServer(
   }
 
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
-    if(accessLog) {
+    if (accessLog) {
       try {
-          fs.appendFileSync(accessLog, `${new Date().toISOString()} ${req.method} ${req.url} ${req.headers['user-agent']}\n`);
+        fs.appendFileSync(
+          accessLog,
+          `${new Date().toISOString()} ${req.method} ${req.url} ${req.headers['user-agent']}\n`
+        )
       } catch (err) {
-          Log.error(`Failed to write to access log: ${accessLog}`);
-          console.error(err);
+        Log.error(`Failed to write to access log: ${accessLog}`)
+        console.error(err)
       }
     }
     try {
