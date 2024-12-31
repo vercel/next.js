@@ -149,10 +149,19 @@ export async function startServer(
   async function requestListener(req: IncomingMessage, res: ServerResponse) {
     if (accessLog) {
       try {
-        fs.appendFileSync(
-          accessLog,
-          `${new Date().toISOString()} ${req.method} ${req.url} ${req.headers['user-agent']}\n`
-        )
+        let remoteAddress
+
+        if (req.headers['x-forwarded-for']) {
+          remoteAddress = req.headers['x-forwarded-for'].split(',')[0]
+        } else {
+          remoteAddress = req.socket.remoteAddress
+        }
+        res.on('finish', () => {
+          fs.appendFileSync(
+            accessLog,
+            `${remoteAddress} ${new Date().toISOString()} ${req.method} ${res.statusCode} ${req.url} ${req.headers['user-agent']}\n`
+          )
+        })
       } catch (err) {
         Log.error(`Failed to write to access log: ${accessLog}`)
         console.error(err)
