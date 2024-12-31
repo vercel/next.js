@@ -59,8 +59,8 @@ export function middleware(request) {
 
 export const config = {
   matcher: [
-    // Skip all internal paths (_next)
-    '/((?!_next).*)',
+    // Only match paths that don't have file extensions and aren't _next
+    '/((?!api|_next|.*\\..*$).*)',
     // Optional: only run on root (/) URL
     // '/'
   ],
