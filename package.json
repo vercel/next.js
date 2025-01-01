@@ -65,7 +65,9 @@
     "swc-build-native": "node scripts/build-native.cjs",
     "swc-build-wasm": "node scripts/build-wasm.cjs",
     "sweep": "node scripts/sweep.cjs",
-    "check-error-codes": "node packages/next/check-error-codes.js"
+    "check-error-codes": "node packages/next/check-error-codes.js",
+    "storybook": "turbo run storybook",
+    "build-storybook": "turbo run build-storybook"
   },
   "devDependencies": {
     "@actions/core": "1.10.1",
@@ -150,6 +152,7 @@
     "eslint-plugin-import": "2.31.0",
     "eslint-plugin-jest": "27.6.3",
     "eslint-plugin-jsdoc": "48.0.4",
+    "eslint-plugin-mdx": "3.1.5",
     "eslint-plugin-react": "7.35.0",
     "eslint-plugin-react-hooks": "5.0.0",
     "eslint-v8": "npm:eslint@^8.57.0",
@@ -208,16 +211,16 @@
     "pretty-ms": "7.0.0",
     "random-seed": "0.3.0",
     "react": "19.0.0",
-    "react-builtin": "npm:react@19.0.0-rc-7283a213-20241206",
+    "react-builtin": "npm:react@19.1.0-canary-518d06d2-20241219",
     "react-dom": "19.0.0",
-    "react-dom-builtin": "npm:react-dom@19.0.0-rc-7283a213-20241206",
-    "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-7283a213-20241206",
-    "react-experimental-builtin": "npm:react@0.0.0-experimental-7283a213-20241206",
-    "react-is-builtin": "npm:react-is@19.0.0-rc-7283a213-20241206",
-    "react-server-dom-turbopack": "19.0.0-rc-7283a213-20241206",
-    "react-server-dom-turbopack-experimental": "npm:react-server-dom-turbopack@0.0.0-experimental-7283a213-20241206",
-    "react-server-dom-webpack": "19.0.0-rc-7283a213-20241206",
-    "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-7283a213-20241206",
+    "react-dom-builtin": "npm:react-dom@19.1.0-canary-518d06d2-20241219",
+    "react-dom-experimental-builtin": "npm:react-dom@0.0.0-experimental-518d06d2-20241219",
+    "react-experimental-builtin": "npm:react@0.0.0-experimental-518d06d2-20241219",
+    "react-is-builtin": "npm:react-is@19.1.0-canary-518d06d2-20241219",
+    "react-server-dom-turbopack": "19.1.0-canary-518d06d2-20241219",
+    "react-server-dom-turbopack-experimental": "npm:react-server-dom-turbopack@0.0.0-experimental-518d06d2-20241219",
+    "react-server-dom-webpack": "19.1.0-canary-518d06d2-20241219",
+    "react-server-dom-webpack-experimental": "npm:react-server-dom-webpack@0.0.0-experimental-518d06d2-20241219",
     "react-ssr-prepass": "1.0.8",
     "react-virtualized": "9.22.3",
     "relay-compiler": "13.0.2",
@@ -227,8 +230,8 @@
     "resolve-from": "5.0.0",
     "sass": "1.54.0",
     "satori": "0.10.9",
-    "scheduler-builtin": "npm:scheduler@0.25.0-rc-7283a213-20241206",
-    "scheduler-experimental-builtin": "npm:scheduler@0.0.0-experimental-7283a213-20241206",
+    "scheduler-builtin": "npm:scheduler@0.26.0-canary-518d06d2-20241219",
+    "scheduler-experimental-builtin": "npm:scheduler@0.0.0-experimental-518d06d2-20241219",
     "seedrandom": "3.0.5",
     "semver": "7.3.7",
     "shell-quote": "1.7.3",
@@ -269,13 +272,14 @@
       "@types/react": "19.0.0",
       "@types/react-dom": "19.0.0",
       "jest-snapshot": "30.0.0-alpha.6",
-      "react": "19.0.0-rc-7283a213-20241206",
-      "react-dom": "19.0.0-rc-7283a213-20241206",
-      "react-is": "19.0.0-rc-7283a213-20241206",
-      "scheduler": "0.25.0-rc-7283a213-20241206"
+      "react": "19.1.0-canary-518d06d2-20241219",
+      "react-dom": "19.1.0-canary-518d06d2-20241219",
+      "react-is": "19.1.0-canary-518d06d2-20241219",
+      "scheduler": "0.26.0-canary-518d06d2-20241219"
     },
     "patchedDependencies": {
-      "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch"
+      "webpack-sources@3.2.3": "patches/webpack-sources@3.2.3.patch",
+      "@storybook/react@8.4.7": "patches/@storybook__react@8.4.7.patch"
     }
   }
 }

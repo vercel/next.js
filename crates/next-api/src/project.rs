@@ -28,8 +28,8 @@ use turbo_tasks::{
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
-    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, ReadRef, ResolvedVc, State,
-    TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
+    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -69,11 +69,21 @@ use crate::{
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
     route::{AppPageRoute, Endpoint, Route},
-    versioned_content_map::{OutputAssetsOperation, VersionedContentMap},
+    versioned_content_map::VersionedContentMap,
 };
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DraftModeOptions {
@@ -95,6 +105,7 @@ pub struct DraftModeOptions {
     Hash,
     TraceRawVcs,
     NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct WatchOptions {
@@ -107,7 +118,17 @@ pub struct WatchOptions {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct ProjectOptions {
@@ -192,7 +213,17 @@ pub struct PartialProjectOptions {
 }
 
 #[derive(
-    Debug, Serialize, Deserialize, Clone, TaskInput, PartialEq, Eq, Hash, TraceRawVcs, NonLocalValue,
+    Debug,
+    Serialize,
+    Deserialize,
+    Clone,
+    TaskInput,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    NonLocalValue,
+    OperationValue,
 )]
 #[serde(rename_all = "camelCase")]
 pub struct DefineEnv {
@@ -228,7 +259,7 @@ impl ProjectContainer {
             // we only need to enable versioning in dev mode, since build
             // is assumed to be operating over a static snapshot
             versioned_content_map: if dev {
-                Some(VersionedContentMap::new().to_resolved().await?)
+                Some(VersionedContentMap::new())
             } else {
                 None
             },
@@ -600,7 +631,7 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
+    pub fn project_root_path(self: Vc<Self>) -> Vc<FileSystemPath> {
         self.project_fs().root()
     }
 
@@ -614,6 +645,18 @@ impl Project {
             )
             .into(),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn node_root_to_root_path(self: Vc<Self>) -> Result<Vc<RcStr>> {
+        let this = self.await?;
+        let output_root_to_root_path = self
+            .project_path()
+            .join(this.dist_dir.clone())
+            .await?
+            .get_relative_path_to(&*self.project_root_path().await?)
+            .context("Project path need to be in root path")?;
+        Ok(Vc::cell(output_root_to_root_path))
     }
 
     #[turbo_tasks::function]
@@ -662,8 +705,9 @@ impl Project {
 
         let node_execution_chunking_context = Vc::upcast(
             NodeJsChunkingContext::builder(
-                self.project_path().to_resolved().await?,
+                self.project_root_path().to_resolved().await?,
                 node_root,
+                self.node_root_to_root_path().to_resolved().await?,
                 node_root,
                 node_root.join("build/chunks".into()).to_resolved().await?,
                 node_root.join("build/assets".into()).to_resolved().await?,
@@ -789,8 +833,9 @@ impl Project {
     #[turbo_tasks::function]
     pub(super) fn client_chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>> {
         get_client_chunking_context(
-            self.project_path(),
+            self.project_root_path(),
             self.client_relative_path(),
+            Vc::cell("/ROOT".into()),
             self.next_config().computed_asset_prefix(),
             self.client_compile_time_info().environment(),
             self.next_mode(),
@@ -807,8 +852,9 @@ impl Project {
         if client_assets {
             get_server_chunking_context_with_client_assets(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.server_compile_time_info().environment(),
@@ -818,8 +864,9 @@ impl Project {
         } else {
             get_server_chunking_context(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
@@ -835,8 +882,9 @@ impl Project {
         if client_assets {
             get_edge_chunking_context_with_client_assets(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.client_relative_path(),
                 self.next_config().computed_asset_prefix(),
                 self.edge_compile_time_info().environment(),
@@ -846,8 +894,9 @@ impl Project {
         } else {
             get_edge_chunking_context(
                 self.next_mode(),
-                self.project_path(),
+                self.project_root_path(),
                 self.node_root(),
+                self.node_root_to_root_path(),
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
@@ -1269,7 +1318,7 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn emit_all_output_assets(
         self: Vc<Self>,
-        output_assets: Vc<OutputAssetsOperation>,
+        output_assets: OperationVc<OutputAssets>,
     ) -> Result<()> {
         let span = tracing::info_span!("emitting");
         async move {
@@ -1292,7 +1341,7 @@ impl Project {
                 Ok(())
             } else {
                 let _ = emit_assets(
-                    *all_output_assets.await?,
+                    all_output_assets.connect(),
                     node_root,
                     client_relative_path,
                     node_root,
@@ -1469,19 +1518,12 @@ async fn get_referenced_output_assets(
     Ok(parent.references().await?.clone_value().into_iter())
 }
 
-#[turbo_tasks::function]
-async fn all_assets_from_entries_operation_inner(
-    operation: Vc<OutputAssetsOperation>,
+#[turbo_tasks::function(operation)]
+async fn all_assets_from_entries_operation(
+    operation: OperationVc<OutputAssets>,
 ) -> Result<Vc<OutputAssets>> {
-    let assets = *operation.await?;
-    Vc::connect(assets);
+    let assets = operation.connect();
     Ok(all_assets_from_entries(assets))
-}
-
-fn all_assets_from_entries_operation(
-    operation: Vc<OutputAssetsOperation>,
-) -> Vc<OutputAssetsOperation> {
-    Vc::cell(all_assets_from_entries_operation_inner(operation))
 }
 
 #[turbo_tasks::function]

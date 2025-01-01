@@ -48,7 +48,7 @@
     "minimist": "^1.2.8",
     "picocolors": "1.0.1",
     "pidusage-tree": "^2.0.5",
-    "playwright-chromium": "^1.39.0",
+    "playwright-chromium": "1.48.0",
     "split2": "^4.2.0",
     "tree-kill": "^1.2.2"
   }

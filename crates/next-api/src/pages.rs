@@ -47,7 +47,7 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
         EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
@@ -64,7 +64,9 @@ use turbopack_ecmascript::resolve::esm_resolve;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    dynamic_imports::{collect_chunk_group, collect_evaluated_chunk_group, DynamicImportedChunks},
+    dynamic_imports::{
+        collect_next_dynamic_chunks, DynamicImportedChunks, NextDynamicChunkAvailability,
+    },
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
     module_graph::get_reduced_graphs_for_endpoint,
@@ -286,14 +288,20 @@ impl PagesProject {
     #[turbo_tasks::function]
     async fn transitions(self: Vc<Self>) -> Result<Vc<TransitionOptions>> {
         Ok(TransitionOptions {
-            named_transitions: [(
-                "next-dynamic".into(),
-                ResolvedVc::upcast(
-                    NextDynamicTransition::new(Vc::upcast(self.client_transition()))
-                        .to_resolved()
-                        .await?,
+            named_transitions: [
+                (
+                    "next-dynamic".into(),
+                    ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
                 ),
-            )]
+                (
+                    "next-dynamic-client".into(),
+                    ResolvedVc::upcast(
+                        NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                            .to_resolved()
+                            .await?,
+                    ),
+                ),
+            ]
             .into_iter()
             .collect(),
             ..Default::default()
@@ -720,7 +728,7 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn client_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+    async fn client_chunks(self: Vc<Self>) -> Result<Vc<ChunkGroupResult>> {
         async move {
             let this = self.await?;
 
@@ -741,7 +749,7 @@ impl PageEndpoint {
 
             let client_chunking_context = this.pages_project.project().client_chunking_context();
 
-            let client_chunks = client_chunking_context.evaluated_chunk_group_assets(
+            let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
                 this.pages_project
                     .client_runtime_entries()
@@ -750,7 +758,7 @@ impl PageEndpoint {
                 Value::new(AvailabilityInfo::Root),
             );
 
-            Ok(client_chunks)
+            Ok(client_chunk_group)
         }
         .instrument(tracing::info_span!("page client side rendering"))
         .await
@@ -865,14 +873,51 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
-            let reduced_graphs = get_reduced_graphs_for_endpoint(
-                this.pages_project.project(),
-                *ssr_module,
-                Vc::upcast(this.pages_project.client_module_context()),
-            );
-            let next_dynamic_imports = reduced_graphs
-                .get_next_dynamic_imports_for_endpoint(*ssr_module)
-                .await?;
+            let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
+                // The SSR and Client Graphs are not connected in Pages Router.
+                // We are only interested in get_next_dynamic_imports_for_endpoint at the
+                // moment, which only needs the client graph anyway.
+                //
+                // If we do want to change this to have both included. We'd need to create a
+                // `IncludeModulesModule` that includes both SSR and Client (and use that both
+                // there and in Project::get_all_entries):
+                // let client_module = self.client_module().to_resolved().await?;
+                // let ssr_module = self.internal_ssr_chunk_module().await?.ssr_module;
+                // Ok(Vc::upcast(IncludeModulesModule::new(
+                //     self.source()
+                //         .ident()
+                //         .with_modifier(Vc::cell("unified entrypoint".into())),
+                //     vec![*client_module, *ssr_module],
+                // )))
+
+                let client_availability_info = self.client_chunks().await?.availability_info;
+
+                let reduced_graphs = get_reduced_graphs_for_endpoint(
+                    this.pages_project.project(),
+                    self.client_module(),
+                );
+                let next_dynamic_imports = reduced_graphs
+                    .get_next_dynamic_imports_for_endpoint(self.client_module())
+                    .await?;
+                Some((next_dynamic_imports, client_availability_info))
+            } else {
+                None
+            };
+
+            let dynamic_import_entries = if let Some((
+                next_dynamic_imports,
+                client_availability_info,
+            )) = next_dynamic_imports
+            {
+                collect_next_dynamic_chunks(
+                    Vc::upcast(this.pages_project.project().client_chunking_context()),
+                    next_dynamic_imports,
+                    NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
+                )
+                .await?
+            } else {
+                DynamicImportedChunks::default().resolved_cell()
+            };
 
             let is_edge = matches!(runtime, NextRuntime::Edge);
             if is_edge {
@@ -890,16 +935,6 @@ impl PageEndpoint {
                     )
                     .to_resolved()
                     .await?;
-
-                let client_chunking_context =
-                    this.pages_project.project().client_chunking_context();
-                let dynamic_import_entries = collect_evaluated_chunk_group(
-                    Vc::upcast(client_chunking_context),
-                    &next_dynamic_imports,
-                )
-                .await?
-                .to_resolved()
-                .await?;
 
                 Ok(SsrChunk::Edge {
                     files: edge_files,
@@ -926,17 +961,6 @@ impl PageEndpoint {
                     )
                     .await?;
 
-                let client_chunking_context =
-                    this.pages_project.project().client_chunking_context();
-                let dynamic_import_entries = collect_chunk_group(
-                    Vc::upcast(client_chunking_context),
-                    &next_dynamic_imports,
-                    Value::new(AvailabilityInfo::Root),
-                )
-                .await?
-                .to_resolved()
-                .await?;
-
                 let server_asset_trace_file = if this
                     .pages_project
                     .project()
@@ -944,10 +968,21 @@ impl PageEndpoint {
                     .await?
                     .is_production()
                 {
+                    let loadable_manifest_output =
+                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs);
+
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
-                        NftJsonAsset::new(this.pages_project.project(), *ssr_entry_chunk, vec![])
-                            .to_resolved()
-                            .await?,
+                        NftJsonAsset::new(
+                            this.pages_project.project(),
+                            *ssr_entry_chunk,
+                            loadable_manifest_output
+                                .await?
+                                .iter()
+                                .map(|m| **m)
+                                .collect(),
+                        )
+                        .to_resolved()
+                        .await?,
                     )))
                 } else {
                     ResolvedVc::cell(None)
@@ -1049,6 +1084,7 @@ impl PageEndpoint {
     async fn react_loadable_manifest(
         &self,
         dynamic_import_entries: Vc<DynamicImportedChunks>,
+        runtime: NextRuntime,
     ) -> Result<Vc<OutputAssets>> {
         let node_root = self.pages_project.project().node_root();
         let client_relative_path = self.pages_project.project().client_relative_path();
@@ -1056,9 +1092,9 @@ impl PageEndpoint {
         Ok(create_react_loadable_manifest(
             dynamic_import_entries,
             client_relative_path,
-            node_root.join(
-                format!("server/pages{loadable_path_prefix}/react-loadable-manifest.json").into(),
-            ),
+            node_root
+                .join(format!("server/pages{loadable_path_prefix}/react-loadable-manifest").into()),
+            runtime,
         ))
     }
 
@@ -1087,11 +1123,6 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
-    fn output_assets(self: Vc<Self>) -> Vc<OutputAssets> {
-        self.output().output_assets()
-    }
-
-    #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<PageEndpointOutput>> {
         let this = self.await?;
 
@@ -1100,7 +1131,7 @@ impl PageEndpoint {
 
         let ssr_chunk = match this.ty {
             PageEndpointType::Html => {
-                let client_chunks = self.client_chunks();
+                let client_chunks = *self.client_chunks().await?.assets;
                 client_assets.extend(client_chunks.await?.iter().map(|asset| **asset));
                 let build_manifest = self.build_manifest(client_chunks).to_resolved().await?;
                 let page_loader = self.page_loader(client_chunks);
@@ -1170,7 +1201,7 @@ impl PageEndpoint {
                     server_assets.push(pages_manifest);
 
                     let loadable_manifest_output =
-                        self.react_loadable_manifest(*dynamic_import_entries);
+                        self.react_loadable_manifest(*dynamic_import_entries, NextRuntime::NodeJs);
                     server_assets.extend(loadable_manifest_output.await?.iter().copied());
                 }
 
@@ -1193,6 +1224,11 @@ impl PageEndpoint {
                     }
                     server_assets.extend(files_value.iter().copied());
 
+                    let loadable_manifest_output = self
+                        .react_loadable_manifest(*dynamic_import_entries, NextRuntime::Edge)
+                        .await?;
+                    server_assets.extend(loadable_manifest_output.iter().copied());
+
                     // the next-edge-ssr-loader templates expect the manifests to be stored in
                     // global variables defined in these files
                     //
@@ -1200,12 +1236,15 @@ impl PageEndpoint {
                     let mut file_paths_from_root = vec![
                         "server/server-reference-manifest.js".into(),
                         "server/middleware-build-manifest.js".into(),
-                        "server/middleware-react-loadable-manifest.js".into(),
                         "server/next-font-manifest.js".into(),
                     ];
                     let mut wasm_paths_from_root = vec![];
 
                     let node_root_value = node_root.await?;
+
+                    file_paths_from_root.extend(
+                        get_js_paths_from_root(&node_root_value, &loadable_manifest_output).await?,
+                    );
 
                     file_paths_from_root
                         .extend(get_js_paths_from_root(&node_root_value, &files_value).await?);
@@ -1262,10 +1301,6 @@ impl PageEndpoint {
                     server_assets.push(ResolvedVc::upcast(middleware_manifest_v2));
                 }
 
-                let loadable_manifest_output =
-                    self.react_loadable_manifest(*dynamic_import_entries);
-                server_assets.extend(loadable_manifest_output.await?.iter().copied());
-
                 PageEndpointOutput::Edge {
                     files,
                     server_assets: ResolvedVc::cell(server_assets),
@@ -1298,7 +1333,7 @@ pub struct InternalSsrChunkModule {
 #[turbo_tasks::value_impl]
 impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
         let this = self.await?;
         let original_name = this.original_name.await?;
         let span = {
@@ -1319,14 +1354,13 @@ impl Endpoint for PageEndpoint {
         };
         async move {
             let output = self.output().await?;
-            // Must use self.output_assets() instead of output.output_assets() to make it a
-            // single operation
-            let output_assets = self.output_assets();
+            let output_assets_op = output_assets_operation(self);
+            let output_assets = output_assets_op.connect();
 
             let _ = this
                 .pages_project
                 .project()
-                .emit_all_output_assets(Vc::cell(output_assets))
+                .emit_all_output_assets(output_assets_op)
                 .resolve()
                 .await?;
 
@@ -1409,6 +1443,11 @@ impl Endpoint for PageEndpoint {
 
         Ok(Vc::cell(modules))
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn output_assets_operation(endpoint: ResolvedVc<PageEndpoint>) -> Vc<OutputAssets> {
+    endpoint.output().output_assets()
 }
 
 #[turbo_tasks::value]

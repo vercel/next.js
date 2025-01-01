@@ -50,7 +50,10 @@ impl CustomTransformer for NextJsDynamic {
             self.is_server_compiler,
             self.is_react_server_layer,
             self.is_app_dir,
-            NextDynamicMode::Webpack,
+            NextDynamicMode::Turbopack {
+                dynamic_client_transition_name: "next-dynamic-client".to_string(),
+                dynamic_transition_name: "next-dynamic".to_string(),
+            },
             FileName::Real(ctx.file_path_str.into()).into(),
             None,
         ));

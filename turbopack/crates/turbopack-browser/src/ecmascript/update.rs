@@ -22,10 +22,9 @@ pub(super) async fn update_ecmascript_chunk(
 ) -> Result<EcmascriptChunkUpdate> {
     let to = content.own_version().await?;
 
-    // When to and from point to the same value we can skip comparing them.
-    // This will happen since `TraitRef<Vc<Box<dyn Version>>>::cell` will not clone
-    // the value, but only make the cell point to the same immutable value
-    // (Arc).
+    // When to and from point to the same value we can skip comparing them. This will happen since
+    // `TraitRef::<Box<dyn Version>>::cell` will not clone the value, but only make the cell point
+    // to the same immutable value (`Arc`).
     if from.ptr_eq(&to) {
         return Ok(EcmascriptChunkUpdate::None);
     }

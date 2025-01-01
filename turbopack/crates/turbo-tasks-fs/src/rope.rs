@@ -27,7 +27,7 @@ static EMPTY_BUF: &[u8] = &[];
 /// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
-#[turbo_tasks::value(shared, serialization = "custom", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "custom", eq = "manual", operation)]
 #[derive(Clone, Debug, Default)]
 pub struct Rope {
     /// Total length of all held bytes.
