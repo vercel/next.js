@@ -11,6 +11,8 @@ const { createFromReadableStream } = (
       require('react-server-dom-webpack/client')
 ) as typeof import('react-server-dom-webpack/client')
 const basePath = (process.env.__NEXT_ROUTER_BASEPATH as string) || ''
+const skipTrailingSlashRedirect =
+  (process.env.__NEXT_MANUAL_TRAILING_SLASH as unknown as boolean) ?? false
 
 import type {
   FlightRouterState,
@@ -257,7 +259,7 @@ export function createFetch(
 
   if (process.env.NODE_ENV === 'production') {
     if (process.env.__NEXT_CONFIG_OUTPUT === 'export') {
-      if (fetchUrl.pathname === basePath) {
+      if (fetchUrl.pathname === basePath || skipTrailingSlashRedirect) {
         fetchUrl.pathname += '/index.txt'
       } else if (fetchUrl.pathname.endsWith('/')) {
         fetchUrl.pathname += 'index.txt'
