@@ -219,7 +219,7 @@ export class ImageOptimizerCache {
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
-    const qualities = nextConfig.images?.qualities || []
+    const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
     let href: string
 
