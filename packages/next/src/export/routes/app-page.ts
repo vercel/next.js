@@ -27,6 +27,7 @@ import type { WorkStore } from '../../server/app-render/work-async-storage.exter
 import type { FallbackRouteParams } from '../../server/request/fallback-params'
 import { AfterRunner } from '../../server/after/run-with-after'
 import type { RequestLifecycleOpts } from '../../server/base-server'
+import type { AppSharedContext } from '../../server/app-render/app-render'
 
 export const enum ExportedAppPageFiles {
   HTML = 'HTML',
@@ -44,7 +45,8 @@ export async function prospectiveRenderAppPage(
   pathname: string,
   query: NextParsedUrlQuery,
   fallbackRouteParams: FallbackRouteParams | null,
-  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>
+  partialRenderOpts: Omit<RenderOpts, keyof RequestLifecycleOpts>,
+  sharedContext: AppSharedContext
 ): Promise<undefined> {
   const afterRunner = new AfterRunner()
 
@@ -68,7 +70,8 @@ export async function prospectiveRenderAppPage(
         onAfterTaskError: afterRunner.context.onTaskError,
       },
       undefined,
-      false
+      false,
+      sharedContext
     )
 
     // TODO(after): if we abort a prerender because of an error in an after-callback
@@ -102,7 +105,8 @@ export async function exportAppPage(
   htmlFilepath: string,
   debugOutput: boolean,
   isDynamicError: boolean,
-  fileWriter: FileWriter
+  fileWriter: FileWriter,
+  sharedContext: AppSharedContext
 ): Promise<ExportRouteResult> {
   const afterRunner = new AfterRunner()
 
@@ -130,7 +134,8 @@ export async function exportAppPage(
       fallbackRouteParams,
       renderOpts,
       undefined,
-      false
+      false,
+      sharedContext
     )
 
     const html = result.toUnchunkedString()
@@ -146,7 +151,7 @@ export async function exportAppPage(
       postponed,
       fetchTags,
       fetchMetrics,
-      segmentFlightData,
+      segmentData,
     } = metadata
 
     // Ensure we don't postpone without having PPR enabled.
@@ -200,7 +205,7 @@ export async function exportAppPage(
           flightData
         )
 
-        if (segmentFlightData) {
+        if (segmentData) {
           // Emit the per-segment prefetch data. We emit them as separate files
           // so that the cache handler has the option to treat each as a
           // separate entry.
@@ -210,7 +215,7 @@ export async function exportAppPage(
             RSC_SEGMENTS_DIR_SUFFIX
           )
           const tasks = []
-          for (const [segmentPath, buffer] of segmentFlightData.entries()) {
+          for (const [segmentPath, buffer] of segmentData) {
             segmentPaths.push(segmentPath)
             const segmentDataFilePath =
               segmentPath === '/'

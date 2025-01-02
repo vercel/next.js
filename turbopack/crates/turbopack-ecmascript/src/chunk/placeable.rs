@@ -15,7 +15,7 @@ use crate::references::{
     esm::{EsmExport, EsmExports},
 };
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {
@@ -69,7 +69,7 @@ async fn side_effects_from_package_json(
                                     .resolved_cell(),
                                 ),
                             }
-                            .cell()
+                            .resolved_cell()
                             .emit();
                             None
                         }
@@ -91,7 +91,7 @@ async fn side_effects_from_package_json(
                                         .resolved_cell(),
                                     ),
                                 }
-                                .cell()
+                                .resolved_cell()
                                 .emit();
                                 Ok(None)
                             }
@@ -116,7 +116,7 @@ async fn side_effects_from_package_json(
                         .resolved_cell(),
                     ),
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
         }
@@ -154,7 +154,7 @@ impl Issue for SideEffectsInPackageJsonIssue {
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
-        Vc::cell(self.description.map(|v| *v))
+        Vc::cell(self.description)
     }
 }
 

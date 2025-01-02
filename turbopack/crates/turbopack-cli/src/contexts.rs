@@ -81,11 +81,12 @@ pub async fn get_client_import_map(
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
+    node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ResolveOptionsContext>> {
     let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
     let module_options_context = ResolveOptionsContext {
         enable_node_modules: Some(project_path.root().to_resolved().await?),
-        custom_conditions: vec!["development".into()],
+        custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -117,7 +118,7 @@ async fn get_client_module_options_context(
         ..Default::default()
     };
 
-    let resolve_options_context = get_client_resolve_options_context(project_path);
+    let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
 
     let enable_react_refresh = matches!(*node_env.await?, NodeEnv::Development)
         && assert_can_resolve_react_refresh(project_path, resolve_options_context)
@@ -188,7 +189,7 @@ pub fn get_client_asset_context(
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
 ) -> Vc<Box<dyn AssetContext>> {
-    let resolve_options_context = get_client_resolve_options_context(project_path);
+    let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -221,17 +222,20 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    Ok(
-        CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
                 browserslist_query,
             }
-            .into(),
-        ))))
-        .defines(client_defines(&*node_env.await?))
-        .cell(),
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
     )
+    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .cell()
+    .await
 }

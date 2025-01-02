@@ -1,6 +1,6 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::File;
 
 use crate::{
@@ -14,13 +14,13 @@ use crate::{
 /// Represents the source map of an ecmascript asset.
 #[turbo_tasks::value]
 pub struct SourceMapAsset {
-    asset: Vc<Box<dyn OutputAsset>>,
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapAsset {
     #[turbo_tasks::function]
-    pub fn new(asset: Vc<Box<dyn OutputAsset>>) -> Vc<Self> {
+    pub fn new(asset: ResolvedVc<Box<dyn OutputAsset>>) -> Vc<Self> {
         SourceMapAsset { asset }.cell()
     }
 }
@@ -40,12 +40,12 @@ impl Asset for SourceMapAsset {
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<AssetContent>> {
         let Some(generate_source_map) =
-            Vc::try_resolve_sidecast::<Box<dyn GenerateSourceMap>>(self.asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(self.asset).await?
         else {
             bail!("asset does not support generating source maps")
         };
         let sm = if let Some(sm) = &*generate_source_map.generate_source_map().await? {
-            *sm
+            **sm
         } else {
             SourceMap::empty()
         };
@@ -84,9 +84,9 @@ impl Introspectable for SourceMapAsset {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        if let Some(asset) = Vc::try_resolve_sidecast::<Box<dyn Introspectable>>(self.asset).await?
+        if let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.asset).await?
         {
-            children.insert((Vc::cell("asset".into()), asset));
+            children.insert((ResolvedVc::cell("asset".into()), *asset));
         }
         Ok(Vc::cell(children))
     }

@@ -93,6 +93,24 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   }
 }
 
+let abortController = new AbortController()
+
+if (typeof window !== 'undefined') {
+  // Abort any in-flight requests when the page is unloaded, e.g. due to
+  // reloading the page or performing hard navigations. This allows us to ignore
+  // what would otherwise be a thrown TypeError when the browser cancels the
+  // requests.
+  window.addEventListener('pagehide', () => {
+    abortController.abort()
+  })
+
+  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
+  // and the JavaScript execution context is restored by the browser.
+  window.addEventListener('pageshow', () => {
+    abortController = new AbortController()
+  })
+}
+
 /**
  * Fetch the flight data for the provided url. Takes in the current router state
  * to decide what to render server-side.
@@ -141,7 +159,12 @@ export async function fetchServerResponse(
         : 'low'
       : 'auto'
 
-    const res = await createFetch(url, headers, fetchPriority)
+    const res = await createFetch(
+      url,
+      headers,
+      fetchPriority,
+      abortController.signal
+    )
 
     const responseUrl = urlToUrlWithoutFlightMarker(res.url)
     const canonicalUrl = res.redirected ? responseUrl : undefined
@@ -202,10 +225,13 @@ export async function fetchServerResponse(
       staleTime,
     }
   } catch (err) {
-    console.error(
-      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
-      err
-    )
+    if (!abortController.signal.aborted) {
+      console.error(
+        `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
+        err
+      )
+    }
+
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
@@ -223,7 +249,8 @@ export async function fetchServerResponse(
 export function createFetch(
   url: URL,
   headers: RequestHeaders,
-  fetchPriority: 'auto' | 'high' | 'low' | null
+  fetchPriority: 'auto' | 'high' | 'low' | null,
+  signal?: AbortSignal
 ) {
   const fetchUrl = new URL(url)
 
@@ -266,6 +293,7 @@ export function createFetch(
     credentials: 'same-origin',
     headers,
     priority: fetchPriority || undefined,
+    signal,
   })
 }
 
@@ -278,7 +306,7 @@ export function createFromNextReadableStream(
   })
 }
 
-export function createUnclosingPrefetchStream(
+function createUnclosingPrefetchStream(
   originalFlightStream: ReadableStream<Uint8Array>
 ): ReadableStream<Uint8Array> {
   // When PPR is enabled, prefetch streams may contain references that never

@@ -1949,7 +1949,7 @@ impl JsValue {
                             if var_graph
                                 .free_var_ids
                                 .get(&first_str.into())
-                                .map_or(false, |id| var_graph.values.contains_key(id))
+                                .is_some_and(|id| var_graph.values.contains_key(id))
                             {
                                 // `typeof foo...` but `foo` was reassigned
                                 return None;
@@ -3986,10 +3986,10 @@ mod tests {
         },
         testing::{fixture, run_test, NormalizedOutput},
     };
-    use turbo_tasks::{util::FormatDuration, Value};
+    use turbo_tasks::{util::FormatDuration, ResolvedVc, Value};
     use turbopack_core::{
         compile_time_info::CompileTimeInfo,
-        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
+        environment::{Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion},
         target::{Arch, CompileTarget, Endianness, Libc, Platform},
     };
 
@@ -4314,8 +4314,8 @@ mod tests {
 
     async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
         turbo_tasks_testing::VcStorage::with(async {
-            let compile_time_info = CompileTimeInfo::builder(Environment::new(Value::new(
-                ExecutionEnvironment::NodeJsLambda(
+            let compile_time_info = CompileTimeInfo::builder(
+                Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
                     NodeJsEnvironment {
                         compile_target: CompileTarget {
                             arch: Arch::X64,
@@ -4323,13 +4323,17 @@ mod tests {
                             endianness: Endianness::Little,
                             libc: Libc::Glibc,
                         }
-                        .into(),
-                        ..Default::default()
+                        .resolved_cell(),
+                        node_version: NodeJsVersion::default().resolved_cell(),
+                        cwd: ResolvedVc::cell(None),
                     }
-                    .into(),
-                ),
-            )))
-            .cell();
+                    .resolved_cell(),
+                )))
+                .to_resolved()
+                .await?,
+            )
+            .cell()
+            .await?;
             link(
                 var_graph,
                 val,

@@ -1,7 +1,11 @@
 /* eslint-env jest */
 import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { describeVariants as describe } from 'next-test-utils'
+import {
+  describeVariants as describe,
+  getRedboxCallStack,
+  toggleCollapseCallStackFrames,
+} from 'next-test-utils'
 import path from 'path'
 import { outdent } from 'outdent'
 
@@ -756,6 +760,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     const { session, browser } = sandbox
     await session.assertHasRedbox()
 
+    await toggleCollapseCallStackFrames(browser)
+
     // Expect more than the default amount of frames
     // The default stackTraceLimit results in max 9 [data-nextjs-call-stack-frame] elements
     const callStackFrames = await browser.elementsByCss(
@@ -763,43 +769,27 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     )
 
     expect(callStackFrames.length).toBeGreaterThan(9)
-
-    const moduleGroup = await browser.elementsByCss(
-      '[data-nextjs-collapsed-call-stack-details]'
-    )
-    // Expect some of the call stack frames to be grouped (by React or Next.js)
-    expect(moduleGroup.length).toBeGreaterThan(0)
   })
 
-  test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
+  test('should show anonymous frames in stack trace', async () => {
     await using sandbox = await createSandbox(
       next,
       new Map([
         [
           'pages/index.js',
-          // TODO: repro stringify (<anonymous>)
           outdent`
           export default function Page() {
-            const e = new Error("Client error!");
-            e.stack += \`
-              at stringify (<anonymous>)
-              at <unknown> (<anonymous>)
-              at foo (bar:1:1)\`;
-              throw e;
-            }
-            `,
+            [1, 2, 3].map(() => {
+              throw new Error("anonymous error!");
+            })
+          }`,
         ],
       ])
     )
     const { session, browser } = sandbox
     await session.assertHasRedbox()
-    let callStackFrames = await browser.elementsByCss(
-      '[data-nextjs-call-stack-frame]'
-    )
-    let texts = await Promise.all(callStackFrames.map((f) => f.innerText()))
-    expect(texts).not.toContain('stringify\n<anonymous>')
-    expect(texts).not.toContain('<unknown>\n<anonymous>')
-    expect(texts).toContain('foo\nbar (1:1)')
+    const texts = await getRedboxCallStack(browser)
+    expect(texts).toMatchSnapshot()
   })
 
   test('should hide unrelated frames in stack trace with node:internal calls', async () => {

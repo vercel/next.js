@@ -25,37 +25,37 @@ const isOwnerStackEnabled =
       const source = await getRedboxSource(browser)
 
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at Page (app/rsc/page.tsx (6:13))"`
-        )
+        expect(stackFramesContent).toMatchInlineSnapshot(`
+          "at span ()
+          at Page (app/rsc/page.tsx (6:13))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.tsx (7:9) @ <anonymous>
+          "app/rsc/page.tsx (7:10) @ <anonymous>
 
-           5 |     <div>
-           6 |       {list.map((item, index) => (
-        >  7 |         <span>{item}</span>
-             |         ^
-           8 |       ))}
-           9 |     </div>
-          10 |   )"
-      `)
+             5 |     <div>
+             6 |       {list.map((item, index) => (
+          >  7 |         <span>{item}</span>
+               |          ^
+             8 |       ))}
+             9 |     </div>
+            10 |   )"
+        `)
       } else {
-        // FIXME: the owner stack method names should be `Page` instead of `map`
-        expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at map (app/rsc/page.tsx (6:13))"`
-        )
-        // FIXME: the methodName should be `@ <anonymous>` instead of `@ span`
+        expect(stackFramesContent).toMatchInlineSnapshot(`
+          "at span ()
+          at Page (app/rsc/page.tsx (6:13))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.tsx (7:10) @ span
+          "app/rsc/page.tsx (7:10) @ eval
 
-           5 |     <div>
-           6 |       {list.map((item, index) => (
-        >  7 |         <span>{item}</span>
-             |          ^
-           8 |       ))}
-           9 |     </div>
-          10 |   )"
-      `)
+             5 |     <div>
+             6 |       {list.map((item, index) => (
+          >  7 |         <span>{item}</span>
+               |          ^
+             8 |       ))}
+             9 |     </div>
+            10 |   )"
+        `)
       }
     })
 
@@ -66,37 +66,39 @@ const isOwnerStackEnabled =
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at Page (app/ssr/page.tsx (8:13))"`
-        )
+        expect(stackFramesContent).toMatchInlineSnapshot(`
+          "at p ()
+          at Array.map ()
+          at Page (app/ssr/page.tsx (8:13))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.tsx (9:9) @ <unknown>
+          "app/ssr/page.tsx (9:9) @ <unknown>
 
-           7 |     <div>
-           8 |       {list.map((item, index) => (
-        >  9 |         <p>{item}</p>
-             |         ^
-          10 |       ))}
-          11 |     </div>
-          12 |   )"
-      `)
+             7 |     <div>
+             8 |       {list.map((item, index) => (
+          >  9 |         <p>{item}</p>
+               |         ^
+            10 |       ))}
+            11 |     </div>
+            12 |   )"
+        `)
       } else {
-        // FIXME: the owner stack method names should be `Page` instead of `map`
-        expect(stackFramesContent).toMatchInlineSnapshot(
-          `"at map (app/ssr/page.tsx (8:13))"`
-        )
-        // FIXME: the methodName should be `@ <unknown>` instead of `@ p`
+        expect(stackFramesContent).toMatchInlineSnapshot(`
+          "at p ()
+          at Array.map ()
+          at Page (app/ssr/page.tsx (8:13))"
+        `)
         expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.tsx (9:10) @ p
+          "app/ssr/page.tsx (9:10) @ eval
 
-           7 |     <div>
-           8 |       {list.map((item, index) => (
-        >  9 |         <p>{item}</p>
-             |          ^
-          10 |       ))}
-          11 |     </div>
-          12 |   )"
-      `)
+             7 |     <div>
+             8 |       {list.map((item, index) => (
+          >  9 |         <p>{item}</p>
+               |          ^
+            10 |       ))}
+            11 |     </div>
+            12 |   )"
+        `)
       }
     })
   }

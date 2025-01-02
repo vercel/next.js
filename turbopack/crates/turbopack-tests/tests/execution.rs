@@ -12,8 +12,8 @@ use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
-    TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -52,8 +52,8 @@ use crate::util::REPO_ROOT;
 
 #[turbo_tasks::value]
 struct RunTestResult {
-    js_result: Vc<JsResult>,
-    path: Vc<FileSystemPath>,
+    js_result: ResolvedVc<JsResult>,
+    path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value]
@@ -190,10 +190,20 @@ async fn run_inner(
         snapshot_issues(prepared_test, run_result).await?;
     }
 
-    Ok(run_result.await?.js_result)
+    Ok(*run_result.await?.js_result)
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
@@ -201,9 +211,9 @@ struct TestOptions {
 
 #[turbo_tasks::value]
 struct PreparedTest {
-    path: Vc<FileSystemPath>,
-    project_path: Vc<FileSystemPath>,
-    tests_path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
+    project_path: ResolvedVc<FileSystemPath>,
+    tests_path: ResolvedVc<FileSystemPath>,
     project_root: ResolvedVc<FileSystemPath>,
     options: TestOptions,
 }
@@ -245,9 +255,9 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     }
 
     Ok(PreparedTest {
-        path,
-        project_path,
-        tests_path,
+        path: path.to_resolved().await?,
+        project_path: project_path.to_resolved().await?,
+        tests_path: tests_path.to_resolved().await?,
         project_root,
         options,
     }
@@ -267,12 +277,20 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_path = tests_path.join("js/jest-entry.ts".into());
     let test_path = project_path.join("input/index.js".into());
 
-    let chunk_root_path = path.join("output".into());
-    let static_root_path = path.join("static".into());
+    let chunk_root_path = path.join("output".into()).to_resolved().await?;
+    let static_root_path = path.join("static".into()).to_resolved().await?;
+
+    let chunk_root_path_in_root_path_offset = project_path
+        .join("output".into())
+        .await?
+        .get_relative_path_to(&*project_root.await?)
+        .context("Project path is in root path")?;
 
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
-        NodeJsEnvironment::default().into(),
-    )));
+        NodeJsEnvironment::default().resolved_cell(),
+    )))
+    .to_resolved()
+    .await?;
 
     let compile_time_info = CompileTimeInfo::builder(env)
         .defines(
@@ -281,9 +299,10 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 process.env.TURBOPACK = true,
                 process.env.NODE_ENV = "development",
             )
-            .cell(),
+            .resolved_cell(),
         )
-        .cell();
+        .cell()
+        .await?;
 
     let mut import_map = ImportMap::empty();
     import_map.insert_wildcard_alias(
@@ -317,7 +336,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env.to_resolved().await?),
+            preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
@@ -354,8 +373,9 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     ));
 
     let chunking_context = NodeJsChunkingContext::builder(
-        *project_root,
+        project_root,
         chunk_root_path,
+        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
         static_root_path,
         chunk_root_path,
         static_root_path,
@@ -370,7 +390,9 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let test_asset = asset_context
         .process(
             Vc::upcast(test_source),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
         .module()
         .to_resolved()
@@ -379,7 +401,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let jest_entry_asset = asset_context
         .process(
             Vc::upcast(jest_entry_source),
-            Value::new(ReferenceType::Internal(Vc::cell(fxindexmap! {
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap! {
                 "TESTS".into() => test_asset,
             }))),
         )
@@ -387,7 +409,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let res = evaluate(
         jest_entry_asset,
-        path,
+        *path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
@@ -413,14 +435,14 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                     test_results: vec![],
                 },
             }
-            .cell(),
+            .resolved_cell(),
             path,
         }
         .cell());
     };
 
     Ok(RunTestResult {
-        js_result: JsResult::cell(parse_json_with_source_context(bytes.to_str()?)?),
+        js_result: JsResult::resolved_cell(parse_json_with_source_context(bytes.to_str()?)?),
         path,
     }
     .cell())

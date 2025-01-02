@@ -270,9 +270,11 @@ describe('ReactRefreshRequire app', () => {
       'leaf.js',
       `log.push('init LeafV3'); export default {};`
     )
-    expect((await session.evaluate(() => (window as any).log)).sort()).toEqual(
-      ['init LeafV3', 'init MiddleAV1', 'init MiddleBV1'].sort()
-    )
+    expect(await session.evaluate(() => (window as any).log)).toEqual([
+      'init LeafV3',
+      'init MiddleAV1',
+      'init MiddleBV1',
+    ])
 
     // Now edit MiddleB. It should accept and re-run alone.
     await session.evaluate(() => ((window as any).log = []))

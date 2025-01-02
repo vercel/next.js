@@ -266,6 +266,7 @@ export function navigateReducer(
           pathToSegment: flightSegmentPath,
           seedData,
           head,
+          isHeadPartial,
           isRootRender,
         } = normalizedFlightData
         let treePatch = normalizedFlightData.tree
@@ -316,13 +317,11 @@ export function navigateReducer(
               currentTree,
               treePatch,
               seedData,
-              head
+              head,
+              isHeadPartial
             )
 
             if (task !== null) {
-              // We've created a new Cache Node tree that contains a prefetched
-              // version of the next page. This can be rendered instantly.
-
               // Use the tree computed by updateCacheNodeOnNavigation instead
               // of the one computed by applyRouterStatePatchToTree.
               // TODO: We should remove applyRouterStatePatchToTree
@@ -330,12 +329,14 @@ export function navigateReducer(
               const patchedRouterState: FlightRouterState = task.route
               newTree = patchedRouterState
 
-              // It's possible that `updateCacheNodeOnNavigation` only spawned tasks to reuse the existing cache,
-              // in which case `task.node` will be null, signaling we don't need to wait for a dynamic request
-              // and can simply apply the patched `FlightRouterState`.
-              if (task.node !== null) {
-                const newCache = task.node
-
+              const newCache = task.node
+              if (newCache !== null) {
+                // We've created a new Cache Node tree that contains a prefetched
+                // version of the next page. This can be rendered instantly.
+                mutable.cache = newCache
+              }
+              const dynamicRequestTree = task.dynamicRequestTree
+              if (dynamicRequestTree !== null) {
                 // The prefetched tree has dynamic holes in it. We initiate a
                 // dynamic request to fill them in.
                 //
@@ -350,7 +351,7 @@ export function navigateReducer(
                 // a different response than we expected. For now, we revert back
                 // to the lazy fetching mechanism in that case.)
                 const dynamicRequest = fetchServerResponse(url, {
-                  flightRouterState: currentTree,
+                  flightRouterState: dynamicRequestTree,
                   nextUrl: state.nextUrl,
                 })
 
@@ -359,8 +360,9 @@ export function navigateReducer(
                 // because we're not going to await the dynamic request here. Since we're not blocking
                 // on the dynamic request, `layout-router` will
                 // task.node.lazyData = dynamicRequest
-
-                mutable.cache = newCache
+              } else {
+                // The prefetched tree does not contain dynamic holes — it's
+                // fully static. We can skip the dynamic request.
               }
             } else {
               // Nothing changed, so reuse the old cache.

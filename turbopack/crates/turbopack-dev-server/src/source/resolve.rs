@@ -9,7 +9,7 @@ use hyper::{
     Uri,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TransientInstance, Value, Vc};
+use turbo_tasks::{OperationVc, ResolvedVc, TransientInstance, Value, Vc};
 
 use super::{
     headers::{HeaderValue, Headers},
@@ -22,11 +22,11 @@ use super::{
 /// The result of [`resolve_source_request`]. Similar to a
 /// `ContentSourceContent`, but without the `Rewrite` variant as this is taken
 /// care in the function.
-#[turbo_tasks::value(serialization = "none")]
+#[turbo_tasks::value(serialization = "none", local)]
 pub enum ResolveSourceRequestResult {
     NotFound,
     Static(ResolvedVc<StaticContent>, ResolvedVc<HeaderList>),
-    HttpProxy(Vc<ProxyResult>),
+    HttpProxy(OperationVc<ProxyResult>),
 }
 
 /// Resolves a [SourceRequest] within a [super::ContentSource], returning the
@@ -37,9 +37,9 @@ pub enum ResolveSourceRequestResult {
 /// version of the content. We don't make resolve_source_request strongly
 /// consistent as we want get_routes and get to be independent consistent and
 /// any side effect in get should not wait for recomputing of get_routes.
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 pub async fn resolve_source_request(
-    source: Vc<Box<dyn ContentSource>>,
+    source: OperationVc<Box<dyn ContentSource>>,
     request: TransientInstance<SourceRequest>,
 ) -> Result<Vc<ResolveSourceRequestResult>> {
     let original_path = request.uri.path().to_string();
@@ -47,7 +47,11 @@ pub async fn resolve_source_request(
     let mut current_asset_path: RcStr = urlencoding::decode(&original_path[1..])?.into();
     let mut request_overwrites = (*request).clone();
     let mut response_header_overwrites = Vec::new();
-    let mut route_tree = source.get_routes().resolve_strongly_consistent().await?;
+    let mut route_tree = source
+        .connect()
+        .get_routes()
+        .resolve_strongly_consistent()
+        .await?;
     'routes: loop {
         let mut sources = route_tree.get(current_asset_path.clone());
         'sources: loop {
@@ -116,7 +120,7 @@ pub async fn resolve_source_request(
                         .cell());
                     }
                     ContentSourceContent::HttpProxy(proxy_result) => {
-                        return Ok(ResolveSourceRequestResult::HttpProxy(**proxy_result).cell());
+                        return Ok(ResolveSourceRequestResult::HttpProxy(*proxy_result).cell());
                     }
                     ContentSourceContent::Next => continue,
                 }
@@ -146,7 +150,7 @@ async fn request_to_data(
         data.original_url = Some(original_request.uri.to_string().into());
     }
     if vary.body {
-        data.body = Some(request.body.clone().into());
+        data.body = Some(request.body.clone().resolved_cell());
     }
     if vary.raw_query {
         data.raw_query = Some(request.uri.query().unwrap_or("").into());

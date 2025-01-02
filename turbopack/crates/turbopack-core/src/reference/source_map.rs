@@ -13,14 +13,14 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct SourceMapReference {
-    from: Vc<FileSystemPath>,
-    file: Vc<FileSystemPath>,
+    from: ResolvedVc<FileSystemPath>,
+    file: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl SourceMapReference {
     #[turbo_tasks::function]
-    pub fn new(from: Vc<FileSystemPath>, file: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(from: ResolvedVc<FileSystemPath>, file: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(SourceMapReference { from, file })
     }
 }
@@ -30,7 +30,7 @@ impl SourceMapReference {
         let file_type = self.file.get_type().await;
         if let Ok(file_type_result) = file_type.as_ref() {
             if let FileSystemEntryType::File = &**file_type_result {
-                return Some(self.file);
+                return Some(*self.file);
             }
         }
         None
@@ -61,7 +61,7 @@ impl GenerateSourceMap for SourceMapReference {
             return Ok(Vc::cell(None));
         };
         let source_map = SourceMap::new_from_file(file).await?;
-        Ok(Vc::cell(source_map.map(|m| m.cell())))
+        Ok(Vc::cell(source_map.map(|m| m.resolved_cell())))
     }
 }
 

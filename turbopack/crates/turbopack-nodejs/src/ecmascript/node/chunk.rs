@@ -18,8 +18,8 @@ use crate::NodeJsChunkingContext;
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeChunk {
-    chunking_context: Vc<NodeJsChunkingContext>,
-    chunk: Vc<EcmascriptChunk>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    chunk: ResolvedVc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,8 +27,8 @@ impl EcmascriptBuildNodeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<NodeJsChunkingContext>,
-        chunk: Vc<EcmascriptChunk>,
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        chunk: ResolvedVc<EcmascriptChunk>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeChunk {
             chunking_context,
@@ -57,7 +57,7 @@ impl EcmascriptBuildNodeChunk {
     async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptBuildNodeChunkContent::new(
-            this.chunking_context,
+            *this.chunking_context,
             self,
             this.chunk.chunk_content(),
         ))
@@ -148,10 +148,10 @@ impl Introspectable for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        let introspectable_chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
+        let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk)
             .resolve()
             .await?;
-        children.insert((Vc::cell("chunk".into()), introspectable_chunk));
+        children.insert((ResolvedVc::cell("chunk".into()), introspectable_chunk));
         Ok(Vc::cell(children))
     }
 }

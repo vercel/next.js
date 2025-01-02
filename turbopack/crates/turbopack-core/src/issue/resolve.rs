@@ -17,11 +17,11 @@ use crate::{
 
 #[turbo_tasks::value(shared)]
 pub struct ResolvingIssue {
-    pub severity: Vc<IssueSeverity>,
+    pub severity: ResolvedVc<IssueSeverity>,
     pub request_type: String,
-    pub request: Vc<Request>,
-    pub file_path: Vc<FileSystemPath>,
-    pub resolve_options: Vc<ResolveOptions>,
+    pub request: ResolvedVc<Request>,
+    pub file_path: ResolvedVc<FileSystemPath>,
+    pub resolve_options: ResolvedVc<ResolveOptions>,
     pub error_message: Option<String>,
     pub source: Option<ResolvedVc<IssueSource>>,
 }
@@ -30,7 +30,7 @@ pub struct ResolvingIssue {
 impl Issue for ResolvingIssue {
     #[turbo_tasks::function]
     fn severity(&self) -> Vc<IssueSeverity> {
-        self.severity
+        *self.severity
     }
 
     #[turbo_tasks::function]
@@ -56,7 +56,7 @@ impl Issue for ResolvingIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -73,7 +73,7 @@ impl Issue for ResolvingIssue {
 
         if let Some(import_map) = &self.resolve_options.await?.import_map {
             for request in request_parts {
-                match lookup_import_map(**import_map, self.file_path, *request).await {
+                match lookup_import_map(**import_map, *self.file_path, **request).await {
                     Ok(None) => {}
                     Ok(Some(str)) => writeln!(description, "Import map: {}", str)?,
                     Err(err) => {
@@ -87,7 +87,7 @@ impl Issue for ResolvingIssue {
             }
         }
         Ok(Vc::cell(Some(
-            StyledString::Text(description.into()).cell(),
+            StyledString::Text(description.into()).resolved_cell(),
         )))
     }
 
@@ -115,12 +115,22 @@ impl Issue for ResolvingIssue {
             "Type of request: {request_type}",
             request_type = self.request_type,
         )?;
-        Ok(Vc::cell(Some(StyledString::Text(detail.into()).cell())))
+        Ok(Vc::cell(Some(
+            StyledString::Text(detail.into()).resolved_cell(),
+        )))
     }
 
     #[turbo_tasks::function]
-    fn source(&self) -> Vc<OptionIssueSource> {
-        Vc::cell(self.source.map(|s| s.resolve_source_map(self.file_path)))
+    async fn source(&self) -> Result<Vc<OptionIssueSource>> {
+        Ok(Vc::cell(match self.source {
+            Some(source) => Some(
+                source
+                    .resolve_source_map(*self.file_path)
+                    .to_resolved()
+                    .await?,
+            ),
+            None => None,
+        }))
     }
 
     // TODO add sub_issue for a description of resolve_options

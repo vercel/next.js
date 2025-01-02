@@ -1,4 +1,4 @@
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -11,14 +11,17 @@ use turbopack_core::{
 /// content hashing to generate a long term cacheable URL.
 #[turbo_tasks::value]
 pub struct FixedStaticAsset {
-    output_path: Vc<FileSystemPath>,
-    source: Vc<Box<dyn Source>>,
+    output_path: ResolvedVc<FileSystemPath>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl FixedStaticAsset {
     #[turbo_tasks::function]
-    pub fn new(output_path: Vc<FileSystemPath>, source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(
+        output_path: ResolvedVc<FileSystemPath>,
+        source: ResolvedVc<Box<dyn Source>>,
+    ) -> Vc<Self> {
         FixedStaticAsset {
             output_path,
             source,
@@ -31,7 +34,7 @@ impl FixedStaticAsset {
 impl OutputAsset for FixedStaticAsset {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.output_path)
+        AssetIdent::from_path(*self.output_path)
     }
 }
 

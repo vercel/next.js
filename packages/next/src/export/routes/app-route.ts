@@ -48,7 +48,7 @@ export async function exportAppRoute(
   htmlFilepath: string,
   fileWriter: FileWriter,
   experimental: Required<
-    Pick<ExperimentalConfig, 'after' | 'dynamicIO' | 'authInterrupts'>
+    Pick<ExperimentalConfig, 'dynamicIO' | 'authInterrupts'>
   >,
   buildId: string
 ): Promise<ExportRouteResult> {
@@ -87,6 +87,8 @@ export async function exportAppRoute(
       onClose: afterRunner.context.onClose,
       onAfterTaskError: afterRunner.context.onTaskError,
       cacheLifeProfiles,
+    },
+    sharedContext: {
       buildId,
     },
   }

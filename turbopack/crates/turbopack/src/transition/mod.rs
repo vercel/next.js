@@ -109,7 +109,7 @@ pub trait Transition {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Default)]
 pub struct TransitionOptions {
     pub named_transitions: HashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,

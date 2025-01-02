@@ -83,7 +83,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
                  platform."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }
@@ -228,7 +228,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             UnsupportedSwcEcmaTransformPluginsIssue {
                 file_path: ctx.file_path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

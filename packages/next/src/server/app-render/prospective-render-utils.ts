@@ -1,7 +1,14 @@
+import { getDigestForWellKnownError } from './create-error-handler'
+
 export function printDebugThrownValueForProspectiveRender(
   thrownValue: unknown,
   route: string
 ) {
+  // We don't need to print well-known Next.js errors.
+  if (getDigestForWellKnownError(thrownValue)) {
+    return
+  }
+
   let message: undefined | string
   if (
     typeof thrownValue === 'object' &&

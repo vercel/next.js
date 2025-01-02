@@ -1,14 +1,16 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, ResolvedVc, TryFlatJoinIterExt,
-    TryJoinIterExt, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
+    TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
 
 use super::ChunkItem;
 
-#[derive(PartialEq, Eq, TraceRawVcs, Copy, Clone, Serialize, Deserialize, ValueDebugFormat)]
+#[derive(
+    PartialEq, Eq, TraceRawVcs, Copy, Clone, Serialize, Deserialize, ValueDebugFormat, NonLocalValue,
+)]
 pub struct AvailableChunkItemInfo {
     pub is_async: bool,
 }
@@ -27,13 +29,13 @@ pub struct AvailableChunkItemInfoMap(
 #[turbo_tasks::value]
 pub struct AvailableChunkItems {
     parent: Option<ResolvedVc<AvailableChunkItems>>,
-    chunk_items: Vc<AvailableChunkItemInfoMap>,
+    chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
 }
 
 #[turbo_tasks::value_impl]
 impl AvailableChunkItems {
     #[turbo_tasks::function]
-    pub fn new(chunk_items: Vc<AvailableChunkItemInfoMap>) -> Vc<Self> {
+    pub fn new(chunk_items: ResolvedVc<AvailableChunkItemInfoMap>) -> Vc<Self> {
         AvailableChunkItems {
             parent: None,
             chunk_items,
@@ -44,7 +46,7 @@ impl AvailableChunkItems {
     #[turbo_tasks::function]
     pub async fn with_chunk_items(
         self: ResolvedVc<Self>,
-        chunk_items: Vc<AvailableChunkItemInfoMap>,
+        chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
     ) -> Result<Vc<Self>> {
         let chunk_items = chunk_items
             .await?
@@ -60,7 +62,7 @@ impl AvailableChunkItems {
             .await?;
         Ok(AvailableChunkItems {
             parent: Some(self),
-            chunk_items: Vc::cell(chunk_items.into_iter().collect()),
+            chunk_items: ResolvedVc::cell(chunk_items.into_iter().collect()),
         }
         .cell())
     }

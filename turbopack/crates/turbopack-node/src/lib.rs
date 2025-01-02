@@ -44,7 +44,11 @@ async fn emit(
     intermediate_output_path: Vc<FileSystemPath>,
 ) -> Result<()> {
     for asset in internal_assets(intermediate_asset, intermediate_output_path).await? {
-        let _ = asset.content().write(asset.ident().path());
+        let _ = asset
+            .content()
+            .write(asset.ident().path())
+            .resolve()
+            .await?;
     }
     Ok(())
 }
@@ -152,9 +156,9 @@ async fn separate_assets(
                     .await?
                     .is_inside_ref(intermediate_output_path)
                 {
-                    Ok(Type::Internal(asset.to_resolved().await?))
+                    Ok(Type::Internal(*asset))
                 } else {
-                    Ok(Type::External(asset.to_resolved().await?))
+                    Ok(Type::External(*asset))
                 }
             })
             .try_join()
@@ -215,7 +219,7 @@ pub async fn get_renderer_pool(
 ) -> Result<Vc<NodeJsPool>> {
     emit_package_json(intermediate_output_path).await?;
 
-    let _ = emit(intermediate_asset, *output_root);
+    let _ = emit(intermediate_asset, *output_root).resolve().await?;
     let assets_for_source_mapping =
         internal_assets_for_source_mapping(intermediate_asset, *output_root);
 

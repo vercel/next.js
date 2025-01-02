@@ -16,10 +16,7 @@ import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
-import {
-  createWorkStore,
-  type WorkStoreContext,
-} from '../async-storage/work-store'
+import { createWorkStore } from '../async-storage/work-store'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { NEXT_ROUTER_PREFETCH_HEADER } from '../../client/components/app-router-headers'
 import { getTracer } from '../lib/trace/tracer'
@@ -154,7 +151,7 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeUrl, true).toString(),
+    input: stripInternalSearchParams(normalizeUrl).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -225,17 +222,8 @@ export async function adapter(
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
 
-      const isAfterEnabled =
-        params.request.nextConfig?.experimental?.after ??
-        !!process.env.__NEXT_AFTER
-
-      let waitUntil: WorkStoreContext['renderOpts']['waitUntil'] = undefined
-      let closeController: CloseController | undefined = undefined
-
-      if (isAfterEnabled) {
-        waitUntil = event.waitUntil.bind(event)
-        closeController = new CloseController()
-      }
+      const waitUntil = event.waitUntil.bind(event)
+      const closeController = new CloseController()
 
       return getTracer().trace(
         MiddlewareSpan.execute,
@@ -268,23 +256,21 @@ export async function adapter(
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
                 experimental: {
-                  after: isAfterEnabled,
                   isRoutePPREnabled: false,
                   dynamicIO: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
-                buildId: buildId ?? '',
                 supportsDynamicResponse: true,
                 waitUntil,
-                onClose: closeController
-                  ? closeController.onClose.bind(closeController)
-                  : undefined,
+                onClose: closeController.onClose.bind(closeController),
+                onAfterTaskError: undefined,
               },
               requestEndedState: { ended: false },
               isPrefetchRequest: request.headers.has(
                 NEXT_ROUTER_PREFETCH_HEADER
               ),
+              buildId: buildId ?? '',
             })
 
             return await workAsyncStorage.run(workStore, () =>
@@ -298,13 +284,11 @@ export async function adapter(
           } finally {
             // middleware cannot stream, so we can consider the response closed
             // as soon as the handler returns.
-            if (closeController) {
-              // we can delay running it until a bit later --
-              // if it's needed, we'll have a `waitUntil` lock anyway.
-              setTimeout(() => {
-                closeController!.dispatchClose()
-              }, 0)
-            }
+            // we can delay running it until a bit later --
+            // if it's needed, we'll have a `waitUntil` lock anyway.
+            setTimeout(() => {
+              closeController.dispatchClose()
+            }, 0)
           }
         }
       )
