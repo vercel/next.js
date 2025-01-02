@@ -14,7 +14,7 @@ export function ErrorOverlayBottomStacks({
       {errorsCount > 1 && (
         <div
           className={`error-overlay-bottom-stack-1 ${
-            errorsCount - activeIdx >= 2 ? '' : 'stack-slide-up'
+            errorsCount - activeIdx > 1 ? '' : 'stack-slide-up'
           }`}
           aria-hidden="true"
         />
@@ -23,7 +23,7 @@ export function ErrorOverlayBottomStacks({
       {errorsCount > 2 && (
         <div
           className={`error-overlay-bottom-stack-2 ${
-            errorsCount - activeIdx >= 3 ? '' : 'stack-slide-up'
+            errorsCount - activeIdx > 2 ? '' : 'stack-slide-up'
           }`}
           aria-hidden="true"
         />
