@@ -12,7 +12,7 @@ use crate::{
     source::Source,
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 pub enum ProcessResult {
     /// A module was created.
     Module(ResolvedVc<Box<dyn Module>>),

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -26,7 +26,7 @@ pub(super) struct SideEffectsModule {
     /// The module that is the binding
     pub resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     /// Side effects from the original module to the binding.
-    pub side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+    pub side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -36,7 +36,7 @@ impl SideEffectsModule {
         module: ResolvedVc<EcmascriptModuleAsset>,
         part: ResolvedVc<ModulePart>,
         resolved_as: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
-        side_effects: Vec<Vc<Box<dyn EcmascriptChunkPlaceable>>>,
+        side_effects: Vec<ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>>,
     ) -> Vc<Self> {
         SideEffectsModule {
             module,
@@ -60,7 +60,7 @@ impl Module for SideEffectsModule {
             self.resolved_as.ident().to_resolved().await?,
         );
 
-        ident.add_modifier(Vc::cell(RcStr::from("side effects")));
+        ident.add_modifier(ResolvedVc::cell(RcStr::from("side effects")));
 
         for (i, side_effect) in self.side_effects.iter().enumerate() {
             ident.add_asset(
@@ -76,17 +76,31 @@ impl Module for SideEffectsModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let mut references = vec![];
 
-        for &side_effect in self.side_effects.iter() {
-            references.push(Vc::upcast(SingleChunkableModuleReference::new(
-                Vc::upcast(side_effect),
-                Vc::cell(RcStr::from("side effect")),
-            )));
-        }
+        references.extend(
+            self.side_effects
+                .iter()
+                .map(|side_effect| async move {
+                    Ok(ResolvedVc::upcast(
+                        SingleChunkableModuleReference::new(
+                            *ResolvedVc::upcast(*side_effect),
+                            Vc::cell(RcStr::from("side effect")),
+                        )
+                        .to_resolved()
+                        .await?,
+                    ))
+                })
+                .try_join()
+                .await?,
+        );
 
-        references.push(Vc::upcast(SingleChunkableModuleReference::new(
-            *ResolvedVc::upcast(self.resolved_as),
-            Vc::cell(RcStr::from("resolved as")),
-        )));
+        references.push(ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                *ResolvedVc::upcast(self.resolved_as),
+                Vc::cell(RcStr::from("resolved as")),
+            )
+            .to_resolved()
+            .await?,
+        ));
 
         Ok(Vc::cell(references))
     }

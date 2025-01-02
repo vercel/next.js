@@ -60,10 +60,14 @@ impl Module for AsyncLoaderModule {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleModuleReference::new(
-            *ResolvedVc::upcast(self.await?.inner),
-            inner_module_reference_description(),
-        ))]))
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            SingleModuleReference::new(
+                *ResolvedVc::upcast(self.await?.inner),
+                inner_module_reference_description(),
+            )
+            .to_resolved()
+            .await?,
+        )]))
     }
 }
 

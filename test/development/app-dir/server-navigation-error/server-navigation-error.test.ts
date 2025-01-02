@@ -63,14 +63,14 @@ describe('server-navigation-error', () => {
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`
-          "pages/pages/not-found.tsx (4:11) @ notFound
+         "pages/pages/not-found.tsx (4:11) @ Page
 
-            2 |
-            3 | export default function Page() {
-          > 4 |   notFound()
-              |           ^
-            5 | }
-            6 |"
+           2 |
+           3 | export default function Page() {
+         > 4 |   notFound()
+             |           ^
+           5 | }
+           6 |"
         `)
       }
     })
@@ -135,15 +135,15 @@ describe('server-navigation-error', () => {
         `)
       } else {
         expect(source).toMatchInlineSnapshot(`
-          "middleware.ts (6:13) @ notFound
+         "middleware.ts (6:13) @ middleware
 
-            4 | export default function middleware(req: NextRequest) {
-            5 |   if (req.nextUrl.pathname === '/middleware/not-found') {
-          > 6 |     notFound()
-              |             ^
-            7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
-            8 |     redirect('/')
-            9 |   }"
+           4 | export default function middleware(req: NextRequest) {
+           5 |   if (req.nextUrl.pathname === '/middleware/not-found') {
+         > 6 |     notFound()
+             |             ^
+           7 |   } else if (req.nextUrl.pathname === '/middleware/redirect') {
+           8 |     redirect('/')
+           9 |   }"
         `)
       }
     })

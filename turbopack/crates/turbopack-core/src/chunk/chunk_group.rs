@@ -23,14 +23,15 @@ pub struct MakeChunkGroupResult {
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_group_entries: impl IntoIterator<Item = Vc<Box<dyn Module>>>,
+    chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
     let ChunkContentResult {
         chunk_items,
+        external_output_assets,
+        external_module_references,
         async_modules,
         traced_modules,
-        external_module_references,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
         available_async_modules_back_edges_inherit_async,
@@ -141,15 +142,21 @@ pub async fn make_chunk_group(
         .map(|&loader| loader.references())
         .try_join()
         .await?;
-    let async_loader_external_module_references = async_loader_references
-        .iter()
-        .flat_map(|references| references.iter().copied())
-        .collect();
+    let async_loader_external_module_references = Vc::cell(
+        async_loader_references
+            .iter()
+            .flat_map(|references| references.iter().copied())
+            .collect(),
+    );
 
-    let mut referenced_output_assets = references_to_output_assets(external_module_references)
-        .await?
-        .await?
-        .clone_value();
+    let mut referenced_output_assets = (*external_output_assets.await?).clone();
+    referenced_output_assets.extend(
+        references_to_output_assets(external_module_references)
+            .await?
+            .await?
+            .iter()
+            .copied(),
+    );
 
     let rebased_modules = traced_modules
         .into_iter()
@@ -184,7 +191,7 @@ pub async fn make_chunk_group(
             chunking_context,
             Vc::cell(async_loader_chunk_items.into_iter().collect()),
             "async-loader-".into(),
-            references_to_output_assets(async_loader_external_module_references).await?,
+            async_loader_external_module_references,
         )
         .await?;
 
@@ -192,19 +199,13 @@ pub async fn make_chunk_group(
         chunks.extend(async_loader_chunks.iter().copied());
     }
 
-    let resolved_chunks = chunks
-        .into_iter()
-        .map(|chunk| chunk.to_resolved())
-        .try_join()
-        .await?;
-
     Ok(MakeChunkGroupResult {
-        chunks: resolved_chunks,
+        chunks,
         availability_info,
     })
 }
 
-async fn references_to_output_assets(
+pub async fn references_to_output_assets(
     references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
 ) -> Result<Vc<OutputAssets>> {
     let output_assets = references

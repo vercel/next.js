@@ -27,7 +27,7 @@ static EMPTY_BUF: &[u8] = &[];
 /// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
-#[turbo_tasks::value(shared, serialization = "custom", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "custom", eq = "manual", operation)]
 #[derive(Clone, Debug, Default)]
 pub struct Rope {
     /// Total length of all held bytes.
@@ -369,6 +369,22 @@ pub mod ser_as_string {
     pub fn serialize<S: Serializer>(rope: &Rope, serializer: S) -> Result<S::Ok, S::Error> {
         let s = rope.to_str().map_err(Error::custom)?;
         serializer.serialize_str(&s)
+    }
+}
+
+pub mod ser_option_as_string {
+    use serde::{ser::Error, Serializer};
+
+    use super::Rope;
+
+    /// Serializes a Rope into a string.
+    pub fn serialize<S: Serializer>(rope: &Option<Rope>, serializer: S) -> Result<S::Ok, S::Error> {
+        if let Some(rope) = rope {
+            let s = rope.to_str().map_err(Error::custom)?;
+            serializer.serialize_some(&s)
+        } else {
+            serializer.serialize_none()
+        }
     }
 }
 

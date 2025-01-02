@@ -60,7 +60,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, effect, mark_session_dependent, mark_stateful, trace::TraceRawVcs,
-    Completion, Invalidator, ReadRef, ResolvedVc, ValueToString, Vc,
+    Completion, Invalidator, NonLocalValue, ReadRef, ResolvedVc, ValueToString, Vc,
 };
 use turbo_tasks_hash::{
     hash_xxh3_hash128, hash_xxh3_hash64, DeterministicHash, DeterministicHasher,
@@ -188,7 +188,7 @@ pub trait FileSystem: ValueToString {
     fn metadata(self: Vc<Self>, fs_path: Vc<FileSystemPath>) -> Vc<FileMeta>;
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 struct DiskFileSystemInner {
     pub name: RcStr,
     pub root: RcStr,
@@ -944,6 +944,38 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
+pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
+    fn split(s: &str) -> impl Iterator<Item = &str> {
+        let empty = s.is_empty();
+        let mut iterator = s.split('/');
+        if empty {
+            iterator.next();
+        }
+        iterator
+    }
+
+    let mut self_segments = split(path).peekable();
+    let mut other_segments = split(other_path).peekable();
+    while self_segments.peek() == other_segments.peek() {
+        self_segments.next();
+        if other_segments.next().is_none() {
+            return ".".to_string();
+        }
+    }
+    let mut result = Vec::new();
+    if self_segments.peek().is_none() {
+        result.push(".");
+    } else {
+        while self_segments.next().is_some() {
+            result.push("..");
+        }
+    }
+    for segment in other_segments {
+        result.push(segment);
+    }
+    result.join("/")
+}
+
 #[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
@@ -1004,34 +1036,8 @@ impl FileSystemPath {
         if self.fs != other.fs {
             return None;
         }
-        fn split(s: &str) -> impl Iterator<Item = &str> {
-            let empty = s.is_empty();
-            let mut iterator = s.split('/');
-            if empty {
-                iterator.next();
-            }
-            iterator
-        }
-        let mut self_segments = split(&self.path).peekable();
-        let mut other_segments = split(&other.path).peekable();
-        while self_segments.peek() == other_segments.peek() {
-            self_segments.next();
-            if other_segments.next().is_none() {
-                return Some(".".into());
-            }
-        }
-        let mut result = Vec::new();
-        if self_segments.peek().is_none() {
-            result.push(".");
-        } else {
-            while self_segments.next().is_some() {
-                result.push("..");
-            }
-        }
-        for segment in other_segments {
-            result.push(segment);
-        }
-        Some(result.join("/").into())
+
+        Some(get_relative_path_to(&self.path, &other.path).into())
     }
 
     /// Returns the final component of the FileSystemPath, or an empty string
@@ -1702,7 +1708,7 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs)]
+  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
@@ -2167,7 +2173,7 @@ pub enum FileLinesContent {
     NotFound,
 }
 
-#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Hash, Clone, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
 pub enum InternalDirectoryEntry {
     File(RcStr),
     Directory(RcStr),
@@ -2176,7 +2182,9 @@ pub enum InternalDirectoryEntry {
     Error,
 }
 
-#[derive(Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Hash, Clone, Copy, Debug, PartialEq, Eq, TraceRawVcs, Serialize, Deserialize, NonLocalValue,
+)]
 pub enum DirectoryEntry {
     File(ResolvedVc<FileSystemPath>),
     Directory(ResolvedVc<FileSystemPath>),
@@ -2350,6 +2358,22 @@ pub fn register() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_get_relative_path_to() {
+        assert_eq!(get_relative_path_to("a/b/c", "a/b/c").as_str(), ".");
+        assert_eq!(get_relative_path_to("a/c/d", "a/b/c").as_str(), "../../b/c");
+        assert_eq!(get_relative_path_to("", "a/b/c").as_str(), "./a/b/c");
+        assert_eq!(get_relative_path_to("a/b/c", "").as_str(), "../../..");
+        assert_eq!(
+            get_relative_path_to("a/b/c", "c/b/a").as_str(),
+            "../../../c/b/a"
+        );
+        assert_eq!(
+            get_relative_path_to("file:///a/b/c", "file:///c/b/a").as_str(),
+            "../../../c/b/a"
+        );
+    }
 
     #[tokio::test]
     async fn with_extension() {

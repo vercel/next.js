@@ -8,7 +8,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
     trace::TraceRawVcs,
-    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::CssModuleAsset;
@@ -16,16 +16,26 @@ use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
 use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 use crate::{
-    next_client_reference::ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
     next_server_component::server_component_module::NextServerComponentModule,
+    next_server_utility::server_utility_module::NextServerUtilityModule,
 };
 
 #[derive(
-    Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct ClientReference {
-    server_component: Option<ResolvedVc<NextServerComponentModule>>,
-    ty: ClientReferenceType,
+    pub server_component: Option<ResolvedVc<NextServerComponentModule>>,
+    pub ty: ClientReferenceType,
 }
 
 impl ClientReference {
@@ -39,11 +49,22 @@ impl ClientReference {
 }
 
 #[derive(
-    Copy, Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
+    Copy,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference {
-        parent_module: ResolvedVc<EcmascriptClientReferenceProxyModule>,
+        /// should be the EcmascriptClientReferenceProxyModule
+        parent_module: ResolvedVc<Box<dyn Module>>,
         module: ResolvedVc<EcmascriptClientReferenceModule>,
     },
     CssClientReference(ResolvedVc<CssModuleAsset>),
@@ -74,7 +95,7 @@ impl Default for ClientReferenceGraphResult {
     }
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 pub struct VisitedClientReferenceGraphNodes(HashSet<VisitClientReferenceNode>);
 
 #[turbo_tasks::value_impl]
@@ -223,15 +244,12 @@ pub struct ServerEntries {
 
 #[turbo_tasks::function]
 pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
+    let entry_path = entry.ident().path().resolve().await?;
     let graph = AdjacencyMap::new()
         .skip_duplicates()
         .visit(
             vec![VisitClientReferenceNode {
-                state: {
-                    VisitClientReferenceNodeState::Entry {
-                        entry_path: entry.ident().path().resolve().await?,
-                    }
-                },
+                state: { VisitClientReferenceNodeState::Entry { entry_path } },
                 ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
             }],
             VisitClientReference {
@@ -302,7 +320,16 @@ impl VisitClientReferenceNodeState {
 }
 
 #[derive(
-    Clone, Eq, PartialEq, Hash, Serialize, Deserialize, Debug, ValueDebugFormat, TraceRawVcs,
+    Clone,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    Debug,
+    ValueDebugFormat,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 enum VisitClientReferenceNodeType {
     ClientReference(ClientReference, ReadRef<RcStr>),
@@ -354,9 +381,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
             let referenced_modules = primary_referenced_modules(*parent_module).await?;
 
             let referenced_modules = referenced_modules.iter().map(|module| async move {
-                let module = module.to_resolved().await?;
                 if let Some(client_reference_module) =
-                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
+                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                        .await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: node.state,
@@ -369,13 +396,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                                     None => None,
                                 },
                                 ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module: ResolvedVc::try_downcast_type::<
-                                        EcmascriptClientReferenceProxyModule,
-                                    >(
-                                        parent_module
-                                    )
-                                    .await?
-                                    .unwrap(),
+                                    parent_module,
                                     module: client_reference_module,
                                 },
                             },
@@ -385,7 +406,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
 
                 if let Some(css_client_reference_asset) =
-                    ResolvedVc::try_downcast_type::<CssModuleAsset>(module).await?
+                    ResolvedVc::try_downcast_type::<CssModuleAsset>(*module).await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: node.state,
@@ -407,7 +428,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
 
                 if let Some(server_component_asset) =
-                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(module).await?
+                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module).await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: VisitClientReferenceNodeState::InServerComponent {
@@ -420,22 +441,23 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                     });
                 }
 
-                if let VisitClientReferenceNodeState::Entry { entry_path } = &node.state {
-                    if module.ident().path().resolve().await? != *entry_path {
-                        return Ok(VisitClientReferenceNode {
-                            state: VisitClientReferenceNodeState::InServerUtil,
-                            ty: VisitClientReferenceNodeType::ServerUtilEntry(
-                                module,
-                                module.ident().to_string().await?,
-                            ),
-                        });
-                    }
+                if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
+                    .await?
+                    .is_some()
+                {
+                    return Ok(VisitClientReferenceNode {
+                        state: VisitClientReferenceNodeState::InServerUtil,
+                        ty: VisitClientReferenceNodeType::ServerUtilEntry(
+                            *module,
+                            module.ident().to_string().await?,
+                        ),
+                    });
                 }
 
                 Ok(VisitClientReferenceNode {
                     state: node.state,
                     ty: VisitClientReferenceNodeType::Internal(
-                        module,
+                        *module,
                         module.ident().to_string().await?,
                     ),
                 })

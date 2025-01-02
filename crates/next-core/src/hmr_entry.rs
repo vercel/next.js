@@ -53,10 +53,12 @@ impl Module for HmrEntryModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        Vc::cell(vec![Vc::upcast(HmrEntryModuleReference::new(Vc::upcast(
-            *self.module,
-        )))])
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            HmrEntryModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
     }
 }
 
@@ -150,11 +152,6 @@ impl ChunkItem for HmrEntryChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
     }
 
     #[turbo_tasks::function]

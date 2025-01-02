@@ -171,7 +171,7 @@ export async function validateTurboNextConfig({
   }
 
   const feedbackMessage = `Learn more about Next.js and Turbopack: ${underline(
-    'https://nextjs.link/with-turbopack'
+    'https://nextjs.org/docs/architecture/turbopack'
   )}\n`
 
   if (hasWebpackConfig && !hasTurboConfig) {

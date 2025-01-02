@@ -39,7 +39,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,
@@ -48,7 +48,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
       lazyData: null,
       rsc: <>Root layout</>,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -61,7 +61,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                 lazyData: null,
                 rsc: <>Linking</>,
                 prefetchRsc: null,
-                head: null,
+                head: [null, null],
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -74,7 +74,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),
@@ -98,20 +98,23 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
+    const [treePatch, cacheNodeSeedData, head /*, isHeadPartial */] =
+      flightDataPath.slice(-4)
+
     fillLazyItemsTillLeafWithHead(
       cache,
       existingCache,
       treePatch,
       cacheNodeSeedData,
-      head
+      head,
+      undefined
     )
 
     const expectedCache: CacheNode = {
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: null,
+      head: [null, null],
       prefetchHead: null,
       loading: null,
       parallelRoutes: new Map([
@@ -124,7 +127,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                 lazyData: null,
                 rsc: null,
                 prefetchRsc: null,
-                head: null,
+                head: [null, null],
                 prefetchHead: null,
                 loading: null,
                 parallelRoutes: new Map([
@@ -149,11 +152,12 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                     prefetchHead: null,
                                     loading: null,
                                     parallelRoutes: new Map(),
-                                    head: (
+                                    head: [
+                                      null,
                                       <>
                                         <title>About page!</title>
-                                      </>
-                                    ),
+                                      </>,
+                                    ],
                                   },
                                 ],
                               ]),
@@ -161,7 +165,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                           ]),
                           rsc: null,
                           prefetchRsc: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                         },
                       ],
@@ -171,7 +175,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                           lazyData: null,
                           rsc: <>Page</>,
                           prefetchRsc: null,
-                          head: null,
+                          head: [null, null],
                           prefetchHead: null,
                           loading: null,
                           parallelRoutes: new Map(),

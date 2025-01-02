@@ -60,10 +60,12 @@ impl Module for NextServerComponentModule {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        Vc::cell(vec![Vc::upcast(NextServerComponentModuleReference::new(
-            Vc::upcast(*self.module),
-        ))])
+    async fn references(&self) -> Result<Vc<ModuleReferences>> {
+        Ok(Vc::cell(vec![ResolvedVc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        )]))
     }
 
     #[turbo_tasks::function]
@@ -112,22 +114,20 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let module_reference = ResolvedVc::upcast(
-            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
-                .to_resolved()
-                .await?,
-        );
+        let module_reference = Vc::upcast(NextServerComponentModuleReference::new(Vc::upcast(
+            *self.module,
+        )));
 
         let mut exports = BTreeMap::new();
         exports.insert(
             "default".into(),
-            EsmExport::ImportedBinding(*module_reference, "default".into(), false),
+            EsmExport::ImportedBinding(module_reference, "default".into(), false),
         );
 
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
                 exports,
-                star_exports: vec![*module_reference],
+                star_exports: vec![module_reference.to_resolved().await?],
             }
             .resolved_cell(),
         )
@@ -176,11 +176,6 @@ impl ChunkItem for NextServerComponentChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.inner.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.inner.references()
     }
 
     #[turbo_tasks::function]

@@ -2,7 +2,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 
-describe('nextjs APIs in unstable_after()', () => {
+describe('nextjs APIs in after()', () => {
   const { next, skipped, isNextDev } = nextTestSetup({
     files: __dirname,
     skipStart: true,
@@ -36,7 +36,7 @@ describe('nextjs APIs in unstable_after()', () => {
     await next.start()
   })
 
-  describe('request APIs cannot be called inside unstable_after()', () => {
+  describe('request APIs inside after()', () => {
     // TODO(after): test unawaited calls, like this
     //
     // export default function Page() {
@@ -47,23 +47,45 @@ describe('nextjs APIs in unstable_after()', () => {
     //   return null
     // }
 
-    it('in a dynamic page', async () => {
+    it('cannot be called in a dynamic page', async () => {
       const path = '/request-apis/page-dynamic'
       await next.render(path)
       await retry(() => {
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+        const logs = getLogs()
+
+        expect(logs).not.toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(
+          `[${path}] headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
         )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+
+        expect(logs).not.toContain(`[${path}] nested headers(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
         )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "connection" inside "unstable_after(...)".`
+
+        expect(logs).not.toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
+        )
+
+        expect(logs).not.toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
         )
       })
     })
 
-    describe('in a prerendered page', () => {
+    describe('cannot be called in a prerendered page', () => {
       it.each([
         {
           title: 'with `dynamic = "error"`',
@@ -77,76 +99,124 @@ describe('nextjs APIs in unstable_after()', () => {
         await next.render(path)
         await retry(() => {
           const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+
+          expect(logs).not.toContain(`[${path}] headers(): ok`)
           expect(logs).toContain(
-            `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
+            `[${path}] headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
           )
+
+          expect(logs).not.toContain(`[${path}] nested headers(): ok`)
           expect(logs).toContain(
-            `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
+            `[${path}] nested headers(): error: Error: Route ${path} used "headers" inside "after(...)". This is not supported.`
           )
+
+          expect(logs).not.toContain(`[${path}] cookies(): ok`)
           expect(logs).toContain(
-            `Error: Route ${path} used "connection" inside "unstable_after(...)".`
+            `[${path}] cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
+          )
+
+          expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
+          expect(logs).toContain(
+            `[${path}] nested cookies(): error: Error: Route ${path} used "cookies" inside "after(...)". This is not supported.`
+          )
+
+          expect(logs).not.toContain(`[${path}] connection(): ok`)
+          expect(logs).toContain(
+            `[${path}] connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
+          )
+
+          expect(logs).not.toContain(`[${path}] nested connection(): ok`)
+          expect(logs).toContain(
+            `[${path}] nested connection(): error: Error: Route ${path} used "connection" inside "after(...)".`
           )
         })
       })
     })
 
-    it('in server actions', async () => {
+    it('can be called in a server action', async () => {
       const path = '/request-apis/server-action'
       const browser = await next.browser(path)
       await browser.elementByCss('button[type="submit"]').click()
       await retry(() => {
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "connection" inside "unstable_after(...)".`
-        )
+        const logs = getLogs()
+        expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] nested headers(): ok`)
+
+        expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] nested cookies(): ok`)
+
+        expect(logs).toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(`[${path}] nested connection(): ok`)
       })
     })
 
-    it('in a dynamic route handler', async () => {
+    it('can be called in a dynamic route handler', async () => {
       const path = '/request-apis/route-handler-dynamic'
       await next.render(path)
       await retry(() => {
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
-        )
-        expect(getLogs()).toContain(
-          `Error: Route ${path} used "connection" inside "unstable_after(...)".`
-        )
+        const logs = getLogs()
+        expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] nested headers(): ok`)
+
+        expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] nested cookies(): ok`)
+
+        expect(logs).toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(`[${path}] nested connection(): ok`)
       })
     })
 
-    describe('in a prerendered route handler', () => {
-      it.each([
-        {
-          title: 'with `dynamic = "error"`',
-          path: '/request-apis/route-handler-dynamic-error',
-        },
-        {
-          title: 'with `dynamic = "force-static"`',
-          path: '/request-apis/route-handler-force-static',
-        },
-      ])('$title', async ({ path }) => {
-        await next.render(path)
-        await retry(() => {
-          const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
-          expect(logs).toContain(
-            `Error: Route ${path} used "headers" inside "unstable_after(...)". This is not supported.`
-          )
-          expect(logs).toContain(
-            `Error: Route ${path} used "cookies" inside "unstable_after(...)". This is not supported.`
-          )
-          expect(logs).toContain(
-            `Error: Route ${path} used "connection" inside "unstable_after(...)".`
-          )
-        })
+    it('can be called in a prerendered route handler with `dynamic = "force-static"`', async () => {
+      const path = '/request-apis/route-handler-force-static'
+      await next.render(path)
+      await retry(() => {
+        const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+        expect(logs).toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(`[${path}] nested headers(): ok`)
+
+        expect(logs).toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(`[${path}] nested cookies(): ok`)
+
+        expect(logs).toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(`[${path}] nested connection(): ok`)
+      })
+    })
+
+    it('can be called in a prerendered route handler with `dynamic = "error" (but throw, because dynamic should error)`', async () => {
+      const path = '/request-apis/route-handler-dynamic-error'
+      await next.render(path)
+      await retry(() => {
+        const logs = isNextDev ? getLogs() : buildLogs // in `next start` the error was logged at build time
+
+        expect(logs).not.toContain(`[${path}] headers(): ok`)
+        expect(logs).toContain(
+          `[${path}] headers(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested headers(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested headers(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`headers\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] cookies(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested cookies(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested cookies(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`cookies\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] connection(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`.`
+        )
+
+        expect(logs).not.toContain(`[${path}] nested connection(): ok`)
+        expect(logs).toContain(
+          `[${path}] nested connection(): error: Error: Route ${path} with \`dynamic = "error"\` couldn't be rendered statically because it used \`connection\`.`
+        )
       })
     })
   })
@@ -180,10 +250,10 @@ describe('nextjs APIs in unstable_after()', () => {
         const logs = isDynamic || isNextDev ? getLogs() : buildLogs
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
         expect(logs).toContain(
-          `Route ${path} used "draftMode().enable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().enable()" inside \`after\``
         )
         expect(logs).toContain(
-          `Route ${path} used "draftMode().disable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().disable()" inside \`after\``
         )
       })
     })
@@ -196,10 +266,10 @@ describe('nextjs APIs in unstable_after()', () => {
         const logs = getLogs()
         expect(logs).toContain(`[${path}] draft.isEnabled: false`)
         expect(logs).toContain(
-          `Route ${path} used "draftMode().enable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().enable()" inside \`after\``
         )
         expect(logs).toContain(
-          `Route ${path} used "draftMode().disable()" inside \`unstable_after\``
+          `Route ${path} used "draftMode().disable()" inside \`after\``
         )
       })
     })

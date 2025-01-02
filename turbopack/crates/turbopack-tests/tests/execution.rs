@@ -12,8 +12,8 @@ use dunce::canonicalize;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion, ResolvedVc,
-    TryJoinIterExt, TurboTasks, Value, Vc,
+    apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
+    NonLocalValue, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -193,7 +193,17 @@ async fn run_inner(
     Ok(*run_result.await?.js_result)
 }
 
-#[derive(PartialEq, Eq, Debug, Default, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    PartialEq,
+    Eq,
+    Debug,
+    Default,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    ValueDebugFormat,
+    NonLocalValue,
+)]
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct TestOptions {
     tree_shaking_mode: Option<TreeShakingMode>,
@@ -248,7 +258,7 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
         path: path.to_resolved().await?,
         project_path: project_path.to_resolved().await?,
         tests_path: tests_path.to_resolved().await?,
-        project_root: project_root.to_resolved().await?,
+        project_root,
         options,
     }
     .cell())
@@ -269,6 +279,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 
     let chunk_root_path = path.join("output".into()).to_resolved().await?;
     let static_root_path = path.join("static".into()).to_resolved().await?;
+
+    let chunk_root_path_in_root_path_offset = project_path
+        .join("output".into())
+        .await?
+        .get_relative_path_to(&*project_root.await?)
+        .context("Project path is in root path")?;
 
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
@@ -320,7 +336,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
                 import_externals: true,
                 ..Default::default()
             },
-            preset_env_versions: Some(env.to_resolved().await?),
+            preset_env_versions: Some(env),
             tree_shaking_mode: options.tree_shaking_mode,
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
@@ -359,6 +375,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let chunking_context = NodeJsChunkingContext::builder(
         project_root,
         chunk_root_path,
+        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
         static_root_path,
         chunk_root_path,
         static_root_path,

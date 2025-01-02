@@ -53,8 +53,8 @@ impl Module for IncludeModulesModule {
             self.modules
                 .iter()
                 .map(|&module| async move {
-                    Ok(Vc::upcast(
-                        IncludedModuleReference::new(*module).resolve().await?,
+                    Ok(ResolvedVc::upcast(
+                        IncludedModuleReference::new(*module).to_resolved().await?,
                     ))
                 })
                 .try_join()
@@ -109,11 +109,6 @@ impl ChunkItem for IncludeModulesChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
         self.module.ident()
-    }
-
-    #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
     }
 
     #[turbo_tasks::function]

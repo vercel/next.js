@@ -151,7 +151,7 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeUrl, true).toString(),
+    input: stripInternalSearchParams(normalizeUrl).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -222,10 +222,6 @@ export async function adapter(
       // so we have to inject it via DefinePlugin.
       // in `next start` this will be passed normally (see `NextNodeServer.runMiddleware`).
 
-      const isAfterEnabled =
-        params.request.nextConfig?.experimental?.after ??
-        !!process.env.__NEXT_AFTER
-
       const waitUntil = event.waitUntil.bind(event)
       const closeController = new CloseController()
 
@@ -260,13 +256,11 @@ export async function adapter(
                 cacheLifeProfiles:
                   params.request.nextConfig?.experimental?.cacheLife,
                 experimental: {
-                  after: isAfterEnabled,
                   isRoutePPREnabled: false,
                   dynamicIO: false,
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
-                buildId: buildId ?? '',
                 supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
@@ -276,6 +270,7 @@ export async function adapter(
               isPrefetchRequest: request.headers.has(
                 NEXT_ROUTER_PREFETCH_HEADER
               ),
+              buildId: buildId ?? '',
             })
 
             return await workAsyncStorage.run(workStore, () =>
@@ -289,13 +284,11 @@ export async function adapter(
           } finally {
             // middleware cannot stream, so we can consider the response closed
             // as soon as the handler returns.
-            if (closeController) {
-              // we can delay running it until a bit later --
-              // if it's needed, we'll have a `waitUntil` lock anyway.
-              setTimeout(() => {
-                closeController!.dispatchClose()
-              }, 0)
-            }
+            // we can delay running it until a bit later --
+            // if it's needed, we'll have a `waitUntil` lock anyway.
+            setTimeout(() => {
+              closeController.dispatchClose()
+            }, 0)
           }
         }
       )

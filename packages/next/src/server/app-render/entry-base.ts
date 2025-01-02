@@ -8,7 +8,7 @@ export {
 } from 'react-server-dom-webpack/server.edge'
 
 // eslint-disable-next-line import/no-extraneous-dependencies
-export { prerender } from 'react-server-dom-webpack/static.edge'
+export { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
 
 import LayoutRouter from '../../client/components/layout-router'
 import RenderFromTemplateContext from '../../client/components/render-from-template-context'

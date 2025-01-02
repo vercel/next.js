@@ -145,7 +145,7 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
-    head: null,
+    head: [null, null],
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
@@ -280,7 +280,12 @@ function Router({
           ? // Unlike the old implementation, the Segment Cache doesn't store its
             // data in the router reducer state; it writes into a global mutable
             // cache. So we don't need to dispatch an action.
-            prefetchWithSegmentCache
+            (href) =>
+              prefetchWithSegmentCache(
+                href,
+                actionQueue.state.nextUrl,
+                actionQueue.state.tree
+              )
           : (href, options) => {
               // Use the old prefetch implementation.
               const url = createPrefetchURL(href)
@@ -329,7 +334,7 @@ function Router({
     }
 
     return routerInstance
-  }, [dispatch, navigate])
+  }, [actionQueue, dispatch, navigate])
 
   useEffect(() => {
     // Exists for debugging purposes. Don't use in application code.
@@ -564,14 +569,14 @@ function Router({
 
   const layoutRouterContext = useMemo(() => {
     return {
-      childNodes: cache.parallelRoutes,
-      tree,
+      parentTree: tree,
+      parentCacheNode: cache,
+      parentSegmentPath: null,
       // Root node always has `url`
       // Provided in AppTreeContext to ensure it can be overwritten in layout-router
       url: canonicalUrl,
-      loading: cache.loading,
     }
-  }, [cache.parallelRoutes, tree, canonicalUrl, cache.loading])
+  }, [tree, cache, canonicalUrl])
 
   const globalLayoutRouterContext = useMemo(() => {
     return {

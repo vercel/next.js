@@ -8,7 +8,8 @@ use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -74,10 +75,11 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+)]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
-    #[turbo_tasks(trace_ignore)]
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
@@ -164,7 +166,7 @@ impl Asset for WebpackLoadersProcessedAsset {
 impl GenerateSourceMap for WebpackLoadersProcessedAsset {
     #[turbo_tasks::function]
     async fn generate_source_map(self: Vc<Self>) -> Result<Vc<OptionSourceMap>> {
-        Ok(Vc::cell(self.process().await?.source_map.map(|v| *v)))
+        Ok(Vc::cell(self.process().await?.source_map))
     }
 }
 
@@ -279,12 +281,7 @@ impl WebpackLoadersProcessedAsset {
             Either::Left(str) => File::from(str),
             Either::Right(bytes) => File::from(bytes.binary),
         };
-        let assets = emitted_assets_to_virtual_sources(processed.assets)
-            .await?
-            .into_iter()
-            .map(|v| v.to_resolved())
-            .try_join()
-            .await?;
+        let assets = emitted_assets_to_virtual_sources(processed.assets).await?;
 
         let content =
             AssetContent::File(FileContent::Content(file).resolved_cell()).resolved_cell();
@@ -453,14 +450,9 @@ impl EvaluateContext for WebpackLoaderContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self
-                .chunking_context
-                .context_path()
-                .root()
-                .to_resolved()
-                .await?,
+            root_path: self.chunking_context.root_path().to_resolved().await?,
         }
-        .cell()
+        .resolved_cell()
         .emit();
         Ok(())
     }
@@ -484,7 +476,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     context_ident: self.context_ident_for_issue,
                     path: self.cwd.join(path).to_resolved().await?,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             InfoMessage::DirDependency { path, glob } => {
@@ -503,14 +495,9 @@ impl EvaluateContext for WebpackLoaderContext {
                     severity: severity.resolved_cell(),
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
-                    project_dir: self
-                        .chunking_context
-                        .context_path()
-                        .root()
-                        .to_resolved()
-                        .await?,
+                    project_dir: self.chunking_context.root_path().to_resolved().await?,
                 }
-                .cell()
+                .resolved_cell()
                 .emit();
             }
             InfoMessage::Log(log) => {
@@ -599,14 +586,9 @@ impl EvaluateContext for WebpackLoaderContext {
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root,
-                project_dir: self
-                    .chunking_context
-                    .context_path()
-                    .root()
-                    .to_resolved()
-                    .await?,
+                project_dir: self.chunking_context.root_path().to_resolved().await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
         Ok(())
@@ -734,7 +716,7 @@ impl Issue for BuildDependencyIssue {
                         .into(),
                 ),
             ])
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -824,7 +806,7 @@ impl Issue for EvaluateEmittedErrorIssue {
                     .await?
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         )))
     }
 }
@@ -897,6 +879,6 @@ impl Issue for EvaluateErrorLoggingIssue {
                 }
             })
             .collect::<Vec<_>>();
-        Vc::cell(Some(StyledString::Stack(lines).cell()))
+        Vc::cell(Some(StyledString::Stack(lines).resolved_cell()))
     }
 }

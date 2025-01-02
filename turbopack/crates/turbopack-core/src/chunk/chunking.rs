@@ -8,7 +8,7 @@ use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -18,8 +18,8 @@ use crate::output::OutputAssets;
 
 #[turbo_tasks::value]
 struct ChunkItemInfo {
-    ty: Vc<Box<dyn ChunkType>>,
-    name: Vc<RcStr>,
+    ty: ResolvedVc<Box<dyn ChunkType>>,
+    name: ResolvedVc<RcStr>,
     size: usize,
 }
 
@@ -30,12 +30,12 @@ async fn chunk_item_info(
     async_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<ChunkItemInfo>> {
     let asset_ident = chunk_item.asset_ident().to_string();
-    let ty = chunk_item.ty().resolve().await?;
+    let ty = chunk_item.ty().to_resolved().await?;
     let chunk_item_size = ty.chunk_item_size(chunking_context, chunk_item, async_info);
     Ok(ChunkItemInfo {
         ty,
         size: *chunk_item_size.await?,
-        name: asset_ident.resolve().await?,
+        name: asset_ident.to_resolved().await?,
     }
     .cell())
 }
@@ -125,7 +125,7 @@ type ChunkItemWithInfo = (
 );
 
 struct SplitContext<'a> {
-    ty: Vc<Box<dyn ChunkType>>,
+    ty: ResolvedVc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
     referenced_output_assets: &'a mut Vc<OutputAssets>,

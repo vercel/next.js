@@ -316,12 +316,10 @@ export default class DevServer extends Server {
         // not really errors. They're just part of rendering.
         return
       }
-      this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
-        () => {}
-      )
+      this.logErrorWithOriginalStack(reason, 'unhandledRejection')
     })
     process.on('uncaughtException', (err) => {
-      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
+      this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
   }
 
@@ -422,7 +420,8 @@ export default class DevServer extends Server {
       if (
         request.url.includes('/_next/static') ||
         request.url.includes('/__nextjs_original-stack-frame') ||
-        request.url.includes('/__nextjs_source-map')
+        request.url.includes('/__nextjs_source-map') ||
+        request.url.includes('/__nextjs_error_feedback')
       ) {
         return { finished: false }
       }
@@ -559,7 +558,7 @@ export default class DevServer extends Server {
     } catch (error) {
       const err = getProperError(error)
       formatServerError(err)
-      this.logErrorWithOriginalStack(err).catch(() => {})
+      this.logErrorWithOriginalStack(err)
       if (!res.sent) {
         res.statusCode = 500
         try {
@@ -574,11 +573,11 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async logErrorWithOriginalStack(
+  protected logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ): Promise<void> {
-    await this.bundlerService.logErrorWithOriginalStack(err, type)
+  ): void {
+    this.bundlerService.logErrorWithOriginalStack(err, type)
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -763,7 +762,6 @@ export default class DevServer extends Server {
             publicRuntimeConfig,
             serverRuntimeConfig,
             dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
-            after: Boolean(this.nextConfig.experimental.after),
           },
           httpAgentOptions,
           locales,
@@ -777,8 +775,9 @@ export default class DevServer extends Server {
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
-          buildId: this.renderOpts.buildId,
-          authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+          buildId: this.buildId,
+          authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
       } finally {
@@ -811,7 +810,7 @@ export default class DevServer extends Server {
           staticPaths: string[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.path),
+          staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)
@@ -841,6 +840,7 @@ export default class DevServer extends Server {
   }
 
   protected async findPageComponents({
+    locale,
     page,
     query,
     params,
@@ -849,6 +849,7 @@ export default class DevServer extends Server {
     shouldEnsure,
     url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -866,7 +867,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      if (shouldEnsure || this.renderOpts.customServer) {
+      if (shouldEnsure || this.serverOptions.customServer) {
         await this.ensurePage({
           page,
           appPaths,
@@ -879,6 +880,7 @@ export default class DevServer extends Server {
       this.nextFontManifest = super.getNextFontManifest()
 
       return await super.findPageComponents({
+        locale,
         page,
         query,
         params,
@@ -911,7 +913,6 @@ export default class DevServer extends Server {
     await super.instrumentationOnRequestError(...args)
 
     const err = args[0]
-    // Safe catch to avoid floating promises
-    this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
+    this.logErrorWithOriginalStack(err, 'app-dir')
   }
 }

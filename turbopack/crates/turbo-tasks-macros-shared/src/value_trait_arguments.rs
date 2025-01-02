@@ -12,17 +12,18 @@ pub struct ValueTraitArguments {
     /// Whether the macro should generate a `ValueDebug`-like `dbg()`
     /// implementation on the trait's `Vc`.
     pub debug: bool,
-    /// Should the trait have a `turbo_tasks::ResolvedValue` constraint?
-    ///
-    /// `Some(...)` if enabled, containing the span that enabled the constraint.
-    pub resolved: Option<Span>,
+    /// By default, traits have a `turbo_tasks::NonLocalValue` supertype. Should we skip this?
+    pub local: bool,
+    /// Should the trait have a `turbo_tasks::OperationValue` supertype?
+    pub operation: Option<Span>,
 }
 
 impl Default for ValueTraitArguments {
     fn default() -> Self {
         Self {
             debug: true,
-            resolved: None,
+            local: false,
+            operation: None,
         }
     }
 }
@@ -40,8 +41,11 @@ impl Parse for ValueTraitArguments {
                 Some("no_debug") => {
                     result.debug = false;
                 }
-                Some("resolved") => {
-                    result.resolved = Some(meta.span());
+                Some("local") => {
+                    result.local = true;
+                }
+                Some("operation") => {
+                    result.operation = Some(meta.span());
                 }
                 _ => {
                     return Err(syn::Error::new_spanned(meta, "unknown parameter"));

@@ -637,6 +637,8 @@ async fn fetch_from_google_fonts(
             // TODO(WEB-283): Use fallback in dev in this case
             // TODO(WEB-293): Fail production builds (not dev) in this case
             err.to_issue(IssueSeverity::Warning.into(), virtual_path)
+                .to_resolved()
+                .await?
                 .emit();
 
             None

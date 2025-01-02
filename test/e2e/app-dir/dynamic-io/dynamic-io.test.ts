@@ -64,6 +64,18 @@ describe('dynamic-io', () => {
 
       expect(await hasStaticIndicator(browser)).toBe(true)
     })
+
+    it('should have static indicator on not-found route', async () => {
+      const browser = await next.browser('/cases/not-found')
+
+      await retry(async () => {
+        expect(await browser.eval('!!window.next.router ? "yes": "no"')).toBe(
+          'yes'
+        )
+
+        expect(await hasStaticIndicator(browser)).toBe(true)
+      })
+    })
   }
 
   it('should not have route specific errors', async () => {
@@ -71,7 +83,15 @@ describe('dynamic-io', () => {
     expect(next.cliOutput).not.toMatch('Error occurred prerendering page')
   })
 
-  if (!isNextDev) {
+  if (isNextDev) {
+    it('should not log not-found errors', async () => {
+      const cliOutputLength = next.cliOutput.length
+      await next.browser('/cases/not-found')
+      const cliOutput = next.cliOutput.slice(cliOutputLength)
+      expect(cliOutput).not.toMatch('Error: NEXT_HTTP_ERROR_FALLBACK;404')
+      expect(cliOutput).not.toMatch('unhandledRejection')
+    })
+  } else {
     it('should not warn about potential memory leak for even listeners on AbortSignal', async () => {
       expect(next.cliOutput).not.toMatch('MaxListenersExceededWarning')
     })
@@ -82,9 +102,6 @@ describe('dynamic-io', () => {
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at buildtime')
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
@@ -94,12 +111,23 @@ describe('dynamic-io', () => {
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at buildtime')
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
+    }
+  })
+
+  it('should prerender static not-found pages', async () => {
+    // Using `browser` instead of `render$` because error pages must be hydrated
+    // apparently.
+    const browser = await next.browser('/cases/not-found')
+
+    if (isNextDev) {
+      expect(await browser.elementById('layout').text()).toBe('at runtime')
+      expect(await browser.elementById('page').text()).toBe('at runtime')
+    } else {
+      expect(await browser.elementById('layout').text()).toBe('at buildtime')
+      expect(await browser.elementById('page').text()).toBe('at buildtime')
     }
   })
 
@@ -108,9 +136,6 @@ describe('dynamic-io', () => {
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at buildtime')
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
@@ -120,9 +145,6 @@ describe('dynamic-io', () => {
     if (isNextDev) {
       expect($('#layout').text()).toBe('at runtime')
       expect($('#page').text()).toBe('at runtime')
-    } else if (WITH_PPR) {
-      expect($('#layout').text()).toBe('at buildtime')
-      expect($('#page').text()).toBe('at buildtime')
     } else {
       expect($('#layout').text()).toBe('at buildtime')
       expect($('#page').text()).toBe('at buildtime')
