@@ -1,12 +1,19 @@
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { DebugInfo } from '../../../../../types'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
-import { Dialog, DialogHeader, DialogBody, DialogContent } from '../../Dialog'
+import {
+  Dialog,
+  DialogHeader,
+  DialogBody,
+  DialogContent,
+  DialogFooter,
+} from '../../Dialog'
 import { Overlay } from '../../Overlay'
 import { ErrorPagination } from '../ErrorPagination/ErrorPagination'
 import { ToolButtonsGroup } from '../../ToolButtonsGroup/ToolButtonsGroup'
 import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
+import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: string | React.ReactNode
@@ -88,6 +95,11 @@ export function ErrorOverlayLayout({
           <DialogBody className="nextjs-container-errors-body">
             {children}
           </DialogBody>
+          <DialogFooter>
+            {/* TODO: Replace message from BuildError.tsx */}
+            {/* TODO: errorCode should not be undefined whatsoever */}
+            <ErrorOverlayFooter message={''} errorCode={errorCode!} />
+          </DialogFooter>
         </DialogContent>
       </Dialog>
       <ErrorOverlayBottomStacks
