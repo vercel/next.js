@@ -641,7 +641,8 @@ export default function Image({
     const c = configEnv || configContext || imageConfigDefault
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    return { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    return { ...c, allSizes, deviceSizes, qualities }
   }, [configContext])
 
   let rest: Partial<ImageProps> = all

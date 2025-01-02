@@ -63,6 +63,16 @@ function runTests(mode: 'dev' | 'server') {
     expect(res.status).toStrictEqual(200)
   })
 
+  it('should load img when quality 88', async () => {
+    const browser = await webdriver(appPort, '/')
+    if (mode === 'dev') {
+      await assertNoRedbox(browser)
+    }
+    const url = await getSrc(browser, 'q-88')
+    const res = await fetchViaHTTP(appPort, url)
+    expect(res.status).toStrictEqual(200)
+  })
+
   it('should fail to load img when quality is 100', async () => {
     const page = '/invalid-quality'
     const browser = await webdriver(appPort, page)
@@ -99,7 +109,7 @@ function runTests(mode: 'dev' | 'server') {
           localPatterns: undefined,
           minimumCacheTTL: 60,
           path: '/_next/image',
-          qualities: [42, 69],
+          qualities: [42, 69, 88],
           sizes: [
             640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
             128, 256, 384,

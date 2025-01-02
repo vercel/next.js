@@ -1,5 +1,7 @@
 import type { ImageLoaderPropsWithConfig } from './image-config'
 
+const DEFAULT_Q = 75
+
 function defaultLoader({
   config,
   src,
@@ -81,10 +83,14 @@ function defaultLoader({
     }
   }
 
-  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    // TODO: switch from .slice(-1)[0] to .at(-1) when we drop old Safari (pre 15.4)
-    quality || config.qualities?.slice(-1)[0] || 75
-  }${
+  const q =
+    quality ||
+    config.qualities?.reduce((prev, cur) =>
+      Math.abs(cur - DEFAULT_Q) < Math.abs(prev - DEFAULT_Q) ? cur : prev
+    ) ||
+    DEFAULT_Q
+
+  return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${q}${
     src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
       ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
       : ''
