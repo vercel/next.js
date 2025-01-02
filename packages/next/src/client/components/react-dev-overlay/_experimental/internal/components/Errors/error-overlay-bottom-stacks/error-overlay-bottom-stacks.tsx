@@ -11,13 +11,19 @@ export function ErrorOverlayBottomStacks({
 }: ErrorOverlayBottomStacksProps) {
   return (
     <div className="error-overlay-bottom-stacks-wrapper">
-      {errorsCount - activeIdx >= 2 && (
-        <div className="error-overlay-bottom-stack-1" aria-hidden="true" />
-      )}
+      <div
+        className={`error-overlay-bottom-stack-1 ${
+          errorsCount - activeIdx >= 2 ? '' : 'stack-slide-up'
+        }`}
+        aria-hidden="true"
+      />
 
-      {errorsCount - activeIdx >= 3 && (
-        <div className="error-overlay-bottom-stack-2" aria-hidden="true" />
-      )}
+      <div
+        className={`error-overlay-bottom-stack-2 ${
+          errorsCount - activeIdx >= 3 ? '' : 'stack-slide-up'
+        }`}
+        aria-hidden="true"
+      />
     </div>
   )
 }
@@ -53,6 +59,8 @@ export const styles = css`
     margin-top: -1rem; /* 16px */
     box-shadow: var(--shadow-md);
     background: var(--color-background-200);
+    animation: stack-slide-down 0.3s ease-out forwards;
+    transform-origin: top center;
   }
 
   .error-overlay-bottom-stack-1 {
@@ -63,5 +71,31 @@ export const styles = css`
   .error-overlay-bottom-stack-2 {
     z-index: 48;
     width: calc(100% - 4rem); /* 64px */
+  }
+
+  @keyframes stack-slide-down {
+    from {
+      opacity: 0;
+      transform: translateY(-50%);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  .stack-slide-up {
+    animation: stack-slide-up 0.3s ease-out forwards;
+  }
+
+  @keyframes stack-slide-up {
+    from {
+      opacity: 1;
+      transform: translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateY(-50%);
+    }
   }
 `
