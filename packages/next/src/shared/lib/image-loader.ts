@@ -75,7 +75,8 @@ function defaultLoader({
   }
 
   return `${config.path}?url=${encodeURIComponent(src)}&w=${width}&q=${
-    quality || config.qualities?.at(-1) || 75 // TODO: is it safe to use .at()?
+    // TODO: switch from .slice(-1)[0] to .at(-1) when we drop old Safari (pre 15.4)
+    quality || config.qualities?.slice(-1)[0] || 75
   }${
     src.startsWith('/_next/static/media/') && process.env.NEXT_DEPLOYMENT_ID
       ? `&dpl=${process.env.NEXT_DEPLOYMENT_ID}`
