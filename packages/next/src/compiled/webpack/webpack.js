@@ -3,15 +3,29 @@ exports.__esModule = true
 exports.default = undefined
 
 exports.init = function () {
-  console.log('init webpack');
+  console.log('init webpack')
 
   if (process.env.NEXT_RSPACK) {
-    console.log('using rspack');
+    console.log('using rspack')
     // eslint-disable-next-line
     Object.assign(exports, require('@rspack/core'))
-    Object.assign(exports,{
-        StringXor: require('./StringXor'),
+    Object.assign(exports, {
+      StringXor: require('./StringXor'),
     })
+    
+    if (process.env.RSPACK_TRACE) {
+      console.log('registering rspack trace')
+      exports.rspack.experiments.globalTrace.register(
+        'trace',
+        'chrome',
+        require('path').join(process.cwd(), 'trace.json')
+      )
+
+      process.on('exit', () => {
+        console.log('cleaning up rspack')
+        exports.rspack.experiments.globalTrace.cleanup
+      })
+    }
   } else if (process.env.NEXT_PRIVATE_LOCAL_WEBPACK) {
     Object.assign(exports, {
       // eslint-disable-next-line import/no-extraneous-dependencies
@@ -39,7 +53,7 @@ exports.init = function () {
       webpack: require('webpack'),
     })
   } else {
-    console.log('loading bundle5');
+    console.log('loading bundle5')
     Object.assign(exports, require('./bundle5')())
   }
 }

@@ -4,6 +4,7 @@ import { yellow, bold } from '../lib/picocolors'
 import crypto from 'crypto'
 import { webpack } from 'next/dist/compiled/webpack/webpack'
 import path from 'path'
+import fs from 'fs'
 
 import { escapeStringRegexp } from '../shared/lib/escape-regexp'
 import { WEBPACK_LAYERS, WEBPACK_RESOURCE_QUERIES } from '../lib/constants'
@@ -672,6 +673,7 @@ export default async function getBaseWebpackConfig(
       } satisfies ClientEntries)
     : undefined
 
+  const potentialTsConfigPath = path.join(dir, config.typescript.tsconfigPath)
   const resolveConfig: webpack.Configuration['resolve'] = {
     // Disable .mjs for node_modules bundling
     extensions: ['.js', '.mjs', '.tsx', '.ts', '.jsx', '.json', '.wasm'],
@@ -709,11 +711,11 @@ export default async function getBaseWebpackConfig(
       isNodeServer ? new OptionalPeerDependencyResolverPlugin() : undefined,
     ].filter(Boolean) as webpack.ResolvePluginInstance[],
 
-    ...((isRspack
+    ...((isRspack && (await fs.existsSync(potentialTsConfigPath))
       ? {
-          // tsConfig: {
-          //   configFile: ,
-          // },
+          tsConfig: {
+            configFile: potentialTsConfigPath,
+          },
         }
       : {}) as any),
   }
@@ -993,7 +995,7 @@ export default async function getBaseWebpackConfig(
           }): boolean {
             return (
               !module.type?.startsWith('css') &&
-              // RSPack doesn't support module.size
+              // rspack doesn't support module.size
               (isRspack || module.size() > 160000) &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
@@ -1008,7 +1010,7 @@ export default async function getBaseWebpackConfig(
             if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
-              // RSPack doesn't support this
+              // rspack doesn't support this
               if (!isRspack) {
                 if (!module.libIdent) {
                   throw new Error(
@@ -1039,8 +1041,12 @@ export default async function getBaseWebpackConfig(
           // as we don't need a separate vendor chunk from that
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
-          chunks: (chunk: any) =>
-            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+          chunks: isRspack
+            ? // using a function here causes noticable slowdown
+              // in rspack
+              /(?!polyfills|main|pages\/_app)/
+            : (chunk: any) =>
+                !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
 
           // TODO: investigate these cache groups with rspack
           cacheGroups: isRspack
@@ -1065,7 +1071,7 @@ export default async function getBaseWebpackConfig(
       minimizer: [
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
-          // use built-in minimizer for RSPack
+          // use built-in minimizer for rspack
           if (!isRspack) {
             // @ts-ignore No typings yet
             const { MinifyPlugin } =
@@ -1075,7 +1081,7 @@ export default async function getBaseWebpackConfig(
         },
         // Minify CSS
         (compiler: webpack.Compiler) => {
-          // us RSPack handling
+          // us rspack handling
           if (!isRspack) {
             const {
               CssMinimizerPlugin,
@@ -1790,10 +1796,11 @@ export default async function getBaseWebpackConfig(
           runtimeAsset: `server/${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`,
           dev,
         }),
-      // RSPack doesn't support the parser hooks used here
+      // rspack doesn't support the parser hooks used here
       !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
-      // RSPack doesn't support all APIs we need for tracing via plugin
-      !isRspack &&
+      // rspack doesn't support all APIs we need for tracing via plugin
+      false &&
+        !isRspack &&
         isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
