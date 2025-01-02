@@ -11,19 +11,23 @@ export function ErrorOverlayBottomStacks({
 }: ErrorOverlayBottomStacksProps) {
   return (
     <div className="error-overlay-bottom-stacks-wrapper">
-      <div
-        className={`error-overlay-bottom-stack-1 ${
-          errorsCount - activeIdx >= 2 ? '' : 'stack-slide-up'
-        }`}
-        aria-hidden="true"
-      />
+      {errorsCount > 1 && (
+        <div
+          className={`error-overlay-bottom-stack-1 ${
+            errorsCount - activeIdx >= 2 ? '' : 'stack-slide-up'
+          }`}
+          aria-hidden="true"
+        />
+      )}
 
-      <div
-        className={`error-overlay-bottom-stack-2 ${
-          errorsCount - activeIdx >= 3 ? '' : 'stack-slide-up'
-        }`}
-        aria-hidden="true"
-      />
+      {errorsCount > 2 && (
+        <div
+          className={`error-overlay-bottom-stack-2 ${
+            errorsCount - activeIdx >= 3 ? '' : 'stack-slide-up'
+          }`}
+          aria-hidden="true"
+        />
+      )}
     </div>
   )
 }
