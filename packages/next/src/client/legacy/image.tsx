@@ -29,7 +29,7 @@ function normalizeSrc(src: string): string {
 }
 
 const supportsFloat = typeof ReactDOM.preload === 'function'
-
+const DEFAULT_Q = 75
 const configEnv = process.env.__NEXT_IMAGE_OPTS as any as ImageConfigComplete
 const loadedImageURLs = new Set<string>()
 const allImgs = new Map<
@@ -190,7 +190,21 @@ function defaultLoader({
         }
       }
     }
+
+    if (quality && config.qualities && !config.qualities.includes(quality)) {
+      throw new Error(
+        `Invalid quality prop (${quality}) on \`next/image\` does not match \`images.qualities\` configured in your \`next.config.js\`\n` +
+          `See more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities`
+      )
+    }
   }
+
+  const q =
+    quality ||
+    config.qualities?.reduce((prev, cur) =>
+      Math.abs(cur - DEFAULT_Q) < Math.abs(prev - DEFAULT_Q) ? cur : prev
+    ) ||
+    DEFAULT_Q
 
   if (!config.dangerouslyAllowSVG && src.split('?', 1)[0].endsWith('.svg')) {
     // Special case to make svg serve as-is to avoid proxying
@@ -200,7 +214,7 @@ function defaultLoader({
 
   return `${normalizePathTrailingSlash(config.path)}?url=${encodeURIComponent(
     src
-  )}&w=${width}&q=${quality || 75}`
+  )}&w=${width}&q=${q}`
 }
 
 const loaders = new Map<
