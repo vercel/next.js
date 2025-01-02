@@ -1,12 +1,12 @@
 /* eslint-env jest */
 
 import {
-  //assertHasRedbox,
+  assertHasRedbox,
   assertNoRedbox,
   fetchViaHTTP,
   findPort,
   getImagesManifest,
-  //getRedboxHeader,
+  getRedboxHeader,
   killApp,
   launchApp,
   nextBuild,
@@ -67,10 +67,10 @@ function runTests(mode: 'dev' | 'server') {
     const page = '/invalid-quality'
     const browser = await webdriver(appPort, page)
     if (mode === 'dev') {
-      // await assertHasRedbox(browser)
-      // expect(await getRedboxHeader(browser)).toMatch(
-      //   /Invalid quality prop (.+) on `next\/image` does not match `images.qualities` configured/g
-      // )
+      await assertHasRedbox(browser)
+      expect(await getRedboxHeader(browser)).toMatch(
+        /Invalid quality prop (100) on `next\/image` does not match `images.qualities` configured/g
+      )
     } else {
       const url = await getSrc(browser, 'q-100')
       const res = await fetchViaHTTP(appPort, url)
