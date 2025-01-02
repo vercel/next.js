@@ -359,6 +359,8 @@ describe('app dir - prefetching', () => {
     // sanity check: the link should be present
     expect(await browser.elementById('prefetch-via-link')).toBeDefined()
 
+    await browser.waitForIdleNetwork()
+
     // The space encoding of the prefetch request should be the same as the href, and should not be replaced with a +
     await retry(async () => {
       expect(
@@ -371,6 +373,8 @@ describe('app dir - prefetching', () => {
 
     // Assert that we're on the homepage
     expect(await browser.hasElementByCssSelector('#to-dashboard')).toBe(true)
+
+    await browser.waitForIdleNetwork()
 
     // No new requests should be made since it is correctly prefetched
     await retry(async () => {
