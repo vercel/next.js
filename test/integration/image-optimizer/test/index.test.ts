@@ -307,7 +307,32 @@ describe('Image Optimizer', () => {
       await nextConfig.restore()
 
       expect(stderr).toContain(
-        `Array must be integer elements at "images.qualities"`
+        `Expected integer, received float at "images.qualities[3]"`
+      )
+    })
+
+    it('should error when qualities array is empty', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            qualities: [],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Array must contain at least 1 element(s) at "images.qualities"`
       )
     })
 
