@@ -263,50 +263,46 @@ export function Errors({
       readyErrors={readyErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
-      temporaryHeaderChildren={
-        <>
-          {notes ? (
-            <>
-              <p
-                id="nextjs__container_errors__notes"
-                className="nextjs__container_errors__notes"
-              >
-                {notes}
-              </p>
-            </>
-          ) : null}
-          {hydrationWarning ? (
-            <p
-              id="nextjs__container_errors__link"
-              className="nextjs__container_errors__link"
-            >
-              <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
-            </p>
-          ) : null}
-
-          {hydrationWarning &&
-          (activeError.componentStackFrames?.length ||
-            !!errorDetails.reactOutputComponentDiff) ? (
-            <PseudoHtmlDiff
-              className="nextjs__container_errors__component-stack"
-              hydrationMismatchType={hydrationErrorType}
-              componentStackFrames={activeError.componentStackFrames || []}
-              firstContent={serverContent}
-              secondContent={clientContent}
-              reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
-            />
-          ) : null}
-          {isServerError ? (
-            <div>
-              <small>
-                This error happened while generating the page. Any console logs
-                will be displayed in the terminal window.
-              </small>
-            </div>
-          ) : undefined}
-        </>
-      }
     >
+      {notes ? (
+        <>
+          <p
+            id="nextjs__container_errors__notes"
+            className="nextjs__container_errors__notes"
+          >
+            {notes}
+          </p>
+        </>
+      ) : null}
+      {hydrationWarning ? (
+        <p
+          id="nextjs__container_errors__link"
+          className="nextjs__container_errors__link"
+        >
+          <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+        </p>
+      ) : null}
+
+      {hydrationWarning &&
+      (activeError.componentStackFrames?.length ||
+        !!errorDetails.reactOutputComponentDiff) ? (
+        <PseudoHtmlDiff
+          className="nextjs__container_errors__component-stack"
+          hydrationMismatchType={hydrationErrorType}
+          componentStackFrames={activeError.componentStackFrames || []}
+          firstContent={serverContent}
+          secondContent={clientContent}
+          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+        />
+      ) : null}
+      {isServerError ? (
+        <div>
+          <small>
+            This error happened while generating the page. Any console logs will
+            be displayed in the terminal window.
+          </small>
+        </div>
+      ) : undefined}
       <RuntimeError key={activeError.id.toString()} error={activeError} />
     </ErrorOverlayLayout>
   )
