@@ -70,6 +70,16 @@ const styles = css`
     color: var(--color-gray-900);
   }
 
+  @keyframes fade-out {
+    0% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 0;
+      display: none;
+    }
+  }
+
   .error-feedback-toast {
     width: 420px;
     height: auto;
@@ -81,6 +91,8 @@ const styles = css`
     bottom: var(--size-gap);
     right: var(--size-gap);
     left: auto;
+    background-color: var(--color-background-100);
+    animation: fade-out 0.3s 1s forwards;
   }
 
   .error-feedback-toast-text {

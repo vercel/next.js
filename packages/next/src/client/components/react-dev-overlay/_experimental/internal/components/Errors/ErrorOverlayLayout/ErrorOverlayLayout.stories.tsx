@@ -18,6 +18,7 @@ export const Default: Story = {
   args: {
     errorType: 'Build Error',
     errorMessage: 'Failed to compile',
+    errorCode: 'E001',
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
