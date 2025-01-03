@@ -74,7 +74,7 @@ export const styles = css`
 
   .error-overlay-bottom-stack-2 {
     z-index: 48;
-    width: calc(100% - 4rem); /* 64px */
+    width: calc(100% - 3rem); /* 48px */
   }
 
   @keyframes stack-slide-down {
