@@ -8,6 +8,7 @@ license = "MIT"
 triomphe = { workspace = true }
 turbo-tasks-hash = { workspace = true }
 serde = { workspace = true }
+new_debug_unreachable = "1.0.6"
 
 [lints]
 workspace = true
