@@ -180,11 +180,15 @@ async function loaderTransform(
   }
 
   return transform(source as any, programmaticOptions).then((output) => {
+    // this is running
     if (output.eliminatedPackages && this.eliminatedPackages) {
       for (const pkg of JSON.parse(output.eliminatedPackages)) {
         this.eliminatedPackages.add(pkg)
       }
     }
+    // if (filename.includes('/app/page.tsx')) {
+    //   console.log({ bundleLayer, filename, output })
+    // }
     return [output.code, output.map ? JSON.parse(output.map) : undefined]
   })
 }

@@ -12,6 +12,7 @@ const flightClientModuleLoader: webpack.LoaderDefinitionFunction =
     if (!this._module) {
       return source
     }
+
     // Assign the RSC meta information to buildInfo.
     const buildInfo = getModuleBuildInfo(this._module)
     buildInfo.rsc = getRSCModuleInformation(source, false)

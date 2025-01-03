@@ -63,6 +63,10 @@ pub fn minify(s: JsString, opts: JsValue) -> js_sys::Promise {
 
 #[wasm_bindgen(js_name = "transformSync")]
 pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
+    let cwd = std::env::current_dir().expect("Current directory should always exist");
+    let dummy_path = cwd.join("dummy.txt");
+    std::fs::write(&dummy_path, "dummy content").expect("Should be able to write to dummy file");
+
     console_error_panic_hook::set_once();
 
     let c = compiler();
