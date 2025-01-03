@@ -66,10 +66,11 @@ impl ManifestAsyncModule {
         let this = self.await?;
         if let Some(chunk_items) = this.availability_info.available_chunk_items() {
             if chunk_items
+                .await?
                 .get(
                     this.inner
                         .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
-                        .resolve()
+                        .to_resolved()
                         .await?,
                 )
                 .await?

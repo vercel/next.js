@@ -293,7 +293,7 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_group(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         _ident: Vc<AssetIdent>,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
@@ -307,7 +307,7 @@ impl ChunkingContext for NodeJsChunkingContext {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                Vc::upcast(self),
+                ResolvedVc::upcast(self),
                 [ResolvedVc::upcast(module)],
                 availability_info.into_value(),
             )
@@ -334,7 +334,7 @@ impl ChunkingContext for NodeJsChunkingContext {
     /// * exports the result of evaluating the given module as a CommonJS default export.
     #[turbo_tasks::function]
     pub async fn entry_chunk_group(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         path: Vc<FileSystemPath>,
         module: ResolvedVc<Box<dyn Module>>,
         evaluatable_assets: Vc<EvaluatableAssets>,
@@ -347,7 +347,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             chunks,
             availability_info,
         } = make_chunk_group(
-            Vc::upcast(self),
+            ResolvedVc::upcast(self),
             once(module).chain(
                 evaluatable_assets
                     .await?
@@ -378,7 +378,7 @@ impl ChunkingContext for NodeJsChunkingContext {
         let asset = ResolvedVc::upcast(
             EcmascriptBuildNodeEntryChunk::new(
                 path,
-                self,
+                *self,
                 Vc::cell(other_chunks),
                 evaluatable_assets,
                 *module,

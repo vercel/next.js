@@ -16,9 +16,6 @@ pub struct AvailableChunkItemInfo {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionAvailableChunkItemInfo(Option<AvailableChunkItemInfo>);
-
-#[turbo_tasks::value(transparent)]
 pub struct AvailableChunkItemInfoMap(
     FxIndexMap<ResolvedVc<Box<dyn ChunkItem>>, AvailableChunkItemInfo>,
 );
@@ -48,12 +45,13 @@ impl AvailableChunkItems {
         self: ResolvedVc<Self>,
         chunk_items: ResolvedVc<AvailableChunkItemInfoMap>,
     ) -> Result<Vc<Self>> {
+        let this = &*self.await?;
         let chunk_items = chunk_items
             .await?
             .into_iter()
             .map(|(&chunk_item, &info)| async move {
-                Ok(self
-                    .get(*chunk_item)
+                Ok(this
+                    .get(chunk_item)
                     .await?
                     .is_none()
                     .then_some((chunk_item, info)))
@@ -87,18 +85,24 @@ impl AvailableChunkItems {
         }
         Ok(Vc::cell(hasher.finish()))
     }
+}
 
-    #[turbo_tasks::function]
+impl AvailableChunkItems {
+    // This is not a turbo-tasks function because:
+    //
+    // - We want to enforce that the `chunk_item` key is a `ResolvedVc`, so that it will actually
+    //   match the entries in the `HashMap`.
+    // - This is a cheap operation that's unlikely to be worth caching.
     pub async fn get(
         &self,
         chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
-    ) -> Result<Vc<OptionAvailableChunkItemInfo>> {
+    ) -> Result<Option<AvailableChunkItemInfo>> {
         if let Some(&info) = self.chunk_items.await?.get(&chunk_item) {
-            return Ok(Vc::cell(Some(info)));
+            return Ok(Some(info));
         };
         if let Some(parent) = self.parent {
-            return Ok(parent.get(*chunk_item));
+            return Box::pin(parent.await?.get(chunk_item)).await;
         }
-        Ok(Vc::cell(None))
+        Ok(None)
     }
 }

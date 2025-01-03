@@ -17,14 +17,14 @@ pub enum AvailabilityInfo {
 }
 
 impl AvailabilityInfo {
-    pub fn available_chunk_items(&self) -> Option<Vc<AvailableChunkItems>> {
+    pub fn available_chunk_items(&self) -> Option<ResolvedVc<AvailableChunkItems>> {
         match self {
             Self::Untracked => None,
             Self::Root => None,
             Self::Complete {
                 available_chunk_items,
                 ..
-            } => Some(**available_chunk_items),
+            } => Some(*available_chunk_items),
         }
     }
 
