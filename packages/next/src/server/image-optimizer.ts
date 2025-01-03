@@ -175,6 +175,7 @@ export class ImageOptimizerCache {
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
     const localPatterns = nextConfig.images?.localPatterns
+    const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
     let href: string
 
@@ -278,6 +279,18 @@ export class ImageOptimizerCache {
       return {
         errorMessage:
           '"q" parameter (quality) must be a number between 1 and 100',
+      }
+    }
+
+    if (qualities) {
+      if (isDev) {
+        qualities.push(BLUR_QUALITY)
+      }
+
+      if (!qualities.includes(quality)) {
+        return {
+          errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
+        }
       }
     }
 

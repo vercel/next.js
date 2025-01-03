@@ -32,35 +32,57 @@ async function getSrc(
 }
 
 function runTests(mode: 'dev' | 'server') {
-  it('should load matching images', async () => {
+  it('should load img when quality is undefined', async () => {
     const browser = await webdriver(appPort, '/')
     if (mode === 'dev') {
       await assertNoRedbox(browser)
     }
-    const ids = ['nested-assets', 'static-img']
-    const urls = await Promise.all(ids.map((id) => getSrc(browser, id)))
-    const responses = await Promise.all(
-      urls.map((url) => fetchViaHTTP(appPort, url))
-    )
-    const statuses = responses.map((res) => res.status)
-    expect(statuses).toStrictEqual([200, 200])
+    const url = await getSrc(browser, 'q-undefined')
+    const res = await fetchViaHTTP(appPort, url)
+    expect(res.status).toStrictEqual(200)
+    expect(url).toContain('&q=69') // default to closest to 75
   })
 
-  it.each([
-    'does-not-exist',
-    'nested-assets-query',
-    'nested-blocked',
-    'top-level',
-  ])('should block unmatched image %s', async (id: string) => {
-    const page = '/' + id
+  it('should load img when quality 42', async () => {
+    const browser = await webdriver(appPort, '/')
+    if (mode === 'dev') {
+      await assertNoRedbox(browser)
+    }
+    const url = await getSrc(browser, 'q-42')
+    const res = await fetchViaHTTP(appPort, url)
+    expect(res.status).toStrictEqual(200)
+  })
+
+  it('should load img when quality 69', async () => {
+    const browser = await webdriver(appPort, '/')
+    if (mode === 'dev') {
+      await assertNoRedbox(browser)
+    }
+    const url = await getSrc(browser, 'q-69')
+    const res = await fetchViaHTTP(appPort, url)
+    expect(res.status).toStrictEqual(200)
+  })
+
+  it('should load img when quality 88', async () => {
+    const browser = await webdriver(appPort, '/')
+    if (mode === 'dev') {
+      await assertNoRedbox(browser)
+    }
+    const url = await getSrc(browser, 'q-88')
+    const res = await fetchViaHTTP(appPort, url)
+    expect(res.status).toStrictEqual(200)
+  })
+
+  it('should fail to load img when quality is 100', async () => {
+    const page = '/invalid-quality'
     const browser = await webdriver(appPort, page)
     if (mode === 'dev') {
       await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
-        /Invalid src prop (.+) on `next\/image` does not match `images.localPatterns` configured/g
+        /Invalid quality prop (.+) on `next\/image` does not match `images.qualities` configured/g
       )
     } else {
-      const url = await getSrc(browser, id)
+      const url = await getSrc(browser, 'q-100')
       const res = await fetchViaHTTP(appPort, url)
       expect(res.status).toBe(400)
     }
@@ -72,7 +94,7 @@ function runTests(mode: 'dev' | 'server') {
       expect(manifest).toEqual({
         version: 1,
         images: {
-          contentDispositionType: 'inline',
+          contentDispositionType: 'attachment',
           contentSecurityPolicy:
             "script-src 'none'; frame-src 'none'; sandbox;",
           dangerouslyAllowSVG: false,
@@ -84,21 +106,10 @@ function runTests(mode: 'dev' | 'server') {
           loader: 'default',
           loaderFile: '',
           remotePatterns: [],
-          localPatterns: [
-            {
-              pathname:
-                '^(?:\\/assets(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)|$))$',
-              search: '',
-            },
-            {
-              pathname:
-                '^(?:\\/_next\\/static\\/media(?:\\/(?!\\.{1,2}(?:\\/|$))(?:(?:(?!(?:^|\\/)\\.{1,2}(?:\\/|$)).)*?)|$))$',
-              search: '',
-            },
-          ],
+          localPatterns: undefined,
           minimumCacheTTL: 60,
           path: '/_next/image',
-          qualities: undefined,
+          qualities: [42, 69, 88],
           sizes: [
             640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
             128, 256, 384,
