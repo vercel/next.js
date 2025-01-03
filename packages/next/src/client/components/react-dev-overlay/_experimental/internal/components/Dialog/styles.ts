@@ -41,32 +41,6 @@ const styles = css`
     }
   }
 
-  [data-nextjs-dialog-banner] {
-    position: relative;
-  }
-  [data-nextjs-dialog-banner].banner-warning {
-    border-color: var(--color-ansi-yellow);
-  }
-  [data-nextjs-dialog-banner].banner-error {
-    border-color: var(--color-ansi-red);
-  }
-
-  [data-nextjs-dialog-banner]::after {
-    z-index: 2;
-    content: '';
-    position: absolute;
-    top: 0;
-    right: 0;
-    width: 100%;
-    /* banner width: */
-    border-top-width: var(--size-gap-half);
-    border-bottom-width: 0;
-    border-top-style: solid;
-    border-bottom-style: solid;
-    border-top-color: inherit;
-    border-bottom-color: transparent;
-  }
-
   [data-nextjs-dialog-content] {
     overflow-y: auto;
     border: none;

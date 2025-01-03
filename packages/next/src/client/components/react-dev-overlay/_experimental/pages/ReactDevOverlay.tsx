@@ -9,6 +9,7 @@ import { CssReset } from '../internal/styles/CssReset'
 
 import { ErrorBoundary } from '../../pages/ErrorBoundary'
 import { usePagesReactDevOverlay } from '../../pages/hooks'
+import { Colors } from '../internal/styles/colors'
 
 export type ErrorType = 'runtime' | 'build'
 
@@ -45,6 +46,7 @@ export default function ReactDevOverlay({
         <ShadowPortal>
           <CssReset />
           <Base />
+          <Colors />
           <ComponentStyles />
 
           {displayPrevented ? null : hasBuildError ? (
