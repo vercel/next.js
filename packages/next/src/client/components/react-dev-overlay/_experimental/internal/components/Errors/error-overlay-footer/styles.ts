@@ -5,6 +5,11 @@ const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
+    padding: var(--size-3);
+    background: var(--color-background-200);
+    border: 1px solid var(--color-gray-400);
+    border-bottom-left-radius: var(--rounded-xl);
+    border-bottom-right-radius: var(--rounded-xl);
   }
 
   .error-overlay-footer p {

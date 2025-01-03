@@ -10,7 +10,6 @@ const styles = css`
     margin-left: auto;
     outline: none;
     background: var(--color-background);
-    border: 1px solid var(--color-gray-400);
     border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-md);
     max-height: calc(100% - 56px);
@@ -46,16 +45,18 @@ const styles = css`
     overflow-y: auto;
     border: none;
     margin: 0;
-    /* calc(padding + banner width offset) */
-    padding: calc(var(--size-gap-double) + var(--size-gap-half))
-      var(--size-gap-double);
     height: 100%;
     display: flex;
     flex-direction: column;
   }
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
-    margin-bottom: var(--size-gap-double);
+    padding: var(--size-4);
+    border-top: 1px solid var(--color-gray-400);
+    border-left: 1px solid var(--color-gray-400);
+    border-right: 1px solid var(--color-gray-400);
+    border-top-left-radius: var(--rounded-xl);
+    border-top-right-radius: var(--rounded-xl);
   }
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
     position: relative;
