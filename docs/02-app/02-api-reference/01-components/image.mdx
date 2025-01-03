@@ -12,11 +12,7 @@ description: Optimize Images in your Next.js Application using the built-in `nex
 
 </details>
 
-<PagesOnly>
-
-> **Good to know**: If you are using a version of Next.js prior to 13, you'll want to use the [next/legacy/image](/docs/pages/api-reference/components/image-legacy) documentation since the component was renamed.
-
-</PagesOnly>
+<PagesOnly />
 
 This API reference will help you understand how to use [props](#props) and [configuration options](#configuration-options) available for the Image Component. For features and usage, please see the [Image Component](/docs/app/building-your-application/optimizing/images) page.
 
@@ -63,7 +59,7 @@ Here's a summary of the props available for the Image Component:
 
 ## Required Props
 
-The Image Component requires the following properties: `src`, `alt`, `width` and `height` (or `fill`).
+The Image Component requires the following properties: `src`, `width`, `height`, and `alt`.
 
 ```jsx filename="app/page.js"
 import Image from 'next/image'
@@ -89,29 +85,19 @@ Must be one of the following:
 - A [statically imported](/docs/app/building-your-application/optimizing/images#local-images) image file
 - A path string. This can be either an absolute external URL, or an internal path depending on the [loader](#loader) prop.
 
-When using the default [loader](#loader), also consider the following for source images:
-
-- When src is an external URL, you must also configure [remotePatterns](#remotepatterns)
-- When src is [animated](#animated-images) or not a known format (JPEG, PNG, WebP, AVIF, GIF, TIFF) the image will be served as-is
-- When src is SVG format, it will be blocked unless [`unoptimized`](#unoptimized) or [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is enabled
+When using an external URL, you must add it to [remotePatterns](#remotepatterns) in `next.config.js`.
 
 ### `width`
 
-The `width` property represents the _intrinsic_ image width in pixels. This property is used to infer the correct aspect ratio of the image and avoid layout shift during loading. It does not determine the rendered size of the image, which is controlled by CSS, similar to the `width` attribute in the HTML `<img>` tag.
+The `width` property represents the _rendered_ width in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
 
 ### `height`
 
-The `height` property represents the _intrinsic_ image height in pixels. This property is used to infer the correct aspect ratio of the image and avoid layout shift during loading. It does not determine the rendered size of the image, which is controlled by CSS, similar to the `height` attribute in the HTML `<img>` tag.
+The `height` property represents the _rendered_ height in pixels, so it will affect how large the image appears.
 
 Required, except for [statically imported images](/docs/app/building-your-application/optimizing/images#local-images) or images with the [`fill` property](#fill).
-
-> **Good to know:**
->
-> - Combined, both `width` and `height` properties are used to determine the aspect ratio of the image which used by browsers to reserve space for the image before it loads.
-> - The intrinsic size does not always mean the rendered size in the browser, which will be determined by the parent container. For example, if the parent container is smaller than the intrinsic size, the image will be scaled down to fit the container.
-> - You can use the [`fill`](#fill) property when the width and height are unknown.
 
 ### `alt`
 
@@ -207,7 +193,7 @@ By default, the img element will automatically be assigned the `position: "absol
 
 If no styles are applied to the image, the image will stretch to fit the container. You may prefer to set `object-fit: "contain"` for an image which is letterboxed to fit the container and preserve aspect ratio.
 
-Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio.
+Alternatively, `object-fit: "cover"` will cause the image to fill the entire container and be cropped to preserve aspect ratio. For this to look correct, the `overflow: "hidden"` style should be assigned to the parent element.
 
 For more information, see also:
 
@@ -257,10 +243,6 @@ quality={75} // {number 1-100}
 
 The quality of the optimized image, an integer between `1` and `100`, where `100` is the best quality and therefore largest file size. Defaults to `75`.
 
-If the [`qualities`](#qualities) configuration is defined in `next.config.js`, the `quality` prop must match one of the values defined in the configuration.
-
-> **Good to know**: If the original source image was already low quality, setting the quality prop too high could cause the resulting optimized image to be larger than the original source image.
-
 ### `priority`
 
 ```js
@@ -268,7 +250,7 @@ priority={false} // {false} | {true}
 ```
 
 When true, the image will be considered high priority and
-[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`. If the [`loading`](#loading) property is also used and set to `lazy`, the `priority` property can't be used. The [`loading`](#loading) property is only meant for advanced use cases. Remove `loading` when `priority` is needed.
+[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`.
 
 You should use the `priority` property on any image detected as the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element. It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
@@ -343,11 +325,7 @@ A callback function that is invoked once the image is completely loaded and the 
 
 The callback function will be called with one argument, a reference to the underlying `<img>` element.
 
-<AppOnly>
-
-> **Good to know**: Using props like `onLoadingComplete`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
-
-</AppOnly>
+<AppOnly />
 
 ### `onLoad`
 
@@ -359,11 +337,7 @@ A callback function that is invoked once the image is completely loaded and the 
 
 The callback function will be called with one argument, the Event which has a `target` that references the underlying `<img>` element.
 
-<AppOnly>
-
-> **Good to know**: Using props like `onLoad`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
-
-</AppOnly>
+<AppOnly />
 
 ### `onError`
 
@@ -373,13 +347,11 @@ The callback function will be called with one argument, the Event which has a `t
 
 A callback function that is invoked if the image fails to load.
 
-<AppOnly>
-
-> **Good to know**: Using props like `onError`, which accept a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
-
-</AppOnly>
+<AppOnly />
 
 ### `loading`
+
+> **Recommendation**: This property is only meant for advanced use cases. Switching an image to load with `eager` will normally **hurt performance**. We recommend using the [`priority`](#priority) property instead, which will eagerly preload the image.
 
 ```js
 loading = 'lazy' // {lazy} | {eager}
@@ -416,9 +388,8 @@ You can also [generate a solid color Data URL](https://png-pixel.com) to match t
 unoptimized = {false} // {false} | {true}
 ```
 
-When true, the source image will be served as-is from the `src` instead of changing quality, size, or format. Defaults to `false`.
-
-This is useful for images that do not benefit from optimization such as small images (less than 1KB), vector images (SVG), or animated images (GIF).
+When true, the source image will be served as-is instead of changing quality,
+size, or format. Defaults to `false`.
 
 ```js
 import Image from 'next/image'
@@ -484,7 +455,7 @@ Possible values are the following:
 - `sync` - Synchronously decode the image for atomic presentation with other content.
 - `auto` - No preference for the decoding mode; the browser decides what's best.
 
-Learn more about the [`decoding` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#decoding).
+Learn more about the [`decoding` attribute](https://developer.mozilla.org/docs/Web/HTML/Element/img#loading).
 
 ### Other Props
 
@@ -643,13 +614,9 @@ Alternatively, you can use the [`loader` prop](#loader) to configure each instan
 
 Examples:
 
-- [Custom Image Loader Configuration](/docs/app/api-reference/config/next-config-js/images#example-loader-configuration)
+- [Custom Image Loader Configuration](/docs/app/api-reference/next-config-js/images#example-loader-configuration)
 
-<AppOnly>
-
-> **Good to know**: Customizing the image loader file, which accepts a function, requires using [Client Components](/docs/app/building-your-application/rendering/client-components) to serialize the provided function.
-
-</AppOnly>
+<AppOnly />
 
 ## Advanced
 
@@ -685,25 +652,11 @@ module.exports = {
 }
 ```
 
-### `qualities`
-
-The default [Image Optimization API](#loader) will automatically allow all qualities from 1 to 100. If you wish to restrict the allowed qualities, you can add configuration to `next.config.js`.
-
-```js filename="next.config.js"
-module.exports = {
-  images: {
-    qualities: [25, 50, 75],
-  },
-}
-```
-
-In this example above, only three qualities are allowed: 25, 50, and 75. If the [`quality`](#quality) prop does not match a value in this array, the image will fail with 400 Bad Request.
-
 ### `formats`
 
-The default [Image Optimization API](#loader) will automatically detect the browser's supported image formats via the request's `Accept` header in order to determine the best output format.
+The default [Image Optimization API](#loader) will automatically detect the browser's supported image formats via the request's `Accept` header.
 
-If the `Accept` header matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
+If the `Accept` head matches more than one of the configured formats, the first match in the array is used. Therefore, the array order matters. If there is no match (or the source image is [animated](#animated-images)), the Image Optimization API will fallback to the original image's format.
 
 If no configuration is provided, the default below is used.
 
@@ -715,7 +668,7 @@ module.exports = {
 }
 ```
 
-You can enable AVIF support and still fallback to WebP with the following configuration.
+You can enable AVIF support with the following configuration.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -727,7 +680,7 @@ module.exports = {
 
 > **Good to know**:
 >
-> - AVIF generally takes 50% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
+> - AVIF generally takes 20% longer to encode but it compresses 20% smaller compared to WebP. This means that the first time an image is requested, it will typically be slower and then subsequent requests that are cached will be faster.
 > - If you self-host with a Proxy/CDN in front of Next.js, you must configure the Proxy to forward the `Accept` header.
 
 ## Caching Behavior
@@ -762,7 +715,7 @@ module.exports = {
 
 The expiration (or rather Max Age) of the optimized image is defined by either the `minimumCacheTTL` or the upstream image `Cache-Control` header, whichever is larger.
 
-If you need to change the caching behavior per image, you can configure [`headers`](/docs/app/api-reference/config/next-config-js/headers) to set the `Cache-Control` header on the upstream image (e.g. `/some-asset.jpg`, not `/_next/image` itself).
+If you need to change the caching behavior per image, you can configure [`headers`](/docs/app/api-reference/next-config-js/headers) to set the `Cache-Control` header on the upstream image (e.g. `/some-asset.jpg`, not `/_next/image` itself).
 
 There is no mechanism to invalidate the cache at this time, so its best to keep `minimumCacheTTL` low. Otherwise you may need to manually change the [`src`](#src) prop or delete `<distDir>/cache/images`.
 
@@ -784,7 +737,7 @@ module.exports = {
 
 ### `dangerouslyAllowSVG`
 
-The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/config/next-config-js/headers#content-security-policy).
+The default [loader](#loader) does not optimize SVG images for a few reasons. First, SVG is a vector format meaning it can be resized losslessly. Second, SVG has many of the same features as HTML/CSS, which can lead to vulnerabilities without proper [Content Security Policy (CSP) headers](/docs/app/api-reference/next-config-js/headers#content-security-policy).
 
 Therefore, we recommended using the [`unoptimized`](#unoptimized) prop when the [`src`](#src) prop is known to be SVG. This happens automatically when `src` ends with `".svg"`.
 
@@ -801,22 +754,6 @@ module.exports = {
 ```
 
 In addition, it is strongly recommended to also set `contentDispositionType` to force the browser to download the image, as well as `contentSecurityPolicy` to prevent scripts embedded in the image from executing.
-
-### `contentDispositionType`
-
-The default [loader](#loader) sets the [`Content-Disposition`](https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/Content-Disposition#as_a_response_header_for_the_main_body) header to `attachment` for added protection since the API can serve arbitrary remote images.
-
-The default value is `attachment` which forces the browser to download the image when visiting directly. This is particularly important when [`dangerouslyAllowSVG`](#dangerouslyallowsvg) is true.
-
-You can optionally configure `inline` to allow the browser to render the image when visiting directly, without downloading it.
-
-```js filename="next.config.js"
-module.exports = {
-  images: {
-    contentDispositionType: 'inline',
-  },
-}
-```
 
 ## Animated Images
 
@@ -1093,8 +1030,6 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
-| `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `v14.2.15` | `decoding` prop added and `localPatterns` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `v14.2.14` | `remotePatterns.search` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
