@@ -1,6 +1,9 @@
 import { styles as codeFrame } from '../components/CodeFrame/styles'
 import { styles as dialog } from '../components/Dialog'
+import { styles as bottomStacks } from '../components/Errors/error-overlay-bottom-stacks/error-overlay-bottom-stacks'
+import { styles as pagination } from '../components/Errors/ErrorPagination/styles'
 import { styles as overlay } from '../components/Overlay/styles'
+import { styles as footer } from '../components/Errors/error-overlay-footer/styles'
 import { styles as terminal } from '../components/Terminal/styles'
 import { styles as toast } from '../components/Toast'
 import { styles as versionStaleness } from '../components/VersionStalenessInfo'
@@ -16,6 +19,9 @@ export function ComponentStyles() {
         ${overlay}
         ${toast}
         ${dialog}
+        ${footer}
+        ${bottomStacks}
+        ${pagination}
         ${codeFrame}
         ${terminal}
         ${buildErrorStyles}

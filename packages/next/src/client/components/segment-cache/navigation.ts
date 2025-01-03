@@ -126,7 +126,7 @@ function navigateUsingPrefetchedRouteTree(
   currentFlightRouterState: FlightRouterState,
   prefetchFlightRouterState: FlightRouterState,
   prefetchSeedData: CacheNodeSeedData | null,
-  prefetchHead: HeadData,
+  prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean,
   canonicalUrl: string
 ): SuccessfulNavigationResult | NoOpNavigationResult {
@@ -302,7 +302,7 @@ async function navigateDynamicallyWithNoPrefetch(
   // In our simulated prefetch payload, we pretend that there's no seed data
   // nor a prefetch head.
   const prefetchSeedData = null
-  const prefetchHead: [null, null] = [null, null]
+  const prefetchHead = null
   const isPrefetchHeadPartial = true
 
   const canonicalUrl = createCanonicalUrl(
