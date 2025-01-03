@@ -2,13 +2,19 @@ use std::{
     borrow::{Borrow, Cow},
     ffi::OsStr,
     fmt::{Debug, Display},
+    num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
 };
 
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+
+use crate::{dynamic::Entry, tagged_value::TaggedValue};
+
+mod dynamic;
+mod tagged_value;
 
 /// An immutable reference counted [`String`], similar to [`Arc<String>`][std::sync::Arc].
 ///
@@ -44,13 +50,43 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 // If you want to change the underlying string type to `Arc<str>`, please ensure that you profile
 // performance. The current implementation offers very cheap `String -> RcStr -> String`, meaning we
 // only pay for the allocation for `Arc` when we pass `format!("").into()` to a function.
-#[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct RcStr(Arc<String>);
+pub struct RcStr {
+    unsafe_data: TaggedValue,
+}
+
+unsafe impl Send for RcStr {}
+unsafe impl Sync for RcStr {}
+
+const DYNAMIC_TAG: u8 = 0b_00;
+const INLINE_TAG: u8 = 0b_01; // len in upper nybble
+const INLINE_TAG_INIT: NonZeroU8 = unsafe { NonZeroU8::new_unchecked(INLINE_TAG) };
+const TAG_MASK: u8 = 0b_11;
+const LEN_OFFSET: usize = 4;
+const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
+    #[inline(always)]
+    fn tag(&self) -> u8 {
+        self.unsafe_data.tag() & TAG_MASK
+    }
+
+    /// Return true if this is a dynamic Atom.
+    #[inline(always)]
+    fn is_dynamic(&self) -> bool {
+        self.tag() == DYNAMIC_TAG
+    }
+
+    #[inline(never)]
     pub fn as_str(&self) -> &str {
-        self.0.as_str()
+        match self.tag() {
+            DYNAMIC_TAG => &unsafe { Entry::deref_from(self.unsafe_data) }.string,
+            INLINE_TAG => {
+                let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
+                let src = self.unsafe_data.data();
+                unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
+            }
+            _ => unsafe { debug_unreachable!() },
+        }
     }
 
     /// Returns an owned mutable [`String`].
@@ -177,5 +213,34 @@ impl From<RcStr> for String {
 impl From<RcStr> for PathBuf {
     fn from(s: RcStr) -> Self {
         String::from(s).into()
+    }
+}
+
+impl Clone for RcStr {
+    fn clone(&self) -> Self {}
+}
+
+impl Default for RcStr {}
+
+impl PartialEq for RcStr {}
+
+impl Eq for RcStr {}
+
+impl PartialOrd for RcStr {}
+
+impl Ord for RcStr {}
+
+impl Hash for RcStr {}
+
+impl Serialize for RcStr {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for RcStr {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Ok(RcStr::from(s))
     }
 }
