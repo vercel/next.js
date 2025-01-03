@@ -56,4 +56,36 @@ describe('parseHostHeader', () => {
       })
     ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
   })
+
+  it('should return whichever matches provided origin', () => {
+    expect(
+      parseHostHeader(
+        {
+          host: 'www.foo.com',
+          'x-forwarded-host': ['www.bar.com', 'www.baz.com'],
+        },
+        'www.foo.com'
+      )
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.foo.com' })
+
+    expect(
+      parseHostHeader(
+        {
+          host: 'www.foo.com',
+          'x-forwarded-host': ['www.bar.com'],
+        },
+        'www.bar.com'
+      )
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
+
+    expect(
+      parseHostHeader(
+        {
+          host: 'www.foo.com',
+          'x-forwarded-host': 'www.bar.com, www.baz.com',
+        },
+        'www.bar.com'
+      )
+    ).toEqual({ type: 'x-forwarded-host', value: 'www.bar.com' })
+  })
 })
