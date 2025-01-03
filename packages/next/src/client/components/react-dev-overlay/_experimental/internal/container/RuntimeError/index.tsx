@@ -79,6 +79,10 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 }
 
 export const styles = css`
+  [data-nextjs-call-stack-frame] {
+    padding: var(--size-4);
+  }
+
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
