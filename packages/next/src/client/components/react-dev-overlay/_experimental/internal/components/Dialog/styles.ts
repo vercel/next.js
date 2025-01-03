@@ -2,6 +2,7 @@ import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   [data-nextjs-dialog] {
+    z-index: 50;
     display: flex;
     flex-direction: column;
     width: 100%;
@@ -9,9 +10,9 @@ const styles = css`
     margin-left: auto;
     outline: none;
     background: var(--color-background);
-    border-radius: var(--size-gap);
-    box-shadow: 0 var(--size-gap-half) var(--size-gap-double)
-      rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--rounded-xl);
+    box-shadow: var(--shadow-md);
     max-height: calc(100% - 56px);
     overflow-y: hidden;
   }
@@ -25,7 +26,7 @@ const styles = css`
   @media (min-width: 576px) {
     [data-nextjs-dialog] {
       max-width: 540px;
-      box-shadow: 0 var(--size-gap) var(--size-gap-quad) rgba(0, 0, 0, 0.25);
+      box-shadow: var(--shadow-2xl);
     }
   }
 

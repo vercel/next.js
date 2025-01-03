@@ -6,6 +6,7 @@ import { Overlay } from '../../Overlay'
 import { ErrorPagination } from '../ErrorPagination/ErrorPagination'
 import { ToolButtonsGroup } from '../../ToolButtonsGroup/ToolButtonsGroup'
 import { VersionStalenessInfo } from '../../VersionStalenessInfo'
+import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: string | React.ReactNode
@@ -89,6 +90,10 @@ export function ErrorOverlayLayout({
           </DialogBody>
         </DialogContent>
       </Dialog>
+      <ErrorOverlayBottomStacks
+        errorsCount={readyErrors?.length ?? 0}
+        activeIdx={activeIdx ?? 0}
+      />
     </Overlay>
   )
 }
