@@ -34,7 +34,7 @@
     "git-clean": "git clean -d -x -e node_modules -e packages -f",
     "typescript": "tsc --noEmit",
     "lint-typescript": "turbo run typescript",
-    "lint-eslint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext js,jsx,ts,tsx --config .eslintrc.cli.json --no-eslintrc",
+    "lint-eslint": "cross-env ESLINT_USE_FLAT_CONFIG=false eslint . --ext js,jsx,mjs,ts,tsx,mts,mdx --config .eslintrc.json --no-eslintrc",
     "lint-ast-grep": "ast-grep scan",
     "lint-no-typescript": "run-p prettier-check lint-eslint lint-language",
     "types-and-precompiled": "run-p lint-typescript check-precompiled validate-externals-doc",
