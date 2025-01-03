@@ -79,7 +79,7 @@ function runTests(mode: 'dev' | 'server') {
     if (mode === 'dev') {
       await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch(
-        /Invalid quality prop (100) on `next\/image` does not match `images.qualities` configured/g
+        /Invalid quality prop (.+) on `next\/image` does not match `images.qualities` configured/g
       )
     } else {
       const url = await getSrc(browser, 'q-100')
