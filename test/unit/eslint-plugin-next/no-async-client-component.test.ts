@@ -51,6 +51,14 @@ const tests = {
 
     export default myFunction
     `,
+    `
+    // arrow function with named export
+    "use client"
+
+    export const myFunction = () => {
+      return ''
+    }
+    `,
   ],
   invalid: [
     {
@@ -111,6 +119,17 @@ const tests = {
       }
 
       export default MyFunction
+      `,
+      errors: [{ message }],
+    },
+    {
+      code: `
+      // arrow function with named export
+      "use client"
+
+      export const MyFunction = async () => {
+        return '123'
+      }
       `,
       errors: [{ message }],
     },
