@@ -269,24 +269,26 @@ export function Errors({
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
     >
-      {notes ? (
-        <>
+      <div className="error-overlay-notes-container">
+        {notes ? (
+          <>
+            <p
+              id="nextjs__container_errors__notes"
+              className="nextjs__container_errors__notes"
+            >
+              {notes}
+            </p>
+          </>
+        ) : null}
+        {hydrationWarning ? (
           <p
-            id="nextjs__container_errors__notes"
-            className="nextjs__container_errors__notes"
+            id="nextjs__container_errors__link"
+            className="nextjs__container_errors__link"
           >
-            {notes}
+            <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
           </p>
-        </>
-      ) : null}
-      {hydrationWarning ? (
-        <p
-          id="nextjs__container_errors__link"
-          className="nextjs__container_errors__link"
-        >
-          <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
-        </p>
-      ) : null}
+        ) : null}
+      </div>
 
       {hydrationWarning &&
       (activeError.componentStackFrames?.length ||
@@ -337,18 +339,17 @@ export const styles = css`
     padding: var(--size-gap) var(--size-gap-double);
     border-left: 2px solid var(--color-text-color-red-1);
     margin-top: var(--size-gap);
+    margin-bottom: 0;
     font-weight: bold;
     color: var(--color-text-color-red-1);
     background-color: var(--color-text-background-red-1);
   }
   p.nextjs__container_errors__link {
-    margin: var(--size-gap-double) auto;
     color: var(--color-text-color-red-1);
     font-weight: 600;
     font-size: 15px;
   }
   p.nextjs__container_errors__notes {
-    margin: var(--size-gap-double) auto;
     color: var(--color-stack-notes);
     font-weight: 600;
     font-size: 15px;
@@ -370,6 +371,7 @@ export const styles = css`
     font-size: var(--size-font-big);
   }
   .nextjs__container_errors__component-stack {
+    margin: 0;
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);
@@ -404,8 +406,8 @@ export const styles = css`
   .nextjs-container-errors-header
     > .nextjs-container-build-error-version-status {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: var(--size-4);
+    right: var(--size-4);
   }
   .nextjs__container_errors_inspect_copy_button {
     cursor: pointer;
@@ -427,5 +429,10 @@ export const styles = css`
   .nextjs-data-runtime-error-inspect-link:hover {
     margin: 0 8px;
     color: inherit;
+  }
+
+  .error-overlay-notes-container {
+    padding: var(--size-4);
+    padding-top: 0;
   }
 `

@@ -86,6 +86,23 @@ export function Base() {
           --rounded-xl: 0.75rem; /* 12px */
           --rounded-2xl: 1rem; /* 16px */
           --rounded-3xl: 1.5rem; /* 24px */
+
+          --size-0: 0px;
+          --size-px: 1px;
+          --size-0_5: 0.125rem; /* 2px */
+          --size-1: 0.25rem; /* 4px */
+          --size-1_5: 0.375rem; /* 6px */
+          --size-2: 0.5rem; /* 8px */
+          --size-2_5: 0.625rem; /* 10px */
+          --size-3: 0.75rem; /* 12px */
+          --size-3_5: 0.875rem; /* 14px */
+          --size-4: 1rem; /* 16px */
+          --size-5: 1.25rem; /* 20px */
+          --size-6: 1.5rem; /* 24px */
+          --size-7: 1.75rem; /* 28px */
+          --size-8: 2rem; /* 32px */
+          --size-9: 2.25rem; /* 36px */
+          --size-10: 2.5rem; /* 40px */
         }
 
         @media (prefers-color-scheme: dark) {
