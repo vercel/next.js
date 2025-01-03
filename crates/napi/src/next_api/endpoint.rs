@@ -10,9 +10,7 @@ use next_api::{
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{
-    get_effects, Completion, Effects, OperationVc, ReadRef, ResolvedVc, Vc, VcValueType,
-};
+use turbo_tasks::{get_effects, Completion, Effects, OperationVc, ReadRef, Vc, VcValueType};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -91,10 +89,10 @@ impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<Vc<Box<dyn Endpoint>>>);
+pub struct ExternalEndpoint(pub VcArc<Box<dyn Endpoint>>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<Vc<Box<dyn Endpoint>>>;
+    type Target = VcArc<Box<dyn Endpoint>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -135,9 +133,9 @@ struct WrittenEndpointWithIssues {
 
 #[turbo_tasks::function]
 async fn get_written_endpoint_with_issues(
-    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
-    let write_to_disk = endpoint_write_to_disk_operation(endpoint);
+    let write_to_disk = endpoint_write_to_disk_operation(endpoint_op);
     let (written, issues, diagnostics, effects) =
         strongly_consistent_catch_collectables(write_to_disk).await?;
     Ok(WrittenEndpointWithIssues {
@@ -155,10 +153,10 @@ pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = ***endpoint;
+    let endpoint_op = ***endpoint;
     let (written, issues, diags) = turbo_tasks
         .run_once(async move {
-            let operation = get_written_endpoint_with_issues(endpoint);
+            let operation = get_written_endpoint_with_issues(endpoint_op);
             let WrittenEndpointWithIssues {
                 written,
                 issues,
@@ -191,8 +189,8 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || {
             async move {
-                let operation = subscribe_issues_and_diags(endpoint, issues);
-                let result = operation.strongly_consistent().await?;
+                let vc = subscribe_issues_and_diags(endpoint, issues);
+                let result = vc.strongly_consistent().await?;
                 result.effects.apply().await?;
                 Ok(result)
             }
@@ -241,10 +239,10 @@ impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function]
 async fn subscribe_issues_and_diags(
-    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<Box<dyn Endpoint>>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
-    let changed = endpoint_server_changed_operation(endpoint);
+    let changed = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
         let (changed_value, issues, diagnostics, effects) =
@@ -280,7 +278,7 @@ pub fn endpoint_client_changed_subscribe(
         func,
         move || {
             async move {
-                let changed = endpoint.client_changed();
+                let changed = endpoint.connect().client_changed();
                 // We don't capture issues and diagnostics here since we don't want to be
                 // notified when they change
                 changed.strongly_consistent().await?;
