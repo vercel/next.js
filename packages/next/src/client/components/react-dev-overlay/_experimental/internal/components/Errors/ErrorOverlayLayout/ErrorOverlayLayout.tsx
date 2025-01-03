@@ -94,7 +94,6 @@ export function ErrorOverlayLayout({
             {children}
           </DialogBody>
           <DialogFooter>
-            {/* TODO: Replace message from BuildError.tsx */}
             {/* TODO: errorCode should not be undefined whatsoever */}
             <ErrorOverlayFooter
               footerMessage={footerMessage}
