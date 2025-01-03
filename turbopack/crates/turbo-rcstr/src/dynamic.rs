@@ -47,7 +47,9 @@ impl Hash for Entry {
 
 /// This can create any kind of [Atom], although this lives in the `dynamic`
 /// module.
-pub(crate) fn new_atom<S: Into<Arc<str>>>(len: usize, text: S) -> RcStr {
+pub(crate) fn new_atom(text: Cow<str>) -> RcStr {
+    let len = text.len();
+
     if len < MAX_INLINE_LEN {
         // INLINE_TAG ensures this is never zero
         let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);
@@ -59,7 +61,7 @@ pub(crate) fn new_atom<S: Into<Arc<str>>>(len: usize, text: S) -> RcStr {
     }
 
     let entry = Arc::new(Entry {
-        string: text.into(),
+        string: text.into_owned().into(),
     });
     let entry = Arc::into_raw(entry);
 

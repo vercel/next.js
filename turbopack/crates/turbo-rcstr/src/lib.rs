@@ -71,8 +71,8 @@ const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
-    pub fn new<S: AsRef<str> + Into<Arc<str>>>(s: S) -> Self {
-        new_atom(s.as_ref().len(), s)
+    pub fn new(s: Cow<str>) -> Self {
+        new_atom(s)
     }
 
     #[inline(always)]
@@ -112,7 +112,7 @@ impl RcStr {
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
-        RcStr::new(f(self.into_owned()))
+        RcStr::new(Cow::Owned(f(self.into_owned())))
     }
 
     #[inline]
@@ -152,31 +152,28 @@ impl Borrow<str> for RcStr {
 
 impl From<Arc<String>> for RcStr {
     fn from(s: Arc<String>) -> Self {
-        new_atom(
-            s.len(),
-            match Arc::try_unwrap(s) {
-                Ok(v) => v,
-                Err(arc) => (*arc).clone(),
-            },
-        )
+        match Arc::try_unwrap(s) {
+            Ok(v) => new_atom(Cow::Owned(v)),
+            Err(arc) => new_atom(Cow::Borrowed(&**arc)),
+        }
     }
 }
 
 impl From<String> for RcStr {
     fn from(s: String) -> Self {
-        new_atom(s.len(), s)
+        new_atom(Cow::Owned(s))
     }
 }
 
 impl From<&'_ str> for RcStr {
     fn from(s: &str) -> Self {
-        new_atom(s.len(), s)
+        new_atom(Cow::Borrowed(s))
     }
 }
 
 impl From<Cow<'_, str>> for RcStr {
     fn from(s: Cow<str>) -> Self {
-        new_atom(s.len(), s.into_owned())
+        new_atom(s)
     }
 }
 
@@ -252,7 +249,7 @@ impl Clone for RcStr {
 
 impl Default for RcStr {
     fn default() -> Self {
-        RcStr::new("")
+        RcStr::new(Cow::Borrowed(""))
     }
 }
 
