@@ -66,7 +66,7 @@ describe('parseHostHeader', () => {
         },
         'www.foo.com'
       )
-    ).toEqual({ type: 'x-forwarded-host', value: 'www.foo.com' })
+    ).toEqual({ type: 'host', value: 'www.foo.com' })
 
     expect(
       parseHostHeader(
