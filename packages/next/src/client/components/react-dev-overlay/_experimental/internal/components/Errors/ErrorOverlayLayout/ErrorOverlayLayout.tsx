@@ -29,8 +29,6 @@ type ErrorOverlayLayoutProps = {
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void
-  // TODO: remove this
-  temporaryHeaderChildren?: React.ReactNode
   versionInfo?: VersionInfo
   // TODO: better handle receiving
   readyErrors?: ReadyRuntimeError[]
@@ -47,7 +45,6 @@ export function ErrorOverlayLayout({
   debugInfo,
   isBuildError,
   onClose,
-  temporaryHeaderChildren,
   versionInfo,
   readyErrors,
   activeIdx,
@@ -90,7 +87,6 @@ export function ErrorOverlayLayout({
             >
               {errorMessage}
             </p>
-            {temporaryHeaderChildren}
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             {children}
