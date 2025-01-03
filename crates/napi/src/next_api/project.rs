@@ -8,11 +8,14 @@ use napi::{
 };
 use next_api::{
     entrypoints::Entrypoints,
-    project::{
-        DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions, WatchOptions,
+    operation::{
+        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, RouteOperation,
     },
-    route::{Endpoint, Route},
+    project::{
+        DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
+        ProjectOptions, WatchOptions,
+    },
+    route::Endpoint,
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
@@ -25,7 +28,8 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    get_effects, Completion, Effects, ReadRef, ResolvedVc, TransientInstance, UpdateInfo, Vc,
+    get_effects, Completion, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance,
+    UpdateInfo, Vc,
 };
 use turbo_tasks_fs::{
     get_relative_path_to, util::uri_from_file, DiskFileSystem, FileContent, FileSystem,
@@ -531,38 +535,38 @@ struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(pathname: String, value: Route, turbo_tasks: &NextTurboTasks) -> Self {
-        let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
+    fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
+        let convert_endpoint = |endpoint: OperationVc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 endpoint,
             ))))
         };
         match value {
-            Route::Page {
+            RouteOperation::Page {
                 html_endpoint,
                 data_endpoint,
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(*html_endpoint),
-                data_endpoint: convert_endpoint(*data_endpoint),
+                html_endpoint: convert_endpoint(html_endpoint),
+                data_endpoint: convert_endpoint(data_endpoint),
                 ..Default::default()
             },
-            Route::PageApi { endpoint } => NapiRoute {
+            RouteOperation::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(*endpoint),
+                endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::AppPage(pages) => NapiRoute {
+            RouteOperation::AppPage(pages) => NapiRoute {
                 pathname,
                 r#type: "app-page",
                 pages: Some(
                     pages
                         .into_iter()
                         .map(|page_route| AppPageNapiRoute {
-                            original_name: Some(page_route.original_name),
+                            original_name: Some(page_route.original_name.into_owned()),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
                             rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
                         })
@@ -570,17 +574,17 @@ impl NapiRoute {
                 ),
                 ..Default::default()
             },
-            Route::AppRoute {
+            RouteOperation::AppRoute {
                 original_name,
                 endpoint,
             } => NapiRoute {
                 pathname,
-                original_name: Some(original_name),
+                original_name: Some(original_name.into_owned()),
                 r#type: "app-route",
-                endpoint: convert_endpoint(*endpoint),
+                endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::Conflict => NapiRoute {
+            RouteOperation::Conflict => NapiRoute {
                 pathname,
                 r#type: "conflict",
                 ..Default::default()
@@ -595,7 +599,7 @@ struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(value: &Middleware, turbo_tasks: &NextTurboTasks) -> Result<Self> {
+    fn from_middleware(value: &MiddlewareOperation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -612,7 +616,10 @@ struct NapiInstrumentation {
 }
 
 impl NapiInstrumentation {
-    fn from_instrumentation(value: &Instrumentation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
+    fn from_instrumentation(
+        value: &InstrumentationOperation,
+        turbo_tasks: &NextTurboTasks,
+    ) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -636,9 +643,9 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
-#[turbo_tasks::value(serialization = "none", local)]
+#[turbo_tasks::value(serialization = "none")]
 struct EntrypointsWithIssues {
-    entrypoints: ReadRef<Entrypoints>,
+    entrypoints: ReadRef<EntrypointsOperation>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
@@ -648,7 +655,8 @@ struct EntrypointsWithIssues {
 async fn get_entrypoints_with_issues(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
-    let entrypoints_operation = project_container_entrypoints_operation(container);
+    let entrypoints_operation =
+        EntrypointsOperation::new(project_container_entrypoints_operation(container));
     let entrypoints = entrypoints_operation
         .connect()
         .strongly_consistent()
@@ -667,6 +675,8 @@ async fn get_entrypoints_with_issues(
 
 #[turbo_tasks::function(operation)]
 fn project_container_entrypoints_operation(
+    // the container is a long-lived object with internally mutable state, there's no risk of it
+    // becoming stale
     container: ResolvedVc<ProjectContainer>,
 ) -> Vc<Entrypoints> {
     container.entrypoints()
@@ -724,15 +734,15 @@ pub fn project_entrypoints_subscribe(
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        *entrypoints.pages_document_endpoint,
+                        entrypoints.pages_document_endpoint,
                     ))),
                     pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        *entrypoints.pages_app_endpoint,
+                        entrypoints.pages_app_endpoint,
                     ))),
                     pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        *entrypoints.pages_error_endpoint,
+                        entrypoints.pages_error_endpoint,
                     ))),
                 },
                 issues: issues
@@ -774,7 +784,7 @@ async fn hmr_update(
 }
 
 #[turbo_tasks::function(operation)]
-async fn project_hmr_update_operation(
+fn project_hmr_update_operation(
     project: ResolvedVc<Project>,
     identifier: RcStr,
     state: ResolvedVc<VersionState>,
