@@ -524,10 +524,7 @@ export async function handleAction({
     // This might be an old browser that doesn't send `host` header. We ignore
     // this case.
     warning = 'Missing `origin` header from a forwarded Server Actions request.'
-  } else if (
-    !host ||
-    new RegExp('^' + host.value + '(.?)$').test(originDomain)
-  ) {
+  } else if (!host || originDomain !== host.value) {
     // If the customer sets a list of allowed origins, we'll allow the request.
     // These are considered safe but might be different from forwarded host set
     // by the infra (i.e. reverse proxies).
