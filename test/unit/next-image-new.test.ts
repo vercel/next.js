@@ -25,6 +25,7 @@ describe('Image rendering', () => {
       width: '100',
       height: '100',
       decoding: 'async',
+      fetchpriority: 'low',
       'data-nimg': '1',
       style: 'color:transparent',
       srcset:
@@ -98,7 +99,7 @@ describe('Image rendering', () => {
     expect($3('noscript').length).toBe(0)
   })
 
-  it('should preload images when priority true', async () => {
+  it('should preload images when priority=true', async () => {
     const element1 = React.createElement(Image, {
       alt: 'test',
       src: '/test.png',
