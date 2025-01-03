@@ -17,16 +17,9 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
       errorMessage="Failed to compile"
       onClose={noop}
       versionInfo={versionInfo}
+      footerMessage="This error occurred during the build process and can only be dismissed by fixing the error."
     >
       <Terminal content={message} />
-      <footer>
-        <p id="nextjs__container_build_error_desc">
-          <small>
-            This error occurred during the build process and can only be
-            dismissed by fixing the error.
-          </small>
-        </p>
-      </footer>
     </ErrorOverlayLayout>
   )
 }
