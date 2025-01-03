@@ -47,9 +47,7 @@ impl Hash for Entry {
 
 /// This can create any kind of [Atom], although this lives in the `dynamic`
 /// module.
-pub(crate) fn new_atom(text: Cow<str>) -> RcStr {
-    let len = text.len();
-
+pub(crate) fn new_atom<S: Into<Arc<str>>>(len: usize, text: S) -> RcStr {
     if len < MAX_INLINE_LEN {
         // INLINE_TAG ensures this is never zero
         let tag = INLINE_TAG_INIT | ((len as u8) << LEN_OFFSET);

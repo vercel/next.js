@@ -2,16 +2,22 @@ use std::{
     borrow::{Borrow, Cow},
     ffi::OsStr,
     fmt::{Debug, Display},
+    hash::{Hash, Hasher},
+    mem::forget,
     num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
 };
 
+use debug_unreachable::debug_unreachable;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
-use crate::{dynamic::Entry, tagged_value::TaggedValue};
+use crate::{
+    dynamic::{new_atom, Entry},
+    tagged_value::TaggedValue,
+};
 
 mod dynamic;
 mod tagged_value;
@@ -65,6 +71,10 @@ const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
+    pub fn new<S: AsRef<str> + Into<Arc<str>>>(s: S) -> Self {
+        new_atom(s.as_ref().len(), s)
+    }
+
     #[inline(always)]
     fn tag(&self) -> u8 {
         self.unsafe_data.tag() & TAG_MASK
@@ -97,14 +107,25 @@ impl RcStr {
     ///   underlying string without cloning in `O(1)` time.
     /// - This avoids some of the potential overhead of the `Display` trait.
     pub fn into_owned(self) -> String {
-        match Arc::try_unwrap(self.0) {
-            Ok(v) => v,
-            Err(arc) => (*arc).clone(),
-        }
+        // TODO: Optimize this, but we can't use Arc::try_unwrap because str is unsized.
+        self.as_str().to_string()
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
-        RcStr(Arc::new(f(self.into_owned())))
+        RcStr::new(f(self.into_owned()))
+    }
+
+    #[inline]
+    pub(crate) fn from_alias(alias: TaggedValue) -> Self {
+        if alias.tag() & TAG_MASK == DYNAMIC_TAG {
+            unsafe {
+                let arc = Entry::restore_arc(alias);
+                forget(arc.clone());
+                forget(arc);
+            }
+        }
+
+        Self { unsafe_data: alias }
     }
 }
 
@@ -119,70 +140,76 @@ impl Deref for RcStr {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_str()
+        self.as_str()
     }
 }
 
 impl Borrow<str> for RcStr {
     fn borrow(&self) -> &str {
-        self.0.as_str()
+        self.as_str()
     }
 }
 
 impl From<Arc<String>> for RcStr {
     fn from(s: Arc<String>) -> Self {
-        RcStr(s)
+        new_atom(
+            s.len(),
+            match Arc::try_unwrap(s) {
+                Ok(v) => v,
+                Err(arc) => (*arc).clone(),
+            },
+        )
     }
 }
 
 impl From<String> for RcStr {
     fn from(s: String) -> Self {
-        RcStr(Arc::new(s))
+        new_atom(s.len(), s)
     }
 }
 
 impl From<&'_ str> for RcStr {
     fn from(s: &str) -> Self {
-        RcStr(Arc::new(s.to_string()))
+        new_atom(s.len(), s)
     }
 }
 
 impl From<Cow<'_, str>> for RcStr {
     fn from(s: Cow<str>) -> Self {
-        RcStr(Arc::new(s.into_owned()))
+        new_atom(s.len(), s.into_owned())
     }
 }
 
 /// Mimic `&str`
 impl AsRef<Path> for RcStr {
     fn as_ref(&self) -> &Path {
-        (*self.0).as_ref()
+        self.as_str().as_ref()
     }
 }
 
 /// Mimic `&str`
 impl AsRef<OsStr> for RcStr {
     fn as_ref(&self) -> &OsStr {
-        (*self.0).as_ref()
+        self.as_str().as_ref()
     }
 }
 
 /// Mimic `&str`
 impl AsRef<[u8]> for RcStr {
     fn as_ref(&self) -> &[u8] {
-        (*self.0).as_ref()
+        self.as_str().as_ref()
     }
 }
 
 impl PartialEq<str> for RcStr {
     fn eq(&self, other: &str) -> bool {
-        self.0.as_str() == other
+        self.as_str() == other
     }
 }
 
 impl PartialEq<&'_ str> for RcStr {
     fn eq(&self, other: &&str) -> bool {
-        self.0.as_str() == *other
+        self.as_str() == *other
     }
 }
 
@@ -194,13 +221,13 @@ impl PartialEq<String> for RcStr {
 
 impl Debug for RcStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&self.0, f)
+        Debug::fmt(&self.as_str(), f)
     }
 }
 
 impl Display for RcStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
+        Display::fmt(&self.as_str(), f)
     }
 }
 
@@ -217,20 +244,43 @@ impl From<RcStr> for PathBuf {
 }
 
 impl Clone for RcStr {
-    fn clone(&self) -> Self {}
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        Self::from_alias(self.unsafe_data)
+    }
 }
 
-impl Default for RcStr {}
+impl Default for RcStr {
+    fn default() -> Self {
+        RcStr::new("")
+    }
+}
 
-impl PartialEq for RcStr {}
+impl PartialEq for RcStr {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
 
 impl Eq for RcStr {}
 
-impl PartialOrd for RcStr {}
+impl PartialOrd for RcStr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        self.as_str().partial_cmp(other.as_str())
+    }
+}
 
-impl Ord for RcStr {}
+impl Ord for RcStr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_str().cmp(other.as_str())
+    }
+}
 
-impl Hash for RcStr {}
+impl Hash for RcStr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
 
 impl Serialize for RcStr {
     fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
