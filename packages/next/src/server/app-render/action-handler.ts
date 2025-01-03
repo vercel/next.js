@@ -399,14 +399,32 @@ function limitUntrustedHeaderValueForLogs(value: string) {
   return value.length > 100 ? value.slice(0, 100) + '...' : value
 }
 
-export function parseHostHeader(headers: IncomingHttpHeaders) {
+export function parseHostHeader(
+  headers: IncomingHttpHeaders,
+  originDomain?: string
+) {
   const forwardedHostHeader = headers['x-forwarded-host']
   const forwardedHostHeaderValue =
     forwardedHostHeader && Array.isArray(forwardedHostHeader)
       ? forwardedHostHeader[0]
       : forwardedHostHeader?.split(',')?.[0]?.trim()
   const hostHeader = headers['host']
-  const host = forwardedHostHeaderValue
+
+  if (originDomain) {
+    return forwardedHostHeaderValue === originDomain
+      ? {
+          type: HostType.XForwardedHost,
+          value: forwardedHostHeaderValue,
+        }
+      : hostHeader === originDomain
+        ? {
+            type: HostType.Host,
+            value: hostHeader,
+          }
+        : undefined
+  }
+
+  return forwardedHostHeaderValue
     ? {
         type: HostType.XForwardedHost,
         value: forwardedHostHeaderValue,
@@ -417,8 +435,6 @@ export function parseHostHeader(headers: IncomingHttpHeaders) {
           value: hostHeader,
         }
       : undefined
-
-  return host
 }
 
 type ServerModuleMap = Record<
