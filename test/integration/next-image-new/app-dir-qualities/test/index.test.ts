@@ -40,7 +40,7 @@ function runTests(mode: 'dev' | 'server') {
     const url = await getSrc(browser, 'q-undefined')
     const res = await fetchViaHTTP(appPort, url)
     expect(res.status).toStrictEqual(200)
-    expect(url).toContain('&q=69') // default to highest available quality
+    expect(url).toContain('&q=69') // default to closest to 75
   })
 
   it('should load img when quality 42', async () => {
