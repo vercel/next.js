@@ -118,6 +118,9 @@ export type ImageConfigComplete = {
   /** @see [Remote Patterns](https://nextjs.org/docs/api-reference/next/image#localPatterns) */
   localPatterns: LocalPattern[] | undefined
 
+  /** @see [Qualities](https://nextjs.org/docs/api-reference/next/image#qualities) */
+  qualities: number[] | undefined
+
   /** @see [Unoptimized](https://nextjs.org/docs/api-reference/next/image#unoptimized) */
   unoptimized: boolean
 }
@@ -139,5 +142,6 @@ export const imageConfigDefault: ImageConfigComplete = {
   contentDispositionType: 'attachment',
   localPatterns: undefined, // default: allow all local images
   remotePatterns: [], // default: allow no remote images
+  qualities: undefined, // default: allow all qualities
   unoptimized: false,
 }
