@@ -10,6 +10,15 @@ const styles = css`
   .error-overlay-footer p {
     color: var(--color-gray-900);
     margin: 0;
+    line-height: var(--size-font-big);
+  }
+
+  .error-overlay-footer-message {
+    color: var(--color-gray-900);
+    margin: 0;
+    font-size: var(--size-font-small);
+    font-weight: 400;
+    line-height: var(--size-font-big);
   }
 
   .error-feedback {

@@ -244,6 +244,10 @@ export function Errors({
 
   const errorCode = extractNextErrorCode(error)
 
+  const footerMessage = isServerError
+    ? 'This error happened while generating the page. Any console logs will be displayed in the terminal window.'
+    : undefined
+
   return (
     <ErrorOverlayLayout
       errorCode={errorCode}
@@ -263,6 +267,7 @@ export function Errors({
       readyErrors={readyErrors}
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
+      footerMessage={footerMessage}
     >
       {notes ? (
         <>
@@ -295,14 +300,6 @@ export function Errors({
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
         />
       ) : null}
-      {isServerError ? (
-        <div>
-          <small>
-            This error happened while generating the page. Any console logs will
-            be displayed in the terminal window.
-          </small>
-        </div>
-      ) : undefined}
       <RuntimeError key={activeError.id.toString()} error={activeError} />
     </ErrorOverlayLayout>
   )

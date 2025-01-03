@@ -34,6 +34,7 @@ type ErrorOverlayLayoutProps = {
   readyErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
+  footerMessage?: string
 }
 
 export function ErrorOverlayLayout({
@@ -49,6 +50,7 @@ export function ErrorOverlayLayout({
   readyErrors,
   activeIdx,
   setActiveIndex,
+  footerMessage,
 }: ErrorOverlayLayoutProps) {
   return (
     <Overlay fixed={isBuildError}>
@@ -94,7 +96,10 @@ export function ErrorOverlayLayout({
           <DialogFooter>
             {/* TODO: Replace message from BuildError.tsx */}
             {/* TODO: errorCode should not be undefined whatsoever */}
-            <ErrorOverlayFooter message={''} errorCode={errorCode!} />
+            <ErrorOverlayFooter
+              footerMessage={footerMessage}
+              errorCode={errorCode!}
+            />
           </DialogFooter>
         </DialogContent>
       </Dialog>
