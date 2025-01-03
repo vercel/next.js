@@ -29,7 +29,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new", local)]
+#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
     graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
@@ -349,13 +349,18 @@ impl SingleModuleGraphNode {
 }
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-struct TracedDiGraph<N: TraceRawVcs, E: TraceRawVcs>(DiGraph<N, E>);
-impl<N: TraceRawVcs, E: TraceRawVcs> Default for TracedDiGraph<N, E> {
+struct TracedDiGraph<N, E>(DiGraph<N, E>);
+impl<N, E> Default for TracedDiGraph<N, E> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
-impl<N: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for TracedDiGraph<N, E> {
+
+impl<N, E> TraceRawVcs for TracedDiGraph<N, E>
+where
+    N: TraceRawVcs,
+    E: TraceRawVcs,
+{
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for node in self.0.node_weights() {
             node.trace_raw_vcs(trace_context);
@@ -365,11 +370,19 @@ impl<N: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for TracedDiGraph<N, E> {
         }
     }
 }
-impl<N: TraceRawVcs, E: TraceRawVcs> Deref for TracedDiGraph<N, E> {
+
+impl<N, E> Deref for TracedDiGraph<N, E> {
     type Target = DiGraph<N, E>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+unsafe impl<N, E> NonLocalValue for TracedDiGraph<N, E>
+where
+    N: NonLocalValue,
+    E: NonLocalValue,
+{
 }
 
 #[derive(PartialEq, Eq, Debug)]
