@@ -469,7 +469,7 @@ impl ModuleAssetContext {
 #[turbo_tasks::function]
 async fn process_default(
     module_asset_context: Vc<ModuleAssetContext>,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
@@ -490,7 +490,7 @@ async fn process_default(
 
 async fn process_default_internal(
     module_asset_context: Vc<ModuleAssetContext>,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     reference_type: Value<ReferenceType>,
     processed_rules: Vec<usize>,
 ) -> Result<Vc<ProcessResult>> {
@@ -535,22 +535,23 @@ async fn process_default_internal(
         if processed_rules.contains(&i) {
             continue;
         }
-        if rule.matches(source, &path_ref, &reference_type).await? {
+        if rule.matches(*source, &path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::SourceTransforms(transforms) => {
-                        current_source = transforms.transform(current_source);
+                        current_source =
+                            transforms.transform(*current_source).to_resolved().await?;
                         if current_source.ident().resolve().await? != ident {
                             // The ident has been changed, so we need to apply new rules.
                             if let Some(transition) = module_asset_context
                                 .await?
                                 .transitions
                                 .await?
-                                .get_by_rules(current_source, &reference_type)
+                                .get_by_rules(*current_source, &reference_type)
                                 .await?
                             {
                                 return Ok(transition.process(
-                                    current_source,
+                                    *current_source,
                                     module_asset_context,
                                     Value::new(reference_type),
                                 ));
@@ -559,7 +560,7 @@ async fn process_default_internal(
                                 processed_rules.push(i);
                                 return Ok(process_default(
                                     module_asset_context,
-                                    current_source,
+                                    *current_source,
                                     Value::new(reference_type),
                                     processed_rules,
                                 ));
@@ -641,7 +642,7 @@ async fn process_default_internal(
     };
 
     Ok(apply_module_type(
-        current_source,
+        *current_source,
         module_asset_context,
         module_type.cell(),
         Value::new(reference_type.clone()),
