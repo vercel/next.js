@@ -229,7 +229,9 @@ impl Introspectable for EcmascriptChunk {
         for &(chunk_item, _) in self.await?.content.await?.chunk_items.iter() {
             children.insert((
                 chunk_item_module_key,
-                IntrospectableModule::new(chunk_item.module()),
+                IntrospectableModule::new(chunk_item.module())
+                    .to_resolved()
+                    .await?,
             ));
         }
         Ok(Vc::cell(children))

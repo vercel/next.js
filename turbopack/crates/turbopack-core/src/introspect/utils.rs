@@ -101,7 +101,7 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableModule::new(*module)));
+            children.insert((key, IntrospectableModule::new(*module).to_resolved().await?));
         }
         for &output_asset in reference
             .resolve_reference()
@@ -109,7 +109,12 @@ pub async fn children_from_module_references(
             .await?
             .iter()
         {
-            children.insert((key, IntrospectableOutputAsset::new(*output_asset)));
+            children.insert((
+                key,
+                IntrospectableOutputAsset::new(*output_asset)
+                    .to_resolved()
+                    .await?,
+            ));
         }
     }
     Ok(Vc::cell(children))
@@ -125,7 +130,9 @@ pub async fn children_from_output_assets(
     for &reference in &*references {
         children.insert((
             key,
-            IntrospectableOutputAsset::new(*ResolvedVc::upcast(reference)),
+            IntrospectableOutputAsset::new(*ResolvedVc::upcast(reference))
+                .to_resolved()
+                .await?,
         ));
     }
     Ok(Vc::cell(children))
