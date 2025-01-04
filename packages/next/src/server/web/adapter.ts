@@ -110,14 +110,13 @@ export async function adapter(
   for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
-    normalizeNextQueryParam(key, (normalizedKey) => {
-      requestUrl.searchParams.delete(normalizedKey)
-
+    const normalizedKey = normalizeNextQueryParam(key)
+    if (normalizedKey) {
       for (const val of value) {
         requestUrl.searchParams.append(normalizedKey, val)
       }
       requestUrl.searchParams.delete(key)
-    })
+    }
   }
 
   // Ensure users only see page requests, never data requests.
