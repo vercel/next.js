@@ -37,6 +37,7 @@ describe('Production Usage', () => {
     dependencies: {
       nanoid: '3.1.30',
       'es5-ext': '0.10.53',
+      '@rspack/core': "/Users/bytedance/Documents/github/rspack/packages/rspack"
     },
   })
 
@@ -982,7 +983,7 @@ describe('Production Usage', () => {
         expect(elements.length).toBe(0)
       } else {
         const elements = await browser.elementsByCss('link[rel=prefetch]')
-        expect(elements.length).toBe(4)
+        expect(elements.length).toBe(4) // bug
 
         for (const element of elements) {
           const rel = await element.getAttribute('rel')

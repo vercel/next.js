@@ -227,14 +227,14 @@ export class ClientReferenceManifestPlugin {
     compiler.hooks.compilation.tap(
       PLUGIN_NAME,
       (compilation, { normalModuleFactory }) => {
-        compilation.dependencyFactories.set(
-          webpack.dependencies.ModuleDependency,
-          normalModuleFactory
-        )
-        compilation.dependencyTemplates.set(
-          webpack.dependencies.ModuleDependency,
-          new webpack.dependencies.NullDependency.Template()
-        )
+        // compilation.dependencyFactories.set(
+        //   webpack.dependencies.ModuleDependency,
+        //   normalModuleFactory
+        // )
+        // compilation.dependencyTemplates.set(
+        //   webpack.dependencies.ModuleDependency,
+        //   new webpack.dependencies.NullDependency.Template()
+        // )
         compilation.hooks.processAssets.tap(
           {
             name: PLUGIN_NAME,
@@ -340,8 +340,7 @@ export class ClientReferenceManifestPlugin {
       const recordModule = (modId: ModuleId, mod: webpack.NormalModule) => {
         let resource =
           mod.type === 'css/mini-extract'
-            ? // @ts-expect-error TODO: use `identifier()` instead.
-              mod._identifier.slice(mod._identifier.lastIndexOf('!') + 1)
+            ? mod.identifier().slice(mod.identifier().lastIndexOf('!') + 1)
             : mod.resource
 
         if (!resource) {

@@ -993,8 +993,7 @@ export default async function getBaseWebpackConfig(
           }): boolean {
             return (
               !module.type?.startsWith('css') &&
-              // RSPack doesn't support module.size
-              (isRspack || module.size() > 160000) &&
+              module.size() > 160000 &&
               /node_modules[/\\]/.test(module.nameForCondition() || '')
             )
           },
@@ -1008,15 +1007,12 @@ export default async function getBaseWebpackConfig(
             if (isModuleCSS(module)) {
               module.updateHash(hash)
             } else {
-              // RSPack doesn't support this
-              if (!isRspack) {
-                if (!module.libIdent) {
-                  throw new Error(
-                    `Encountered unknown module type: ${module.type}. Please open an issue.`
-                  )
-                }
-                hash.update(module.libIdent({ context: dir }))
+              if (!module.libIdent) {
+                throw new Error(
+                  `Encountered unknown module type: ${module.type}. Please open an issue.`
+                )
               }
+              hash.update(module.libIdent({ context: dir }))
             }
 
             // Ensures the name of the chunk is not the same between two modules in different layers
@@ -1039,16 +1035,15 @@ export default async function getBaseWebpackConfig(
           // as we don't need a separate vendor chunk from that
           // and all other chunk depend on them so there is no
           // duplication that need to be pulled out.
-          chunks: (chunk: any) =>
-            !/^(polyfills|main|pages\/_app)$/.test(chunk.name),
+          chunks: (chunk: any) => {
+            return !/^(polyfills|main|pages\/_app)$/.test(chunk.name);
+          },
 
           // TODO: investigate these cache groups with rspack
-          cacheGroups: isRspack
-            ? {}
-            : {
-                framework: frameworkCacheGroup,
-                lib: libCacheGroup,
-              },
+          cacheGroups: {
+            framework: frameworkCacheGroup,
+            lib: libCacheGroup,
+          },
           maxInitialRequests: 25,
           minSize: 20000,
         }

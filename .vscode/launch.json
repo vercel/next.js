@@ -8,7 +8,7 @@
       "id": "appDirname",
       "type": "promptString",
       "description": "Enter an app dirname from examples or test/e2e",
-      "default": "examples/hello-world"
+      "default": "test/production/pages-dir/production/fixture"
     },
     {
       "id": "nextCommand",
@@ -57,9 +57,10 @@
         // "TURBOPACK": "1",
         // "TURBOPACK_DEV": "1",
         // "TURBOPACK_BUILD": "1",
-        "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
-        "NEXT_PRIVATE_SKIP_CANARY_CHECK": "1",
-        "NEXT_TELEMETRY_DISABLED": "1"
+        "NEXT_RSPACK": "1",
+        // "NEXT_PRIVATE_LOCAL_WEBPACK": "1",
+        // "NEXT_PRIVATE_SKIP_CANARY_CHECK": "1",
+        // "NEXT_TELEMETRY_DISABLED": "1"
       }
     },
     {

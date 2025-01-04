@@ -92,7 +92,7 @@ export default function transformSource(
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
     const assumedSourceType = getAssumedSourceType(
       module,
-      (module.parser as javascript.JavascriptParser).sourceType
+      "auto"
     )
 
     const clientRefs = buildInfo.rsc.clientRefs!
