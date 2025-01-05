@@ -17,6 +17,7 @@ import {
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
   cancelPrefetchTask,
   bumpPrefetchTask,
+  PrefetchPriority,
 } from '../components/segment-cache/scheduler'
 import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
 import { createCacheKey } from '../components/segment-cache/cache-key'
@@ -125,6 +126,7 @@ type LinkInstance = {
   prefetchHref: string
 
   isVisible: boolean
+  wasHoveredOrTouched: boolean
 
   // The most recently initiated prefetch task. It may or may not have
   // already completed.  The same prefetch task object can be reused across
@@ -181,6 +183,7 @@ function mountLinkInstance(
     router,
     kind,
     isVisible: false,
+    wasHoveredOrTouched: false,
     prefetchTask: null,
   }
   const existingInstance = links.get(element)
@@ -247,6 +250,7 @@ function onNavigationIntent(element: HTMLAnchorElement | SVGAElement) {
   }
   // Prefetch the link on hover/touchstart.
   if (instance !== undefined) {
+    instance.wasHoveredOrTouched = true
     rescheduleLinkPrefetch(instance)
   }
 }
@@ -274,10 +278,15 @@ function rescheduleLinkPrefetch(instance: LinkInstance) {
     return
   }
 
-  // In the Segment Cache implementation, we increase the relative priority of
-  // links whenever they re-enter the viewport, as if they were being scheduled
-  // for the first time.
-  // TODO: Prioritize links that are hovered.
+  // In the Segment Cache implementation, we assign a higher priority level to
+  // links that were at one point hovered or touched. Since the queue is last-
+  // in-first-out, the highest priority Link is whichever one was hovered last.
+  //
+  // We also increase the relative priority of links whenever they re-enter the
+  // viewport, as if they were being scheduled for the first time.
+  const priority = instance.wasHoveredOrTouched
+    ? PrefetchPriority.Intent
+    : PrefetchPriority.Default
   if (existingPrefetchTask === null) {
     // Initiate a prefetch task.
     const appRouterState = getCurrentAppRouterState()
@@ -288,13 +297,14 @@ function rescheduleLinkPrefetch(instance: LinkInstance) {
       instance.prefetchTask = scheduleSegmentPrefetchTask(
         cacheKey,
         treeAtTimeOfPrefetch,
-        instance.kind === PrefetchKind.FULL
+        instance.kind === PrefetchKind.FULL,
+        priority
       )
     }
   } else {
     // We already have an old task object that we can reschedule. This is
     // effectively the same as canceling the old task and creating a new one.
-    bumpPrefetchTask(existingPrefetchTask)
+    bumpPrefetchTask(existingPrefetchTask, priority)
   }
 }
 
