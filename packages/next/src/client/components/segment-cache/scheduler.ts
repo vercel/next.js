@@ -91,6 +91,11 @@ export type PrefetchTask = {
   hasBackgroundWork: boolean
 
   /**
+   * True if the prefetch was cancelled.
+   */
+  isCanceled: boolean
+
+  /**
    * The index of the task in the heap's backing array. Used to efficiently
    * change the priority of a task by re-sifting it, which requires knowing
    * where it is in the array. This is only used internally by the heap
@@ -174,6 +179,7 @@ export function schedulePrefetchTask(
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
+    isCanceled: false,
     _heapIndex: -1,
   }
   heapPush(taskHeap, task)
@@ -190,6 +196,16 @@ export function schedulePrefetchTask(
   return task
 }
 
+export function cancelPrefetchTask(task: PrefetchTask): void {
+  // Remove the prefetch task from the queue. If the task already completed,
+  // then this is a no-op.
+  //
+  // We must also explicitly mark the task as canceled so that a blocked task
+  // does not get added back to the queue when it's pinged by the network.
+  task.isCanceled = true
+  heapDelete(taskHeap, task)
+}
+
 export function bumpPrefetchTask(task: PrefetchTask): void {
   // Bump the prefetch task to the top of the queue, as if it were a fresh
   // task. This is essentially the same as canceling the task and scheduling
@@ -197,6 +213,9 @@ export function bumpPrefetchTask(task: PrefetchTask): void {
   //
   // The primary use case is to increase the relative priority of a Link-
   // initated prefetch on hover.
+
+  // Un-cancel the task, in case it was previously canceled.
+  task.isCanceled = false
 
   // Assign a new sort ID. Higher sort IDs are higher priority.
   task.sortId = sortIdCounter++
@@ -276,8 +295,9 @@ function onPrefetchConnectionClosed(): void {
 export function pingPrefetchTask(task: PrefetchTask) {
   // "Ping" a prefetch that's already in progress to notify it of new data.
   if (
+    // Check if prefetch was canceled.
+    task.isCanceled ||
     // Check if prefetch is already queued.
-    // TODO: Check if task was canceled, too
     task._heapIndex !== -1
   ) {
     return
@@ -1066,6 +1086,21 @@ function heapPop(heap: Array<PrefetchTask>): PrefetchTask | null {
     heapSiftDown(heap, last, 0)
   }
   return first
+}
+
+function heapDelete(heap: Array<PrefetchTask>, node: PrefetchTask): void {
+  const index = node._heapIndex
+  if (index !== -1) {
+    node._heapIndex = -1
+    if (heap.length !== 0) {
+      const last = heap.pop() as PrefetchTask
+      if (last !== node) {
+        heap[index] = last
+        last._heapIndex = index
+        heapSiftDown(heap, last, index)
+      }
+    }
+  }
 }
 
 function heapResift(heap: Array<PrefetchTask>, node: PrefetchTask): void {
