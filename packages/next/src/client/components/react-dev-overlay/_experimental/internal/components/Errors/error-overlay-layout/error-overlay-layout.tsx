@@ -13,7 +13,10 @@ import {
 } from '../../Dialog'
 import { Overlay } from '../../Overlay'
 import { ErrorPagination } from '../ErrorPagination/ErrorPagination'
-import { ToolButtonsGroup } from '../../ToolButtonsGroup/ToolButtonsGroup'
+import {
+  ToolButtonsGroup,
+  styles as toolButtonsGroupStyles,
+} from '../../ToolButtonsGroup/ToolButtonsGroup'
 import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
@@ -109,4 +112,5 @@ export function ErrorOverlayLayout({
 export const styles = css`
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
+  ${toolButtonsGroupStyles}
 `

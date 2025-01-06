@@ -92,7 +92,11 @@ export function NodejsInspectorCopyButton({
         target="_blank"
         rel="noopener noreferrer"
       >
-        <NodeJsDisabledIcon width={16} height={16} />
+        <NodeJsDisabledIcon
+          className="tool-button-icon"
+          width={16}
+          height={16}
+        />
       </a>
     )
   }
@@ -102,7 +106,7 @@ export function NodejsInspectorCopyButton({
       actionLabel={'Copy Chrome DevTools URL'}
       successLabel="Copied"
       content={content}
-      icon={<NodeJsIcon width={16} height={16} />}
+      icon={<NodeJsIcon className="tool-button-icon" width={16} height={16} />}
     />
   )
 }

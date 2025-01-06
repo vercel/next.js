@@ -412,7 +412,6 @@ export const styles = css`
   }
   .nextjs-data-runtime-error-inspect-link,
   .nextjs-data-runtime-error-inspect-link:hover {
-    margin: 0 8px;
     color: inherit;
   }
 
