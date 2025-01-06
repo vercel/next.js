@@ -1,12 +1,12 @@
 import { CopyButton } from '../copy-button'
 
-export function CopyCallStackButton({ error }: { error: Error | undefined }) {
+export function CopyStackTraceButton({ error }: { error: Error | undefined }) {
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-stack
-      className="copy-call-stack-button"
-      actionLabel="Copy error stack"
-      successLabel="Copied"
+      className="copy-stack-trace-button"
+      actionLabel="Copy Stack Trace"
+      successLabel="Stack Trace Copied"
       content={error?.stack || ''}
       disabled={!error?.stack}
     />

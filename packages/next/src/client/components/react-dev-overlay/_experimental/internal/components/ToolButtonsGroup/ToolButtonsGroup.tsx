@@ -1,7 +1,7 @@
 import type { DebugInfo } from '../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { noop as css } from '../../helpers/noop-template'
-import { CopyCallStackButton } from './copy-call-stack-button'
+import { CopyStackTraceButton } from './copy-stack-trace-button'
 
 type ToolButtonsGroupProps = {
   error: Error | undefined
@@ -11,7 +11,7 @@ type ToolButtonsGroupProps = {
 export function ToolButtonsGroup({ error, debugInfo }: ToolButtonsGroupProps) {
   return (
     <span className="tool-buttons-group">
-      <CopyCallStackButton error={error} />
+      <CopyStackTraceButton error={error} />
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
@@ -26,7 +26,7 @@ export const styles = css`
   }
 
   .nodejs-inspector-button,
-  .copy-call-stack-button {
+  .copy-stack-trace-button {
     display: flex;
     justify-content: center;
     align-items: center;
