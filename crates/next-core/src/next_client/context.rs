@@ -212,12 +212,22 @@ pub async fn get_client_resolve_options_context(
     .cell())
 }
 
-fn internal_assets_conditions() -> ContextCondition {
-    ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
-        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
-    ])
+async fn internal_assets_conditions() -> Result<ContextCondition> {
+    Ok(ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
+        ContextCondition::InPath(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+        ContextCondition::InPath(
+            turbopack_node::embed_js::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+    ]))
 }
 
 #[turbo_tasks::function]
@@ -387,7 +397,7 @@ pub async fn get_client_module_options_context(
                 foreign_codes_options_context.resolved_cell(),
             ),
             (
-                internal_assets_conditions(),
+                internal_assets_conditions().await?,
                 internal_context.resolved_cell(),
             ),
         ],
