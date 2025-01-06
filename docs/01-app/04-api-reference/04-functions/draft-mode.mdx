@@ -47,7 +47,7 @@ The following methods and properties are available:
 
 ### Enabling Draft Mode
 
-To enable Draft Mode, create a new [Route Handler](/docs/app/building-your-application/routing/route-handlers) and call the `enable()` method:
+To enable Draft Mode, create a new [Route Handler](/docs/app/api-reference/file-conventions/route) and call the `enable()` method:
 
 ```tsx filename="app/draft/route.ts" switcher
 import { draftMode } from 'next/headers'
@@ -73,7 +73,7 @@ export async function GET(request) {
 
 By default, the Draft Mode session ends when the browser is closed.
 
-To disable Draft Mode manually, call the `disable()` method in your [Route Handler](/docs/app/building-your-application/routing/route-handlers):
+To disable Draft Mode manually, call the `disable()` method in your [Route Handler](/docs/app/api-reference/file-conventions/route):
 
 ```tsx filename="app/draft/route.ts" switcher
 import { draftMode } from 'next/headers'
