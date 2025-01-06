@@ -32,6 +32,10 @@ const styles = css`
     gap: var(--size-gap);
   }
 
+  .error-feedback-thanks {
+    height: 1.5rem; /* 24px */
+  }
+
   .feedback-button {
     background: none;
     border: none;
@@ -68,49 +72,6 @@ const styles = css`
   .thumbs-up-icon,
   .thumbs-down-icon {
     color: var(--color-gray-900);
-  }
-
-  @keyframes fade-out {
-    0% {
-      opacity: 1;
-    }
-    100% {
-      opacity: 0;
-      display: none;
-    }
-  }
-
-  .error-feedback-toast {
-    width: 420px;
-    height: auto;
-    overflow: hidden;
-    border: 0;
-    padding: var(--size-gap-double);
-    border-radius: var(--rounded-xl);
-    background: var(--color-blue-700);
-    bottom: var(--size-gap);
-    right: var(--size-gap);
-    left: auto;
-    background-color: var(--color-background-100);
-    animation: fade-out 0.3s 1s forwards;
-  }
-
-  .error-feedback-toast-text {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    color: var(--color-font);
-  }
-
-  .error-feedback-toast-hide-button {
-    width: var(--size-gap-quad);
-    height: var(--size-gap-quad);
-    border: none;
-    background: none;
-    &:focus {
-      outline: none;
-    }
-    color: var(--color-font);
   }
 `
 

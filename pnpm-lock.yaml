@@ -859,12 +859,6 @@ importers:
       '@swc/helpers':
         specifier: 0.5.15
         version: 0.5.15
-      '@testing-library/jest-dom':
-        specifier: 6.1.2
-        version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))
-      '@testing-library/react':
-        specifier: ^15.0.5
-        version: 15.0.7(@types/react@19.0.0)(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)
       busboy:
         specifier: 1.6.0
         version: 1.6.0
@@ -1802,6 +1796,9 @@ packages:
 
   '@actions/http-client@2.2.0':
     resolution: {integrity: sha512-q+epW0trjVUUHboliPb4UF9g2msf+w61b32tAkFEwL/IwP0DQWgbCMM0Hbe3e3WXSKz5VcUXbzJQgy8Hkra/Lg==}
+
+  '@adobe/css-tools@4.3.1':
+    resolution: {integrity: sha512-/62yikz7NLScCGAAST5SHdnjaDJQBDq0M2muyRTpf2VQhw6StBg2ALiu73zSJQ4fMVLA+0uBhBHAle7Wg+2kSg==}
 
   '@adobe/css-tools@4.4.1':
     resolution: {integrity: sha512-12WGKBQzjUAI4ayyF4IAtfw2QR/IDoqk6jTddXDhtYTJF9ASmoE1zst7cVtP0aL/F1jUJL5r+JxKXKEgHNbEUQ==}
@@ -5316,6 +5313,10 @@ packages:
 
   '@taskr/esnext@1.1.0':
     resolution: {integrity: sha512-lO9JrkSt2uR/jMZHxHyEZC+K/TvusALewWbgNN3aQaVmPEOevYGNaBlmX7kK2XDNgpL1cWlC1NSVS7PHqMu8Ng==}
+
+  '@testing-library/dom@10.1.0':
+    resolution: {integrity: sha512-wdsYKy5zupPyLCW2Je5DLHSxSfbIp6h80WoHOQc+RPtmPGA52O9x5MJEkv92Sjonpq+poOAtUKhh1kBGAXBrNA==}
+    engines: {node: '>=18'}
 
   '@testing-library/dom@10.4.0':
     resolution: {integrity: sha512-pemlzrSESWbdAloYml3bAJMEfNh1Z7EduzqPKprCH5S341frlpYnUEW0H72dLxa6IsYr+mPno20GiSm+h9dEdQ==}
@@ -16186,6 +16187,8 @@ snapshots:
       tunnel: 0.0.6
       undici: 5.26.3
 
+  '@adobe/css-tools@4.3.1': {}
+
   '@adobe/css-tools@4.4.1': {}
 
   '@ampproject/remapping@2.2.1':
@@ -20873,6 +20876,17 @@ snapshots:
       require-like: 0.1.2
       rewrite-imports: 1.4.0
 
+  '@testing-library/dom@10.1.0':
+    dependencies:
+      '@babel/code-frame': 7.22.5
+      '@babel/runtime': 7.22.5
+      '@types/aria-query': 5.0.1
+      aria-query: 5.3.0
+      chalk: 4.1.2
+      dom-accessibility-api: 0.5.13
+      lz-string: 1.5.0
+      pretty-format: 27.5.1
+
   '@testing-library/dom@10.4.0':
     dependencies:
       '@babel/code-frame': 7.22.5
@@ -20886,7 +20900,7 @@ snapshots:
 
   '@testing-library/jest-dom@6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))':
     dependencies:
-      '@adobe/css-tools': 4.4.1
+      '@adobe/css-tools': 4.3.1
       '@babel/runtime': 7.22.5
       aria-query: 5.3.0
       chalk: 3.0.0
@@ -20912,7 +20926,7 @@ snapshots:
   '@testing-library/react@15.0.7(@types/react@19.0.0)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)':
     dependencies:
       '@babel/runtime': 7.22.5
-      '@testing-library/dom': 10.4.0
+      '@testing-library/dom': 10.1.0
       '@types/react-dom': 19.0.0
       react: 19.1.0-canary-3b009b4c-20250102
       react-dom: 19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102)

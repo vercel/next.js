@@ -2,7 +2,7 @@ import * as React from 'react'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { Terminal } from '../components/Terminal'
 import { noop as css } from '../helpers/noop-template'
-import { ErrorOverlayLayout } from '../components/Errors/ErrorOverlayLayout/ErrorOverlayLayout'
+import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
 export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
 
