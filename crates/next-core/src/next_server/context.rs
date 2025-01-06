@@ -403,12 +403,22 @@ pub async fn get_server_compile_time_info(
 /// turbopack itself and user config should not try to leak this. However,
 /// currently we apply few transform options subject to next.js's configuration
 /// even if it's embedded assets.
-fn internal_assets_conditions() -> ContextCondition {
-    ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
-        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
-    ])
+async fn internal_assets_conditions() -> Result<ContextCondition> {
+    Ok(ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
+        ContextCondition::InPath(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+        ContextCondition::InPath(
+            turbopack_node::embed_js::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+    ]))
 }
 
 #[turbo_tasks::function]
@@ -648,7 +658,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -713,7 +723,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -789,7 +799,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -864,7 +874,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -961,7 +971,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
