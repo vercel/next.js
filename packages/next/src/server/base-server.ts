@@ -1160,18 +1160,18 @@ export default abstract class Server<
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
+
+          // Normalize all the query params to remove the prefixes.
           const routeParamKeys = new Set<string>()
+          for (const [key, value] of Object.entries(parsedUrl.query)) {
+            if (typeof value === 'undefined') continue
 
-          for (const key of Object.keys(parsedUrl.query)) {
-            const value = parsedUrl.query[key]
-
-            normalizeNextQueryParam(key, (normalizedKey) => {
-              if (!parsedUrl) return // typeguard
-
+            const normalizedKey = normalizeNextQueryParam(key)
+            if (normalizedKey) {
               parsedUrl.query[normalizedKey] = value
               routeParamKeys.add(normalizedKey)
               delete parsedUrl.query[key]
-            })
+            }
           }
 
           // interpolate dynamic params and normalize URL if needed
