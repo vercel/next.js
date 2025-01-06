@@ -60,6 +60,25 @@ describe('ErrorOverlayLayout Component', () => {
       )
     ).toBeInTheDocument()
   })
+  test('voting buttons have aria-hidden icons', () => {
+    renderTestComponent()
+
+    const helpfulButton = screen.getByRole('button', {
+      name: 'Mark as helpful',
+    })
+    const notHelpfulButton = screen.getByRole('button', {
+      name: 'Mark as not helpful',
+    })
+
+    expect(helpfulButton.querySelector('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    )
+    expect(notHelpfulButton.querySelector('svg')).toHaveAttribute(
+      'aria-hidden',
+      'true'
+    )
+  })
 
   test('sends feedback when clicking helpful button', async () => {
     renderTestComponent()

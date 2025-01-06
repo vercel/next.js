@@ -1,4 +1,6 @@
-export function ThumbsUp() {
+import type { ComponentProps } from 'react'
+
+export function ThumbsUp(props: ComponentProps<'svg'>) {
   return (
     <svg
       width="16"
@@ -7,6 +9,7 @@ export function ThumbsUp() {
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
       className="thumbs-up-icon"
+      {...props}
     >
       <g id="thumb-up-16">
         <path
