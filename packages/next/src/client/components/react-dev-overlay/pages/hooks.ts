@@ -1,4 +1,4 @@
-import type { ErrorType } from './ReactDevOverlay'
+import type { ErrorType } from './OldReactDevOverlay'
 import React from 'react'
 import * as Bus from './bus'
 import { useErrorOverlayReducer } from '../shared'

@@ -59,7 +59,7 @@ impl SingleItemCssChunk {
 
         code.push_source(
             &content.inner_code,
-            content.source_map.map(ResolvedVc::upcast).map(|v| *v),
+            content.source_map.map(ResolvedVc::upcast),
         );
         write!(code, "{close}")?;
 

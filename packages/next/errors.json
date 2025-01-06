@@ -525,7 +525,7 @@
   "524": "Expected the \"use cache\" function %s to receive its encrypted bound arguments as the first argument.",
   "525": "Route %s with \\`dynamic = \"error\"\\` couldn't be rendered statically because it used \\`headers\\`. See more info here: https://nextjs.org/docs/app/building-your-application/rendering/static-and-dynamic#dynamic-rendering",
   "526": "Unknown expression type in abortOnSynchronousPlatformIOAccess.",
-  "527": "Page with \\`dynamic = \"force-dynamic\"\\` couldn't be exported. \\`output: \"export\"\\` requires all pages be renderable statically because there is not runtime server to dynamic render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports",
+  "527": "Page with \\`dynamic = \"force-dynamic\"\\` couldn't be exported. \\`output: \"export\"\\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports",
   "528": "failed to decode param",
   "529": "Failed to execute \"redirect\" on \"response\": Invalid status code",
   "530": "Unknown modifier \"%s\"",
@@ -613,5 +613,13 @@
   "612": "ServerPrerenderStreamResult cannot be consumed as a stream because it is not yet complete. status: %s",
   "613": "Expected the input to be `string | string[]`",
   "614": "Route %s used \"unstable_rootParams\" inside \"use cache\". This is not currently supported.",
-  "615": "Missing workStore in unstable_rootParams"
+  "615": "Missing workStore in unstable_rootParams",
+  "616": "App config not found",
+  "617": "A required parameter (%s) was not provided as a string received %s in generateStaticParams for %s",
+  "618": "A required parameter (%s) was not provided as an array received %s in generateStaticParams for %s",
+  "619": "Page not found",
+  "620": "A required parameter (%s) was not provided as %s received %s in getStaticPaths for %s",
+  "621": "Required root params (%s) were not provided in generateStaticParams for %s, please provide at least one value for each.",
+  "622": "A required root parameter (%s) was not provided in generateStaticParams for %s, please provide at least one value.",
+  "623": "Invalid quality prop (%s) on \\`next/image\\` does not match \\`images.qualities\\` configured in your \\`next.config.js\\`\\nSee more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities"
 }

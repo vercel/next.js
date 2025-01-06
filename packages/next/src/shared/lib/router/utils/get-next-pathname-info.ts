@@ -39,7 +39,7 @@ interface Options {
    */
   nextConfig?: {
     basePath?: string
-    i18n?: { locales?: string[] } | null
+    i18n?: { locales?: readonly string[] } | null
     trailingSlash?: boolean
   }
 
