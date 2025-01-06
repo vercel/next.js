@@ -44,7 +44,7 @@ export const styles = css`
       outline: none;
     }
 
-    &:hover {
+    &:not(:disabled):hover {
       background: var(--color-gray-alpha-100);
     }
 
