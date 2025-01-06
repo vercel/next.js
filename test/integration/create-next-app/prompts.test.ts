@@ -194,7 +194,6 @@ describe('create-next-app prompts', () => {
             projectName,
             files: [
               'app',
-              'eslint.config.mjs',
               'package.json',
               'tailwind.config.ts',
               'tsconfig.json',
