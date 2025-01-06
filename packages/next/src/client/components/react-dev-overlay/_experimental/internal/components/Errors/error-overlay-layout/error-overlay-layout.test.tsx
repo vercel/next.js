@@ -68,9 +68,8 @@ describe('ErrorOverlayLayout Component', () => {
       screen.queryByText('Thanks for your feedback!')
     ).not.toBeInTheDocument()
 
-    // Click helpful button
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Mark as helpful'))
+      fireEvent.click(screen.getByRole('button', { name: 'Mark as helpful' }))
     })
 
     expect(fetch).toHaveBeenCalledWith(
@@ -88,7 +87,9 @@ describe('ErrorOverlayLayout Component', () => {
     ).not.toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(screen.getByLabelText('Mark as not helpful'))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Mark as not helpful' })
+      )
     })
 
     expect(fetch).toHaveBeenCalledWith(
