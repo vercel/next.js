@@ -25,7 +25,7 @@ import {
 } from '../helpers/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
-import { ErrorOverlayLayout } from '../components/Errors/ErrorOverlayLayout/ErrorOverlayLayout'
+import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
 export type SupportedErrorEvent = {
   id: number
@@ -328,21 +328,6 @@ export const styles = css`
   }
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
-  }
-  .nextjs-container-errors-header p {
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-big);
-    white-space: pre-wrap;
-  }
-  .nextjs__container_errors_desc {
-    font-family: var(--font-stack-monospace);
-    padding: var(--size-gap) var(--size-gap-double);
-    border-left: 2px solid var(--color-text-color-red-1);
-    margin-top: var(--size-gap);
-    margin-bottom: 0;
-    font-weight: bold;
-    color: var(--color-text-color-red-1);
-    background-color: var(--color-text-background-red-1);
   }
   p.nextjs__container_errors__link {
     color: var(--color-text-color-red-1);

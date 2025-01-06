@@ -2,7 +2,7 @@ import * as React from 'react'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { Terminal } from '../components/Terminal'
 import { noop as css } from '../helpers/noop-template'
-import { ErrorOverlayLayout } from '../components/Errors/ErrorOverlayLayout/ErrorOverlayLayout'
+import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
 export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
 
@@ -25,17 +25,6 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
 }
 
 export const styles = css`
-  h1.nextjs__container_errors_label {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: var(--size-gap-double) 0;
-  }
-  .nextjs-container-errors-header p {
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-big);
-    white-space: pre-wrap;
-  }
   .nextjs-container-errors-body footer {
     margin-top: var(--size-gap);
   }
