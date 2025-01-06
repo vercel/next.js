@@ -134,7 +134,7 @@
   },
   "devDependencies": {
     "enhanced-resolve": "5.17.1",
-    "@rspack/core": "/Users/bytedance/Documents/github/rspack/packages/rspack",
+    "@rspack/core": "npm:@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333",
     "@rspack/plugin-react-refresh": "1.0.1",
     "@ampproject/toolbox-optimizer": "2.8.3",
     "@babel/code-frame": "7.22.5",
