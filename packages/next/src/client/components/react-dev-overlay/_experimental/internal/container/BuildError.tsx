@@ -31,11 +31,6 @@ export const styles = css`
     font-weight: bold;
     margin: var(--size-gap-double) 0;
   }
-  .nextjs-container-errors-header p {
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-big);
-    white-space: pre-wrap;
-  }
   .nextjs-container-errors-body footer {
     margin-top: var(--size-gap);
   }

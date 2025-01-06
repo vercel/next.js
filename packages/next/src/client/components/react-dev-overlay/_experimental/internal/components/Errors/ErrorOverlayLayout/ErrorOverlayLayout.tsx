@@ -1,6 +1,8 @@
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { DebugInfo } from '../../../../../types'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
+import type { ErrorMessageType } from '../error-message/error-message'
+
 import {
   Dialog,
   DialogHeader,
@@ -14,9 +16,14 @@ import { ToolButtonsGroup } from '../../ToolButtonsGroup/ToolButtonsGroup'
 import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
+import {
+  ErrorMessage,
+  styles as errorMessageStyles,
+} from '../error-message/error-message'
+import { noop as css } from '../../../helpers/noop-template'
 
 type ErrorOverlayLayoutProps = {
-  errorMessage: string | React.ReactNode
+  errorMessage: ErrorMessageType
   errorType:
     | 'Build Error'
     | 'Runtime Error'
@@ -83,12 +90,7 @@ export function ErrorOverlayLayout({
               <ToolButtonsGroup error={error} debugInfo={debugInfo} />
             </div>
             <VersionStalenessInfo versionInfo={versionInfo} />
-            <p
-              id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc"
-            >
-              {errorMessage}
-            </p>
+            <ErrorMessage errorMessage={errorMessage} />
           </DialogHeader>
           <DialogBody className="nextjs-container-errors-body">
             {children}
@@ -109,3 +111,7 @@ export function ErrorOverlayLayout({
     </Overlay>
   )
 }
+
+export const styles = css`
+  ${errorMessageStyles}
+`
