@@ -11879,7 +11879,9 @@
                             if (
                               ((hoistableRoot = maybeNodes[i]),
                               hoistableRoot.getAttribute("href") ===
-                                (null == current.href ? null : current.href) &&
+                                (null == current.href || "" === current.href
+                                  ? null
+                                  : current.href) &&
                                 hoistableRoot.getAttribute("rel") ===
                                   (null == current.rel ? null : current.rel) &&
                                 hoistableRoot.getAttribute("title") ===
@@ -18580,36 +18582,34 @@
                   }
                 case "src":
                 case "href":
-                  "" !== propKey ||
-                  ("a" === tag && "href" === value) ||
-                  ("object" === tag && "data" === value)
-                    ? hydrateSanitizedAttribute(
-                        domElement,
-                        value,
-                        value,
-                        propKey,
-                        extraAttributes,
-                        serverDifferences
-                      )
-                    : ("src" === value
-                        ? console.error(
-                            'An empty string ("") was passed to the %s attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
-                            value,
-                            value
-                          )
-                        : console.error(
-                            'An empty string ("") was passed to the %s attribute. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
-                            value,
-                            value
-                          ),
-                      hydrateSanitizedAttribute(
-                        domElement,
-                        value,
-                        value,
-                        null,
-                        extraAttributes,
-                        serverDifferences
-                      ));
+                  if (
+                    !(
+                      "" !== propKey ||
+                      ("a" === tag && "href" === value) ||
+                      ("object" === tag && "data" === value)
+                    )
+                  ) {
+                    "src" === value
+                      ? console.error(
+                          'An empty string ("") was passed to the %s attribute. This may cause the browser to download the whole page again over the network. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
+                          value,
+                          value
+                        )
+                      : console.error(
+                          'An empty string ("") was passed to the %s attribute. To fix this, either do not render the element at all or pass null to %s instead of an empty string.',
+                          value,
+                          value
+                        );
+                    continue;
+                  }
+                  hydrateSanitizedAttribute(
+                    domElement,
+                    value,
+                    value,
+                    propKey,
+                    extraAttributes,
+                    serverDifferences
+                  );
                   continue;
                 case "action":
                 case "formAction":
@@ -19219,7 +19219,9 @@
               else if (
                 name !== anyProps.rel ||
                 instance.getAttribute("href") !==
-                  (null == anyProps.href ? null : anyProps.href) ||
+                  (null == anyProps.href || "" === anyProps.href
+                    ? null
+                    : anyProps.href) ||
                 instance.getAttribute("crossorigin") !==
                   (null == anyProps.crossOrigin
                     ? null
@@ -24582,11 +24584,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-canary-3b009b4c-20250102" !== isomorphicReactPackageVersion)
+      if ("19.1.0-canary-3ce77d55-20250106" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-canary-3b009b4c-20250102\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-canary-3ce77d55-20250106\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -24623,10 +24625,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.1.0-canary-3b009b4c-20250102",
+          version: "19.1.0-canary-3ce77d55-20250106",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.1.0-canary-3b009b4c-20250102"
+          reconcilerVersion: "19.1.0-canary-3ce77d55-20250106"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -25102,7 +25104,7 @@
     exports.useFormStatus = function () {
       return resolveDispatcher().useHostTransitionStatus();
     };
-    exports.version = "19.1.0-canary-3b009b4c-20250102";
+    exports.version = "19.1.0-canary-3ce77d55-20250106";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
