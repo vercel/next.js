@@ -2,6 +2,7 @@ import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { DebugInfo } from '../../../../../types'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ErrorMessageType } from '../error-message/error-message'
+import type { ErrorType } from '../error-type-label/error-type-label'
 
 import {
   Dialog,
@@ -16,20 +17,19 @@ import { ToolButtonsGroup } from '../../ToolButtonsGroup/ToolButtonsGroup'
 import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
+import { noop as css } from '../../../helpers/noop-template'
 import {
   ErrorMessage,
   styles as errorMessageStyles,
 } from '../error-message/error-message'
-import { noop as css } from '../../../helpers/noop-template'
+import {
+  ErrorTypeLabel,
+  styles as errorTypeLabelStyles,
+} from '../error-type-label/error-type-label'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
-  errorType:
-    | 'Build Error'
-    | 'Runtime Error'
-    | 'Console Error'
-    | 'Unhandled Runtime Error'
-    | 'Missing Required HTML Tag'
+  errorType: ErrorType
   children?: React.ReactNode
   errorCode?: string
   error?: Error
@@ -80,13 +80,7 @@ export function ErrorOverlayLayout({
               // allow assertion in tests before error rating is implemented
               data-nextjs-error-code={errorCode}
             >
-              <h1
-                id="nextjs__container_errors_label"
-                className="nextjs__container_errors_label"
-              >
-                {errorType}
-                {/* TODO: Need to relocate this so consider data flow. */}
-              </h1>
+              <ErrorTypeLabel errorType={errorType} />
               <ToolButtonsGroup error={error} debugInfo={debugInfo} />
             </div>
             <VersionStalenessInfo versionInfo={versionInfo} />
@@ -113,5 +107,6 @@ export function ErrorOverlayLayout({
 }
 
 export const styles = css`
+  ${errorTypeLabelStyles}
   ${errorMessageStyles}
 `

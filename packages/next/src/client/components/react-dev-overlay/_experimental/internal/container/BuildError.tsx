@@ -25,12 +25,6 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
 }
 
 export const styles = css`
-  h1.nextjs__container_errors_label {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: var(--size-gap-double) 0;
-  }
   .nextjs-container-errors-body footer {
     margin-top: var(--size-gap);
   }
