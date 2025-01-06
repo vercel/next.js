@@ -14,7 +14,7 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
     async (wasHelpful: boolean) => {
       try {
         const response = await fetch(
-          `/__nextjs_error_feedback?errorCode=${errorCode}&wasHelpful=${wasHelpful}`
+          `${process.env.__NEXT_ROUTER_BASEPATH || ''}/__nextjs_error_feedback?errorCode=${errorCode}&wasHelpful=${wasHelpful}`
         )
 
         if (!response.ok) {
