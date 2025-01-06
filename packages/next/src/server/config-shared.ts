@@ -672,7 +672,7 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
-  headers?: () => Promise<Header[]> | Header[]
+  headers?: () => Promise<Header[]> | Header[];
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
