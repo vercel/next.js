@@ -36,6 +36,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
+        let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
         let runtime_path = self.ident().path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
@@ -49,7 +50,6 @@ impl EcmascriptBuildNodeRuntimeChunk {
         };
 
         let mut code = CodeBuilder::default();
-        let output_root = output_root.to_string();
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
@@ -57,11 +57,11 @@ impl EcmascriptBuildNodeRuntimeChunk {
             code,
             r#"
                 const RUNTIME_PUBLIC_PATH = {};
-                const OUTPUT_ROOT = {};
+                const RELATIVE_ROOT_PATH = {};
                 const ASSET_PREFIX = {};
             "#,
             StringifyJs(runtime_public_path),
-            StringifyJs(output_root.as_str()),
+            StringifyJs(output_root_to_root_path.as_str()),
             StringifyJs(asset_prefix),
         )?;
 

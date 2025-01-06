@@ -24,7 +24,7 @@ fn modifier() -> Vc<RcStr> {
     Vc::cell("mdx".into())
 }
 
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase")]
 pub enum MdxParseConstructs {
@@ -35,7 +35,7 @@ pub enum MdxParseConstructs {
 /// Subset of mdxjs::Options to allow to inherit turbopack's jsx-related configs
 /// into mdxjs. This is thin, near straightforward subset of mdxjs::Options to
 /// enable turbo tasks.
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Hash, Debug, Clone)]
 #[serde(rename_all = "camelCase", default)]
 pub struct MdxTransformOptions {
@@ -122,15 +122,20 @@ impl Source for MdxTransformedAsset {
 #[turbo_tasks::value_impl]
 impl Asset for MdxTransformedAsset {
     #[turbo_tasks::function]
-    async fn content(self: Vc<Self>) -> Result<Vc<AssetContent>> {
+    async fn content(self: ResolvedVc<Self>) -> Result<Vc<AssetContent>> {
         let this = self.await?;
-        Ok(*self
-            .process()
+        Ok(*transform_process_operation(self)
             .issue_file_path(this.source.ident().path(), "MDX processing")
             .await?
+            .connect()
             .await?
             .content)
     }
+}
+
+#[turbo_tasks::function(operation)]
+fn transform_process_operation(asset: ResolvedVc<MdxTransformedAsset>) -> Vc<MdxTransformResult> {
+    asset.process()
 }
 
 #[turbo_tasks::value_impl]

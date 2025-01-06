@@ -30,6 +30,7 @@ export function createComponentTree(props: {
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
   getMetadataReady: () => Promise<void>
+  getViewportReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
@@ -63,6 +64,7 @@ async function createComponentTreeInternal({
   injectedCSS,
   injectedJS,
   injectedFontPreloadTags,
+  getViewportReady,
   getMetadataReady,
   ctx,
   missingSlots,
@@ -75,6 +77,7 @@ async function createComponentTreeInternal({
   injectedCSS: Set<string>
   injectedJS: Set<string>
   injectedFontPreloadTags: Set<string>
+  getViewportReady: () => Promise<void>
   getMetadataReady: () => Promise<void>
   ctx: AppRenderContext
   missingSlots?: Set<string>
@@ -206,12 +209,6 @@ async function createComponentTreeInternal({
           injectedJS: injectedJSWithCurrentLayout,
         })
       : []
-  const forbiddenElement = Forbidden ? (
-    <>
-      {forbiddenStyles}
-      <Forbidden />
-    </>
-  ) : undefined
 
   const [Unauthorized, unauthorizedStyles] =
     authInterrupts && unauthorized
@@ -223,6 +220,21 @@ async function createComponentTreeInternal({
           injectedJS: injectedJSWithCurrentLayout,
         })
       : []
+
+  const notFoundElement = NotFound ? (
+    <>
+      {notFoundStyles}
+      <NotFound />
+    </>
+  ) : undefined
+
+  const forbiddenElement = Forbidden ? (
+    <>
+      {forbiddenStyles}
+      <Forbidden />
+    </>
+  ) : undefined
+
   const unauthorizedElement = Unauthorized ? (
     <>
       {unauthorizedStyles}
@@ -238,7 +250,7 @@ async function createComponentTreeInternal({
     } else if (dynamic === 'force-dynamic') {
       // force-dynamic is always incompatible with 'export'. We must interrupt the build
       throw new StaticGenBailoutError(
-        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is not runtime server to dynamic render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
+        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
       )
     }
   }
@@ -393,6 +405,10 @@ async function createComponentTreeInternal({
   // Resolve the segment param
   const actualSegment = segmentParam ? segmentParam.treeSegment : segment
 
+  if (rootLayoutAtThisLevel) {
+    workStore.rootParams = currentParams
+  }
+
   //
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
@@ -404,13 +420,9 @@ async function createComponentTreeInternal({
         const isChildrenRouteKey = parallelRouteKey === 'children'
         const parallelRoute = parallelRoutes[parallelRouteKey]
 
-        const notFoundComponent =
-          NotFound && isChildrenRouteKey ? (
-            <>
-              {notFoundStyles}
-              <NotFound />
-            </>
-          ) : undefined
+        const notFoundComponent = isChildrenRouteKey
+          ? notFoundElement
+          : undefined
 
         const forbiddenComponent = isChildrenRouteKey
           ? forbiddenElement
@@ -481,10 +493,13 @@ async function createComponentTreeInternal({
             injectedCSS: injectedCSSWithCurrentLayout,
             injectedJS: injectedJSWithCurrentLayout,
             injectedFontPreloadTags: injectedFontPreloadTagsWithCurrentLayout,
-            // getMetadataReady is used to conditionally throw. In the case of parallel routes we will have more than one page
+            // `getMetadataReady` and `getViewportReady` are used to conditionally throw. In the case of parallel routes we will have more than one page
             // but we only want to throw on the first one.
             getMetadataReady: isChildrenRouteKey
               ? getMetadataReady
+              : () => Promise.resolve(),
+            getViewportReady: isChildrenRouteKey
+              ? getViewportReady
               : () => Promise.resolve(),
             ctx,
             missingSlots,
@@ -645,6 +660,7 @@ async function createComponentTreeInternal({
         {pageElement}
         {layerAssets}
         <OutletBoundary>
+          <MetadataOutlet ready={getViewportReady} />
           <MetadataOutlet ready={getMetadataReady} />
         </OutletBoundary>
       </React.Fragment>,
@@ -698,56 +714,30 @@ async function createComponentTreeInternal({
         // but it's not ideal, as it needlessly invokes the `NotFound` component and renders the `RootLayout` twice.
         // We should instead look into handling the fallback behavior differently in development mode so that it doesn't
         // rely on the `NotFound` behavior.
-        if (NotFound) {
-          const notFoundParallelRouteProps = {
-            children: (
-              <>
-                {notFoundStyles}
-                <NotFound />
-              </>
-            ),
-          }
-          notfoundClientSegment = (
-            <>
-              {layerAssets}
-              <ClientSegmentRoot
-                Component={SegmentComponent}
-                slots={notFoundParallelRouteProps}
-                params={currentParams}
-              />
-            </>
-          )
-        }
-        if (Forbidden) {
-          const forbiddenParallelRouteProps = {
-            children: forbiddenElement,
-          }
-          forbiddenClientSegment = (
-            <>
-              {layerAssets}
-              <ClientSegmentRoot
-                Component={SegmentComponent}
-                slots={forbiddenParallelRouteProps}
-                params={currentParams}
-              />
-            </>
-          )
-        }
-        if (Unauthorized) {
-          const unauthorizedParallelRouteProps = {
-            children: unauthorizedElement,
-          }
-          unauthorizedClientSegment = (
-            <>
-              {layerAssets}
-              <ClientSegmentRoot
-                Component={SegmentComponent}
-                slots={unauthorizedParallelRouteProps}
-                params={currentParams}
-              />
-            </>
-          )
-        }
+        notfoundClientSegment = createErrorBoundaryClientSegmentRoot({
+          ErrorBoundaryComponent: NotFound,
+          errorElement: notFoundElement,
+          ClientSegmentRoot,
+          layerAssets,
+          SegmentComponent,
+          currentParams,
+        })
+        forbiddenClientSegment = createErrorBoundaryClientSegmentRoot({
+          ErrorBoundaryComponent: Forbidden,
+          errorElement: forbiddenElement,
+          ClientSegmentRoot,
+          layerAssets,
+          SegmentComponent,
+          currentParams,
+        })
+        unauthorizedClientSegment = createErrorBoundaryClientSegmentRoot({
+          ErrorBoundaryComponent: Unauthorized,
+          errorElement: unauthorizedElement,
+          ClientSegmentRoot,
+          layerAssets,
+          SegmentComponent,
+          currentParams,
+        })
         if (
           notfoundClientSegment ||
           forbiddenClientSegment ||
@@ -850,3 +840,36 @@ async function MetadataOutlet({
   return null
 }
 MetadataOutlet.displayName = OUTLET_BOUNDARY_NAME
+
+function createErrorBoundaryClientSegmentRoot({
+  ErrorBoundaryComponent,
+  errorElement,
+  ClientSegmentRoot,
+  layerAssets,
+  SegmentComponent,
+  currentParams,
+}: {
+  ErrorBoundaryComponent: React.ComponentType<any> | undefined
+  errorElement: React.ReactNode
+  ClientSegmentRoot: React.ComponentType<any>
+  layerAssets: React.ReactNode
+  SegmentComponent: React.ComponentType<any>
+  currentParams: Params
+}) {
+  if (ErrorBoundaryComponent) {
+    const notFoundParallelRouteProps = {
+      children: errorElement,
+    }
+    return (
+      <>
+        {layerAssets}
+        <ClientSegmentRoot
+          Component={SegmentComponent}
+          slots={notFoundParallelRouteProps}
+          params={currentParams}
+        />
+      </>
+    )
+  }
+  return null
+}

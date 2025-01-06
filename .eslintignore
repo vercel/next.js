@@ -49,6 +49,7 @@ test/e2e/app-dir/server-source-maps/fixtures/default/internal-pkg/sourcemapped.j
 test/e2e/app-dir/server-source-maps/fixtures/default/external-pkg/sourcemapped.js
 test/e2e/async-modules/amp-validator-wasm.js
 test/development/next-lint-eslint-formatter-compact/**/*.js
+test/e2e/app-dir/app-external/app/mixed/import/mixed-mod.mjs
 
 # turbopack crates
 turbopack/crates/*/tests/**

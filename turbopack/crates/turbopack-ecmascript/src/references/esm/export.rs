@@ -56,6 +56,10 @@ pub async fn is_export_missing(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<bool>> {
+    if export_name == "__turbopack_module_id__" {
+        return Ok(Vc::cell(false));
+    }
+
     let exports = module.get_exports().await?;
     let exports = match &*exports {
         EcmascriptExports::None => return Ok(Vc::cell(true)),
@@ -423,7 +427,7 @@ async fn emit_star_exports_issue(source_ident: Vc<AssetIdent>, message: RcStr) -
     Ok(())
 }
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Hash, Debug)]
 pub struct EsmExports {
     pub exports: BTreeMap<RcStr, EsmExport>,
@@ -435,7 +439,7 @@ pub struct EsmExports {
 ///
 /// `star_exports` that could not be (fully) expanded end up in
 /// `dynamic_exports`.
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Hash, Debug)]
 pub struct ExpandedExports {
     pub exports: BTreeMap<RcStr, EsmExport>,

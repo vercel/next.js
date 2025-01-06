@@ -1485,8 +1485,30 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
         }
         JsValue::WellKnownFunction(WellKnownFunctionKind::Import) => {
             let args = linked_args(args).await?;
-            if args.len() == 1 {
+            if args.len() == 1 || args.len() == 2 {
                 let pat = js_value_to_pattern(&args[0]);
+                let options = args.get(1);
+                let import_annotations = options
+                    .and_then(|options| {
+                        if let JsValue::Object { parts, .. } = options {
+                            parts.iter().find_map(|part| {
+                                if let ObjectPart::KeyValue(
+                                    JsValue::Constant(super::analyzer::ConstantValue::Str(key)),
+                                    value,
+                                ) = part
+                                {
+                                    if key.as_str() == "with" {
+                                        return Some(value);
+                                    }
+                                }
+                                None
+                            })
+                        } else {
+                            None
+                        }
+                    })
+                    .and_then(ImportAnnotations::parse_dynamic)
+                    .unwrap_or_default();
                 if !pat.has_constant_parts() {
                     let (args, hints) = explain_args(&args);
                     handler.span_warn_with_code(
@@ -1509,6 +1531,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         Request::parse(Value::new(pat)),
                         Vc::cell(ast_path.to_vec()),
                         issue_source(*source, span),
+                        Value::new(import_annotations),
                         in_try,
                         state.import_externals,
                     )
@@ -3217,7 +3240,7 @@ async fn resolve_as_webpack_runtime(
 }
 
 // TODO enable serialization
-#[turbo_tasks::value(transparent, serialization = "none", non_local)]
+#[turbo_tasks::value(transparent, serialization = "none")]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 
 pub static TURBOPACK_HELPER: Lazy<JsWord> = Lazy::new(|| "__turbopack-helper__".into());

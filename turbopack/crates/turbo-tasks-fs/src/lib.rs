@@ -173,7 +173,7 @@ pub fn validate_path_length(path: &Path) -> Result<Cow<'_, Path>> {
     })
 }
 
-#[turbo_tasks::value_trait(non_local)]
+#[turbo_tasks::value_trait]
 pub trait FileSystem: ValueToString {
     /// Returns the path to the root of the file system.
     fn root(self: Vc<Self>) -> Vc<FileSystemPath> {
@@ -348,7 +348,7 @@ impl DiskFileSystemInner {
     }
 }
 
-#[turbo_tasks::value(cell = "new", eq = "manual", non_local)]
+#[turbo_tasks::value(cell = "new", eq = "manual")]
 pub struct DiskFileSystem {
     inner: Arc<DiskFileSystemInner>,
 }
@@ -944,7 +944,39 @@ impl ValueToString for DiskFileSystem {
     }
 }
 
-#[turbo_tasks::value(non_local)]
+pub fn get_relative_path_to(path: &str, other_path: &str) -> String {
+    fn split(s: &str) -> impl Iterator<Item = &str> {
+        let empty = s.is_empty();
+        let mut iterator = s.split('/');
+        if empty {
+            iterator.next();
+        }
+        iterator
+    }
+
+    let mut self_segments = split(path).peekable();
+    let mut other_segments = split(other_path).peekable();
+    while self_segments.peek() == other_segments.peek() {
+        self_segments.next();
+        if other_segments.next().is_none() {
+            return ".".to_string();
+        }
+    }
+    let mut result = Vec::new();
+    if self_segments.peek().is_none() {
+        result.push(".");
+    } else {
+        while self_segments.next().is_some() {
+            result.push("..");
+        }
+    }
+    for segment in other_segments {
+        result.push(segment);
+    }
+    result.join("/")
+}
+
+#[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct FileSystemPath {
     pub fs: ResolvedVc<Box<dyn FileSystem>>,
@@ -1004,34 +1036,8 @@ impl FileSystemPath {
         if self.fs != other.fs {
             return None;
         }
-        fn split(s: &str) -> impl Iterator<Item = &str> {
-            let empty = s.is_empty();
-            let mut iterator = s.split('/');
-            if empty {
-                iterator.next();
-            }
-            iterator
-        }
-        let mut self_segments = split(&self.path).peekable();
-        let mut other_segments = split(&other.path).peekable();
-        while self_segments.peek() == other_segments.peek() {
-            self_segments.next();
-            if other_segments.next().is_none() {
-                return Some(".".into());
-            }
-        }
-        let mut result = Vec::new();
-        if self_segments.peek().is_none() {
-            result.push(".");
-        } else {
-            while self_segments.next().is_some() {
-                result.push("..");
-            }
-        }
-        for segment in other_segments {
-            result.push(segment);
-        }
-        Some(result.join("/").into())
+
+        Some(get_relative_path_to(&self.path, &other.path).into())
     }
 
     /// Returns the final component of the FileSystemPath, or an empty string
@@ -1702,7 +1708,7 @@ impl FileContent {
 }
 
 bitflags! {
-  #[derive(Default, Serialize, Deserialize, TraceRawVcs)]
+  #[derive(Default, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
   pub struct LinkType: u8 {
       const DIRECTORY = 0b00000001;
       const ABSOLUTE = 0b00000010;
@@ -2100,7 +2106,7 @@ impl FileContent {
 }
 
 /// A file's content interpreted as a JSON value.
-#[turbo_tasks::value(shared, serialization = "none", non_local)]
+#[turbo_tasks::value(shared, serialization = "none")]
 pub enum FileJsonContent {
     Content(Value),
     Unparseable(Box<UnparseableJson>),
@@ -2279,7 +2285,7 @@ impl DirectoryContent {
     }
 }
 
-#[turbo_tasks::value(shared, non_local)]
+#[turbo_tasks::value(shared)]
 pub struct NullFileSystem;
 
 #[turbo_tasks::value_impl]
@@ -2352,6 +2358,22 @@ pub fn register() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn test_get_relative_path_to() {
+        assert_eq!(get_relative_path_to("a/b/c", "a/b/c").as_str(), ".");
+        assert_eq!(get_relative_path_to("a/c/d", "a/b/c").as_str(), "../../b/c");
+        assert_eq!(get_relative_path_to("", "a/b/c").as_str(), "./a/b/c");
+        assert_eq!(get_relative_path_to("a/b/c", "").as_str(), "../../..");
+        assert_eq!(
+            get_relative_path_to("a/b/c", "c/b/a").as_str(),
+            "../../../c/b/a"
+        );
+        assert_eq!(
+            get_relative_path_to("file:///a/b/c", "file:///c/b/a").as_str(),
+            "../../../c/b/a"
+        );
+    }
 
     #[tokio::test]
     async fn with_extension() {

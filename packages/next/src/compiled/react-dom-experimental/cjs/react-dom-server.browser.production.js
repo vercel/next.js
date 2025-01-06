@@ -64,10 +64,8 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-  REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
-  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
   ASYNC_ITERATOR = Symbol.asyncIterator,
@@ -3647,101 +3645,91 @@ function readPreviousThenableFromState() {
       index
     );
 }
-function unsupportedRefresh() {
-  throw Error(formatProdErrorMessage(393));
-}
 function noop$1() {}
 var HooksDispatcher = {
-  readContext: function (context) {
-    return context._currentValue;
-  },
-  use: function (usable) {
-    if (null !== usable && "object" === typeof usable) {
-      if ("function" === typeof usable.then) return unwrapThenable(usable);
-      if (usable.$$typeof === REACT_CONTEXT_TYPE) return usable._currentValue;
+    readContext: function (context) {
+      return context._currentValue;
+    },
+    use: function (usable) {
+      if (null !== usable && "object" === typeof usable) {
+        if ("function" === typeof usable.then) return unwrapThenable(usable);
+        if (usable.$$typeof === REACT_CONTEXT_TYPE) return usable._currentValue;
+      }
+      throw Error(formatProdErrorMessage(438, String(usable)));
+    },
+    useContext: function (context) {
+      resolveCurrentlyRenderingComponent();
+      return context._currentValue;
+    },
+    useMemo: useMemo,
+    useReducer: useReducer,
+    useRef: function (initialValue) {
+      currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+      workInProgressHook = createWorkInProgressHook();
+      var previousRef = workInProgressHook.memoizedState;
+      return null === previousRef
+        ? ((initialValue = { current: initialValue }),
+          (workInProgressHook.memoizedState = initialValue))
+        : previousRef;
+    },
+    useState: function (initialState) {
+      return useReducer(basicStateReducer, initialState);
+    },
+    useInsertionEffect: noop$1,
+    useLayoutEffect: noop$1,
+    useCallback: function (callback, deps) {
+      return useMemo(function () {
+        return callback;
+      }, deps);
+    },
+    useImperativeHandle: noop$1,
+    useEffect: noop$1,
+    useDebugValue: noop$1,
+    useDeferredValue: function (value, initialValue) {
+      resolveCurrentlyRenderingComponent();
+      return void 0 !== initialValue ? initialValue : value;
+    },
+    useTransition: function () {
+      resolveCurrentlyRenderingComponent();
+      return [!1, unsupportedStartTransition];
+    },
+    useId: function () {
+      var JSCompiler_inline_result = currentlyRenderingTask.treeContext;
+      var overflow = JSCompiler_inline_result.overflow;
+      JSCompiler_inline_result = JSCompiler_inline_result.id;
+      JSCompiler_inline_result =
+        (
+          JSCompiler_inline_result &
+          ~(1 << (32 - clz32(JSCompiler_inline_result) - 1))
+        ).toString(32) + overflow;
+      var resumableState = currentResumableState;
+      if (null === resumableState) throw Error(formatProdErrorMessage(404));
+      overflow = localIdCounter++;
+      JSCompiler_inline_result =
+        ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+      0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
+      return JSCompiler_inline_result + ":";
+    },
+    useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
+      if (void 0 === getServerSnapshot)
+        throw Error(formatProdErrorMessage(407));
+      return getServerSnapshot();
+    },
+    useOptimistic: function (passthrough) {
+      resolveCurrentlyRenderingComponent();
+      return [passthrough, unsupportedSetOptimisticState];
+    },
+    useActionState: useActionState,
+    useFormState: useActionState,
+    useHostTransitionStatus: function () {
+      resolveCurrentlyRenderingComponent();
+      return sharedNotPendingObject;
+    },
+    useEffectEvent: function () {
+      return throwOnUseEffectEventCall;
     }
-    throw Error(formatProdErrorMessage(438, String(usable)));
   },
-  useContext: function (context) {
-    resolveCurrentlyRenderingComponent();
-    return context._currentValue;
-  },
-  useMemo: useMemo,
-  useReducer: useReducer,
-  useRef: function (initialValue) {
-    currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
-    workInProgressHook = createWorkInProgressHook();
-    var previousRef = workInProgressHook.memoizedState;
-    return null === previousRef
-      ? ((initialValue = { current: initialValue }),
-        (workInProgressHook.memoizedState = initialValue))
-      : previousRef;
-  },
-  useState: function (initialState) {
-    return useReducer(basicStateReducer, initialState);
-  },
-  useInsertionEffect: noop$1,
-  useLayoutEffect: noop$1,
-  useCallback: function (callback, deps) {
-    return useMemo(function () {
-      return callback;
-    }, deps);
-  },
-  useImperativeHandle: noop$1,
-  useEffect: noop$1,
-  useDebugValue: noop$1,
-  useDeferredValue: function (value, initialValue) {
-    resolveCurrentlyRenderingComponent();
-    return void 0 !== initialValue ? initialValue : value;
-  },
-  useTransition: function () {
-    resolveCurrentlyRenderingComponent();
-    return [!1, unsupportedStartTransition];
-  },
-  useId: function () {
-    var JSCompiler_inline_result = currentlyRenderingTask.treeContext;
-    var overflow = JSCompiler_inline_result.overflow;
-    JSCompiler_inline_result = JSCompiler_inline_result.id;
-    JSCompiler_inline_result =
-      (
-        JSCompiler_inline_result &
-        ~(1 << (32 - clz32(JSCompiler_inline_result) - 1))
-      ).toString(32) + overflow;
-    var resumableState = currentResumableState;
-    if (null === resumableState) throw Error(formatProdErrorMessage(404));
-    overflow = localIdCounter++;
-    JSCompiler_inline_result =
-      ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
-    0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-    return JSCompiler_inline_result + ":";
-  },
-  useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
-    if (void 0 === getServerSnapshot) throw Error(formatProdErrorMessage(407));
-    return getServerSnapshot();
-  },
-  useCacheRefresh: function () {
-    return unsupportedRefresh;
-  },
-  useEffectEvent: function () {
-    return throwOnUseEffectEventCall;
-  },
-  useMemoCache: function (size) {
-    for (var data = Array(size), i = 0; i < size; i++)
-      data[i] = REACT_MEMO_CACHE_SENTINEL;
-    return data;
-  },
-  useHostTransitionStatus: function () {
-    resolveCurrentlyRenderingComponent();
-    return sharedNotPendingObject;
-  },
-  useOptimistic: function (passthrough) {
-    resolveCurrentlyRenderingComponent();
-    return [passthrough, unsupportedSetOptimisticState];
-  }
-};
-HooksDispatcher.useFormState = useActionState;
-HooksDispatcher.useActionState = useActionState;
-var currentResumableState = null,
+  currentResumableState = null,
   DefaultAsyncDispatcher = {
     getCacheForType: function () {
       throw Error(formatProdErrorMessage(248));
@@ -3903,7 +3891,7 @@ function describeComponentStackByType(type) {
   if ("string" === typeof type) return describeBuiltInComponentFrame(type);
   if ("function" === typeof type)
     return type.prototype && type.prototype.isReactComponent
-      ? ((type = describeNativeComponentFrame(type, !0)), type)
+      ? describeNativeComponentFrame(type, !0)
       : describeNativeComponentFrame(type, !1);
   if ("object" === typeof type && null !== type) {
     switch (type.$$typeof) {
@@ -4631,7 +4619,6 @@ function renderElement(request, task, keyPath, type, props, ref) {
   else {
     switch (type) {
       case REACT_LEGACY_HIDDEN_TYPE:
-      case REACT_DEBUG_TRACING_MODE_TYPE:
       case REACT_STRICT_MODE_TYPE:
       case REACT_PROFILER_TYPE:
       case REACT_FRAGMENT_TYPE:
@@ -6589,12 +6576,12 @@ function getPostponedState(request) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.0.0-experimental-7283a213-20241206" !== isomorphicReactPackageVersion)
+  if ("19.1.0-experimental-3b009b4c-20250102" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.0.0-experimental-7283a213-20241206"
+        "19.1.0-experimental-3b009b4c-20250102"
       )
     );
 }
@@ -6849,4 +6836,4 @@ exports.resumeAndPrerender = function (children, postponedState, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-experimental-7283a213-20241206";
+exports.version = "19.1.0-experimental-3b009b4c-20250102";

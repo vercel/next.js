@@ -284,11 +284,6 @@ impl ChunkItem for ProxyModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.client_proxy_asset.references()
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         Vc::upcast(*self.chunking_context)
     }

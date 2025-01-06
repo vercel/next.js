@@ -117,7 +117,7 @@ Inside your Tailwind configuration file, add paths to the files that will use th
 ```ts filename="tailwind.config.ts" highlight={5-7} switcher
 import type { Config } from 'tailwindcss'
 
-const config: Config = {
+export default {
   content: [
     './app/**/*.{js,ts,jsx,tsx,mdx}',
     // Or if using `src` directory:
@@ -127,8 +127,7 @@ const config: Config = {
     extend: {},
   },
   plugins: [],
-}
-export default config
+} satisfies Config
 ```
 
 ```js filename="tailwind.config.js" highlight={4-6} switcher
@@ -244,7 +243,7 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
+```js filename="next.config.mjs" switcher
 /** @type {import('next').NextConfig} */
 
 const nextConfig = {
@@ -253,7 +252,7 @@ const nextConfig = {
   },
 }
 
-module.exports = nextConfig
+export default nextConfig
 ```
 
 ## CSS-in-JS
@@ -392,13 +391,16 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-```js filename="next.config.js" switcher
+```js filename="next.config.mjs" switcher
 /** @type {import('next').NextConfig} */
+
 const nextConfig = {
   compiler: {
     styledComponents: true,
   },
 }
+
+export default nextConfig
 ```
 
 Then, use the `styled-components` API to create a global registry component to collect all CSS style rules generated during a render, and a function to return those rules. Then use the `useServerInsertedHTML` hook to inject the styles collected in the registry into the `<head>` HTML tag in the root layout.

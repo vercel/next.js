@@ -501,7 +501,9 @@ describe('app dir - rsc basics', () => {
 
   // TODO: (PPR) remove once PPR is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ? '-experimental-'
+      : '-canary-'
 
   it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']

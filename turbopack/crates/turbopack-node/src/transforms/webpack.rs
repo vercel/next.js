@@ -8,8 +8,8 @@ use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, NonLocalValue, ResolvedVc, TaskInput, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -75,14 +75,16 @@ struct WebpackLoadersProcessingResult {
     assets: Option<Vec<EmittedAsset>>,
 }
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+)]
 pub struct WebpackLoaderItem {
     pub loader: RcStr,
     pub options: serde_json::Map<String, serde_json::Value>,
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(shared, transparent, non_local)]
+#[turbo_tasks::value(shared, transparent)]
 pub struct WebpackLoaderItems(pub Vec<WebpackLoaderItem>);
 
 #[turbo_tasks::value]
@@ -447,12 +449,7 @@ impl EvaluateContext for WebpackLoaderContext {
             context_ident: self.context_ident_for_issue,
             assets_for_source_mapping: pool.assets_for_source_mapping,
             assets_root: pool.assets_root,
-            project_dir: self
-                .chunking_context
-                .context_path()
-                .root()
-                .to_resolved()
-                .await?,
+            root_path: self.chunking_context.root_path().to_resolved().await?,
         }
         .resolved_cell()
         .emit();
@@ -497,12 +494,7 @@ impl EvaluateContext for WebpackLoaderContext {
                     severity: severity.resolved_cell(),
                     assets_for_source_mapping: pool.assets_for_source_mapping,
                     assets_root: pool.assets_root,
-                    project_dir: self
-                        .chunking_context
-                        .context_path()
-                        .root()
-                        .to_resolved()
-                        .await?,
+                    project_dir: self.chunking_context.root_path().to_resolved().await?,
                 }
                 .resolved_cell()
                 .emit();
@@ -593,12 +585,7 @@ impl EvaluateContext for WebpackLoaderContext {
                 },
                 assets_for_source_mapping: pool.assets_for_source_mapping,
                 assets_root: pool.assets_root,
-                project_dir: self
-                    .chunking_context
-                    .context_path()
-                    .root()
-                    .to_resolved()
-                    .await?,
+                project_dir: self.chunking_context.root_path().to_resolved().await?,
             }
             .resolved_cell()
             .emit();

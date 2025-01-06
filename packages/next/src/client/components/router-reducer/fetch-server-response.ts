@@ -15,9 +15,10 @@ import type {
   FlightRouterState,
   NavigationFlightResponse,
 } from '../../../server/app-render/types'
+
+import type { NEXT_ROUTER_SEGMENT_PREFETCH_HEADER } from '../app-router-headers'
 import {
   NEXT_ROUTER_PREFETCH_HEADER,
-  NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_RSC_UNION_QUERY,
   NEXT_URL,
@@ -30,12 +31,12 @@ import {
 import { callServer } from '../../app-call-server'
 import { findSourceMapURL } from '../../app-find-source-map-url'
 import { PrefetchKind } from './router-reducer-types'
-import { hexHash } from '../../../shared/lib/hash'
 import {
   normalizeFlightData,
   type NormalizedFlightData,
 } from '../../flight-data-helpers'
 import { getAppBuildId } from '../../app-build-id'
+import { setCacheBustingSearchParam } from './set-cache-busting-search-param'
 
 export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
@@ -93,6 +94,24 @@ function doMpaNavigation(url: string): FetchServerResponseResult {
   }
 }
 
+let abortController = new AbortController()
+
+if (typeof window !== 'undefined') {
+  // Abort any in-flight requests when the page is unloaded, e.g. due to
+  // reloading the page or performing hard navigations. This allows us to ignore
+  // what would otherwise be a thrown TypeError when the browser cancels the
+  // requests.
+  window.addEventListener('pagehide', () => {
+    abortController.abort()
+  })
+
+  // Use a fresh AbortController instance on pageshow, e.g. when navigating back
+  // and the JavaScript execution context is restored by the browser.
+  window.addEventListener('pageshow', () => {
+    abortController = new AbortController()
+  })
+}
+
 /**
  * Fetch the flight data for the provided url. Takes in the current router state
  * to decide what to render server-side.
@@ -141,7 +160,12 @@ export async function fetchServerResponse(
         : 'low'
       : 'auto'
 
-    const res = await createFetch(url, headers, fetchPriority)
+    const res = await createFetch(
+      url,
+      headers,
+      fetchPriority,
+      abortController.signal
+    )
 
     const responseUrl = urlToUrlWithoutFlightMarker(res.url)
     const canonicalUrl = res.redirected ? responseUrl : undefined
@@ -202,10 +226,13 @@ export async function fetchServerResponse(
       staleTime,
     }
   } catch (err) {
-    console.error(
-      `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
-      err
-    )
+    if (!abortController.signal.aborted) {
+      console.error(
+        `Failed to fetch RSC payload for ${url}. Falling back to browser navigation.`,
+        err
+      )
+    }
+
     // If fetch fails handle it like a mpa navigation
     // TODO-APP: Add a test for the case where a CORS request fails, e.g. external url redirect coming from the response.
     // See https://github.com/vercel/next.js/issues/43605#issuecomment-1451617521 for a reproduction.
@@ -223,7 +250,8 @@ export async function fetchServerResponse(
 export function createFetch(
   url: URL,
   headers: RequestHeaders,
-  fetchPriority: 'auto' | 'high' | 'low' | null
+  fetchPriority: 'auto' | 'high' | 'low' | null,
+  signal?: AbortSignal
 ) {
   const fetchUrl = new URL(url)
 
@@ -237,21 +265,7 @@ export function createFetch(
     }
   }
 
-  // This is used to cache bust CDNs that don't support custom headers. The
-  // result is stored in a search param.
-  // TODO: Given that we have to use a search param anyway, we might as well
-  // _only_ use a search param and not bother with the custom headers.
-  // Add unique cache query to avoid caching conflicts on CDN which don't respect the Vary header
-  const uniqueCacheQuery = hexHash(
-    [
-      headers[NEXT_ROUTER_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER] || '0',
-      headers[NEXT_ROUTER_STATE_TREE_HEADER],
-      headers[NEXT_URL],
-    ].join(',')
-  )
-
-  fetchUrl.searchParams.set(NEXT_RSC_UNION_QUERY, uniqueCacheQuery)
+  setCacheBustingSearchParam(fetchUrl, headers)
 
   if (process.env.__NEXT_TEST_MODE && fetchPriority !== null) {
     headers['Next-Test-Fetch-Priority'] = fetchPriority
@@ -266,6 +280,7 @@ export function createFetch(
     credentials: 'same-origin',
     headers,
     priority: fetchPriority || undefined,
+    signal,
   })
 }
 

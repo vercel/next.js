@@ -10,9 +10,9 @@ use syn::{
     spanned::Spanned,
     token::Paren,
     visit_mut::VisitMut,
-    AngleBracketedGenericArguments, Block, Expr, ExprBlock, ExprPath, FnArg, GenericArgument,
-    Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment, Receiver, ReturnType,
-    Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
+    AngleBracketedGenericArguments, Attribute, Block, Expr, ExprBlock, ExprPath, FnArg,
+    GenericArgument, Local, Meta, Pat, PatIdent, PatType, Path, PathArguments, PathSegment,
+    Receiver, ReturnType, Signature, Stmt, Token, Type, TypeGroup, TypePath, TypeTuple,
 };
 
 #[derive(Debug)]
@@ -30,6 +30,8 @@ pub struct TurboFn<'a> {
     inputs: Vec<Input>,
     /// Should we check that the return type contains a `NonLocalValue`?
     non_local: Option<Span>,
+    /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
+    operation: bool,
     /// Should this function use `TaskPersistence::LocalCells`?
     local_cells: bool,
 }
@@ -274,6 +276,7 @@ impl TurboFn<'_> {
             this,
             inputs,
             non_local: args.non_local_return,
+            operation: args.operation.is_some(),
             local_cells: args.local_cells.is_some(),
             inline_ident,
         })
@@ -298,14 +301,24 @@ impl TurboFn<'_> {
                         subpat: None,
                     })),
                     colon_token: Default::default(),
-                    ty: Box::new(expand_task_input_type(&input.ty).into_owned()),
+                    ty: if self.operation {
+                        // operations shouldn't have their arguments rewritten, they require all
+                        // arguments are explicitly `NonLocalValue`s
+                        Box::new(input.ty.clone())
+                    } else {
+                        Box::new(expand_task_input_type(&input.ty).into_owned())
+                    },
                 })
             })
             .collect();
 
         let ident = &self.ident;
         let orig_output = &self.output;
-        let new_output = expand_vc_return_type(orig_output);
+        let new_output = expand_vc_return_type(
+            orig_output,
+            self.operation
+                .then(|| parse_quote!(turbo_tasks::OperationVc)),
+        );
 
         parse_quote! {
             fn #ident(#exposed_inputs) -> #new_output
@@ -342,6 +355,11 @@ impl TurboFn<'_> {
             .map(|(idx, arg)| match arg {
                 FnArg::Receiver(_) => (arg.clone(), None),
                 FnArg::Typed(pat_type) => {
+                    if self.operation {
+                        // operations shouldn't have their arguments rewritten, they require all
+                        // arguments are explicitly `NonLocalValue`s
+                        return (arg.clone(), None);
+                    }
                     let Cow::Owned(expanded_ty) = expand_task_input_type(&pat_type.ty) else {
                         // common-case: skip if no type conversion is needed
                         return (arg.clone(), None);
@@ -500,10 +518,35 @@ impl TurboFn<'_> {
             let return_type = &self.output;
             quote_spanned! {
                 span =>
-                {
-                    turbo_tasks::macro_helpers::assert_returns_non_local_value::<#return_type, _>()
+                turbo_tasks::macro_helpers::assert_returns_non_local_value::<#return_type, _>();
+            }
+        } else if self.operation {
+            let mut assertions = Vec::new();
+            // theoretically we could support methods by rewriting the exposed self argument, but
+            // it's not worth it, given the rarity of operations.
+            const SELF_ERROR: &str = "methods taking `self` are not supported with `operation`";
+            for arg in &self.orig_signature.inputs {
+                match arg {
+                    FnArg::Receiver(receiver) => {
+                        receiver.span().unwrap().error(SELF_ERROR).emit();
+                    }
+                    FnArg::Typed(pat_type) => {
+                        if let Pat::Ident(ident) = &*pat_type.pat {
+                            // needed for syn 1.x where arbitrary self types use FnArg::Typed, this
+                            // is fixed in syn 2.x, where `self` is always `FnArg::Receiver`.
+                            if ident.ident == "self" {
+                                pat_type.span().unwrap().error(SELF_ERROR).emit();
+                            }
+                        }
+                        let ty = &pat_type.ty;
+                        assertions.push(quote_spanned! {
+                            ty.span() =>
+                            turbo_tasks::macro_helpers::assert_argument_is_non_local_value::<#ty>();
+                        });
+                    }
                 }
             }
+            quote! { #(#assertions)* }
         } else {
             quote! {}
         }
@@ -550,7 +593,7 @@ impl TurboFn<'_> {
         let output = &self.output;
         let inputs = self.input_idents();
         let assertions = self.get_assertions();
-        if let Some(converted_this) = self.converted_this() {
+        let mut block = if let Some(converted_this) = self.converted_this() {
             let persistence = self.persistence_with_this();
             parse_quote! {
                 {
@@ -584,7 +627,21 @@ impl TurboFn<'_> {
                     )
                 }
             }
+        };
+        if self.operation {
+            block = parse_quote! {
+                {
+                    let vc_output = #block;
+                    // Assumption: The turbo-tasks manager will not create a local task for a
+                    // function where all task inputs are "resolved" (where "resolved" in this case
+                    // includes `OperationVc`). This is checked with a debug_assert, but not in
+                    // release mode.
+                    #[allow(deprecated)]
+                    turbo_tasks::OperationVc::cell_private(vc_output)
+                }
+            };
         }
+        block
     }
 
     pub(crate) fn is_method(&self) -> bool {
@@ -655,6 +712,12 @@ pub struct FunctionArguments {
     ///
     /// If [`Self::local_cells`] is set, this will also be set to the same span.
     non_local_return: Option<Span>,
+    /// Should the function return an `OperationVc` instead of a `Vc`? Also ensures that all
+    /// arguments are `OperationValue`s. Mutually exclusive with the `non_local_return` and
+    /// `local_cells` flags.
+    ///
+    /// If there is an error due to this option being set, it should be reported to this span.
+    operation: Option<Span>,
     /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
     /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
     ///
@@ -686,6 +749,9 @@ impl Parse for FunctionArguments {
                 ("non_local_return", Meta::Path(_)) => {
                     parsed_args.non_local_return = Some(meta.span());
                 }
+                ("operation", Meta::Path(_)) => {
+                    parsed_args.operation = Some(meta.span());
+                }
                 ("local_cells", Meta::Path(_)) => {
                     let span = Some(meta.span());
                     parsed_args.local_cells = span;
@@ -695,10 +761,17 @@ impl Parse for FunctionArguments {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \
-                         \"non_local_return\", \"local_cells\"",
+                         \"non_local_return\", \"operation\", or \"local_cells\"",
                     ))
                 }
             }
+        }
+        if let (Some(_), Some(span)) = (parsed_args.non_local_return, parsed_args.operation) {
+            return Err(syn::Error::new(
+                span,
+                "\"operation\" is mutually exclusive with \"non_local_return\" and \
+                 \"local_cells\" options",
+            ));
         }
         Ok(parsed_args)
     }
@@ -817,11 +890,18 @@ fn expand_task_input_type(orig_input: &Type) -> Cow<'_, Type> {
     }
 }
 
-fn expand_vc_return_type(orig_output: &Type) -> Type {
-    // HACK: Approximate the expansion that we'd otherwise get from
-    // `<T as TaskOutput>::Return`, so that the return type shown in the rustdocs
-    // is as simple as possible. Break out as soon as we see something we don't
-    // recognize.
+/// Performs [external signature rewriting][mdbook].
+///
+/// The expanded return type is normally a `turbo_tasks::Vc`, but the `turbo_tasks::Vc` type can be
+/// replaced with a custom type using `replace_vc`. Type parameters are preserved during the
+/// replacement. This is used for operation functions.
+///
+/// This is a hack! It approximates the expansion that we'd otherwise get from
+/// `<T as TaskOutput>::Return`, so that the return type shown in the rustdocs is as simple as
+/// possible. Break out as soon as we see something we don't recognize.
+///
+/// [mdbook]: https://turbopack-rust-docs.vercel.sh/turbo-engine/tasks.html#external-signature-rewriting
+fn expand_vc_return_type(orig_output: &Type, replace_vc: Option<TypePath>) -> Type {
     let mut new_output = orig_output.clone();
     let mut found_vc = false;
     loop {
@@ -906,6 +986,14 @@ fn expand_vc_return_type(orig_output: &Type) -> Type {
                  Unable to process type.",
             )
             .emit();
+    } else if let Some(replace_vc) = replace_vc {
+        let Type::Path(mut vc_path) = new_output else {
+            unreachable!("Since found_vc is true, the outermost type must be a path to `Vc`")
+        };
+        let mut new_path = replace_vc;
+        new_path.path.segments.last_mut().unwrap().arguments =
+            vc_path.path.segments.pop().unwrap().into_value().arguments;
+        new_output = Type::Path(new_path)
     }
 
     new_output
@@ -979,10 +1067,10 @@ impl NativeFn {
     }
 
     pub fn ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::Lazy<turbo_tasks::NativeFunction> }
+        parse_quote! { turbo_tasks::NativeFunction }
     }
 
-    pub fn definition(&self) -> Expr {
+    pub fn definition(&self) -> TokenStream {
         let Self {
             function_path_string,
             function_path,
@@ -996,8 +1084,8 @@ impl NativeFn {
             quote! { new_function }
         };
 
-        parse_quote! {
-            turbo_tasks::macro_helpers::Lazy::new(|| {
+        quote! {
+            {
                 #[allow(deprecated)]
                 turbo_tasks::NativeFunction::#constructor(
                     #function_path_string.to_owned(),
@@ -1006,19 +1094,27 @@ impl NativeFn {
                     },
                     #function_path,
                 )
-            })
+            }
         }
     }
 
     pub fn id_ty(&self) -> Type {
-        parse_quote! { turbo_tasks::macro_helpers::Lazy<turbo_tasks::FunctionId> }
+        parse_quote! { turbo_tasks::FunctionId }
     }
 
-    pub fn id_definition(&self, native_function_id_path: &Path) -> Expr {
-        parse_quote! {
-            turbo_tasks::macro_helpers::Lazy::new(|| {
-                turbo_tasks::registry::get_function_id(&*#native_function_id_path)
-            })
+    pub fn id_definition(&self, native_function_id_path: &Path) -> TokenStream {
+        quote! {
+            turbo_tasks::registry::get_function_id(&*#native_function_id_path)
         }
     }
+}
+
+pub fn filter_inline_attributes<'a>(
+    attrs: impl IntoIterator<Item = &'a Attribute>,
+) -> Vec<&'a Attribute> {
+    // inline functions use #[doc(hidden)], so it's not useful to preserve/duplicate docs
+    attrs
+        .into_iter()
+        .filter(|attr| attr.path.get_ident().is_none_or(|id| id != "doc"))
+        .collect()
 }

@@ -157,11 +157,6 @@ impl ChunkItem for NextServerComponentChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.inner.references()
-    }
-
-    #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }

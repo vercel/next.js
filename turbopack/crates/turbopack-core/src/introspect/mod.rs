@@ -8,10 +8,10 @@ use turbo_tasks::{FxIndexSet, ResolvedVc, Vc};
 
 type VcDynIntrospectable = Vc<Box<dyn Introspectable>>;
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct IntrospectableChildren(FxIndexSet<(ResolvedVc<RcStr>, VcDynIntrospectable)>);
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Introspectable {
     fn ty(self: Vc<Self>) -> Vc<RcStr>;
     fn title(self: Vc<Self>) -> Vc<RcStr> {
