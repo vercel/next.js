@@ -2,6 +2,7 @@ import type { DebugInfo } from '../../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { noop as css } from '../../../helpers/noop-template'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
+import { DocsLinkButton } from './docs-link-button'
 
 type ErrorOverlayToolbarProps = {
   error: Error | undefined
@@ -18,6 +19,7 @@ export function ErrorOverlayToolbar({
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
+      <DocsLinkButton docsURL="https://nextjs.org/docs" />
     </span>
   )
 }
@@ -29,7 +31,8 @@ export const styles = css`
   }
 
   .nodejs-inspector-button,
-  .copy-stack-trace-button {
+  .copy-stack-trace-button,
+  .docs-link-button {
     display: flex;
     justify-content: center;
     align-items: center;
