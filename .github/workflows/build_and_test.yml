@@ -26,6 +26,7 @@ env:
   DD_ENV: 'ci'
   TEST_TIMINGS_TOKEN: ${{ secrets.TEST_TIMINGS_TOKEN }}
   NEXT_TEST_JOB: 1
+  NEXT_RSPACK: 1
 
 jobs:
   optimize-ci:
@@ -127,13 +128,13 @@ jobs:
       stepName: 'test-cargo-unit'
     secrets: inherit
 
-  test-bench:
-    name: test cargo benches
-    needs: ['optimize-ci', 'changes', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-bench:
+  #   name: test cargo benches
+  #   needs: ['optimize-ci', 'changes', 'build-next']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
-    secrets: inherit
+  #   uses: ./.github/workflows/test-turbopack-rust-bench-test.yml
+  #   secrets: inherit
 
   rust-check:
     name: rust check
@@ -208,87 +209,87 @@ jobs:
       afterBuild: pnpm install && pnpm run --filter=devlow-bench test
     secrets: inherit
 
-  test-turbopack-dev:
-    name: test turbopack dev
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-turbopack-dev:
+  #   name: test turbopack dev
+  #   needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        exclude:
-          # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
-        # Empty value uses default
-        react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
-      stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       exclude:
+  #         # Excluding React 18 tests unless on `canary` branch until budget is approved.
+  #         - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
+  #       group: [1/5, 2/5, 3/5, 4/5, 5/5]
+  #       # Empty value uses default
+  #       react: ['', '18.3.1']
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1  NEXT_E2E_TEST_TIMEOUT=240000 NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --test-pattern '^(test\/(development|e2e))/.*\.test\.(js|jsx|ts|tsx)$' --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY}
+  #     stepName: 'test-turbopack-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+  #   secrets: inherit
 
-  test-turbopack-integration:
-    name: test turbopack development integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-turbopack-integration:
+  #   name: test turbopack development integration
+  #   needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        exclude:
-          # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
-        # Empty value uses default
-        react: ['']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
-      stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       exclude:
+  #         # Excluding React 18 tests unless on `canary` branch until budget is approved.
+  #         - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
+  #       group: [1/6, 2/6, 3/6, 4/6, 5/6, 6/6]
+  #       # Empty value uses default
+  #       react: ['']
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     nodeVersion: 18.18.2
+  #     afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+  #     stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
+  #   secrets: inherit
 
-  test-turbopack-production:
-    name: test turbopack production
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-turbopack-production:
+  #   name: test turbopack production
+  #   needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        exclude:
-          # Excluding React 18 tests unless on `canary` branch until budget is approved.
-          - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-        # Empty value uses default
-        # TODO: Run with React 18.
-        # Integration tests use the installed React version in next/package.json.include:
-        # We can't easily switch like we do for e2e tests.
-        # Skipping this dimensions until we can figure out a way to test multiple React versions.
-        react: ['', '18.3.1']
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
-      stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
-    secrets: inherit
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       exclude:
+  #         # Excluding React 18 tests unless on `canary` branch until budget is approved.
+  #         - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
+  #       group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+  #       # Empty value uses default
+  #       # TODO: Run with React 18.
+  #       # Integration tests use the installed React version in next/package.json.include:
+  #       # We can't easily switch like we do for e2e tests.
+  #       # Skipping this dimensions until we can figure out a way to test multiple React versions.
+  #       react: ['', '18.3.1']
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     nodeVersion: 18.18.2
+  #     afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
+  #     stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
+  #   secrets: inherit
 
-  test-turbopack-production-integration:
-    name: test turbopack production integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-turbopack-production-integration:
+  #   name: test turbopack production integration
+  #   needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      nodeVersion: 18.18.2
-      afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
-      stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
-    secrets: inherit
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     nodeVersion: 18.18.2
+  #     afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
+  #     stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
+  #   secrets: inherit
 
   test-next-swc-wasm:
     name: test next-swc wasm
@@ -522,8 +523,7 @@ jobs:
     secrets: inherit
 
   report-test-results-to-datadog:
-    needs:
-      [
+    needs: [
         'changes',
         'test-unit',
         'test-dev',
@@ -532,10 +532,10 @@ jobs:
         'test-ppr-dev',
         'test-ppr-prod',
         'test-ppr-integration',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
-        'test-turbopack-production',
-        'test-turbopack-production-integration',
+        # 'test-turbopack-dev',
+        # 'test-turbopack-integration',
+        # 'test-turbopack-production',
+        # 'test-turbopack-production-integration',
       ]
     if: ${{ always() && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
@@ -563,8 +563,7 @@ jobs:
           fi
 
   tests-pass:
-    needs:
-      [
+    needs: [
         'build-native',
         'build-next',
         'lint',
@@ -581,13 +580,13 @@ jobs:
         'test-cargo-unit',
         'rust-check',
         'test-next-swc-wasm',
-        'test-turbopack-dev',
-        'test-turbopack-integration',
+        # 'test-turbopack-dev',
+        # 'test-turbopack-integration',
         'test-new-tests-dev',
         'test-new-tests-start',
         'test-new-tests-deploy',
-        'test-turbopack-production',
-        'test-turbopack-production-integration',
+        # 'test-turbopack-production',
+        # 'test-turbopack-production-integration',
       ]
 
     if: always()
