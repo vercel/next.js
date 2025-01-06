@@ -63,7 +63,7 @@ impl GetContentSourceContent for WrappedGetContentSourceContent {
                             "Rewrites for WrappedGetContentSourceContent are not implemented yet"
                         ),
                         RewriteType::Sources { sources } => RewriteType::Sources {
-                            sources: Vc::cell(
+                            sources: ResolvedVc::cell(
                                 sources
                                     .await?
                                     .iter()
