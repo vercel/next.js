@@ -1,0 +1,14 @@
+error: methods taking `self` are not supported with `operation`
+  --> tests/function/fail_operation_method_self_type.rs:13:28
+   |
+13 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
+   |                            ^^^^^^^^^^^^^^^^^^^^^^^
+
+error[E0307]: invalid `self` parameter type: `OperationVc<Foobar>`
+  --> tests/function/fail_operation_method_self_type.rs:13:34
+   |
+13 |     fn arbitrary_self_type(self: OperationVc<Self>) -> Vc<()> {
+   |                                  ^^^^^^^^^^^^^^^^^
+   |
+   = note: type of `self` must be `Self` or a type that dereferences to it
+   = help: consider changing to `self`, `&self`, `&mut self`, `self: Box<Self>`, `self: Rc<Self>`, `self: Arc<Self>`, or `self: Pin<P>` (where P is one of the previous types except `Self`)

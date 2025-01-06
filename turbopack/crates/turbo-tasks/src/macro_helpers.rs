@@ -52,6 +52,8 @@ where
 {
 }
 
+pub fn assert_argument_is_non_local_value<Argument: NonLocalValue>() {}
+
 #[macro_export]
 macro_rules! stringify_path {
     ($path:path) => {

@@ -17,7 +17,7 @@ var { r: __turbopack_require__, f: __turbopack_module_context__, i: __turbopack_
 {
 __turbopack_export_value__(__turbopack_worker_blob_url__([
   "output/b1abf_turbopack-tests_tests_snapshot_imports_ignore-comments_input_vercel_cjs_1ec8d7._.js",
-  "output/c5b29_tests_snapshot_imports_ignore-comments_input_vercel_cjs_75b6e3___092279.js"
+  "output/61784_tests_snapshot_imports_ignore-comments_input_vercel_cjs_75b6e3___ad9094.js"
 ]));
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/ignore-comments/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {

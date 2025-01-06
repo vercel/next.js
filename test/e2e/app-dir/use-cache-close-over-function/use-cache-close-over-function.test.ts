@@ -66,8 +66,7 @@ describe('use-cache-close-over-function', () => {
               '\n  [function fn]' +
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/client/page.tsx:8:2)' +
-              // TODO(veil): Method name should be "Page"
-              '\n    at createCachedFn (app/client/page.tsx:15:27)' +
+              '\n    at Page (app/client/page.tsx:15:27)' +
               '\n   6 |   }' +
               '\n   7 |' +
               '\n>  8 |   return async () => {' +
@@ -120,7 +119,7 @@ describe('use-cache-close-over-function', () => {
               '\n  [function fn]' +
               '\n   ^^^^^^^^^^^' +
               '\n    at createCachedFn (app/server/page.tsx:6:2)' +
-              '\n    at createCachedFn (app/server/page.tsx:12:23)' +
+              '\n    at eval (app/server/page.tsx:12:23)' +
               // TODO(veil): Should be source-mapped.
               '\n    at (rsc)'
       )

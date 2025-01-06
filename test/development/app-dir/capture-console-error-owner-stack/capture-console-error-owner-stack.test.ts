@@ -39,6 +39,7 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     const result = await getRedboxResult(browser)
 
+    // TODO(veil): Inconsistent cursor position for the "Page" frame
     if (process.env.TURBOPACK) {
       expect(result).toMatchInlineSnapshot(`
         {
@@ -65,11 +66,11 @@ describe('app-dir - capture-console-error-owner-stack', () => {
         {
           "callStacks": "button
         <anonymous> (0:0)
-        button
+        Page
         app/browser/event/page.js (5:6)",
           "count": 1,
           "description": "trigger an console <error>",
-          "source": "app/browser/event/page.js (7:17) @ error
+          "source": "app/browser/event/page.js (7:17) @ onClick
 
            5 |     <button
            6 |       onClick={() => {
@@ -90,44 +91,23 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
+    expect(result).toMatchInlineSnapshot(`
+       {
+         "callStacks": "",
+         "count": 1,
+         "description": "trigger an console.error in render",
+         "source": "app/browser/render/page.js (4:11) @ Page
 
-    if (process.env.TURBOPACK) {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "trigger an console.error in render",
-          "source": "app/browser/render/page.js (4:11) @ Page
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error('trigger an console.error in render')
-            |           ^
-          5 |   return <p>render</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
-      `)
-    } else {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "trigger an console.error in render",
-          "source": "app/browser/render/page.js (4:11) @ error
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error('trigger an console.error in render')
-            |           ^
-          5 |   return <p>render</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
-      `)
-    }
+         2 |
+         3 | export default function Page() {
+       > 4 |   console.error('trigger an console.error in render')
+           |           ^
+         5 |   return <p>render</p>
+         6 | }
+         7 |",
+         "title": "Console Error",
+       }
+    `)
   })
 
   it('should capture browser console error in render and dedupe when multi same errors logged', async () => {
@@ -136,44 +116,23 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "callStacks": "",
+        "count": 1,
+        "description": "trigger an console.error in render",
+        "source": "app/browser/render/page.js (4:11) @ Page
 
-    if (process.env.TURBOPACK) {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "trigger an console.error in render",
-          "source": "app/browser/render/page.js (4:11) @ Page
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error('trigger an console.error in render')
-            |           ^
-          5 |   return <p>render</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
-      `)
-    } else {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "trigger an console.error in render",
-          "source": "app/browser/render/page.js (4:11) @ error
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error('trigger an console.error in render')
-            |           ^
-          5 |   return <p>render</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
-      `)
-    }
+        2 |
+        3 | export default function Page() {
+      > 4 |   console.error('trigger an console.error in render')
+          |           ^
+        5 |   return <p>render</p>
+        6 | }
+        7 |",
+        "title": "Console Error",
+      }
+    `)
   })
 
   it('should capture server replay string error from console error', async () => {
@@ -182,44 +141,23 @@ describe('app-dir - capture-console-error-owner-stack', () => {
     await openRedbox(browser)
 
     const result = await getRedboxResult(browser)
+    expect(result).toMatchInlineSnapshot(`
+       {
+         "callStacks": "",
+         "count": 1,
+         "description": "ssr console error:client",
+         "source": "app/ssr/page.js (4:11) @ Page
 
-    if (process.env.TURBOPACK) {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "ssr console error:client",
-          "source": "app/ssr/page.js (4:11) @ Page
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error(
-            |           ^
-          5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
-          6 |   )
-          7 |   return <p>ssr</p>",
-          "title": "Console Error",
-        }
-      `)
-    } else {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "ssr console error:client",
-          "source": "app/ssr/page.js (4:11) @ error
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error(
-            |           ^
-          5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
-          6 |   )
-          7 |   return <p>ssr</p>",
-          "title": "Console Error",
-        }
-      `)
-    }
+         2 |
+         3 | export default function Page() {
+       > 4 |   console.error(
+           |           ^
+         5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
+         6 |   )
+         7 |   return <p>ssr</p>",
+         "title": "Console Error",
+       }
+    `)
   })
 
   it('should capture server replay error instance from console error', async () => {
@@ -229,43 +167,23 @@ describe('app-dir - capture-console-error-owner-stack', () => {
 
     const result = await getRedboxResult(browser)
 
-    if (process.env.TURBOPACK) {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "Error: page error",
-          "source": "app/ssr-error-instance/page.js (4:17) @ Page
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "callStacks": "",
+        "count": 1,
+        "description": "Error: page error",
+        "source": "app/ssr-error-instance/page.js (4:17) @ Page
 
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error(new Error('page error'))
-            |                 ^
-          5 |   return <p>ssr</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
-      `)
-    } else {
-      expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "Error: page error",
-          "source": "app/ssr-error-instance/page.js (4:17) @ Page
-
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error(new Error('page error'))
-            |                 ^
-          5 |   return <p>ssr</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
-      `)
-    }
+        2 |
+        3 | export default function Page() {
+      > 4 |   console.error(new Error('page error'))
+          |                 ^
+        5 |   return <p>ssr</p>
+        6 | }
+        7 |",
+        "title": "Console Error",
+      }
+    `)
   })
 
   it('should be able to capture rsc logged error', async () => {

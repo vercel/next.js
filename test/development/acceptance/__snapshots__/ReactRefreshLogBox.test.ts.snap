@@ -57,7 +57,7 @@ exports[`ReactRefreshLogBox default module init error not shown 1`] = `
 exports[`ReactRefreshLogBox default should show anonymous frames in stack trace 1`] = `
 "Array.map
 <anonymous> (0:0)
-map
+Page
 pages/index.js (2:13)"
 `;
 

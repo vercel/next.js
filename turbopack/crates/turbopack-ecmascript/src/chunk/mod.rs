@@ -75,8 +75,6 @@ fn availability_root_key() -> Vc<RcStr> {
 impl Chunk for EcmascriptChunk {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
-        let mut assets = Vec::new();
-
         let EcmascriptChunkContent { chunk_items, .. } = &*self.content.await?;
         let mut common_path = if let Some((chunk_item, _)) = chunk_items.first() {
             let path = chunk_item.asset_ident().path().to_resolved().await?;
@@ -86,7 +84,6 @@ impl Chunk for EcmascriptChunk {
         };
 
         // The included chunk items describe the chunk uniquely
-        let chunk_item_key = chunk_item_key();
         for &(chunk_item, _) in chunk_items.iter() {
             if let Some((common_path_vc, common_path_ref)) = common_path.as_mut() {
                 let path = chunk_item.asset_ident().path().await?;
@@ -100,13 +97,19 @@ impl Chunk for EcmascriptChunk {
                     *common_path_ref = (*common_path_vc).await?;
                 }
             }
-            assets.push((
-                chunk_item_key.to_resolved().await?,
-                chunk_item.content_ident().to_resolved().await?,
-            ));
         }
 
-        // The previous resolve loop is no longer needed since we're already using ResolvedVc
+        let chunk_item_key = chunk_item_key().to_resolved().await?;
+        let assets = chunk_items
+            .iter()
+            .map(|&(chunk_item, _)| async move {
+                Ok((
+                    chunk_item_key,
+                    chunk_item.content_ident().to_resolved().await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         let ident = AssetIdent {
             path: if let Some((common_path, _)) = common_path {

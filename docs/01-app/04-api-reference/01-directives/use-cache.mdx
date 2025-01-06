@@ -19,7 +19,7 @@ The `use cache` directive designates a component and/or a function to be cached.
 
 Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in your `next.config.ts` file:
 
-```ts filename="next.config.ts"
+```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
@@ -29,6 +29,17 @@ const nextConfig: NextConfig = {
 }
 
 export default nextConfig
+```
+
+```js filename="next.config.js" switcher
+/** @type {import('next').NextConfig} */
+const nextConfig = {
+  experimental: {
+    dynamicIO: true,
+  },
+}
+
+module.exports = nextConfig
 ```
 
 Then, you can use the `use cache` directive at the file, component, or function level:
@@ -137,7 +148,7 @@ You can use `use cache` at the component level to cache any fetches or computati
 
 The props are serialized and form part of the cache key, and the cache entry will be reused as long as the serialized props produce the same value in each instance.
 
-```tsx filename="app/components/bookings.tsx" highlight={2}
+```tsx filename="app/components/bookings.tsx" highlight={2} switcher
 export async function Bookings({ type = 'haircut' }: BookingsProps) {
   'use cache'
   async function getBookingsData() {
@@ -152,7 +163,7 @@ interface BookingsProps {
 }
 ```
 
-```jsx filename="app/components/bookings.js" highlight={2}
+```jsx filename="app/components/bookings.js" highlight={2} switcher
 export async function Bookings({ type = 'haircut' }) {
   'use cache'
   async function getBookingsData() {
@@ -295,7 +306,11 @@ async function CachedComponent({ performUpdate }) {
 ```tsx filename="app/ClientComponent.tsx" switcher
 'use client'
 
-export default function ClientComponent({ action }) {
+export default function ClientComponent({
+  action,
+}: {
+  action: () => Promise<void>
+}) {
   return <button onClick={action}>Update</button>
 }
 ```
