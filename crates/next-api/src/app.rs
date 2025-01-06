@@ -358,7 +358,7 @@ impl AppProject {
                 named_transitions: transitions,
                 transition_rules: vec![TransitionRule::new(
                     styles_rule_condition(),
-                    Vc::upcast(self.client_transition()),
+                    ResolvedVc::upcast(self.client_transition().to_resolved().await?),
                 )],
                 ..Default::default()
             }
@@ -411,7 +411,7 @@ impl AppProject {
                 named_transitions: transitions,
                 transition_rules: vec![TransitionRule::new(
                     styles_rule_condition(),
-                    Vc::upcast(self.client_transition()),
+                    ResolvedVc::upcast(self.client_transition().to_resolved().await?),
                 )],
                 ..Default::default()
             }
