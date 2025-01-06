@@ -112,6 +112,7 @@ export async function adapter(
 
     const normalizedKey = normalizeNextQueryParam(key)
     if (normalizedKey) {
+      requestUrl.searchParams.delete(normalizedKey)
       for (const val of value) {
         requestUrl.searchParams.append(normalizedKey, val)
       }
