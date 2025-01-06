@@ -1,7 +1,7 @@
 import type { DebugInfo } from '../../../../types'
-import { CopyButton } from '../copy-button'
-import { NodejsInspectorCopyButton } from '../nodejs-inspector'
+import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { noop as css } from '../../helpers/noop-template'
+import { CopyCallStackButton } from './copy-call-stack-button'
 
 type ToolButtonsGroupProps = {
   error: Error | undefined
@@ -11,14 +11,8 @@ type ToolButtonsGroupProps = {
 export function ToolButtonsGroup({ error, debugInfo }: ToolButtonsGroupProps) {
   return (
     <span className="tool-buttons-group">
-      <CopyButton
-        data-nextjs-data-runtime-error-copy-stack
-        actionLabel="Copy error stack"
-        successLabel="Copied"
-        content={error?.stack || ''}
-        disabled={!error?.stack}
-      />
-      <NodejsInspectorCopyButton
+      <CopyCallStackButton error={error} />
+      <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
     </span>

@@ -1,4 +1,4 @@
-import { CopyButton } from './copy-button'
+import { CopyButton } from '../copy-button'
 
 // Inline this helper to avoid widely used across the codebase,
 // as for this feature the Chrome detector doesn't need to be super accurate.
@@ -75,7 +75,7 @@ function NodeJsDisabledIcon(props: any) {
 const label =
   'Learn more about enabling Node.js inspector for server code with Chrome DevTools'
 
-export function NodejsInspectorCopyButton({
+export function NodejsInspectorButton({
   devtoolsFrontendUrl,
 }: {
   devtoolsFrontendUrl: string | undefined
