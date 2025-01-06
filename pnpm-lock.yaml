@@ -856,6 +856,12 @@ importers:
       '@next/env':
         specifier: 15.1.1-canary.25
         version: link:../next-env
+      '@rspack/core':
+        specifier: npm:@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333
+        version: '@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15)'
+      '@rspack/plugin-react-refresh':
+        specifier: 1.0.1
+        version: 1.0.1(react-refresh@0.12.0)
       '@swc/counter':
         specifier: 0.1.3
         version: 0.1.3
@@ -868,6 +874,9 @@ importers:
       caniuse-lite:
         specifier: 1.0.30001579
         version: 1.0.30001579
+      enhanced-resolve:
+        specifier: 5.17.1
+        version: 5.17.1
       postcss:
         specifier: 8.4.31
         version: 8.4.31
@@ -1002,12 +1011,6 @@ importers:
       '@playwright/test':
         specifier: 1.41.2
         version: 1.41.2
-      '@rspack/core':
-        specifier: npm:@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333
-        version: '@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15)'
-      '@rspack/plugin-react-refresh':
-        specifier: 1.0.1
-        version: 1.0.1(react-refresh@0.12.0)
       '@storybook/addon-essentials':
         specifier: ^8.4.7
         version: 8.4.7(@types/react@19.0.0)(storybook@8.4.7(prettier@3.3.3))
@@ -1260,9 +1263,6 @@ importers:
       edge-runtime:
         specifier: 4.0.1
         version: 4.0.1
-      enhanced-resolve:
-        specifier: 5.17.1
-        version: 5.17.1
       events:
         specifier: 3.3.0
         version: 3.3.0
