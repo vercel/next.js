@@ -21,7 +21,7 @@ use crate::{
 /// Makes code changes to remove export/import declarations and places the
 /// expr/decl in a normal statement. Unnamed expr/decl will be named with the
 /// magic identifier "export default"
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct EsmModuleItem {
     pub path: ResolvedVc<AstPath>,

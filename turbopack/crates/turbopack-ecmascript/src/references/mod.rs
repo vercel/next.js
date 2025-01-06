@@ -230,12 +230,12 @@ impl AnalyzeEcmascriptModuleResultBuilder {
     }
 
     /// Adds a codegen to the analysis result.
-    pub fn add_code_gen<C>(&mut self, code_gen: Vc<C>)
+    pub fn add_code_gen<C>(&mut self, code_gen: ResolvedVc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateable>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateable(Vc::upcast(code_gen)));
+            .push(CodeGen::CodeGenerateable(ResolvedVc::upcast(code_gen)));
     }
 
     /// Adds a codegen to the analysis result.
@@ -274,13 +274,14 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Builds the final analysis result. Resolves internal Vcs for performance
-    /// in using them.
+    /// Builds the final analysis result.
     pub async fn build(
         mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let bindings = EsmBindings::new(take(&mut self.bindings));
+        let bindings = EsmBindings::new(take(&mut self.bindings))
+            .to_resolved()
+            .await?;
         if !bindings.await?.bindings.is_empty() {
             self.add_code_gen(bindings);
         }
@@ -301,14 +302,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .into_iter()
             .flatten()
             .collect();
-        for c in self.code_gens.iter_mut() {
-            match c {
-                CodeGen::CodeGenerateable(c) => {
-                    *c = c.resolve().await?;
-                }
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(..) => {}
-            }
-        }
 
         let source_map = if let Some(source_map) = self.source_map {
             source_map
@@ -898,9 +891,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
         match effect {
             Effect::Unreachable { start_ast_path } => {
-                analysis.add_code_gen(Unreachable::new(
-                    AstPathRange::StartAfter(start_ast_path.to_vec()).cell(),
-                ));
+                analysis.add_code_gen(
+                    Unreachable::new(AstPathRange::StartAfter(start_ast_path.to_vec()).cell())
+                        .to_resolved()
+                        .await?,
+                );
             }
             Effect::Conditional {
                 condition,
@@ -919,16 +914,24 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
                 macro_rules! inactive {
                     ($block:ident) => {
-                        analysis.add_code_gen(Unreachable::new($block.range.clone().cell()));
+                        analysis.add_code_gen(
+                            Unreachable::new($block.range.clone().cell())
+                                .to_resolved()
+                                .await?,
+                        );
                     };
                 }
                 macro_rules! condition {
                     ($expr:expr) => {
                         if !condition_has_side_effects {
-                            analysis.add_code_gen(ConstantCondition::new(
-                                Value::new($expr),
-                                Vc::cell(condition_ast_path.to_vec()),
-                            ));
+                            analysis.add_code_gen(
+                                ConstantCondition::new(
+                                    Value::new($expr),
+                                    Vc::cell(condition_ast_path.to_vec()),
+                                )
+                                .to_resolved()
+                                .await?,
+                            );
                         }
                     };
                 }
@@ -1234,10 +1237,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 if analysis_state.first_import_meta {
                     analysis_state.first_import_meta = false;
-                    analysis.add_code_gen(ImportMetaBinding::new(source.ident().path()));
+                    analysis.add_code_gen(
+                        ImportMetaBinding::new(source.ident().path())
+                            .to_resolved()
+                            .await?,
+                    );
                 }
 
-                analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)));
+                analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)).to_resolved().await?);
             }
         }
     }
@@ -1509,9 +1516,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new_promise(Vc::cell(
-                            ast_path.to_vec(),
-                        )));
+                        analysis.add_code_gen(
+                            DynamicExpression::new_promise(Vc::cell(ast_path.to_vec()))
+                                .to_resolved()
+                                .await?,
+                        );
                         return Ok(());
                     }
                 }
@@ -1553,7 +1562,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(Vc::cell(ast_path.to_vec())));
+                        analysis.add_code_gen(
+                            DynamicExpression::new(Vc::cell(ast_path.to_vec()))
+                                .to_resolved()
+                                .await?,
+                        );
                         return Ok(());
                     }
                 }
@@ -1607,7 +1620,11 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         ),
                     );
                     if ignore_dynamic_requests {
-                        analysis.add_code_gen(DynamicExpression::new(Vc::cell(ast_path.to_vec())));
+                        analysis.add_code_gen(
+                            DynamicExpression::new(Vc::cell(ast_path.to_vec()))
+                                .to_resolved()
+                                .await?,
+                        );
                         return Ok(());
                     }
                 }
@@ -2229,7 +2246,7 @@ async fn handle_member(
                 CjsRequireCacheAccess {
                     path: ResolvedVc::cell(ast_path.to_vec()),
                 }
-                .cell(),
+                .resolved_cell(),
             );
         }
         _ => {}
@@ -2319,16 +2336,18 @@ async fn handle_free_var_reference(
         ),
 
         FreeVarReference::Value(value) => {
-            analysis.add_code_gen(ConstantValue::new(
-                Value::new(value.clone()),
-                Vc::cell(ast_path.to_vec()),
-            ));
+            analysis.add_code_gen(
+                ConstantValue::new(Value::new(value.clone()), Vc::cell(ast_path.to_vec()))
+                    .to_resolved()
+                    .await?,
+            );
         }
         FreeVarReference::Ident(value) => {
-            analysis.add_code_gen(IdentReplacement::new(
-                value.clone(),
-                Vc::cell(ast_path.to_vec()),
-            ));
+            analysis.add_code_gen(
+                IdentReplacement::new(value.clone(), Vc::cell(ast_path.to_vec()))
+                    .to_resolved()
+                    .await?,
+            );
         }
         FreeVarReference::EcmaScriptModule {
             request,
@@ -2407,70 +2426,90 @@ async fn analyze_amd_define(
             .await?;
         }
         [JsValue::Constant(id), JsValue::Function(..)] if id.as_str().is_some() => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                ResolvedVc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Function,
-                issue_source(*source, span).to_resolved().await?,
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    ResolvedVc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Function,
+                    issue_source(*source, span).to_resolved().await?,
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [JsValue::Constant(id), _] if id.as_str().is_some() => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                ResolvedVc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Unknown,
-                issue_source(*source, span).to_resolved().await?,
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    ResolvedVc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Unknown,
+                    issue_source(*source, span).to_resolved().await?,
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [JsValue::Function(..)] => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                ResolvedVc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Function,
-                issue_source(*source, span).to_resolved().await?,
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    ResolvedVc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Function,
+                    issue_source(*source, span).to_resolved().await?,
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [JsValue::Object { .. }] => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![],
-                origin,
-                ResolvedVc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Value,
-                issue_source(*source, span).to_resolved().await?,
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![],
+                    origin,
+                    ResolvedVc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Value,
+                    issue_source(*source, span).to_resolved().await?,
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         [_] => {
-            analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-                vec![
-                    AmdDefineDependencyElement::Require,
-                    AmdDefineDependencyElement::Exports,
-                    AmdDefineDependencyElement::Module,
-                ],
-                origin,
-                ResolvedVc::cell(ast_path.to_vec()),
-                AmdDefineFactoryType::Unknown,
-                issue_source(*source, span).to_resolved().await?,
-                in_try,
-            ));
+            analysis.add_code_gen(
+                AmdDefineWithDependenciesCodeGen::new(
+                    vec![
+                        AmdDefineDependencyElement::Require,
+                        AmdDefineDependencyElement::Exports,
+                        AmdDefineDependencyElement::Module,
+                    ],
+                    origin,
+                    ResolvedVc::cell(ast_path.to_vec()),
+                    AmdDefineFactoryType::Unknown,
+                    issue_source(*source, span).to_resolved().await?,
+                    in_try,
+                )
+                .to_resolved()
+                .await?,
+            );
         }
         _ => {
             handler.span_err_with_code(
@@ -2551,14 +2590,18 @@ async fn analyze_amd_define_with_deps(
         );
     }
 
-    analysis.add_code_gen(AmdDefineWithDependenciesCodeGen::new(
-        requests,
-        origin,
-        ResolvedVc::cell(ast_path.to_vec()),
-        AmdDefineFactoryType::Function,
-        issue_source(*source, span).to_resolved().await?,
-        in_try,
-    ));
+    analysis.add_code_gen(
+        AmdDefineWithDependenciesCodeGen::new(
+            requests,
+            origin,
+            ResolvedVc::cell(ast_path.to_vec()),
+            AmdDefineFactoryType::Function,
+            issue_source(*source, span).to_resolved().await?,
+            in_try,
+        )
+        .to_resolved()
+        .await?,
+    );
 
     Ok(())
 }
@@ -2966,8 +3009,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportAll,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
-        self.analysis.add_code_gen(EsmModuleItem::new(path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
+        self.analysis
+            .add_code_gen(EsmModuleItem { path }.resolved_cell());
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -2976,7 +3020,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast NamedExport,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         // We create mutable exports for fake ESMs generated by module splitting
         let is_fake_esm = export
             .with
@@ -3032,7 +3076,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
 
-        self.analysis.add_code_gen(EsmModuleItem::new(path));
+        self.analysis
+            .add_code_gen(EsmModuleItem { path }.resolved_cell());
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3045,8 +3090,12 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             self.esm_exports
                 .insert(name.clone(), EsmExport::LocalBinding(name, false));
         });
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+        self.analysis.add_code_gen(
+            EsmModuleItem {
+                path: ResolvedVc::cell(as_parent_path(ast_path)),
+            }
+            .resolved_cell(),
+        );
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3059,8 +3108,12 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             "default".into(),
             EsmExport::LocalBinding(magic_identifier::mangle("default export").into(), false),
         );
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+        self.analysis.add_code_gen(
+            EsmModuleItem {
+                path: ResolvedVc::cell(as_parent_path(ast_path)),
+            }
+            .resolved_cell(),
+        );
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3086,8 +3139,12 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 // ignore
             }
         }
-        self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+        self.analysis.add_code_gen(
+            EsmModuleItem {
+                path: ResolvedVc::cell(as_parent_path(ast_path)),
+            }
+            .resolved_cell(),
+        );
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3096,7 +3153,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         import: &'ast ImportDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         let src = import.src.value.to_string();
         import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
@@ -3132,7 +3189,8 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 }
             }
         }
-        self.analysis.add_code_gen(EsmModuleItem::new(path));
+        self.analysis
+            .add_code_gen(EsmModuleItem { path }.resolved_cell());
     }
 
     fn visit_var_declarator<'ast: 'r, 'r>(
