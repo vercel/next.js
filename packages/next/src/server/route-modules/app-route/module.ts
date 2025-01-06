@@ -96,6 +96,10 @@ export class WrappedNextRouterError {
  */
 export type AppRouteModule = typeof import('../../../build/templates/app-route')
 
+export type AppRouteSharedContext = {
+  buildId: string
+}
+
 /**
  * AppRouteRouteHandlerContext is the context that is passed to the route
  * handler for app routes.
@@ -105,6 +109,7 @@ export interface AppRouteRouteHandlerContext extends RouteModuleHandleContext {
     Pick<RenderOptsPartial, 'onInstrumentationRequestError'> &
     CollectedCacheInfo
   prerenderManifest: DeepReadonly<PrerenderManifest>
+  sharedContext: AppRouteSharedContext
 }
 
 type CollectedCacheInfo = {
@@ -597,7 +602,14 @@ export class AppRouteRouteModule extends RouteModule<
         workStore.revalidatedTags || []
       ),
       ...Object.values(workStore.pendingRevalidates || {}),
-    ])
+    ]).finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log(
+          'pending revalidates promise finished for:',
+          requestStore.url
+        )
+      }
+    })
 
     if (prerenderStore) {
       context.renderOpts.collectedTags = prerenderStore.tags?.join(',')
@@ -637,6 +649,7 @@ export class AppRouteRouteModule extends RouteModule<
       fallbackRouteParams: null,
       page: this.definition.page,
       renderOpts: context.renderOpts,
+      buildId: context.sharedContext.buildId,
     }
 
     // Add the fetchCache option to the renderOpts.

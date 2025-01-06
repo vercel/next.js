@@ -275,7 +275,8 @@ export interface StackFrame {
 }
 export declare function projectTraceSource(
   project: { __napiType: 'Project' },
-  frame: StackFrame
+  frame: StackFrame,
+  currentDirectoryFileUrl: string
 ): Promise<StackFrame | null>
 export declare function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
