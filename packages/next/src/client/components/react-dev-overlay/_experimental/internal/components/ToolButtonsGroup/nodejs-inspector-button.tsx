@@ -87,7 +87,7 @@ export function NodejsInspectorButton({
       <a
         title={label}
         aria-label={label}
-        className="nextjs-data-runtime-error-inspect-link"
+        className="nodejs-inspector-button"
         href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code`}
         target="_blank"
         rel="noopener noreferrer"
@@ -103,6 +103,7 @@ export function NodejsInspectorButton({
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-devtools-url
+      className="nodejs-inspector-button"
       actionLabel={'Copy Chrome DevTools URL'}
       successLabel="Copied"
       content={content}

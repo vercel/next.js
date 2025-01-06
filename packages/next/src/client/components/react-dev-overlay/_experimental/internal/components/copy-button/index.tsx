@@ -183,7 +183,7 @@ export function CopyButton({
       aria-disabled={isDisabled}
       disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-button
-      className={`nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
+      className={`${props.className || ''} nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
       onClick={() => {
         if (!isDisabled) {
           copy()

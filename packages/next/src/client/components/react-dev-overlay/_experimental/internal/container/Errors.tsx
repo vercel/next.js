@@ -410,11 +410,6 @@ export const styles = css`
     align-items: center;
     justify-content: space-between;
   }
-  .nextjs-data-runtime-error-inspect-link,
-  .nextjs-data-runtime-error-inspect-link:hover {
-    color: inherit;
-  }
-
   .error-overlay-notes-container {
     padding: var(--size-4);
     padding-top: 0;

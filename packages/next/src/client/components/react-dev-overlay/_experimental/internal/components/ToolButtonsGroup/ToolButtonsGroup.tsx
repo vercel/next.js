@@ -25,8 +25,8 @@ export const styles = css`
     gap: var(--size-1_5);
   }
 
-  .tool-buttons-group a,
-  .tool-buttons-group button {
+  .nodejs-inspector-button,
+  .copy-call-stack-button {
     display: flex;
     justify-content: center;
     align-items: center;
@@ -51,11 +51,11 @@ export const styles = css`
     &:active {
       background: var(--color-gray-alpha-200);
     }
-  }
 
-  .tool-buttons-group button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
   }
 
   .tool-button-icon {
