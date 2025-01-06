@@ -1028,15 +1028,7 @@ importers:
         version: 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react-webpack5':
         specifier: ^8.4.7
-<<<<<<< HEAD
-<<<<<<< HEAD
-        version: 8.4.7(@rspack/core@1.1.8(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-=======
-        version: 8.4.7(@rspack/core@..+rspack+packages+rspack)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
->>>>>>> 34ccaff6c5 (chore: use rspack)
-=======
-        version: 8.4.7(@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
->>>>>>> 573a09449d (chore: try ci test)
+        version: 8.4.7(@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/test':
         specifier: ^8.4.7
         version: 8.4.7(storybook@8.4.7(prettier@3.3.3))
@@ -20849,23 +20841,11 @@ snapshots:
       react-dom: 19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102)
       storybook: 8.4.7(prettier@3.3.3)
 
-<<<<<<< HEAD
-<<<<<<< HEAD
-  '@storybook/react-webpack5@8.4.7(@rspack/core@1.1.8(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
-    dependencies:
-      '@storybook/builder-webpack5': 8.4.7(@rspack/core@1.1.8(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-      '@storybook/preset-react-webpack': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-      '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-=======
-  '@storybook/react-webpack5@8.4.7(@rspack/core@..+rspack+packages+rspack)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
-=======
-  '@storybook/react-webpack5@8.4.7(@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
->>>>>>> 573a09449d (chore: try ci test)
+  '@storybook/react-webpack5@8.4.7(@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
       '@storybook/builder-webpack5': 8.4.7(@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-      '@storybook/preset-react-webpack': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
-      '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-518d06d2-20241219(react@19.1.0-canary-518d06d2-20241219))(react@19.1.0-canary-518d06d2-20241219)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
->>>>>>> 34ccaff6c5 (chore: use rspack)
+      '@storybook/preset-react-webpack': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+      '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102))(react@19.1.0-canary-3b009b4c-20250102)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@types/node': 20.17.6
       react: 19.1.0-canary-3b009b4c-20250102
       react-dom: 19.1.0-canary-3b009b4c-20250102(react@19.1.0-canary-3b009b4c-20250102)
