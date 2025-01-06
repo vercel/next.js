@@ -6,8 +6,12 @@ function interopDefault(mod) {
 
 async function importPlugin(plugin, projectRoot) {
   if (Array.isArray(plugin) && typeof plugin[0] === 'string') {
+    const path = require.resolve(plugin[0], { paths: [projectRoot] })
     plugin[0] = interopDefault(
-      await import(require.resolve(plugin[0], { paths: [projectRoot] }))
+      // "use pathToFileUrl to make esm import()s work with absolute windows paths":
+      // on windows import("C:\\path\\to\\file") is not valid, so we need to use file:// URLs
+      // https://github.com/vercel/next.js/commit/fbf9e12de095e0237d4ba4aa6139d9757bd20be9
+      await import((process.platform === 'win32') ? pathToFileURL(path) : path)
     )
   }
   return plugin
