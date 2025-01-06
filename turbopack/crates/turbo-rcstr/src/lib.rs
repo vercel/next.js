@@ -80,12 +80,6 @@ impl RcStr {
         self.unsafe_data.tag() & TAG_MASK
     }
 
-    /// Return true if this is a dynamic Atom.
-    #[inline(always)]
-    fn is_dynamic(&self) -> bool {
-        self.tag() == DYNAMIC_TAG
-    }
-
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.tag() {
@@ -263,7 +257,7 @@ impl Eq for RcStr {}
 
 impl PartialOrd for RcStr {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        self.as_str().partial_cmp(other.as_str())
+        Some(self.cmp(other))
     }
 }
 

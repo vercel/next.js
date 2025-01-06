@@ -80,11 +80,6 @@ impl TaggedValue {
     }
 
     #[inline(always)]
-    pub fn hash(&self) -> u64 {
-        self.get_value() as _
-    }
-
-    #[inline(always)]
     pub fn get_ptr(&self) -> *const c_void {
         #[cfg(any(
             target_pointer_width = "32",
