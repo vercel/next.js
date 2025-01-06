@@ -13,6 +13,7 @@ use next_core::{
         find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
         ServerEntries, VisitedClientReferenceGraphNodes,
     },
+    next_dynamic::NextDynamicEntryModule,
     next_manifests::ActionLayer,
 };
 use petgraph::{
@@ -39,7 +40,7 @@ use turbopack_core::{
 
 use crate::{
     client_references::{map_client_references, ClientReferenceMapType, ClientReferencesSet},
-    dynamic_imports::{map_next_dynamic, DynamicImports},
+    dynamic_imports::{map_next_dynamic, DynamicImportEntries, DynamicImportEntriesMapType},
     project::Project,
     server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
 };
@@ -169,7 +170,7 @@ struct SingleModuleGraphBuilderEdge {
 
 /// The chunking type that occurs most often, is handled more efficiently by not creating
 /// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
-const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::Parallel;
+const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
 
 struct SingleModuleGraphBuilder {}
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
@@ -588,22 +589,24 @@ async fn get_module_graph_for_endpoint(
     };
 
     // ast-grep-ignore: to-resolved-in-loop
-    for module in server_component_entries
-        .iter()
-        .map(|m| ResolvedVc::upcast::<Box<dyn Module>>(*m))
-    {
+    for module in server_component_entries.iter() {
         let graph = SingleModuleGraph::new_with_entries_visited(
             *entry,
-            vec![*module],
+            vec![Vc::upcast(**module)],
             Vc::cell(visited_modules.clone()),
         )
         .to_resolved()
         .await?;
-        visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
         graphs.push(graph);
+        let is_layout = module.server_path().file_stem().await?.as_deref() == Some("layout");
+        if is_layout {
+            // Only propagate the visited_modules of the parent layout(s), not across siblings such
+            // as loading.js and page.js.
+            visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
+        }
     }
 
-    // The previous iterations above (might) have added the entry node, but not actually visited it.
+    // Any previous iteration above would have added the entry node, but not actually visited it.
     visited_modules.remove(&entry);
     let graph = SingleModuleGraph::new_with_entries_visited(
         *entry,
@@ -621,9 +624,17 @@ async fn get_module_graph_for_endpoint(
 pub struct NextDynamicGraph {
     is_single_page: bool,
     graph: ResolvedVc<SingleModuleGraph>,
-    /// RSC/SSR importer -> dynamic imports (specifier and client module)
-    data: ResolvedVc<DynamicImports>,
+    /// list of NextDynamicEntryModules
+    data: ResolvedVc<DynamicImportEntries>,
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct DynamicImportEntriesWithImporter(
+    pub  Vec<(
+        ResolvedVc<NextDynamicEntryModule>,
+        Option<ClientReferenceType>,
+    )>,
+);
 
 #[turbo_tasks::value_impl]
 impl NextDynamicGraph {
@@ -631,13 +642,8 @@ impl NextDynamicGraph {
     pub async fn new_with_entries(
         graph: ResolvedVc<SingleModuleGraph>,
         is_single_page: bool,
-        client_asset_context: Vc<Box<dyn AssetContext>>,
     ) -> Result<Vc<Self>> {
-        let mapped = map_next_dynamic(*graph, client_asset_context);
-        mapped.strongly_consistent().await?;
-        // TODO this can be removed once next/dynamic collection is moved to the transition instead
-        // of AST traversal
-        let _ = mapped.take_collectibles::<Box<dyn Issue>>();
+        let mapped = map_next_dynamic(*graph);
 
         // TODO shrink graph here, using the information from
         //  - `mapped` (which lists the relevant nodes)
@@ -675,26 +681,71 @@ impl NextDynamicGraph {
     pub async fn get_next_dynamic_imports_for_endpoint(
         &self,
         entry: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Vc<DynamicImports>> {
+    ) -> Result<Vc<DynamicImportEntriesWithImporter>> {
         let span = tracing::info_span!("collect next/dynamic imports for endpoint");
         async move {
-            if self.is_single_page {
-                // The graph contains the endpoint (= `entry`) only, no need to filter.
-                Ok(*self.data)
-            } else {
-                // The graph contains the whole app, traverse and collect all reachable imports.
-                let graph = &*self.graph.await?;
-                let data = &self.data.await?;
+            let data = &*self.data.await?;
+            let graph = &*self.graph.await?;
 
-                let mut result = FxIndexMap::default();
-                graph.traverse_from_entry(entry, |node| {
-                    let module = node.module;
-                    if let Some(node_data) = data.get(&module) {
-                        result.insert(module, node_data.clone());
-                    }
-                })?;
-                Ok(Vc::cell(result))
+            #[derive(Clone, PartialEq, Eq)]
+            enum VisitState {
+                Entry,
+                InClientReference(ClientReferenceType),
             }
+
+            let mut result = vec![];
+
+            // module -> the client reference entry (if any)
+            let mut state_map = HashMap::new();
+            graph.traverse_edges_from_entry(entry, |(parent_node, node)| {
+                let module = node.module;
+                let Some(parent_node) = parent_node else {
+                    state_map.insert(module, VisitState::Entry);
+                    return GraphTraversalAction::Continue;
+                };
+                let parent_module = parent_node.module;
+
+                let module_type = data.get(&module);
+                let parent_state = state_map.get(&parent_module).unwrap().clone();
+                let parent_client_reference =
+                    if let Some(DynamicImportEntriesMapType::ClientReference(module)) = module_type
+                    {
+                        Some(ClientReferenceType::EcmascriptClientReference {
+                            parent_module,
+                            module: *module,
+                        })
+                    } else if let VisitState::InClientReference(ty) = parent_state {
+                        Some(ty)
+                    } else {
+                        None
+                    };
+
+                match module_type {
+                    Some(DynamicImportEntriesMapType::DynamicEntry(dynamic_entry)) => {
+                        result.push((*dynamic_entry, parent_client_reference));
+
+                        state_map.insert(module, parent_state);
+                        GraphTraversalAction::Skip
+                    }
+                    Some(DynamicImportEntriesMapType::ClientReference(client_reference)) => {
+                        state_map.insert(
+                            module,
+                            VisitState::InClientReference(
+                                ClientReferenceType::EcmascriptClientReference {
+                                    parent_module,
+                                    module: *client_reference,
+                                },
+                            ),
+                        );
+                        GraphTraversalAction::Continue
+                    }
+                    None => {
+                        state_map.insert(module, parent_state);
+                        GraphTraversalAction::Continue
+                    }
+                }
+            })?;
+            Ok(Vc::cell(result))
         }
         .instrument(span)
         .await
@@ -931,12 +982,13 @@ pub struct ReducedGraphs {
 
 #[turbo_tasks::value_impl]
 impl ReducedGraphs {
-    /// Returns the dynamic imports in RSC and SSR modules for the given endpoint.
+    /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
+    /// given endpoint.
     #[turbo_tasks::function]
     pub async fn get_next_dynamic_imports_for_endpoint(
         &self,
         entry: Vc<Box<dyn Module>>,
-    ) -> Result<Vc<DynamicImports>> {
+    ) -> Result<Vc<DynamicImportEntriesWithImporter>> {
         let span = tracing::info_span!("collect all next/dynamic imports for endpoint");
         async move {
             if let [graph] = &self.next_dynamic[..] {
@@ -950,8 +1002,8 @@ impl ReducedGraphs {
                         Ok(graph
                             .get_next_dynamic_imports_for_endpoint(entry)
                             .await?
-                            .iter()
-                            .map(|(k, v)| (*k, v.clone()))
+                            .into_iter()
+                            .map(|(k, v)| (*k, *v))
                             // TODO remove this collect and return an iterator instead
                             .collect::<Vec<_>>())
                     })
@@ -1046,12 +1098,10 @@ impl ReducedGraphs {
     }
 }
 
-#[turbo_tasks::function]
-async fn get_reduced_graphs_for_endpoint_inner(
-    project: Vc<Project>,
+#[turbo_tasks::function(operation)]
+async fn get_reduced_graphs_for_endpoint_inner_operation(
+    project: ResolvedVc<Project>,
     entry: ResolvedVc<Box<dyn Module>>,
-    // TODO should this happen globally or per endpoint? Do they all have the same context?
-    client_asset_context: Vc<Box<dyn AssetContext>>,
 ) -> Result<Vc<ReducedGraphs>> {
     let (is_single_page, graphs) = match &*project.next_mode().await? {
         NextMode::Development => (
@@ -1078,10 +1128,7 @@ async fn get_reduced_graphs_for_endpoint_inner(
     let next_dynamic = async {
         graphs
             .iter()
-            .map(|graph| {
-                NextDynamicGraph::new_with_entries(**graph, is_single_page, client_asset_context)
-                    .to_resolved()
-            })
+            .map(|graph| NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved())
             .try_join()
             .await
     }
@@ -1125,17 +1172,16 @@ async fn get_reduced_graphs_for_endpoint_inner(
 /// references, etc).
 #[turbo_tasks::function]
 pub async fn get_reduced_graphs_for_endpoint(
-    project: Vc<Project>,
-    entry: Vc<Box<dyn Module>>,
-    // TODO should this happen globally or per endpoint? Do they all have the same context?
-    client_asset_context: Vc<Box<dyn AssetContext>>,
+    project: ResolvedVc<Project>,
+    entry: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<ReducedGraphs>> {
     // TODO get rid of this function once everything inside of
     // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result = get_reduced_graphs_for_endpoint_inner(project, entry, client_asset_context);
+    let result_op = get_reduced_graphs_for_endpoint_inner_operation(project, entry);
+    let result_vc = result_op.connect();
     if project.next_mode().await?.is_production() {
-        result.strongly_consistent().await?;
-        let _issues = result.take_collectibles::<Box<dyn Issue>>();
+        result_vc.strongly_consistent().await?;
+        let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
     }
-    Ok(result)
+    Ok(result_vc)
 }

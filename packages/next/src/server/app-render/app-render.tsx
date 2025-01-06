@@ -196,7 +196,12 @@ export type GetDynamicParamFromSegment = (
 
 export type GenerateFlight = typeof generateDynamicFlightRenderResult
 
+export type AppSharedContext = {
+  buildId: string
+}
+
 export type AppRenderContext = {
+  sharedContext: AppSharedContext
   workStore: WorkStore
   url: ReturnType<typeof parseRelativeUrl>
   componentMod: AppPageModule
@@ -499,13 +504,13 @@ async function generateDynamicRSCPayload(
     return {
       a: options.actionResult,
       f: flightData,
-      b: ctx.renderOpts.buildId,
+      b: ctx.sharedContext.buildId,
     }
   }
 
   // Otherwise, it's a regular RSC response.
   return {
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
   }
@@ -812,7 +817,7 @@ async function getRSCPayload(
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
@@ -924,7 +929,7 @@ async function getErrorRSCPayload(
     ctx.renderOpts.experimental.isRoutePPREnabled === true
 
   return {
-    b: ctx.renderOpts.buildId,
+    b: ctx.sharedContext.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     m: undefined,
@@ -1066,7 +1071,8 @@ async function renderToHTMLOrFlightImpl(
   requestEndedState: { ended?: boolean },
   postponedState: PostponedState | null,
   implicitTags: Array<string>,
-  serverComponentsHmrCache: ServerComponentsHmrCache | undefined
+  serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
+  sharedContext: AppSharedContext
 ) {
   const isNotFoundPath = pagePath === '/404'
   if (isNotFoundPath) {
@@ -1233,6 +1239,7 @@ async function renderToHTMLOrFlightImpl(
     isNotFoundPath,
     nonce,
     res,
+    sharedContext,
   }
 
   getTracer().setRootSpanAttribute('next.route', pagePath)
@@ -1298,13 +1305,23 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.revalidatedTags
     ) {
-      options.waitUntil = Promise.all([
+      const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
           workStore.revalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
-      ])
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     if (response.collectedTags) {
@@ -1455,13 +1472,23 @@ async function renderToHTMLOrFlightImpl(
       workStore.pendingRevalidateWrites ||
       workStore.revalidatedTags
     ) {
-      options.waitUntil = Promise.all([
+      const pendingPromise = Promise.all([
         workStore.incrementalCache?.revalidateTag(
           workStore.revalidatedTags || []
         ),
         ...Object.values(workStore.pendingRevalidates || {}),
         ...(workStore.pendingRevalidateWrites || []),
-      ])
+      ]).finally(() => {
+        if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+          console.log('pending revalidates promise finished for:', url)
+        }
+      })
+
+      if (renderOpts.waitUntil) {
+        renderOpts.waitUntil(pendingPromise)
+      } else {
+        options.waitUntil = pendingPromise
+      }
     }
 
     // Create the new render result for the response.
@@ -1477,7 +1504,8 @@ export type AppPageRender = (
   fallbackRouteParams: FallbackRouteParams | null,
   renderOpts: RenderOpts,
   serverComponentsHmrCache: ServerComponentsHmrCache | undefined,
-  isDevWarmup: boolean
+  isDevWarmup: boolean,
+  sharedContext: AppSharedContext
 ) => Promise<RenderResult<AppPageRenderResultMetadata>>
 
 export const renderToHTMLOrFlight: AppPageRender = (
@@ -1488,7 +1516,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
   fallbackRouteParams,
   renderOpts,
   serverComponentsHmrCache,
-  isDevWarmup
+  isDevWarmup,
+  sharedContext
 ) => {
   if (!req.url) {
     throw new Error('Invalid URL')
@@ -1545,6 +1574,7 @@ export const renderToHTMLOrFlight: AppPageRender = (
     requestEndedState,
     // @TODO move to workUnitStore of type Request
     isPrefetchRequest,
+    buildId: sharedContext.buildId,
   })
 
   return workAsyncStorage.run(
@@ -1563,7 +1593,8 @@ export const renderToHTMLOrFlight: AppPageRender = (
     requestEndedState,
     postponedState,
     implicitTags,
-    serverComponentsHmrCache
+    serverComponentsHmrCache,
+    sharedContext
   )
 }
 
@@ -2753,12 +2784,6 @@ async function prerenderToStream(
                   clientReferenceManifest.clientModules,
                   {
                     onError: (err: unknown) => {
-                      // TODO we can remove this once https://github.com/facebook/react/pull/31715 lands
-                      // because we won't have onError calls when halting the prerender
-                      if (finalServerController.signal.aborted) {
-                        return
-                      }
-
                       return serverComponentsErrorHandler(err)
                     },
                     signal: finalServerController.signal,
@@ -4001,10 +4026,7 @@ async function collectSegmentData(
   // decomposed into a separate stream per segment.
 
   const clientReferenceManifest = renderOpts.clientReferenceManifest
-  if (
-    !clientReferenceManifest ||
-    renderOpts.experimental.isRoutePPREnabled !== true
-  ) {
+  if (!clientReferenceManifest || !renderOpts.experimental.clientSegmentCache) {
     return
   }
 
@@ -4022,8 +4044,27 @@ async function collectSegmentData(
     serverModuleMap: null,
   }
 
+  // When dynamicIO is enabled, missing data is encoded to an infinitely hanging
+  // promise, the absence of which we use to determine if a segment is fully
+  // static or partially static. However, when dynamicIO is not enabled, this
+  // trick doesn't work.
+  //
+  // So if PPR is enabled, and dynamicIO is not, we have to be conservative and
+  // assume all segments are partial.
+  //
+  // TODO: When PPR is on, we can at least optimize the case where the entire
+  // page is static. Either by passing that as an argument to this function, or
+  // by setting a header on the response like the we do for full page RSC
+  // prefetches today. The latter approach might be simpler since it requires
+  // less plumbing, and the client has to check the header regardless to see if
+  // PPR is enabled.
+  const shouldAssumePartialData =
+    renderOpts.experimental.isRoutePPREnabled === true && // PPR is enabled
+    !renderOpts.experimental.dynamicIO // dynamicIO is disabled
+
   const staleTime = prerenderStore.stale
   return await ComponentMod.collectSegmentData(
+    shouldAssumePartialData,
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,

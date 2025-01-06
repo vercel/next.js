@@ -174,7 +174,6 @@ function makeErroringRootParams(
 }
 
 function makeUntrackedRootParams(underlyingParams: Params): Promise<Params> {
-  console.log('makeUntrackedRootParams', underlyingParams)
   const cachedParams = CachedParams.get(underlyingParams)
   if (cachedParams) {
     return cachedParams

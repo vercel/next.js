@@ -113,7 +113,7 @@ impl TurbopackBuildBuilder {
 
     pub async fn build(self) -> Result<()> {
         let task = self.turbo_tasks.spawn_once_task::<(), _>(async move {
-            let build_result = build_internal(
+            let build_result_op = build_internal(
                 self.project_dir.clone(),
                 self.root_dir,
                 EntryRequests(
@@ -123,15 +123,15 @@ impl TurbopackBuildBuilder {
                         .map(EntryRequest::resolved_cell)
                         .collect(),
                 )
-                .cell(),
+                .resolved_cell(),
                 self.browserslist_query,
                 self.minify_type,
             );
 
             // Await the result to propagate any errors.
-            build_result.strongly_consistent().await?;
+            build_result_op.connect().strongly_consistent().await?;
 
-            apply_effects(build_result).await?;
+            apply_effects(build_result_op).await?;
 
             let issue_reporter: Vc<Box<dyn IssueReporter>> =
                 Vc::upcast(ConsoleUi::new(TransientInstance::new(LogOptions {
@@ -143,7 +143,7 @@ impl TurbopackBuildBuilder {
                 })));
 
             handle_issues(
-                build_result,
+                build_result_op,
                 issue_reporter,
                 IssueSeverity::Error.into(),
                 None,
@@ -162,11 +162,11 @@ impl TurbopackBuildBuilder {
     }
 }
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(operation)]
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
-    entry_requests: Vc<EntryRequests>,
+    entry_requests: ResolvedVc<EntryRequests>,
     browserslist_query: RcStr,
     minify_type: MinifyType,
 ) -> Result<Vc<()>> {
@@ -189,19 +189,23 @@ async fn build_internal(
         .unwrap_or(project_relative)
         .replace(MAIN_SEPARATOR, "/")
         .into();
-    let project_path = project_fs
-        .root()
-        .join(project_relative)
-        .to_resolved()
-        .await?;
+    let root_path = project_fs.root().to_resolved().await?;
+    let project_path = root_path.join(project_relative).to_resolved().await?;
     let build_output_root = output_fs.root().join("dist".into()).to_resolved().await?;
 
     let node_env = NodeEnv::Production.cell();
 
+    let build_output_root_to_root_path = project_path
+        .join("dist".into())
+        .await?
+        .get_relative_path_to(&*root_path.await?)
+        .context("Project path is in root path")?;
+
     let chunking_context = Vc::upcast(
         NodeJsChunkingContext::builder(
-            project_path,
+            root_path,
             build_output_root,
+            ResolvedVc::cell(build_output_root_to_root_path),
             build_output_root,
             build_output_root,
             build_output_root,
@@ -217,7 +221,7 @@ async fn build_internal(
 
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
     let execution_context =
-        ExecutionContext::new(*project_path, chunking_context, load_env(*project_path));
+        ExecutionContext::new(*root_path, chunking_context, load_env(*root_path));
     let asset_context = get_client_asset_context(
         *project_path,
         execution_context,

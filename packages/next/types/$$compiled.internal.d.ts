@@ -210,7 +210,7 @@ declare module 'react-server-dom-webpack/server.node' {
   ): Promise<ReactFormState | null>
 }
 declare module 'react-server-dom-webpack/static.edge' {
-  export function prerender(
+  export function unstable_prerender(
     children: any,
     webpackMap: {
       readonly [id: string]: {

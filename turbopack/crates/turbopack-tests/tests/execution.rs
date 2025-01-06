@@ -280,6 +280,12 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let chunk_root_path = path.join("output".into()).to_resolved().await?;
     let static_root_path = path.join("static".into()).to_resolved().await?;
 
+    let chunk_root_path_in_root_path_offset = project_path
+        .join("output".into())
+        .await?
+        .get_relative_path_to(&*project_root.await?)
+        .context("Project path is in root path")?;
+
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsBuildTime(
         NodeJsEnvironment::default().resolved_cell(),
     )))
@@ -369,6 +375,7 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
     let chunking_context = NodeJsChunkingContext::builder(
         project_root,
         chunk_root_path,
+        ResolvedVc::cell(chunk_root_path_in_root_path_offset),
         static_root_path,
         chunk_root_path,
         static_root_path,

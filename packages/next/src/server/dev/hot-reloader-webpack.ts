@@ -83,6 +83,7 @@ import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
+import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 const isTestMode = !!(
@@ -1519,6 +1520,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
+      getNextErrorFeedbackMiddleware(this.telemetry),
     ]
   }
 
