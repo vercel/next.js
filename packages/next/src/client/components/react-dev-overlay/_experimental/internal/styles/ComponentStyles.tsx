@@ -1,6 +1,6 @@
 import { styles as codeFrame } from '../components/CodeFrame/styles'
 import { styles as dialog } from '../components/Dialog'
-import { styles as errorLayout } from '../components/Errors/ErrorOverlayLayout/ErrorOverlayLayout'
+import { styles as errorLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 import { styles as bottomStacks } from '../components/Errors/error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { styles as pagination } from '../components/Errors/ErrorPagination/styles'
 import { styles as overlay } from '../components/Overlay/styles'
