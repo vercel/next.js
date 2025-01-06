@@ -7,12 +7,12 @@ import {
   openRedbox,
 } from 'next-test-utils'
 
-describe('Async modules', () => {
+describe('app-dir - async-client-component', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
   it('app router server component async module', async () => {
-    const browser = await next.browser('/app-router')
+    const browser = await next.browser('/server')
 
     await assertNoRedbox(browser)
 
@@ -20,7 +20,7 @@ describe('Async modules', () => {
   })
 
   it('app router client component async module', async () => {
-    const browser = await next.browser('/app-router/client')
+    const browser = await next.browser('/client')
 
     await openRedbox(browser)
 
