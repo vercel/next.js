@@ -1,6 +1,6 @@
 import os from 'os'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
-import type { Header, Redirect, Rewrite } from '../lib/load-custom-routes'
+import type { Header, Redirect, Rewrite, CustomRoutes } from '../lib/load-custom-routes'
 import { imageConfigDefault } from '../shared/lib/image-config'
 import type {
   ImageConfig,
@@ -679,14 +679,10 @@ export interface NextConfig extends Record<string, any> {
    *
    * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
-  rewrites?: () => Promise<
+  rewrites?: () =>
+    | Promise<Rewrite[] | CustomRoutes['rewrites']>
     | Rewrite[]
-    | {
-        beforeFiles: Rewrite[]
-        afterFiles: Rewrite[]
-        fallback: Rewrite[]
-      }
-  >
+    | CustomRoutes['rewrites'];
 
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
