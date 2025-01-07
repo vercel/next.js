@@ -1,4 +1,4 @@
-import { findPort, waitFor } from 'next-test-utils'
+import { findPort, retry, waitFor } from 'next-test-utils'
 import http from 'http'
 import { outdent } from 'outdent'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
@@ -104,12 +104,10 @@ describe('app-fetch-deduping', () => {
 
         expect(invocation(next.cliOutput)).toBe(1)
 
-        // wait for the revalidation to finish
-        await waitFor(revalidate * 1000 + 1000)
-
-        await next.render('/test')
-
-        expect(invocation(next.cliOutput)).toBe(2)
+        await retry(async () => {
+          await next.render('/test')
+          expect(invocation(next.cliOutput)).toBe(2)
+        }, 10_000)
       })
     })
   } else {
