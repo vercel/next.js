@@ -14,7 +14,7 @@ let app
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
     window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-watcher')
+      let watcherDiv = document.querySelector('#__next-build-indicator')
       watcherDiv = watcherDiv.shadowRoot || watcherDiv
       window.showedBuilder = window.showedBuilder || (
         watcherDiv.querySelector('div').className.indexOf('visible') > -1
@@ -70,7 +70,7 @@ describe('Build Activity Indicator', () => {
     it('Adds the build indicator container', async () => {
       const browser = await webdriver(appPort, '/')
       const html = await browser.eval('document.body.innerHTML')
-      expect(html).toMatch(/__next-build-watcher/)
+      expect(html).toMatch(/__next-build-indicator/)
       await browser.close()
     })
     ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
@@ -120,7 +120,7 @@ describe('Build Activity Indicator', () => {
     it('Does not add the build indicator container', async () => {
       const browser = await webdriver(appPort, '/')
       const html = await browser.eval('document.body.innerHTML')
-      expect(html).not.toMatch(/__next-build-watcher/)
+      expect(html).not.toMatch(/__next-build-indicator/)
       await browser.close()
     })
   })

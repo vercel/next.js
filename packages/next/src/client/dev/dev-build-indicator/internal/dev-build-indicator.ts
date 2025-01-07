@@ -1,26 +1,24 @@
-/* eslint-disable @typescript-eslint/no-use-before-define */
-import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
-import type { HMR_ACTION_TYPES } from '../../server/dev/hot-reloader-types'
-import { addMessageListener } from '../components/react-dev-overlay/pages/websocket'
-
 type VerticalPosition = 'top' | 'bottom'
 type HorizonalPosition = 'left' | 'right'
 
-export interface ShowHideHandler {
-  show: () => void
-  hide: () => void
+const NOOP = () => {}
+
+export const devBuildIndicator = {
+  /** Shows build indicator when Next.js is compiling. Requires initialize() first. */
+  show: NOOP,
+  /** Hides build indicator when Next.js finishes compiling. Requires initialize() first. */
+  hide: NOOP,
+  /** Sets up the build indicator UI component. Call this before using show/hide. */
+  initialize,
 }
 
-export default function initializeBuildWatcher(
-  toggleCallback: (handlers: ShowHideHandler) => void,
-  position = 'bottom-right'
-) {
+function initialize(position = 'bottom-right') {
   const shadowHost = document.createElement('div')
   const [verticalProperty, horizontalProperty] = position.split('-', 2) as [
     VerticalPosition,
     HorizonalPosition,
   ]
-  shadowHost.id = '__next-build-watcher'
+  shadowHost.id = '__next-build-indicator'
   // Make sure container is fixed and on a high zIndex so it shows
   shadowHost.style.position = 'fixed'
   // Ensure container's position to be top or bottom (default)
@@ -42,7 +40,7 @@ export default function initializeBuildWatcher(
     // the Shadow DOM, we need to prefix all the names so there
     // will be no conflicts
     shadowRoot = shadowHost
-    prefix = '__next-build-watcher-'
+    prefix = '__next-build-indicator-'
   }
 
   // Container
@@ -58,22 +56,14 @@ export default function initializeBuildWatcher(
   let isBuilding = false
   let timeoutId: null | ReturnType<typeof setTimeout> = null
 
-  // Handle events
-
-  addMessageListener((obj) => {
-    try {
-      handleMessage(obj)
-    } catch {}
-  })
-
-  function show() {
+  devBuildIndicator.show = () => {
     timeoutId && clearTimeout(timeoutId)
     isVisible = true
     isBuilding = true
     updateContainer()
   }
 
-  function hide() {
+  devBuildIndicator.hide = () => {
     isBuilding = false
     // Wait for the fade out transition to complete
     timeoutId = setTimeout(() => {
@@ -82,28 +72,6 @@ export default function initializeBuildWatcher(
     }, 100)
     updateContainer()
   }
-
-  function handleMessage(obj: HMR_ACTION_TYPES) {
-    if (!('action' in obj)) {
-      return
-    }
-
-    // eslint-disable-next-line default-case
-    switch (obj.action) {
-      case HMR_ACTIONS_SENT_TO_BROWSER.BUILDING:
-        show()
-        break
-      case HMR_ACTIONS_SENT_TO_BROWSER.BUILT:
-      case HMR_ACTIONS_SENT_TO_BROWSER.SYNC:
-        hide()
-        break
-    }
-  }
-
-  toggleCallback({
-    show,
-    hide,
-  })
 
   function updateContainer() {
     if (isBuilding) {
