@@ -79,6 +79,10 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
 }
 
 export const styles = css`
+  [data-nextjs-call-stack-frame] {
+    padding: var(--size-4);
+  }
+
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
@@ -97,28 +101,6 @@ export const styles = css`
     outline: none;
   }
 
-  [data-nextjs-data-runtime-error-copy-button],
-  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
-    position: relative;
-    margin-left: var(--size-gap);
-    padding: 0;
-    border: none;
-    background: none;
-    outline: none;
-  }
-  [data-nextjs-data-runtime-error-copy-button] > svg {
-    vertical-align: middle;
-  }
-  .nextjs-data-runtime-error-copy-button {
-    color: inherit;
-  }
-  .nextjs-data-runtime-error-copy-button--initial:hover {
-    cursor: pointer;
-  }
-  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
   .nextjs-data-runtime-error-copy-button--error,
   .nextjs-data-runtime-error-copy-button--error:hover {
     color: var(--color-ansi-red);

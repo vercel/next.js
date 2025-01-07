@@ -6,19 +6,11 @@ import {
   type UnhandledRejectionAction,
 } from '../../../shared'
 import type { DebugInfo } from '../../../types'
-import {
-  Dialog,
-  DialogBody,
-  DialogContent,
-  DialogHeader,
-} from '../components/Dialog'
-import { LeftRightDialogHeader } from '../components/LeftRightDialogHeader'
 import { Overlay } from '../components/Overlay'
 import { getErrorByType } from '../helpers/get-error-by-type'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './RuntimeError'
-import { VersionStalenessInfo } from '../components/VersionStalenessInfo'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
@@ -27,14 +19,13 @@ import {
   type HydrationErrorState,
   getHydrationWarningType,
 } from '../helpers/hydration-error-info'
-import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
-import { CopyButton } from '../components/copy-button'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
 } from '../helpers/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
+import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
 export type SupportedErrorEvent = {
   id: number
@@ -115,7 +106,6 @@ export function Errors({
   isAppDir,
   errors,
   initialDisplayState,
-  versionInfo,
   hasStaticIndicator,
   debugInfo,
 }: ErrorsProps) {
@@ -185,17 +175,6 @@ export function Errors({
   const [displayState, setDisplayState] =
     useState<DisplayState>(initialDisplayState)
   const [activeIdx, setActiveIndex] = useState<number>(0)
-  const previous = useCallback(
-    () => setActiveIndex((v) => Math.max(0, v - 1)),
-    []
-  )
-  const next = useCallback(
-    () =>
-      setActiveIndex((v) =>
-        Math.max(0, Math.min(readyErrors.length - 1, v + 1))
-      ),
-    [readyErrors.length]
-  )
 
   const activeError = useMemo<ReadyErrorEvent | null>(
     () => readyErrors[activeIdx] ?? null,
@@ -263,115 +242,68 @@ export function Errors({
         .replace(/^Error: /, '')
     : null
 
+  const errorCode = extractNextErrorCode(error)
+
+  const footerMessage = isServerError
+    ? 'This error happened while generating the page. Any console logs will be displayed in the terminal window.'
+    : undefined
+
   return (
-    <Overlay>
-      <Dialog
-        type="error"
-        aria-labelledby="nextjs__container_errors_label"
-        aria-describedby="nextjs__container_errors_desc"
-        onClose={isServerError ? undefined : minimize}
-      >
-        <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
-            <LeftRightDialogHeader
-              previous={activeIdx > 0 ? previous : null}
-              next={activeIdx < readyErrors.length - 1 ? next : null}
-              close={isServerError ? undefined : minimize}
-            >
-              <small>
-                <span>{activeIdx + 1}</span> of{' '}
-                <span data-nextjs-dialog-header-total-count>
-                  {readyErrors.length}
-                </span>
-                {' issue'}
-                {readyErrors.length < 2 ? '' : 's'}
-              </small>
-              <VersionStalenessInfo versionInfo={versionInfo} />
-            </LeftRightDialogHeader>
-
-            <div
-              className="nextjs__container_errors__error_title"
-              data-nextjs-error-code={extractNextErrorCode(error)} // allow assertion in tests before error rating is implemented
-            >
-              <h1
-                id="nextjs__container_errors_label"
-                className="nextjs__container_errors_label"
-              >
-                {isServerError
-                  ? 'Server Error'
-                  : isUnhandledError
-                    ? 'Console Error'
-                    : 'Unhandled Runtime Error'}
-              </h1>
-              <span>
-                <CopyButton
-                  data-nextjs-data-runtime-error-copy-stack
-                  actionLabel="Copy error stack"
-                  successLabel="Copied"
-                  content={error.stack || ''}
-                  disabled={!error.stack}
-                />
-
-                <NodejsInspectorCopyButton
-                  devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
-                />
-              </span>
-            </div>
+    <ErrorOverlayLayout
+      errorCode={errorCode}
+      errorType={
+        isServerError
+          ? 'Runtime Error'
+          : isUnhandledError
+            ? 'Console Error'
+            : 'Unhandled Runtime Error'
+      }
+      errorMessage={
+        <ErrorDescription error={error} hydrationWarning={hydrationWarning} />
+      }
+      onClose={isServerError ? undefined : minimize}
+      debugInfo={debugInfo}
+      error={error}
+      readyErrors={readyErrors}
+      activeIdx={activeIdx}
+      setActiveIndex={setActiveIndex}
+      footerMessage={footerMessage}
+    >
+      <div className="error-overlay-notes-container">
+        {notes ? (
+          <>
             <p
-              id="nextjs__container_errors_desc"
-              className="nextjs__container_errors_desc"
+              id="nextjs__container_errors__notes"
+              className="nextjs__container_errors__notes"
             >
-              <ErrorDescription
-                error={error}
-                hydrationWarning={hydrationWarning}
-              />
+              {notes}
             </p>
-            {notes ? (
-              <>
-                <p
-                  id="nextjs__container_errors__notes"
-                  className="nextjs__container_errors__notes"
-                >
-                  {notes}
-                </p>
-              </>
-            ) : null}
-            {hydrationWarning ? (
-              <p
-                id="nextjs__container_errors__link"
-                className="nextjs__container_errors__link"
-              >
-                <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
-              </p>
-            ) : null}
+          </>
+        ) : null}
+        {hydrationWarning ? (
+          <p
+            id="nextjs__container_errors__link"
+            className="nextjs__container_errors__link"
+          >
+            <HotlinkedText text="See more info here: https://nextjs.org/docs/messages/react-hydration-error" />
+          </p>
+        ) : null}
+      </div>
 
-            {hydrationWarning &&
-            (activeError.componentStackFrames?.length ||
-              !!errorDetails.reactOutputComponentDiff) ? (
-              <PseudoHtmlDiff
-                className="nextjs__container_errors__component-stack"
-                hydrationMismatchType={hydrationErrorType}
-                componentStackFrames={activeError.componentStackFrames || []}
-                firstContent={serverContent}
-                secondContent={clientContent}
-                reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
-              />
-            ) : null}
-            {isServerError ? (
-              <div>
-                <small>
-                  This error happened while generating the page. Any console
-                  logs will be displayed in the terminal window.
-                </small>
-              </div>
-            ) : undefined}
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            <RuntimeError key={activeError.id.toString()} error={activeError} />
-          </DialogBody>
-        </DialogContent>
-      </Dialog>
-    </Overlay>
+      {hydrationWarning &&
+      (activeError.componentStackFrames?.length ||
+        !!errorDetails.reactOutputComponentDiff) ? (
+        <PseudoHtmlDiff
+          className="nextjs__container_errors__component-stack"
+          hydrationMismatchType={hydrationErrorType}
+          componentStackFrames={activeError.componentStackFrames || []}
+          firstContent={serverContent}
+          secondContent={clientContent}
+          reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
+        />
+      ) : null}
+      <RuntimeError key={activeError.id.toString()} error={activeError} />
+    </ErrorOverlayLayout>
   )
 }
 
@@ -397,28 +329,12 @@ export const styles = css`
   .nextjs-container-errors-header small > span {
     font-family: var(--font-stack-monospace);
   }
-  .nextjs-container-errors-header p {
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-big);
-    white-space: pre-wrap;
-  }
-  .nextjs__container_errors_desc {
-    font-family: var(--font-stack-monospace);
-    padding: var(--size-gap) var(--size-gap-double);
-    border-left: 2px solid var(--color-text-color-red-1);
-    margin-top: var(--size-gap);
-    font-weight: bold;
-    color: var(--color-text-color-red-1);
-    background-color: var(--color-text-background-red-1);
-  }
   p.nextjs__container_errors__link {
-    margin: var(--size-gap-double) auto;
     color: var(--color-text-color-red-1);
     font-weight: 600;
     font-size: 15px;
   }
   p.nextjs__container_errors__notes {
-    margin: var(--size-gap-double) auto;
     color: var(--color-stack-notes);
     font-weight: 600;
     font-size: 15px;
@@ -440,6 +356,7 @@ export const styles = css`
     font-size: var(--size-font-big);
   }
   .nextjs__container_errors__component-stack {
+    margin: 0;
     padding: 12px 32px;
     color: var(--color-ansi-fg);
     background: var(--color-ansi-bg);
@@ -474,8 +391,8 @@ export const styles = css`
   .nextjs-container-errors-header
     > .nextjs-container-build-error-version-status {
     position: absolute;
-    top: 0;
-    right: 0;
+    top: var(--size-4);
+    right: var(--size-4);
   }
   .nextjs__container_errors_inspect_copy_button {
     cursor: pointer;
@@ -493,9 +410,8 @@ export const styles = css`
     align-items: center;
     justify-content: space-between;
   }
-  .nextjs-data-runtime-error-inspect-link,
-  .nextjs-data-runtime-error-inspect-link:hover {
-    margin: 0 8px;
-    color: inherit;
+  .error-overlay-notes-container {
+    padding: var(--size-4);
+    padding-top: 0;
   }
 `

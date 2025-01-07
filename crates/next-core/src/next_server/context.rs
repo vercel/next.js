@@ -976,6 +976,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
     root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
+    node_root_to_root_path: ResolvedVc<RcStr>,
     client_root: ResolvedVc<FileSystemPath>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
@@ -989,6 +990,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     let mut builder = NodeJsChunkingContext::builder(
         root_path,
         node_root,
+        node_root_to_root_path,
         client_root,
         node_root
             .join("server/chunks/ssr".into())
@@ -1021,6 +1023,7 @@ pub async fn get_server_chunking_context(
     mode: Vc<NextMode>,
     root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
+    node_root_to_root_path: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
@@ -1032,6 +1035,7 @@ pub async fn get_server_chunking_context(
     let mut builder = NodeJsChunkingContext::builder(
         root_path,
         node_root,
+        node_root_to_root_path,
         node_root,
         node_root.join("server/chunks".into()).to_resolved().await?,
         node_root.join("server/assets".into()).to_resolved().await?,

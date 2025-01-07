@@ -167,10 +167,6 @@ export function prepareDestination(args: {
   query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextDataReq
-  delete query.__nextInferredLocaleFromDefault
   delete query[NEXT_RSC_UNION_QUERY]
 
   let escapedDestination = args.destination

@@ -87,6 +87,8 @@ pub struct NodeJsChunkingContext {
     root_path: ResolvedVc<FileSystemPath>,
     /// This path is used to compute the url to request chunks or assets from
     output_root: ResolvedVc<FileSystemPath>,
+    /// The relative path from the output_root to the root_path.
+    output_root_to_root_path: ResolvedVc<RcStr>,
     /// This path is used to compute the url to request chunks or assets from
     client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
@@ -116,6 +118,7 @@ impl NodeJsChunkingContext {
     pub fn builder(
         root_path: ResolvedVc<FileSystemPath>,
         output_root: ResolvedVc<FileSystemPath>,
+        output_root_to_root_path: ResolvedVc<RcStr>,
         client_root: ResolvedVc<FileSystemPath>,
         chunk_root_path: ResolvedVc<FileSystemPath>,
         asset_root_path: ResolvedVc<FileSystemPath>,
@@ -126,6 +129,7 @@ impl NodeJsChunkingContext {
             chunking_context: NodeJsChunkingContext {
                 root_path,
                 output_root,
+                output_root_to_root_path,
                 client_root,
                 chunk_root_path,
                 asset_root_path,
@@ -205,6 +209,11 @@ impl ChunkingContext for NodeJsChunkingContext {
     #[turbo_tasks::function]
     fn output_root(&self) -> Vc<FileSystemPath> {
         *self.output_root
+    }
+
+    #[turbo_tasks::function]
+    fn output_root_to_root_path(&self) -> Vc<RcStr> {
+        *self.output_root_to_root_path
     }
 
     #[turbo_tasks::function]
