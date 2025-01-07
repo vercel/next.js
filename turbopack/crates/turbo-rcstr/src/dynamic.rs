@@ -12,34 +12,34 @@ use crate::{
 };
 
 #[derive(Debug)]
-pub(crate) struct Entry {
+pub(crate) struct Dynamic {
     pub string: Arc<str>,
 }
 
-impl Entry {
-    pub unsafe fn cast(ptr: TaggedValue) -> *const Entry {
+impl Dynamic {
+    pub unsafe fn cast(ptr: TaggedValue) -> *const Dynamic {
         ptr.get_ptr().cast()
     }
 
-    pub unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i Entry {
+    pub unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i Dynamic {
         &*Self::cast(ptr)
     }
 
-    pub unsafe fn restore_arc(v: TaggedValue) -> Arc<Entry> {
-        let ptr = v.get_ptr() as *const Entry;
+    pub unsafe fn restore_arc(v: TaggedValue) -> Arc<Dynamic> {
+        let ptr = v.get_ptr() as *const Dynamic;
         Arc::from_raw(ptr)
     }
 }
 
-impl PartialEq for Entry {
+impl PartialEq for Dynamic {
     fn eq(&self, other: &Self) -> bool {
         self.string == other.string
     }
 }
 
-impl Eq for Entry {}
+impl Eq for Dynamic {}
 
-impl Hash for Entry {
+impl Hash for Dynamic {
     fn hash<H: Hasher>(&self, state: &mut H) {
         self.string.hash(state);
     }
@@ -60,14 +60,14 @@ pub(crate) fn new_atom(text: Cow<str>) -> RcStr {
         return RcStr { unsafe_data };
     }
 
-    let entry = Arc::new(Entry {
+    let entry = Arc::new(Dynamic {
         string: text.into_owned().into(),
     });
     let entry = Arc::into_raw(entry);
 
-    let ptr: NonNull<Entry> = unsafe {
+    let ptr: NonNull<Dynamic> = unsafe {
         // Safety: Arc::into_raw returns a non-null pointer
-        NonNull::new_unchecked(entry as *mut Entry)
+        NonNull::new_unchecked(entry as *mut Dynamic)
     };
     debug_assert!(0 == ptr.as_ptr() as u8 & TAG_MASK);
     RcStr {

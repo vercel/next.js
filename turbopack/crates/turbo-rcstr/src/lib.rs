@@ -15,7 +15,7 @@ use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
 use crate::{
-    dynamic::{new_atom, Entry},
+    dynamic::{new_atom, Dynamic},
     tagged_value::TaggedValue,
 };
 
@@ -83,7 +83,7 @@ impl RcStr {
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.tag() {
-            DYNAMIC_TAG => &unsafe { Entry::deref_from(self.unsafe_data) }.string,
+            DYNAMIC_TAG => &unsafe { Dynamic::deref_from(self.unsafe_data) }.string,
             INLINE_TAG => {
                 let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
                 let src = self.unsafe_data.data();
@@ -113,7 +113,7 @@ impl RcStr {
     pub(crate) fn from_alias(alias: TaggedValue) -> Self {
         if alias.tag() & TAG_MASK == DYNAMIC_TAG {
             unsafe {
-                let arc = Entry::restore_arc(alias);
+                let arc = Dynamic::restore_arc(alias);
                 forget(arc.clone());
                 forget(arc);
             }
