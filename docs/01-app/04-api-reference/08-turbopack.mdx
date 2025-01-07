@@ -7,12 +7,12 @@ description: Turbopack is an incremental bundler optimized for JavaScript and Ty
 
 [Turbopack](https://turbo.build/pack) is an incremental bundler optimized for JavaScript and TypeScript, written in Rust, and built into Next.js. Turbopack can be used in Next.js in both the `pages` and `app` directories for faster local development.
 
-To enable Turbopack, use the `--turbopack` flag when running the Next.js development server.
+To enable Turbopack, use the `--turbo` flag when running the Next.js development server.
 
 ```json filename="package.json" highlight={3}
 {
   "scripts": {
-    "dev": "next dev --turbopack",
+    "dev": "next dev --turbo",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
