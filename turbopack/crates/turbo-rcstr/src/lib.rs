@@ -14,10 +14,7 @@ use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 
-use crate::{
-    dynamic::{new_atom, Dynamic},
-    tagged_value::TaggedValue,
-};
+use crate::{dynamic::new_atom, tagged_value::TaggedValue};
 
 mod dynamic;
 mod tagged_value;
@@ -79,7 +76,7 @@ impl RcStr {
     #[inline(never)]
     pub fn as_str(&self) -> &str {
         match self.tag() {
-            DYNAMIC_TAG => &unsafe { Dynamic::deref_from(self.unsafe_data) }.string,
+            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data) },
             INLINE_TAG => {
                 let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
                 let src = self.unsafe_data.data();
@@ -102,14 +99,14 @@ impl RcStr {
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
-        RcStr::new(Cow::Owned(f(self.into_owned())))
+        RcStr::from(Cow::Owned(f(self.into_owned())))
     }
 
     #[inline]
     pub(crate) fn from_alias(alias: TaggedValue) -> Self {
         if alias.tag() & TAG_MASK == DYNAMIC_TAG {
             unsafe {
-                let arc = Dynamic::restore_arc(alias);
+                let arc = dynamic::restore_arc(alias);
                 forget(arc.clone());
                 forget(arc);
             }
@@ -239,7 +236,7 @@ impl Clone for RcStr {
 
 impl Default for RcStr {
     fn default() -> Self {
-        RcStr::new(Cow::Borrowed(""))
+        RcStr::from("")
     }
 }
 
@@ -285,7 +282,7 @@ impl<'de> Deserialize<'de> for RcStr {
 impl Drop for RcStr {
     fn drop(&mut self) {
         if self.tag() == DYNAMIC_TAG {
-            unsafe { drop(Dynamic::restore_arc(self.unsafe_data)) }
+            unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
         }
     }
 }
