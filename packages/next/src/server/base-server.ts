@@ -20,6 +20,10 @@ import {
   normalizeRepeatedSlashes,
   MissingStaticPage,
 } from '../shared/lib/utils'
+import {
+  getBuiltinRequestContext,
+  type WaitUntil,
+} from './lib/builtin-request-context'
 import type { PreviewData } from 'next/types'
 import type { PagesManifest } from '../build/webpack/plugins/pages-manifest-plugin'
 import type { BaseNextRequest, BaseNextResponse } from './base-http'
@@ -1596,6 +1600,18 @@ export default abstract class Server<ServerOptions extends Options = Options> {
     )
   }
 
+  protected getWaitUntil(): WaitUntil | undefined {
+    const builtinRequestContext = getBuiltinRequestContext()
+    if (builtinRequestContext) {
+      // the platform provided a request context.
+      // use the `waitUntil` from there, whether actually present or not --
+      // if not present, `after` will error.
+
+      // NOTE: if we're in an edge runtime sandbox, this context will be used to forward the outer waitUntil.
+      return builtinRequestContext.waitUntil
+    }
+  }
+
   private async renderImpl(
     req: BaseNextRequest,
     res: BaseNextResponse,
@@ -2198,6 +2214,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
         isDraftMode: isPreviewMode,
         isServerAction,
         postponed,
+        builtInWaitUntil: this.getWaitUntil(),
       }
 
       if (isDebugPPRSkeleton) {
@@ -2225,6 +2242,7 @@ export default abstract class Server<ServerOptions extends Options = Options> {
               supportsDynamicResponse,
               incrementalCache,
               isRevalidate: isSSG,
+              builtInWaitUntil: this.getWaitUntil(),
             },
           }
 

@@ -383,14 +383,28 @@ export class AppRouteRouteModule extends RouteModule<
                     context.renderOpts.fetchMetrics =
                       staticGenerationStore.fetchMetrics
 
-                    context.renderOpts.waitUntil = Promise.all([
+                    const pendingPromise = Promise.all([
                       staticGenerationStore.incrementalCache?.revalidateTag(
                         staticGenerationStore.revalidatedTags || []
                       ),
                       ...Object.values(
                         staticGenerationStore.pendingRevalidates || {}
                       ),
-                    ])
+                    ]).finally(() => {
+                      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+                        console.log(
+                          'pending revalidates promise finished for:',
+                          rawRequest.url.toString()
+                        )
+                      }
+                    })
+
+                    // use built-in waitUntil if available
+                    if (context.renderOpts.builtInWaitUntil) {
+                      context.renderOpts.builtInWaitUntil(pendingPromise)
+                    } else {
+                      context.renderOpts.waitUntil = pendingPromise
+                    }
 
                     addImplicitTags(staticGenerationStore)
                     ;(context.renderOpts as any).fetchTags =

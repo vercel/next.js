@@ -148,6 +148,7 @@ export type AppRenderContext = AppRenderBaseContext & {
   serverComponentsErrorHandler: ErrorHandler
   isNotFoundPath: boolean
   res: ServerResponse
+  builtInWaitUntil: RenderOpts['builtInWaitUntil']
 }
 
 function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
@@ -387,12 +388,23 @@ async function generateFlight(
     ctx.staticGenerationStore.pendingRevalidates ||
     ctx.staticGenerationStore.revalidatedTags
   ) {
-    resultOptions.waitUntil = Promise.all([
+    const pendingPromise = Promise.all([
       ctx.staticGenerationStore.incrementalCache?.revalidateTag(
         ctx.staticGenerationStore.revalidatedTags || []
       ),
       ...Object.values(ctx.staticGenerationStore.pendingRevalidates || {}),
-    ])
+    ]).finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log('pending revalidates promise finished for:', urlPathname)
+      }
+    })
+
+    // use built-in waitUntil if available
+    if (ctx.builtInWaitUntil) {
+      ctx.builtInWaitUntil(pendingPromise)
+    } else {
+      resultOptions.waitUntil = pendingPromise
+    }
   }
 
   return new FlightRenderResult(flightReadableStream, resultOptions)
@@ -848,6 +860,7 @@ async function renderToHTMLOrFlightImpl(
 
   const ctx: AppRenderContext = {
     ...baseCtx,
+    builtInWaitUntil: renderOpts.builtInWaitUntil,
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRSCRequest,
@@ -1401,12 +1414,23 @@ async function renderToHTMLOrFlightImpl(
     staticGenerationStore.pendingRevalidates ||
     staticGenerationStore.revalidatedTags
   ) {
-    options.waitUntil = Promise.all([
+    const pendingPromise = Promise.all([
       staticGenerationStore.incrementalCache?.revalidateTag(
         staticGenerationStore.revalidatedTags || []
       ),
       ...Object.values(staticGenerationStore.pendingRevalidates || {}),
-    ])
+    ]).finally(() => {
+      if (process.env.NEXT_PRIVATE_DEBUG_CACHE) {
+        console.log('pending revalidates promise finished for:', req.url)
+      }
+    })
+
+    // use built-in waitUntil if available
+    if (renderOpts.builtInWaitUntil) {
+      renderOpts.builtInWaitUntil(pendingPromise)
+    } else {
+      options.waitUntil = pendingPromise
+    }
   }
 
   addImplicitTags(staticGenerationStore)
