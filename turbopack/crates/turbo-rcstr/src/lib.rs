@@ -100,7 +100,11 @@ impl RcStr {
 
                 match Arc::try_unwrap(arc) {
                     Ok(v) => v,
-                    Err(arc) => arc.to_string(),
+                    Err(arc) => {
+                        let s = arc.to_string();
+                        forget(arc);
+                        s
+                    }
                 }
             }
             INLINE_TAG => self.as_str().to_string(),
