@@ -30,7 +30,8 @@ function shouldIgnorePath(modulePath: string): boolean {
   return (
     modulePath.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist')
+    modulePath.includes('next/dist') ||
+    modulePath.startsWith('node:')
   )
 }
 
@@ -232,7 +233,10 @@ export async function createOriginalStackFrame({
     lineNumber: sourcePosition.line,
     column: (sourcePosition.column ?? 0) + 1,
     methodName:
-      sourcePosition.name ||
+      // We ignore the sourcemapped name since it won't be the correct name.
+      // The callsite will point to the column of the variable name instead of the
+      // name of the enclosing function.
+      // TODO(NDX-531): Spy on prepareStackTrace to get the enclosing line number for method name mapping.
       // default is not a valid identifier in JS so webpack uses a custom variable when it's an unnamed default export
       // Resolve it back to `default` for the method name if the source position didn't have the method.
       frame.methodName

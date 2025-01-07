@@ -56,6 +56,10 @@ pub async fn is_export_missing(
     module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
     export_name: RcStr,
 ) -> Result<Vc<bool>> {
+    if export_name == "__turbopack_module_id__" {
+        return Ok(Vc::cell(false));
+    }
+
     let exports = module.get_exports().await?;
     let exports = match &*exports {
         EcmascriptExports::None => return Ok(Vc::cell(true)),

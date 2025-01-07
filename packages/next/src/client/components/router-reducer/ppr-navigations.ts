@@ -71,7 +71,7 @@ export function updateCacheNodeOnNavigation(
   oldRouterState: FlightRouterState,
   newRouterState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: HeadData,
+  prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean
 ): Task | null {
   // Diff the old and new trees to reuse the shared layouts.
@@ -286,7 +286,7 @@ export function updateCacheNodeOnNavigation(
 function createCacheNodeOnNavigation(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  possiblyPartialPrefetchHead: HeadData,
+  possiblyPartialPrefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean
 ): Task {
   // Same traversal as updateCacheNodeNavigation, but we switch to this path
@@ -387,7 +387,7 @@ function createCacheNodeOnNavigation(
       // `prefetchRsc` field.
       rsc,
       prefetchRsc: null,
-      head: isLeafSegment ? possiblyPartialPrefetchHead : [null, null],
+      head: isLeafSegment ? possiblyPartialPrefetchHead : null,
       prefetchHead: null,
       loading,
       parallelRoutes: cacheNodeChildren,
@@ -422,7 +422,7 @@ function patchRouterStateWithNewChildren(
 function spawnPendingTask(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode | null,
+  prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean
 ): Task {
   // Create a task that will later be fulfilled by data from the server.
@@ -645,7 +645,7 @@ function finishTaskUsingDynamicDataPayload(
 function createPendingCacheNode(
   routerState: FlightRouterState,
   prefetchData: CacheNodeSeedData | null,
-  prefetchHead: React.ReactNode | null,
+  prefetchHead: HeadData | null,
   isPrefetchHeadPartial: boolean
 ): ReadyCacheNode {
   const routerStateChildren = routerState[1]
@@ -685,7 +685,7 @@ function createPendingCacheNode(
     parallelRoutes: parallelRoutes,
 
     prefetchRsc: maybePrefetchRsc !== undefined ? maybePrefetchRsc : null,
-    prefetchHead: isLeafSegment ? prefetchHead : null,
+    prefetchHead: isLeafSegment ? prefetchHead : [null, null],
 
     // TODO: Technically, a loading boundary could contain dynamic data. We must
     // have separate `loading` and `prefetchLoading` fields to handle this, like
@@ -695,12 +695,7 @@ function createPendingCacheNode(
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
     rsc: createDeferredRsc() as React.ReactNode,
-    head: isLeafSegment
-      ? [
-          createDeferredRsc() as React.ReactNode,
-          createDeferredRsc() as React.ReactNode,
-        ]
-      : [null, null],
+    head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
   }
 }
 
@@ -802,12 +797,11 @@ function finishPendingCacheNode(
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
   const head = cacheNode.head
-  // Handle head[0] - viewport and head[1] - metadata
-  if (isDeferredRsc(head[0])) {
-    head[0].resolve(dynamicHead[0])
-  }
-  if (isDeferredRsc(head[1])) {
-    head[1].resolve(dynamicHead[1])
+  // TODO: change head back to ReactNode when metadata
+  // is stably rendered in body
+  // Handle head[0] - viewport
+  if (isDeferredRsc(head)) {
+    head.resolve(dynamicHead)
   }
 }
 
@@ -940,7 +934,7 @@ export function updateCacheNodeOnPopstateRestoration(
     rsc,
     head: oldCacheNode.head,
 
-    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : null,
+    prefetchHead: shouldUsePrefetch ? oldCacheNode.prefetchHead : [null, null],
     prefetchRsc: shouldUsePrefetch ? oldCacheNode.prefetchRsc : null,
     loading: oldCacheNode.loading,
 

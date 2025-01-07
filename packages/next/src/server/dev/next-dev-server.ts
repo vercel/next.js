@@ -775,7 +775,7 @@ export default class DevServer extends Server {
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
-          buildId: this.renderOpts.buildId,
+          buildId: this.buildId,
           authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
           sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
@@ -840,6 +840,7 @@ export default class DevServer extends Server {
   }
 
   protected async findPageComponents({
+    locale,
     page,
     query,
     params,
@@ -848,6 +849,7 @@ export default class DevServer extends Server {
     shouldEnsure,
     url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -865,7 +867,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      if (shouldEnsure || this.renderOpts.customServer) {
+      if (shouldEnsure || this.serverOptions.customServer) {
         await this.ensurePage({
           page,
           appPaths,
@@ -878,6 +880,7 @@ export default class DevServer extends Server {
       this.nextFontManifest = super.getNextFontManifest()
 
       return await super.findPageComponents({
+        locale,
         page,
         query,
         params,

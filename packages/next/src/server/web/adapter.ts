@@ -110,14 +110,14 @@ export async function adapter(
   for (const key of keys) {
     const value = requestUrl.searchParams.getAll(key)
 
-    normalizeNextQueryParam(key, (normalizedKey) => {
+    const normalizedKey = normalizeNextQueryParam(key)
+    if (normalizedKey) {
       requestUrl.searchParams.delete(normalizedKey)
-
       for (const val of value) {
         requestUrl.searchParams.append(normalizedKey, val)
       }
       requestUrl.searchParams.delete(key)
-    })
+    }
   }
 
   // Ensure users only see page requests, never data requests.
@@ -151,7 +151,7 @@ export async function adapter(
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeUrl, true).toString(),
+    input: stripInternalSearchParams(normalizeUrl).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -261,7 +261,6 @@ export async function adapter(
                   authInterrupts:
                     !!params.request.nextConfig?.experimental?.authInterrupts,
                 },
-                buildId: buildId ?? '',
                 supportsDynamicResponse: true,
                 waitUntil,
                 onClose: closeController.onClose.bind(closeController),
@@ -271,6 +270,7 @@ export async function adapter(
               isPrefetchRequest: request.headers.has(
                 NEXT_ROUTER_PREFETCH_HEADER
               ),
+              buildId: buildId ?? '',
             })
 
             return await workAsyncStorage.run(workStore, () =>

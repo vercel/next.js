@@ -275,7 +275,7 @@ impl StructuredError {
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         root: Vc<FileSystemPath>,
-        project_dir: Vc<FileSystemPath>,
+        root_path: Vc<FileSystemPath>,
         formatting_mode: FormattingMode,
     ) -> Result<String> {
         let mut message = String::new();
@@ -295,8 +295,7 @@ impl StructuredError {
         for frame in &self.stack {
             let frame = frame.unmangle_identifiers(magic);
             let resolved =
-                resolve_source_mapping(assets_for_source_mapping, root, project_dir.root(), &frame)
-                    .await;
+                resolve_source_mapping(assets_for_source_mapping, root, root_path, &frame).await;
             write_resolved(
                 &mut message,
                 resolved,
@@ -310,13 +309,8 @@ impl StructuredError {
         if let Some(cause) = &self.cause {
             message.write_str("\nCaused by: ")?;
             message.write_str(
-                &Box::pin(cause.print(
-                    assets_for_source_mapping,
-                    root,
-                    project_dir,
-                    formatting_mode,
-                ))
-                .await?,
+                &Box::pin(cause.print(assets_for_source_mapping, root, root_path, formatting_mode))
+                    .await?,
             )?;
         }
 
