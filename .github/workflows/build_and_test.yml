@@ -95,7 +95,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: ${{ env.NODE_LTS_VERSION }}
       - run: corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
@@ -244,7 +244,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_LTS_VERSION }}
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
@@ -269,7 +269,6 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
@@ -285,7 +284,6 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
@@ -325,7 +323,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node:
+          - ${{ env.NODE_MAINTENANCE_VERSION }}
+          - ${{ env.NODE_LTS_VERSION }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -457,7 +457,6 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
       afterBuild: NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-integration-${{ matrix.group }}-react-${{ matrix.react }}'
     secrets: inherit
@@ -486,7 +485,6 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit
