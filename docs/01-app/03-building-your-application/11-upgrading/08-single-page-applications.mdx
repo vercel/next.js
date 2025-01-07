@@ -21,11 +21,11 @@ Strict SPAs often require large amounts of JavaScript to load before the page ca
 
 ## Why use Next.js for SPAs?
 
-Next.js is able to automatically code split your JavaScript bundles, and generate multiple HTML entry points into different routes. This avoids loading unnecessary JavaScript code on the client-side, reducing the bundle size and enabling faster page loads.
+Next.js can automatically code split your JavaScript bundles, and generate multiple HTML entry points into different routes. This avoids loading unnecessary JavaScript code on the client-side, reducing the bundle size and enabling faster page loads.
 
 The `next/link` component makes it easy and automatic to preload routes, giving you the fast page transitions of a strict SPA, but with the advantage of persisting application routing state to the URL for linking and sharing.
 
-Next.js can start as a static site, or even a strict SPA where everything is rendered client-side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
+Next.js can start as a static site or even a strict SPA where everything is rendered client side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
 
 ## Examples
 
@@ -166,11 +166,11 @@ export function Profile() {
 }
 ```
 
-Why is this faster than a strict SPA or client-only fetching? Next.js is able to start data fetching early on the server. In this example, that’s the root layout, or the entry point to your application. The server can immediately begin streaming a response to the client.
+Why is this faster than a strict SPA or client-only fetching? Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
 
 By “hoisting” your data fetching to the root layout, Next.js starts the specified requests on the server early before any other components in your application. This eliminates client waterfalls and prevents having multiple roundtrips between client and server. It can also significantly improve performance, as your server is closer (and ideally colocated) to where your database is located.
 
-The component that consumes the Promise (e.g. `Profile` above) will be suspended. This enables partial hydration. You will be able to see the streamed and prerendered HTML before JavaScript has finished loading.
+The component that consumes the Promise (e.g. `Profile` above) will be suspended. This enables partial hydration. You can see the streamed and prerendered HTML before JavaScript has finished loading.
 
 ### SPAs with SWR
 
@@ -230,7 +230,7 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Because this is a server component, `getUser()` can securely read cookies, headers, or talk to your database. No separate API route is needed. Client components below the `<SWRConfig>` will be able to call `useSWR()` with the same key to retrieve the user data. The component code which has `useSWR` **does not require any changes** from your existing client-fetching solution.
+Because this is a server component, `getUser()` can securely read cookies, headers, or talk to your database. No separate API route is needed. Client components below the `<SWRConfig>` can call `useSWR()` with the same key to retrieve the user data. The component code with `useSWR` **does not require any changes** from your existing client-fetching solution.
 
 ```tsx filename="app/profile.tsx" switcher
 'use client'
@@ -260,7 +260,7 @@ export function Profile() {
 }
 ```
 
-The data included in the `fallback` is able to be prerendered and included in the initial HTML response, then immediately read in the child components using `useSWR`. SWR’s polling, revalidation, and caching still run **client-side** **only**, so it preserves all the interactivity you rely on for an SPA.
+The `fallback` data can be prerendered and included in the initial HTML response, then immediately read in the child components using `useSWR`. SWR’s polling, revalidation, and caching still run **client-side only**, so it preserves all the interactivity you rely on for an SPA.
 
 Since the initial `fallback` data is automatically handled by Next.js, you can now delete any conditional logic previously needed to check if `data` was `undefined`. When the data is loading, the closest `<Suspense>` boundary will be suspended.
 
@@ -273,7 +273,7 @@ Since the initial `fallback` data is automatically handled by Next.js, you can n
 
 ### SPAs with React Query
 
-You can take advantage of React Query on the client and server with Next.js. This enables you to build both strict SPAs, as well as take advantage of server features in Next.js paired with React Query.
+You can use React Query with Next.js on both the client and server. This enables you to build both strict SPAs, as well as take advantage of server features in Next.js paired with React Query.
 
 Learn more in the [React Query documentation](https://tanstack.com/query/latest/docs/framework/react/guides/advanced-ssr).
 
@@ -293,7 +293,7 @@ This can be useful for third-party libraries that rely on browser APIs like `win
 
 ### Shallow routing on the client
 
-If you are migrating from a strict SPA like [Create React App](/docs/app/building-your-application/upgrading/from-create-react-app) or [Vite](/docs/app/building-your-application/upgrading/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful when you are manually transitioning between different views in your application _without_ using the default Next.js file-system routing.
+If you are migrating from a strict SPA like [Create React App](/docs/app/building-your-application/upgrading/from-create-react-app) or [Vite](/docs/app/building-your-application/upgrading/from-vite), you might have existing code which shallow routes to update the URL state. This can be useful for manual transitions between views in your application _without_ using the default Next.js file-system routing.
 
 Next.js allows you to use the native [`window.history.pushState`](https://developer.mozilla.org/en-US/docs/Web/API/History/pushState) and [`window.history.replaceState`](https://developer.mozilla.org/en-US/docs/Web/API/History/replaceState) methods to update the browser's history stack without reloading the page.
 
@@ -349,7 +349,7 @@ Learn more about how [routing and navigation](/docs/app/building-your-applicatio
 
 ### Using Server Actions from client components
 
-You can progressively adopt Server Actions while still using client components. This allows you to remove boilerplate code to call an API route, and instead use React features like `useActionState` for managing loading and error states.
+You can progressively adopt Server Actions while still using client components. This allows you to remove boilerplate code to call an API route, and instead use React features like `useActionState` to handle loading and error states.
 
 For example, create your first Server Action:
 
@@ -365,7 +365,7 @@ export async function create() {}
 export async function create() {}
 ```
 
-You can import and call a Server Action from the client, similar to calling a JavaScript function. You do not need to manually create an API endpoint:
+You can import and use a Server Action from the client, similar to calling a JavaScript function. You do not need to create an API endpoint manually:
 
 ```tsx filename="app/button.tsx" switcher
 'use client'
@@ -393,8 +393,8 @@ Learn more about [mutating data with Server Actions](/docs/app/building-your-app
 
 Next.js also supports generating a fully [static site](/docs/app/building-your-application/deploying/static-exports). This has some advantages over strict SPAs:
 
-- **Multiple prerendered HTML pages**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without having to wait for the client JavaScript bundle.
-- **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client-side, transitions remain instant and SPA-like.
+- **Multiple prerendered HTML pages**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without waiting for the client JavaScript bundle.
+- **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client side, transitions remain instant and SPA-like.
 
 To enable a static export, update your configuration:
 
@@ -408,9 +408,9 @@ const nextConfig: NextConfig = {
 export default nextConfig
 ```
 
-After running `next build`, Next.js will create an `out` folder which contains the HTML/CSS/JS assets for your application.
+After running `next build`, Next.js will create an `out` folder with the HTML/CSS/JS assets for your application.
 
-> **Note:** Next.js features which require a server are not supported with static exports. [Learn more](/docs/app/building-your-application/deploying/static-exports#unsupported-features).
+> **Note:** Next.js server features are not supported with static exports. [Learn more](/docs/app/building-your-application/deploying/static-exports#unsupported-features).
 
 ## Migrating existing projects to Next.js
 
