@@ -3777,7 +3777,7 @@ async function prerenderToStream(
       revalidate: INFINITE_CACHE,
       expire: INFINITE_CACHE,
       stale: INFINITE_CACHE,
-      tags: [...implicitTags],
+      tags: [...(prerenderStore?.tags || implicitTags)],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
       prerenderLegacyStore,
