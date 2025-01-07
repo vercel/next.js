@@ -499,15 +499,14 @@ async function generateDynamicRSCPayload(
         parentParams: {},
         flightRouterState,
         // For flight, render metadata inside leaf page
-        rscHead: [
+        rscHead: (
           <React.Fragment key={flightDataPathViewportKey}>
             {/* noindex needs to be blocking */}
             <NonIndex ctx={ctx} />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
-          </React.Fragment>,
-          null,
-        ],
+          </React.Fragment>
+        ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
         injectedFontPreloadTags: new Set(),
