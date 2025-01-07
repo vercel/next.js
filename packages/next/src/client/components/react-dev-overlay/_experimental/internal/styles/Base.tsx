@@ -14,6 +14,7 @@ export function Base() {
           --size-gap-triple: 24px;
           --size-gap-quad: 32px;
 
+          --size-font-smaller: 12px;
           --size-font-small: 14px;
           --size-font: 16px;
           --size-font-big: 20px;
