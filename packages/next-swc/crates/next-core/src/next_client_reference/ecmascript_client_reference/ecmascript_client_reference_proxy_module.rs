@@ -67,11 +67,13 @@ impl EcmascriptClientReferenceProxyModule {
     #[turbo_tasks::function]
     async fn proxy_module(&self) -> Result<Vc<EcmascriptModuleAsset>> {
         let mut code = CodeBuilder::default();
+        let is_esm: bool;
 
         let server_module_path = &*self.server_module_ident.path().to_string().await?;
 
         // Adapted from https://github.com/facebook/react/blob/c5b9375767e2c4102d7e5559d383523736f1c902/packages/react-server-dom-webpack/src/ReactFlightWebpackNodeLoader.js#L323-L354
         if let EcmascriptExports::EsmExports(exports) = &*self.client_module.get_exports().await? {
+            is_esm = true;
             let exports = exports.expand_exports().await?;
 
             if !exports.dynamic_exports.is_empty() {
@@ -127,6 +129,7 @@ impl EcmascriptClientReferenceProxyModule {
                 }
             }
         } else {
+            is_esm = false;
             writedoc!(
                 code,
                 r#"
@@ -143,7 +146,13 @@ impl EcmascriptClientReferenceProxyModule {
             AssetContent::file(File::from(code.source_code().clone()).into());
 
         let proxy_source = VirtualSource::new(
-            self.server_module_ident.path().join("proxy.js".to_string()),
+            self.server_module_ident.path().join(
+                // Depending on the original format, we call the file `proxy.mjs` or `proxy.cjs`.
+                // This is because we're placing the virtual module next to the original code, so
+                // its parsing will be affected by `type` fields in package.json --
+                // a bare `proxy.js` may end up being unexpectedly parsed as the wrong format.
+                format!("proxy.{}", if is_esm { "mjs" } else { "cjs" }),
+            ),
             proxy_module_content,
         );
 
