@@ -1277,10 +1277,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         drop(task);
 
-        // Remove outdated edges first, before removing in_progress+dirty flag.
-        // We need to make sure all outdated edges are removed before the task can potentially be
-        // scheduled and executed again
-        CleanupOldEdgesOperation::run(task_id, old_edges, queue, &mut ctx);
+        {
+            let _span = tracing::trace_span!("CleanupOldEdgesOperation").entered();
+            // Remove outdated edges first, before removing in_progress+dirty flag.
+            // We need to make sure all outdated edges are removed before the task can potentially
+            // be scheduled and executed again
+            CleanupOldEdgesOperation::run(task_id, old_edges, queue, &mut ctx);
+        }
 
         // When restoring from persistent caching the following might not be executed (since we can
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
