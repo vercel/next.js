@@ -1,4 +1,4 @@
-import { CopyButton } from '../copy-button'
+import { CopyButton } from '../../copy-button'
 
 export function CopyStackTraceButton({ error }: { error: Error | undefined }) {
   return (

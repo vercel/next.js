@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { ToolButtonsGroup } from './ToolButtonsGroup'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { ErrorOverlayToolbar } from './error-overlay-toolbar'
+import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
-const meta: Meta<typeof ToolButtonsGroup> = {
-  title: 'ToolButtonsGroup',
-  component: ToolButtonsGroup,
+const meta: Meta<typeof ErrorOverlayToolbar> = {
+  title: 'ErrorOverlayToolbar',
+  component: ErrorOverlayToolbar,
   parameters: {
     layout: 'centered',
   },
@@ -12,7 +12,7 @@ const meta: Meta<typeof ToolButtonsGroup> = {
 }
 
 export default meta
-type Story = StoryObj<typeof ToolButtonsGroup>
+type Story = StoryObj<typeof ErrorOverlayToolbar>
 
 export const WithErrorAndDebugInfo: Story = {
   args: {

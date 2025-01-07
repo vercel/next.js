@@ -1,16 +1,19 @@
-import type { DebugInfo } from '../../../../types'
+import type { DebugInfo } from '../../../../../types'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
-import { noop as css } from '../../helpers/noop-template'
+import { noop as css } from '../../../helpers/noop-template'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
 
-type ToolButtonsGroupProps = {
+type ErrorOverlayToolbarProps = {
   error: Error | undefined
   debugInfo: DebugInfo | undefined
 }
 
-export function ToolButtonsGroup({ error, debugInfo }: ToolButtonsGroupProps) {
+export function ErrorOverlayToolbar({
+  error,
+  debugInfo,
+}: ErrorOverlayToolbarProps) {
   return (
-    <span className="tool-buttons-group">
+    <span className="error-overlay-toolbar">
       <CopyStackTraceButton error={error} />
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
@@ -20,7 +23,7 @@ export function ToolButtonsGroup({ error, debugInfo }: ToolButtonsGroupProps) {
 }
 
 export const styles = css`
-  .tool-buttons-group {
+  .error-overlay-toolbar {
     display: flex;
     gap: var(--size-1_5);
   }
@@ -58,7 +61,7 @@ export const styles = css`
     }
   }
 
-  .tool-button-icon {
+  .error-overlay-toolbar-button-icon {
     color: var(--color-gray-900);
   }
 `

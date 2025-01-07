@@ -1,4 +1,4 @@
-import { CopyButton } from '../copy-button'
+import { CopyButton } from '../../copy-button'
 
 // Inline this helper to avoid widely used across the codebase,
 // as for this feature the Chrome detector doesn't need to be super accurate.
@@ -93,7 +93,7 @@ export function NodejsInspectorButton({
         rel="noopener noreferrer"
       >
         <NodeJsDisabledIcon
-          className="tool-button-icon"
+          className="error-overlay-toolbar-button-icon"
           width={16}
           height={16}
         />
@@ -107,7 +107,13 @@ export function NodejsInspectorButton({
       actionLabel={'Copy Chrome DevTools URL'}
       successLabel="Copied"
       content={content}
-      icon={<NodeJsIcon className="tool-button-icon" width={16} height={16} />}
+      icon={
+        <NodeJsIcon
+          className="error-overlay-toolbar-button-icon"
+          width={16}
+          height={16}
+        />
+      }
     />
   )
 }

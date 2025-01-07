@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { CopyStackTraceButton } from './copy-stack-trace-button'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof CopyStackTraceButton> = {
-  title: 'ToolButtonsGroup/CopyStackTraceButton',
+  title: 'ErrorOverlayToolbar/CopyStackTraceButton',
   component: CopyStackTraceButton,
   parameters: {
     layout: 'centered',

@@ -1,9 +1,9 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NodejsInspectorButton } from './nodejs-inspector-button'
-import { withShadowPortal } from '../../storybook/with-shadow-portal'
+import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof NodejsInspectorButton> = {
-  title: 'ToolButtonsGroup/NodejsInspectorButton',
+  title: 'ErrorOverlayToolbar/NodejsInspectorButton',
   component: NodejsInspectorButton,
   parameters: {
     layout: 'centered',
