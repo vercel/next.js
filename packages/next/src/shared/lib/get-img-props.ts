@@ -295,7 +295,8 @@ export function getImgProps(
   } else {
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    config = { ...c, allSizes, deviceSizes, qualities }
   }
 
   if (typeof defaultLoader === 'undefined') {

@@ -64,6 +64,45 @@ export function Base() {
           --color-ansi-bright-yellow: #ffd966;
 
           font-family: var(--font-stack-sans);
+
+          /* TODO: Remove replaced ones. */
+          --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+          --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1),
+            0 1px 2px -1px rgb(0 0 0 / 0.1);
+          --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1),
+            0 2px 4px -2px rgb(0 0 0 / 0.1);
+          --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1),
+            0 4px 6px -4px rgb(0 0 0 / 0.1);
+          --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1),
+            0 8px 10px -6px rgb(0 0 0 / 0.1);
+          --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
+          --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
+          --shadow-none: 0 0 #0000;
+
+          --rounded-none: 0px;
+          --rounded-sm: 0.125rem; /* 2px */
+          --rounded-md: 0.25rem; /* 4px */
+          --rounded-lg: 0.5rem; /* 8px */
+          --rounded-xl: 0.75rem; /* 12px */
+          --rounded-2xl: 1rem; /* 16px */
+          --rounded-3xl: 1.5rem; /* 24px */
+
+          --size-0: 0px;
+          --size-px: 1px;
+          --size-0_5: 0.125rem; /* 2px */
+          --size-1: 0.25rem; /* 4px */
+          --size-1_5: 0.375rem; /* 6px */
+          --size-2: 0.5rem; /* 8px */
+          --size-2_5: 0.625rem; /* 10px */
+          --size-3: 0.75rem; /* 12px */
+          --size-3_5: 0.875rem; /* 14px */
+          --size-4: 1rem; /* 16px */
+          --size-5: 1.25rem; /* 20px */
+          --size-6: 1.5rem; /* 24px */
+          --size-7: 1.75rem; /* 28px */
+          --size-8: 2rem; /* 32px */
+          --size-9: 2.25rem; /* 36px */
+          --size-10: 2.5rem; /* 40px */
         }
 
         @media (prefers-color-scheme: dark) {
