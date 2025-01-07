@@ -420,14 +420,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     break;
                 }
                 drop(task);
-                AggregationUpdateQueue::run(
-                    AggregationUpdateJob::UpdateAggregationNumber {
-                        task_id,
-                        base_aggregation_number: u32::MAX,
-                        distance: None,
-                    },
-                    &mut ctx,
-                );
+                {
+                    let _span = tracing::trace_span!(
+                        "make root node for strongly consistent read",
+                        %task_id
+                    )
+                    .entered();
+                    AggregationUpdateQueue::run(
+                        AggregationUpdateJob::UpdateAggregationNumber {
+                            task_id,
+                            base_aggregation_number: u32::MAX,
+                            distance: None,
+                        },
+                        &mut ctx,
+                    );
+                }
                 task = ctx.task(task_id, TaskDataCategory::All);
             }
 
