@@ -466,6 +466,7 @@ async function generateDynamicRSCPayload(
         workStore,
         MetadataBoundary,
         ViewportBoundary,
+        serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
       })
 
     const MetadataComponent = () => {
@@ -770,6 +771,7 @@ async function getRSCPayload(
       workStore,
       MetadataBoundary,
       ViewportBoundary,
+      serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
     })
 
   const preloadCallbacks: PreloadCallbacks = []
@@ -895,6 +897,7 @@ async function getErrorRSCPayload(
     workStore,
     MetadataBoundary,
     ViewportBoundary,
+    serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
   })
 
   const initialHeadMetadata = (

@@ -567,6 +567,12 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  /**
+   * @experimental This is temporary and will be **removed** in the short future.
+   * Enables the streaming metadata by default or not.
+   */
+  streamingMetadata?: boolean
 }
 
 export type ExportPathMap = {
