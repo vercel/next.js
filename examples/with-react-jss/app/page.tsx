@@ -1,4 +1,5 @@
 "use client";
+
 import { createUseStyles } from "react-jss";
 
 const useStyles = createUseStyles({
@@ -12,7 +13,7 @@ const useStyles = createUseStyles({
   },
 });
 
-export default function HomePage() {
+export default function Home() {
   const classes = useStyles();
 
   return (
