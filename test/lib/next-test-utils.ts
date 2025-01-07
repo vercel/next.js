@@ -1522,3 +1522,26 @@ export async function toggleCollapseCallStackFrames(browser: BrowserInterface) {
     expect(currExpanded).not.toBe(lastExpanded)
   })
 }
+
+/**
+ * Encodes the params into a URLSearchParams object using the format that the
+ * now builder uses for route matches (adding the `nxtP` prefix to the keys).
+ *
+ * @param params - The params to encode.
+ * @param extraQueryParams - The extra query params to encode (without the `nxtP` prefix).
+ * @returns The encoded URLSearchParams object.
+ */
+export function createNowRouteMatches(
+  params: Record<string, string>,
+  extraQueryParams: Record<string, string> = {}
+): URLSearchParams {
+  const urlSearchParams = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    urlSearchParams.append(`nxtP${key}`, value)
+  }
+  for (const [key, value] of Object.entries(extraQueryParams)) {
+    urlSearchParams.append(key, value)
+  }
+
+  return urlSearchParams
+}
