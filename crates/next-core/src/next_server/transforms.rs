@@ -9,8 +9,9 @@ use crate::{
     next_server::context::ServerContextType,
     next_shared::transforms::{
         get_next_dynamic_transform_rule, get_next_font_transform_rule, get_next_image_rule,
-        get_next_modularize_imports_rule, get_next_pages_transforms_rule,
-        get_server_actions_transform_rule, next_amp_attributes::get_next_amp_attr_rule,
+        get_next_lint_transform_rule, get_next_modularize_imports_rule,
+        get_next_pages_transforms_rule, get_server_actions_transform_rule,
+        next_amp_attributes::get_next_amp_attr_rule,
         next_cjs_optimizer::get_next_cjs_optimizer_rule,
         next_disallow_re_export_all_in_page::get_next_disallow_export_all_in_page_rule,
         next_edge_node_api_assert::next_edge_node_api_assert,
@@ -34,6 +35,9 @@ pub async fn get_next_server_transforms_rules(
 
     let modularize_imports_config = &next_config.modularize_imports().await?;
     let mdx_rs = next_config.mdx_rs().await?.is_some();
+
+    rules.push(get_next_lint_transform_rule(mdx_rs));
+
     if !modularize_imports_config.is_empty() {
         rules.push(get_next_modularize_imports_rule(
             modularize_imports_config,
@@ -50,6 +54,8 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
+    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
     let is_server_components = match context_ty {
@@ -66,7 +72,7 @@ pub async fn get_next_server_transforms_rules(
             if !foreign_code {
                 rules.push(
                     get_next_pages_transforms_rule(
-                        pages_dir,
+                        *pages_dir,
                         ExportFilter::StripDefaultExport,
                         mdx_rs,
                     )
@@ -85,7 +91,10 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
                 mdx_rs,
+                dynamic_io_enabled,
+                cache_kinds,
             ));
+
             is_app_dir = true;
 
             false
@@ -94,6 +103,8 @@ pub async fn get_next_server_transforms_rules(
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
                 mdx_rs,
+                dynamic_io_enabled,
+                cache_kinds,
             ));
 
             is_app_dir = true;
@@ -101,7 +112,15 @@ pub async fn get_next_server_transforms_rules(
             true
         }
         ServerContextType::AppRoute { .. } => {
+            rules.push(get_server_actions_transform_rule(
+                ActionsTransform::Server,
+                mdx_rs,
+                dynamic_io_enabled,
+                cache_kinds,
+            ));
+
             is_app_dir = true;
+
             false
         }
         ServerContextType::Middleware { .. } | ServerContextType::Instrumentation { .. } => false,
@@ -122,7 +141,7 @@ pub async fn get_next_server_transforms_rules(
         // rules.push(get_next_optimize_server_react_rule(enable_mdx_rs,
         // optimize_use_state))
 
-        rules.push(get_next_image_rule());
+        rules.push(get_next_image_rule().await?);
     }
 
     if let NextRuntime::Edge = next_runtime {

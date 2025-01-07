@@ -187,7 +187,7 @@ describe('app dir - basic', () => {
         (req) =>
           req.includes(
             encodeURI(isTurbopack ? '[category]_[id]' : '/[category]/[id]')
-          ) && req.endsWith('.js')
+          ) && req.includes('.js')
       )
         ? 'found'
         : // When it fails will log out the paths.
@@ -322,7 +322,7 @@ describe('app dir - basic', () => {
     const res = await next.fetch('/dashboard')
     expect(res.headers.get('x-edge-runtime')).toBe('1')
     expect(res.headers.get('vary')).toBe(
-      'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
+      'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
     )
   })
 
@@ -334,8 +334,8 @@ describe('app dir - basic', () => {
     })
     expect(res.headers.get('vary')).toBe(
       isNextDeploy
-        ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch'
-        : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Accept-Encoding'
+        ? 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch'
+        : 'RSC, Next-Router-State-Tree, Next-Router-Prefetch, Next-Router-Segment-Prefetch, Accept-Encoding'
     )
   })
 

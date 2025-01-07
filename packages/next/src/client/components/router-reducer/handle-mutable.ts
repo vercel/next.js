@@ -32,7 +32,6 @@ export function handleMutable(
   }
 
   return {
-    buildId: state.buildId,
     // Set href.
     canonicalUrl: isNotUndefined(mutable.canonicalUrl)
       ? mutable.canonicalUrl === state.canonicalUrl

@@ -10,9 +10,10 @@ import type { SubresourceIntegrityAlgorithm } from '../build/webpack/plugins/sub
 import type { WEB_VITALS } from '../shared/lib/utils'
 import type { NextParsedUrlQuery } from './request-meta'
 import type { SizeLimit } from '../types'
-import type { SwrDelta } from './lib/revalidate'
+import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
+import { INFINITE_CACHE } from '../lib/constants'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -22,20 +23,20 @@ export type NextConfigComplete = Required<NextConfig> & {
   configFileName: string
 }
 
-export type I18NDomains = DomainLocale[]
+export type I18NDomains = readonly DomainLocale[]
 
 export interface I18NConfig {
   defaultLocale: string
   domains?: I18NDomains
   localeDetection?: false
-  locales: string[]
+  locales: readonly string[]
 }
 
 export interface DomainLocale {
   defaultLocale: string
   domain: string
   http?: true
-  locales?: string[]
+  locales?: readonly string[]
 }
 
 export interface ESLintConfig {
@@ -114,7 +115,7 @@ export type TurboRuleConfigItem =
 
 export interface ExperimentalTurboOptions {
   /**
-   * (`next --turbo` only) A mapping of aliased imports to modules to load in their place.
+   * (`next --turbopack` only) A mapping of aliased imports to modules to load in their place.
    *
    * @see [Resolve Alias](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-alias)
    */
@@ -124,30 +125,25 @@ export interface ExperimentalTurboOptions {
   >
 
   /**
-   * (`next --turbo` only) A list of extensions to resolve when importing files.
+   * (`next --turbopack` only) A list of extensions to resolve when importing files.
    *
    * @see [Resolve Extensions](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#resolve-extensions)
    */
   resolveExtensions?: string[]
 
   /**
-   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   loaders?: Record<string, TurboLoaderItem[]>
 
   /**
-   * (`next --turbo` only) A list of webpack loaders to apply when running with Turbopack.
+   * (`next --turbopack` only) A list of webpack loaders to apply when running with Turbopack.
    *
    * @see [Turbopack Loaders](https://nextjs.org/docs/app/api-reference/next-config-js/turbo#webpack-loaders)
    */
   rules?: Record<string, TurboRuleConfigItemOrShortcut>
-
-  /**
-   * Use swc_css instead of lightningcss for Turbopack
-   */
-  useSwcCss?: boolean
 
   /**
    * A target memory limit for turbo, in bytes.
@@ -157,7 +153,7 @@ export interface ExperimentalTurboOptions {
   /**
    * Enable persistent caching for the turbopack dev server and build.
    */
-  persistentCaching?: boolean
+  unstablePersistentCaching?: boolean
 
   /**
    * Enable tree shaking for the turbopack dev server and build.
@@ -176,6 +172,11 @@ export interface ExperimentalTurboOptions {
    * directory can be resolved by turbopack.
    */
   root?: string
+
+  /**
+   * Enable minification. Defaults to true in build mode and false in dev mode.
+   */
+  minify?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -234,12 +235,18 @@ export interface LoggingConfig {
 }
 
 export interface ExperimentalConfig {
+  cacheHandlers?: {
+    default?: string
+    remote?: string
+    static?: string
+    [handlerName: string]: string | undefined
+  }
   multiZoneDraftMode?: boolean
   appNavFailHandling?: boolean
-  flyingShuttle?: { mode?: 'full' | 'store-only' }
   prerenderEarlyExit?: boolean
   linkNoTouchStart?: boolean
   caseSensitiveRoutes?: boolean
+  clientSegmentCache?: boolean
   appDocumentPreloading?: boolean
   preloadEntriesOnStart?: boolean
   /** @default true */
@@ -256,6 +263,19 @@ export interface ExperimentalConfig {
     dynamic?: number
     static?: number
   }
+  cacheLife?: {
+    [profile: string]: {
+      // How long the client can cache a value without checking with the server.
+      stale?: number
+      // How frequently you want the cache to refresh on the server.
+      // Stale values may be served while revalidating.
+      revalidate?: number
+      // In the worst case scenario, where you haven't had traffic in a while,
+      // how stale can a value be until you prefer deopting to dynamic.
+      // Must be longer than revalidate.
+      expire?: number
+    }
+  }
   // decimal for percent for possible false positives
   // e.g. 0.01 for 10% potential false matches lower
   // percent increases size of the filter
@@ -264,20 +284,24 @@ export interface ExperimentalConfig {
   extensionAlias?: Record<string, any>
   allowedRevalidateHeaderKeys?: string[]
   fetchCacheKeyPrefix?: string
+  imgOptConcurrency?: number | null
+  imgOptTimeoutInSeconds?: number
+  imgOptMaxInputPixels?: number
+  imgOptSequentialRead?: boolean | null
   optimisticClientCache?: boolean
   /**
-   * @deprecated use config.swrDelta instead
+   * @deprecated use config.expireTime instead
    */
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
   middlewarePrefetch?: 'strict' | 'flexible'
   manualClientBasePath?: boolean
   /**
-   * CSS Chunking strategy. Defaults to 'loose', which guesses dependencies
+   * CSS Chunking strategy. Defaults to `true` ("loose" mode), which guesses dependencies
    * between CSS files to keep ordering of them.
    * An alternative is 'strict', which will try to keep correct ordering as
    * much as possible, even when this leads to many requests.
    */
-  cssChunking?: 'strict' | 'loose'
+  cssChunking?: boolean | 'strict'
   disablePostcssPresetEnv?: boolean
   cpus?: number
   memoryBasedWorkersCount?: boolean
@@ -330,23 +354,6 @@ export interface ExperimentalConfig {
   optimizeServerReact?: boolean
 
   turbo?: ExperimentalTurboOptions
-  turbotrace?: {
-    logLevel?:
-      | 'bug'
-      | 'fatal'
-      | 'error'
-      | 'warning'
-      | 'hint'
-      | 'note'
-      | 'suggestions'
-      | 'info'
-    logDetail?: boolean
-    logAll?: boolean
-    contextDirectory?: string
-    processCwd?: string
-    /** in `MB` */
-    memoryLimit?: number
-  }
 
   /**
    * For use with `@next/mdx`. Compile MDX files using the new Rust compiler.
@@ -435,16 +442,16 @@ export interface ExperimentalConfig {
   ppr?: ExperimentalPPRConfig
 
   /**
-   * Enables experimental Partial Fallback Prerendering features. Using this
-   * requires use of the `experimental.ppr` feature.
-   */
-  pprFallbacks?: boolean
-
-  /**
    * Enables experimental taint APIs in React.
    * Using this feature will enable the `react@experimental` for the `app` directory.
    */
   taint?: boolean
+
+  /**
+   * Enables leveraging experimental captureOwnerStack API in React,
+   * to create a better stack trace for React errors.
+   */
+  reactOwnerStack?: boolean
 
   serverActions?: {
     /**
@@ -519,11 +526,6 @@ export interface ExperimentalConfig {
   reactCompiler?: boolean | ReactCompilerOptions
 
   /**
-   * Enables `unstable_after`
-   */
-  after?: boolean
-
-  /**
    * The number of times to retry static generation (per page) before giving up.
    */
   staticGenerationRetryCount?: number
@@ -548,12 +550,51 @@ export interface ExperimentalConfig {
    * unless explicitly cached.
    */
   dynamicIO?: boolean
+
+  /**
+   * Render <style> tags inline in the HTML for imported CSS assets.
+   * Supports app-router in production mode only.
+   */
+  inlineCss?: boolean
+
+  // TODO: Remove this config when the API is stable.
+  /**
+   * This config allows you to enable the experimental navigation API `forbidden` and `unauthorized`.
+   */
+  authInterrupts?: boolean
+
+  /**
+   * Enables the new dev overlay.
+   */
+  newDevOverlay?: boolean
 }
 
 export type ExportPathMap = {
   [path: string]: {
     page: string
     query?: NextParsedUrlQuery
+
+    /**
+     * When true, this indicates that this is a pages router page that should
+     * be rendered as a fallback.
+     *
+     * @internal
+     */
+    _pagesFallback?: boolean
+
+    /**
+     * The locale that this page should be rendered in.
+     *
+     * @internal
+     */
+    _locale?: string
+
+    /**
+     * The path that was used to generate the page.
+     *
+     * @internal
+     */
+    _ssgPath?: string
 
     /**
      * The parameters that are currently unknown.
@@ -576,6 +617,16 @@ export type ExportPathMap = {
      * @internal
      */
     _isRoutePPREnabled?: boolean
+
+    /**
+     * When true, it indicates that this page is being rendered in an attempt to
+     * discover if the page will be safe to generate with PPR. This is only
+     * enabled when the app has `experimental.dynamicIO` enabled but does not
+     * have `experimental.ppr` enabled.
+     *
+     * @internal
+     */
+    _isProspectiveRender?: boolean
   }
 }
 
@@ -584,7 +635,7 @@ export type ExportPathMap = {
  *
  * This can change the behavior, enable experimental features, and configure other advanced options.
  *
- * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/api-reference/next.config.js/introduction)
+ * Read more: [Next.js Docs: `next.config.js`](https://nextjs.org/docs/app/api-reference/config/next-config-js)
  */
 export interface NextConfig extends Record<string, any> {
   exportPathMap?: (
@@ -607,26 +658,26 @@ export interface NextConfig extends Record<string, any> {
 
   /**
    * @since version 11
-   * @see [ESLint configuration](https://nextjs.org/docs/basic-features/eslint)
+   * @see [ESLint configuration](https://nextjs.org/docs/app/api-reference/config/eslint)
    */
   eslint?: ESLintConfig
 
   /**
-   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/basic-features/typescript)
+   * @see [Next.js TypeScript documentation](https://nextjs.org/docs/app/api-reference/config/typescript)
    */
   typescript?: TypeScriptConfig
 
   /**
    * Headers allow you to set custom HTTP headers for an incoming request path.
    *
-   * @see [Headers configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/headers)
+   * @see [Headers configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/headers)
    */
   headers?: () => Promise<Header[]>
 
   /**
    * Rewrites allow you to map an incoming request path to a different destination path.
    *
-   * @see [Rewrites configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/rewrites)
+   * @see [Rewrites configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites)
    */
   rewrites?: () => Promise<
     | Rewrite[]
@@ -640,7 +691,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Redirects allow you to redirect an incoming request path to a different destination path.
    *
-   * @see [Redirects configuration documentation](https://nextjs.org/docs/api-reference/next.config.js/redirects)
+   * @see [Redirects configuration documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/redirects)
    */
   redirects?: () => Promise<Redirect[]>
 
@@ -652,7 +703,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Before continuing to add custom webpack configuration to your application make sure Next.js doesn't already support your use-case
    *
-   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/api-reference/next.config.js/custom-webpack-config)
+   * @see [Custom Webpack Config documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/webpack)
    */
   webpack?: NextJsWebpackConfig | null
 
@@ -660,14 +711,14 @@ export interface NextConfig extends Record<string, any> {
    * By default Next.js will redirect urls with trailing slashes to their counterpart without a trailing slash.
    *
    * @default false
-   * @see [Trailing Slash Configuration](https://nextjs.org/docs/api-reference/next.config.js/trailing-slash)
+   * @see [Trailing Slash Configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/trailingSlash)
    */
   trailingSlash?: boolean
 
   /**
    * Next.js comes with built-in support for environment variables
    *
-   * @see [Environment Variables documentation](https://nextjs.org/docs/api-reference/next.config.js/environment-variables)
+   * @see [Environment Variables documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/env)
    */
   env?: Record<string, string | undefined>
 
@@ -684,7 +735,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * To set up a CDN, you can set up an asset prefix and configure your CDN's origin to resolve to the domain that Next.js is hosted on.
    *
-   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/api-reference/next.config.js/cdn-support-with-asset-prefix)
+   * @see [CDN Support with Asset Prefix](https://nextjs.org/docs/app/api-reference/config/next-config-js/assetPrefix)
    */
   assetPrefix?: string
 
@@ -713,23 +764,23 @@ export interface NextConfig extends Record<string, any> {
   useFileSystemPublicRoutes?: boolean
 
   /**
-   * @see [Configuring the build ID](https://nextjs.org/docs/api-reference/next.config.js/configuring-the-build-id)
+   * @see [Configuring the build ID](https://nextjs.org/docs/app/api-reference/config/next-config-js/generateBuildId)
    */
   generateBuildId?: () => string | null | Promise<string | null>
 
-  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/api-reference/next.config.js/disabling-etag-generation) */
+  /** @see [Disabling ETag Configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/generateEtags) */
   generateEtags?: boolean
 
-  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/api-reference/next.config.js/custom-page-extensions) */
+  /** @see [Including non-page files in the pages directory](https://nextjs.org/docs/app/api-reference/config/next-config-js/pageExtensions) */
   pageExtensions?: string[]
 
-  /** @see [Compression documentation](https://nextjs.org/docs/api-reference/next.config.js/compression) */
+  /** @see [Compression documentation](https://nextjs.org/docs/app/api-reference/config/next-config-js/compress) */
   compress?: boolean
 
-  /** @see [Disabling x-powered-by](https://nextjs.org/docs/api-reference/next.config.js/disabling-x-powered-by) */
+  /** @see [Disabling x-powered-by](https://nextjs.org/docs/app/api-reference/config/next-config-js/poweredByHeader) */
   poweredByHeader?: boolean
 
-  /** @see [Using the Image Component](https://nextjs.org/docs/basic-features/image-optimization#using-the-image-component) */
+  /** @see [Using the Image Component](https://nextjs.org/docs/app/api-reference/next-config-js/images) */
   images?: ImageConfig
 
   /** Configure indicators in development environment */
@@ -749,7 +800,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Next.js exposes some options that give you some control over how the server will dispose or keep in memory built pages in development.
    *
-   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/api-reference/next.config.js/configuring-onDemandEntries)
+   * @see [Configuring `onDemandEntries`](https://nextjs.org/docs/app/api-reference/config/next-config-js/onDemandEntries)
    */
   onDemandEntries?: {
     /** period (in ms) where the server will keep pages in the buffer */
@@ -771,7 +822,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Deploy a Next.js application under a sub-path of a domain
    *
-   * @see [Base path configuration](https://nextjs.org/docs/api-reference/next.config.js/basepath)
+   * @see [Base path configuration](https://nextjs.org/docs/app/api-reference/config/next-config-js/basePath)
    */
   basePath?: string
 
@@ -797,7 +848,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * The Next.js runtime is Strict Mode-compliant.
    *
-   * @see [React Strict Mode](https://nextjs.org/docs/api-reference/next.config.js/react-strict-mode)
+   * @see [React Strict Mode](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactStrictMode)
    */
   reactStrictMode?: boolean | null
 
@@ -805,21 +856,21 @@ export interface NextConfig extends Record<string, any> {
    * The maximum length of the headers that are emitted by React and added to
    * the response.
    *
-   * @see [React Max Headers Length](https://nextjs.org/docs/api-reference/next.config.js/react-max-headers-length)
+   * @see [React Max Headers Length](https://nextjs.org/docs/app/api-reference/config/next-config-js/reactMaxHeadersLength)
    */
   reactMaxHeadersLength?: number
 
   /**
    * Add public (in browser) runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
    */
   publicRuntimeConfig?: { [key: string]: any }
 
   /**
    * Add server runtime configuration to your app
    *
-   * @see [Runtime configuration](https://nextjs.org/docs/api-reference/next.config.js/runtime-configuration)
+   * @see [Runtime configuration](https://nextjs.org/docs/pages/api-reference/config/next-config-js/runtime-configuration
    */
   serverRuntimeConfig?: { [key: string]: any }
 
@@ -876,6 +927,12 @@ export interface NextConfig extends Record<string, any> {
       | {
           useLightningcss?: boolean
         }
+
+    /**
+     * Replaces variables in your code during compile time. Each key will be
+     * replaced with the respective values.
+     */
+    define?: Record<string, string>
   }
 
   /**
@@ -913,7 +970,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * period (in seconds) where the server allow to serve stale cache
    */
-  swrDelta?: SwrDelta
+  expireTime?: ExpireTime
 
   /**
    * Enable experimental features. Note that all experimental features are subject to breaking changes in the future.
@@ -1006,24 +1063,63 @@ export const defaultConfig: NextConfig = {
     keepAlive: true,
   },
   logging: {},
-  swrDelta: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
+  expireTime: process.env.__NEXT_TEST_MODE ? undefined : 31536000,
   staticPageGenerationTimeout: 60,
   output: !!process.env.NEXT_PRIVATE_STANDALONE ? 'standalone' : undefined,
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    cacheLife: {
+      default: {
+        stale: undefined, // defaults to staleTimes.static
+        revalidate: 60 * 15, // 15 minutes
+        expire: INFINITE_CACHE,
+      },
+      seconds: {
+        stale: undefined, // defaults to staleTimes.dynamic
+        revalidate: 1, // 1 second
+        expire: 60, // 1 minute
+      },
+      minutes: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60, // 1 minute
+        expire: 60 * 60, // 1 hour
+      },
+      hours: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60, // 1 hour
+        expire: 60 * 60 * 24, // 1 day
+      },
+      days: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24, // 1 day
+        expire: 60 * 60 * 24 * 7, // 1 week
+      },
+      weeks: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 7, // 1 week
+        expire: 60 * 60 * 24 * 30, // 1 month
+      },
+      max: {
+        stale: 60 * 5, // 5 minutes
+        revalidate: 60 * 60 * 24 * 30, // 1 month
+        expire: INFINITE_CACHE, // Unbounded.
+      },
+    },
+    cacheHandlers: {
+      default: process.env.NEXT_DEFAULT_CACHE_HANDLER_PATH,
+      remote: process.env.NEXT_REMOTE_CACHE_HANDLER_PATH,
+      static: process.env.NEXT_STATIC_CACHE_HANDLER_PATH,
+    },
+    cssChunking: true,
     multiZoneDraftMode: false,
-    appNavFailHandling: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE),
-    flyingShuttle: Boolean(process.env.NEXT_PRIVATE_FLYING_SHUTTLE)
-      ? {
-          mode: 'full',
-        }
-      : undefined,
+    appNavFailHandling: false,
     prerenderEarlyExit: true,
     serverMinification: true,
     serverSourceMaps: false,
     linkNoTouchStart: false,
     caseSensitiveRoutes: false,
+    clientSegmentCache: false,
     appDocumentPreloading: undefined,
     preloadEntriesOnStart: true,
     clientRouterFilter: true,
@@ -1038,6 +1134,10 @@ export const defaultConfig: NextConfig = {
         (os.cpus() || { length: 1 }).length) - 1
     ),
     memoryBasedWorkersCount: false,
+    imgOptConcurrency: null,
+    imgOptTimeoutInSeconds: 7,
+    imgOptMaxInputPixels: 268_402_689, // https://sharp.pixelplumbing.com/api-constructor#:~:text=%5Boptions.limitInputPixels%5D
+    imgOptSequentialRead: null,
     isrFlushToDisk: true,
     workerThreads: false,
     proxyTimeout: undefined,
@@ -1058,7 +1158,6 @@ export const defaultConfig: NextConfig = {
     amp: undefined,
     urlImports: undefined,
     turbo: undefined,
-    turbotrace: undefined,
     typedRoutes: false,
     typedEnv: false,
     clientTraceMetadata: undefined,
@@ -1073,15 +1172,8 @@ export const defaultConfig: NextConfig = {
         process.env.__NEXT_TEST_MODE &&
         process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       ),
-    pprFallbacks:
-      // TODO: remove once we've made PPR default
-      // If we're testing, and the `__NEXT_EXPERIMENTAL_PPR` environment variable
-      // has been set to `true`, enable the experimental PPR feature so long as it
-      // wasn't explicitly disabled in the config.
-      !!(
-        process.env.__NEXT_TEST_MODE &&
-        process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
-      ),
+    authInterrupts: false,
+    reactOwnerStack: false,
     webpackBuildWorker: undefined,
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
@@ -1092,12 +1184,13 @@ export const defaultConfig: NextConfig = {
     },
     allowDevelopmentBuild: undefined,
     reactCompiler: undefined,
-    after: false,
     staticGenerationRetryCount: undefined,
     serverComponentsHmrCache: true,
     staticGenerationMaxConcurrency: 8,
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
+    inlineCss: false,
+    newDevOverlay: false,
   },
   bundlePagesRouterDependencies: false,
 }

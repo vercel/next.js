@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystem};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -20,14 +21,14 @@ use crate::NodeJsChunkingContext;
 /// An Ecmascript chunk that contains the Node.js runtime code.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeRuntimeChunk {
-    chunking_context: Vc<NodeJsChunkingContext>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptBuildNodeRuntimeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeRuntimeChunk>`].
     #[turbo_tasks::function]
-    pub fn new(chunking_context: Vc<NodeJsChunkingContext>) -> Vc<Self> {
+    pub fn new(chunking_context: ResolvedVc<NodeJsChunkingContext>) -> Vc<Self> {
         EcmascriptBuildNodeRuntimeChunk { chunking_context }.cell()
     }
 
@@ -35,6 +36,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
 
+        let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
         let runtime_path = self.ident().path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
@@ -48,7 +50,6 @@ impl EcmascriptBuildNodeRuntimeChunk {
         };
 
         let mut code = CodeBuilder::default();
-        let output_root = output_root.to_string();
         let asset_prefix = this.chunking_context.asset_prefix().await?;
         let asset_prefix = asset_prefix.as_deref().unwrap_or("/");
 
@@ -56,11 +57,11 @@ impl EcmascriptBuildNodeRuntimeChunk {
             code,
             r#"
                 const RUNTIME_PUBLIC_PATH = {};
-                const OUTPUT_ROOT = {};
+                const RELATIVE_ROOT_PATH = {};
                 const ASSET_PREFIX = {};
             "#,
             StringifyJs(runtime_public_path),
-            StringifyJs(output_root.as_str()),
+            StringifyJs(output_root_to_root_path.as_str()),
             StringifyJs(asset_prefix),
         )?;
 
@@ -119,7 +120,9 @@ impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
             .reference_chunk_source_maps(Vc::upcast(self))
             .await?
         {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))))
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ))
         }
 
         Ok(Vc::cell(references))

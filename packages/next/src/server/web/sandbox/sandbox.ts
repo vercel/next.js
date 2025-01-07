@@ -1,10 +1,18 @@
 import type { NodejsRequestData, FetchEventResult, RequestData } from '../types'
 import type { EdgeFunctionDefinition } from '../../../build/webpack/plugins/middleware-plugin'
 import type { EdgeRuntime } from 'next/dist/compiled/edge-runtime'
-import { getModuleContext, requestStore } from './context'
+import {
+  getModuleContext,
+  requestStore,
+  edgeSandboxNextRequestContext,
+} from './context'
 import { requestToBodyStream } from '../../body-streams'
 import { NEXT_RSC_UNION_QUERY } from '../../../client/components/app-router-headers'
 import type { ServerComponentsHmrCache } from '../../response-cache'
+import {
+  getBuiltinRequestContext,
+  type BuiltinRequestContextValue,
+} from '../../after/builtin-request-context'
 
 export const ErrorSource = Symbol('SandboxError')
 
@@ -36,7 +44,7 @@ type RunnerFn = (params: RunnerFnParams) => Promise<FetchEventResult>
 function withTaggedErrors(fn: RunnerFn): RunnerFn {
   if (process.env.NODE_ENV === 'development') {
     const { getServerError } =
-      require('../../../client/components/react-dev-overlay/server/middleware') as typeof import('../../../client/components/react-dev-overlay/server/middleware')
+      require('../../../client/components/react-dev-overlay/server/middleware-webpack') as typeof import('../../../client/components/react-dev-overlay/server/middleware-webpack')
 
     return (params) =>
       fn(params)
@@ -128,18 +136,30 @@ export const run = withTaggedErrors(async function runWithTaggedErrors(params) {
 
   try {
     let result: FetchEventResult | undefined = undefined
-    await requestStore.run({ headers }, async () => {
-      result = await edgeFunction({
-        request: {
-          ...params.request,
-          body:
-            cloned && requestToBodyStream(runtime.context, KUint8Array, cloned),
-        },
+    const builtinRequestCtx: BuiltinRequestContextValue = {
+      ...getBuiltinRequestContext(),
+      // FIXME(after):
+      // arguably, this is an abuse of "@next/request-context" --
+      // it'd make more sense to simply forward its existing value into the sandbox (in `createModuleContext`)
+      // but here we're using it to just pass in `waitUntil` regardless if we were running in this context or not.
+      waitUntil: params.request.waitUntil,
+    }
+    await edgeSandboxNextRequestContext.run(builtinRequestCtx, () =>
+      requestStore.run({ headers }, async () => {
+        result = await edgeFunction({
+          request: {
+            ...params.request,
+            body:
+              cloned &&
+              requestToBodyStream(runtime.context, KUint8Array, cloned),
+          },
+        })
+        for (const headerName of FORBIDDEN_HEADERS) {
+          result.response.headers.delete(headerName)
+        }
       })
-      for (const headerName of FORBIDDEN_HEADERS) {
-        result.response.headers.delete(headerName)
-      }
-    })
+    )
+
     if (!result) throw new Error('Edge function did not return a response')
     return result
   } finally {

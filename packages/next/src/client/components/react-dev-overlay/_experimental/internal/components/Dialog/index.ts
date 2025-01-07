@@ -1,0 +1,6 @@
+export { Dialog } from './Dialog'
+export { DialogBody } from './DialogBody'
+export { DialogContent } from './DialogContent'
+export { DialogHeader } from './DialogHeader'
+export { DialogFooter } from './dialog-footer'
+export { styles } from './styles'

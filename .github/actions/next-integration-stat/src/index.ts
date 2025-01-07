@@ -735,7 +735,7 @@ const createCommentPostAsync =
     console.log('Created a new comment', result.data.html_url)
   }
 
-// An action report failed next.js integration test with --turbo
+// An action report failed next.js integration test with --turbopack
 async function run() {
   const {
     token,

@@ -1,3 +1,5 @@
+exported_t_r = FreeVar(require)("exported_t_r")
+
 t_i = FreeVar(import)("t_i")
 
 t_r = (

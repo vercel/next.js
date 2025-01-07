@@ -82,13 +82,23 @@ export function isWellKnownError(issue: Issue): boolean {
 const onceErrorSet = new Set()
 /**
  * Check if given issue is a warning to be display only once.
- * This miimics behavior of get-page-static-info's warnOnce.
+ * This mimics behavior of get-page-static-info's warnOnce.
  * @param issue
  * @returns
  */
 function shouldEmitOnceWarning(issue: Issue): boolean {
-  const { severity, title } = issue
+  const { severity, title, stage } = issue
   if (severity === 'warning' && title.value === 'Invalid page configuration') {
+    if (onceErrorSet.has(issue)) {
+      return false
+    }
+    onceErrorSet.add(issue)
+  }
+  if (
+    severity === 'warning' &&
+    stage === 'config' &&
+    renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+  ) {
     if (onceErrorSet.has(issue)) {
       return false
     }
@@ -107,9 +117,23 @@ export function printNonFatalIssue(issue: Issue) {
 }
 
 function isNodeModulesIssue(issue: Issue): boolean {
+  if (issue.severity === 'warning' && issue.stage === 'config') {
+    // Override for the externalize issue
+    // `Package foo (serverExternalPackages or default list) can't be external`
+    if (
+      renderStyledStringToErrorAnsi(issue.title).includes("can't be external")
+    ) {
+      return false
+    }
+  }
+
   return (
     issue.severity === 'warning' &&
-    issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null
+    (issue.filePath.match(/^(?:.*[\\/])?node_modules(?:[\\/].*)?$/) !== null ||
+      // Ignore Next.js itself when running next directly in the monorepo where it is not inside
+      // node_modules anyway.
+      // TODO(mischnic) prevent matches when this is published to npm
+      issue.filePath.startsWith('[project]/packages/next/'))
   )
 }
 
@@ -240,14 +264,16 @@ export function processIssues(
       continue
 
     const issueKey = getIssueKey(issue)
-    const formatted = formatIssue(issue)
     newIssues.set(issueKey, issue)
 
     if (issue.severity !== 'warning') {
-      relevantIssues.add(formatted)
-
+      if (throwIssue) {
+        const formatted = formatIssue(issue)
+        relevantIssues.add(formatted)
+      }
       // if we throw the issue it will most likely get handed and logged elsewhere
-      if (logErrors && !throwIssue && isWellKnownError(issue)) {
+      else if (logErrors && isWellKnownError(issue)) {
+        const formatted = formatIssue(issue)
         Log.error(formatted)
       }
     }
@@ -368,6 +394,8 @@ export async function handleRouteType({
 
   hooks?: HandleRouteTypeHooks // dev
 }) {
+  const shouldCreateWebpackStats = process.env.TURBOPACK_STATS != null
+
   switch (route.type) {
     case 'page': {
       const clientKey = getEntryKey('pages', 'client', page)
@@ -420,7 +448,10 @@ export async function handleRouteType({
         }
         await manifestLoader.loadFontManifest('/_app', 'pages')
         await manifestLoader.loadFontManifest(page, 'pages')
-        await manifestLoader.loadLoadableManifest(page, 'pages')
+
+        if (shouldCreateWebpackStats) {
+          await manifestLoader.loadWebpackStats(page, 'pages')
+        }
 
         await manifestLoader.writeManifests({
           devRewrites,
@@ -451,8 +482,11 @@ export async function handleRouteType({
                 pages: [page],
               }
             },
-            () => {
-              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+            (e) => {
+              return {
+                action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                data: `error in ${page} data subscription: ${e}`,
+              }
             }
           )
           hooks?.subscribeToChanges(
@@ -464,8 +498,11 @@ export async function handleRouteType({
                 event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES,
               }
             },
-            () => {
-              return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+            (e) => {
+              return {
+                action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                data: `error in ${page} html subscription: ${e}`,
+              }
             }
           )
           if (entrypoints.global.document) {
@@ -474,10 +511,16 @@ export async function handleRouteType({
               false,
               entrypoints.global.document,
               () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+                return {
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                  data: '_document has changed (page route)',
+                }
               },
-              () => {
-                return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+              (e) => {
+                return {
+                  action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+                  data: `error in _document subscription (page route): ${e}`,
+                }
               }
             )
           }
@@ -500,7 +543,6 @@ export async function handleRouteType({
       } else {
         manifestLoader.deleteMiddlewareManifest(key)
       }
-      await manifestLoader.loadLoadableManifest(page, 'pages')
 
       await manifestLoader.writeManifests({
         devRewrites,
@@ -557,8 +599,12 @@ export async function handleRouteType({
       await manifestLoader.loadBuildManifest(page, 'app')
       await manifestLoader.loadAppPathsManifest(page)
       await manifestLoader.loadActionManifest(page)
-      await manifestLoader.loadLoadableManifest(page, 'app')
       await manifestLoader.loadFontManifest(page, 'app')
+
+      if (shouldCreateWebpackStats) {
+        await manifestLoader.loadWebpackStats(page, 'app')
+      }
+
       await manifestLoader.writeManifests({
         devRewrites,
         productionRewrites,
@@ -1042,6 +1088,7 @@ export async function handlePagesErrorRoute({
         () => {
           return {
             action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: '_app has changed (error route)',
           }
         }
       )
@@ -1063,10 +1110,16 @@ export async function handlePagesErrorRoute({
         false,
         entrypoints.global.document,
         () => {
-          return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+          return {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: '_document has changed (error route)',
+          }
         },
-        () => {
-          return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+        (e) => {
+          return {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: `error in _document subscription (error route): ${e}`,
+          }
         }
       )
     }
@@ -1089,8 +1142,11 @@ export async function handlePagesErrorRoute({
           // https://github.com/vercel/next.js/blob/08d7a7e5189a835f5dcb82af026174e587575c0e/packages/next/src/client/page-bootstrap.ts#L69-L71
           return { event: HMR_ACTIONS_SENT_TO_BROWSER.CLIENT_CHANGES }
         },
-        () => {
-          return { action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE }
+        (e) => {
+          return {
+            action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+            data: `error in _error subscription: ${e}`,
+          }
         }
       )
     }
@@ -1145,4 +1201,10 @@ export function normalizedPageToTurbopackStructureRoute(
     entrypointKey = entrypointKey + '/route'
   }
   return entrypointKey
+}
+
+export function isPersistentCachingEnabled(
+  config: NextConfigComplete
+): boolean {
+  return config.experimental.turbo?.unstablePersistentCaching || false
 }

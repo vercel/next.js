@@ -3,7 +3,7 @@
 
 use turbo_tasks::{ResolvedVc, Vc};
 
-#[turbo_tasks::value(transparent, resolved)]
+#[turbo_tasks::value(transparent)]
 struct IntegersVec(Vec<ResolvedVc<u32>>);
 
 #[turbo_tasks::function(invalid_argument)]

@@ -1,5 +1,5 @@
-import { workAsyncStorage } from '../../client/components/work-async-storage.external'
-import { workUnitAsyncStorage } from '../../client/components/work-unit-async-storage.external'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   postponeWithTracking,
   throwToInterruptStaticGeneration,
@@ -7,6 +7,7 @@ import {
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
+import { isRequestAPICallableInsideAfter } from './utils'
 
 /**
  * This function allows you to indicate that you require an actual user Request before continuing.
@@ -18,6 +19,16 @@ export function connection(): Promise<void> {
   const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (workStore) {
+    if (
+      workUnitStore &&
+      workUnitStore.phase === 'after' &&
+      !isRequestAPICallableInsideAfter()
+    ) {
+      throw new Error(
+        `Route ${workStore.route} used "connection" inside "after(...)". The \`connection()\` function is used to indicate the subsequent code must only run when there is an actual Request, but "after(...)" executes after the request, so this function is not allowed in this scope. See more info here: https://nextjs.org/docs/canary/app/api-reference/functions/after`
+      )
+    }
+
     if (workStore.forceStatic) {
       // When using forceStatic we override all other logic and always just return an empty
       // headers object without tracking
@@ -45,7 +56,7 @@ export function connection(): Promise<void> {
       if (workUnitStore.type === 'prerender') {
         // dynamicIO Prerender
         // We return a promise that never resolves to allow the prender to stall at this point
-        return makeHangingPromise()
+        return makeHangingPromise(workUnitStore.renderSignal, '`connection()`')
       } else if (workUnitStore.type === 'prerender-ppr') {
         // PPR Prerender (no dynamicIO)
         // We use React's postpone API to interrupt rendering here to create a dynamic hole

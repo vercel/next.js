@@ -10,7 +10,8 @@ use std::{
 
 use anyhow::Result;
 use sha2::{Digest, Sha256};
-use turbo_tasks::{util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Vc};
 use turbo_tasks_fs::{
     register, DirectoryContent, DirectoryEntry, DiskFileSystem, FileContent, FileSystem,
     FileSystemPath,
@@ -32,7 +33,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new("project".into(), root, vec![]);
-            disk_fs.await?.start_watching(None)?;
+            disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);

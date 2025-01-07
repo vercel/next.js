@@ -64,10 +64,8 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-  REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
-  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
   isArrayImpl = Array.isArray;
 function murmurhash3_32_gc(key, seed) {
@@ -3489,98 +3487,88 @@ function unwrapThenable(thenable) {
   null === thenableState && (thenableState = []);
   return trackUsedThenable(thenableState, thenable, index);
 }
-function unsupportedRefresh() {
-  throw Error(formatProdErrorMessage(393));
-}
 function noop$1() {}
 var HooksDispatcher = {
-  readContext: function (context) {
-    return context._currentValue;
-  },
-  use: function (usable) {
-    if (null !== usable && "object" === typeof usable) {
-      if ("function" === typeof usable.then) return unwrapThenable(usable);
-      if (usable.$$typeof === REACT_CONTEXT_TYPE) return usable._currentValue;
+    readContext: function (context) {
+      return context._currentValue;
+    },
+    use: function (usable) {
+      if (null !== usable && "object" === typeof usable) {
+        if ("function" === typeof usable.then) return unwrapThenable(usable);
+        if (usable.$$typeof === REACT_CONTEXT_TYPE) return usable._currentValue;
+      }
+      throw Error(formatProdErrorMessage(438, String(usable)));
+    },
+    useContext: function (context) {
+      resolveCurrentlyRenderingComponent();
+      return context._currentValue;
+    },
+    useMemo: useMemo,
+    useReducer: useReducer,
+    useRef: function (initialValue) {
+      currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
+      workInProgressHook = createWorkInProgressHook();
+      var previousRef = workInProgressHook.memoizedState;
+      return null === previousRef
+        ? ((initialValue = { current: initialValue }),
+          (workInProgressHook.memoizedState = initialValue))
+        : previousRef;
+    },
+    useState: function (initialState) {
+      return useReducer(basicStateReducer, initialState);
+    },
+    useInsertionEffect: noop$1,
+    useLayoutEffect: noop$1,
+    useCallback: function (callback, deps) {
+      return useMemo(function () {
+        return callback;
+      }, deps);
+    },
+    useImperativeHandle: noop$1,
+    useEffect: noop$1,
+    useDebugValue: noop$1,
+    useDeferredValue: function (value, initialValue) {
+      resolveCurrentlyRenderingComponent();
+      return void 0 !== initialValue ? initialValue : value;
+    },
+    useTransition: function () {
+      resolveCurrentlyRenderingComponent();
+      return [!1, unsupportedStartTransition];
+    },
+    useId: function () {
+      var JSCompiler_inline_result = currentlyRenderingTask.treeContext;
+      var overflow = JSCompiler_inline_result.overflow;
+      JSCompiler_inline_result = JSCompiler_inline_result.id;
+      JSCompiler_inline_result =
+        (
+          JSCompiler_inline_result &
+          ~(1 << (32 - clz32(JSCompiler_inline_result) - 1))
+        ).toString(32) + overflow;
+      var resumableState = currentResumableState;
+      if (null === resumableState) throw Error(formatProdErrorMessage(404));
+      overflow = localIdCounter++;
+      JSCompiler_inline_result =
+        ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
+      0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
+      return JSCompiler_inline_result + ":";
+    },
+    useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
+      if (void 0 === getServerSnapshot)
+        throw Error(formatProdErrorMessage(407));
+      return getServerSnapshot();
+    },
+    useOptimistic: function (passthrough) {
+      resolveCurrentlyRenderingComponent();
+      return [passthrough, unsupportedSetOptimisticState];
+    },
+    useActionState: useActionState,
+    useFormState: useActionState,
+    useHostTransitionStatus: function () {
+      resolveCurrentlyRenderingComponent();
+      return sharedNotPendingObject;
     }
-    throw Error(formatProdErrorMessage(438, String(usable)));
   },
-  useContext: function (context) {
-    resolveCurrentlyRenderingComponent();
-    return context._currentValue;
-  },
-  useMemo: useMemo,
-  useReducer: useReducer,
-  useRef: function (initialValue) {
-    currentlyRenderingComponent = resolveCurrentlyRenderingComponent();
-    workInProgressHook = createWorkInProgressHook();
-    var previousRef = workInProgressHook.memoizedState;
-    return null === previousRef
-      ? ((initialValue = { current: initialValue }),
-        (workInProgressHook.memoizedState = initialValue))
-      : previousRef;
-  },
-  useState: function (initialState) {
-    return useReducer(basicStateReducer, initialState);
-  },
-  useInsertionEffect: noop$1,
-  useLayoutEffect: noop$1,
-  useCallback: function (callback, deps) {
-    return useMemo(function () {
-      return callback;
-    }, deps);
-  },
-  useImperativeHandle: noop$1,
-  useEffect: noop$1,
-  useDebugValue: noop$1,
-  useDeferredValue: function (value, initialValue) {
-    resolveCurrentlyRenderingComponent();
-    return void 0 !== initialValue ? initialValue : value;
-  },
-  useTransition: function () {
-    resolveCurrentlyRenderingComponent();
-    return [!1, unsupportedStartTransition];
-  },
-  useId: function () {
-    var JSCompiler_inline_result = currentlyRenderingTask.treeContext;
-    var overflow = JSCompiler_inline_result.overflow;
-    JSCompiler_inline_result = JSCompiler_inline_result.id;
-    JSCompiler_inline_result =
-      (
-        JSCompiler_inline_result &
-        ~(1 << (32 - clz32(JSCompiler_inline_result) - 1))
-      ).toString(32) + overflow;
-    var resumableState = currentResumableState;
-    if (null === resumableState) throw Error(formatProdErrorMessage(404));
-    overflow = localIdCounter++;
-    JSCompiler_inline_result =
-      ":" + resumableState.idPrefix + "R" + JSCompiler_inline_result;
-    0 < overflow && (JSCompiler_inline_result += "H" + overflow.toString(32));
-    return JSCompiler_inline_result + ":";
-  },
-  useSyncExternalStore: function (subscribe, getSnapshot, getServerSnapshot) {
-    if (void 0 === getServerSnapshot) throw Error(formatProdErrorMessage(407));
-    return getServerSnapshot();
-  },
-  useCacheRefresh: function () {
-    return unsupportedRefresh;
-  },
-  useMemoCache: function (size) {
-    for (var data = Array(size), i = 0; i < size; i++)
-      data[i] = REACT_MEMO_CACHE_SENTINEL;
-    return data;
-  },
-  useHostTransitionStatus: function () {
-    resolveCurrentlyRenderingComponent();
-    return sharedNotPendingObject;
-  },
-  useOptimistic: function (passthrough) {
-    resolveCurrentlyRenderingComponent();
-    return [passthrough, unsupportedSetOptimisticState];
-  }
-};
-HooksDispatcher.useFormState = useActionState;
-HooksDispatcher.useActionState = useActionState;
-var currentResumableState = null,
+  currentResumableState = null,
   DefaultAsyncDispatcher = {
     getCacheForType: function () {
       throw Error(formatProdErrorMessage(248));
@@ -3610,62 +3598,64 @@ function describeNativeComponentFrame(fn, construct) {
   reentry = !0;
   var previousPrepareStackTrace = Error.prepareStackTrace;
   Error.prepareStackTrace = void 0;
-  var RunInRootFrame = {
-    DetermineComponentFrameRoot: function () {
-      try {
-        if (construct) {
-          var Fake = function () {
-            throw Error();
-          };
-          Object.defineProperty(Fake.prototype, "props", {
-            set: function () {
+  try {
+    var RunInRootFrame = {
+      DetermineComponentFrameRoot: function () {
+        try {
+          if (construct) {
+            var Fake = function () {
               throw Error();
+            };
+            Object.defineProperty(Fake.prototype, "props", {
+              set: function () {
+                throw Error();
+              }
+            });
+            if ("object" === typeof Reflect && Reflect.construct) {
+              try {
+                Reflect.construct(Fake, []);
+              } catch (x) {
+                var control = x;
+              }
+              Reflect.construct(fn, [], Fake);
+            } else {
+              try {
+                Fake.call();
+              } catch (x$24) {
+                control = x$24;
+              }
+              fn.call(Fake.prototype);
             }
-          });
-          if ("object" === typeof Reflect && Reflect.construct) {
-            try {
-              Reflect.construct(Fake, []);
-            } catch (x) {
-              var control = x;
-            }
-            Reflect.construct(fn, [], Fake);
           } else {
             try {
-              Fake.call();
-            } catch (x$24) {
-              control = x$24;
+              throw Error();
+            } catch (x$25) {
+              control = x$25;
             }
-            fn.call(Fake.prototype);
+            (Fake = fn()) &&
+              "function" === typeof Fake.catch &&
+              Fake.catch(function () {});
           }
-        } else {
-          try {
-            throw Error();
-          } catch (x$25) {
-            control = x$25;
-          }
-          (Fake = fn()) &&
-            "function" === typeof Fake.catch &&
-            Fake.catch(function () {});
+        } catch (sample) {
+          if (sample && control && "string" === typeof sample.stack)
+            return [sample.stack, control.stack];
         }
-      } catch (sample) {
-        if (sample && control && "string" === typeof sample.stack)
-          return [sample.stack, control.stack];
+        return [null, null];
       }
-      return [null, null];
-    }
-  };
-  RunInRootFrame.DetermineComponentFrameRoot.displayName =
-    "DetermineComponentFrameRoot";
-  var namePropDescriptor = Object.getOwnPropertyDescriptor(
-    RunInRootFrame.DetermineComponentFrameRoot,
-    "name"
-  );
-  namePropDescriptor &&
-    namePropDescriptor.configurable &&
-    Object.defineProperty(RunInRootFrame.DetermineComponentFrameRoot, "name", {
-      value: "DetermineComponentFrameRoot"
-    });
-  try {
+    };
+    RunInRootFrame.DetermineComponentFrameRoot.displayName =
+      "DetermineComponentFrameRoot";
+    var namePropDescriptor = Object.getOwnPropertyDescriptor(
+      RunInRootFrame.DetermineComponentFrameRoot,
+      "name"
+    );
+    namePropDescriptor &&
+      namePropDescriptor.configurable &&
+      Object.defineProperty(
+        RunInRootFrame.DetermineComponentFrameRoot,
+        "name",
+        { value: "DetermineComponentFrameRoot" }
+      );
     var _RunInRootFrame$Deter = RunInRootFrame.DetermineComponentFrameRoot(),
       sampleStack = _RunInRootFrame$Deter[0],
       controlStack = _RunInRootFrame$Deter[1];
@@ -3740,7 +3730,7 @@ function describeComponentStackByType(type) {
   if ("string" === typeof type) return describeBuiltInComponentFrame(type);
   if ("function" === typeof type)
     return type.prototype && type.prototype.isReactComponent
-      ? ((type = describeNativeComponentFrame(type, !0)), type)
+      ? describeNativeComponentFrame(type, !0)
       : describeNativeComponentFrame(type, !1);
   if ("object" === typeof type && null !== type) {
     switch (type.$$typeof) {
@@ -3901,6 +3891,40 @@ function createRequest(
   pushComponentStack(children);
   resumableState.pingedTasks.push(children);
   return resumableState;
+}
+function createPrerenderRequest(
+  children,
+  resumableState,
+  renderState,
+  rootFormatContext,
+  progressiveChunkSize,
+  onError,
+  onAllReady,
+  onShellReady,
+  onShellError,
+  onFatalError,
+  onPostpone
+) {
+  children = createRequest(
+    children,
+    resumableState,
+    renderState,
+    rootFormatContext,
+    progressiveChunkSize,
+    onError,
+    onAllReady,
+    onShellReady,
+    onShellError,
+    onFatalError,
+    onPostpone,
+    void 0
+  );
+  children.trackedPostpones = {
+    workingMap: new Map(),
+    rootNodes: [],
+    rootSlots: null
+  };
+  return children;
 }
 var currentRequest = null;
 function pingTask(request, task) {
@@ -4319,7 +4343,6 @@ function renderElement(request, task, keyPath, type, props, ref) {
   else {
     switch (type) {
       case REACT_LEGACY_HIDDEN_TYPE:
-      case REACT_DEBUG_TRACING_MODE_TYPE:
       case REACT_STRICT_MODE_TYPE:
       case REACT_PROFILER_TYPE:
       case REACT_FRAGMENT_TYPE:
@@ -4607,8 +4630,8 @@ function retryNode(request, task) {
             key = node.key,
             props = node.props;
           node = props.ref;
-          var ref = void 0 !== node ? node : null;
-          var name = getComponentNameFromType(type),
+          var ref = void 0 !== node ? node : null,
+            name = getComponentNameFromType(type),
             keyOrIndex =
               null == key ? (-1 === childIndex ? 0 : childIndex) : key;
           key = [task.keyPath, name, keyOrIndex];
@@ -5881,6 +5904,18 @@ function enqueueFlush(request) {
         : (request.flushScheduled = !1);
     }));
 }
+function startFlowing(request, destination) {
+  if (13 === request.status)
+    (request.status = 14), closeWithError(destination, request.fatalError);
+  else if (14 !== request.status && null === request.destination) {
+    request.destination = destination;
+    try {
+      flushCompletedQueues(request, destination);
+    } catch (error) {
+      logRecoverableError(request, error, {}), fatalError(request, error);
+    }
+  }
+}
 function abort(request, reason) {
   if (11 === request.status || 10 === request.status) request.status = 12;
   try {
@@ -5906,18 +5941,85 @@ function abort(request, reason) {
     logRecoverableError(request, error$53, {}), fatalError(request, error$53);
   }
 }
-var isomorphicReactPackageVersion$jscomp$inline_729 = React.version;
-if (
-  "19.0.0-rc-2d16326d-20240930" !==
-  isomorphicReactPackageVersion$jscomp$inline_729
-)
-  throw Error(
-    formatProdErrorMessage(
-      527,
-      isomorphicReactPackageVersion$jscomp$inline_729,
-      "19.0.0-rc-2d16326d-20240930"
-    )
-  );
+function ensureCorrectIsomorphicReactVersion() {
+  var isomorphicReactPackageVersion = React.version;
+  if ("19.1.0-canary-7b402084-20250107" !== isomorphicReactPackageVersion)
+    throw Error(
+      formatProdErrorMessage(
+        527,
+        isomorphicReactPackageVersion,
+        "19.1.0-canary-7b402084-20250107"
+      )
+    );
+}
+ensureCorrectIsomorphicReactVersion();
+ensureCorrectIsomorphicReactVersion();
+exports.prerender = function (children, options) {
+  return new Promise(function (resolve, reject) {
+    var onHeaders = options ? options.onHeaders : void 0,
+      onHeadersImpl;
+    onHeaders &&
+      (onHeadersImpl = function (headersDescriptor) {
+        onHeaders(new Headers(headersDescriptor));
+      });
+    var resources = createResumableState(
+        options ? options.identifierPrefix : void 0,
+        options ? options.unstable_externalRuntimeSrc : void 0,
+        options ? options.bootstrapScriptContent : void 0,
+        options ? options.bootstrapScripts : void 0,
+        options ? options.bootstrapModules : void 0
+      ),
+      request = createPrerenderRequest(
+        children,
+        resources,
+        createRenderState(
+          resources,
+          void 0,
+          options ? options.unstable_externalRuntimeSrc : void 0,
+          options ? options.importMap : void 0,
+          onHeadersImpl,
+          options ? options.maxHeadersLength : void 0
+        ),
+        createRootFormatContext(options ? options.namespaceURI : void 0),
+        options ? options.progressiveChunkSize : void 0,
+        options ? options.onError : void 0,
+        function () {
+          var result = {
+            prelude: new ReadableStream(
+              {
+                type: "bytes",
+                pull: function (controller) {
+                  startFlowing(request, controller);
+                },
+                cancel: function (reason) {
+                  request.destination = null;
+                  abort(request, reason);
+                }
+              },
+              { highWaterMark: 0 }
+            )
+          };
+          resolve(result);
+        },
+        void 0,
+        void 0,
+        reject,
+        options ? options.onPostpone : void 0
+      );
+    if (options && options.signal) {
+      var signal = options.signal;
+      if (signal.aborted) abort(request, signal.reason);
+      else {
+        var listener = function () {
+          abort(request, signal.reason);
+          signal.removeEventListener("abort", listener);
+        };
+        signal.addEventListener("abort", listener);
+      }
+    }
+    startWork(request);
+  });
+};
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
     var onFatalError,
@@ -5959,21 +6061,7 @@ exports.renderToReadableStream = function (children, options) {
             {
               type: "bytes",
               pull: function (controller) {
-                if (13 === request.status)
-                  (request.status = 14),
-                    closeWithError(controller, request.fatalError);
-                else if (
-                  14 !== request.status &&
-                  null === request.destination
-                ) {
-                  request.destination = controller;
-                  try {
-                    flushCompletedQueues(request, controller);
-                  } catch (error) {
-                    logRecoverableError(request, error, {}),
-                      fatalError(request, error);
-                  }
-                }
+                startFlowing(request, controller);
               },
               cancel: function (reason) {
                 request.destination = null;
@@ -6007,4 +6095,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.0.0-rc-2d16326d-20240930";
+exports.version = "19.1.0-canary-7b402084-20250107";

@@ -2,7 +2,7 @@ import type { Params } from './params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { describeStringPropertyAccess } from './utils'
+import { describeStringPropertyAccess, wellKnownProperties } from './utils'
 
 export function createRenderParamsFromClient(underlyingParams: Params) {
   if (process.env.NODE_ENV === 'development') {
@@ -24,29 +24,12 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
   const promise = Promise.resolve(underlyingParams)
   CachedParams.set(underlyingParams, promise)
 
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-      writable: true,
-    },
-    value: {
-      value: underlyingParams,
-      writable: true,
-    },
-  })
-
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
-        break
-      }
-      default: {
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -61,36 +44,21 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
     return cachedParams
   }
 
+  // We don't use makeResolvedReactPromise here because params
+  // supports copying with spread and we don't want to unnecessarily
+  // instrument the promise with spreadable properties of ReactPromise.
   const promise = Promise.resolve(underlyingParams)
-
-  Object.defineProperties(promise, {
-    status: {
-      value: 'fulfilled',
-      writable: true,
-    },
-    value: {
-      value: underlyingParams,
-      writable: true,
-    },
-  })
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
 
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      case 'then':
-      case 'value':
-      case 'status': {
-        // These properties cannot be shadowed with a search param because they
-        // are necessary for ReactPromise's to work correctly with `use`
-        unproxiedProperties.push(prop)
-        break
-      }
-      default: {
-        proxiedProperties.add(prop)
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      proxiedProperties.add(prop)
+      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -99,15 +67,19 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       if (typeof prop === 'string') {
         if (
           // We are accessing a property that was proxied to the promise instance
-          proxiedProperties.has(prop) ||
-          // We are accessing a property that doesn't exist on the promise nor the underlying
-          Reflect.has(target, prop) === false
+          proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
           warnForSyncAccess(expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
+    },
+    set(target, prop, value, receiver) {
+      if (typeof prop === 'string') {
+        proxiedProperties.delete(prop)
+      }
+      return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
       warnForEnumeration(unproxiedProperties)

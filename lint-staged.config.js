@@ -1,9 +1,9 @@
 module.exports = {
-  '*.{js,jsx,mjs,ts,tsx,mts}': [
+  '*.{js,jsx,mjs,ts,tsx,mts,mdx}': [
     'prettier --with-node-modules --ignore-path .prettierignore --write',
-    'eslint --fix',
+    'cross-env ESLINT_USE_FLAT_CONFIG=false eslint --config .eslintrc.json --no-eslintrc --fix',
   ],
-  '*.{json,md,mdx,css,html,yml,yaml,scss}': [
+  '*.{json,md,css,html,yml,yaml,scss}': [
     'prettier --with-node-modules --ignore-path .prettierignore --write',
   ],
   '*.rs': ['cargo fmt --'],

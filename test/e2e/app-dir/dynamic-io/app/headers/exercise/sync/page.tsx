@@ -4,6 +4,7 @@ import { getSentinelValue } from '../../../getSentinelValue'
 import { AllComponents } from '../components'
 
 export default async function Page() {
+  await new Promise((r) => process.nextTick(r))
   const xSentinelValues = new Set<string>()
   // We use the async form here to avoid triggering dev warnings. this is not direclty being
   // aserted, it just helps us do assertions in our AllComponents

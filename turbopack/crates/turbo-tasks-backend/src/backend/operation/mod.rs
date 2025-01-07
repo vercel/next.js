@@ -3,26 +3,25 @@ mod cleanup_old_edges;
 mod connect_child;
 mod invalidate;
 mod update_cell;
+mod update_collectible;
 mod update_output;
 
 use std::{
     fmt::{Debug, Formatter},
-    mem::take,
+    mem::{take, transmute},
 };
 
+use either::Either;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{KeyValuePair, TaskId, TurboTasksBackendApi};
+use turbo_tasks::{KeyValuePair, SessionId, TaskId, TurboTasksBackendApi};
 
 use crate::{
     backend::{
         storage::StorageWriteGuard, OperationGuard, TaskDataCategory, TransientTask,
         TurboTasksBackend, TurboTasksBackendInner,
     },
-    backing_storage::ReadTransaction,
-    data::{
-        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
-        CachedDataUpdate,
-    },
+    backing_storage::BackingStorage,
+    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue},
 };
 
 pub trait Operation:
@@ -32,96 +31,126 @@ pub trait Operation:
     + TryFrom<AnyOperation, Error = ()>
     + Into<AnyOperation>
 {
-    fn execute(self, ctx: &mut ExecuteContext<'_>);
+    fn execute(self, ctx: &mut impl ExecuteContext);
 }
 
-pub struct ExecuteContext<'a> {
-    backend: &'a TurboTasksBackendInner,
-    turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
-    _operation_guard: Option<OperationGuard<'a>>,
-    parent: Option<(&'a AnyOperation, &'a ExecuteContext<'a>)>,
-    transaction: Option<Option<ReadTransaction>>,
+#[derive(Copy, Clone)]
+enum TransactionState<'a, 'tx, B: BackingStorage> {
+    None,
+    Borrowed(Option<&'a B::ReadTransaction<'tx>>),
+    Owned(Option<B::ReadTransaction<'tx>>),
 }
 
-impl Drop for ExecuteContext<'_> {
-    fn drop(&mut self) {
-        if self.parent.is_none() {
-            if let Some(Some(transaction)) = self.transaction {
-                // Safety: `transaction` is a valid transaction from `self.backend.backing_storage`.
-                unsafe {
-                    self.backend
-                        .backing_storage
-                        .end_read_transaction(transaction)
-                };
+impl<'a, 'tx1, B: BackingStorage> TransactionState<'a, 'tx1, B> {
+    fn borrow<'l, 'tx2>(&'l self) -> TransactionState<'l, 'tx2, B>
+    where
+        'a: 'l,
+        'tx1: 'a + 'tx2,
+        'tx2: 'l,
+    {
+        match self {
+            TransactionState::None => TransactionState::None,
+            TransactionState::Borrowed(tx) => {
+                TransactionState::Borrowed(tx.map(B::lower_read_transaction))
+            }
+            TransactionState::Owned(tx) => {
+                TransactionState::Borrowed(tx.as_ref().map(B::lower_read_transaction))
             }
         }
     }
 }
 
-impl<'a> ExecuteContext<'a> {
+pub trait ExecuteContext<'e>: Sized {
+    fn session_id(&self) -> SessionId;
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e;
+    fn is_once_task(&self, task_id: TaskId) -> bool;
+    fn task_pair(
+        &mut self,
+        task_id1: TaskId,
+        task_id2: TaskId,
+        category: TaskDataCategory,
+    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e);
+    fn schedule(&self, task_id: TaskId);
+    fn operation_suspend_point<T>(&mut self, op: &T)
+    where
+        T: Clone + Into<AnyOperation>;
+    fn suspending_requested(&self) -> bool;
+    type Backend;
+    fn run_operation(
+        &mut self,
+        parent_op_ref: &mut impl Operation,
+        run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, Self::Backend>),
+    );
+    fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static;
+    fn get_task_description(&self, task_id: TaskId) -> String;
+    fn should_track_children(&self) -> bool;
+    fn should_track_dependencies(&self) -> bool;
+}
+
+pub struct ParentRef<'a> {
+    op: &'a AnyOperation,
+    parent: &'a Option<ParentRef<'a>>,
+}
+
+pub struct ExecuteContextImpl<'e, 'tx, B: BackingStorage>
+where
+    Self: 'e,
+    'tx: 'e,
+{
+    parent: Option<ParentRef<'e>>,
+    backend: &'e TurboTasksBackendInner<B>,
+    turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    _operation_guard: Option<OperationGuard<'e, B>>,
+    transaction: TransactionState<'e, 'tx, B>,
+}
+
+impl<'e, 'tx, B: BackingStorage> ExecuteContextImpl<'e, 'tx, B>
+where
+    'tx: 'e,
+{
     pub(super) fn new(
-        backend: &'a TurboTasksBackendInner,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
+        backend: &'e TurboTasksBackendInner<B>,
+        turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Self {
         Self {
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             parent: None,
-            transaction: None,
+            transaction: TransactionState::None,
         }
     }
 
     pub(super) unsafe fn new_with_tx(
-        backend: &'a TurboTasksBackendInner,
-        transaction: Option<ReadTransaction>,
-        turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend>,
+        backend: &'e TurboTasksBackendInner<B>,
+        transaction: Option<&'e B::ReadTransaction<'tx>>,
+        turbo_tasks: &'e dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> Self {
         Self {
             backend,
             turbo_tasks,
             _operation_guard: Some(backend.start_operation()),
             parent: None,
-            transaction: Some(transaction),
+            transaction: TransactionState::Borrowed(transaction),
         }
     }
 
-    fn transaction(&mut self) -> Option<ReadTransaction> {
-        if let Some(tx) = self.transaction {
-            tx
-        } else {
+    fn transaction<'l>(&'l mut self) -> Option<&'l B::ReadTransaction<'l>>
+    where
+        'e: 'l,
+    {
+        if matches!(self.transaction, TransactionState::None) {
             let tx = self.backend.backing_storage.start_read_transaction();
-            self.transaction = Some(tx);
-            tx
+            let tx = tx.map(|tx| {
+                // Safety: self is actually valid for 'a, so it's safe to transmute 'l to 'a
+                unsafe { transmute::<B::ReadTransaction<'_>, B::ReadTransaction<'tx>>(tx) }
+            });
+            self.transaction = TransactionState::Owned(tx);
         }
-    }
-
-    pub fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> TaskGuard<'a> {
-        let mut task = self.backend.storage.access_mut(task_id);
-        if !task.persistance_state().is_restored(category) {
-            if task_id.is_transient() {
-                task.persistance_state_mut()
-                    .set_restored(TaskDataCategory::All);
-            } else {
-                for category in category {
-                    // Avoid holding the lock too long since this can also affect other tasks
-                    drop(task);
-
-                    let items = self.restore_task_data(task_id, category);
-                    task = self.backend.storage.access_mut(task_id);
-                    if !task.persistance_state().is_restored(category) {
-                        for item in items {
-                            task.add(item);
-                        }
-                        task.persistance_state_mut().set_restored(category);
-                    }
-                }
-            }
-        }
-        TaskGuard {
-            task,
-            task_id,
-            backend: self.backend,
+        match &self.transaction {
+            TransactionState::None => unreachable!(),
+            TransactionState::Borrowed(tx) => tx.map(B::lower_read_transaction),
+            TransactionState::Owned(tx) => tx.as_ref().map(B::lower_read_transaction),
         }
     }
 
@@ -137,8 +166,50 @@ impl<'a> ExecuteContext<'a> {
                 .lookup_data(self.transaction(), task_id, category)
         }
     }
+}
 
-    pub fn is_once_task(&self, task_id: TaskId) -> bool {
+impl<'e, 'tx, B: BackingStorage> ExecuteContext<'e> for ExecuteContextImpl<'e, 'tx, B>
+where
+    'tx: 'e,
+{
+    fn session_id(&self) -> SessionId {
+        self.backend.session_id()
+    }
+
+    fn task(&mut self, task_id: TaskId, category: TaskDataCategory) -> impl TaskGuard + 'e {
+        let mut task = self.backend.storage.access_mut(task_id);
+        if !task.persistance_state().is_restored(category) {
+            if task_id.is_transient() {
+                task.persistance_state_mut()
+                    .set_restored(TaskDataCategory::All);
+            } else {
+                for category in category {
+                    if !task.persistance_state().is_restored(category) {
+                        // Avoid holding the lock too long since this can also affect other tasks
+                        drop(task);
+
+                        let items = self.restore_task_data(task_id, category);
+                        task = self.backend.storage.access_mut(task_id);
+                        if !task.persistance_state().is_restored(category) {
+                            for item in items {
+                                task.add(item);
+                            }
+                            task.persistance_state_mut().set_restored(category);
+                        }
+                    }
+                }
+            }
+        }
+        TaskGuardImpl {
+            task,
+            task_id,
+            backend: self.backend,
+            #[cfg(debug_assertions)]
+            category,
+        }
+    }
+
+    fn is_once_task(&self, task_id: TaskId) -> bool {
         if !task_id.is_transient() {
             return false;
         }
@@ -149,12 +220,12 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
-    pub fn task_pair(
+    fn task_pair(
         &mut self,
         task_id1: TaskId,
         task_id2: TaskId,
         category: TaskDataCategory,
-    ) -> (TaskGuard<'a>, TaskGuard<'a>) {
+    ) -> (impl TaskGuard + 'e, impl TaskGuard + 'e) {
         let (mut task1, mut task2) = self.backend.storage.access_pair_mut(task_id1, task_id2);
         let is_restored1 = task1.persistance_state().is_restored(category);
         let is_restored2 = task2.persistance_state().is_restored(category);
@@ -185,32 +256,36 @@ impl<'a> ExecuteContext<'a> {
             }
         }
         (
-            TaskGuard {
+            TaskGuardImpl {
                 task: task1,
                 task_id: task_id1,
                 backend: self.backend,
+                #[cfg(debug_assertions)]
+                category,
             },
-            TaskGuard {
+            TaskGuardImpl {
                 task: task2,
                 task_id: task_id2,
                 backend: self.backend,
+                #[cfg(debug_assertions)]
+                category,
             },
         )
     }
 
-    pub fn schedule(&self, task_id: TaskId) {
+    fn schedule(&self, task_id: TaskId) {
         self.turbo_tasks.schedule(task_id);
     }
 
-    pub fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&self, op: &T) {
+    fn operation_suspend_point<T: Clone + Into<AnyOperation>>(&mut self, op: &T) {
         if self.parent.is_some() {
             self.backend.operation_suspend_point(|| {
                 let mut nested = Vec::new();
                 nested.push(op.clone().into());
-                let mut cur = self;
-                while let Some((op, parent_ctx)) = cur.parent {
-                    nested.push(op.clone());
-                    cur = parent_ctx;
+                let mut cur = self.parent.as_ref();
+                while let Some(ParentRef { op, parent }) = cur {
+                    nested.push((*op).clone());
+                    cur = parent.as_ref();
                 }
                 AnyOperation::Nested(nested)
             });
@@ -219,36 +294,137 @@ impl<'a> ExecuteContext<'a> {
         }
     }
 
-    pub fn suspending_requested(&self) -> bool {
+    fn suspending_requested(&self) -> bool {
         self.backend.suspending_requested()
     }
 
-    pub fn run_operation(
-        &self,
+    type Backend = B;
+
+    fn run_operation(
+        &mut self,
         parent_op_ref: &mut impl Operation,
-        run: impl FnOnce(ExecuteContext<'_>),
+        run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
     ) {
         let parent_op = take(parent_op_ref);
         let parent_op: AnyOperation = parent_op.into();
-        let inner_ctx = ExecuteContext {
-            backend: self.backend,
-            turbo_tasks: self.turbo_tasks,
-            _operation_guard: None,
-            parent: Some((&parent_op, self)),
-            transaction: self.transaction,
-        };
-        run(inner_ctx);
+        let this = &*self;
+        fn run_with_inner_ctx<'a, B: BackingStorage>(
+            backend: &'a TurboTasksBackendInner<B>,
+            turbo_tasks: &'a dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+            parent: ParentRef<'a>,
+            transaction: TransactionState<'a, '_, B>,
+            run: impl FnOnce(&mut ExecuteContextImpl<'_, '_, B>),
+        ) {
+            let mut inner_ctx: ExecuteContextImpl<'_, '_, B> = ExecuteContextImpl {
+                backend,
+                turbo_tasks,
+                _operation_guard: None,
+                parent: Some(parent),
+                transaction,
+            };
+            run(&mut inner_ctx);
+        }
+        run_with_inner_ctx(
+            self.backend,
+            self.turbo_tasks,
+            ParentRef {
+                op: &parent_op,
+                parent: &this.parent,
+            },
+            self.transaction.borrow(),
+            run,
+        );
         *parent_op_ref = parent_op.try_into().unwrap();
+    }
+
+    fn get_task_desc_fn(&self, task_id: TaskId) -> impl Fn() -> String + Send + Sync + 'static {
+        self.backend.get_task_desc_fn(task_id)
+    }
+
+    fn get_task_description(&self, task_id: TaskId) -> String {
+        self.backend.get_task_description(task_id)
+    }
+
+    fn should_track_children(&self) -> bool {
+        self.backend.should_track_children()
+    }
+
+    fn should_track_dependencies(&self) -> bool {
+        self.backend.should_track_dependencies()
     }
 }
 
-pub struct TaskGuard<'a> {
-    task_id: TaskId,
-    task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
-    backend: &'a TurboTasksBackendInner,
+pub trait TaskGuard: Debug {
+    fn id(&self) -> TaskId;
+    fn add(&mut self, item: CachedDataItem) -> bool;
+    fn add_new(&mut self, item: CachedDataItem);
+    fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
+    fn update(
+        &mut self,
+        key: &CachedDataItemKey,
+        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
+    );
+    fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
+    fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue>;
+    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue>;
+    fn has_key(&self, key: &CachedDataItemKey) -> bool;
+    fn is_indexed(&self) -> bool;
+    fn iter(
+        &self,
+        index: CachedDataItemIndex,
+    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
+    fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
+    fn extract_if<'l, F>(
+        &'l mut self,
+        index: CachedDataItemIndex,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
+    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
+    fn invalidate_serialization(&mut self);
 }
 
-impl Debug for TaskGuard<'_> {
+struct TaskGuardImpl<'a, B: BackingStorage> {
+    task_id: TaskId,
+    task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
+    backend: &'a TurboTasksBackendInner<B>,
+    #[cfg(debug_assertions)]
+    category: TaskDataCategory,
+}
+
+impl<B: BackingStorage> TaskGuardImpl<'_, B> {
+    /// Verify that the task guard restored the correct category
+    /// before accessing the data.
+    #[inline]
+    fn check_access(&self, category: TaskDataCategory) {
+        {
+            match category {
+                TaskDataCategory::All => {
+                    // This category is used for non-persisted data
+                }
+                TaskDataCategory::Data => {
+                    #[cfg(debug_assertions)]
+                    debug_assert!(
+                        self.category == TaskDataCategory::Data
+                            || self.category == TaskDataCategory::All
+                    );
+                }
+                TaskDataCategory::Meta => {
+                    #[cfg(debug_assertions)]
+                    debug_assert!(
+                        self.category == TaskDataCategory::Meta
+                            || self.category == TaskDataCategory::All
+                    );
+                }
+            }
+        }
+    }
+}
+
+impl<B: BackingStorage> Debug for TaskGuardImpl<'_, B> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let mut d = f.debug_struct("TaskGuard");
         d.field("task_id", &self.task_id);
@@ -262,41 +438,39 @@ impl Debug for TaskGuard<'_> {
     }
 }
 
-impl TaskGuard<'_> {
-    pub fn id(&self) -> TaskId {
+impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
+    fn id(&self) -> TaskId {
         self.task_id
     }
 
     #[must_use]
-    pub fn add(&mut self, item: CachedDataItem) -> bool {
-        if self.task_id.is_transient() || !item.is_persistent() {
+    fn add(&mut self, item: CachedDataItem) -> bool {
+        self.check_access(item.category());
+        if !self.backend.should_persist() || self.task_id.is_transient() || !item.is_persistent() {
             self.task.add(item)
         } else if self.task.add(item.clone()) {
             let (key, value) = item.into_key_and_value();
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log(key.category())
-                .lock(self.task_id)
-                .push(CachedDataUpdate {
-                    key,
-                    task: self.task_id,
-                    value: Some(value),
-                    old_value: None,
-                });
+                .unwrap()
+                .push(self.task_id, key, None, Some(value));
             true
         } else {
             false
         }
     }
 
-    pub fn add_new(&mut self, item: CachedDataItem) {
+    fn add_new(&mut self, item: CachedDataItem) {
+        self.check_access(item.category());
         let added = self.add(item);
         assert!(added, "Item already exists");
     }
 
-    pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+    fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+        self.check_access(item.category());
         let (key, value) = item.into_key_and_value();
-        if self.task_id.is_transient() || !key.is_persistent() {
+        if !self.backend.should_persist() || self.task_id.is_transient() || !key.is_persistent() {
             self.task
                 .insert(CachedDataItem::from_key_and_value(key, value))
         } else if value.is_persistent() {
@@ -307,15 +481,14 @@ impl TaskGuard<'_> {
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log(key.category())
-                .lock(self.task_id)
-                .push(CachedDataUpdate {
+                .unwrap()
+                .push(
+                    self.task_id,
                     key,
-                    task: self.task_id,
-                    value: Some(value),
-                    old_value: old
-                        .as_ref()
+                    old.as_ref()
                         .and_then(|old| old.is_persistent().then(|| old.clone())),
-                });
+                    Some(value),
+                );
             old
         } else {
             let item = CachedDataItem::from_key_and_value(key.clone(), value);
@@ -324,13 +497,8 @@ impl TaskGuard<'_> {
                     self.task.persistance_state_mut().add_persisting_item();
                     self.backend
                         .persisted_storage_log(key.category())
-                        .lock(self.task_id)
-                        .push(CachedDataUpdate {
-                            key,
-                            task: self.task_id,
-                            value: None,
-                            old_value: Some(old.clone()),
-                        });
+                        .unwrap()
+                        .push(self.task_id, key, Some(old.clone()), None);
                 }
                 Some(old)
             } else {
@@ -339,12 +507,13 @@ impl TaskGuard<'_> {
         }
     }
 
-    pub fn update(
+    fn update(
         &mut self,
         key: &CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        if self.task_id.is_transient() || !key.is_persistent() {
+        self.check_access(key.category());
+        if !self.backend.should_persist() || self.task_id.is_transient() || !key.is_persistent() {
             self.task.update(key, update);
             return;
         }
@@ -352,6 +521,8 @@ impl TaskGuard<'_> {
             task,
             task_id,
             backend,
+            #[cfg(debug_assertions)]
+                category: _,
         } = self;
         let mut add_persisting_item = false;
         task.update(key, |old| {
@@ -365,27 +536,21 @@ impl TaskGuard<'_> {
                 (None, false) => {}
                 (Some(old_value), false) => {
                     add_persisting_item = true;
-                    backend
-                        .persisted_storage_log(key.category())
-                        .lock(*task_id)
-                        .push(CachedDataUpdate {
-                            key: key.clone(),
-                            task: *task_id,
-                            value: None,
-                            old_value: Some(old_value),
-                        });
+                    backend.persisted_storage_log(key.category()).unwrap().push(
+                        *task_id,
+                        key.clone(),
+                        Some(old_value),
+                        None,
+                    );
                 }
                 (old_value, true) => {
                     add_persisting_item = true;
-                    backend
-                        .persisted_storage_log(key.category())
-                        .lock(*task_id)
-                        .push(CachedDataUpdate {
-                            key: key.clone(),
-                            task: *task_id,
-                            value: new.clone(),
-                            old_value,
-                        });
+                    backend.persisted_storage_log(key.category()).unwrap().push(
+                        *task_id,
+                        key.clone(),
+                        old_value,
+                        new.clone(),
+                    );
                 }
             }
 
@@ -396,21 +561,26 @@ impl TaskGuard<'_> {
         }
     }
 
-    pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
+    fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
+        self.check_access(key.category());
         let old_value = self.task.remove(key);
         if let Some(value) = old_value {
-            if !self.task_id.is_transient() && key.is_persistent() && value.is_persistent() {
+            if self.backend.should_persist()
+                && !self.task_id.is_transient()
+                && key.is_persistent()
+                && value.is_persistent()
+            {
                 let key = key.clone();
                 self.task.persistance_state_mut().add_persisting_item();
                 self.backend
                     .persisted_storage_log(key.category())
-                    .lock(self.task_id)
-                    .push(CachedDataUpdate {
+                    .unwrap()
+                    .push(
+                        self.task_id,
                         key,
-                        task: self.task_id,
-                        value: None,
-                        old_value: value.is_persistent().then(|| value.clone()),
-                    });
+                        value.is_persistent().then(|| value.clone()),
+                        None,
+                    );
             }
             Some(value)
         } else {
@@ -418,53 +588,100 @@ impl TaskGuard<'_> {
         }
     }
 
-    pub fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
+    fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
+        self.check_access(key.category());
         self.task.get(key)
     }
 
-    pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
+    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
+        self.check_access(key.category());
+        self.task.get_mut(key)
+    }
+
+    fn has_key(&self, key: &CachedDataItemKey) -> bool {
+        self.check_access(key.category());
         self.task.has_key(key)
     }
 
-    pub fn is_indexed(&self) -> bool {
+    fn is_indexed(&self) -> bool {
         self.task.is_indexed()
     }
 
-    pub fn iter(
+    fn iter(
         &self,
         index: CachedDataItemIndex,
     ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.task.iter(Some(index))
     }
 
-    pub fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
+    fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.task.iter_all()
     }
 
-    pub fn invalidate_serialization(&mut self) {
+    fn extract_if<'l, F>(
+        &'l mut self,
+        index: CachedDataItemIndex,
+        f: F,
+    ) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+    {
+        if !self.backend.should_persist() || self.task_id.is_transient() {
+            return Either::Left(self.task.extract_if(Some(index), f));
+        }
+        Either::Right(self.task.extract_if(Some(index), f).inspect(|item| {
+            if item.is_persistent() {
+                let key = item.key();
+                let value = item.value();
+                self.backend
+                    .persisted_storage_log(key.category())
+                    .unwrap()
+                    .push(self.task_id, key, Some(value), None);
+            }
+        }))
+    }
+
+    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
+    where
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+    {
+        if !self.backend.should_persist() || self.task_id.is_transient() {
+            return Either::Left(self.task.extract_if_all(f));
+        }
+        Either::Right(self.task.extract_if_all(f).inspect(|item| {
+            if item.is_persistent() {
+                let key = item.key();
+                let value = item.value();
+                self.backend
+                    .persisted_storage_log(key.category())
+                    .unwrap()
+                    .push(self.task_id, key, Some(value), None);
+            }
+        }))
+    }
+
+    fn invalidate_serialization(&mut self) {
+        if !self.backend.should_persist() {
+            return;
+        }
         let mut count = 0;
         let cell_data = self
             .iter(CachedDataItemIndex::CellData)
             .filter_map(|(key, value)| match (key, value) {
                 (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
                     count += 1;
-                    Some(CachedDataUpdate {
-                        task: self.task_id,
-                        key: CachedDataItemKey::CellData { cell: *cell },
-                        value: Some(CachedDataItemValue::CellData {
-                            value: value.clone(),
-                        }),
-                        old_value: None,
+                    Some(CachedDataItem::CellData {
+                        cell: *cell,
+                        value: value.clone(),
                     })
                 }
                 _ => None,
             });
         {
-            let mut guard = self
-                .backend
+            self.backend
                 .persisted_storage_log(TaskDataCategory::Data)
-                .lock(self.task_id);
-            guard.extend(cell_data);
+                .unwrap()
+                .push_batch_insert(self.task_id, cell_data);
             self.task
                 .persistance_state_mut()
                 .add_persisting_items(count);
@@ -499,16 +716,18 @@ macro_rules! impl_operation {
 pub enum AnyOperation {
     ConnectChild(connect_child::ConnectChildOperation),
     Invalidate(invalidate::InvalidateOperation),
+    UpdateOutput(update_output::UpdateOutputOperation),
     CleanupOldEdges(cleanup_old_edges::CleanupOldEdgesOperation),
     AggregationUpdate(aggregation_update::AggregationUpdateQueue),
     Nested(Vec<AnyOperation>),
 }
 
 impl AnyOperation {
-    pub fn execute(self, ctx: &mut ExecuteContext<'_>) {
+    pub fn execute(self, ctx: &mut impl ExecuteContext) {
         match self {
             AnyOperation::ConnectChild(op) => op.execute(ctx),
             AnyOperation::Invalidate(op) => op.execute(ctx),
+            AnyOperation::UpdateOutput(op) => op.execute(ctx),
             AnyOperation::CleanupOldEdges(op) => op.execute(ctx),
             AnyOperation::AggregationUpdate(op) => op.execute(ctx),
             AnyOperation::Nested(ops) => {
@@ -522,6 +741,7 @@ impl AnyOperation {
 
 impl_operation!(ConnectChild connect_child::ConnectChildOperation);
 impl_operation!(Invalidate invalidate::InvalidateOperation);
+impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
@@ -530,6 +750,7 @@ pub use self::{
         get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
+    invalidate::TaskDirtyCause,
     update_cell::UpdateCellOperation,
-    update_output::UpdateOutputOperation,
+    update_collectible::UpdateCollectibleOperation,
 };

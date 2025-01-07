@@ -1,4 +1,4 @@
-import { unstable_after as after } from 'next/server'
+import { after } from 'next/server'
 
 export function middleware(
   /** @type {import ('next/server').NextRequest} */ request
@@ -9,7 +9,7 @@ export function middleware(
   if (match) {
     const pathPrefix = match.groups.prefix
     after(async () => {
-      // we can't call revalidatePath from middleware, so we need to do it via an endpoint instead
+      // we can't call unstable_expirePath from middleware, so we need to do it via an endpoint instead
       const pathToRevalidate = pathPrefix + `/middleware`
 
       const postUrl = new URL('/timestamp/trigger-revalidate', url.href)

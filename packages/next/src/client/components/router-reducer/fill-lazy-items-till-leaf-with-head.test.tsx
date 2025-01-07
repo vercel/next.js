@@ -98,13 +98,16 @@ describe('fillLazyItemsTillLeafWithHead', () => {
 
     // Mirrors the way router-reducer values are passed in.
     const flightDataPath = flightData[0]
-    const [treePatch, cacheNodeSeedData, head] = flightDataPath.slice(-3)
+    const [treePatch, cacheNodeSeedData, head /*, isHeadPartial */] =
+      flightDataPath.slice(-4)
+
     fillLazyItemsTillLeafWithHead(
       cache,
       existingCache,
       treePatch,
       cacheNodeSeedData,
-      head
+      head,
+      undefined
     )
 
     const expectedCache: CacheNode = {
@@ -149,11 +152,7 @@ describe('fillLazyItemsTillLeafWithHead', () => {
                                     prefetchHead: null,
                                     loading: null,
                                     parallelRoutes: new Map(),
-                                    head: (
-                                      <>
-                                        <title>About page!</title>
-                                      </>
-                                    ),
+                                    head: null,
                                   },
                                 ],
                               ]),

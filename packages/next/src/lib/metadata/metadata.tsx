@@ -21,18 +21,22 @@ import {
 } from './generate/opengraph'
 import { IconsMetadata } from './generate/icons'
 import {
-  resolveMetadataItems,
-  accumulateMetadata,
-  accumulateViewport,
+  type MetadataErrorType,
+  resolveMetadata,
+  resolveViewport,
 } from './resolve-metadata'
 import { MetaFilter } from './generate/meta'
 import type {
   ResolvedMetadata,
   ResolvedViewport,
 } from './types/metadata-interface'
-import { isNotFoundError } from '../../client/components/not-found'
+import { isHTTPAccessFallbackError } from '../../client/components/http-access-fallback/http-access-fallback'
 import type { MetadataContext } from './types/resolvers'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
+import {
+  METADATA_BOUNDARY_NAME,
+  VIEWPORT_BOUNDARY_NAME,
+} from './metadata-constants'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -57,23 +61,36 @@ export function createMetadataComponents({
   metadataContext: MetadataContext
   getDynamicParamFromSegment: GetDynamicParamFromSegment
   appUsingSizeAdjustment: boolean
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
   createServerParamsForMetadata: CreateServerParamsForMetadata
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
   ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
-}): [React.ComponentType, () => Promise<void>] {
-  function MetadataRoot() {
+}): {
+  MetadataTree: React.ComponentType
+  ViewportTree: React.ComponentType
+  getMetadataReady: () => Promise<void>
+  getViewportReady: () => Promise<void>
+} {
+  function ViewportTree() {
     return (
       <>
-        <MetadataBoundary>
-          <Metadata />
-        </MetadataBoundary>
         <ViewportBoundary>
           <Viewport />
         </ViewportBoundary>
-        {appUsingSizeAdjustment ? <meta name="next-size-adjust" /> : null}
+        {/* This meta tag is for next/font which is still required to be blocking. */}
+        {appUsingSizeAdjustment ? (
+          <meta name="next-size-adjust" content="" />
+        ) : null}
       </>
+    )
+  }
+
+  function MetadataTree() {
+    return (
+      <MetadataBoundary>
+        <Metadata />
+      </MetadataBoundary>
     )
   }
 
@@ -92,7 +109,7 @@ export function createMetadataComponents({
     try {
       return await viewport()
     } catch (error) {
-      if (!errorType && isNotFoundError(error)) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundViewport(
             tree,
@@ -110,6 +127,7 @@ export function createMetadataComponents({
       return null
     }
   }
+  Viewport.displayName = VIEWPORT_BOUNDARY_NAME
 
   async function metadata() {
     return getResolvedMetadata(
@@ -127,7 +145,7 @@ export function createMetadataComponents({
     try {
       return await metadata()
     } catch (error) {
-      if (!errorType && isNotFoundError(error)) {
+      if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
           return await getNotFoundMetadata(
             tree,
@@ -146,14 +164,24 @@ export function createMetadataComponents({
       return null
     }
   }
+  Metadata.displayName = METADATA_BOUNDARY_NAME
 
-  async function getMetadataAndViewportReady(): Promise<void> {
-    await viewport()
+  async function getMetadataReady(): Promise<void> {
     await metadata()
     return undefined
   }
 
-  return [MetadataRoot, getMetadataAndViewportReady]
+  async function getViewportReady(): Promise<void> {
+    await viewport()
+    return undefined
+  }
+
+  return {
+    ViewportTree,
+    MetadataTree,
+    getViewportReady,
+    getMetadataReady,
+  }
 }
 
 const getResolvedMetadata = cache(getResolvedMetadataImpl)
@@ -164,27 +192,17 @@ async function getResolvedMetadataImpl(
   metadataContext: MetadataContext,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-
-  const metadataItems = await resolveMetadataItems(
+  return renderMetadata(
     tree,
     searchParams,
-    errorConvention,
     getDynamicParamFromSegment,
+    metadataContext,
     createServerParamsForMetadata,
-    workStore
-  )
-  const elements: Array<React.ReactNode> = createMetadataElements(
-    await accumulateMetadata(metadataItems, metadataContext)
-  )
-  return (
-    <>
-      {elements.map((el, index) => {
-        return cloneElement(el as React.ReactElement, { key: index })
-      })}
-    </>
+    workStore,
+    errorConvention
   )
 }
 
@@ -198,24 +216,14 @@ async function getNotFoundMetadataImpl(
   workStore: WorkStore
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
-  const notFoundMetadataItems = await resolveMetadataItems(
+  return renderMetadata(
     tree,
     searchParams,
-    notFoundErrorConvention,
     getDynamicParamFromSegment,
+    metadataContext,
     createServerParamsForMetadata,
-    workStore
-  )
-
-  const elements: Array<React.ReactNode> = createMetadataElements(
-    await accumulateMetadata(notFoundMetadataItems, metadataContext)
-  )
-  return (
-    <>
-      {elements.map((el, index) => {
-        return cloneElement(el as React.ReactElement, { key: index })
-      })}
-    </>
+    workStore,
+    notFoundErrorConvention
   )
 }
 
@@ -226,27 +234,16 @@ async function getResolvedViewportImpl(
   getDynamicParamFromSegment: GetDynamicParamFromSegment,
   createServerParamsForMetadata: CreateServerParamsForMetadata,
   workStore: WorkStore,
-  errorType?: 'not-found' | 'redirect'
+  errorType?: MetadataErrorType | 'redirect'
 ): Promise<React.ReactNode> {
   const errorConvention = errorType === 'redirect' ? undefined : errorType
-
-  const metadataItems = await resolveMetadataItems(
+  return renderViewport(
     tree,
     searchParams,
-    errorConvention,
     getDynamicParamFromSegment,
     createServerParamsForMetadata,
-    workStore
-  )
-  const elements: Array<React.ReactNode> = createViewportElements(
-    await accumulateViewport(metadataItems)
-  )
-  return (
-    <>
-      {elements.map((el, index) => {
-        return cloneElement(el as React.ReactElement, { key: index })
-      })}
-    </>
+    workStore,
+    errorConvention
   )
 }
 
@@ -259,17 +256,64 @@ async function getNotFoundViewportImpl(
   workStore: WorkStore
 ): Promise<React.ReactNode> {
   const notFoundErrorConvention = 'not-found'
-  const notFoundMetadataItems = await resolveMetadataItems(
+  return renderViewport(
     tree,
     searchParams,
-    notFoundErrorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore,
+    notFoundErrorConvention
+  )
+}
+
+async function renderMetadata(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  metadataContext: MetadataContext,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorConvention?: MetadataErrorType
+) {
+  const resolvedMetadata = await resolveMetadata(
+    tree,
+    searchParams,
+    errorConvention,
+    getDynamicParamFromSegment,
+    createServerParamsForMetadata,
+    workStore,
+    metadataContext
+  )
+  const elements: Array<React.ReactNode> =
+    createMetadataElements(resolvedMetadata)
+  return (
+    <>
+      {elements.map((el, index) => {
+        return cloneElement(el as React.ReactElement, { key: index })
+      })}
+    </>
+  )
+}
+
+async function renderViewport(
+  tree: LoaderTree,
+  searchParams: Promise<ParsedUrlQuery>,
+  getDynamicParamFromSegment: GetDynamicParamFromSegment,
+  createServerParamsForMetadata: CreateServerParamsForMetadata,
+  workStore: WorkStore,
+  errorConvention?: MetadataErrorType
+) {
+  const notFoundResolvedViewport = await resolveViewport(
+    tree,
+    searchParams,
+    errorConvention,
     getDynamicParamFromSegment,
     createServerParamsForMetadata,
     workStore
   )
 
   const elements: Array<React.ReactNode> = createViewportElements(
-    await accumulateViewport(notFoundMetadataItems)
+    notFoundResolvedViewport
   )
   return (
     <>

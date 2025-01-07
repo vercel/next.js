@@ -1,3 +1,5 @@
+import { getNetworkHost } from '../../lib/get-network-host'
+
 if (performance.getEntriesByName('next-start').length === 0) {
   performance.mark('next-start')
 }
@@ -29,6 +31,9 @@ import { getStartServerInfo, logStartInfo } from './app-info-log'
 import { validateTurboNextConfig } from '../../lib/turbopack-warning'
 import { type Span, trace, flushAllTraces } from '../../trace'
 import { isPostpone } from './router-utils/is-postpone'
+import { isIPv6 } from './is-ipv6'
+import { AsyncCallbackSet } from './async-callback-set'
+import type { NextServer } from '../next'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -50,7 +55,7 @@ export async function getRequestHandlers({
   dir,
   port,
   isDev,
-  onCleanup,
+  onDevServerCleanup,
   server,
   hostname,
   minimalMode,
@@ -61,7 +66,7 @@ export async function getRequestHandlers({
   dir: string
   port: number
   isDev: boolean
-  onCleanup: (listener: () => Promise<void>) => void
+  onDevServerCleanup: ((listener: () => Promise<void>) => void) | undefined
   server?: import('http').Server
   hostname?: string
   minimalMode?: boolean
@@ -73,7 +78,7 @@ export async function getRequestHandlers({
     dir,
     port,
     hostname,
-    onCleanup,
+    onDevServerCleanup,
     dev: isDev,
     minimalMode,
     server,
@@ -129,6 +134,8 @@ export async function startServer(
     }
     throw new Error('Invariant upgrade handler was not setup')
   }
+
+  let nextServer: NextServer | undefined
 
   // setup server listener as fast as possible
   if (selfSignedCertificate && !isDev) {
@@ -215,6 +222,8 @@ export async function startServer(
     }
   })
 
+  let cleanupListeners = isDev ? new AsyncCallbackSet() : undefined
+
   await new Promise<void>((resolve) => {
     server.on('listening', async () => {
       const nodeDebugType = getNodeDebugType()
@@ -234,12 +243,16 @@ export async function startServer(
 
       port = typeof addr === 'object' ? addr?.port || port : port
 
-      const networkUrl = hostname
-        ? `${selfSignedCertificate ? 'https' : 'http'}://${actualHostname}:${port}`
+      const networkHostname =
+        hostname ?? getNetworkHost(isIPv6(actualHostname) ? 'IPv6' : 'IPv4')
+
+      const protocol = selfSignedCertificate ? 'https' : 'http'
+
+      const networkUrl = networkHostname
+        ? `${protocol}://${formatHostname(networkHostname)}:${port}`
         : null
-      const appUrl = `${
-        selfSignedCertificate ? 'https' : 'http'
-      }://${formattedHostname}:${port}`
+
+      const appUrl = `${protocol}://${formattedHostname}:${port}`
 
       if (nodeDebugType) {
         const formattedDebugAddress = getFormattedDebugAddress()
@@ -248,8 +261,11 @@ export async function startServer(
         )
       }
 
-      // expose the main port to render workers
+      // Store the selected port to:
+      // - expose it to render workers
+      // - re-use it for automatic dev server restarts with a randomly selected port
       process.env.PORT = port + ''
+
       process.env.__NEXT_PRIVATE_ORIGIN = appUrl
 
       // Only load env and config in dev to for logging purposes
@@ -271,7 +287,6 @@ export async function startServer(
       Log.event(`Starting...`)
 
       try {
-        const cleanupListeners = [() => new Promise((res) => server.close(res))]
         let cleanupStarted = false
         const cleanup = () => {
           if (cleanupStarted) {
@@ -284,7 +299,22 @@ export async function startServer(
           cleanupStarted = true
           ;(async () => {
             debug('start-server process cleanup')
-            await Promise.all(cleanupListeners.map((f) => f()))
+
+            // first, stop accepting new connections and finish pending requests,
+            // because they might affect `nextServer.close()` (e.g. by scheduling an `after`)
+            await new Promise<void>((res) =>
+              server.close((err) => {
+                if (err) console.error(err)
+                res()
+              })
+            )
+
+            // now that no new requests can come in, clean up the rest
+            await Promise.all([
+              nextServer?.close().catch(console.error),
+              cleanupListeners?.runAll().catch(console.error),
+            ])
+
             debug('start-server process cleanup finished')
             process.exit(0)
           })()
@@ -317,15 +347,18 @@ export async function startServer(
           dir,
           port,
           isDev,
-          onCleanup: (listener) => cleanupListeners.push(listener),
+          onDevServerCleanup: cleanupListeners
+            ? cleanupListeners.add.bind(cleanupListeners)
+            : undefined,
           server,
           hostname,
           minimalMode,
           keepAliveTimeout,
           experimentalHttpsServer: !!selfSignedCertificate,
         })
-        requestHandler = initResult[0]
-        upgradeHandler = initResult[1]
+        requestHandler = initResult.requestHandler
+        upgradeHandler = initResult.upgradeHandler
+        nextServer = initResult.server
 
         const startServerProcessDuration =
           performance.mark('next-start-end') &&
@@ -413,7 +446,7 @@ if (process.env.NEXT_PRIVATE_WORKER && process.send) {
         'memory.heapUsed',
         String(memoryUsage.heapUsed)
       )
-      process.send({ nextServerReady: true })
+      process.send({ nextServerReady: true, port: process.env.PORT })
     }
   })
   process.send({ nextWorkerReady: true })

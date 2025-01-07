@@ -168,44 +168,41 @@ graph TD
     Item6 --> Item3;
     Item7 --> Item4;
     Item7 --> Item5;
-    Item8 --> Item1;
     Item8 --> Item2;
 ```
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(0, ImportBinding(0))]"];
-    N1["Items: [ItemId(1, ImportBinding(0))]"];
+    N0["Items: [ItemId(0, ImportOfModule)]"];
+    N1["Items: [ItemId(0, ImportBinding(0))]"];
     N2["Items: [ItemId(0, ImportBinding(1))]"];
-    N3["Items: [ItemId(3, Normal)]"];
-    N4["Items: [ItemId(Export((&quot;getEnvWithoutDefaults&quot;, #2), &quot;getEnvWithoutDefaults&quot;))]"];
-    N5["Items: [ItemId(2, Normal)]"];
-    N6["Items: [ItemId(Export((&quot;getEnv&quot;, #2), &quot;getEnv&quot;))]"];
-    N7["Items: [ItemId(0, ImportOfModule)]"];
-    N8["Items: [ItemId(1, ImportOfModule)]"];
-    N9["Items: [ItemId(ModuleEvaluation)]"];
-    N8 --> N7;
-    N6 --> N5;
-    N4 --> N3;
-    N5 --> N2;
+    N3["Items: [ItemId(1, ImportOfModule)]"];
+    N4["Items: [ItemId(1, ImportBinding(0))]"];
+    N5["Items: [ItemId(2, Normal), ItemId(Export((&quot;getEnv&quot;, #2), &quot;getEnv&quot;))]"];
+    N6["Items: [ItemId(3, Normal), ItemId(Export((&quot;getEnvWithoutDefaults&quot;, #2), &quot;getEnvWithoutDefaults&quot;))]"];
+    N7["Items: [ItemId(ModuleEvaluation)]"];
+    N3 --> N0;
+    N6 --> N2;
+    N2 --> N0;
     N5 --> N1;
-    N5 --> N0;
-    N3 --> N2;
-    N3 --> N1;
-    N9 --> N7;
-    N9 --> N8;
+    N5 --> N4;
+    N5 --> N2;
+    N4 --> N3;
+    N6 --> N4;
+    N7 --> N3;
+    N1 --> N0;
 ```
 # Entrypoints
 
 ```
 {
-    ModuleEvaluation: 9,
-    Exports: 10,
-    Export(
-        "getEnvWithoutDefaults",
-    ): 4,
+    ModuleEvaluation: 7,
+    Exports: 8,
     Export(
         "getEnv",
+    ): 5,
+    Export(
+        "getEnvWithoutDefaults",
     ): 6,
 }
 ```
@@ -214,121 +211,115 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
+import '../../utils/environment';
+
+```
+## Part 1
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
 export { DEFAULT_ENVIRONMENT as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 1
-```js
-import { _globalThis } from './globalThis';
-export { _globalThis as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import { parseEnvironment } from '../../utils/environment';
-export { parseEnvironment as c } from "__TURBOPACK_VAR__" assert {
+export { parseEnvironment as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 3
 ```js
-import { b as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { c as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
-function getEnvWithoutDefaults() {
-    return parseEnvironment(_globalThis);
-}
-export { getEnvWithoutDefaults as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
+import './globalThis';
 
 ```
 ## Part 4
 ```js
-import { d as getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
-export { getEnvWithoutDefaults };
+import { _globalThis } from './globalThis';
+export { _globalThis as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 5
 ```js
-import { a as DEFAULT_ENVIRONMENT } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { c as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { b as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+import { parseEnvironment } from '../../utils/environment';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { _globalThis } from './globalThis';
 function getEnv() {
     var globalEnv = parseEnvironment(_globalThis);
     return Object.assign({}, DEFAULT_ENVIRONMENT, globalEnv);
 }
-export { getEnv as e } from "__TURBOPACK_VAR__" assert {
+export { getEnv };
+export { getEnv as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 6
 ```js
-import { e as getEnv } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
-export { getEnv };
+import { _globalThis } from './globalThis';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { parseEnvironment } from '../../utils/environment';
+function getEnvWithoutDefaults() {
+    return parseEnvironment(_globalThis);
+}
+export { getEnvWithoutDefaults };
+export { getEnvWithoutDefaults as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 7
 ```js
-import '../../utils/environment';
-
-```
-## Part 8
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import './globalThis';
-
-```
-## Part 9
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 3
 };
 "module evaluation";
 
 ```
-## Part 10
+## Part 8
 ```js
-export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getEnvWithoutDefaults"
-};
 export { getEnv } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getEnv"
+};
+export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export getEnvWithoutDefaults"
 };
 
 ```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 3
 };
 "module evaluation";
 
@@ -337,13 +328,13 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    ModuleEvaluation: 9,
-    Exports: 10,
-    Export(
-        "getEnvWithoutDefaults",
-    ): 4,
+    ModuleEvaluation: 7,
+    Exports: 8,
     Export(
         "getEnv",
+    ): 5,
+    Export(
+        "getEnvWithoutDefaults",
     ): 6,
 }
 ```
@@ -352,121 +343,115 @@ import "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
+import '../../utils/environment';
+
+```
+## Part 1
+```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
 export { DEFAULT_ENVIRONMENT as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 1
-```js
-import { _globalThis } from './globalThis';
-export { _globalThis as b } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
 ## Part 2
 ```js
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
 import { parseEnvironment } from '../../utils/environment';
-export { parseEnvironment as c } from "__TURBOPACK_VAR__" assert {
+export { parseEnvironment as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 3
 ```js
-import { b as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { c as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
-};
-function getEnvWithoutDefaults() {
-    return parseEnvironment(_globalThis);
-}
-export { getEnvWithoutDefaults as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
+import './globalThis';
 
 ```
 ## Part 4
 ```js
-import { d as getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -3
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
-export { getEnvWithoutDefaults };
+import { _globalThis } from './globalThis';
+export { _globalThis as c } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 5
 ```js
-import { a as DEFAULT_ENVIRONMENT } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -0
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { c as parseEnvironment } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -2
+import { DEFAULT_ENVIRONMENT } from '../../utils/environment';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
 };
-import { b as _globalThis } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -1
+import { parseEnvironment } from '../../utils/environment';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
+import { _globalThis } from './globalThis';
 function getEnv() {
     var globalEnv = parseEnvironment(_globalThis);
     return Object.assign({}, DEFAULT_ENVIRONMENT, globalEnv);
 }
-export { getEnv as e } from "__TURBOPACK_VAR__" assert {
+export { getEnv };
+export { getEnv as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 6
 ```js
-import { e as getEnv } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: -5
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 3
 };
-export { getEnv };
+import { _globalThis } from './globalThis';
+import "__TURBOPACK_PART__" assert {
+    __turbopack_part__: 0
+};
+import { parseEnvironment } from '../../utils/environment';
+function getEnvWithoutDefaults() {
+    return parseEnvironment(_globalThis);
+}
+export { getEnvWithoutDefaults };
+export { getEnvWithoutDefaults as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
 ## Part 7
 ```js
-import '../../utils/environment';
-
-```
-## Part 8
-```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import './globalThis';
-
-```
-## Part 9
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 3
 };
 "module evaluation";
 
 ```
-## Part 10
+## Part 8
 ```js
-export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getEnvWithoutDefaults"
-};
 export { getEnv } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export getEnv"
+};
+export { getEnvWithoutDefaults } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export getEnvWithoutDefaults"
 };
 
 ```
 ## Merged (module eval)
 ```js
 import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 7
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 8
+    __turbopack_part__: 3
 };
 "module evaluation";
 

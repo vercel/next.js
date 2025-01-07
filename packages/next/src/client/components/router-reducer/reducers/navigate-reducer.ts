@@ -31,6 +31,11 @@ import {
 } from '../prefetch-cache-utils'
 import { clearCacheNodeDataForSegmentPath } from '../clear-cache-node-data-for-segment-path'
 import { handleAliasedPrefetchEntry } from '../aliased-prefetch-navigations'
+import {
+  navigate as navigateUsingSegmentCache,
+  NavigationResultTag,
+  type NavigationResult,
+} from '../../segment-cache/navigation'
 
 export function handleExternalUrl(
   state: ReadonlyReducerState,
@@ -98,6 +103,50 @@ function triggerLazyFetchForLeafSegments(
   return appliedPatch
 }
 
+function handleNavigationResult(
+  state: ReadonlyReducerState,
+  mutable: Mutable,
+  pendingPush: boolean,
+  result: NavigationResult
+): ReducerState {
+  switch (result.tag) {
+    case NavigationResultTag.MPA: {
+      // Perform an MPA navigation.
+      const newUrl = result.data
+      return handleExternalUrl(state, mutable, newUrl, pendingPush)
+    }
+    case NavigationResultTag.NoOp:
+      // The server responded with no change to the current page.
+      return handleMutable(state, mutable)
+    case NavigationResultTag.Success: {
+      // Received a new result.
+      mutable.cache = result.data.cacheNode
+      mutable.patchedTree = result.data.flightRouterState
+      mutable.canonicalUrl = result.data.canonicalUrl
+      // TODO: Not yet implemented
+      // mutable.scrollableSegments = scrollableSegments
+      // mutable.hashFragment = hash
+      // mutable.shouldScroll = shouldScroll
+      return handleMutable(state, mutable)
+    }
+    case NavigationResultTag.Async: {
+      return result.data.then(
+        (asyncResult) =>
+          handleNavigationResult(state, mutable, pendingPush, asyncResult),
+        // If the navigation failed, return the current state.
+        // TODO: This matches the current behavior but we need to do something
+        // better here if the network fails.
+        () => {
+          return state
+        }
+      )
+    }
+    default:
+      const _exhaustiveCheck: never = result
+      return state
+  }
+}
+
 export function navigateReducer(
   state: ReadonlyReducerState,
   action: NavigateAction
@@ -124,11 +173,31 @@ export function navigateReducer(
     return handleExternalUrl(state, mutable, href, pendingPush)
   }
 
+  if (process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+    // (Very Early Experimental Feature) Segment Cache
+    //
+    // Bypass the normal prefetch cache and use the new per-segment cache
+    // implementation instead. This is only supported if PPR is enabled, too.
+    //
+    // Temporary glue code between the router reducer and the new navigation
+    // implementation. Eventually we'll rewrite the router reducer to a
+    // state machine.
+    // TODO: Currently this always returns an async result, but in the future
+    // it will return a sync result if the navigation was prefetched. Hence
+    // a result type that's more complicated than you might expect.
+    const result = navigateUsingSegmentCache(
+      url,
+      state.cache,
+      state.tree,
+      state.nextUrl
+    )
+    return handleNavigationResult(state, mutable, pendingPush, result)
+  }
+
   const prefetchValues = getOrCreatePrefetchCacheEntry({
     url,
     nextUrl: state.nextUrl,
     tree: state.tree,
-    buildId: state.buildId,
     prefetchCache: state.prefetchCache,
     allowAliasing,
   })
@@ -197,6 +266,7 @@ export function navigateReducer(
           pathToSegment: flightSegmentPath,
           seedData,
           head,
+          isHeadPartial,
           isRootRender,
         } = normalizedFlightData
         let treePatch = normalizedFlightData.tree
@@ -247,13 +317,11 @@ export function navigateReducer(
               currentTree,
               treePatch,
               seedData,
-              head
+              head,
+              isHeadPartial
             )
 
             if (task !== null) {
-              // We've created a new Cache Node tree that contains a prefetched
-              // version of the next page. This can be rendered instantly.
-
               // Use the tree computed by updateCacheNodeOnNavigation instead
               // of the one computed by applyRouterStatePatchToTree.
               // TODO: We should remove applyRouterStatePatchToTree
@@ -261,12 +329,14 @@ export function navigateReducer(
               const patchedRouterState: FlightRouterState = task.route
               newTree = patchedRouterState
 
-              // It's possible that `updateCacheNodeOnNavigation` only spawned tasks to reuse the existing cache,
-              // in which case `task.node` will be null, signaling we don't need to wait for a dynamic request
-              // and can simply apply the patched `FlightRouterState`.
-              if (task.node !== null) {
-                const newCache = task.node
-
+              const newCache = task.node
+              if (newCache !== null) {
+                // We've created a new Cache Node tree that contains a prefetched
+                // version of the next page. This can be rendered instantly.
+                mutable.cache = newCache
+              }
+              const dynamicRequestTree = task.dynamicRequestTree
+              if (dynamicRequestTree !== null) {
                 // The prefetched tree has dynamic holes in it. We initiate a
                 // dynamic request to fill them in.
                 //
@@ -281,9 +351,8 @@ export function navigateReducer(
                 // a different response than we expected. For now, we revert back
                 // to the lazy fetching mechanism in that case.)
                 const dynamicRequest = fetchServerResponse(url, {
-                  flightRouterState: currentTree,
+                  flightRouterState: dynamicRequestTree,
                   nextUrl: state.nextUrl,
-                  buildId: state.buildId,
                 })
 
                 listenForDynamicRequest(task, dynamicRequest)
@@ -291,8 +360,9 @@ export function navigateReducer(
                 // because we're not going to await the dynamic request here. Since we're not blocking
                 // on the dynamic request, `layout-router` will
                 // task.node.lazyData = dynamicRequest
-
-                mutable.cache = newCache
+              } else {
+                // The prefetched tree does not contain dynamic holes — it's
+                // fully static. We can skip the dynamic request.
               }
             } else {
               // Nothing changed, so reuse the old cache.

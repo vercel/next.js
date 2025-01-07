@@ -40,8 +40,6 @@ export function attachHydrationErrorState(error: Error) {
           ...hydrationErrorState,
         }
       }
-      error.message +=
-        '\nSee more info here: https://nextjs.org/docs/messages/react-hydration-error'
     }
     ;(error as any).details = parsedHydrationErrorState
   }

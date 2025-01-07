@@ -17,11 +17,12 @@ use swc_core::{
             helpers::{Helpers, HELPERS},
             resolver,
         },
-        visit::{FoldWith, VisitMutWith},
+        visit::VisitMutWith,
     },
 };
 use tracing::Instrument;
-use turbo_tasks::{util::WrapFuture, RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -86,7 +87,7 @@ pub struct ParseResultSourceMap {
 
     /// An input's original source map, if one exists. This will be used to
     /// trace locations back to the input's pre-transformed sources.
-    original_source_map: Vc<OptionSourceMap>,
+    original_source_map: ResolvedVc<OptionSourceMap>,
 }
 
 impl PartialEq for ParseResultSourceMap {
@@ -99,7 +100,7 @@ impl ParseResultSourceMap {
     pub fn new(
         files_map: Arc<swc_core::common::SourceMap>,
         mappings: Vec<(BytePos, LineCol)>,
-        original_source_map: Vc<OptionSourceMap>,
+        original_source_map: ResolvedVc<OptionSourceMap>,
     ) -> Self {
         ParseResultSourceMap {
             files_map,
@@ -128,7 +129,7 @@ impl GenerateSourceMap for ParseResultSourceMap {
             input_map.as_deref(),
             InlineSourcesContentConfig {},
         );
-        Ok(Vc::cell(Some(SourceMap::new_regular(map).cell())))
+        Ok(Vc::cell(Some(SourceMap::new_regular(map).resolved_cell())))
     }
 }
 
@@ -154,7 +155,7 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 
 #[turbo_tasks::function]
 pub async fn parse(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
@@ -173,7 +174,7 @@ pub async fn parse(
 }
 
 async fn parse_internal(
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
     transforms: Vc<EcmascriptInputTransforms>,
 ) -> Result<Vc<ParseResult>> {
@@ -191,7 +192,7 @@ async fn parse_internal(
                 source,
                 error: error.clone(),
             }
-            .cell()
+            .resolved_cell()
             .emit();
 
             return Ok(ParseResult::Unparseable {
@@ -233,7 +234,7 @@ async fn parse_internal(
                         source,
                         error: error.clone(),
                     }
-                    .cell()
+                    .resolved_cell()
                     .emit();
                     ParseResult::Unparseable {
                         messages: Some(vec![error]),
@@ -252,27 +253,24 @@ async fn parse_file_content(
     fs_path: &FileSystemPath,
     ident: &str,
     file_path_hash: u128,
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
     transforms: &[EcmascriptInputTransform],
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
-    let handler = Handler::with_emitter(
-        true,
-        false,
-        Box::new(IssueEmitter::new(
-            source,
-            source_map.clone(),
-            Some("Ecmascript file had an error".into()),
-        )),
+    let (emitter, collector) = IssueEmitter::new(
+        source,
+        source_map.clone(),
+        Some("Ecmascript file had an error".into()),
     );
+    let handler = Handler::with_emitter(true, false, Box::new(emitter));
 
-    let emitter = Box::new(IssueEmitter::new(
+    let (emitter, collector_parse) = IssueEmitter::new(
         source,
         source_map.clone(),
         Some("Parsing ecmascript source code failed".into()),
-    ));
-    let parser_handler = Handler::with_emitter(true, false, emitter.clone());
+    );
+    let parser_handler = Handler::with_emitter(true, false, Box::new(emitter));
     let globals = Arc::new(Globals::new());
     let globals_ref = &globals;
 
@@ -383,9 +381,11 @@ async fn parse_file_content(
                 es_version: EsVersion::latest(),
                 source_map: source_map.clone(),
             });
-            parsed_program =
-                parsed_program.fold_with(&mut swc_core::ecma::lints::rules::lint_to_fold(rules));
+
+            parsed_program.mutate(swc_core::ecma::lints::rules::lint_to_fold(rules));
             drop(span);
+
+            parsed_program.mutate(swc_core::ecma::transforms::proposal::explicit_resource_management::explicit_resource_management());
 
             let transform_context = TransformContext {
                 comments: &comments,
@@ -395,7 +395,7 @@ async fn parse_file_content(
                 file_path_str: &fs_path.path,
                 file_name_str: fs_path.file_name(),
                 file_name_hash: file_path_hash,
-                file_path: fs_path_vc,
+                file_path: fs_path_vc.to_resolved().await?,
             };
             let span = tracing::trace_span!("transforms");
             async {
@@ -410,7 +410,7 @@ async fn parse_file_content(
             .await?;
 
             if parser_handler.has_errors() {
-                let messages = if let Some(error) = emitter.emitted_issues.last() {
+                let messages = if let Some(error) = collector_parse.last_emitted_issue() {
                     // The emitter created in here only uses StyledString::Text
                     if let StyledString::Text(xx) = &*error.await?.message.await? {
                         Some(vec![xx.clone()])
@@ -434,7 +434,7 @@ async fn parse_file_content(
                 unresolved_mark,
                 top_level_mark,
                 Some(&comments),
-                Some(source),
+                Some(*source),
             );
 
             Ok::<ParseResult, anyhow::Error>(ParseResult::Ok {
@@ -461,12 +461,14 @@ async fn parse_file_content(
         // Assign the correct globals
         *g = globals;
     }
+    collector.emit().await?;
+    collector_parse.emit().await?;
     Ok(result.cell())
 }
 
 #[turbo_tasks::value]
 struct ReadSourceIssue {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
     error: RcStr,
 }
 
@@ -493,7 +495,7 @@ impl Issue for ReadSourceIssue {
                 )
                 .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 

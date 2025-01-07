@@ -33,7 +33,8 @@ use socket2::{Domain, Protocol, Socket, Type};
 use tokio::task::JoinHandle;
 use tracing::{event, info_span, Instrument, Level, Span};
 use turbo_tasks::{
-    run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, TurboTasksApi, Vc,
+    apply_effects, run_once_with_reason, trace::TraceRawVcs, util::FormatDuration, NonLocalValue,
+    OperationVc, TurboTasksApi, Vc,
 };
 use turbopack_core::{
     error::PrettyPrintError,
@@ -48,19 +49,19 @@ use crate::{
 
 pub trait SourceProvider: Send + Clone + 'static {
     /// must call a turbo-tasks function internally
-    fn get_source(&self) -> Vc<Box<dyn ContentSource>>;
+    fn get_source(&self) -> OperationVc<Box<dyn ContentSource>>;
 }
 
 impl<T> SourceProvider for T
 where
-    T: Fn() -> Vc<Box<dyn ContentSource>> + Send + Clone + 'static,
+    T: Fn() -> OperationVc<Box<dyn ContentSource>> + Send + Clone + 'static,
 {
-    fn get_source(&self) -> Vc<Box<dyn ContentSource>> {
+    fn get_source(&self) -> OperationVc<Box<dyn ContentSource>> {
         self()
     }
 }
 
-#[derive(TraceRawVcs, Debug)]
+#[derive(TraceRawVcs, Debug, NonLocalValue)]
 pub struct DevServerBuilder {
     #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,
@@ -68,7 +69,7 @@ pub struct DevServerBuilder {
     server: Builder<AddrIncoming>,
 }
 
-#[derive(TraceRawVcs)]
+#[derive(TraceRawVcs, NonLocalValue)]
 pub struct DevServer {
     #[turbo_tasks(trace_ignore)]
     pub addr: SocketAddr,
@@ -210,7 +211,9 @@ impl DevServerBuilder {
                             let uri = request.uri();
                             let path = uri.path().to_string();
                             let source = source_provider.get_source();
-                            let resolved_source = source.resolve_strongly_consistent().await?;
+                            // HACK: Resolve `source` now so that we can get any issues on it
+                            let _ = source.connect().resolve_strongly_consistent().await?;
+                            apply_effects(source).await?;
                             handle_issues(
                                 source,
                                 issue_reporter,
@@ -221,7 +224,14 @@ impl DevServerBuilder {
                             .await?;
                             let (response, side_effects) =
                                 http::process_request_with_content_source(
-                                    resolved_source,
+                                    // HACK: pass `source` here (instead of `resolved_source`
+                                    // because the underlying API wants to do it's own
+                                    // `resolve_strongly_consistent` call.
+                                    //
+                                    // It's unlikely (the calls happen one-after-another), but this
+                                    // could cause inconsistency between the reported issues and
+                                    // the generated HTTP response.
+                                    source,
                                     request,
                                     issue_reporter,
                                 )

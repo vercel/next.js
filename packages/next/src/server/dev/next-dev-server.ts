@@ -59,7 +59,7 @@ import { DevAppRouteRouteMatcherProvider } from '../route-matcher-providers/dev/
 import { NodeManifestLoader } from '../route-matcher-providers/helpers/manifest-loaders/node-manifest-loader'
 import { BatchedFileReader } from '../route-matcher-providers/dev/helpers/file-reader/batched-file-reader'
 import { DefaultFileReader } from '../route-matcher-providers/dev/helpers/file-reader/default-file-reader'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lib/lru-cache'
 import { getMiddlewareRouteMatcher } from '../../shared/lib/router/utils/middleware-route-matcher'
 import { DetachedPromise } from '../../lib/detached-promise'
 import { isPostpone } from '../lib/router-utils/is-postpone'
@@ -113,7 +113,6 @@ export default class DevServer extends Server {
   private originalFetch?: typeof fetch
   private readonly bundlerService: DevBundlerService
   private staticPathsCache: LRUCache<
-    string,
     UnwrapPromise<ReturnType<DevServer['getStaticPaths']>>
   >
   private startServerSpan: Span
@@ -165,13 +164,13 @@ export default class DevServer extends Server {
       options.startServerSpan ?? trace('start-next-dev-server')
     this.renderOpts.dev = true
     this.renderOpts.ErrorDebug = ReactDevOverlay
-    this.staticPathsCache = new LRUCache({
+    this.staticPathsCache = new LRUCache(
       // 5MB
-      max: 5 * 1024 * 1024,
-      length(value) {
+      5 * 1024 * 1024,
+      function length(value) {
         return JSON.stringify(value.staticPaths)?.length ?? 0
-      },
-    })
+      }
+    )
     this.renderOpts.ampSkipValidation =
       this.nextConfig.experimental?.amp?.skipValidation ?? false
     this.renderOpts.ampValidator = (html: string, pathname: string) => {
@@ -202,10 +201,12 @@ export default class DevServer extends Server {
     this.appDir = appDir
 
     if (this.nextConfig.experimental.serverComponentsHmrCache) {
-      this.serverComponentsHmrCache = new LRUCache({
-        max: this.nextConfig.cacheMaxMemorySize,
-        length: (value) => JSON.stringify(value).length,
-      })
+      this.serverComponentsHmrCache = new LRUCache(
+        this.nextConfig.cacheMaxMemorySize,
+        function length(value) {
+          return JSON.stringify(value).length
+        }
+      )
     }
   }
 
@@ -315,16 +316,12 @@ export default class DevServer extends Server {
         // not really errors. They're just part of rendering.
         return
       }
-      this.logErrorWithOriginalStack(reason, 'unhandledRejection').catch(
-        () => {}
-      )
+      this.logErrorWithOriginalStack(reason, 'unhandledRejection')
     })
     process.on('uncaughtException', (err) => {
-      this.logErrorWithOriginalStack(err, 'uncaughtException').catch(() => {})
+      this.logErrorWithOriginalStack(err, 'uncaughtException')
     })
   }
-
-  protected async close(): Promise<void> {}
 
   protected async hasPage(pathname: string): Promise<boolean> {
     let normalizedPath: string
@@ -422,7 +419,9 @@ export default class DevServer extends Server {
        */
       if (
         request.url.includes('/_next/static') ||
-        request.url.includes('/__nextjs_original-stack-frame')
+        request.url.includes('/__nextjs_original-stack-frame') ||
+        request.url.includes('/__nextjs_source-map') ||
+        request.url.includes('/__nextjs_error_feedback')
       ) {
         return { finished: false }
       }
@@ -559,7 +558,7 @@ export default class DevServer extends Server {
     } catch (error) {
       const err = getProperError(error)
       formatServerError(err)
-      this.logErrorWithOriginalStack(err).catch(() => {})
+      this.logErrorWithOriginalStack(err)
       if (!res.sent) {
         res.statusCode = 500
         try {
@@ -574,11 +573,11 @@ export default class DevServer extends Server {
     }
   }
 
-  protected async logErrorWithOriginalStack(
+  protected logErrorWithOriginalStack(
     err?: unknown,
     type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ): Promise<void> {
-    await this.bundlerService.logErrorWithOriginalStack(err, type)
+  ): void {
+    this.bundlerService.logErrorWithOriginalStack(err, type)
   }
 
   protected getPagesManifest(): PagesManifest | undefined {
@@ -771,12 +770,14 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
+          cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,
           maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
           nextConfigOutput: this.nextConfig.output,
-          isAppPPRFallbacksEnabled: this.nextConfig.experimental.pprFallbacks,
-          buildId: this.renderOpts.buildId,
+          buildId: this.buildId,
+          authInterrupts: Boolean(this.nextConfig.experimental.authInterrupts),
+          sriEnabled: Boolean(this.nextConfig.experimental.sri?.algorithm),
         })
         return pathsResult
       } finally {
@@ -809,14 +810,14 @@ export default class DevServer extends Server {
           staticPaths: string[] | undefined
           fallbackMode: FallbackMode | undefined
         } = {
-          staticPaths: staticPaths?.map((route) => route.path),
+          staticPaths: staticPaths?.map((route) => route.pathname),
           fallbackMode: fallback,
         }
         this.staticPathsCache.set(pathname, value)
         return value
       })
       .catch((err) => {
-        this.staticPathsCache.del(pathname)
+        this.staticPathsCache.remove(pathname)
         if (!result) throw err
         Log.error(`Failed to generate static paths for ${pathname}:`)
         console.error(err)
@@ -839,6 +840,7 @@ export default class DevServer extends Server {
   }
 
   protected async findPageComponents({
+    locale,
     page,
     query,
     params,
@@ -847,6 +849,7 @@ export default class DevServer extends Server {
     shouldEnsure,
     url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -864,7 +867,7 @@ export default class DevServer extends Server {
       throw new WrappedBuildError(compilationErr)
     }
     try {
-      if (shouldEnsure || this.renderOpts.customServer) {
+      if (shouldEnsure || this.serverOptions.customServer) {
         await this.ensurePage({
           page,
           appPaths,
@@ -877,6 +880,7 @@ export default class DevServer extends Server {
       this.nextFontManifest = super.getNextFontManifest()
 
       return await super.findPageComponents({
+        locale,
         page,
         query,
         params,
@@ -909,7 +913,6 @@ export default class DevServer extends Server {
     await super.instrumentationOnRequestError(...args)
 
     const err = args[0]
-    // Safe catch to avoid floating promises
-    this.logErrorWithOriginalStack(err, 'app-dir').catch(() => {})
+    this.logErrorWithOriginalStack(err, 'app-dir')
   }
 }

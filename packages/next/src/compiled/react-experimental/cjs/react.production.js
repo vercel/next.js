@@ -21,7 +21,6 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_SUSPENSE_LIST_TYPE = Symbol.for("react.suspense_list"),
   REACT_MEMO_TYPE = Symbol.for("react.memo"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
-  REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
@@ -78,13 +77,13 @@ pureComponentPrototype.isPureReactComponent = !0;
 var isArrayImpl = Array.isArray,
   ReactSharedInternals = { H: null, A: null, T: null, S: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
-function ReactElement(type, key, _ref, self, source, owner, props) {
-  _ref = props.ref;
+function ReactElement(type, key, self, source, owner, props) {
+  self = props.ref;
   return {
     $$typeof: REACT_ELEMENT_TYPE,
     type: type,
     key: key,
-    ref: void 0 !== _ref ? _ref : null,
+    ref: void 0 !== self ? self : null,
     props: props
   };
 }
@@ -92,7 +91,6 @@ function cloneAndReplaceKey(oldElement, newKey) {
   return ReactElement(
     oldElement.type,
     newKey,
-    null,
     void 0,
     void 0,
     void 0,
@@ -365,6 +363,11 @@ exports.StrictMode = REACT_STRICT_MODE_TYPE;
 exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
+exports.__COMPILER_RUNTIME = {
+  c: function (size) {
+    return ReactSharedInternals.H.useMemoCache(size);
+  }
+};
 exports.act = function () {
   throw Error("act(...) is not supported in production builds of React.");
 };
@@ -401,7 +404,7 @@ exports.cloneElement = function (element, config, children) {
       childArray[i] = arguments[i + 2];
     props.children = childArray;
   }
-  return ReactElement(element.type, key, null, void 0, void 0, owner, props);
+  return ReactElement(element.type, key, void 0, void 0, owner, props);
 };
 exports.createContext = function (defaultValue) {
   defaultValue = {
@@ -441,7 +444,7 @@ exports.createElement = function (type, config, children) {
     for (propName in ((childrenLength = type.defaultProps), childrenLength))
       void 0 === props[propName] &&
         (props[propName] = childrenLength[propName]);
-  return ReactElement(type, key, null, void 0, void 0, null, props);
+  return ReactElement(type, key, void 0, void 0, null, props);
 };
 exports.createRef = function () {
   return { current: null };
@@ -452,6 +455,7 @@ exports.experimental_useEffectEvent = function (callback) {
 exports.experimental_useOptimistic = function (passthrough, reducer) {
   return useOptimistic(passthrough, reducer);
 };
+exports.experimental_useResourceEffect = void 0;
 exports.forwardRef = function (render) {
   return { $$typeof: REACT_FORWARD_REF_TYPE, render: render };
 };
@@ -490,7 +494,6 @@ exports.startTransition = function (scope) {
   }
 };
 exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
-exports.unstable_DebugTracingMode = REACT_DEBUG_TRACING_MODE_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
@@ -562,4 +565,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.0.0-experimental-2d16326d-20240930";
+exports.version = "19.1.0-experimental-7b402084-20250107";

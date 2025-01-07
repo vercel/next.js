@@ -30,7 +30,7 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--js',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -59,7 +59,7 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--no-src-dir',
           '--no-tailwind',
@@ -86,7 +86,7 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--no-tailwind',
@@ -122,7 +122,7 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--tailwind',
@@ -157,7 +157,7 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--empty',
@@ -195,7 +195,7 @@ describe('create-next-app --app (App Router)', () => {
           projectName,
           '--ts',
           '--app',
-          '--no-turbo',
+          '--no-turbopack',
           '--eslint',
           '--src-dir',
           '--tailwind',
@@ -225,7 +225,7 @@ describe('create-next-app --app (App Router)', () => {
     })
   })
 
-  it('should enable turbopack dev with --turbo flag', async () => {
+  it('should enable turbopack dev with --turbopack flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'app-turbo'
       const { exitCode } = await run(
@@ -234,7 +234,7 @@ describe('create-next-app --app (App Router)', () => {
           '--ts',
           '--app',
           '--eslint',
-          '--turbo',
+          '--turbopack',
           '--no-src-dir',
           '--no-tailwind',
           '--no-import-alias',
@@ -248,7 +248,7 @@ describe('create-next-app --app (App Router)', () => {
       expect(exitCode).toBe(0)
       const projectRoot = join(cwd, projectName)
       const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbo')
+      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
     })
   })
 })

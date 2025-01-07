@@ -1,6 +1,6 @@
 import type { AppRenderContext } from '../../server/app-render/app-render'
 import type { MetadataContext } from './types/resolvers'
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import { trackFallbackParamAccessed } from '../../server/app-render/dynamic-rendering'
 
 export function createMetadataContext(
@@ -10,7 +10,7 @@ export function createMetadataContext(
   return {
     pathname,
     trailingSlash: renderOpts.trailingSlash,
-    isStandaloneMode: renderOpts.nextConfigOutput === 'standalone',
+    isStaticMetadataRouteFile: false,
   }
 }
 

@@ -10,9 +10,14 @@ import {
   wrapParentheseIfNeeded,
   insertCommentOnce,
   NEXTJS_ENTRY_FILES,
+  NEXT_CODEMOD_ERROR_PREFIX,
+  containsReactHooksCallExpressions,
+  isParentUseCallExpression,
+  isReactHookName,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
-const DYNAMIC_IMPORT_WARN_COMMENT = ` Next.js Dynamic Async API Codemod: The APIs under 'next/headers' are async now, need to be manually awaited. `
+const DYNAMIC_IMPORT_WARN_COMMENT = ` @next-codemod-error The APIs under 'next/headers' are async now, need to be manually awaited. `
 
 function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
   let modified = false
@@ -42,11 +47,11 @@ function findDynamicImportsAndComment(root: Collection<any>, j: API['j']) {
 
 export function transformDynamicAPI(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   let modified = false
 
@@ -149,12 +154,13 @@ export function transformDynamicAPI(
           // check if current path is under the default export function
           if (isEntryFileExport) {
             // if default export function is not async, convert it to async, and await the api call
-            if (!isCallAwaited) {
+            if (!isCallAwaited && isFunctionType(exportFunctionNode.type)) {
+              const hasReactHooksUsage = containsReactHooksCallExpressions(
+                closetScopePath,
+                j
+              )
               // If the scoped function is async function
-              if (
-                isFunctionType(exportFunctionNode.type) &&
-                exportFunctionNode.async === false
-              ) {
+              if (exportFunctionNode.async === false && !hasReactHooksUsage) {
                 canConvertToAsync = true
                 exportFunctionNode.async = true
               }
@@ -168,8 +174,18 @@ export function transformDynamicAPI(
                 )
 
                 turnFunctionReturnTypeToAsync(closetScopePath.node, j)
-
                 modified = true
+              } else {
+                // If it's still sync function that cannot be converted to async, wrap the api call with 'use()' if needed
+                if (!isParentUseCallExpression(path, j)) {
+                  j(path).replaceWith(
+                    j.callExpression(j.identifier('use'), [
+                      j.callExpression(j.identifier(asyncRequestApiName), []),
+                    ])
+                  )
+                  needsReactUseImport = true
+                  modified = true
+                }
               }
             }
           } else {
@@ -177,9 +193,10 @@ export function transformDynamicAPI(
             const parentFunction = findClosetParentFunctionScope(path, j)
 
             if (parentFunction) {
-              const parentFunctionName = parentFunction.get().node.id?.name
-              const isParentFunctionHook = parentFunctionName?.startsWith('use')
-              if (isParentFunctionHook) {
+              const parentFunctionName =
+                parentFunction.get().node.id?.name || ''
+              const isParentFunctionHook = isReactHookName(parentFunctionName)
+              if (isParentFunctionHook && !isParentUseCallExpression(path, j)) {
                 j(path).replaceWith(
                   j.callExpression(j.identifier('use'), [
                     j.callExpression(j.identifier(asyncRequestApiName), []),
@@ -194,7 +211,7 @@ export function transformDynamicAPI(
                   root,
                   filePath,
                   insertedTypes,
-                  ` Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component `
+                  ` ${NEXT_CODEMOD_ERROR_PREFIX} Manually await this call and refactor the function to be async `
                 )
                 modified ||= casted
               }
@@ -206,7 +223,7 @@ export function transformDynamicAPI(
                 root,
                 filePath,
                 insertedTypes,
-                ' Next.js Dynamic Async API Codemod: please manually await this call, codemod cannot transform due to undetermined async scope '
+                ` ${NEXT_CODEMOD_ERROR_PREFIX} please manually await this call, codemod cannot transform due to undetermined async scope `
               )
               modified ||= casted
             }
@@ -321,7 +338,26 @@ function castTypesOrAddComment(
     )
     // Replace the original expression with the new cast expression,
     // also wrap () around the new cast expression.
-    j(path).replaceWith(j.parenthesizedExpression(newCastExpression))
+    const parent = path.parent.value
+    const wrappedExpression = j.parenthesizedExpression(newCastExpression)
+    path.replace(wrappedExpression)
+
+    // If the wrapped expression `(<expression>)` is the beginning of an expression statement,
+    // add a void operator to separate the statement, to avoid syntax error that being treated as part of previous statement.
+    // example:
+    // input:
+    // <expression>
+    // <expression>
+    // output:
+    // (<expression> as ...)
+    // void (<expression> as ...)
+    if (
+      j.ExpressionStatement.check(parent) &&
+      parent.expression === path.node
+    ) {
+      // append a semicolon to the start of the expression statement
+      parent.expression = j.unaryExpression('void', parent.expression)
+    }
     modified = true
 
     // If cast types are not imported, add them to the import list

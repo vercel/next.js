@@ -4,6 +4,7 @@ import { getSentinelValue } from '../../../getSentinelValue'
 import { AllComponents } from '../components'
 
 export default async function Page() {
+  await new Promise((r) => process.nextTick(r))
   const allCookies = cookies() as unknown as UnsafeUnwrappedCookies
   return (
     <>

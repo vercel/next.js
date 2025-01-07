@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    cmp::min,
+    cmp::{min, Ordering},
     fmt,
     io::{BufRead, Read, Result as IoResult, Write},
     mem,
@@ -27,7 +27,7 @@ static EMPTY_BUF: &[u8] = &[];
 /// sharing the contents of one Rope can be done by just cloning an Arc.
 ///
 /// Ropes are immutable, in order to construct one see [RopeBuilder].
-#[turbo_tasks::value(shared, serialization = "custom", eq = "manual")]
+#[turbo_tasks::value(shared, serialization = "custom", eq = "manual", operation)]
 #[derive(Clone, Debug, Default)]
 pub struct Rope {
     /// Total length of all held bytes.
@@ -372,14 +372,38 @@ pub mod ser_as_string {
     }
 }
 
+pub mod ser_option_as_string {
+    use serde::{ser::Error, Serializer};
+
+    use super::Rope;
+
+    /// Serializes a Rope into a string.
+    pub fn serialize<S: Serializer>(rope: &Option<Rope>, serializer: S) -> Result<S::Ok, S::Error> {
+        if let Some(rope) = rope {
+            let s = rope.to_str().map_err(Error::custom)?;
+            serializer.serialize_some(&s)
+        } else {
+            serializer.serialize_none()
+        }
+    }
+}
+
 impl PartialEq for Rope {
     // Ropes with similar contents are equals, regardless of their structure.
     fn eq(&self, other: &Self) -> bool {
-        if Arc::ptr_eq(&self.data, &other.data) {
-            return true;
-        }
         if self.len() != other.len() {
             return false;
+        }
+        self.cmp(other) == Ordering::Equal
+    }
+}
+
+impl Eq for Rope {}
+
+impl Ord for Rope {
+    fn cmp(&self, other: &Self) -> Ordering {
+        if Arc::ptr_eq(&self.data, &other.data) {
+            return Ordering::Equal;
         }
 
         // Fast path for structurally equal Ropes. With this, we can do memory reference
@@ -392,11 +416,11 @@ impl PartialEq for Rope {
             let a = &left[index];
             let b = &right[index];
 
-            match a.maybe_eq(b) {
+            match a.maybe_cmp(b) {
                 // Bytes or InnerRope point to the same memory, or Bytes are contents equal.
-                Some(true) => index += 1,
+                Some(Ordering::Equal) => index += 1,
                 // Bytes are not contents equal.
-                Some(false) => return false,
+                Some(ordering) => return ordering,
                 // InnerRopes point to different memory, or the Ropes weren't structurally equal.
                 None => break,
             }
@@ -406,7 +430,7 @@ impl PartialEq for Rope {
         if index == len {
             // We know that any remaining RopeElem in the InnerRope must contain content, so
             // if either one contains more RopeElem than they cannot be equal.
-            return left.len() == right.len();
+            return left.len().cmp(&right.len());
         }
 
         // At this point, we need to do slower contents equality. It's possible we'll
@@ -422,26 +446,31 @@ impl PartialEq for Rope {
 
                     // When one buffer is consumed, both must be consumed.
                     if len == 0 {
-                        return a.len() == b.len();
+                        return a.len().cmp(&b.len());
                     }
 
-                    if a[0..len] != b[0..len] {
-                        return false;
+                    match a[0..len].cmp(&b[0..len]) {
+                        Ordering::Equal => {
+                            left.consume(len);
+                            right.consume(len);
+                        }
+                        ordering => return ordering,
                     }
-
-                    left.consume(len);
-                    right.consume(len);
                 }
 
                 // If an error is ever returned (which shouldn't happen for us) for either/both,
                 // then we can't prove equality.
-                _ => return false,
+                _ => unreachable!(),
             }
         }
     }
 }
 
-impl Eq for Rope {}
+impl PartialOrd for Rope {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other))
+    }
+}
 
 impl From<Vec<u8>> for Uncommitted {
     fn from(bytes: Vec<u8>) -> Self {
@@ -538,11 +567,11 @@ impl Deref for InnerRope {
 }
 
 impl RopeElem {
-    fn maybe_eq(&self, other: &Self) -> Option<bool> {
+    fn maybe_cmp(&self, other: &Self) -> Option<Ordering> {
         match (self, other) {
             (Local(a), Local(b)) => {
                 if a.len() == b.len() {
-                    return Some(a == b);
+                    return Some(a.cmp(b));
                 }
 
                 // But if not, the rope may still be contents equal if a following section
@@ -551,7 +580,7 @@ impl RopeElem {
             }
             (Shared(a), Shared(b)) => {
                 if Arc::ptr_eq(&a.0, &b.0) {
-                    return Some(true);
+                    return Some(Ordering::Equal);
                 }
 
                 // But if not, they might still be equal and we need to fallback to slower

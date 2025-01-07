@@ -66,7 +66,7 @@ describe('Next Build', () => {
           'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
         )
         expect(output).toContain(
-          'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+          'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images.'
         )
         expect(output).toContain('Warning: Do not include stylesheets manually')
         expect(output).toContain(

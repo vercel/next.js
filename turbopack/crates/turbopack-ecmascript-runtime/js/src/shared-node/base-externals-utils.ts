@@ -7,51 +7,52 @@
 /// If a fn requires node.js specific behavior, it should be placed in `node-external-utils` instead.
 
 async function externalImport(id: ModuleId) {
-  let raw;
+  let raw
   try {
-    raw = await import(id);
+    raw = await import(id)
   } catch (err) {
     // TODO(alexkirsz) This can happen when a client-side module tries to load
     // an external module we don't provide a shim for (e.g. querystring, url).
     // For now, we fail semi-silently, but in the future this should be a
     // compilation error.
-    throw new Error(`Failed to load external module ${id}: ${err}`);
+    throw new Error(`Failed to load external module ${id}: ${err}`)
   }
 
-  if (raw && raw.__esModule && raw.default && "default" in raw.default) {
-    return interopEsm(raw.default, createNS(raw), true);
+  if (raw && raw.__esModule && raw.default && 'default' in raw.default) {
+    return interopEsm(raw.default, createNS(raw), true)
   }
 
-  return raw;
+  return raw
 }
 
 function externalRequire(
   id: ModuleId,
+  thunk: () => any,
   esm: boolean = false
 ): Exports | EsmNamespaceObject {
-  let raw;
+  let raw
   try {
-    raw = require(id);
+    raw = thunk()
   } catch (err) {
     // TODO(alexkirsz) This can happen when a client-side module tries to load
     // an external module we don't provide a shim for (e.g. querystring, url).
     // For now, we fail semi-silently, but in the future this should be a
     // compilation error.
-    throw new Error(`Failed to load external module ${id}: ${err}`);
+    throw new Error(`Failed to load external module ${id}: ${err}`)
   }
 
   if (!esm || raw.__esModule) {
-    return raw;
+    return raw
   }
 
-  return interopEsm(raw, createNS(raw), true);
+  return interopEsm(raw, createNS(raw), true)
 }
 
 externalRequire.resolve = (
   id: string,
   options?: {
-    paths?: string[];
+    paths?: string[]
   }
 ) => {
-  return require.resolve(id, options);
-};
+  return require.resolve(id, options)
+}

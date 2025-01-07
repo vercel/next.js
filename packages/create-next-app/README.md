@@ -59,7 +59,7 @@ Options:
 
     Initialize inside a `src/` directory.
 
-  --turbo
+  --turbopack
 
     Enable Turbopack by default for development.
 
@@ -127,5 +127,5 @@ Options:
 - **Interactive Experience**: Running `npx create-next-app@latest` (with no arguments) launches an interactive experience that guides you through setting up a project.
 - **Zero Dependencies**: Initializing a project is as quick as one second. Create Next App has zero dependencies.
 - **Offline Support**: Create Next App will automatically detect if you're offline and bootstrap your project using your local package cache.
-- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example api-routes`).
+- **Support for Examples**: Create Next App can bootstrap your application using an example from the Next.js examples collection (e.g. `npx create-next-app --example route-handlers`).
 - **Tested**: The package is part of the Next.js monorepo and tested using the same integration test suite as Next.js itself, ensuring it works as expected with every release.

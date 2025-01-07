@@ -8,17 +8,17 @@ use std::{
 
 use anyhow::Result;
 use tokio::{spawn, time::sleep};
-use turbo_tasks::{
-    util::FormatDuration, RcStr, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc,
-};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{util::FormatDuration, ReadConsistency, TurboTasks, UpdateInfo, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem};
 use turbo_tasks_memory::MemoryBackend;
-use turbopack::{emit_with_completion, rebase::RebasedAsset, register};
+use turbopack::{emit_with_completion, register};
 use turbopack_core::{
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
+    rebase::RebasedAsset,
     PROJECT_FILESYSTEM_NAME,
 };
 use turbopack_resolve::resolve_options_context::ResolveOptionsContext;
@@ -34,7 +34,7 @@ async fn main() -> Result<()> {
         Box::pin(async {
             let root: RcStr = current_dir().unwrap().to_str().unwrap().into();
             let disk_fs = DiskFileSystem::new(PROJECT_FILESYSTEM_NAME.into(), root, vec![]);
-            disk_fs.await?.start_watching(None)?;
+            disk_fs.await?.start_watching(None).await?;
 
             // Smart Pointer cast
             let fs: Vc<Box<dyn FileSystem>> = Vc::upcast(disk_fs);
@@ -46,13 +46,15 @@ async fn main() -> Result<()> {
             let module_asset_context = turbopack::ModuleAssetContext::new(
                 Default::default(),
                 CompileTimeInfo::new(Environment::new(Value::new(
-                    ExecutionEnvironment::NodeJsLambda(NodeJsEnvironment::default().into()),
+                    ExecutionEnvironment::NodeJsLambda(
+                        NodeJsEnvironment::default().resolved_cell(),
+                    ),
                 ))),
                 Default::default(),
                 ResolveOptionsContext {
                     enable_typescript: true,
                     enable_react: true,
-                    enable_node_modules: Some(fs.root()),
+                    enable_node_modules: Some(fs.root().to_resolved().await?),
                     custom_conditions: vec!["development".into()],
                     ..Default::default()
                 }
@@ -68,7 +70,7 @@ async fn main() -> Result<()> {
             let rebased = RebasedAsset::new(module, input, output);
             emit_with_completion(Vc::upcast(rebased), output).await?;
 
-            Ok::<Vc<()>, _>(Default::default())
+            anyhow::Ok::<Vc<()>>(Default::default())
         })
     });
     spawn({

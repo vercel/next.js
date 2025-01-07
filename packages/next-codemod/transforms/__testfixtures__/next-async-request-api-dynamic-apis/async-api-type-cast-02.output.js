@@ -6,7 +6,7 @@ import {
 } from 'next/headers'
 
 export function MyDraftComponent() {
-if (/* Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component */
+if (/* @next-codemod-error Manually await this call and refactor the function to be async */
 draftMode().isEnabled) {
     return null
   }
@@ -15,13 +15,13 @@ draftMode().isEnabled) {
 }
 
 export function MyCookiesComponent() {
-  const c = /* Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component */
+  const c = /* @next-codemod-error Manually await this call and refactor the function to be async */
   cookies()
   return c.get('name')
 }
 
 export function MyHeadersComponent() {
-  const h = /* Next.js Dynamic Async API Codemod: Manually await this call, if it's a Server Component */
+  const h = /* @next-codemod-error Manually await this call and refactor the function to be async */
   headers()
   return (
     <p>{h.get('x-foo')}</p>

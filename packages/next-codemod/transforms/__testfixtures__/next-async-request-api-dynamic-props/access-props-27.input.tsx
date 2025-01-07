@@ -26,3 +26,27 @@ export function POST(req, ctx) {
     { ...req }
   )
 }
+
+export function PATCH(req, ctx) {
+  console.log(
+    { /* @next-codemod-ignore */ ...ctx }
+  )
+}
+
+export function PUT(req, ctx) {
+  console.log(
+    {
+      // @next-codemod-ignore
+      ...ctx
+    }
+  )
+}
+
+export function OPTIONS(req, ctx) {
+  console.log(
+    {
+      // @next-codemod-incorrect-ignore
+      ...ctx
+    }
+  )
+}

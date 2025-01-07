@@ -7,13 +7,10 @@ use lightningcss::{
     values::url::Url,
     visitor::{Visit, Visitor},
 };
-use swc_core::css::{
-    ast::UrlValue,
-    visit::{VisitMut, VisitMutWith},
-};
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{Value, Vc};
 use turbopack_core::{
-    issue::{IssueSeverity, IssueSource},
+    issue::IssueSource,
     reference::ModuleReference,
     reference_type::{CssReferenceSubType, ImportContext, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
@@ -51,14 +48,7 @@ pub fn analyze_references(
 
     let mut visitor =
         ModuleReferencesVisitor::new(source, origin, import_context, &mut references, &mut urls);
-    match stylesheet {
-        StyleSheetLike::LightningCss(ss) => {
-            ss.visit(&mut visitor).unwrap();
-        }
-        StyleSheetLike::Swc { stylesheet, .. } => {
-            stylesheet.visit_mut_with(&mut visitor);
-        }
-    }
+    stylesheet.0.visit(&mut visitor).unwrap();
 
     Ok((references, urls))
 }
@@ -85,68 +75,6 @@ impl<'a> ModuleReferencesVisitor<'a> {
             import_context,
             references,
             urls,
-        }
-    }
-}
-
-impl VisitMut for ModuleReferencesVisitor<'_> {
-    fn visit_mut_import_prelude(&mut self, i: &mut swc_core::css::ast::ImportPrelude) {
-        let src = match &*i.href {
-            swc_core::css::ast::ImportHref::Url(v) => match v.value.as_deref().unwrap() {
-                UrlValue::Str(v) => v.value.clone(),
-                UrlValue::Raw(v) => v.value.clone(),
-            },
-            swc_core::css::ast::ImportHref::Str(v) => v.value.clone(),
-        };
-
-        let issue_span = i.span;
-
-        self.references.push(Vc::upcast(ImportAssetReference::new(
-            self.origin,
-            Request::parse(Value::new(RcStr::from(src.as_str()).into())),
-            ImportAttributes::new_from_swc(&i.clone()).into(),
-            self.import_context,
-            IssueSource::from_swc_offsets(
-                Vc::upcast(self.source),
-                issue_span.lo.0 as _,
-                issue_span.hi.0 as _,
-            ),
-        )));
-
-        // let res = i.visit_children(self);
-        // res
-    }
-
-    /// Noop. Urls in `@supports` are not used.
-    ///
-    /// See https://github.com/vercel/next.js/issues/63102
-    fn visit_mut_supports_condition(&mut self, _: &mut swc_core::css::ast::SupportsCondition) {}
-
-    fn visit_mut_url(&mut self, u: &mut swc_core::css::ast::Url) {
-        u.visit_mut_children_with(self);
-
-        let src = match u.value.as_deref().unwrap() {
-            UrlValue::Str(v) => v.value.clone(),
-            UrlValue::Raw(v) => v.value.clone(),
-        };
-
-        // ignore internal urls like `url(#noiseFilter)`
-        // ignore server-relative urls like `url(/foo)`
-        if !matches!(src.bytes().next(), Some(b'#') | Some(b'/')) {
-            let issue_span = u.span;
-
-            let vc = UrlAssetReference::new(
-                self.origin,
-                Request::parse(Value::new(RcStr::from(src.as_str()).into())),
-                IssueSource::from_swc_offsets(
-                    Vc::upcast(self.source),
-                    issue_span.lo.0 as _,
-                    issue_span.hi.0 as _,
-                ),
-            );
-
-            self.references.push(Vc::upcast(vc));
-            self.urls.push((src.to_string(), vc));
         }
     }
 }
@@ -250,6 +178,6 @@ pub fn css_resolve(
         request,
         Value::new(ReferenceType::Css(ty.into_value())),
         issue_source,
-        IssueSeverity::Error.cell(),
+        false,
     )
 }

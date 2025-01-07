@@ -1,25 +1,29 @@
-import type { WorkStore } from '../../client/components/work-async-storage.external'
+import type { WorkStore } from '../app-render/work-async-storage.external'
 import type { FallbackRouteParams } from './fallback-params'
 
 import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import {
-  abortAndThrowOnSynchronousDynamicDataAccess,
+  abortAndThrowOnSynchronousRequestDataAccess,
   throwToInterruptStaticGeneration,
   postponeWithTracking,
+  trackSynchronousRequestDataAccessInDev,
 } from '../app-render/dynamic-rendering'
 
 import {
   workUnitAsyncStorage,
+  type PrerenderStore,
   type PrerenderStorePPR,
   type PrerenderStoreLegacy,
   type PrerenderStoreModern,
-} from '../../client/components/work-unit-async-storage.external'
+} from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
-import { makeResolvedReactPromise, describeStringPropertyAccess } from './utils'
+import { describeStringPropertyAccess, wellKnownProperties } from './utils'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
-import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-loger'
+import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
+import { scheduleImmediate } from '../../lib/scheduler'
 
-export type Params = Record<string, string | Array<string> | undefined>
+export type ParamValue = string | Array<string> | undefined
+export type Params = Record<string, ParamValue>
 
 /**
  * In this version of Next.js the `params` prop passed to Layouts, Pages, and other Segments is a Promise.
@@ -49,17 +53,21 @@ export type Params = Record<string, string | Array<string> | undefined>
 export type UnsafeUnwrappedParams<P> =
   P extends Promise<infer U> ? Omit<U, 'then' | 'status' | 'value'> : never
 
-export function createPrerenderParamsFromClient(
+export function createParamsFromClient(
   underlyingParams: Params,
   workStore: WorkStore
 ) {
-  return createPrerenderParams(underlyingParams, workStore)
-}
-
-export function createRenderParamsFromClient(
-  underlyingParams: Params,
-  workStore: WorkStore
-) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      default:
+      // fallthrough
+    }
+  }
   return createRenderParams(underlyingParams, workStore)
 }
 
@@ -72,22 +80,36 @@ export function createServerParamsForRoute(
   underlyingParams: Params,
   workStore: WorkStore
 ) {
-  if (workStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, workStore)
-  } else {
-    return createRenderParams(underlyingParams, workStore)
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      default:
+      // fallthrough
+    }
   }
+  return createRenderParams(underlyingParams, workStore)
 }
 
 export function createServerParamsForServerSegment(
   underlyingParams: Params,
   workStore: WorkStore
 ): Promise<Params> {
-  if (workStore.isStaticGeneration) {
-    return createPrerenderParams(underlyingParams, workStore)
-  } else {
-    return createRenderParams(underlyingParams, workStore)
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (workUnitStore) {
+    switch (workUnitStore.type) {
+      case 'prerender':
+      case 'prerender-ppr':
+      case 'prerender-legacy':
+        return createPrerenderParams(underlyingParams, workStore, workUnitStore)
+      default:
+      // fallthrough
+    }
   }
+  return createRenderParams(underlyingParams, workStore)
 }
 
 export function createPrerenderParamsForClientSegment(
@@ -103,7 +125,7 @@ export function createPrerenderParamsForClientSegment(
           // This params object has one of more fallback params so we need to consider
           // the awaiting of this params object "dynamic". Since we are in dynamicIO mode
           // we encode this as a promise that never resolves
-          return makeHangingPromise()
+          return makeHangingPromise(prerenderStore.renderSignal, '`params`')
         }
       }
     }
@@ -111,12 +133,13 @@ export function createPrerenderParamsForClientSegment(
   // We're prerendering in a mode that does not abort. We resolve the promise without
   // any tracking because we're just transporting a value from server to client where the tracking
   // will be applied.
-  return makeResolvedReactPromise(underlyingParams)
+  return Promise.resolve(underlyingParams)
 }
 
 function createPrerenderParams(
   underlyingParams: Params,
-  workStore: WorkStore
+  workStore: WorkStore,
+  prerenderStore: PrerenderStore
 ): Promise<Params> {
   const fallbackParams = workStore.fallbackRouteParams
   if (fallbackParams) {
@@ -130,31 +153,23 @@ function createPrerenderParams(
 
     if (hasSomeFallbackParams) {
       // params need to be treated as dynamic because we have at least one fallback param
-      const workUnitStore = workUnitAsyncStorage.getStore()
-      if (workUnitStore) {
-        if (workUnitStore.type === 'prerender') {
-          // We are in a dynamicIO (PPR or otherwise) prerender
-          return makeAbortingExoticParams(
-            underlyingParams,
-            workStore.route,
-            workUnitStore
-          )
-        } else if (
-          workUnitStore.type === 'prerender-legacy' ||
-          workUnitStore.type === 'prerender-ppr'
+      if (prerenderStore.type === 'prerender') {
+        // We are in a dynamicIO (PPR or otherwise) prerender
+        return makeAbortingExoticParams(
+          underlyingParams,
+          workStore.route,
+          prerenderStore
         )
-          // We aren't in a dynamicIO prerender but we do have fallback params at this
-          // level so we need to make an erroring exotic params object which will postpone
-          // if you access the fallback params
-          return makeErroringExoticParams(
-            underlyingParams,
-            fallbackParams,
-            workStore,
-            workUnitStore
-          )
       }
-      throw new InvariantError(
-        'createPrerenderParams called without a prerenderStore in scope. This is a bug in Next.js'
+      // remaining cases are prerender-ppr and prerender-legacy
+      // We aren't in a dynamicIO prerender but we do have fallback params at this
+      // level so we need to make an erroring exotic params object which will postpone
+      // if you access the fallback params
+      return makeErroringExoticParams(
+        underlyingParams,
+        fallbackParams,
+        workStore,
+        prerenderStore
       )
     }
   }
@@ -190,59 +205,38 @@ function makeAbortingExoticParams(
     return cachedParams
   }
 
-  const promise = makeHangingPromise<Params>()
+  const promise = makeHangingPromise<Params>(
+    prerenderStore.renderSignal,
+    '`params`'
+  )
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      // Object prototype
-      case 'hasOwnProperty':
-      case 'isPrototypeOf':
-      case 'propertyIsEnumerable':
-      case 'toString':
-      case 'valueOf':
-      case 'toLocaleString':
-
-      // Promise prototype
-      // fallthrough
-      case 'then':
-      case 'catch':
-      case 'finally':
-
-      // React Promise extension
-      // fallthrough
-      case 'status':
-
-      // Common tested properties
-      // fallthrough
-      case 'toJSON':
-      case '$$typeof':
-      case '__esModule': {
-        // These properties cannot be shadowed because they need to be the
-        // true underlying value for Promises to work correctly at runtime
-        break
-      }
-      default: {
-        Object.defineProperty(promise, prop, {
-          get() {
-            const expression = describeStringPropertyAccess('params', prop)
-            abortAndThrowOnSynchronousDynamicDataAccess(
-              route,
-              expression,
-              prerenderStore
-            )
-          },
-          set(newValue) {
-            Object.defineProperty(promise, prop, {
-              value: newValue,
-              writable: true,
-              enumerable: true,
-            })
-          },
-          enumerable: true,
-          configurable: true,
-        })
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      Object.defineProperty(promise, prop, {
+        get() {
+          const expression = describeStringPropertyAccess('params', prop)
+          const error = createParamsAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+        },
+        set(newValue) {
+          Object.defineProperty(promise, prop, {
+            value: newValue,
+            writable: true,
+            enumerable: true,
+          })
+        },
+        enumerable: true,
+        configurable: true,
+      })
     }
   })
 
@@ -269,101 +263,75 @@ function makeErroringExoticParams(
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      // Object prototype
-      case 'hasOwnProperty':
-      case 'isPrototypeOf':
-      case 'propertyIsEnumerable':
-      case 'toString':
-      case 'valueOf':
-      case 'toLocaleString':
-
-      // Promise prototype
-      // fallthrough
-      case 'then':
-      case 'catch':
-      case 'finally':
-
-      // React Promise extension
-      // fallthrough
-      case 'status':
-
-      // Common tested properties
-      // fallthrough
-      case 'toJSON':
-      case '$$typeof':
-      case '__esModule': {
-        // These properties cannot be shadowed because they need to be the
-        // true underlying value for Promises to work correctly at runtime
-        break
-      }
-      default: {
-        if (fallbackParams.has(prop)) {
-          Object.defineProperty(augmentedUnderlying, prop, {
-            get() {
-              const expression = describeStringPropertyAccess('params', prop)
-              // In most dynamic APIs we also throw if `dynamic = "error"` however
-              // for params is only dynamic when we're generating a fallback shell
-              // and even when `dynamic = "error"` we still support generating dynamic
-              // fallback shells
-              // TODO remove this comment when dynamicIO is the default since there
-              // will be no `dynamic = "error"`
-              if (prerenderStore.type === 'prerender-ppr') {
-                // PPR Prerender (no dynamicIO)
-                postponeWithTracking(
-                  workStore.route,
-                  expression,
-                  prerenderStore.dynamicTracking
-                )
-              } else {
-                // Legacy Prerender
-                throwToInterruptStaticGeneration(
-                  expression,
-                  workStore,
-                  prerenderStore
-                )
-              }
-            },
-            enumerable: true,
-          })
-          Object.defineProperty(promise, prop, {
-            get() {
-              const expression = describeStringPropertyAccess('params', prop)
-              // In most dynamic APIs we also throw if `dynamic = "error"` however
-              // for params is only dynamic when we're generating a fallback shell
-              // and even when `dynamic = "error"` we still support generating dynamic
-              // fallback shells
-              // TODO remove this comment when dynamicIO is the default since there
-              // will be no `dynamic = "error"`
-              if (prerenderStore.type === 'prerender-ppr') {
-                // PPR Prerender (no dynamicIO)
-                postponeWithTracking(
-                  workStore.route,
-                  expression,
-                  prerenderStore.dynamicTracking
-                )
-              } else {
-                // Legacy Prerender
-                throwToInterruptStaticGeneration(
-                  expression,
-                  workStore,
-                  prerenderStore
-                )
-              }
-            },
-            set(newValue) {
-              Object.defineProperty(promise, prop, {
-                value: newValue,
-                writable: true,
-                enumerable: true,
-              })
-            },
-            enumerable: true,
-            configurable: true,
-          })
-        } else {
-          ;(promise as any)[prop] = underlyingParams[prop]
-        }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      if (fallbackParams.has(prop)) {
+        Object.defineProperty(augmentedUnderlying, prop, {
+          get() {
+            const expression = describeStringPropertyAccess('params', prop)
+            // In most dynamic APIs we also throw if `dynamic = "error"` however
+            // for params is only dynamic when we're generating a fallback shell
+            // and even when `dynamic = "error"` we still support generating dynamic
+            // fallback shells
+            // TODO remove this comment when dynamicIO is the default since there
+            // will be no `dynamic = "error"`
+            if (prerenderStore.type === 'prerender-ppr') {
+              // PPR Prerender (no dynamicIO)
+              postponeWithTracking(
+                workStore.route,
+                expression,
+                prerenderStore.dynamicTracking
+              )
+            } else {
+              // Legacy Prerender
+              throwToInterruptStaticGeneration(
+                expression,
+                workStore,
+                prerenderStore
+              )
+            }
+          },
+          enumerable: true,
+        })
+        Object.defineProperty(promise, prop, {
+          get() {
+            const expression = describeStringPropertyAccess('params', prop)
+            // In most dynamic APIs we also throw if `dynamic = "error"` however
+            // for params is only dynamic when we're generating a fallback shell
+            // and even when `dynamic = "error"` we still support generating dynamic
+            // fallback shells
+            // TODO remove this comment when dynamicIO is the default since there
+            // will be no `dynamic = "error"`
+            if (prerenderStore.type === 'prerender-ppr') {
+              // PPR Prerender (no dynamicIO)
+              postponeWithTracking(
+                workStore.route,
+                expression,
+                prerenderStore.dynamicTracking
+              )
+            } else {
+              // Legacy Prerender
+              throwToInterruptStaticGeneration(
+                expression,
+                workStore,
+                prerenderStore
+              )
+            }
+          },
+          set(newValue) {
+            Object.defineProperty(promise, prop, {
+              value: newValue,
+              writable: true,
+              enumerable: true,
+            })
+          },
+          enumerable: true,
+          configurable: true,
+        })
+      } else {
+        ;(promise as any)[prop] = underlyingParams[prop]
       }
     }
   })
@@ -384,37 +352,11 @@ function makeUntrackedExoticParams(underlyingParams: Params): Promise<Params> {
   CachedParams.set(underlyingParams, promise)
 
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      // Object prototype
-      case 'hasOwnProperty':
-      case 'isPrototypeOf':
-      case 'propertyIsEnumerable':
-      case 'toString':
-      case 'valueOf':
-      case 'toLocaleString':
-
-      // Promise prototype
-      // fallthrough
-      case 'then':
-      case 'catch':
-      case 'finally':
-
-      // React Promise extension
-      // fallthrough
-      case 'status':
-
-      // Common tested properties
-      // fallthrough
-      case 'toJSON':
-      case '$$typeof':
-      case '__esModule': {
-        // These properties cannot be shadowed because they need to be the
-        // true underlying value for Promises to work correctly at runtime
-        break
-      }
-      default: {
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+    } else {
+      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -433,45 +375,21 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   // We don't use makeResolvedReactPromise here because params
   // supports copying with spread and we don't want to unnecessarily
   // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(underlyingParams)
+  const promise = new Promise<Params>((resolve) =>
+    scheduleImmediate(() => resolve(underlyingParams))
+  )
 
   const proxiedProperties = new Set<string>()
   const unproxiedProperties: Array<string> = []
 
   Object.keys(underlyingParams).forEach((prop) => {
-    switch (prop) {
-      // Object prototype
-      case 'hasOwnProperty':
-      case 'isPrototypeOf':
-      case 'propertyIsEnumerable':
-      case 'toString':
-      case 'valueOf':
-      case 'toLocaleString':
-
-      // Promise prototype
-      // fallthrough
-      case 'then':
-      case 'catch':
-      case 'finally':
-
-      // React Promise extension
-      // fallthrough
-      case 'status':
-
-      // Common tested properties
-      // fallthrough
-      case 'toJSON':
-      case '$$typeof':
-      case '__esModule': {
-        // These properties cannot be shadowed because they need to be the
-        // true underlying value for Promises to work correctly at runtime
-        unproxiedProperties.push(prop)
-        break
-      }
-      default: {
-        proxiedProperties.add(prop)
-        ;(promise as any)[prop] = underlyingParams[prop]
-      }
+    if (wellKnownProperties.has(prop)) {
+      // These properties cannot be shadowed because they need to be the
+      // true underlying value for Promises to work correctly at runtime
+      unproxiedProperties.push(prop)
+    } else {
+      proxiedProperties.add(prop)
+      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
@@ -483,7 +401,7 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
           proxiedProperties.has(prop)
         ) {
           const expression = describeStringPropertyAccess('params', prop)
-          warnForSyncAccess(store.route, expression)
+          syncIODev(store.route, expression)
         }
       }
       return ReflectAdapter.get(target, prop, receiver)
@@ -495,7 +413,8 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
       return ReflectAdapter.set(target, prop, value, receiver)
     },
     ownKeys(target) {
-      warnForEnumeration(store.route, unproxiedProperties)
+      const expression = '`...params` or similar expression'
+      syncIODev(store.route, expression, unproxiedProperties)
       return Reflect.ownKeys(target)
     },
   })
@@ -504,45 +423,70 @@ function makeDynamicallyTrackedExoticParamsWithDevWarnings(
   return proxiedPromise
 }
 
+function syncIODev(
+  route: string | undefined,
+  expression: string,
+  missingProperties?: Array<string>
+) {
+  const workUnitStore = workUnitAsyncStorage.getStore()
+  if (
+    workUnitStore &&
+    workUnitStore.type === 'request' &&
+    workUnitStore.prerenderPhase === true
+  ) {
+    // When we're rendering dynamically in dev we need to advance out of the
+    // Prerender environment when we read Request data synchronously
+    const requestStore = workUnitStore
+    trackSynchronousRequestDataAccessInDev(requestStore)
+  }
+  // In all cases we warn normally
+  if (missingProperties && missingProperties.length > 0) {
+    warnForIncompleteEnumeration(route, expression, missingProperties)
+  } else {
+    warnForSyncAccess(route, expression)
+  }
+}
+
 const noop = () => {}
 
 const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getSyncAccessMessage(
-      route: undefined | string,
-      expression: string
-    ) {
-      const prefix = route ? ` In route ${route} a ` : 'A '
-      return (
-        `${prefix}param property was accessed directly with ${expression}. ` +
-        `\`params\` should be awaited before accessing its properties. ` +
-        `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-      )
-    })
+  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError)
 
-const warnForEnumeration = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
+const warnForIncompleteEnumeration = process.env
+  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
   ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(function getEnumerationMessage(
-      route: undefined | string,
-      missingProperties: Array<string>
-    ) {
-      const prefix = route ? ` In route ${route} ` : ''
-      if (missingProperties.length) {
-        const describedMissingProperties =
-          describeListOfPropertyNames(missingProperties)
-        return (
-          `${prefix}params are being enumerated incompletely missing these properties: ${describedMissingProperties}. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-        )
-      } else {
-        return (
-          `${prefix}params are being enumerated. ` +
-          `\`params\` should be awaited before accessing its properties. ` +
-          `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
-        )
-      }
-    })
+  : createDedupedByCallsiteServerErrorLoggerDev(
+      createIncompleteEnumerationError
+    )
+
+function createParamsAccessError(
+  route: string | undefined,
+  expression: string
+) {
+  const prefix = route ? `Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`params\` should be awaited before using its properties. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
+
+function createIncompleteEnumerationError(
+  route: string | undefined,
+  expression: string,
+  missingProperties: Array<string>
+) {
+  const prefix = route ? `Route "${route}" ` : 'This route '
+  return new Error(
+    `${prefix}used ${expression}. ` +
+      `\`params\` should be awaited before using its properties. ` +
+      `The following properties were not available through enumeration ` +
+      `because they conflict with builtin property names: ` +
+      `${describeListOfPropertyNames(missingProperties)}. ` +
+      `Learn more: https://nextjs.org/docs/messages/sync-dynamic-apis`
+  )
+}
 
 function describeListOfPropertyNames(properties: Array<string>) {
   switch (properties.length) {

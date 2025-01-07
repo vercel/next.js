@@ -221,7 +221,7 @@ export function useSelectedLayoutSegments(
   // @ts-expect-error This only happens in `pages`. Type is overwritten in navigation.d.ts
   if (!context) return null
 
-  return getSelectedLayoutSegmentPath(context.tree, parallelRouteKey)
+  return getSelectedLayoutSegmentPath(context.parentTree, parallelRouteKey)
 }
 
 /**
@@ -269,6 +269,8 @@ export function useSelectedLayoutSegment(
 // Shared components APIs
 export {
   notFound,
+  forbidden,
+  unauthorized,
   redirect,
   permanentRedirect,
   RedirectType,

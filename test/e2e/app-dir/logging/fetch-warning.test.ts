@@ -21,27 +21,47 @@ describe('app-dir - fetch warnings', () => {
   })
 
   if (isNextDev) {
-    it('should log when request input is a string', async () => {
-      await retry(() => {
-        expect(next.cliOutput).toInclude(`
+    describe('force-cache and revalidate: 0', () => {
+      it('should log when request input is a string', async () => {
+        await retry(() => {
+          expect(next.cliOutput).toInclude(`
  │ GET https://next-data-api-endpoint.vercel.app/api/random?request-string
- │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 0", only one should be specified.`)
+        })
       })
-    })
 
-    it('should log when request input is a Request instance', async () => {
-      await retry(() => {
-        expect(next.cliOutput).toInclude(`
+      it('should log when request input is a Request instance', async () => {
+        await retry(() => {
+          expect(next.cliOutput).toInclude(`
  │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input-cache-override
- │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+ │ │ ⚠ Specified "cache: force-cache" and "revalidate: 0", only one should be specified.`)
+        })
+      })
+
+      it('should not log when not overriding cache within the Request object', async () => {
+        await retry(() => {
+          expect(next.cliOutput).not.toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
+ │ │ ⚠ Specified "cache:`)
+        })
       })
     })
 
-    it('should not log when overriding cache within the Request object', async () => {
-      await retry(() => {
-        expect(next.cliOutput).not.toInclude(`
- │ GET https://next-data-api-endpoint.vercel.app/api/random?request-input
- │ │ ⚠ Specified "cache: force-cache" and "revalidate: 3", only one should be specified.`)
+    describe('no-store and revalidate > 0', () => {
+      it('should log when request input is a string', async () => {
+        await retry(() => {
+          expect(next.cliOutput).toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?no-store-request-string
+ │ │ ⚠ Specified "cache: no-store" and "revalidate: 3", only one should be specified.`)
+        })
+      })
+
+      it('should log when request input is a Request instance', async () => {
+        await retry(() => {
+          expect(next.cliOutput).toInclude(`
+ │ GET https://next-data-api-endpoint.vercel.app/api/random?no-store-request-input-cache-override
+ │ │ ⚠ Specified "cache: no-store" and "revalidate: 3", only one should be specified.`)
+        })
       })
     })
   } else {

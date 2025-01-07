@@ -2,7 +2,8 @@ use std::{collections::HashMap, ops::Deref};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
 
 use crate::next_app::{AppPage, PageSegment, PageType};
@@ -281,11 +282,31 @@ fn format_radix(mut x: u32, radix: u32) -> String {
 /// Give it a unique hash suffix to avoid conflicts
 ///
 /// e.g.
-/// /app/open-graph.tsx -> /open-graph/route
-/// /app/(post)/open-graph.tsx -> /open-graph/route-[0-9a-z]{6}
+/// /opengraph-image -> /opengraph-image
+/// /(post)/opengraph-image.tsx -> /opengraph-image-[0-9a-z]{6}
+///
+/// Sitemap is an exception, it should not have a suffix.
+/// As the generated urls are for indexer and usually one sitemap contains all the urls of the sub
+/// routes. The sitemap should be unique in each level and not have a suffix.
+///
+/// /sitemap -> /sitemap
+/// /(post)/sitemap -> /sitemap
 fn get_metadata_route_suffix(page: &str) -> Option<String> {
-    if (page.contains('(') && page.contains(')')) || page.contains('@') {
-        Some(format_radix(djb2_hash(page), 36))
+    // skip sitemap
+    if page.ends_with("/sitemap") {
+        return None;
+    }
+
+    // Get the parent pathname of the page
+    let parent_pathname = split_directory(page).0.unwrap_or_default();
+    let segments = parent_pathname.split('/').collect::<Vec<&str>>();
+
+    // if any segment is group or parallel route segment, we should add a suffix.
+    if segments.iter().any(|segment| {
+        segment.starts_with('(') && segment.ends_with(')')
+            || segment.starts_with('@') && *segment != "@children"
+    }) {
+        Some(format_radix(djb2_hash(parent_pathname), 36))
     } else {
         None
     }
@@ -307,9 +328,7 @@ pub fn normalize_metadata_route(mut page: AppPage) -> Result<AppPage> {
     } else if route == "/manifest" {
         route += ".webmanifest"
     } else {
-        // Remove the file extension, e.g. /route-path/robots.txt -> /route-path
-        let pathname_prefix = split_directory(&route).0.unwrap_or_default();
-        suffix = get_metadata_route_suffix(pathname_prefix);
+        suffix = get_metadata_route_suffix(&route);
     }
 
     // Support both /<metadata-route.ext> and custom routes

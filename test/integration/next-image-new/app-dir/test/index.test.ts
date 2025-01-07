@@ -900,6 +900,18 @@ function runTests(mode: 'dev' | 'server') {
       }, /Image is missing required "src" property/gm)
     })
 
+    it('should show null src error', async () => {
+      const browser = await webdriver(appPort, '/invalid-src-null')
+
+      await assertNoRedbox(browser)
+
+      await retry(async () => {
+        expect(
+          (await browser.log()).map((log) => log.message).join('\n')
+        ).toMatch(/Image is missing required "src" property/gm)
+      })
+    })
+
     it('should show invalid src error', async () => {
       const browser = await webdriver(appPort, '/invalid-src')
 
@@ -1611,6 +1623,7 @@ function runTests(mode: 'dev' | 'server') {
           localPatterns: undefined,
           minimumCacheTTL: 60,
           path: '/_next/image',
+          qualities: undefined,
           sizes: [
             640, 750, 828, 1080, 1200, 1920, 2048, 3840, 16, 32, 48, 64, 96,
             128, 256, 384,

@@ -17,6 +17,9 @@ export type FunctionScope =
   | FunctionExpression
   | ArrowFunctionExpression
 
+export const NEXT_CODEMOD_ERROR_PREFIX = '@next-codemod-error'
+const NEXT_CODEMOD_IGNORE_ERROR_PREFIX = '@next-codemod-ignore'
+
 export const TARGET_ROUTE_EXPORTS = new Set([
   'GET',
   'POST',
@@ -188,6 +191,8 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
       source: {
         value: 'react',
       },
+      // Skip the type only react imports
+      importKind: 'value',
     })
 
     if (reactImportDeclaration.size() > 0) {
@@ -197,14 +202,8 @@ export function insertReactUseImport(root: Collection<any>, j: API['j']) {
       importNode.specifiers.push(j.importSpecifier(j.identifier('use')))
     } else {
       // Final all type imports to 'react'
-      const reactImport = root.find(j.ImportDeclaration, {
-        source: {
-          value: 'react',
-        },
-      })
-
-      if (reactImport.size() > 0) {
-        reactImport
+      if (reactImportDeclaration.size() > 0) {
+        reactImportDeclaration
           .get()
           .node.specifiers.push(j.importSpecifier(j.identifier('use')))
       } else {
@@ -267,6 +266,7 @@ export function findClosetParentFunctionScope(
   path: ASTPath,
   j: API['jscodeshift']
 ) {
+  if (!path.scope) return null
   let parentFunctionPath = path.scope.path
   while (parentFunctionPath && !isFunctionScope(parentFunctionPath, j)) {
     parentFunctionPath = parentFunctionPath.parent
@@ -426,21 +426,58 @@ export function wrapParentheseIfNeeded(
   return hasChainAccess ? j.parenthesizedExpression(expression) : expression
 }
 
+function existsComment(
+  comments: ASTPath<any>['node']['comments'],
+  comment: string
+): boolean {
+  const isCodemodErrorComment = comment
+    .trim()
+    .startsWith(NEXT_CODEMOD_ERROR_PREFIX)
+
+  let hasIgnoreComment = false
+  let hasComment = false
+
+  if (comments) {
+    comments.forEach((commentNode) => {
+      const currentComment = commentNode.value
+      if (currentComment.trim().startsWith(NEXT_CODEMOD_IGNORE_ERROR_PREFIX)) {
+        hasIgnoreComment = true
+      }
+      if (currentComment === comment) {
+        hasComment = true
+      }
+    })
+    // If it's inserting codemod error comment,
+    // check if there's already a @next-codemod-ignore comment.
+    // if ignore comment exists, bypass the comment insertion.
+    if (hasIgnoreComment && isCodemodErrorComment) {
+      return true
+    }
+    if (hasComment) {
+      return true
+    }
+  }
+  return false
+}
+
 export function insertCommentOnce(
   node: ASTPath<any>['node'],
   j: API['j'],
   comment: string
 ): boolean {
-  if (node.comments) {
-    const hasComment = node.comments.some(
-      (commentNode) => commentNode.value === comment
-    )
-    if (hasComment) {
-      return false
-    }
+  const hasCommentInInlineComments = existsComment(node.comments, comment)
+  const hasCommentInLeadingComments = existsComment(
+    node.leadingComments,
+    comment
+  )
+
+  if (!hasCommentInInlineComments && !hasCommentInLeadingComments) {
+    // Always insert into inline comment
+    node.comments = [j.commentBlock(comment), ...(node.comments || [])]
+    return true
   }
-  node.comments = [j.commentBlock(comment), ...(node.comments || [])]
-  return true
+
+  return false
 }
 
 export function getVariableDeclaratorId(
@@ -455,4 +492,120 @@ export function getVariableDeclaratorId(
     }
   }
   return undefined
+}
+
+export function findFunctionBody(path: ASTPath<FunctionScope>): null | any[] {
+  let functionBody = path.node.body
+  if (functionBody && functionBody.type === 'BlockStatement') {
+    return functionBody.body
+  }
+  return null
+}
+
+const isPascalCase = (s: string) => /^[A-Z][a-z0-9]*$/.test(s)
+
+export const isReactHookName = (name: string) =>
+  // function name is `use`
+  name === 'use' ||
+  // function name is `useX*`
+  (name.startsWith('use') && name[3] === name[3].toUpperCase())
+
+// Determine a path of function contains any React hooks call expressions.
+// e.g. if there's any of those call expressions in the function body:
+// use() => true
+// React.use() => false
+// useXxxx() => true
+// Foo.use() => true
+// Foo.useXxxx() => true
+export function containsReactHooksCallExpressions(
+  path: ASTPath<FunctionScope>,
+  j: API['jscodeshift']
+) {
+  const hasReactHooks =
+    j(path)
+      .find(j.CallExpression)
+      .filter((callPath) => {
+        // It's matching:
+        // - use(<callPath>) => true
+        // - useX*(<callPath>) => true
+        const isUseHookOrReactHookCall =
+          j.Identifier.check(callPath.value.callee) &&
+          isReactHookName(callPath.value.callee.name)
+
+        // It's matching member access:
+        // - React.use(<callPath>) => true
+        // - Foo.useFoo(<callPath>) => true
+        // - foo.useFoo(<callPath>) => false
+        // - foo.use(<callPath>) => false
+        const isReactUseCall =
+          j.MemberExpression.check(callPath.value.callee) &&
+          j.Identifier.check(callPath.value.callee.object) &&
+          j.Identifier.check(callPath.value.callee.property) &&
+          isPascalCase(callPath.value.callee.object.name) &&
+          isReactHookName(callPath.value.callee.property.name)
+
+        return isUseHookOrReactHookCall || isReactUseCall
+      })
+      .size() > 0
+  return hasReactHooks
+}
+
+// Capture the parent of the current path is wrapped by `use()` call expression
+// e.g.
+// use(<path>) => true
+// use2(<path>) => false
+// React.use(<path>) => true
+// Robust.use(<path>) => false
+export function isParentUseCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const isParentUseCall =
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    path.parent.value.arguments.length === 1 &&
+    // function name is `use`
+    j.Identifier.check(path.parent.value.callee) &&
+    path.parent.value.callee.name === 'use'
+  const isParentReactUseCall =
+    // member access parentPath is argument
+    j.CallExpression.check(path.parent.value) &&
+    // member access is first argument
+    path.parent.value.arguments[0] === path.value &&
+    path.parent.value.arguments.length === 1 &&
+    // function name is `use`
+    j.MemberExpression.check(path.parent.value.callee) &&
+    j.Identifier.check(path.parent.value.callee.object) &&
+    path.parent.value.callee.object.name === 'React' &&
+    j.Identifier.check(path.parent.value.callee.property) &&
+    path.parent.value.callee.property.name === 'use'
+  return isParentUseCall || isParentReactUseCall
+}
+
+// Determine if a path is wrapped by `Promise.all()`
+// e.g.
+// Promise.all(<path>) => true
+// Promise.allSettled(<path>) => false
+export function isParentPromiseAllCallExpression(
+  path: ASTPath<any>,
+  j: API['jscodeshift']
+) {
+  const argsParent = path.parent
+  const callParent = argsParent?.parent
+  if (
+    argsParent &&
+    callParent &&
+    j.ArrayExpression.check(argsParent.value) &&
+    j.CallExpression.check(callParent.value) &&
+    j.MemberExpression.check(callParent.value.callee) &&
+    j.Identifier.check(callParent.value.callee.object) &&
+    callParent.value.callee.object.name === 'Promise' &&
+    j.Identifier.check(callParent.value.callee.property) &&
+    callParent.value.callee.property.name === 'all'
+  ) {
+    return true
+  }
+  return false
 }

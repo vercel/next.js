@@ -15,7 +15,7 @@ use swc_core::{
         atoms::{js_word, JsWord},
         utils::{prepend_stmts, quote_ident, quote_str, ExprFactory},
         visit::{
-            as_folder, noop_visit_mut_type, noop_visit_type, Fold, Visit, VisitMut, VisitMutWith,
+            noop_visit_mut_type, noop_visit_type, visit_mut_pass, Visit, VisitMut, VisitMutWith,
             VisitWith,
         },
     },
@@ -43,6 +43,7 @@ impl Config {
 #[serde(rename_all = "camelCase")]
 pub struct Options {
     pub is_react_server_layer: bool,
+    pub dynamic_io_enabled: bool,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -51,6 +52,7 @@ pub struct Options {
 /// same purpose, so does not run this transform.
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
+    dynamic_io_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -77,6 +79,12 @@ enum RSCErrorKind {
     NextRscErrInvalidApi((String, Span)),
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
+    NextRscErrIncompatibleDynamicIoSegment(Span, String),
+}
+
+enum InvalidExportKind {
+    General,
+    DynamicIoSegment,
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -86,6 +94,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
         // Run the validator first to assert, collect directives and imports.
         let mut validator = ReactServerComponentValidator::new(
             self.is_react_server_layer,
+            self.dynamic_io_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
         );
@@ -240,10 +249,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         RSCErrorKind::NextRscErrServerImport((source, span)) => {
             let msg = match source.as_str() {
                 // If importing "react-dom/server", we should show a different error.
-                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials".to_string(),
+                "react-dom/server" => "You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering".to_string(),
                 // If importing "next/router", we should tell them to use "next/navigation".
                 "next/router" => r#"You have a Server Component that imports next/router. Use next/navigation instead.\nLearn more: https://nextjs.org/docs/app/api-reference/functions/use-router"#.to_string(),
-                _ => format!(r#"You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n"#)
+                _ => format!(r#"You're importing a component that imports {source}. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n"#)
             };
 
             (msg, span)
@@ -261,29 +270,29 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .unwrap_or_default();
 
             let msg = if !is_app_dir {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/getting-started/react-essentials#server-components\n\n")
+                format!("You're importing a component that needs \"{source}\". That only works in a Server Component which is not supported in the pages/ directory. Read more: https://nextjs.org/docs/app/building-your-application/rendering/server-components\n\n")
             } else {
-                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials\n\n")
+                format!("You're importing a component that needs \"{source}\". That only works in a Server Component but one of its parents is marked with \"use client\", so it's a Client Component.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\n\n")
             };
             (msg, span)
         }
         RSCErrorKind::NextRscErrReactApi((source, span)) => {
             let msg = if source == "Component" {
-                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n".to_string()
+                "You’re importing a class component. It only works in a Client Component but none of its parents are marked with \"use client\", so they're Server Components by default.\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n".to_string()
             } else {
-                format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/building-your-application/rendering/client-components\n\n")
+                format!("You're importing a component that needs `{source}`. This React hook only works in a client component. To fix, mark the file (or its parent) with the `\"use client\"` directive.\n\n Learn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n")
             };
 
             (msg,span)
         },
         RSCErrorKind::NextRscErrErrorFileServerComponent(span) => {
             (
-                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/getting-started/react-essentials#client-components\n\n"),
+                format!("{filepath} must be a Client Component. Add the \"use client\" directive the top of the file to resolve this issue.\nLearn more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"),
                 span
             )
         },
         RSCErrorKind::NextRscErrClientMetadataExport((source, span)) => {
-            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/getting-started/react-essentials#the-use-client-directive\n\n"), span)
+            (format!("You are attempting to export \"{source}\" from a component marked with \"use client\", which is disallowed. Either remove the export, or the \"use client\" directive. Read more: https://nextjs.org/docs/app/api-reference/directives/use-client\n\n"), span)
         },
         RSCErrorKind::NextRscErrConflictMetadataExport(span) => (
             "\"metadata\" and \"generateMetadata\" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata\n\n".to_string(),
@@ -305,6 +314,10 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
         RSCErrorKind::NextSsrDynamicFalseNotAllowed(span) => (
             "`ssr: false` is not allowed with `next/dynamic` in Server Components. Please move it into a client component."
                 .to_string(),
+            span,
+        ),
+        RSCErrorKind::NextRscErrIncompatibleDynamicIoSegment(span, segment) => (
+            format!("\"{}\" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.", segment),
             span,
         ),
     };
@@ -500,6 +513,7 @@ fn collect_top_level_directives_and_imports(
 /// A visitor to assert given module file is a valid React server component.
 struct ReactServerComponentValidator {
     is_react_server_layer: bool,
+    dynamic_io_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
@@ -515,9 +529,15 @@ struct ReactServerComponentValidator {
 type RcVec<T> = Rc<Vec<T>>;
 
 impl ReactServerComponentValidator {
-    pub fn new(is_react_server_layer: bool, filename: String, app_dir: Option<PathBuf>) -> Self {
+    pub fn new(
+        is_react_server_layer: bool,
+        dynamic_io_enabled: bool,
+        filename: String,
+        app_dir: Option<PathBuf>,
+    ) -> Self {
         Self {
             is_react_server_layer,
+            dynamic_io_enabled,
             filepath: filename,
             app_dir,
             directive_import_collection: None,
@@ -582,7 +602,7 @@ impl ReactServerComponentValidator {
 
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
 
-            invalid_client_lib_apis_mapping: [("next/server", vec!["unstable_after"])].into(),
+            invalid_client_lib_apis_mapping: [("next/server", vec!["after"])].into(),
             imports: ImportMap::default(),
         }
     }
@@ -734,20 +754,28 @@ impl ReactServerComponentValidator {
         if is_layout_or_page {
             let mut span = DUMMY_SP;
             let mut invalid_export_name = String::new();
-            let mut invalid_exports: HashMap<String, bool> = HashMap::new();
+            let mut invalid_exports: HashMap<String, InvalidExportKind> = HashMap::new();
 
-            fn invalid_exports_matcher(
-                export_name: &str,
-                invalid_exports: &mut HashMap<String, bool>,
-            ) -> bool {
+            let mut invalid_exports_matcher = |export_name: &str| -> bool {
                 match export_name {
                     "getServerSideProps" | "getStaticProps" | "generateMetadata" | "metadata" => {
-                        invalid_exports.insert(export_name.to_string(), true);
+                        invalid_exports.insert(export_name.to_string(), InvalidExportKind::General);
                         true
+                    }
+                    "dynamicParams" | "dynamic" | "fetchCache" | "runtime" | "revalidate" => {
+                        if self.dynamic_io_enabled {
+                            invalid_exports.insert(
+                                export_name.to_string(),
+                                InvalidExportKind::DynamicIoSegment,
+                            );
+                            true
+                        } else {
+                            false
+                        }
                     }
                     _ => false,
                 }
-            }
+            };
 
             for export in &module.body {
                 match export {
@@ -756,13 +784,13 @@ impl ReactServerComponentValidator {
                             if let ExportSpecifier::Named(named) = specifier {
                                 match &named.orig {
                                     ModuleExportName::Ident(i) => {
-                                        if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
+                                        if invalid_exports_matcher(&i.sym) {
                                             span = named.span;
                                             invalid_export_name = i.sym.to_string();
                                         }
                                     }
                                     ModuleExportName::Str(s) => {
-                                        if invalid_exports_matcher(&s.value, &mut invalid_exports) {
+                                        if invalid_exports_matcher(&s.value) {
                                             span = named.span;
                                             invalid_export_name = s.value.to_string();
                                         }
@@ -773,7 +801,7 @@ impl ReactServerComponentValidator {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
-                            if invalid_exports_matcher(&f.ident.sym, &mut invalid_exports) {
+                            if invalid_exports_matcher(&f.ident.sym) {
                                 span = f.ident.span;
                                 invalid_export_name = f.ident.sym.to_string();
                             }
@@ -781,7 +809,7 @@ impl ReactServerComponentValidator {
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
-                                    if invalid_exports_matcher(&i.sym, &mut invalid_exports) {
+                                    if invalid_exports_matcher(&i.sym) {
                                         span = i.span;
                                         invalid_export_name = i.sym.to_string();
                                     }
@@ -798,37 +826,56 @@ impl ReactServerComponentValidator {
             let has_gm_export = invalid_exports.contains_key("generateMetadata");
             let has_metadata_export = invalid_exports.contains_key("metadata");
 
-            // Client entry can't export `generateMetadata` or `metadata`.
-            if is_client_entry {
-                if has_gm_export || has_metadata_export {
-                    report_error(
-                        &self.app_dir,
-                        &self.filepath,
-                        RSCErrorKind::NextRscErrClientMetadataExport((
-                            invalid_export_name.clone(),
-                            span,
-                        )),
-                    );
+            for (export_name, kind) in &invalid_exports {
+                match kind {
+                    InvalidExportKind::DynamicIoSegment => {
+                        report_error(
+                            &self.app_dir,
+                            &self.filepath,
+                            RSCErrorKind::NextRscErrIncompatibleDynamicIoSegment(
+                                span,
+                                export_name.clone(),
+                            ),
+                        );
+                    }
+                    InvalidExportKind::General => {
+                        // Client entry can't export `generateMetadata` or `metadata`.
+                        if is_client_entry {
+                            if has_gm_export || has_metadata_export {
+                                report_error(
+                                    &self.app_dir,
+                                    &self.filepath,
+                                    RSCErrorKind::NextRscErrClientMetadataExport((
+                                        invalid_export_name.clone(),
+                                        span,
+                                    )),
+                                );
+                            }
+                        } else {
+                            // Server entry can't export `generateMetadata` and `metadata` together.
+                            if has_gm_export && has_metadata_export {
+                                report_error(
+                                    &self.app_dir,
+                                    &self.filepath,
+                                    RSCErrorKind::NextRscErrConflictMetadataExport(span),
+                                );
+                            }
+                        }
+                        // Assert `getServerSideProps` and `getStaticProps` exports.
+                        if invalid_export_name == "getServerSideProps"
+                            || invalid_export_name == "getStaticProps"
+                        {
+                            report_error(
+                                &self.app_dir,
+                                &self.filepath,
+                                RSCErrorKind::NextRscErrInvalidApi((
+                                    invalid_export_name.clone(),
+                                    span,
+                                )),
+                            );
+                        }
+                    }
                 }
-            } else {
-                // Server entry can't export `generateMetadata` and `metadata` together.
-                if has_gm_export && has_metadata_export {
-                    report_error(
-                        &self.app_dir,
-                        &self.filepath,
-                        RSCErrorKind::NextRscErrConflictMetadataExport(span),
-                    );
-                }
-            }
-            // Assert `getServerSideProps` and `getStaticProps` exports.
-            if invalid_export_name == "getServerSideProps"
-                || invalid_export_name == "getStaticProps"
-            {
-                report_error(
-                    &self.app_dir,
-                    &self.filepath,
-                    RSCErrorKind::NextRscErrInvalidApi((invalid_export_name.clone(), span)),
-                );
             }
         }
     }
@@ -946,12 +993,15 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
-
+    let dynamic_io_enabled: bool = match &config {
+        Config::WithOptions(x) => x.dynamic_io_enabled,
+        _ => false,
+    };
     let filename = match filename {
         FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
     };
-    ReactServerComponentValidator::new(is_react_server_layer, filename, app_dir)
+    ReactServerComponentValidator::new(is_react_server_layer, dynamic_io_enabled, filename, app_dir)
 }
 
 /// Runs react server component transform for the module proxy, as well as
@@ -961,13 +1011,18 @@ pub fn server_components<C: Comments>(
     config: Config,
     comments: C,
     app_dir: Option<PathBuf>,
-) -> impl Fold + VisitMut {
+) -> impl Pass + VisitMut {
     let is_react_server_layer: bool = match &config {
         Config::WithOptions(x) => x.is_react_server_layer,
         _ => false,
     };
-    as_folder(ReactServerComponents {
+    let dynamic_io_enabled: bool = match &config {
+        Config::WithOptions(x) => x.dynamic_io_enabled,
+        _ => false,
+    };
+    visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
+        dynamic_io_enabled,
         comments,
         filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),

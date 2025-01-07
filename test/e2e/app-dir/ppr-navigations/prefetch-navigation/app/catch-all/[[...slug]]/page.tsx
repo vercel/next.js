@@ -2,7 +2,8 @@ import { unstable_noStore } from 'next/cache'
 import Link from 'next/link'
 import React, { Suspense } from 'react'
 
-export default async function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <div id={`dynamic-page-${params.slug[0]}`}>
       <p id="params">Params: {JSON.stringify(params)}</p>

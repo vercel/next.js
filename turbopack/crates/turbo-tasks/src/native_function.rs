@@ -13,7 +13,7 @@ use crate::{
         function::{IntoTaskFnWithThis, NativeTaskFuture},
         IntoTaskFn, TaskFn,
     },
-    RawVc, TaskInput,
+    RawVc, TaskId, TaskInput,
 };
 
 type ResolveFunctor =
@@ -121,14 +121,13 @@ impl Debug for NativeFunction {
 }
 
 impl NativeFunction {
-    pub fn new_function<Mode, Inputs, I>(
+    pub fn new_function<Mode, Inputs>(
         name: String,
         function_meta: FunctionMeta,
-        implementation: I,
+        implementation: impl IntoTaskFn<Mode, Inputs>,
     ) -> Self
     where
         Inputs: TaskInput + Serialize + for<'de> Deserialize<'de> + 'static,
-        I: IntoTaskFn<Mode, Inputs>,
     {
         Self {
             name,
@@ -164,12 +163,28 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self) -> Span {
-        tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
+    pub fn span(&'static self, task_id: TaskId) -> Span {
+        if task_id.is_transient() {
+            tracing::trace_span!(
+                "turbo_tasks::function",
+                name = self.name.as_str(),
+                transient = true
+            )
+        } else {
+            tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
+        }
     }
 
-    pub fn resolve_span(&'static self) -> Span {
-        tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
+    pub fn resolve_span(&'static self, task_id: TaskId) -> Span {
+        if task_id.is_transient() {
+            tracing::trace_span!(
+                "turbo_tasks::resolve_call",
+                name = self.name.as_str(),
+                transient = true
+            )
+        } else {
+            tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
+        }
     }
 
     pub fn register(&'static self, global_name: &'static str) {

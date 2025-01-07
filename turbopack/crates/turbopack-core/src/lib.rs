@@ -4,6 +4,7 @@
 #![feature(assert_matches)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
 
 pub mod asset;
@@ -21,11 +22,13 @@ pub mod ident;
 pub mod introspect;
 pub mod issue;
 pub mod module;
+pub mod module_graph;
 pub mod output;
 pub mod package_json;
 pub mod proxied_asset;
 pub mod raw_module;
 pub mod raw_output;
+pub mod rebase;
 pub mod reference;
 pub mod reference_type;
 pub mod resolve;
@@ -49,7 +52,7 @@ pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
 
 #[doc(hidden)]
 pub mod __private {
-    pub use indexmap::IndexMap;
+    pub use turbo_tasks::FxIndexMap;
 }
 
 pub fn register() {

@@ -32,17 +32,17 @@ pub async fn get_app_metadata_route_source(
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     Ok(match metadata {
-        MetadataItem::Static { path } => static_route_source(mode, path),
+        MetadataItem::Static { path } => static_route_source(mode, *path),
         MetadataItem::Dynamic { path } => {
             let stem = path.file_stem().await?;
             let stem = stem.as_deref().unwrap_or_default();
 
             if stem == "robots" || stem == "manifest" {
-                dynamic_text_route_source(path)
+                dynamic_text_route_source(*path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(mode, path, is_multi_dynamic)
+                dynamic_site_map_route_source(mode, *path, is_multi_dynamic)
             } else {
-                dynamic_image_route_source(path)
+                dynamic_image_route_source(*path)
             }
         }
     })
@@ -60,11 +60,9 @@ pub async fn get_app_metadata_route_entry(
 ) -> Vc<AppEntry> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
-    let original_path = match metadata {
-        MetadataItem::Static { path } | MetadataItem::Dynamic { path } => path,
-    };
+    let original_path = metadata.into_path();
 
-    let source = Vc::upcast(FileSource::new(original_path));
+    let source = Vc::upcast(FileSource::new(*original_path));
     let segment_config = parse_segment_config_from_source(source);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
@@ -168,7 +166,7 @@ async fn static_route_source(
             if ({is_twitter} || {is_open_graph}) {{
                 const fileSizeInMB = buffer.byteLength / 1024 / 1024
                 if (fileSizeInMB > {file_size_limit}) {{
-                    throw new Error('File size for {img_name} image "{path}" exceeds {file_size_limit}MB. ' +
+                    throw new Error('File size for {img_name} image {path} exceeds {file_size_limit}MB. ' +
                     `(Current: ${{fileSizeInMB.toFixed(2)}}MB)\n` +
                     'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
                     )
@@ -193,7 +191,7 @@ async fn static_route_source(
         is_open_graph = is_open_graph,
         file_size_limit = file_size_limit,
         img_name = img_name,
-        path = path.to_string().await?,
+        path = StringifyJs(&path.to_string().await?),
     };
 
     let file = File::from(code);

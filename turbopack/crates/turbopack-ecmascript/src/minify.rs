@@ -12,15 +12,14 @@ use swc_core::{
         ast::{EsVersion, Program},
         codegen::{
             text_writer::{self, JsWriter, WriteJs},
-            Emitter, Node,
+            Emitter,
         },
         minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::base::fixer::paren_remover,
-        visit::FoldWith,
     },
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     code_builder::{Code, CodeBuilder},
@@ -32,7 +31,7 @@ use crate::ParseResultSourceMap;
 #[turbo_tasks::function]
 pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>> {
     let path = path.await?;
-    let original_map = code.generate_source_map();
+    let original_map = code.generate_source_map().to_resolved().await?;
     let code = code.await?;
 
     let cm = Arc::new(SwcSourceMap::new(FilePathMapping::empty()));
@@ -67,14 +66,13 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
             let top_level_mark = Mark::new();
 
             Ok(compiler.run_transform(handler, false, || {
-                let program = program.fold_with(&mut paren_remover(Some(&comments)));
+                let program = program.apply(paren_remover(Some(&comments)));
 
-                let mut program =
-                    program.fold_with(&mut swc_core::ecma::transforms::base::resolver(
-                        unresolved_mark,
-                        top_level_mark,
-                        false,
-                    ));
+                let mut program = program.apply(swc_core::ecma::transforms::base::resolver(
+                    unresolved_mark,
+                    top_level_mark,
+                    false,
+                ));
 
                 program = swc_core::ecma::minifier::optimize(
                     program,
@@ -96,7 +94,7 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
                     },
                 );
 
-                program.fold_with(&mut ecma::transforms::base::fixer::fixer(Some(
+                program.apply(ecma::transforms::base::fixer::fixer(Some(
                     &comments as &dyn Comments,
                 )))
             }))
@@ -108,13 +106,15 @@ pub async fn minify(path: Vc<FileSystemPath>, code: Vc<Code>) -> Result<Vc<Code>
     let mut builder = CodeBuilder::default();
     builder.push_source(
         &src.into(),
-        Some(Vc::upcast(
-            ParseResultSourceMap::new(cm, src_map_buf, original_map).cell(),
+        Some(ResolvedVc::upcast(
+            ParseResultSourceMap::new(cm, src_map_buf, original_map).resolved_cell(),
         )),
     );
 
     write!(
         builder,
+        // findSourceMapURL assumes this co-located sourceMappingURL,
+        // and needs to be adjusted in case this is ever changed.
         "\n\n//# sourceMappingURL={}.map",
         urlencoding::encode(path.file_name())
     )?;
@@ -145,8 +145,8 @@ fn print_program(
                 wr,
             };
 
-            program
-                .emit_with(&mut emitter)
+            emitter
+                .emit_program(&program)
                 .context("failed to emit module")?;
         }
         // Invalid utf8 is valid in javascript world.

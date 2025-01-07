@@ -21,7 +21,7 @@ use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
 use tokio::{runtime::Handle, select, task_local};
 use tokio_util::task::TaskTracker;
-use tracing::{info_span, instrument, trace_span, Instrument, Level};
+use tracing::{info_span, instrument, trace_span, Instrument, Level, Span};
 use turbo_tasks_malloc::TurboMalloc;
 
 use crate::{
@@ -45,8 +45,8 @@ use crate::{
     trait_helpers::get_trait_method,
     util::StaticOrArc,
     vc::ReadVcFuture,
-    Completion, FunctionMeta, InvalidationReason, InvalidationReasonSet, SharedReference, TaskId,
-    TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    Completion, FunctionMeta, InvalidationReason, InvalidationReasonSet, ResolvedVc,
+    SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -183,7 +183,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
     fn mark_own_task_as_finished(&self, task: TaskId);
-    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId);
+    fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
 
@@ -504,7 +504,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     /// Creates a new root task
     pub fn spawn_root_task<T, F, Fut>(&self, functor: F) -> TaskId
     where
-        T: Send,
+        T: ?Sized,
         F: Fn() -> Fut + Send + Sync + Clone + 'static,
         Fut: Future<Output = Result<Vc<T>>> + Send,
     {
@@ -529,7 +529,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
     #[track_caller]
     pub fn spawn_once_task<T, Fut>(&self, future: Fut) -> TaskId
     where
-        T: Send,
+        T: ?Sized,
         Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
     {
         let id = self.backend.create_transient_task(
@@ -1408,9 +1408,8 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
-    fn mark_own_task_as_dirty_when_persisted(&self, task: TaskId) {
-        self.backend
-            .mark_own_task_as_dirty_when_persisted(task, self);
+    fn mark_own_task_as_session_dependent(&self, task: TaskId) {
+        self.backend.mark_own_task_as_session_dependent(task, self);
     }
 
     /// Creates a future that inherits the current task id and task state. The current global task
@@ -1673,6 +1672,13 @@ pub fn turbo_tasks_scope<T>(tt: Arc<dyn TurboTasksApi>, f: impl FnOnce() -> T) -
     TURBO_TASKS.sync_scope(tt, f)
 }
 
+pub fn turbo_tasks_future_scope<T>(
+    tt: Arc<dyn TurboTasksApi>,
+    f: impl Future<Output = T>,
+) -> impl Future<Output = T> {
+    TURBO_TASKS.scope(tt, f)
+}
+
 pub fn with_turbo_tasks_for_testing<T>(
     tt: Arc<dyn TurboTasksApi>,
     current_task: TaskId,
@@ -1704,11 +1710,9 @@ pub fn current_task_for_testing() -> TaskId {
 }
 
 /// Marks the current task as dirty when restored from persistent cache.
-pub fn mark_dirty_when_persisted() {
+pub fn mark_session_dependent() {
     with_turbo_tasks(|tt| {
-        tt.mark_own_task_as_dirty_when_persisted(current_task(
-            "turbo_tasks::mark_dirty_when_persisted()",
-        ))
+        tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
     });
 }
 
@@ -1744,13 +1748,16 @@ pub fn notify_scheduled_tasks() {
     with_turbo_tasks(|tt| tt.notify_scheduled_tasks())
 }
 
-pub fn emit<T: VcValueTrait + Send>(collectible: Vc<T>) {
-    with_turbo_tasks(|tt| tt.emit_collectible(T::get_trait_type_id(), collectible.node))
+pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
+    with_turbo_tasks(|tt| {
+        let raw_vc = collectible.node.node;
+        tt.emit_collectible(T::get_trait_type_id(), raw_vc)
+    })
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
     let turbo_tasks = turbo_tasks();
-    let span = trace_span!("blocking operation").or_current();
+    let span = Span::current();
     let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
         let _guard = span.entered();
         let start = Instant::now();

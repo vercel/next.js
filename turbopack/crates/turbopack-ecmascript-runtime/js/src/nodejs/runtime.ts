@@ -38,7 +38,11 @@ function stringifySourceInfo(source: SourceInfo): string {
   }
 }
 
-type ExternalRequire = (id: ModuleId) => Exports | EsmNamespaceObject;
+type ExternalRequire = (
+  id: ModuleId,
+  thunk: () => any,
+  esm?: boolean
+) => Exports | EsmNamespaceObject;
 type ExternalImport = (id: ModuleId) => Promise<Exports | EsmNamespaceObject>;
 
 interface TurbopackNodeBuildContext extends TurbopackBaseContext<Module> {
@@ -52,9 +56,8 @@ type ModuleFactory = (
   context: TurbopackNodeBuildContext
 ) => undefined;
 
-const url = require("url");
-const fs = require("fs/promises");
-const vm = require("vm");
+const url = require("url") as typeof import('url');
+const fs = require("fs/promises") as typeof import('fs/promises');
 
 const moduleFactories: ModuleFactories = Object.create(null);
 const moduleCache: ModuleCache<ModuleWithDirection> = Object.create(null);
@@ -74,12 +77,11 @@ function createResolvePathFromModule(
 
     const strippedAssetPrefix = exportedPath.slice(ASSET_PREFIX.length);
     const resolved = path.resolve(
-      ABSOLUTE_ROOT,
-      OUTPUT_ROOT,
+      RUNTIME_ROOT,
       strippedAssetPrefix
     );
 
-    return url.pathToFileURL(resolved);
+    return url.pathToFileURL(resolved).href;
   };
 }
 
@@ -136,15 +138,21 @@ async function loadChunkAsync(
   try {
     const contents = await fs.readFile(resolved, "utf-8");
 
+    const localRequire = (id: string) => {
+      let resolvedId = require.resolve(id, {paths: [path.dirname(resolved)]});
+      return require(resolvedId);
+    }
     const module = {
       exports: {},
     };
-    vm.runInThisContext(
+    // TODO: Use vm.runInThisContext once our minimal supported Node.js version includes https://github.com/nodejs/node/pull/52153
+    // eslint-disable-next-line no-eval -- Can't use vm.runInThisContext due to https://github.com/nodejs/node/issues/52102
+    (0, eval)(
       "(function(module, exports, require, __dirname, __filename) {" +
         contents +
-        "\n})",
-      resolved
-    )(module, module.exports, require, path.dirname(resolved), resolved);
+        "\n})" +
+        "\n//# sourceURL=" + url.pathToFileURL(resolved),
+    )(module, module.exports, localRequire, path.dirname(resolved), resolved);
 
     const chunkModules: ModuleFactories = module.exports;
     for (const [moduleId, moduleFactory] of Object.entries(chunkModules)) {

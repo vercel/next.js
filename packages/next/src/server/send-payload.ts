@@ -1,6 +1,6 @@
 import type { IncomingMessage, ServerResponse } from 'http'
 import type RenderResult from './render-result'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
 
 import { isResSent } from '../shared/lib/utils'
 import { generateETag } from './lib/etag'
@@ -40,7 +40,7 @@ export async function sendRenderResult({
   generateEtags,
   poweredByHeader,
   revalidate,
-  swrDelta,
+  expireTime,
 }: {
   req: IncomingMessage
   res: ServerResponse
@@ -49,7 +49,7 @@ export async function sendRenderResult({
   generateEtags: boolean
   poweredByHeader: boolean
   revalidate: Revalidate | undefined
-  swrDelta: SwrDelta | undefined
+  expireTime: ExpireTime | undefined
 }): Promise<void> {
   if (isResSent(res)) {
     return
@@ -66,7 +66,7 @@ export async function sendRenderResult({
       'Cache-Control',
       formatRevalidate({
         revalidate,
-        swrDelta,
+        expireTime,
       })
     )
   }

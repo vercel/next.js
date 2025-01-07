@@ -1,6 +1,5 @@
 use anyhow::{bail, Context, Result};
-use indexmap::IndexMap;
-use turbo_tasks::{Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -26,25 +25,25 @@ pub fn route_bootstrap(
         asset_context,
         base_path,
         bootstrap_asset,
-        Vc::cell(IndexMap::new()),
+        Vc::cell(FxIndexMap::default()),
         config,
     )
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct BootstrapConfig(IndexMap<String, String>);
+pub struct BootstrapConfig(FxIndexMap<String, String>);
 
 #[turbo_tasks::value_impl]
 impl BootstrapConfig {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        Vc::cell(IndexMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 }
 
 #[turbo_tasks::function]
 pub async fn bootstrap(
-    asset: Vc<Box<dyn Module>>,
+    asset: ResolvedVc<Box<dyn Module>>,
     asset_context: Vc<Box<dyn AssetContext>>,
     base_path: Vc<FileSystemPath>,
     bootstrap_asset: Vc<Box<dyn Source>>,
@@ -90,9 +89,13 @@ pub async fn bootstrap(
                     .into(),
                 ),
             )),
-            Value::new(ReferenceType::Internal(InnerAssets::empty())),
+            Value::new(ReferenceType::Internal(
+                InnerAssets::empty().to_resolved().await?,
+            )),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
     let mut inner_assets = inner_assets.await?.clone_value();
     inner_assets.insert("ENTRY".into(), asset);
@@ -101,15 +104,17 @@ pub async fn bootstrap(
     let asset = asset_context
         .process(
             bootstrap_asset,
-            Value::new(ReferenceType::Internal(Vc::cell(inner_assets))),
+            Value::new(ReferenceType::Internal(ResolvedVc::cell(inner_assets))),
         )
-        .module();
+        .module()
+        .to_resolved()
+        .await?;
 
-    let asset = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(asset)
+    let asset = ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(asset)
         .await?
         .context("internal module must be evaluatable")?;
 
-    Ok(asset)
+    Ok(*asset)
 }
 
 /// This normalizes an app page to a pathname.

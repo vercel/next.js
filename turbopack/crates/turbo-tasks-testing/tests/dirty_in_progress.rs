@@ -5,7 +5,8 @@
 use std::time::Duration;
 
 use anyhow::{bail, Result};
-use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, State, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -38,6 +39,7 @@ async fn dirty_in_progress() {
             let read = output.strongly_consistent().await?;
             assert_eq!(read.value, value);
             assert_eq!(read.collectible, collectible);
+            println!("\n");
         }
         anyhow::Ok(())
     })
@@ -75,7 +77,8 @@ async fn inner_compute(input: Vc<ChangingInput>) -> Result<Vc<u32>> {
     let value = *input.await?.state.get();
     tokio::time::sleep(Duration::from_millis(200)).await;
     if value > 10 {
-        let collectible: Vc<Box<dyn ValueToString>> = Vc::upcast(Collectible { value }.cell());
+        let collectible: ResolvedVc<Box<dyn ValueToString>> =
+            ResolvedVc::upcast(Collectible { value }.resolved_cell());
         emit(collectible);
 
         println!("end inner_compute with collectible");

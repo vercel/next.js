@@ -1,5 +1,5 @@
-use indexmap::indexmap;
-use turbo_tasks::{TaskInput, Value, Vc};
+use anyhow::Result;
+use turbo_tasks::{fxindexmap, ResolvedVc, TaskInput, Value, Vc};
 use turbopack::{module_options::CustomModuleType, ModuleAssetContext};
 use turbopack_core::{
     context::AssetContext, module::Module, reference_type::ReferenceType, resolve::ModulePart,
@@ -36,12 +36,14 @@ pub struct StructuredImageModuleType {
 impl StructuredImageModuleType {
     #[turbo_tasks::function]
     pub(crate) async fn create_module(
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         blur_placeholder_mode: BlurPlaceholderMode,
-        module_asset_context: Vc<ModuleAssetContext>,
-    ) -> Vc<Box<dyn Module>> {
-        let static_asset = StaticModuleAsset::new(source, Vc::upcast(module_asset_context));
-        module_asset_context
+        module_asset_context: ResolvedVc<ModuleAssetContext>,
+    ) -> Result<Vc<Box<dyn Module>>> {
+        let static_asset = StaticModuleAsset::new(*source, Vc::upcast(*module_asset_context))
+            .to_resolved()
+            .await?;
+        Ok(module_asset_context
             .process(
                 Vc::upcast(
                     StructuredImageFileSource {
@@ -50,11 +52,11 @@ impl StructuredImageModuleType {
                     }
                     .cell(),
                 ),
-                Value::new(ReferenceType::Internal(Vc::cell(indexmap!(
-                    "IMAGE".into() => Vc::upcast(static_asset)
+                Value::new(ReferenceType::Internal(ResolvedVc::cell(fxindexmap!(
+                    "IMAGE".into() => ResolvedVc::upcast(static_asset)
                 )))),
             )
-            .module()
+            .module())
     }
 
     #[turbo_tasks::function]

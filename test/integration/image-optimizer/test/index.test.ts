@@ -258,6 +258,84 @@ describe('Image Optimizer', () => {
       )
     })
 
+    it('should error when qualities length exceeds 20', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            qualities: [
+              1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19,
+              20, 21,
+            ],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Array must contain at most 20 element(s) at "images.qualities"`
+      )
+    })
+
+    it('should error when qualities array has a value thats not an integer', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            qualities: [1, 2, 3, 9.9],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Expected integer, received float at "images.qualities[3]"`
+      )
+    })
+
+    it('should error when qualities array is empty', async () => {
+      await nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          images: {
+            qualities: [],
+          },
+        })
+      )
+      let stderr = ''
+
+      app = await launchApp(appDir, await findPort(), {
+        onStderr(msg) {
+          stderr += msg || ''
+        },
+      })
+      await waitFor(1000)
+      await killApp(app).catch(() => {})
+      await nextConfig.restore()
+
+      expect(stderr).toContain(
+        `Array must contain at least 1 element(s) at "images.qualities"`
+      )
+    })
+
     it('should error when loader contains invalid value', async () => {
       await nextConfig.replace(
         '{ /* replaceme */ }',
@@ -731,6 +809,37 @@ describe('Image Optimizer', () => {
       const opts = { headers: { accept: 'image/webp' } }
       const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
       expect(res.status).toBe(404)
+    })
+  })
+
+  describe('experimental.imgOptMaxInputPixels in next.config.js', () => {
+    let app
+    let appPort
+
+    beforeAll(async () => {
+      nextConfig.replace(
+        '{ /* replaceme */ }',
+        JSON.stringify({
+          experimental: {
+            imgOptMaxInputPixels: 100,
+          },
+        })
+      )
+      await cleanImagesDir({ imagesDir })
+      appPort = await findPort()
+      app = await launchApp(appDir, appPort)
+    })
+    afterAll(async () => {
+      await killApp(app)
+      nextConfig.restore()
+    })
+    it('should fallback to source image when input exceeds imgOptMaxInputPixels', async () => {
+      const size = 256 // defaults defined in lib/image-config.ts
+      const query = { w: size, q: 75, url: '/test.jpg' }
+      const opts = { headers: { accept: 'image/webp' } }
+      const res = await fetchViaHTTP(appPort, '/_next/image', query, opts)
+      expect(res.status).toBe(200)
+      expect(res.headers.get('Content-Type')).toBe('image/jpeg')
     })
   })
 

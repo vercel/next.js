@@ -22,7 +22,8 @@ import type { PagesAPIRouteModule } from './route-modules/pages-api/module'
 import type { UrlWithParsedQuery } from 'url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { ParsedUrl } from '../shared/lib/router/utils/parse-url'
-import type { Revalidate, SwrDelta } from './lib/revalidate'
+import type { Revalidate, ExpireTime } from './lib/revalidate'
+import type { WaitUntil } from './after/builtin-request-context'
 
 import fs from 'fs'
 import { join, resolve } from 'path'
@@ -104,6 +105,10 @@ import type { NextFontManifest } from '../build/webpack/plugins/next-font-manife
 import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 import type { ServerOnInstrumentationRequestError } from './app-render/types'
 import { RouteKind } from './route-kind'
+import { InvariantError } from '../shared/lib/invariant-error'
+import { AwaiterOnce } from './after/awaiter'
+import { AsyncCallbackSet } from './lib/async-callback-set'
+import DefaultCacheHandler from './lib/cache-handlers/default'
 
 export * from './base-server'
 
@@ -171,9 +176,17 @@ export default class NextNodeServer extends BaseServer<
     res: ServerResponse
   ) => void
 
+  protected cleanupListeners = new AsyncCallbackSet()
+  protected internalWaitUntil: WaitUntil | undefined
+  private isDev: boolean
+  private sriEnabled: boolean
+
   constructor(options: Options) {
     // Initialize super class
     super(options)
+
+    this.isDev = options.dev ?? false
+    this.sriEnabled = Boolean(options.conf.experimental?.sri?.algorithm)
 
     /**
      * This sets environment variable to be used at the time of SSR by head.tsx.
@@ -206,11 +219,15 @@ export default class NextNodeServer extends BaseServer<
         distDir: this.distDir,
         page: '/_document',
         isAppPath: false,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
       loadComponents({
         distDir: this.distDir,
         page: '/_app',
         isAppPath: false,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
     }
 
@@ -271,12 +288,25 @@ export default class NextNodeServer extends BaseServer<
         distDir: this.distDir,
         page,
         isAppPath: false,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
       }).catch(() => {})
     }
 
     for (const page of Object.keys(appPathsManifest || {})) {
-      await loadComponents({ distDir: this.distDir, page, isAppPath: true })
+      await loadComponents({
+        distDir: this.distDir,
+        page,
+        isAppPath: true,
+        isDev: this.isDev,
+        sriEnabled: this.sriEnabled,
+      })
         .then(async ({ ComponentMod }) => {
+          // we need to ensure fetch is patched before we require the page,
+          // otherwise if the fetch is patched by user code, we will be patching it
+          // too late and there won't be any caching behaviors
+          ComponentMod.patchFetch()
+
           const webpackRequire = ComponentMod.__next_app__.require
           if (webpackRequire?.m) {
             for (const id of Object.keys(webpackRequire.m)) {
@@ -363,6 +393,26 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
+    const { cacheHandlers } = this.nextConfig.experimental
+
+    if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
+      ;(globalThis as any).__nextCacheHandlers = {}
+
+      for (const key of Object.keys(cacheHandlers)) {
+        if (cacheHandlers[key]) {
+          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandlers[key])
+            )
+          )
+        }
+      }
+
+      if (!cacheHandlers.default) {
+        ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
+      }
+    }
+
     // incremental-cache is request specific
     // although can have shared caches in module scope
     // per-cache handler
@@ -376,7 +426,6 @@ export default class NextNodeServer extends BaseServer<
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
       serverDistDir: this.serverDistDir,
-      fetchCache: true,
       fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
       maxMemoryCacheSize: this.nextConfig.cacheMaxMemorySize,
       flushToDisk:
@@ -461,11 +510,11 @@ export default class NextNodeServer extends BaseServer<
     res: NodeNextResponse,
     options: {
       result: RenderResult
-      type: 'html' | 'json'
+      type: 'html' | 'json' | 'rsc'
       generateEtags: boolean
       poweredByHeader: boolean
       revalidate: Revalidate | undefined
-      swrDelta: SwrDelta | undefined
+      expireTime: ExpireTime | undefined
     }
   ): Promise<void> {
     return sendRenderResult({
@@ -476,7 +525,7 @@ export default class NextNodeServer extends BaseServer<
       generateEtags: options.generateEtags,
       poweredByHeader: options.poweredByHeader,
       revalidate: options.revalidate,
-      swrDelta: options.swrDelta,
+      expireTime: options.expireTime,
     })
   }
 
@@ -511,10 +560,6 @@ export default class NextNodeServer extends BaseServer<
     )
 
     query = { ...query, ...match.params }
-
-    delete query.__nextLocale
-    delete query.__nextDefaultLocale
-    delete query.__nextInferredLocaleFromDefault
 
     await module.render(req.originalRequest, res.originalResponse, {
       previewProps: this.renderOpts.previewProps,
@@ -574,7 +619,12 @@ export default class NextNodeServer extends BaseServer<
           // This code path does not service revalidations for unknown param
           // shells. As a result, we don't need to pass in the unknown params.
           null,
-          renderOpts
+          renderOpts,
+          this.getServerComponentsHmrCache(),
+          false,
+          {
+            buildId: this.buildId,
+          }
         )
       }
 
@@ -586,7 +636,20 @@ export default class NextNodeServer extends BaseServer<
         res.originalResponse,
         pathname,
         query,
-        renderOpts
+        renderOpts,
+        {
+          buildId: this.buildId,
+          deploymentId: this.nextConfig.deploymentId,
+          customServer: this.serverOptions.customServer || undefined,
+        },
+        {
+          isFallback: false,
+          isDraftMode: renderOpts.isDraftMode,
+          developmentNotFoundSourcePage: getRequestMeta(
+            req,
+            'developmentNotFoundSourcePage'
+          ),
+        }
       )
     }
   }
@@ -638,13 +701,10 @@ export default class NextNodeServer extends BaseServer<
             handleInternalReq
           )
 
-      return imageOptimizer(
-        imageUpstream,
-        paramsResult,
-        this.nextConfig,
-        this.renderOpts.dev,
-        previousCacheEntry
-      )
+      return imageOptimizer(imageUpstream, paramsResult, this.nextConfig, {
+        isDev: this.renderOpts.dev,
+        previousCacheEntry,
+      })
     }
   }
 
@@ -691,12 +751,14 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected async findPageComponents({
+    locale,
     page,
     query,
     params,
     isAppPath,
     url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -718,6 +780,7 @@ export default class NextNodeServer extends BaseServer<
       },
       () =>
         this.findPageComponentsImpl({
+          locale,
           page,
           query,
           params,
@@ -728,12 +791,14 @@ export default class NextNodeServer extends BaseServer<
   }
 
   private async findPageComponentsImpl({
+    locale,
     page,
     query,
     params,
     isAppPath,
     url: _url,
   }: {
+    locale: string | undefined
     page: string
     query: NextParsedUrlQuery
     params: Params
@@ -748,11 +813,9 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
-    if (query.__nextLocale) {
+    if (locale) {
       pagePaths.unshift(
-        ...pagePaths.map(
-          (path) => `/${query.__nextLocale}${path === '/' ? '' : path}`
-        )
+        ...pagePaths.map((path) => `/${locale}${path === '/' ? '' : path}`)
       )
     }
 
@@ -762,12 +825,15 @@ export default class NextNodeServer extends BaseServer<
           distDir: this.distDir,
           page: pagePath,
           isAppPath,
+          isDev: this.isDev,
+          sriEnabled: this.sriEnabled,
         })
 
         if (
-          query.__nextLocale &&
+          locale &&
           typeof components.Component === 'string' &&
-          !pagePath.startsWith(`/${query.__nextLocale}`)
+          !pagePath.startsWith(`/${locale}/`) &&
+          pagePath !== `/${locale}`
         ) {
           // if loading an static HTML file the locale is required
           // to be present since all HTML files are output under their locale
@@ -781,9 +847,6 @@ export default class NextNodeServer extends BaseServer<
             components.getStaticProps
               ? ({
                   amp: query.amp,
-                  __nextDataReq: query.__nextDataReq,
-                  __nextLocale: query.__nextLocale,
-                  __nextDefaultLocale: query.__nextDefaultLocale,
                 } as NextParsedUrlQuery)
               : query),
             // For appDir params is excluded.
@@ -938,14 +1001,14 @@ export default class NextNodeServer extends BaseServer<
 
     // This is a catch-all route, there should be no fallbacks so mark it as
     // such.
-    query._nextBubbleNoFallback = '1'
+    addRequestMeta(req, 'bubbleNoFallback', true)
 
     try {
       // next.js core assumes page path without trailing slash
       pathname = removeTrailingSlash(pathname)
 
       const options: MatchOptions = {
-        i18n: this.i18nProvider?.fromQuery(pathname, query),
+        i18n: this.i18nProvider?.fromRequest(req, pathname),
       }
       const match = await this.matchers.match(pathname, options)
 
@@ -970,7 +1033,6 @@ export default class NextNodeServer extends BaseServer<
           await this.render404(req, res, parsedUrl)
           return true
         }
-        delete query._nextBubbleNoFallback
         delete query[NEXT_RSC_UNION_QUERY]
 
         // If we handled the request, we can return early.
@@ -1007,8 +1069,6 @@ export default class NextNodeServer extends BaseServer<
           return true
         }
 
-        delete query._nextBubbleNoFallback
-
         const handled = await this.handleApiRequest(req, res, query, match)
         if (handled) return true
       }
@@ -1026,7 +1086,7 @@ export default class NextNodeServer extends BaseServer<
           const { formatServerError } =
             require('../lib/format-server-error') as typeof import('../lib/format-server-error')
           formatServerError(err)
-          await this.logErrorWithOriginalStack(err)
+          this.logErrorWithOriginalStack(err)
         } else {
           this.logError(err)
         }
@@ -1040,10 +1100,10 @@ export default class NextNodeServer extends BaseServer<
   }
 
   // Used in development only, overloaded in next-dev-server
-  protected async logErrorWithOriginalStack(
+  protected logErrorWithOriginalStack(
     _err?: unknown,
     _type?: 'unhandledRejection' | 'uncaughtException' | 'warning' | 'app-dir'
-  ): Promise<void> {
+  ): void {
     throw new Error(
       'Invariant: logErrorWithOriginalStack can only be called on the development server'
     )
@@ -1407,7 +1467,7 @@ export default class NextNodeServer extends BaseServer<
     } else {
       // For middleware to "fetch" we must always provide an absolute URL
       const query = urlQueryToSearchParams(params.parsed.query).toString()
-      const locale = params.parsed.query.__nextLocale
+      const locale = getRequestMeta(params.request, 'locale')
 
       url = `${getRequestMeta(params.request, 'initProtocol')}://${
         this.fetchHostname || 'localhost'
@@ -1466,6 +1526,7 @@ export default class NextNodeServer extends BaseServer<
         page,
         body: getRequestMeta(params.request, 'clonableBody'),
         signal: signalFromNodeResponse(params.response.originalResponse),
+        waitUntil: this.getWaitUntil(),
       },
       useCache: true,
       onWarning: params.onWarning,
@@ -1725,7 +1786,7 @@ export default class NextNodeServer extends BaseServer<
     }
 
     // For edge to "fetch" we must always provide an absolute URL
-    const isNextDataRequest = !!query.__nextDataReq
+    const isNextDataRequest = getRequestMeta(params.req, 'isNextDataReq')
     const initialUrl = new URL(
       getRequestMeta(params.req, 'initURL') || '/',
       'http://n'
@@ -1769,6 +1830,7 @@ export default class NextNodeServer extends BaseServer<
         },
         body: getRequestMeta(params.req, 'clonableBody'),
         signal: signalFromNodeResponse(params.res.originalResponse),
+        waitUntil: this.getWaitUntil(),
       },
       useCache: true,
       onError: params.onError,
@@ -1841,5 +1903,33 @@ export default class NextNodeServer extends BaseServer<
     if (!this.renderOpts.dev) {
       this.logError(args[0] as Error)
     }
+  }
+
+  protected onServerClose(listener: () => Promise<void>) {
+    this.cleanupListeners.add(listener)
+  }
+
+  async close(): Promise<void> {
+    await this.cleanupListeners.runAll()
+  }
+
+  protected getInternalWaitUntil(): WaitUntil {
+    this.internalWaitUntil ??= this.createInternalWaitUntil()
+    return this.internalWaitUntil
+  }
+
+  private createInternalWaitUntil() {
+    if (this.minimalMode) {
+      throw new InvariantError(
+        'createInternalWaitUntil should never be called in minimal mode'
+      )
+    }
+
+    const awaiter = new AwaiterOnce({ onError: console.error })
+
+    // TODO(after): warn if the process exits before these are awaited
+    this.onServerClose(() => awaiter.awaiting())
+
+    return awaiter.waitUntil
   }
 }

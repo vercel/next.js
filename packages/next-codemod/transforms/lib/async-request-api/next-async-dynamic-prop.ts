@@ -20,18 +20,20 @@ import {
   TARGET_ROUTE_EXPORTS,
   getVariableDeclaratorId,
   NEXTJS_ENTRY_FILES,
+  NEXT_CODEMOD_ERROR_PREFIX,
+  findFunctionBody,
+  containsReactHooksCallExpressions,
+  isParentUseCallExpression,
+  isParentPromiseAllCallExpression,
+  findClosetParentFunctionScope,
 } from './utils'
+import { createParserFromPath } from '../../../lib/parser'
 
 const PAGE_PROPS = 'props'
 
-function findFunctionBody(path: ASTPath<FunctionScope>) {
-  let functionBody = path.node.body
-  if (functionBody && functionBody.type === 'BlockStatement') {
-    return functionBody.body
-  }
-  return null
-}
-
+// Find all the member access of the prop, and await them
+// e.g. If there's argument `props`, find all the member access of props.<name>.
+// If the member access can be awaited, await them.
 function awaitMemberAccessOfProp(
   propIdName: string,
   path: ASTPath<FunctionScope>,
@@ -51,6 +53,15 @@ function awaitMemberAccessOfProp(
   memberAccess.forEach((memberAccessPath) => {
     const member = memberAccessPath.value
 
+    const memberProperty = member.property
+    const isAccessingMatchedProperty =
+      j.Identifier.check(memberProperty) &&
+      TARGET_PROP_NAMES.has(memberProperty.name)
+
+    if (!isAccessingMatchedProperty) {
+      return
+    }
+
     if (isParentPromiseAllCallExpression(memberAccessPath, j)) {
       return
     }
@@ -59,6 +70,25 @@ function awaitMemberAccessOfProp(
     if (memberAccessPath.parentPath?.value.type === 'AwaitExpression') {
       return
     }
+
+    const parentScopeOfMemberAccess = findClosetParentFunctionScope(
+      memberAccessPath,
+      j
+    )
+
+    // When the parent scope is sync, and it's also not the function itself, which means it's not able to convert to async.
+    if (
+      parentScopeOfMemberAccess &&
+      !parentScopeOfMemberAccess.value?.async &&
+      parentScopeOfMemberAccess.node !== path.node
+    ) {
+      // If it's not able to convert, add a comment to the prop access to warn the user
+      // e.g. the parent scope is sync, await keyword can't be applied
+      const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${propIdName}.${memberProperty.name}' is accessed without awaiting.`
+      insertCommentOnce(member, j, comment)
+      return
+    }
+
     const awaitedExpr = j.awaitExpression(member)
 
     const awaitMemberAccess = wrapParentheseIfNeeded(true, j, awaitedExpr)
@@ -66,51 +96,19 @@ function awaitMemberAccessOfProp(
     hasAwaited = true
   })
 
+  const hasReactHooksUsage = containsReactHooksCallExpressions(
+    path.get('body'),
+    j
+  )
+
   // If there's any awaited member access, we need to make the function async
   if (hasAwaited) {
-    if (!path.value.async) {
-      if ('async' in path.value) {
-        path.value.async = true
-        turnFunctionReturnTypeToAsync(path.value, j)
-      }
+    if (path.value.async === false && !hasReactHooksUsage) {
+      path.value.async = true
+      turnFunctionReturnTypeToAsync(path.value, j)
     }
   }
   return hasAwaited
-}
-
-function isParentUseCallExpression(path: ASTPath<any>, j: API['jscodeshift']) {
-  if (
-    // member access parentPath is argument
-    j.CallExpression.check(path.parent.value) &&
-    // member access is first argument
-    path.parent.value.arguments[0] === path.value &&
-    // function name is `use`
-    j.Identifier.check(path.parent.value.callee) &&
-    path.parent.value.callee.name === 'use'
-  ) {
-    return true
-  }
-  return false
-}
-
-function isParentPromiseAllCallExpression(
-  path: ASTPath<any>,
-  j: API['jscodeshift']
-) {
-  const argsParent = path.parent
-  const callParent = argsParent?.parent
-  if (
-    j.ArrayExpression.check(argsParent.value) &&
-    j.CallExpression.check(callParent.value) &&
-    j.MemberExpression.check(callParent.value.callee) &&
-    j.Identifier.check(callParent.value.callee.object) &&
-    callParent.value.callee.object.name === 'Promise' &&
-    j.Identifier.check(callParent.value.callee.property) &&
-    callParent.value.callee.property.name === 'all'
-  ) {
-    return true
-  }
-  return false
 }
 
 function applyUseAndRenameAccessedProp(
@@ -197,7 +195,7 @@ function commentOnMatchedReExports(
             const commentInserted = insertCommentOnce(
               specifier,
               j,
-              ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+              ` ${NEXT_CODEMOD_ERROR_PREFIX} \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
             )
             modified ||= commentInserted
           } else if (path.value.source === null) {
@@ -215,7 +213,7 @@ function commentOnMatchedReExports(
               const commentInserted = insertCommentOnce(
                 specifier,
                 j,
-                ` Next.js Dynamic Async API Codemod: \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
+                ` ${NEXT_CODEMOD_ERROR_PREFIX} \`${localName}\` export is re-exported. Check if this component uses \`params\` or \`searchParams\``
               )
               modified ||= commentInserted
             }
@@ -267,7 +265,6 @@ function modifyTypes(
             member.typeAnnotation.typeAnnotation = j.tsTypeReference(
               j.identifier('Promise'),
               j.tsTypeParameterInstantiation([
-                // @ts-ignore
                 member.typeAnnotation.typeAnnotation,
               ])
             )
@@ -328,6 +325,105 @@ function modifyTypes(
             })
           }
         }
+
+        // Deal with type aliases
+        if (foundTypes.typeAliases.length > 0) {
+          const typeAliasDeclaration = foundTypes.typeAliases[0]
+          if (j.TSTypeAliasDeclaration.check(typeAliasDeclaration)) {
+            const typeAlias = typeAliasDeclaration.typeAnnotation
+            if (
+              j.TSTypeLiteral.check(typeAlias) &&
+              typeAlias.members.length > 0
+            ) {
+              const typeLiteral = typeAlias
+              typeLiteral.members.forEach((member) => {
+                if (
+                  j.TSPropertySignature.check(member) &&
+                  j.Identifier.check(member.key) &&
+                  TARGET_PROP_NAMES.has(member.key.name)
+                ) {
+                  // if it's already a Promise, don't wrap it again, return
+                  if (
+                    member.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation.type ===
+                      'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type ===
+                      'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name ===
+                      'Promise'
+                  ) {
+                    return
+                  }
+
+                  // Wrap the prop type in Promise<>
+                  if (
+                    member.typeAnnotation &&
+                    j.TSTypeLiteral.check(member.typeAnnotation.typeAnnotation)
+                  ) {
+                    member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                      j.identifier('Promise'),
+                      j.tsTypeParameterInstantiation([
+                        member.typeAnnotation.typeAnnotation,
+                      ])
+                    )
+                    modified = true
+                  }
+                }
+              })
+            }
+          }
+        }
+
+        if (foundTypes.imports.length > 0) {
+          // console.log('typeReference.typeName.name', typeReference.typeName.name, foundTypes)
+          // If it's React PropsWithChildren
+          if (typeReference.typeName.name === 'PropsWithChildren') {
+            const propType = typeReference.typeParameters?.params[0]
+            if (
+              propType &&
+              j.TSTypeLiteral.check(propType) &&
+              propType.members.length > 0
+            ) {
+              const typeLiteral = propType
+              typeLiteral.members.forEach((member) => {
+                if (
+                  j.TSPropertySignature.check(member) &&
+                  j.Identifier.check(member.key) &&
+                  TARGET_PROP_NAMES.has(member.key.name)
+                ) {
+                  // if it's already a Promise, don't wrap it again, return
+                  if (
+                    member.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation &&
+                    member.typeAnnotation.typeAnnotation.type ===
+                      'TSTypeReference' &&
+                    member.typeAnnotation.typeAnnotation.typeName.type ===
+                      'Identifier' &&
+                    member.typeAnnotation.typeAnnotation.typeName.name ===
+                      'Promise'
+                  ) {
+                    return
+                  }
+
+                  // Wrap the prop type in Promise<>
+                  if (
+                    member.typeAnnotation &&
+                    j.TSTypeLiteral.check(member.typeAnnotation.typeAnnotation)
+                  ) {
+                    member.typeAnnotation.typeAnnotation = j.tsTypeReference(
+                      j.identifier('Promise'),
+                      j.tsTypeParameterInstantiation([
+                        member.typeAnnotation.typeAnnotation,
+                      ])
+                    )
+                    modified = true
+                  }
+                }
+              })
+            }
+          }
+        }
       }
     }
 
@@ -339,7 +435,7 @@ function modifyTypes(
 
 export function transformDynamicProps(
   source: string,
-  api: API,
+  _api: API,
   filePath: string
 ) {
   const isEntryFile = NEXTJS_ENTRY_FILES.test(filePath)
@@ -349,7 +445,7 @@ export function transformDynamicProps(
 
   let modified = false
   let modifiedPropArgument = false
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(filePath)
   const root = j(source)
   // Check if 'use' from 'react' needs to be imported
   let needsReactUseImport = false
@@ -435,9 +531,19 @@ export function transformDynamicProps(
             modified = true
           }
         } else {
+          // If it's (props.params).<name>, await the member access
+          // const pathOfCurrentParam = path.get('params', propsArgumentIndex)
+          // const paramScope = findClosetParentFunctionScope(pathOfCurrentParam, j)
           const awaited = awaitMemberAccessOfProp(argName, path, j)
           modified ||= awaited
         }
+
+        modified ||= modifyTypes(
+          currentParam.typeAnnotation,
+          propsIdentifier,
+          root,
+          j
+        )
 
         // cases of passing down `props` into any function
         // Page(props) { callback(props) }
@@ -462,7 +568,7 @@ export function transformDynamicProps(
           const propPassedAsArg = args.find(
             (arg) => j.Identifier.check(arg) && arg.name === argName
           )
-          const comment = ` Next.js Dynamic Async API Codemod: '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
+          const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${argName}' is passed as an argument. Any asynchronous properties of 'props' must be awaited when accessed. `
           const inserted = insertCommentOnce(propPassedAsArg, j, comment)
           modified ||= inserted
         })
@@ -519,11 +625,13 @@ export function transformDynamicProps(
 
       // If it's sync default export, and it's also server component, make the function async
       if (isDefaultExport && !isClientComponent) {
-        if (!node.async) {
-          if ('async' in node) {
-            node.async = true
-            turnFunctionReturnTypeToAsync(node, j)
-          }
+        const hasReactHooksUsage = containsReactHooksCallExpressions(
+          path.get('body'),
+          j
+        )
+        if (node.async === false && !hasReactHooksUsage) {
+          node.async = true
+          turnFunctionReturnTypeToAsync(node, j)
         }
       }
 
@@ -555,6 +663,11 @@ export function transformDynamicProps(
       const isAsyncFunc = !!node.async
       const functionName = path.value.id?.name || 'default'
       const functionBody = findFunctionBody(path)
+      const functionBodyPath = path.get('body')
+      const hasReactHooksUsage = containsReactHooksCallExpressions(
+        functionBodyPath,
+        j
+      )
       const hasOtherProperties = allProperties.length > propertiesMap.size
 
       function createDestructuringDeclaration(
@@ -653,23 +766,46 @@ export function transformDynamicProps(
           }
         }
 
-        const propRenamedId = j.Identifier.check(paramsProperty)
+        const paramsPropertyName = j.Identifier.check(paramsProperty)
           ? paramsProperty.name
           : null
-        const propName = propRenamedId || matchedPropName
+        const paramPropertyName = paramsPropertyName || matchedPropName
 
-        // if propName is not used in lower scope, and it stars with unused prefix `_`,
-        // also skip the transformation
-
-        const functionBodyPath = path.get('body')
+        // If propName is an identifier and not used in lower scope,
+        // also skip the transformation.
         const hasUsedInBody =
           j(functionBodyPath)
             .find(j.Identifier, {
-              name: propName,
+              name: paramPropertyName,
             })
             .size() > 0
 
-        if (!hasUsedInBody && propName.startsWith('_')) continue
+        if (!hasUsedInBody && j.Identifier.check(paramsProperty)) continue
+
+        // Search the usage of propName in the function body,
+        // if they're all awaited or wrapped with use(), skip the transformation
+        const propUsages = j(functionBodyPath).find(j.Identifier, {
+          name: paramPropertyName,
+        })
+
+        // if there's usage of the propName, then do the check
+        if (propUsages.size()) {
+          let hasMissingAwaited = false
+          propUsages.forEach((propUsage) => {
+            // If the parent is not AwaitExpression, it's not awaited
+            const isAwaited =
+              propUsage.parentPath?.value.type === 'AwaitExpression'
+            const isAwaitedByUse = isParentUseCallExpression(propUsage, j)
+            if (!isAwaited && !isAwaitedByUse) {
+              hasMissingAwaited = true
+              return
+            }
+          })
+          // If all the usages of parm are awaited, skip the transformation
+          if (!hasMissingAwaited) {
+            continue
+          }
+        }
 
         modifiedPropertyCount++
 
@@ -683,7 +819,7 @@ export function transformDynamicProps(
         // e.g.
         // input: Page({ params: { slug } })
         // output: const { slug } = await props.params; rather than const props = await props.params;
-        const uid = functionName + ':' + propName
+        const uid = functionName + ':' + paramPropertyName
 
         if (paramsProperty?.type === 'ObjectPattern') {
           const objectPattern = paramsProperty
@@ -720,7 +856,7 @@ export function transformDynamicProps(
           // If it's async function, add await to the async props.<propName>
           const paramAssignment = j.variableDeclaration('const', [
             j.variableDeclarator(
-              j.identifier(propName),
+              j.identifier(paramPropertyName),
               j.awaitExpression(accessedPropIdExpr)
             ),
           ])
@@ -729,33 +865,30 @@ export function transformDynamicProps(
             insertedRenamedPropFunctionNames.add(uid)
           }
         } else {
-          // const isFromExport = true
-          if (!isClientComponent) {
+          if (
+            !isClientComponent &&
+            isFunctionType(node.type) &&
+            !hasReactHooksUsage
+          ) {
             // If it's export function, populate the function to async
-            if (
-              isFunctionType(node.type) &&
-              // Make TS happy
-              'async' in node
-            ) {
-              node.async = true
-              turnFunctionReturnTypeToAsync(node, j)
-              // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
-              const paramAssignment = j.variableDeclaration('const', [
-                j.variableDeclarator(
-                  j.identifier(propName),
-                  j.awaitExpression(accessedPropIdExpr)
-                ),
-              ])
+            node.async = true
+            turnFunctionReturnTypeToAsync(node, j)
+            // Insert `const <propName> = await props.<propName>;` at the beginning of the function body
+            const paramAssignment = j.variableDeclaration('const', [
+              j.variableDeclarator(
+                j.identifier(paramPropertyName),
+                j.awaitExpression(accessedPropIdExpr)
+              ),
+            ])
 
-              if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
-                functionBody.unshift(paramAssignment)
-                insertedRenamedPropFunctionNames.add(uid)
-              }
+            if (!insertedRenamedPropFunctionNames.has(uid) && functionBody) {
+              functionBody.unshift(paramAssignment)
+              insertedRenamedPropFunctionNames.add(uid)
             }
           } else {
             const paramAssignment = j.variableDeclaration('const', [
               j.variableDeclarator(
-                j.identifier(propName),
+                j.identifier(paramPropertyName),
                 j.callExpression(j.identifier('use'), [accessedPropIdExpr])
               ),
             ])
@@ -899,7 +1032,7 @@ function commentSpreadProps(
   const objSpreadProperties = functionBodyCollection.find(j.SpreadElement, {
     argument: { name: propsIdentifierName },
   })
-  const comment = ` Next.js Dynamic Async API Codemod: '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
+  const comment = ` ${NEXT_CODEMOD_ERROR_PREFIX} '${propsIdentifierName}' is used with spread syntax (...). Any asynchronous properties of '${propsIdentifierName}' must be awaited when accessed. `
 
   // Add comment before it
   jsxSpreadProperties.forEach((spread) => {

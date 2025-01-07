@@ -13,7 +13,7 @@ import { GetTemplateFileArgs, InstallTemplateArgs } from "./types";
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-2d16326d-20240930";
+const nextjsReactPeerVersion = "^19.0.0";
 
 /**
  * Get the file path for a given file in a template, e.g. "next.config.js".
@@ -43,7 +43,7 @@ export const installTemplate = async ({
   srcDir,
   importAlias,
   skipInstall,
-  turbo,
+  turbopack,
 }: InstallTemplateArgs) => {
   console.log(bold(`Using ${packageManager}.`));
 
@@ -53,10 +53,10 @@ export const installTemplate = async ({
   console.log("\nInitializing project with template:", template, "\n");
   const templatePath = path.join(__dirname, template, mode);
   const copySource = ["**"];
-  if (!eslint) copySource.push("!eslintrc.json");
+  if (!eslint) copySource.push("!eslint.config.mjs");
   if (!tailwind)
     copySource.push(
-      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.js",
+      mode == "ts" ? "tailwind.config.ts" : "!tailwind.config.mjs",
       "!postcss.config.mjs",
     );
 
@@ -65,8 +65,7 @@ export const installTemplate = async ({
     cwd: templatePath,
     rename(name) {
       switch (name) {
-        case "gitignore":
-        case "eslintrc.json": {
+        case "gitignore": {
           return `.${name}`;
         }
         // README.md is ignored by webpack-asset-relocator-loader used by ncc:
@@ -167,7 +166,7 @@ export const installTemplate = async ({
     if (tailwind) {
       const tailwindConfigFile = path.join(
         root,
-        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+        mode === "ts" ? "tailwind.config.ts" : "tailwind.config.mjs",
       );
       await fs.writeFile(
         tailwindConfigFile,
@@ -188,7 +187,7 @@ export const installTemplate = async ({
     version: "0.1.0",
     private: true,
     scripts: {
-      dev: `next dev${turbo ? " --turbo" : ""}`,
+      dev: `next dev${turbopack ? " --turbopack" : ""}`,
       build: "next build",
       start: "next start",
       lint: "next lint",
@@ -212,8 +211,8 @@ export const installTemplate = async ({
       ...packageJson.devDependencies,
       typescript: "^5",
       "@types/node": "^20",
-      "@types/react": "^18",
-      "@types/react-dom": "^18",
+      "@types/react": "^19",
+      "@types/react-dom": "^19",
     };
   }
 
@@ -230,8 +229,10 @@ export const installTemplate = async ({
   if (eslint) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      eslint: "^8",
+      eslint: "^9",
       "eslint-config-next": version,
+      // TODO: Remove @eslint/eslintrc once eslint-config-next is pure Flat config
+      "@eslint/eslintrc": "^3",
     };
   }
 

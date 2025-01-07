@@ -1,6 +1,6 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshModule app', () => {
@@ -10,7 +10,8 @@ describe('ReactRefreshModule app', () => {
   })
 
   it('should allow any variable names', async () => {
-    const { session, cleanup } = await sandbox(next, new Map([]))
+    await using sandbox = await createSandbox(next, new Map([]))
+    const { session } = sandbox
     await session.assertNoRedbox()
 
     const variables = [
@@ -38,7 +39,5 @@ describe('ReactRefreshModule app', () => {
         `'${variable}' has already been declared`
       )
     }
-
-    await cleanup()
   })
 })

@@ -77,6 +77,7 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
           expect(event1).toMatch(/"imageLocalPatternsCount": 2/)
           expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+          expect(event1).toMatch(/"imageQualities": "25,50,75"/)
           expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
           expect(event1).toMatch(/"nextConfigOutput": null/)
           expect(event1).toMatch(/"trailingSlashEnabled": false/)
@@ -123,6 +124,7 @@ describe('config telemetry', () => {
           expect(event2).toMatch(/"imageDomainsCount": 2/)
           expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
           expect(event2).toMatch(/"imageLocalPatternsCount": 2/)
+          expect(event2).toMatch(/"imageQualities": "25,50,75"/)
           expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
           expect(event2).toMatch(/"nextConfigOutput": null/)
           expect(event2).toMatch(/"trailingSlashEnabled": false/)
@@ -135,7 +137,7 @@ describe('config telemetry', () => {
 
       it('detects output config for session start', async () => {
         await fs.writeFile(
-          './next.config.js',
+          path.join(appDir, 'next.config.js'),
           'module.exports = { output: "export" }'
         )
         try {
@@ -155,7 +157,7 @@ describe('config telemetry', () => {
             throw err
           }
         } finally {
-          await fs.remove('./next.config.js')
+          await fs.remove(path.join(appDir, 'next.config.js'))
         }
       })
 

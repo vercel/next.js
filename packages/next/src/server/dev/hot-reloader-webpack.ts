@@ -7,7 +7,10 @@ import type { UrlObject } from 'url'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 import { webpack, StringXor } from 'next/dist/compiled/webpack/webpack'
-import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware'
+import {
+  getOverlayMiddleware,
+  getSourceMapMiddleware,
+} from '../../client/components/react-dev-overlay/server/middleware-webpack'
 import { WebpackHotMiddleware } from './hot-middleware'
 import { join, relative, isAbsolute, posix } from 'path'
 import {
@@ -80,6 +83,7 @@ import type { WebpackError } from 'webpack'
 import { PAGE_TYPES } from '../../lib/page-types'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { getNodeDebugType } from '../lib/utils'
+import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
 const isTestMode = !!(
@@ -229,7 +233,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   private dir: string
   private buildId: string
   private encryptionKey: string
-  private interceptors: any[]
+  private middlewares: ((
+    req: IncomingMessage,
+    res: ServerResponse,
+    next: () => void
+  ) => Promise<void>)[]
   private pagesDir?: string
   private distDir: string
   private webpackHotMiddleware?: WebpackHotMiddleware
@@ -297,7 +305,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     this.buildId = buildId
     this.encryptionKey = encryptionKey
     this.dir = dir
-    this.interceptors = []
+    this.middlewares = []
     this.pagesDir = pagesDir
     this.appDir = appDir
     this.distDir = distDir
@@ -379,13 +387,16 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
 
     const { finished } = await handlePageBundleRequest(res, parsedUrl)
 
-    for (const fn of this.interceptors) {
-      await new Promise<void>((resolve, reject) => {
-        fn(req, res, (err: Error) => {
-          if (err) return reject(err)
-          resolve()
-        })
+    for (const middleware of this.middlewares) {
+      let calledNext = false
+
+      await middleware(req, res, () => {
+        calledNext = true
       })
+
+      if (!calledNext) {
+        return { finished: true }
+      }
     }
 
     return { finished }
@@ -398,7 +409,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   public clearHmrServerError(): void {
     if (this.hmrServerError) {
       this.setHmrServerError(null)
-      this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
+      this.send({
+        action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: 'clear hmr server error',
+      })
     }
   }
 
@@ -1118,7 +1132,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
 
     this.multiCompiler.hooks.done.tap('NextjsHotReloader', () => {
-      inputFileSystem.purge!()
+      inputFileSystem?.purge?.()
     })
     watchCompilers(
       this.multiCompiler.compilers[0],
@@ -1349,7 +1363,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         this.serverPrevDocumentHash = documentChunk.hash || null
 
         // Notify reload to reload the page, as _document.js was changed (different hash)
-        this.send({ action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE })
+        this.send({
+          action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+          data: '_document has changed',
+        })
       }
     )
 
@@ -1491,13 +1508,19 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }),
     })
 
-    this.interceptors = [
+    this.middlewares = [
       getOverlayMiddleware({
         rootDirectory: this.dir,
-        stats: () => this.clientStats,
+        clientStats: () => this.clientStats,
         serverStats: () => this.serverStats,
         edgeServerStats: () => this.edgeServerStats,
       }),
+      getSourceMapMiddleware({
+        clientStats: () => this.clientStats,
+        serverStats: () => this.serverStats,
+        edgeServerStats: () => this.edgeServerStats,
+      }),
+      getNextErrorFeedbackMiddleware(this.telemetry),
     ]
   }
 
@@ -1573,23 +1596,29 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     definition?: RouteDefinition
     url?: string
   }): Promise<void> {
-    // Make sure we don't re-build or dispose prebuilt pages
-    if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
-      return
-    }
-    const error = clientOnly
-      ? this.clientError
-      : this.serverError || this.clientError
-    if (error) {
-      throw error
-    }
+    return this.hotReloaderSpan
+      .traceChild('ensure-page', {
+        inputPage: page,
+      })
+      .traceAsyncFn(async () => {
+        // Make sure we don't re-build or dispose prebuilt pages
+        if (page !== '/_error' && BLOCKED_PAGES.indexOf(page) !== -1) {
+          return
+        }
+        const error = clientOnly
+          ? this.clientError
+          : this.serverError || this.clientError
+        if (error) {
+          throw error
+        }
 
-    return this.onDemandEntries?.ensurePage({
-      page,
-      appPaths,
-      definition,
-      isApp,
-      url,
-    })
+        return this.onDemandEntries?.ensurePage({
+          page,
+          appPaths,
+          definition,
+          isApp,
+          url,
+        })
+      })
   }
 }

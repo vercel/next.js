@@ -67,7 +67,7 @@ import {
   isInternalComponent,
   isNonRoutePagesPage,
 } from '../lib/is-internal-component'
-import { isMetadataRoute } from '../lib/metadata/is-metadata-route'
+import { isMetadataRouteFile } from '../lib/metadata/is-metadata-route'
 import { RouteKind } from '../server/route-kind'
 import { encodeToBase64 } from './webpack/loaders/utils'
 import { normalizeCatchAllRoutes } from './normalize-catchall-routes'
@@ -267,7 +267,10 @@ export async function createPagesMapping({
 
     let route = pagesType === 'app' ? normalizeMetadataRoute(pageKey) : pageKey
 
-    if (isMetadataRoute(route) && pagesType === 'app') {
+    if (
+      pagesType === 'app' &&
+      isMetadataRouteFile(pagePath, pageExtensions, true)
+    ) {
       const filePath = join(appDir!, pagePath)
       const staticInfo = await getPageStaticInfo({
         nextConfig: {},
@@ -373,11 +376,14 @@ export function getEdgeServerEntry(opts: {
       absolutePagePath: opts.absolutePagePath,
       page: opts.page,
       appDirLoader: Buffer.from(opts.appDirLoader || '').toString('base64'),
-      nextConfigOutput: opts.config.output,
+      nextConfig: Buffer.from(JSON.stringify(opts.config)).toString('base64'),
       preferredRegion: opts.preferredRegion,
       middlewareConfig: Buffer.from(
         JSON.stringify(opts.middlewareConfig || {})
       ).toString('base64'),
+      cacheHandlers: JSON.stringify(
+        opts.config.experimental.cacheHandlers || {}
+      ),
     }
 
     return {
@@ -438,6 +444,7 @@ export function getEdgeServerEntry(opts: {
       JSON.stringify(opts.middlewareConfig || {})
     ).toString('base64'),
     serverActions: opts.config.experimental.serverActions,
+    cacheHandlers: JSON.stringify(opts.config.experimental.cacheHandlers || {}),
   }
 
   return {
@@ -671,7 +678,6 @@ export async function createEntrypoints(
               basePath: config.basePath,
               assetPrefix: config.assetPrefix,
               nextConfigOutput: config.output,
-              flyingShuttle: Boolean(config.experimental.flyingShuttle),
               nextConfigExperimentalUseEarlyImport: config.experimental
                 .useEarlyImport
                 ? true
@@ -737,7 +743,6 @@ export async function createEntrypoints(
                 basePath: config.basePath,
                 assetPrefix: config.assetPrefix,
                 nextConfigOutput: config.output,
-                flyingShuttle: Boolean(config.experimental.flyingShuttle),
                 // This isn't used with edge as it needs to be set on the entry module, which will be the `edgeServerEntry` instead.
                 // Still passing it here for consistency.
                 preferredRegion: staticInfo.preferredRegion,

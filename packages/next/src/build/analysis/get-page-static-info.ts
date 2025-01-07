@@ -2,7 +2,7 @@ import type { NextConfig } from '../../server/config-shared'
 import type { RouteHas } from '../../lib/load-custom-routes'
 
 import { promises as fs } from 'fs'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../../server/lib/lru-cache'
 import {
   extractExportedConstValue,
   UnsupportedValueError,
@@ -135,14 +135,18 @@ export function getRSCModuleInformation(
     }
   }
 
-  const clientRefs = clientInfoMatch?.[1]?.split(',')
-  const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto'
+  const clientRefsString = clientInfoMatch?.[1]
+  const clientRefs = clientRefsString ? clientRefsString.split(',') : []
+  const clientEntryType = clientInfoMatch?.[2] as 'cjs' | 'auto' | undefined
 
-  const type = clientRefs ? RSC_MODULE_TYPES.client : RSC_MODULE_TYPES.server
+  const type = clientInfoMatch
+    ? RSC_MODULE_TYPES.client
+    : RSC_MODULE_TYPES.server
 
   return {
     type,
     actions,
+    actionIds: parsedActionsMeta,
     clientRefs,
     clientEntryType,
     isClientRef,
@@ -339,7 +343,7 @@ export function getMiddlewareMatchers(
     source = `/:nextData(_next/data/[^/]{1,})?${source}${
       isRoot
         ? `(${nextConfig.i18n ? '|\\.json|' : ''}/?index|/?index\\.json)?`
-        : '(.json)?'
+        : '{(\\.json)}?'
     }`
 
     if (nextConfig.basePath) {
@@ -406,7 +410,7 @@ function parseMiddlewareConfig(
   return config
 }
 
-const apiRouteWarnings = new LRUCache({ max: 250 })
+const apiRouteWarnings = new LRUCache(250)
 function warnAboutExperimentalEdge(apiRoute: string | null) {
   if (
     process.env.NODE_ENV === 'production' &&
@@ -428,7 +432,7 @@ function warnAboutExperimentalEdge(apiRoute: string | null) {
 }
 
 export let hadUnsupportedValue = false
-const warnedUnsupportedValueMap = new LRUCache<string, boolean>({ max: 250 })
+const warnedUnsupportedValueMap = new LRUCache<boolean>(250, () => 1)
 
 function warnAboutUnsupportedValue(
   pageFilePath: string,

@@ -23,10 +23,8 @@ import {
 import { getReactCompilerLoader } from '../get-babel-loader-config'
 import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
-  ExternalObject,
   NapiPartialProjectOptions,
   NapiProjectOptions,
-  NextTurboTasks,
 } from './generated-native'
 import type {
   Binding,
@@ -748,13 +746,26 @@ function bindingToApi(
     }
 
     traceSource(
-      stackFrame: TurbopackStackFrame
+      stackFrame: TurbopackStackFrame,
+      currentDirectoryFileUrl: string
     ): Promise<TurbopackStackFrame | null> {
-      return binding.projectTraceSource(this._nativeProject, stackFrame)
+      return binding.projectTraceSource(
+        this._nativeProject,
+        stackFrame,
+        currentDirectoryFileUrl
+      )
     }
 
     getSourceForAsset(filePath: string): Promise<string | null> {
       return binding.projectGetSourceForAsset(this._nativeProject, filePath)
+    }
+
+    getSourceMap(filePath: string): Promise<string | null> {
+      return binding.projectGetSourceMap(this._nativeProject, filePath)
+    }
+
+    getSourceMapSync(filePath: string): string | null {
+      return binding.projectGetSourceMapSync(this._nativeProject, filePath)
     }
 
     updateInfoSubscribe(aggregationMs: number) {
@@ -1050,18 +1061,6 @@ async function loadWasm(importPath = '') {
           return undefined
         },
         turbo: {
-          startTrace() {
-            Log.error('Wasm binding does not support trace yet')
-          },
-          createTurboTasks: function (
-            _outputPath: string,
-            _persistentCaching: boolean,
-            _memoryLimit?: number | undefined
-          ): ExternalObject<NextTurboTasks> {
-            throw new Error(
-              '`turbo.createTurboTasks` is not supported by the wasm bindings.'
-            )
-          },
           createProject: function (
             _options: ProjectOptions,
             _turboEngineOptions?: TurboEngineOptions | undefined
@@ -1229,24 +1228,6 @@ function loadNative(importPath?: string) {
       initHeapProfiler: bindings.initHeapProfiler,
       teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
-        startTrace(options = {}, turboTasks: ExternalObject<NextTurboTasks>) {
-          initHeapProfiler()
-          return (customBindings ?? bindings).runTurboTracing(
-            toBuffer({ exact: true, ...options }),
-            turboTasks
-          )
-        },
-        createTurboTasks(
-          outputPath: string,
-          persistentCaching: boolean,
-          memoryLimit?: number
-        ): ExternalObject<NextTurboTasks> {
-          return bindings.createTurboTasks(
-            outputPath,
-            persistentCaching,
-            memoryLimit
-          )
-        },
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
           Log.warn(

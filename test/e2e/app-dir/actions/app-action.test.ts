@@ -78,14 +78,21 @@ describe('app-dir action handling', () => {
 
     await browser.elementByCss('#submit').click()
 
-    const logs = await browser.log()
-    expect(
-      logs.some((log) =>
-        log.message.includes(
-          'Only plain objects, and a few built-ins, can be passed to Server Actions. Classes or null prototypes are not supported.'
-        )
+    await retry(async () => {
+      const logs = await browser.log()
+
+      expect(logs).toMatchObject(
+        expect.arrayContaining([
+          expect.objectContaining({
+            message: expect.stringContaining(
+              isNextDev
+                ? 'Cannot access value on the server.'
+                : GENERIC_RSC_ERROR.replace(/^Error: /, '')
+            ),
+          }),
+        ])
       )
-    ).toBe(true)
+    })
   })
 
   it('should propagate errors from a `text/plain` response to an error boundary', async () => {
@@ -821,6 +828,24 @@ describe('app-dir action handling', () => {
     ).toBe(true)
   })
 
+  // we don't have access to runtime logs on deploy
+  if (!isNextDeploy) {
+    it('should keep action instances identical', async () => {
+      const logs: string[] = []
+      next.on('stdout', (log) => {
+        logs.push(log)
+      })
+
+      const browser = await next.browser('/identity')
+
+      await browser.elementByCss('button').click()
+
+      await retry(() => {
+        expect(logs.join('')).toContain('result: true')
+      })
+    })
+  }
+
   it.each(['node', 'edge'])(
     'should forward action request to a worker that contains the action handler (%s)',
     async (runtime) => {
@@ -1248,10 +1273,10 @@ describe('app-dir action handling', () => {
         )
         expect(await browser.url()).toBe(`${next.url}/pages-dir`)
         expect(mpaTriggered).toBe(true)
-      })
+      }, 5000)
     })
 
-    it('should handle revalidatePath', async () => {
+    it('should handle unstable_expirePath', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1274,7 +1299,7 @@ describe('app-dir action handling', () => {
       })
     })
 
-    it('should handle revalidateTag', async () => {
+    it('should handle unstable_expireTag', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1298,7 +1323,7 @@ describe('app-dir action handling', () => {
     })
 
     // TODO: investigate flakey behavior with revalidate
-    it.skip('should handle revalidateTag + redirect', async () => {
+    it.skip('should handle unstable_expireTag + redirect', async () => {
       const browser = await next.browser('/revalidate')
       const randomNumber = await browser.elementByCss('#random-number').text()
       const justPutIt = await browser.elementByCss('#justputit').text()
@@ -1561,6 +1586,16 @@ describe('app-dir action handling', () => {
       const html = await res.text()
       expect(html).not.toContain('qwerty123')
       expect(html).not.toContain('some-module-level-encryption-value')
+    })
+
+    it('should be able to resolve other server actions and client components', async () => {
+      const browser = await next.browser('/encryption')
+      expect(await browser.elementByCss('p').text()).toBe('initial')
+      await browser.elementByCss('button').click()
+
+      await retry(async () => {
+        expect(await browser.elementByCss('p').text()).toBe('hello from client')
+      })
     })
   })
 

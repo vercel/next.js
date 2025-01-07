@@ -2,20 +2,18 @@
 title: {{title}}
 ---
 
-## `{{errorId}}`
-
-#### Why This Error Occurred
+## Why This Error Occurred
 
 <!-- Explain why the error occurred. Ensure the description makes it clear why the warning/error exists -->
 
 {{why}}
 
-#### Possible Ways to Fix It
+## Possible Ways to Fix It
 
 <!-- Explain how to fix the warning/error, potentially by providing alternative approaches. Ensure this section is actionable by users -->
 
 {{fix}}
 
-### Useful Links
+## Useful Links
 
 <!-- Add links to relevant documentation -->

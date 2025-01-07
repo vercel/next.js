@@ -1,4 +1,6 @@
-declare const __turbopack_external_require__: (id: string) => any;
+declare const __turbopack_external_require__: (id: string, thunk: () => any, esm?: boolean) => any;
+
+import type {Processor} from "postcss";
 
 // @ts-ignore
 import postcss from "@vercel/turbopack/postcss";
@@ -20,7 +22,7 @@ function toPath(file: string) {
   return sep !== "/" ? relPath.replaceAll(sep, "/") : relPath;
 }
 
-let processor: any;
+let processor: Processor | undefined;
 
 export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
   let config = importedConfig;
@@ -54,7 +56,7 @@ export const init = async (ipc: Ipc<IpcInfoMessage, IpcRequestMessage>) => {
       let pluginFactory = arg;
 
       if (typeof pluginFactory === "string") {
-        pluginFactory = __turbopack_external_require__(pluginFactory);
+        pluginFactory = require(/* turbopackIgnore: true */ pluginFactory);
       }
 
       if (pluginFactory.default) {
@@ -74,7 +76,7 @@ export default async function transform(
   cssContent: string,
   name: string
 ) {
-  const { css, map, messages } = await processor.process(cssContent, {
+  const { css, map, messages } = await processor!.process(cssContent, {
     from: name,
     to: name,
     map: {
@@ -97,7 +99,7 @@ export default async function transform(
           // There is also an info field, which we currently ignore
         });
         break;
-      case "file-dependency":
+      case "dependency":
       case "missing-dependency":
         ipc.sendInfo({
           type: "fileDependency",

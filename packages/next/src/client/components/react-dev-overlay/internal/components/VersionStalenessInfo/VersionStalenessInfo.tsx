@@ -28,7 +28,7 @@ export function VersionStalenessInfo({
           (learn more)
         </a>
       )}
-      {process.env.TURBOPACK ? ' (turbo)' : ''}
+      {process.env.TURBOPACK ? ' (Turbopack)' : ''}
     </span>
   )
 }

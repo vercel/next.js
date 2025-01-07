@@ -2,20 +2,13 @@ use std::collections::HashMap;
 
 use anyhow::Result;
 use async_trait::async_trait;
-use indexmap::IndexMap;
 use modularize_imports::{modularize_imports, Config, PackageConfig};
 use serde::{Deserialize, Serialize};
-use swc_core::{
-    common::util::take::Take,
-    ecma::{
-        ast::{Module, Program},
-        visit::FoldWith,
-    },
-};
-use turbo_tasks::trace::TraceRawVcs;
+use swc_core::ecma::ast::Program;
+use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
 #[serde(rename_all = "camelCase")]
 pub struct ModularizeImportPackageConfig {
     pub transform: String,
@@ -31,7 +24,7 @@ pub struct ModularizeImportsTransformer {
 }
 
 impl ModularizeImportsTransformer {
-    pub fn new(packages: &IndexMap<String, ModularizeImportPackageConfig>) -> Self {
+    pub fn new(packages: &FxIndexMap<String, ModularizeImportPackageConfig>) -> Self {
         Self {
             packages: packages
                 .iter()
@@ -56,8 +49,7 @@ impl ModularizeImportsTransformer {
 impl CustomTransformer for ModularizeImportsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "modularize_imports", skip_all)]
     async fn transform(&self, program: &mut Program, _ctx: &TransformContext<'_>) -> Result<()> {
-        let p = std::mem::replace(program, Program::Module(Module::dummy()));
-        *program = p.fold_with(&mut modularize_imports(Config {
+        program.mutate(modularize_imports(Config {
             packages: self.packages.clone(),
         }));
 

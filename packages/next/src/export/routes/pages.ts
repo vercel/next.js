@@ -1,8 +1,13 @@
 import type { ExportRouteResult, FileWriter } from '../types'
-import type { RenderOpts } from '../../server/render'
+import type {
+  PagesRenderContext,
+  PagesSharedContext,
+  RenderOpts,
+} from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
+import type { Params } from '../../server/request/params'
 
 import RenderResult from '../../server/render-result'
 import { join } from 'path'
@@ -36,6 +41,7 @@ export async function exportPagesPage(
   path: string,
   page: string,
   query: NextParsedUrlQuery,
+  params: Params | undefined,
   htmlFilepath: string,
   htmlFilename: string,
   ampPath: string,
@@ -45,6 +51,8 @@ export async function exportPagesPage(
   pagesDataDir: string,
   buildExport: boolean,
   isDynamic: boolean,
+  sharedContext: PagesSharedContext,
+  renderContext: PagesRenderContext,
   hasOrigQueryValues: boolean,
   renderOpts: RenderOpts,
   components: LoadComponentsReturnType,
@@ -73,6 +81,15 @@ export async function exportPagesPage(
   // prerendered the file
   if (!buildExport && components.getStaticProps && !isDynamic) {
     return
+  }
+
+  // Pages router merges page params (e.g. [lang]) with query params
+  // primarily to support them both being accessible on `useRouter().query`.
+  // If we extracted dynamic params from the path, we need to merge them
+  // back into the query object.
+  const searchAndDynamicParams = {
+    ...query,
+    ...params,
   }
 
   if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
@@ -105,8 +122,10 @@ export async function exportPagesPage(
         req,
         res,
         page,
-        query,
-        renderOpts
+        searchAndDynamicParams,
+        renderOpts,
+        sharedContext,
+        renderContext
       )
     } catch (err) {
       if (!isBailoutToCSRError(err)) throw err
@@ -161,8 +180,10 @@ export async function exportPagesPage(
           req,
           res,
           page,
-          { ...query, amp: '1' },
-          renderOpts
+          { ...searchAndDynamicParams, amp: '1' },
+          renderOpts,
+          sharedContext,
+          renderContext
         )
       } catch (err) {
         if (!isBailoutToCSRError(err)) throw err

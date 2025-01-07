@@ -24,6 +24,3 @@ pub trait CodeGenerateable {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<CodeGeneration>;
 }
-
-#[turbo_tasks::value(transparent)]
-pub struct CodeGenerateables(Vec<Vc<Box<dyn CodeGenerateable>>>);

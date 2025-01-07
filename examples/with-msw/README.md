@@ -16,6 +16,14 @@ The service worker file will automatically be generated in `public/mockServiceWo
 npx msw init public/
 ```
 
+```bash
+yarn msw init public/
+```
+
+```bash
+pnpm msw init public/
+```
+
 More information on this setup step can be found in the MSW documentation [here](https://mswjs.io/docs/getting-started/integrate/browser#setup).
 
 ## Deploy your own

@@ -33,4 +33,5 @@ DEALINGS IN THE SOFTWARE.
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod chain_transforms;
+mod linter;
 pub mod transforms;

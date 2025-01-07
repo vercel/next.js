@@ -47,7 +47,7 @@ const unsupportedTurbopackNextConfigOptions = [
   'experimental.urlImports',
 ]
 
-// The following will need to be supported by `next build --turbo`
+// The following will need to be supported by `next build --turbopack`
 const unsupportedProductionSpecificTurbopackNextConfigOptions: string[] = [
   // TODO: Support disabling sourcemaps, currently they're always enabled.
   // 'productionBrowserSourceMaps',
@@ -171,7 +171,7 @@ export async function validateTurboNextConfig({
   }
 
   const feedbackMessage = `Learn more about Next.js and Turbopack: ${underline(
-    'https://nextjs.link/with-turbopack'
+    'https://nextjs.org/docs/architecture/turbopack'
   )}\n`
 
   if (hasWebpackConfig && !hasTurboConfig) {

@@ -10,9 +10,10 @@ use swc_core::{
     },
     quote, quote_expr,
 };
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, RcStr, ReadRef, TryJoinIterExt, Value,
-    ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc,
+    TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
@@ -20,7 +21,7 @@ use turbopack_core::{
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
@@ -32,9 +33,9 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct AmdDefineAssetReference {
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    request: Vc<Request>,
-    issue_source: Vc<IssueSource>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    request: ResolvedVc<Request>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
 }
 
@@ -42,9 +43,9 @@ pub struct AmdDefineAssetReference {
 impl AmdDefineAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(AmdDefineAssetReference {
@@ -61,10 +62,10 @@ impl ModuleReference for AmdDefineAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
-            try_to_severity(self.in_try),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
+            self.in_try,
         )
     }
 }
@@ -82,10 +83,20 @@ impl ValueToString for AmdDefineAssetReference {
 #[turbo_tasks::value_impl]
 impl ChunkableModuleReference for AmdDefineAssetReference {}
 
-#[derive(ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Clone)]
+#[derive(
+    ValueDebugFormat,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Clone,
+    NonLocalValue,
+)]
 pub enum AmdDefineDependencyElement {
     Request {
-        request: Vc<Request>,
+        request: ResolvedVc<Request>,
         request_str: String,
     },
     Exports,
@@ -94,7 +105,16 @@ pub enum AmdDefineDependencyElement {
 }
 
 #[derive(
-    ValueDebugFormat, Debug, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, Copy, Clone,
+    ValueDebugFormat,
+    Debug,
+    PartialEq,
+    Eq,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    Copy,
+    Clone,
+    NonLocalValue,
 )]
 pub enum AmdDefineFactoryType {
     Unknown,
@@ -106,20 +126,20 @@ pub enum AmdDefineFactoryType {
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
-    origin: Vc<Box<dyn ResolveOrigin>>,
-    path: Vc<AstPath>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    path: ResolvedVc<AstPath>,
     factory_type: AmdDefineFactoryType,
-    issue_source: Vc<IssueSource>,
+    issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
 }
 
 impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        path: Vc<AstPath>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        path: ResolvedVc<AstPath>,
         factory_type: AmdDefineFactoryType,
-        issue_source: Vc<IssueSource>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(AmdDefineWithDependenciesCodeGen {
@@ -152,14 +172,14 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                         request_str,
                     } => ResolvedElement::PatternMapping {
                         pattern_mapping: PatternMapping::resolve_request(
-                            *request,
-                            self.origin,
+                            **request,
+                            *self.origin,
                             Vc::upcast(chunking_context),
                             cjs_resolve(
-                                self.origin,
-                                *request,
-                                Some(self.issue_source),
-                                try_to_severity(self.in_try),
+                                *self.origin,
+                                **request,
+                                Some(*self.issue_source),
+                                self.in_try,
                             ),
                             Value::new(ChunkItem),
                         )

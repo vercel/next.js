@@ -1,5 +1,5 @@
 use std::{
-    collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
+    collections::HashMap, env, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
 };
 
 use anyhow::{anyhow, Context, Result};
@@ -12,6 +12,7 @@ use serde::Serialize;
 use turbo_tasks::{
     trace::TraceRawVcs, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
 };
+use turbo_tasks_backend::{default_backing_storage, DefaultBackingStorage};
 use turbo_tasks_fs::FileContent;
 use turbopack_core::{
     diagnostics::{Diagnostic, DiagnosticContextExt, PlainDiagnostic},
@@ -25,7 +26,9 @@ use crate::util::log_internal_error_and_inform;
 #[derive(Clone)]
 pub enum NextTurboTasks {
     Memory(Arc<TurboTasks<turbo_tasks_memory::MemoryBackend>>),
-    PersistentCaching(Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend>>),
+    PersistentCaching(
+        Arc<TurboTasks<turbo_tasks_backend::TurboTasksBackend<DefaultBackingStorage>>>,
+    ),
 }
 
 impl NextTurboTasks {
@@ -124,15 +127,46 @@ pub fn create_turbo_tasks(
     memory_limit: usize,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
+        let dirty_suffix = if crate::build::GIT_CLEAN
+            || option_env!("CI").is_some_and(|value| !value.is_empty())
+        {
+            ""
+        } else {
+            "-dirty"
+        };
+        #[allow(
+            clippy::const_is_empty,
+            reason = "LAST_TAG might be empty if the tag can't be determined"
+        )]
+        let version_info = if crate::build::LAST_TAG.is_empty() {
+            format!("{}{}", crate::build::SHORT_COMMIT, dirty_suffix)
+        } else {
+            format!(
+                "{}-{}{}",
+                crate::build::LAST_TAG,
+                crate::build::SHORT_COMMIT,
+                dirty_suffix
+            )
+        };
         NextTurboTasks::PersistentCaching(TurboTasks::new(
-            turbo_tasks_backend::TurboTasksBackend::new(Arc::new(
-                turbo_tasks_backend::LmdbBackingStorage::new(&output_path.join("cache/turbopack"))?,
-            )),
+            turbo_tasks_backend::TurboTasksBackend::new(
+                turbo_tasks_backend::BackendOptions {
+                    storage_mode: Some(if std::env::var("TURBO_ENGINE_READ_ONLY").is_ok() {
+                        turbo_tasks_backend::StorageMode::ReadOnly
+                    } else {
+                        turbo_tasks_backend::StorageMode::ReadWrite
+                    }),
+                    ..Default::default()
+                },
+                default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
+            ),
         ))
     } else {
-        NextTurboTasks::Memory(TurboTasks::new(turbo_tasks_memory::MemoryBackend::new(
-            memory_limit,
-        )))
+        let mut backend = turbo_tasks_memory::MemoryBackend::new(memory_limit);
+        if env::var_os("NEXT_TURBOPACK_PRINT_TASK_INVALIDATION").is_some() {
+            backend.print_task_invalidation(true);
+        }
+        NextTurboTasks::Memory(TurboTasks::new(backend))
     })
 }
 

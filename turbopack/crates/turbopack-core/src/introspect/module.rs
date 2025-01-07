@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ValueToString, Vc};
 
 use super::{
     utils::{children_from_module_references, content_to_details},
@@ -7,7 +8,7 @@ use super::{
 };
 use crate::{asset::Asset, module::Module};
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(local)]
 pub struct IntrospectableModule(Vc<Box<dyn Module>>);
 
 #[turbo_tasks::value_impl]

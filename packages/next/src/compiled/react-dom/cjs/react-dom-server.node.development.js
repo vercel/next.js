@@ -738,12 +738,244 @@
       checkHtmlStringCoercion(scriptText);
       return ("" + scriptText).replace(scriptRegex, scriptReplacer);
     }
+    function createRenderState(
+      resumableState,
+      nonce,
+      externalRuntimeConfig,
+      importMap,
+      onHeaders,
+      maxHeadersLength
+    ) {
+      var inlineScriptWithNonce =
+          void 0 === nonce
+            ? startInlineScript
+            : stringToPrecomputedChunk(
+                '<script nonce="' + escapeTextForBrowser(nonce) + '">'
+              ),
+        idPrefix = resumableState.idPrefix;
+      externalRuntimeConfig = [];
+      var bootstrapScriptContent = resumableState.bootstrapScriptContent,
+        bootstrapScripts = resumableState.bootstrapScripts,
+        bootstrapModules = resumableState.bootstrapModules;
+      void 0 !== bootstrapScriptContent &&
+        externalRuntimeConfig.push(
+          inlineScriptWithNonce,
+          escapeEntireInlineScriptContent(bootstrapScriptContent),
+          endInlineScript
+        );
+      bootstrapScriptContent = [];
+      void 0 !== importMap &&
+        (bootstrapScriptContent.push(importMapScriptStart),
+        bootstrapScriptContent.push(
+          escapeEntireInlineScriptContent(JSON.stringify(importMap))
+        ),
+        bootstrapScriptContent.push(importMapScriptEnd));
+      onHeaders &&
+        "number" === typeof maxHeadersLength &&
+        0 >= maxHeadersLength &&
+        console.error(
+          "React expected a positive non-zero `maxHeadersLength` option but found %s instead. When using the `onHeaders` option you may supply an optional `maxHeadersLength` option as well however, when setting this value to zero or less no headers will be captured.",
+          0 === maxHeadersLength ? "zero" : maxHeadersLength
+        );
+      importMap = onHeaders
+        ? {
+            preconnects: "",
+            fontPreloads: "",
+            highImagePreloads: "",
+            remainingCapacity:
+              2 +
+              ("number" === typeof maxHeadersLength ? maxHeadersLength : 2e3)
+          }
+        : null;
+      onHeaders = {
+        placeholderPrefix: stringToPrecomputedChunk(idPrefix + "P:"),
+        segmentPrefix: stringToPrecomputedChunk(idPrefix + "S:"),
+        boundaryPrefix: stringToPrecomputedChunk(idPrefix + "B:"),
+        startInlineScript: inlineScriptWithNonce,
+        htmlChunks: null,
+        headChunks: null,
+        externalRuntimeScript: null,
+        bootstrapChunks: externalRuntimeConfig,
+        importMapChunks: bootstrapScriptContent,
+        onHeaders: onHeaders,
+        headers: importMap,
+        resets: {
+          font: {},
+          dns: {},
+          connect: { default: {}, anonymous: {}, credentials: {} },
+          image: {},
+          style: {}
+        },
+        charsetChunks: [],
+        viewportChunks: [],
+        hoistableChunks: [],
+        preconnects: new Set(),
+        fontPreloads: new Set(),
+        highImagePreloads: new Set(),
+        styles: new Map(),
+        bootstrapScripts: new Set(),
+        scripts: new Set(),
+        bulkPreloads: new Set(),
+        preloads: {
+          images: new Map(),
+          stylesheets: new Map(),
+          scripts: new Map(),
+          moduleScripts: new Map()
+        },
+        nonce: nonce,
+        hoistableState: null,
+        stylesToHoist: !1
+      };
+      if (void 0 !== bootstrapScripts)
+        for (importMap = 0; importMap < bootstrapScripts.length; importMap++) {
+          maxHeadersLength = bootstrapScripts[importMap];
+          bootstrapScriptContent = idPrefix = void 0;
+          var props = {
+            rel: "preload",
+            as: "script",
+            fetchPriority: "low",
+            nonce: nonce
+          };
+          "string" === typeof maxHeadersLength
+            ? (props.href = inlineScriptWithNonce = maxHeadersLength)
+            : ((props.href = inlineScriptWithNonce = maxHeadersLength.src),
+              (props.integrity = bootstrapScriptContent =
+                "string" === typeof maxHeadersLength.integrity
+                  ? maxHeadersLength.integrity
+                  : void 0),
+              (props.crossOrigin = idPrefix =
+                "string" === typeof maxHeadersLength ||
+                null == maxHeadersLength.crossOrigin
+                  ? void 0
+                  : "use-credentials" === maxHeadersLength.crossOrigin
+                    ? "use-credentials"
+                    : ""));
+          preloadBootstrapScriptOrModule(
+            resumableState,
+            onHeaders,
+            inlineScriptWithNonce,
+            props
+          );
+          externalRuntimeConfig.push(
+            startScriptSrc,
+            escapeTextForBrowser(inlineScriptWithNonce)
+          );
+          nonce &&
+            externalRuntimeConfig.push(
+              scriptNonce,
+              escapeTextForBrowser(nonce)
+            );
+          "string" === typeof bootstrapScriptContent &&
+            externalRuntimeConfig.push(
+              scriptIntegirty,
+              escapeTextForBrowser(bootstrapScriptContent)
+            );
+          "string" === typeof idPrefix &&
+            externalRuntimeConfig.push(
+              scriptCrossOrigin,
+              escapeTextForBrowser(idPrefix)
+            );
+          externalRuntimeConfig.push(endAsyncScript);
+        }
+      if (void 0 !== bootstrapModules)
+        for (
+          bootstrapScripts = 0;
+          bootstrapScripts < bootstrapModules.length;
+          bootstrapScripts++
+        )
+          (importMap = bootstrapModules[bootstrapScripts]),
+            (idPrefix = inlineScriptWithNonce = void 0),
+            (bootstrapScriptContent = {
+              rel: "modulepreload",
+              fetchPriority: "low",
+              nonce: nonce
+            }),
+            "string" === typeof importMap
+              ? (bootstrapScriptContent.href = maxHeadersLength = importMap)
+              : ((bootstrapScriptContent.href = maxHeadersLength =
+                  importMap.src),
+                (bootstrapScriptContent.integrity = idPrefix =
+                  "string" === typeof importMap.integrity
+                    ? importMap.integrity
+                    : void 0),
+                (bootstrapScriptContent.crossOrigin = inlineScriptWithNonce =
+                  "string" === typeof importMap || null == importMap.crossOrigin
+                    ? void 0
+                    : "use-credentials" === importMap.crossOrigin
+                      ? "use-credentials"
+                      : "")),
+            preloadBootstrapScriptOrModule(
+              resumableState,
+              onHeaders,
+              maxHeadersLength,
+              bootstrapScriptContent
+            ),
+            externalRuntimeConfig.push(
+              startModuleSrc,
+              escapeTextForBrowser(maxHeadersLength)
+            ),
+            nonce &&
+              externalRuntimeConfig.push(
+                scriptNonce,
+                escapeTextForBrowser(nonce)
+              ),
+            "string" === typeof idPrefix &&
+              externalRuntimeConfig.push(
+                scriptIntegirty,
+                escapeTextForBrowser(idPrefix)
+              ),
+            "string" === typeof inlineScriptWithNonce &&
+              externalRuntimeConfig.push(
+                scriptCrossOrigin,
+                escapeTextForBrowser(inlineScriptWithNonce)
+              ),
+            externalRuntimeConfig.push(endAsyncScript);
+      return onHeaders;
+    }
+    function createResumableState(
+      identifierPrefix,
+      externalRuntimeConfig,
+      bootstrapScriptContent,
+      bootstrapScripts,
+      bootstrapModules
+    ) {
+      return {
+        idPrefix: void 0 === identifierPrefix ? "" : identifierPrefix,
+        nextFormID: 0,
+        streamingFormat: 0,
+        bootstrapScriptContent: bootstrapScriptContent,
+        bootstrapScripts: bootstrapScripts,
+        bootstrapModules: bootstrapModules,
+        instructions: NothingSent,
+        hasBody: !1,
+        hasHtml: !1,
+        unknownResources: {},
+        dnsResources: {},
+        connectResources: { default: {}, anonymous: {}, credentials: {} },
+        imageResources: {},
+        styleResources: {},
+        scriptResources: {},
+        moduleUnknownResources: {},
+        moduleScriptResources: {}
+      };
+    }
     function createFormatContext(insertionMode, selectedValue, tagScope) {
       return {
         insertionMode: insertionMode,
         selectedValue: selectedValue,
         tagScope: tagScope
       };
+    }
+    function createRootFormatContext(namespaceURI) {
+      return createFormatContext(
+        "http://www.w3.org/2000/svg" === namespaceURI
+          ? SVG_MODE
+          : "http://www.w3.org/1998/Math/MathML" === namespaceURI
+            ? MATHML_MODE
+            : ROOT_HTML_MODE,
+        null,
+        0
+      );
     }
     function getChildFormatContext(parentContext, type, props) {
       switch (type) {
@@ -2117,7 +2349,7 @@
                 : children$jscomp$6;
             Array.isArray(children$jscomp$6) && 1 < children$jscomp$6.length
               ? console.error(
-                  "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be commong to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.",
+                  "React expects the `children` prop of <title> tags to be a string, number, bigint, or object with a novel `toString` method but found an Array with length %s instead. Browsers treat all child Nodes of <title> tags as Text content and React expects to be able to convert `children` of <title> tags to a single string value which is why Arrays of length greater than 1 are not supported. When using JSX it can be common to combine text nodes and value nodes. For example: <title>hello {nameOfUser}</title>. While not immediately apparent, `children` in this case is an Array with length 2. If your `children` prop is using this form try rewriting it using a template string: <title>{`hello ${nameOfUser}`}</title>.",
                   children$jscomp$6.length
                 )
               : "function" === typeof child || "symbol" === typeof child
@@ -3683,9 +3915,6 @@
       null === thenableState && (thenableState = []);
       return trackUsedThenable(thenableState, thenable, index);
     }
-    function unsupportedRefresh() {
-      throw Error("Cache cannot be refreshed during server rendering.");
-    }
     function noop$1() {}
     function disabledLog() {}
     function disableLogs() {
@@ -3734,6 +3963,12 @@
           "disabledDepth fell below zero. This is a bug in React. Please file an issue."
         );
     }
+    function prepareStackTrace(error, structuredStackTrace) {
+      error = (error.name || "Error") + ": " + (error.message || "");
+      for (var i = 0; i < structuredStackTrace.length; i++)
+        error += "\n    at " + structuredStackTrace[i].toString();
+      return error;
+    }
     function describeBuiltInComponentFrame(name) {
       if (void 0 === prefix)
         try {
@@ -3756,69 +3991,69 @@
       if (void 0 !== frame) return frame;
       reentry = !0;
       frame = Error.prepareStackTrace;
-      Error.prepareStackTrace = void 0;
+      Error.prepareStackTrace = prepareStackTrace;
       var previousDispatcher = null;
       previousDispatcher = ReactSharedInternals.H;
       ReactSharedInternals.H = null;
       disableLogs();
-      var RunInRootFrame = {
-        DetermineComponentFrameRoot: function () {
-          try {
-            if (construct) {
-              var Fake = function () {
-                throw Error();
-              };
-              Object.defineProperty(Fake.prototype, "props", {
-                set: function () {
+      try {
+        var RunInRootFrame = {
+          DetermineComponentFrameRoot: function () {
+            try {
+              if (construct) {
+                var Fake = function () {
                   throw Error();
+                };
+                Object.defineProperty(Fake.prototype, "props", {
+                  set: function () {
+                    throw Error();
+                  }
+                });
+                if ("object" === typeof Reflect && Reflect.construct) {
+                  try {
+                    Reflect.construct(Fake, []);
+                  } catch (x) {
+                    var control = x;
+                  }
+                  Reflect.construct(fn, [], Fake);
+                } else {
+                  try {
+                    Fake.call();
+                  } catch (x$0) {
+                    control = x$0;
+                  }
+                  fn.call(Fake.prototype);
                 }
-              });
-              if ("object" === typeof Reflect && Reflect.construct) {
-                try {
-                  Reflect.construct(Fake, []);
-                } catch (x) {
-                  var control = x;
-                }
-                Reflect.construct(fn, [], Fake);
               } else {
                 try {
-                  Fake.call();
-                } catch (x$0) {
-                  control = x$0;
+                  throw Error();
+                } catch (x$1) {
+                  control = x$1;
                 }
-                fn.call(Fake.prototype);
+                (Fake = fn()) &&
+                  "function" === typeof Fake.catch &&
+                  Fake.catch(function () {});
               }
-            } else {
-              try {
-                throw Error();
-              } catch (x$1) {
-                control = x$1;
-              }
-              (Fake = fn()) &&
-                "function" === typeof Fake.catch &&
-                Fake.catch(function () {});
+            } catch (sample) {
+              if (sample && control && "string" === typeof sample.stack)
+                return [sample.stack, control.stack];
             }
-          } catch (sample) {
-            if (sample && control && "string" === typeof sample.stack)
-              return [sample.stack, control.stack];
+            return [null, null];
           }
-          return [null, null];
-        }
-      };
-      RunInRootFrame.DetermineComponentFrameRoot.displayName =
-        "DetermineComponentFrameRoot";
-      var namePropDescriptor = Object.getOwnPropertyDescriptor(
-        RunInRootFrame.DetermineComponentFrameRoot,
-        "name"
-      );
-      namePropDescriptor &&
-        namePropDescriptor.configurable &&
-        Object.defineProperty(
+        };
+        RunInRootFrame.DetermineComponentFrameRoot.displayName =
+          "DetermineComponentFrameRoot";
+        var namePropDescriptor = Object.getOwnPropertyDescriptor(
           RunInRootFrame.DetermineComponentFrameRoot,
-          "name",
-          { value: "DetermineComponentFrameRoot" }
+          "name"
         );
-      try {
+        namePropDescriptor &&
+          namePropDescriptor.configurable &&
+          Object.defineProperty(
+            RunInRootFrame.DetermineComponentFrameRoot,
+            "name",
+            { value: "DetermineComponentFrameRoot" }
+          );
         var _RunInRootFrame$Deter =
             RunInRootFrame.DetermineComponentFrameRoot(),
           sampleStack = _RunInRootFrame$Deter[0],
@@ -3827,54 +4062,58 @@
           var sampleLines = sampleStack.split("\n"),
             controlLines = controlStack.split("\n");
           for (
-            sampleStack = _RunInRootFrame$Deter = 0;
-            _RunInRootFrame$Deter < sampleLines.length &&
-            !sampleLines[_RunInRootFrame$Deter].includes(
+            _RunInRootFrame$Deter = namePropDescriptor = 0;
+            namePropDescriptor < sampleLines.length &&
+            !sampleLines[namePropDescriptor].includes(
+              "DetermineComponentFrameRoot"
+            );
+
+          )
+            namePropDescriptor++;
+          for (
+            ;
+            _RunInRootFrame$Deter < controlLines.length &&
+            !controlLines[_RunInRootFrame$Deter].includes(
               "DetermineComponentFrameRoot"
             );
 
           )
             _RunInRootFrame$Deter++;
-          for (
-            ;
-            sampleStack < controlLines.length &&
-            !controlLines[sampleStack].includes("DetermineComponentFrameRoot");
-
-          )
-            sampleStack++;
           if (
-            _RunInRootFrame$Deter === sampleLines.length ||
-            sampleStack === controlLines.length
+            namePropDescriptor === sampleLines.length ||
+            _RunInRootFrame$Deter === controlLines.length
           )
             for (
-              _RunInRootFrame$Deter = sampleLines.length - 1,
-                sampleStack = controlLines.length - 1;
-              1 <= _RunInRootFrame$Deter &&
-              0 <= sampleStack &&
-              sampleLines[_RunInRootFrame$Deter] !== controlLines[sampleStack];
+              namePropDescriptor = sampleLines.length - 1,
+                _RunInRootFrame$Deter = controlLines.length - 1;
+              1 <= namePropDescriptor &&
+              0 <= _RunInRootFrame$Deter &&
+              sampleLines[namePropDescriptor] !==
+                controlLines[_RunInRootFrame$Deter];
 
             )
-              sampleStack--;
+              _RunInRootFrame$Deter--;
           for (
             ;
-            1 <= _RunInRootFrame$Deter && 0 <= sampleStack;
-            _RunInRootFrame$Deter--, sampleStack--
+            1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter;
+            namePropDescriptor--, _RunInRootFrame$Deter--
           )
             if (
-              sampleLines[_RunInRootFrame$Deter] !== controlLines[sampleStack]
+              sampleLines[namePropDescriptor] !==
+              controlLines[_RunInRootFrame$Deter]
             ) {
-              if (1 !== _RunInRootFrame$Deter || 1 !== sampleStack) {
+              if (1 !== namePropDescriptor || 1 !== _RunInRootFrame$Deter) {
                 do
                   if (
-                    (_RunInRootFrame$Deter--,
-                    sampleStack--,
-                    0 > sampleStack ||
-                      sampleLines[_RunInRootFrame$Deter] !==
-                        controlLines[sampleStack])
+                    (namePropDescriptor--,
+                    _RunInRootFrame$Deter--,
+                    0 > _RunInRootFrame$Deter ||
+                      sampleLines[namePropDescriptor] !==
+                        controlLines[_RunInRootFrame$Deter])
                   ) {
                     var _frame =
                       "\n" +
-                      sampleLines[_RunInRootFrame$Deter].replace(
+                      sampleLines[namePropDescriptor].replace(
                         " at new ",
                         " at "
                       );
@@ -3885,7 +4124,7 @@
                       componentFrameCache.set(fn, _frame);
                     return _frame;
                   }
-                while (1 <= _RunInRootFrame$Deter && 0 <= sampleStack);
+                while (1 <= namePropDescriptor && 0 <= _RunInRootFrame$Deter);
               }
               break;
             }
@@ -3906,7 +4145,7 @@
       if ("string" === typeof type) return describeBuiltInComponentFrame(type);
       if ("function" === typeof type)
         return type.prototype && type.prototype.isReactComponent
-          ? ((type = describeNativeComponentFrame(type, !0)), type)
+          ? describeNativeComponentFrame(type, !0)
           : describeNativeComponentFrame(type, !1);
       if ("object" === typeof type && null !== type) {
         switch (type.$$typeof) {
@@ -4024,6 +4263,96 @@
       this.onFatalError = void 0 === onFatalError ? noop : onFatalError;
       this.formState = void 0 === formState ? null : formState;
       this.didWarnForKey = null;
+    }
+    function createRequest(
+      children,
+      resumableState,
+      renderState,
+      rootFormatContext,
+      progressiveChunkSize,
+      onError,
+      onAllReady,
+      onShellReady,
+      onShellError,
+      onFatalError,
+      onPostpone,
+      formState
+    ) {
+      resumableState = new RequestInstance(
+        resumableState,
+        renderState,
+        rootFormatContext,
+        progressiveChunkSize,
+        onError,
+        onAllReady,
+        onShellReady,
+        onShellError,
+        onFatalError,
+        onPostpone,
+        formState
+      );
+      renderState = createPendingSegment(
+        resumableState,
+        0,
+        null,
+        rootFormatContext,
+        !1,
+        !1
+      );
+      renderState.parentFlushed = !0;
+      children = createRenderTask(
+        resumableState,
+        null,
+        children,
+        -1,
+        null,
+        renderState,
+        null,
+        resumableState.abortableTasks,
+        null,
+        rootFormatContext,
+        null,
+        emptyTreeContext,
+        null,
+        !1
+      );
+      pushComponentStack(children);
+      resumableState.pingedTasks.push(children);
+      return resumableState;
+    }
+    function createPrerenderRequest(
+      children,
+      resumableState,
+      renderState,
+      rootFormatContext,
+      progressiveChunkSize,
+      onError,
+      onAllReady,
+      onShellReady,
+      onShellError,
+      onFatalError,
+      onPostpone
+    ) {
+      children = createRequest(
+        children,
+        resumableState,
+        renderState,
+        rootFormatContext,
+        progressiveChunkSize,
+        onError,
+        onAllReady,
+        onShellReady,
+        onShellError,
+        onFatalError,
+        onPostpone,
+        void 0
+      );
+      children.trackedPostpones = {
+        workingMap: new Map(),
+        rootNodes: [],
+        rootSlots: null
+      };
+      return children;
     }
     function resolveRequest() {
       if (currentRequest) return currentRequest;
@@ -4855,7 +5184,6 @@
       } else {
         switch (type) {
           case REACT_LEGACY_HIDDEN_TYPE:
-          case REACT_DEBUG_TRACING_MODE_TYPE:
           case REACT_STRICT_MODE_TYPE:
           case REACT_PROFILER_TYPE:
           case REACT_FRAGMENT_TYPE:
@@ -5209,8 +5537,8 @@
                 key = node.key,
                 props = node.props;
               node = props.ref;
-              var ref = void 0 !== node ? node : null;
-              var name = getComponentNameFromType(type),
+              var ref = void 0 !== node ? node : null,
+                name = getComponentNameFromType(type),
                 keyOrIndex =
                   null == key ? (-1 === childIndex ? 0 : childIndex) : key,
                 keyPath = [task.keyPath, name, keyOrIndex];
@@ -6860,6 +7188,15 @@
         logRecoverableError(request, error$4, {}), fatalError(request, error$4);
       }
     }
+    function ensureCorrectIsomorphicReactVersion() {
+      var isomorphicReactPackageVersion = React.version;
+      if ("19.1.0-canary-7b402084-20250107" !== isomorphicReactPackageVersion)
+        throw Error(
+          'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
+            (isomorphicReactPackageVersion +
+              "\n  - react-dom:  19.1.0-canary-7b402084-20250107\nLearn more: https://react.dev/warnings/version-mismatch")
+        );
+    }
     function createDrainHandler(destination, request) {
       return function () {
         return startFlowing(request, destination);
@@ -6872,225 +7209,25 @@
       };
     }
     function createRequestImpl(children, options) {
-      var resumableState = options ? options.identifierPrefix : void 0;
-      resumableState = {
-        idPrefix: void 0 === resumableState ? "" : resumableState,
-        nextFormID: 0,
-        streamingFormat: 0,
-        bootstrapScriptContent: options
-          ? options.bootstrapScriptContent
-          : void 0,
-        bootstrapScripts: options ? options.bootstrapScripts : void 0,
-        bootstrapModules: options ? options.bootstrapModules : void 0,
-        instructions: NothingSent,
-        hasBody: !1,
-        hasHtml: !1,
-        unknownResources: {},
-        dnsResources: {},
-        connectResources: { default: {}, anonymous: {}, credentials: {} },
-        imageResources: {},
-        styleResources: {},
-        scriptResources: {},
-        moduleUnknownResources: {},
-        moduleScriptResources: {}
-      };
-      var nonce = options ? options.nonce : void 0,
-        importMap = options ? options.importMap : void 0,
-        onHeaders = options ? options.onHeaders : void 0,
-        maxHeadersLength = options ? options.maxHeadersLength : void 0,
-        inlineScriptWithNonce =
-          void 0 === nonce
-            ? startInlineScript
-            : stringToPrecomputedChunk(
-                '<script nonce="' + escapeTextForBrowser(nonce) + '">'
-              ),
-        idPrefix = resumableState.idPrefix,
-        bootstrapChunks = [],
-        bootstrapScriptContent = resumableState.bootstrapScriptContent,
-        bootstrapScripts = resumableState.bootstrapScripts,
-        bootstrapModules = resumableState.bootstrapModules;
-      void 0 !== bootstrapScriptContent &&
-        bootstrapChunks.push(
-          inlineScriptWithNonce,
-          escapeEntireInlineScriptContent(bootstrapScriptContent),
-          endInlineScript
-        );
-      bootstrapScriptContent = [];
-      void 0 !== importMap &&
-        (bootstrapScriptContent.push(importMapScriptStart),
-        bootstrapScriptContent.push(
-          escapeEntireInlineScriptContent(JSON.stringify(importMap))
-        ),
-        bootstrapScriptContent.push(importMapScriptEnd));
-      onHeaders &&
-        "number" === typeof maxHeadersLength &&
-        0 >= maxHeadersLength &&
-        console.error(
-          "React expected a positive non-zero `maxHeadersLength` option but found %s instead. When using the `onHeaders` option you may supply an optional `maxHeadersLength` option as well however, when setting this value to zero or less no headers will be captured.",
-          0 === maxHeadersLength ? "zero" : maxHeadersLength
-        );
-      importMap = onHeaders
-        ? {
-            preconnects: "",
-            fontPreloads: "",
-            highImagePreloads: "",
-            remainingCapacity:
-              2 +
-              ("number" === typeof maxHeadersLength ? maxHeadersLength : 2e3)
-          }
-        : null;
-      onHeaders = {
-        placeholderPrefix: stringToPrecomputedChunk(idPrefix + "P:"),
-        segmentPrefix: stringToPrecomputedChunk(idPrefix + "S:"),
-        boundaryPrefix: stringToPrecomputedChunk(idPrefix + "B:"),
-        startInlineScript: inlineScriptWithNonce,
-        htmlChunks: null,
-        headChunks: null,
-        externalRuntimeScript: null,
-        bootstrapChunks: bootstrapChunks,
-        importMapChunks: bootstrapScriptContent,
-        onHeaders: onHeaders,
-        headers: importMap,
-        resets: {
-          font: {},
-          dns: {},
-          connect: { default: {}, anonymous: {}, credentials: {} },
-          image: {},
-          style: {}
-        },
-        charsetChunks: [],
-        viewportChunks: [],
-        hoistableChunks: [],
-        preconnects: new Set(),
-        fontPreloads: new Set(),
-        highImagePreloads: new Set(),
-        styles: new Map(),
-        bootstrapScripts: new Set(),
-        scripts: new Set(),
-        bulkPreloads: new Set(),
-        preloads: {
-          images: new Map(),
-          stylesheets: new Map(),
-          scripts: new Map(),
-          moduleScripts: new Map()
-        },
-        nonce: nonce,
-        hoistableState: null,
-        stylesToHoist: !1
-      };
-      if (void 0 !== bootstrapScripts)
-        for (
-          inlineScriptWithNonce = 0;
-          inlineScriptWithNonce < bootstrapScripts.length;
-          inlineScriptWithNonce++
-        ) {
-          idPrefix = bootstrapScripts[inlineScriptWithNonce];
-          bootstrapScriptContent = maxHeadersLength = void 0;
-          var props = {
-            rel: "preload",
-            as: "script",
-            fetchPriority: "low",
-            nonce: nonce
-          };
-          "string" === typeof idPrefix
-            ? (props.href = importMap = idPrefix)
-            : ((props.href = importMap = idPrefix.src),
-              (props.integrity = bootstrapScriptContent =
-                "string" === typeof idPrefix.integrity
-                  ? idPrefix.integrity
-                  : void 0),
-              (props.crossOrigin = maxHeadersLength =
-                "string" === typeof idPrefix || null == idPrefix.crossOrigin
-                  ? void 0
-                  : "use-credentials" === idPrefix.crossOrigin
-                    ? "use-credentials"
-                    : ""));
-          preloadBootstrapScriptOrModule(
-            resumableState,
-            onHeaders,
-            importMap,
-            props
-          );
-          bootstrapChunks.push(startScriptSrc, escapeTextForBrowser(importMap));
-          nonce &&
-            bootstrapChunks.push(scriptNonce, escapeTextForBrowser(nonce));
-          "string" === typeof bootstrapScriptContent &&
-            bootstrapChunks.push(
-              scriptIntegirty,
-              escapeTextForBrowser(bootstrapScriptContent)
-            );
-          "string" === typeof maxHeadersLength &&
-            bootstrapChunks.push(
-              scriptCrossOrigin,
-              escapeTextForBrowser(maxHeadersLength)
-            );
-          bootstrapChunks.push(endAsyncScript);
-        }
-      if (void 0 !== bootstrapModules)
-        for (
-          bootstrapScripts = 0;
-          bootstrapScripts < bootstrapModules.length;
-          bootstrapScripts++
-        )
-          (inlineScriptWithNonce = bootstrapModules[bootstrapScripts]),
-            (maxHeadersLength = importMap = void 0),
-            (bootstrapScriptContent = {
-              rel: "modulepreload",
-              fetchPriority: "low",
-              nonce: nonce
-            }),
-            "string" === typeof inlineScriptWithNonce
-              ? (bootstrapScriptContent.href = idPrefix = inlineScriptWithNonce)
-              : ((bootstrapScriptContent.href = idPrefix =
-                  inlineScriptWithNonce.src),
-                (bootstrapScriptContent.integrity = maxHeadersLength =
-                  "string" === typeof inlineScriptWithNonce.integrity
-                    ? inlineScriptWithNonce.integrity
-                    : void 0),
-                (bootstrapScriptContent.crossOrigin = importMap =
-                  "string" === typeof inlineScriptWithNonce ||
-                  null == inlineScriptWithNonce.crossOrigin
-                    ? void 0
-                    : "use-credentials" === inlineScriptWithNonce.crossOrigin
-                      ? "use-credentials"
-                      : "")),
-            preloadBootstrapScriptOrModule(
-              resumableState,
-              onHeaders,
-              idPrefix,
-              bootstrapScriptContent
-            ),
-            bootstrapChunks.push(
-              startModuleSrc,
-              escapeTextForBrowser(idPrefix)
-            ),
-            nonce &&
-              bootstrapChunks.push(scriptNonce, escapeTextForBrowser(nonce)),
-            "string" === typeof maxHeadersLength &&
-              bootstrapChunks.push(
-                scriptIntegirty,
-                escapeTextForBrowser(maxHeadersLength)
-              ),
-            "string" === typeof importMap &&
-              bootstrapChunks.push(
-                scriptCrossOrigin,
-                escapeTextForBrowser(importMap)
-              ),
-            bootstrapChunks.push(endAsyncScript);
-      nonce = options ? options.namespaceURI : void 0;
-      nonce = createFormatContext(
-        "http://www.w3.org/2000/svg" === nonce
-          ? SVG_MODE
-          : "http://www.w3.org/1998/Math/MathML" === nonce
-            ? MATHML_MODE
-            : ROOT_HTML_MODE,
-        null,
-        0
+      var resumableState = createResumableState(
+        options ? options.identifierPrefix : void 0,
+        options ? options.unstable_externalRuntimeSrc : void 0,
+        options ? options.bootstrapScriptContent : void 0,
+        options ? options.bootstrapScripts : void 0,
+        options ? options.bootstrapModules : void 0
       );
-      options = new RequestInstance(
+      return createRequest(
+        children,
         resumableState,
-        onHeaders,
-        nonce,
+        createRenderState(
+          resumableState,
+          options ? options.nonce : void 0,
+          options ? options.unstable_externalRuntimeSrc : void 0,
+          options ? options.importMap : void 0,
+          options ? options.onHeaders : void 0,
+          options ? options.maxHeadersLength : void 0
+        ),
+        createRootFormatContext(options ? options.namespaceURI : void 0),
         options ? options.progressiveChunkSize : void 0,
         options ? options.onError : void 0,
         options ? options.onAllReady : void 0,
@@ -7100,33 +7237,26 @@
         options ? options.onPostpone : void 0,
         options ? options.formState : void 0
       );
-      resumableState = createPendingSegment(options, 0, null, nonce, !1, !1);
-      resumableState.parentFlushed = !0;
-      children = createRenderTask(
-        options,
-        null,
-        children,
-        -1,
-        null,
-        resumableState,
-        null,
-        options.abortableTasks,
-        null,
-        nonce,
-        null,
-        emptyTreeContext,
-        null,
-        !1
-      );
-      pushComponentStack(children);
-      options.pingedTasks.push(children);
-      return options;
+    }
+    function createFakeWritable(readable) {
+      return {
+        write: function (chunk) {
+          return readable.push(chunk);
+        },
+        end: function () {
+          readable.push(null);
+        },
+        destroy: function (error) {
+          readable.destroy(error);
+        }
+      };
     }
     var util = require("util"),
       crypto = require("crypto"),
       async_hooks = require("async_hooks"),
       React = require("next/dist/compiled/react"),
       ReactDOM = require("next/dist/compiled/react-dom"),
+      stream = require("stream"),
       REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
       REACT_PORTAL_TYPE = Symbol.for("react.portal"),
       REACT_FRAGMENT_TYPE = Symbol.for("react.fragment"),
@@ -7141,10 +7271,8 @@
       REACT_MEMO_TYPE = Symbol.for("react.memo"),
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_SCOPE_TYPE = Symbol.for("react.scope"),
-      REACT_DEBUG_TRACING_MODE_TYPE = Symbol.for("react.debug_trace_mode"),
       REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
       REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
-      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       isArrayImpl = Array.isArray,
       jsxPropsParents = new WeakMap(),
@@ -8438,7 +8566,7 @@
       log = Math.log,
       LN2 = Math.LN2,
       SuspenseException = Error(
-        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`"
+        "Suspense Exception: This is not a real error! It's an implementation detail of `use` to interrupt the current render. You must either rethrow it immediately, or move the `use` call outside of the `try/catch` block. Capturing without rethrowing will lead to unexpected behavior.\n\nTo handle async errors, wrap your component in an error boundary, or call the promise's `.catch` method and pass the result to `use`."
       ),
       suspendedThenable = null,
       objectIs = "function" === typeof Object.is ? Object.is : is,
@@ -8538,26 +8666,18 @@
             );
           return getServerSnapshot();
         },
-        useCacheRefresh: function () {
-          return unsupportedRefresh;
-        },
-        useMemoCache: function (size) {
-          for (var data = Array(size), i = 0; i < size; i++)
-            data[i] = REACT_MEMO_CACHE_SENTINEL;
-          return data;
-        },
-        useHostTransitionStatus: function () {
-          resolveCurrentlyRenderingComponent();
-          return NotPending;
-        },
         useOptimistic: function (passthrough) {
           resolveCurrentlyRenderingComponent();
           return [passthrough, unsupportedSetOptimisticState];
+        },
+        useActionState: useActionState,
+        useFormState: useActionState,
+        useHostTransitionStatus: function () {
+          resolveCurrentlyRenderingComponent();
+          return NotPending;
         }
-      };
-    HooksDispatcher.useFormState = useActionState;
-    HooksDispatcher.useActionState = useActionState;
-    var currentResumableState = null,
+      },
+      currentResumableState = null,
       currentTaskInDEV = null,
       DefaultAsyncDispatcher = {
         getCacheForType: function () {
@@ -8619,15 +8739,59 @@
       didWarnAboutReassigningProps = !1,
       didWarnAboutGenerators = !1,
       didWarnAboutMaps = !1;
-    (function () {
-      var isomorphicReactPackageVersion = React.version;
-      if ("19.0.0-rc-2d16326d-20240930" !== isomorphicReactPackageVersion)
-        throw Error(
-          'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
-            (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.0.0-rc-2d16326d-20240930\nLearn more: https://react.dev/warnings/version-mismatch")
-        );
-    })();
+    ensureCorrectIsomorphicReactVersion();
+    ensureCorrectIsomorphicReactVersion();
+    exports.prerenderToNodeStream = function (children, options) {
+      return new Promise(function (resolve, reject) {
+        var resumableState = createResumableState(
+            options ? options.identifierPrefix : void 0,
+            options ? options.unstable_externalRuntimeSrc : void 0,
+            options ? options.bootstrapScriptContent : void 0,
+            options ? options.bootstrapScripts : void 0,
+            options ? options.bootstrapModules : void 0
+          ),
+          request = createPrerenderRequest(
+            children,
+            resumableState,
+            createRenderState(
+              resumableState,
+              void 0,
+              options ? options.unstable_externalRuntimeSrc : void 0,
+              options ? options.importMap : void 0,
+              options ? options.onHeaders : void 0,
+              options ? options.maxHeadersLength : void 0
+            ),
+            createRootFormatContext(options ? options.namespaceURI : void 0),
+            options ? options.progressiveChunkSize : void 0,
+            options ? options.onError : void 0,
+            function () {
+              var readable = new stream.Readable({
+                  read: function () {
+                    startFlowing(request, writable);
+                  }
+                }),
+                writable = createFakeWritable(readable);
+              resolve({ prelude: readable });
+            },
+            void 0,
+            void 0,
+            reject,
+            options ? options.onPostpone : void 0
+          );
+        if (options && options.signal) {
+          var signal = options.signal;
+          if (signal.aborted) abort(request, signal.reason);
+          else {
+            var listener = function () {
+              abort(request, signal.reason);
+              signal.removeEventListener("abort", listener);
+            };
+            signal.addEventListener("abort", listener);
+          }
+        }
+        startWork(request);
+      });
+    };
     exports.renderToPipeableStream = function (children, options) {
       var request = createRequestImpl(children, options),
         hasStartedFlowing = !1;
@@ -8667,5 +8831,5 @@
         }
       };
     };
-    exports.version = "19.0.0-rc-2d16326d-20240930";
+    exports.version = "19.1.0-canary-7b402084-20250107";
   })();
