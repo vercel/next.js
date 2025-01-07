@@ -1,32 +1,58 @@
 import { nextTestSetup } from 'e2e-utils'
+import { retry, waitFor, createMultiDomMatcher } from 'next-test-utils'
 
 describe('metadata-streaming', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
 
-  // Recommended for tests that check HTML. Cheerio is a HTML parser that has a jQuery like API.
-  it('should work using cheerio', async () => {
+  it('should load the page without delayed metadata', async () => {
     const $ = await next.render$('/')
-    expect($('p').text()).toBe('hello world')
+    expect($('title').length).toBe(0)
   })
 
-  // Recommended for tests that need a full browser
-  it('should work using browser', async () => {
+  it('should still load viewport meta tags even if metadata is delayed', async () => {
+    const $ = await next.render$('/slow')
+
+    expect($('meta[name="viewport"]').attr('content')).toBe(
+      'width=device-width, initial-scale=1'
+    )
+    expect($('meta[charset]').attr('charset')).toBe('utf-8')
+  })
+
+  it('should render the metadata in the browser', async () => {
     const browser = await next.browser('/')
-    expect(await browser.elementByCss('p').text()).toBe('hello world')
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe('index page')
+    })
   })
 
-  // In case you need the full HTML. Can also use $.html() with cheerio.
-  it('should work with html', async () => {
-    const html = await next.render('/')
-    expect(html).toContain('hello world')
-  })
+  it('should load the initial html without slow metadata during navigation', async () => {
+    // navigate from / to /slow, the metadata should be empty first, e.g. no title.
+    // then the metadata should be loaded after few seconds.
+    const browser = await next.browser('/')
+    await browser.eval(`document.getElementById('to-slow').click()`)
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe('slow page')
+    })
 
-  // In case you need to test the response object
-  it('should work with fetch', async () => {
-    const res = await next.fetch('/')
-    const html = await res.text()
-    expect(html).toContain('hello world')
+    await waitFor(3 * 1000)
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe('slow page')
+      const matchMultiDom = createMultiDomMatcher(browser)
+
+      await matchMultiDom('meta', 'name', 'content', {
+        description: 'slow page description',
+        generator: 'next.js',
+        'application-name': 'test',
+        referrer: 'origin-when-cross-origin',
+        keywords: 'next.js,react,javascript',
+        author: ['huozhi'],
+        viewport: 'width=device-width, initial-scale=1',
+        creator: 'huozhi',
+        publisher: 'vercel',
+        robots: 'index, follow',
+      })
+    })
   })
 })
