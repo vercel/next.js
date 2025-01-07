@@ -441,6 +441,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         authInterrupts: z.boolean().optional(),
         newDevOverlay: z.boolean().optional(),
         streamingMetadata: z.boolean().optional(),
+        htmlLimitedBots: z.instanceof(RegExp).optional(),
       })
       .optional(),
     exportPathMap: z

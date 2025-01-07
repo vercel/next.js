@@ -83,7 +83,10 @@ import {
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { isBot, isHtmlLimitedBotUA } from '../shared/lib/router/utils/is-bot'
+import {
+  HTML_LIMITED_BOT_UA_RE,
+  isBot,
+} from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -327,6 +330,24 @@ type ResponsePayload = {
 export type NextEnabledDirectories = {
   readonly pages: boolean
   readonly app: boolean
+}
+
+function shouldServeStreamingMetadata(
+  userAgent: string,
+  {
+    streamingMetadata,
+    htmlLimitedBots,
+  }: {
+    streamingMetadata: boolean
+    htmlLimitedBots: RegExp | undefined
+  }
+): boolean {
+  if (!streamingMetadata) {
+    return false
+  }
+
+  const blockingMetadataUA = htmlLimitedBots || HTML_LIMITED_BOT_UA_RE
+  return !blockingMetadataUA.test(userAgent)
 }
 
 export default abstract class Server<
@@ -595,6 +616,7 @@ export default abstract class Server<
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
+        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1675,11 +1697,13 @@ export default abstract class Server<
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
-        serveStreamingMetadata:
-          this.renderOpts.experimental.streamingMetadata &&
-          !isHtmlLimitedBotUA(ua),
+        serveStreamingMetadata: shouldServeStreamingMetadata(
+          ua,
+          this.renderOpts.experimental
+        ),
       },
     }
+
     const payload = await fn(ctx)
     if (payload === null) {
       return
@@ -2181,8 +2205,10 @@ export default abstract class Server<
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
-      opts.serveStreamingMetadata =
-        opts.experimental.streamingMetadata && !isHtmlLimitedBotUA(ua)
+      opts.serveStreamingMetadata = shouldServeStreamingMetadata(
+        ua,
+        this.renderOpts.experimental
+      )
     }
 
     // In development, we always want to generate dynamic HTML.

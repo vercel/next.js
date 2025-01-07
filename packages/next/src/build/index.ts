@@ -80,6 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -214,6 +215,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { HTML_LIMITED_BOT_UA_RE } from '../shared/lib/router/utils/is-bot'
 
 type Fallback = null | boolean | string
 
@@ -1306,6 +1308,22 @@ export default async function build(
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
+
+      // Write html limited bots config to response-config-manifest
+      const responseConfigManifestPath = path.join(
+        distDir,
+        RESPONSE_CONFIG_MANIFEST
+      )
+      const responseConfigManifest: {
+        version: number
+        htmlLimitedBots: string
+      } = {
+        version: 0,
+        htmlLimitedBots: (
+          config.experimental.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE
+        ).source,
+      }
+      await writeManifest(responseConfigManifestPath, responseConfigManifest)
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
@@ -2485,6 +2503,7 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
+              RESPONSE_CONFIG_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
               ...(!process.env.TURBOPACK
