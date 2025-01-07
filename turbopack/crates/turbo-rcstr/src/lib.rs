@@ -98,7 +98,7 @@ impl RcStr {
             DYNAMIC_TAG => {
                 let arc = unsafe { dynamic::restore_arc(self.unsafe_data) };
 
-                match Arc::try_unwrap(arc) {
+                match Arc::try_unwrap(arc.clone()) {
                     Ok(v) => v,
                     Err(arc) => {
                         let s = arc.to_string();
