@@ -9,11 +9,11 @@ import React, { use } from 'react'
 // eslint-disable-next-line import/no-extraneous-dependencies
 import { createFromReadableStream } from 'react-server-dom-webpack/client'
 import { HeadManagerContext } from '../shared/lib/head-manager-context.shared-runtime'
-import { onRecoverableError } from './react-client-callbacks/shared'
+import { onRecoverableError } from './react-client-callbacks/on-recoverable-error'
 import {
   onCaughtError,
   onUncaughtError,
-} from './react-client-callbacks/app-router'
+} from './react-client-callbacks/error-boundary-callbacks'
 import { callServer } from './app-call-server'
 import { findSourceMapURL } from './app-find-source-map-url'
 import {

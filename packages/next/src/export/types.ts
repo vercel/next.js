@@ -38,6 +38,7 @@ export type FileWriter = (
 type PathMap = ExportPathMap[keyof ExportPathMap]
 
 export interface ExportPagesInput {
+  buildId: string
   paths: string[]
   exportPathMap: ExportPathMap
   parentSpanId: number
@@ -55,6 +56,7 @@ export interface ExportPagesInput {
 }
 
 export interface ExportPageInput {
+  buildId: string
   path: string
   pathMap: PathMap
   distDir: string

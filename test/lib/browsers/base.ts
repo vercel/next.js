@@ -14,7 +14,20 @@ export abstract class BrowserInterface<TCurrent = any> {
   protected chain<TNext>(
     nextCall: (current: TCurrent) => TNext | Promise<TNext>
   ): BrowserInterface<TNext> & Promise<TNext> {
-    const promise = Promise.resolve(this.promise).then(nextCall)
+    const syncError = new Error('next-browser-base-chain-error')
+    const promise = Promise.resolve(this.promise)
+      .then(nextCall)
+      .catch((reason) => {
+        if (
+          reason !== null &&
+          typeof reason === 'object' &&
+          'stack' in reason
+        ) {
+          const syncCallStack = syncError.stack.split(syncError.message)[1]
+          reason.stack += `\n${syncCallStack}`
+        }
+        throw reason
+      })
 
     function get(target: BrowserInterface<TNext>, p: string | symbol): any {
       switch (p) {

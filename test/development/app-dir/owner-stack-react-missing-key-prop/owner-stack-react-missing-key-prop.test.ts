@@ -41,14 +41,12 @@ const isOwnerStackEnabled =
             10 |   )"
         `)
       } else {
-        // FIXME: the owner stack method names should be `Page` instead of `map`
         expect(stackFramesContent).toMatchInlineSnapshot(`
           "at span ()
-          at map (app/rsc/page.tsx (6:13))"
+          at Page (app/rsc/page.tsx (6:13))"
         `)
-        // FIXME: the methodName should be `@ <anonymous>` instead of `@ span`
         expect(source).toMatchInlineSnapshot(`
-          "app/rsc/page.tsx (7:10) @ span
+          "app/rsc/page.tsx (7:10) @ eval
 
              5 |     <div>
              6 |       {list.map((item, index) => (
@@ -85,15 +83,13 @@ const isOwnerStackEnabled =
             12 |   )"
         `)
       } else {
-        // FIXME: the owner stack method names should be `Page` instead of `map`
         expect(stackFramesContent).toMatchInlineSnapshot(`
           "at p ()
           at Array.map ()
-          at map (app/ssr/page.tsx (8:13))"
+          at Page (app/ssr/page.tsx (8:13))"
         `)
-        // FIXME: the methodName should be `@ <unknown>` instead of `@ p`
         expect(source).toMatchInlineSnapshot(`
-          "app/ssr/page.tsx (9:10) @ p
+          "app/ssr/page.tsx (9:10) @ eval
 
              7 |     <div>
              8 |       {list.map((item, index) => (
