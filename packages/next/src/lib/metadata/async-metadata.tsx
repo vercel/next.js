@@ -7,18 +7,22 @@ import { useServerInsertedHTML } from '../../client/components/navigation'
 // and
 function ServerInsertMetadata({ promise }: { promise: Promise<any> }) {
   let metadataToFlush: React.ReactNode = null
+  // Only inserted once to avoid multi insertion on re-renders
+  let inserted = false
 
   promise.then((resolvedMetadata) => {
     metadataToFlush = resolvedMetadata
   })
 
   useServerInsertedHTML(() => {
-    if (metadataToFlush) {
+    if (metadataToFlush && !inserted) {
       const flushing = metadataToFlush
       metadataToFlush = null
       return flushing
     }
   })
+
+  inserted = true
 
   return null
 }
