@@ -313,7 +313,7 @@ export function readOrCreateRouteCacheEntry(
     status: EntryStatus.Empty,
     blockedTasks: null,
     tree: null,
-    head: [null, null],
+    head: null,
     isHeadPartial: true,
     // Since this is an empty entry, there's no reason to ever evict it. It will
     // be updated when the data is populated.

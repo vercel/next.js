@@ -232,7 +232,7 @@
       "parser": "eslint-mdx",
       "rules": {
         "react/jsx-no-undef": "off",
-        "react/self-closing-comp": "error"
+        "react/self-closing-comp": "off"
       }
     }
   ],
