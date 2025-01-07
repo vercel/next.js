@@ -1173,6 +1173,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         operation::UpdateOutputOperation::run(task_id, result, self.execute_context(turbo_tasks));
     }
 
+    #[tracing::instrument(level = "trace", skip_all)]
     fn task_execution_completed(
         &self,
         task_id: TaskId,
