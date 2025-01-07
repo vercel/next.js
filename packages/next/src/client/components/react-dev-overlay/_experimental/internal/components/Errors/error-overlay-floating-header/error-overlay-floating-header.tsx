@@ -34,6 +34,9 @@ export function ErrorOverlayFloatingHeader({
 export const styles = css`
   .error-overlay-floating-header {
     display: flex;
+    justify-content: space-between;
+    align-items: center;
+
     width: 100%;
     margin-right: auto;
     margin-left: auto;
