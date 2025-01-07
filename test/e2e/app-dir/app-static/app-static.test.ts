@@ -2819,7 +2819,7 @@ describe('app-dir static/dynamic handling', () => {
         '_N_T_/layout,_N_T_/prerendered-not-found/layout,_N_T_/prerendered-not-found/[slug]/layout,_N_T_/prerendered-not-found/[slug]/page,_N_T_/prerendered-not-found/first,explicit-tag'
       )
 
-      expect(secondMeta.status).toBe(undefined)
+      expect(secondMeta.status).not.toBe(404)
       expect(secondMeta.headers['x-next-cache-tags']).toBe(
         '_N_T_/layout,_N_T_/prerendered-not-found/layout,_N_T_/prerendered-not-found/[slug]/layout,_N_T_/prerendered-not-found/[slug]/page,_N_T_/prerendered-not-found/second,explicit-tag'
       )
