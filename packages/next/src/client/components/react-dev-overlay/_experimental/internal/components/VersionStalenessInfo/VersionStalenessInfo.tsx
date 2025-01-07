@@ -12,7 +12,7 @@ export function VersionStalenessInfo({
   if (!text) return null
 
   return (
-    <span className="nextjs-container-build-error-version-status">
+    <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
       <span className={indicatorClass} />
       <small data-nextjs-version-checker title={title}>
         {text}
