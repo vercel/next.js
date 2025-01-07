@@ -1,7 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::ResolvedVc;
 use turbopack_core::compile_time_info::CompileTimeInfo;
 use url::Url;
 
@@ -9,11 +9,11 @@ use super::{
     imports::ImportAnnotations, ConstantValue, JsValue, JsValueUrlKind, ModuleValue,
     WellKnownFunctionKind, WellKnownObjectKind,
 };
-use crate::analyzer::RequireContextValue;
+use crate::{analyzer::RequireContextValue, references::try_compile_time_info};
 
 pub async fn replace_well_known(
     value: JsValue,
-    compile_time_info: Vc<CompileTimeInfo>,
+    compile_time_info: Option<ResolvedVc<CompileTimeInfo>>,
 ) -> Result<(JsValue, bool)> {
     Ok(match value {
         JsValue::Call(_, box JsValue::WellKnownFunction(kind), args) => (
@@ -50,7 +50,7 @@ pub async fn well_known_function_call(
     kind: WellKnownFunctionKind,
     _this: JsValue,
     args: Vec<JsValue>,
-    compile_time_info: Vc<CompileTimeInfo>,
+    compile_time_info: Option<ResolvedVc<CompileTimeInfo>>,
 ) -> Result<JsValue> {
     Ok(match kind {
         WellKnownFunctionKind::ObjectAssign => object_assign(args),
@@ -73,14 +73,14 @@ pub async fn well_known_function_call(
             require_context_require_resolve(value, args).await?
         }
         WellKnownFunctionKind::PathToFileUrl => path_to_file_url(args),
-        WellKnownFunctionKind::OsArch => compile_time_info
+        WellKnownFunctionKind::OsArch => try_compile_time_info(compile_time_info)?
             .environment()
             .compile_target()
             .await?
             .arch
             .as_str()
             .into(),
-        WellKnownFunctionKind::OsPlatform => compile_time_info
+        WellKnownFunctionKind::OsPlatform => try_compile_time_info(compile_time_info)?
             .environment()
             .compile_target()
             .await?
@@ -88,7 +88,11 @@ pub async fn well_known_function_call(
             .as_str()
             .into(),
         WellKnownFunctionKind::ProcessCwd => {
-            if let Some(cwd) = &*compile_time_info.environment().cwd().await? {
+            if let Some(cwd) = &*try_compile_time_info(compile_time_info)?
+                .environment()
+                .cwd()
+                .await?
+            {
                 cwd.clone().into()
             } else {
                 JsValue::unknown(
@@ -98,7 +102,7 @@ pub async fn well_known_function_call(
                 )
             }
         }
-        WellKnownFunctionKind::OsEndianness => compile_time_info
+        WellKnownFunctionKind::OsEndianness => try_compile_time_info(compile_time_info)?
             .environment()
             .compile_target()
             .await?
@@ -559,7 +563,7 @@ pub fn well_known_function_member(kind: WellKnownFunctionKind, prop: JsValue) ->
 pub async fn well_known_object_member(
     kind: WellKnownObjectKind,
     prop: JsValue,
-    compile_time_info: Vc<CompileTimeInfo>,
+    compile_time_info: Option<ResolvedVc<CompileTimeInfo>>,
 ) -> Result<(JsValue, bool)> {
     let new_value = match kind {
         WellKnownObjectKind::GlobalObject => global_object(prop),
@@ -726,17 +730,17 @@ fn os_module_member(kind: WellKnownObjectKind, prop: JsValue) -> JsValue {
 
 async fn node_process_member(
     prop: JsValue,
-    compile_time_info: Vc<CompileTimeInfo>,
+    compile_time_info: Option<ResolvedVc<CompileTimeInfo>>,
 ) -> Result<JsValue> {
     Ok(match prop.as_str() {
-        Some("arch") => compile_time_info
+        Some("arch") => try_compile_time_info(compile_time_info)?
             .environment()
             .compile_target()
             .await?
             .arch
             .as_str()
             .into(),
-        Some("platform") => compile_time_info
+        Some("platform") => try_compile_time_info(compile_time_info)?
             .environment()
             .compile_target()
             .await?

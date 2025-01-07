@@ -17,6 +17,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
+    compile_time_info::CompileTimeInfo,
     issue::IssueSource,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},

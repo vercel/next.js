@@ -338,6 +338,10 @@ impl CompileTimeInfoBuilder {
     pub async fn cell(self) -> Result<Vc<CompileTimeInfo>> {
         Ok(self.build().await?.cell())
     }
+
+    pub async fn resolved_cell(self) -> Result<ResolvedVc<CompileTimeInfo>> {
+        Ok(self.build().await?.resolved_cell())
+    }
 }
 
 #[cfg(test)]
