@@ -17,9 +17,9 @@ export function VersionStalenessInfo({
   return (
     <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
       <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
-      <small data-nextjs-version-checker title={title}>
+      <span data-nextjs-version-checker title={title}>
         {text}
-      </small>{' '}
+      </span>{' '}
       {staleness === 'fresh' ||
       staleness === 'newer-than-npm' ||
       staleness === 'unknown' ? null : (
