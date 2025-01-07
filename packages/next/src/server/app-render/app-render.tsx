@@ -314,6 +314,20 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   ]
 }
 
+function createSuspenseyMetadata(
+  Metadata: React.ComponentType<{}>,
+  serveStreamingMetadata: boolean
+): React.ComponentType<{}> {
+  return () =>
+    serveStreamingMetadata ? (
+      <React.Suspense fallback={null}>
+        <Metadata />
+      </React.Suspense>
+    ) : (
+      <Metadata />
+    )
+}
+
 /**
  * Returns a function that parses the dynamic segment and return the associated value.
  */
@@ -469,14 +483,14 @@ async function generateDynamicRSCPayload(
         serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
       })
 
-    const MetadataComponent = () => {
+    const MetadataComponent = createSuspenseyMetadata(() => {
       return (
         <React.Fragment key={flightDataPathMetadataKey}>
           {/* Adding requestId as react key to make metadata remount for each render */}
           <MetadataTree key={requestId} />
         </React.Fragment>
       )
-    }
+    }, !!ctx.renderOpts.serveStreamingMetadata)
 
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -776,14 +790,14 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
-  function MetadataComponent() {
+  const MetadataComponent = createSuspenseyMetadata(() => {
     return (
       <React.Fragment key={flightDataPathMetadataKey}>
         {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
         <MetadataTree />
       </React.Fragment>
     )
-  }
+  }, !!ctx.renderOpts.serveStreamingMetadata)
 
   const seedData = await createComponentTree({
     ctx,
