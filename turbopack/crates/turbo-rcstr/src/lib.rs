@@ -94,8 +94,18 @@ impl RcStr {
     ///   underlying string without cloning in `O(1)` time.
     /// - This avoids some of the potential overhead of the `Display` trait.
     pub fn into_owned(self) -> String {
-        // TODO: Optimize this, but we can't use Arc::try_unwrap because str is unsized.
-        self.as_str().to_string()
+        match self.tag() {
+            DYNAMIC_TAG => {
+                let arc = unsafe { dynamic::restore_arc(self.unsafe_data) };
+
+                match Arc::try_unwrap(arc) {
+                    Ok(v) => v,
+                    Err(arc) => arc.to_string(),
+                }
+            }
+            INLINE_TAG => self.as_str().to_string(),
+            _ => unsafe { debug_unreachable!() },
+        }
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
