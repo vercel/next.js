@@ -416,7 +416,6 @@ export const styles = css`
     justify-content: space-between;
   }
   .error-overlay-notes-container {
-    padding: var(--size-4);
-    padding-top: 0;
+    padding: 0 var (--size-4);
   }
 `
