@@ -1,5 +1,6 @@
 use std::cmp::Ordering;
 
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     event::{Event, EventListener},
@@ -314,6 +315,9 @@ pub enum InProgressState {
         session_dependent: bool,
         marked_as_completed: bool,
         done_event: Event,
+        /// Children that should be connected to the task and have their active_count decremented
+        /// once the task completes.
+        new_children: FxHashSet<TaskId>,
     },
 }
 
@@ -471,11 +475,6 @@ pub enum CachedDataItem {
         target: CollectiblesRef,
         value: (),
     },
-    #[serde(skip)]
-    OutdatedChild {
-        task: TaskId,
-        value: (),
-    },
 
     // Transient Error State
     #[serde(skip)]
@@ -516,7 +515,6 @@ impl CachedDataItem {
             CachedDataItem::OutdatedOutputDependency { .. } => false,
             CachedDataItem::OutdatedCellDependency { .. } => false,
             CachedDataItem::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItem::OutdatedChild { .. } => false,
             CachedDataItem::Error { .. } => false,
         }
     }
@@ -569,7 +567,6 @@ impl CachedDataItem {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
-            | Self::OutdatedChild { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }
@@ -610,7 +607,6 @@ impl CachedDataItemKey {
             CachedDataItemKey::OutdatedOutputDependency { .. } => false,
             CachedDataItemKey::OutdatedCellDependency { .. } => false,
             CachedDataItemKey::OutdatedCollectiblesDependency { .. } => false,
-            CachedDataItemKey::OutdatedChild { .. } => false,
             CachedDataItemKey::Error { .. } => false,
         }
     }
@@ -651,7 +647,6 @@ impl CachedDataItemType {
             | Self::OutdatedOutputDependency { .. }
             | Self::OutdatedCellDependency { .. }
             | Self::OutdatedCollectiblesDependency { .. }
-            | Self::OutdatedChild { .. }
             | Self::InProgressCell { .. }
             | Self::InProgress { .. }
             | Self::Error { .. }

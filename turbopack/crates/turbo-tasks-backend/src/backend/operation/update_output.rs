@@ -45,10 +45,23 @@ impl UpdateOutputOperation {
         mut ctx: impl ExecuteContext,
     ) {
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
-        if let Some(InProgressState::InProgress { stale: true, .. }) = get!(task, InProgress) {
+        let Some(InProgressState::InProgress {
+            stale,
+            new_children,
+            ..
+        }) = get!(task, InProgress)
+        else {
+            panic!("Task is not in progress while updating the output");
+        };
+        if *stale {
             // Skip updating the output when the task is stale
             return;
         }
+        let children = ctx
+            .should_track_children()
+            .then(|| new_children.iter().copied().collect())
+            .unwrap_or_default();
+
         let old_error = task.remove(&CachedDataItemKey::Error {});
         let current_output = get!(task, Output);
         let output_value = match output {
@@ -108,10 +121,6 @@ impl UpdateOutputOperation {
         let dependent_tasks = ctx
             .should_track_dependencies()
             .then(|| get_many!(task, OutputDependent { task } => task))
-            .unwrap_or_default();
-        let children = ctx
-            .should_track_children()
-            .then(|| get_many!(task, Child { task } => task))
             .unwrap_or_default();
 
         let mut queue = AggregationUpdateQueue::new();

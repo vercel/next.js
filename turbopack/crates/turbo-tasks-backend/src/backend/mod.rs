@@ -42,9 +42,10 @@ use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
-            AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
-            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskGuard,
+            connect_children, get_aggregation_number, is_root_node, AggregatedDataUpdate,
+            AggregationUpdateJob, AggregationUpdateQueue, CleanupOldEdgesOperation,
+            ConnectChildOperation, ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge,
+            TaskGuard,
         },
         persisted_storage_log::PersistedStorageLog,
         storage::{get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove, Storage},
@@ -398,24 +399,35 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
 
-        if let Some(in_progress) = get!(task, InProgress) {
-            match in_progress {
-                InProgressState::Scheduled { done_event, .. }
-                | InProgressState::InProgress { done_event, .. } => {
-                    let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
-                    let listener = done_event.listen_with_note(move || {
-                        if let Some(reader_desc) = reader_desc.as_ref() {
-                            format!("try_read_task_output from {}", reader_desc())
-                        } else {
-                            "try_read_task_output (untracked)".to_string()
-                        }
-                    });
-                    return Ok(Err(listener));
+        fn check_in_progress<B: BackingStorage>(
+            this: &TurboTasksBackendInner<B>,
+            task: &impl TaskGuard,
+            reader: Option<TaskId>,
+        ) -> Option<std::result::Result<std::result::Result<RawVc, EventListener>, anyhow::Error>>
+        {
+            if let Some(in_progress) = get!(task, InProgress) {
+                match in_progress {
+                    InProgressState::Scheduled { done_event, .. }
+                    | InProgressState::InProgress { done_event, .. } => {
+                        let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
+                        let listener = done_event.listen_with_note(move || {
+                            if let Some(reader_desc) = reader_desc.as_ref() {
+                                format!("try_read_task_output from {}", reader_desc())
+                            } else {
+                                "try_read_task_output (untracked)".to_string()
+                            }
+                        });
+                        return Some(Ok(Err(listener)));
+                    }
                 }
             }
+            None
         }
 
         if self.should_track_children() && matches!(consistency, ReadConsistency::Strong) {
+            if let Some(value) = check_in_progress(self, &task, reader) {
+                return value;
+            }
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
@@ -490,6 +502,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
                 return Ok(Err(listener));
             }
+        }
+
+        if let Some(value) = check_in_progress(self, &task, reader) {
+            return value;
         }
 
         if let Some(output) = get!(task, Output) {
@@ -1001,34 +1017,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
+                    new_children: Default::default(),
                 },
             });
 
             if self.should_track_children() {
-                // Make all current children outdated (remove left-over outdated children)
-                enum Child {
-                    Current(TaskId),
-                    Outdated(TaskId),
-                }
-                let children = iter_many!(task, Child { task } => Child::Current(task))
-                    .chain(iter_many!(task, OutdatedChild { task } => Child::Outdated(task)))
-                    .collect::<Vec<_>>();
-                for child in children {
-                    match child {
-                        Child::Current(child) => {
-                            let _ = task.add(CachedDataItem::OutdatedChild {
-                                task: child,
-                                value: (),
-                            });
-                        }
-                        Child::Outdated(child) => {
-                            if !task.has_key(&CachedDataItemKey::Child { task: child }) {
-                                task.remove(&CachedDataItemKey::OutdatedChild { task: child });
-                            }
-                        }
-                    }
-                }
-
                 // Make all current collectibles outdated (remove left-over outdated collectibles)
                 enum Collectible {
                     Current(CollectibleRef, i32),
@@ -1143,10 +1136,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) -> bool {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
-        let Some(in_progress) = get!(task, InProgress) else {
+        let Some(in_progress) = get_mut!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
-        let &InProgressState::InProgress { stale, .. } = in_progress else {
+        let &mut InProgressState::InProgress {
+            stale,
+            ref mut new_children,
+            ..
+        } = in_progress
+        else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
@@ -1161,6 +1159,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             });
             return true;
         }
+        let mut new_children = take(new_children);
 
         // TODO handle stateful
         let _ = stateful;
@@ -1187,8 +1186,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
         }
 
-        let mut removed_data: Vec<CachedDataItem> = Vec::new();
+        let mut queue = AggregationUpdateQueue::new();
+
+        let mut removed_data = Vec::new();
         let mut old_edges = Vec::new();
+
+        // Connect children
+        {
+            for old_child in iter_many!(task, Child { task } => task) {
+                if !new_children.remove(&old_child) {
+                    old_edges.push(OutdatedEdge::Child(old_child));
+                }
+            }
+
+            let active_count =
+                get!(task, Activeness).map_or(0, |activeness| activeness.active_counter);
+            connect_children(task_id, &mut task, new_children, &mut queue, active_count);
+        }
 
         // Remove no longer existing cells and notify in progress cells
         // find all outdated data items (removed cells, outdated edges)
@@ -1214,12 +1228,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
         }));
         if self.should_track_children() {
-            old_edges.extend(task.iter(CachedDataItemType::OutdatedChild).filter_map(
-                |(key, _)| match key {
-                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
-                    _ => None,
-                },
-            ));
             old_edges.extend(
                 task.iter(CachedDataItemType::OutdatedCollectible)
                     .filter_map(|(key, value)| match (key, value) {
@@ -1259,7 +1267,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Remove outdated edges first, before removing in_progress+dirty flag.
         // We need to make sure all outdated edges are removed before the task can potentially be
         // scheduled and executed again
-        CleanupOldEdgesOperation::run(task_id, old_edges, &mut ctx);
+        CleanupOldEdgesOperation::run(task_id, old_edges, queue, &mut ctx);
 
         // When restoring from persistent caching the following might not be executed (since we can
         // suspend in `CleanupOldEdgesOperation`), but that's ok as the task is still dirty and
@@ -1275,6 +1283,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             stale,
             session_dependent,
             marked_as_completed: _,
+            new_children: _,
         } = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
