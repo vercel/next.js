@@ -52,6 +52,15 @@ impl ConnectChildOperation {
 
         let mut queue = AggregationUpdateQueue::new();
 
+        // Handle the transient to persistent boundary by making the persistent task a root task
+        if parent_task_id.is_transient() && !child_task_id.is_transient() {
+            queue.push(AggregationUpdateJob::UpdateAggregationNumber {
+                task_id: child_task_id,
+                base_aggregation_number: u32::MAX,
+                distance: None,
+            });
+        }
+
         queue.push(AggregationUpdateJob::IncreaseActiveCount {
             task: child_task_id,
         });

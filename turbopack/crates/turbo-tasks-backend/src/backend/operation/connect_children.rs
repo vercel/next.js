@@ -19,7 +19,7 @@ const AGGREGATION_NUMBER_BUFFER_SPACE: u32 = 3;
 pub fn connect_children(
     parent_task_id: TaskId,
     parent_task: &mut impl TaskGuard,
-    mut new_children: FxHashSet<TaskId>,
+    new_children: FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
     active_count: i32,
 ) {
@@ -77,22 +77,6 @@ pub fn connect_children(
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&*parent_task));
-
-    // Handle the transient to persistent boundary by making the persistent task a root task
-    if parent_task_id.is_transient() || !aggregating_node {
-        new_children.retain(|&child_task_id| {
-            if parent_task_id.is_transient() && !child_task_id.is_transient() {
-                queue.push(AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id: child_task_id,
-                    base_aggregation_number: u32::MAX,
-                    distance: None,
-                });
-                false
-            } else {
-                true
-            }
-        });
-    }
 
     if let Some(upper_ids) = upper_ids {
         if !upper_ids.is_empty() {
