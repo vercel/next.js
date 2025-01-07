@@ -19,7 +19,7 @@ export function ErrorOverlayToolbar({
       <NodejsInspectorButton
         devtoolsFrontendUrl={debugInfo?.devtoolsFrontendUrl}
       />
-      <DocsLinkButton docsURL="https://nextjs.org/docs" />
+      <DocsLinkButton errorMessage={error?.message || ''} />
     </span>
   )
 }
@@ -54,7 +54,7 @@ export const styles = css`
       background: var(--color-gray-alpha-100);
     }
 
-    &:active {
+    &:not(:disabled):active {
       background: var(--color-gray-alpha-200);
     }
 

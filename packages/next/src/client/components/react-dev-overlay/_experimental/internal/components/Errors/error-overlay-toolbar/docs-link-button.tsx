@@ -1,4 +1,32 @@
-export function DocsLinkButton({ docsURL }: { docsURL: string }) {
+import { parseUrlFromText } from '../../helpers/parse-url-from-text'
+
+const docsURLWhitelist = ['https://nextjs.org', 'https://react.dev']
+
+function docsLinkMatcher(text: string): boolean {
+  return docsURLWhitelist.some((url) => text.startsWith(url))
+}
+
+function getDocsURLFromErrorMessage(text: string): string | null {
+  const urls = parseUrlFromText(text, docsLinkMatcher)
+
+  if (urls.length === 0) {
+    return null
+  }
+
+  return urls[0]
+}
+
+export function DocsLinkButton({ errorMessage }: { errorMessage: string }) {
+  const docsURL = getDocsURLFromErrorMessage(errorMessage)
+
+  if (!docsURL) {
+    return (
+      <button className="docs-link-button" disabled>
+        <DocsIcon />
+      </button>
+    )
+  }
+
   return (
     <a
       title="Related Next.js Docs"
