@@ -71,10 +71,6 @@ const LEN_OFFSET: usize = 4;
 const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
-    pub fn new(s: Cow<str>) -> Self {
-        new_atom(s)
-    }
-
     #[inline(always)]
     fn tag(&self) -> u8 {
         self.unsafe_data.tag() & TAG_MASK
@@ -283,5 +279,13 @@ impl<'de> Deserialize<'de> for RcStr {
     fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
         let s = String::deserialize(deserializer)?;
         Ok(RcStr::from(s))
+    }
+}
+
+impl Drop for RcStr {
+    fn drop(&mut self) {
+        if self.tag() == DYNAMIC_TAG {
+            unsafe { drop(Dynamic::restore_arc(self.unsafe_data)) }
+        }
     }
 }
