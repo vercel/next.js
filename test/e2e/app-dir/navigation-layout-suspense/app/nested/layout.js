@@ -3,13 +3,6 @@ import Link from 'next/link'
 
 export const dynamic = 'force-dynamic'
 
-async function LoadData() {
-  await fetch('https://next-data-api-endpoint.vercel.app/api/random?b').then(
-    (res) => res.text()
-  )
-  return <div>Got API Response </div>
-}
-
 export default async function Layout(props) {
   return (
     <>
@@ -18,10 +11,7 @@ export default async function Layout(props) {
           Home Page
         </Link>
       </div>
-      <Suspense fallback={<h1>Loading...</h1>}>
-        {props.children}
-        <LoadData />
-      </Suspense>
+      <Suspense fallback={<h1>Loading...</h1>}>{props.children}</Suspense>
     </>
   )
 }
