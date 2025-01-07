@@ -18,6 +18,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -35,6 +36,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  MetadataComponent: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -70,6 +72,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
+  MetadataComponent,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -83,6 +86,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  MetadataComponent: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -220,27 +224,6 @@ async function createComponentTreeInternal({
           injectedJS: injectedJSWithCurrentLayout,
         })
       : []
-
-  const notFoundElement = NotFound ? (
-    <>
-      {notFoundStyles}
-      <NotFound />
-    </>
-  ) : undefined
-
-  const forbiddenElement = Forbidden ? (
-    <>
-      {forbiddenStyles}
-      <Forbidden />
-    </>
-  ) : undefined
-
-  const unauthorizedElement = Unauthorized ? (
-    <>
-      {unauthorizedStyles}
-      <Unauthorized />
-    </>
-  ) : undefined
 
   let dynamic = layoutOrPageMod?.dynamic
 
@@ -409,7 +392,35 @@ async function createComponentTreeInternal({
     workStore.rootParams = currentParams
   }
 
-  //
+  // Only render metadata on the actual SSR'd segment not the `default` segment,
+  // as it's used as a placeholder for navigation.
+  const metadata =
+    actualSegment !== DEFAULT_SEGMENT_KEY ? <MetadataComponent /> : undefined
+
+  const notFoundElement = NotFound ? (
+    <>
+      {metadata}
+      {notFoundStyles}
+      <NotFound />
+    </>
+  ) : undefined
+
+  const forbiddenElement = Forbidden ? (
+    <>
+      {metadata}
+      {forbiddenStyles}
+      <Forbidden />
+    </>
+  ) : undefined
+
+  const unauthorizedElement = Unauthorized ? (
+    <>
+      {metadata}
+      {unauthorizedStyles}
+      <Unauthorized />
+    </>
+  ) : undefined
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -504,7 +515,8 @@ async function createComponentTreeInternal({
             ctx,
             missingSlots,
             preloadCallbacks,
-            authInterrupts: authInterrupts,
+            authInterrupts,
+            MetadataComponent,
           })
 
           childCacheNodeSeedData = seedData
@@ -657,6 +669,7 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
+        {metadata}
         {pageElement}
         {layerAssets}
         <OutletBoundary>
@@ -792,6 +805,7 @@ async function createComponentTreeInternal({
             notFound={
               NotFound ? (
                 <>
+                  {metadata}
                   {layerAssets}
                   <SegmentComponent params={params}>
                     {notFoundStyles}

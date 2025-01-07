@@ -700,8 +700,10 @@ function createPendingCacheNode(
     rsc: createDeferredRsc() as React.ReactNode,
     head: isLeafSegment
       ? [
+          // TODO: change head back to ReactNode when metadata
+          // is stably rendered in body
           createDeferredRsc() as React.ReactNode,
-          createDeferredRsc() as React.ReactNode,
+          null,
         ]
       : [null, null],
   }
@@ -805,12 +807,11 @@ function finishPendingCacheNode(
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
   const head = cacheNode.head
-  // Handle head[0] - viewport and head[1] - metadata
+  // TODO: change head back to ReactNode when metadata
+  // is stably rendered in body
+  // Handle head[0] - viewport
   if (isDeferredRsc(head[0])) {
     head[0].resolve(dynamicHead[0])
-  }
-  if (isDeferredRsc(head[1])) {
-    head[1].resolve(dynamicHead[1])
   }
 }
 

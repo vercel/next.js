@@ -31,6 +31,7 @@ function resolveViewportLayout(viewport: Viewport) {
 
 export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
   return MetaFilter([
+    <meta charSet="utf-8" />,
     Meta({ name: 'viewport', content: resolveViewportLayout(viewport) }),
     ...(viewport.themeColor
       ? viewport.themeColor.map((themeColor) =>
@@ -51,7 +52,6 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
     : undefined
 
   return MetaFilter([
-    <meta charSet="utf-8" />,
     metadata.title !== null && metadata.title.absolute ? (
       <title>{metadata.title.absolute}</title>
     ) : null,
