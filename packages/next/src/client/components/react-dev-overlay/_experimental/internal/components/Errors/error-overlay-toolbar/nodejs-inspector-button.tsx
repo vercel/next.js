@@ -1,4 +1,4 @@
-import { CopyButton } from './copy-button'
+import { CopyButton } from '../../copy-button'
 
 // Inline this helper to avoid widely used across the codebase,
 // as for this feature the Chrome detector doesn't need to be super accurate.
@@ -75,7 +75,7 @@ function NodeJsDisabledIcon(props: any) {
 const label =
   'Learn more about enabling Node.js inspector for server code with Chrome DevTools'
 
-export function NodejsInspectorCopyButton({
+export function NodejsInspectorButton({
   devtoolsFrontendUrl,
 }: {
   devtoolsFrontendUrl: string | undefined
@@ -87,22 +87,33 @@ export function NodejsInspectorCopyButton({
       <a
         title={label}
         aria-label={label}
-        className="nextjs-data-runtime-error-inspect-link"
+        className="nodejs-inspector-button"
         href={`https://nextjs.org/docs/app/building-your-application/configuring/debugging#server-side-code`}
         target="_blank"
         rel="noopener noreferrer"
       >
-        <NodeJsDisabledIcon width={16} height={16} />
+        <NodeJsDisabledIcon
+          className="error-overlay-toolbar-button-icon"
+          width={16}
+          height={16}
+        />
       </a>
     )
   }
   return (
     <CopyButton
       data-nextjs-data-runtime-error-copy-devtools-url
+      className="nodejs-inspector-button"
       actionLabel={'Copy Chrome DevTools URL'}
       successLabel="Copied"
       content={content}
-      icon={<NodeJsIcon width={16} height={16} />}
+      icon={
+        <NodeJsIcon
+          className="error-overlay-toolbar-button-icon"
+          width={16}
+          height={16}
+        />
+      }
     />
   )
 }

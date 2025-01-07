@@ -1,4 +1,5 @@
 import { isDynamicUsageError } from '../../export/helpers/is-dynamic-usage-error'
+import { isHangingPromiseRejectionError } from '../../server/dynamic-rendering-utils'
 import { isPostpone } from '../../server/lib/router-utils/is-postpone'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { isNextRouterError } from './is-next-router-error'
@@ -15,7 +16,8 @@ export function unstable_rethrow(error: unknown): void {
     isNextRouterError(error) ||
     isBailoutToCSRError(error) ||
     isDynamicUsageError(error) ||
-    isPostpone(error)
+    isPostpone(error) ||
+    isHangingPromiseRejectionError(error)
   ) {
     throw error
   }
