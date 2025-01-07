@@ -13,7 +13,10 @@ import {
 } from '../../Dialog'
 import { Overlay } from '../../Overlay'
 import { ErrorPagination } from '../ErrorPagination/ErrorPagination'
-import { ToolButtonsGroup } from '../../ToolButtonsGroup/ToolButtonsGroup'
+import {
+  ErrorOverlayToolbar,
+  styles as toolbarStyles,
+} from '../error-overlay-toolbar/error-overlay-toolbar'
 import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
@@ -81,7 +84,7 @@ export function ErrorOverlayLayout({
               data-nextjs-error-code={errorCode}
             >
               <ErrorTypeLabel errorType={errorType} />
-              <ToolButtonsGroup error={error} debugInfo={debugInfo} />
+              <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
             </div>
             <VersionStalenessInfo versionInfo={versionInfo} />
             <ErrorMessage errorMessage={errorMessage} />
@@ -109,4 +112,5 @@ export function ErrorOverlayLayout({
 export const styles = css`
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
+  ${toolbarStyles}
 `
