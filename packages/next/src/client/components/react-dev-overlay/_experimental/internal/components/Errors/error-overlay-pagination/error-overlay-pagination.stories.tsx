@@ -1,11 +1,11 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { ErrorPagination } from './ErrorPagination'
+import { ErrorOverlayPagination } from './error-overlay-pagination'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import { useState } from 'react'
 
-const meta: Meta<typeof ErrorPagination> = {
-  title: 'ErrorPagination',
-  component: ErrorPagination,
+const meta: Meta<typeof ErrorOverlayPagination> = {
+  title: 'ErrorOverlayPagination',
+  component: ErrorOverlayPagination,
   parameters: {
     layout: 'centered',
   },
@@ -13,7 +13,7 @@ const meta: Meta<typeof ErrorPagination> = {
 }
 
 export default meta
-type Story = StoryObj<typeof ErrorPagination>
+type Story = StoryObj<typeof ErrorOverlayPagination>
 
 // Mock errors for stories
 const mockErrors = [
@@ -38,10 +38,10 @@ const mockErrors = [
 ]
 
 export const SingleError: Story = {
-  render: function ErrorPaginationStory() {
+  render: function ErrorOverlayPaginationStory() {
     const [activeIdx, setActiveIdx] = useState(0)
     return (
-      <ErrorPagination
+      <ErrorOverlayPagination
         activeIdx={activeIdx}
         readyErrors={[mockErrors[0]]}
         onActiveIndexChange={setActiveIdx}
@@ -51,10 +51,10 @@ export const SingleError: Story = {
 }
 
 export const MultipleErrors: Story = {
-  render: function ErrorPaginationStory() {
+  render: function ErrorOverlayPaginationStory() {
     const [activeIdx, setActiveIdx] = useState(1)
     return (
-      <ErrorPagination
+      <ErrorOverlayPagination
         activeIdx={activeIdx}
         readyErrors={mockErrors}
         onActiveIndexChange={setActiveIdx}
@@ -64,12 +64,25 @@ export const MultipleErrors: Story = {
 }
 
 export const LastError: Story = {
-  render: function ErrorPaginationStory() {
+  render: function ErrorOverlayPaginationStory() {
     const [activeIdx, setActiveIdx] = useState(2)
     return (
-      <ErrorPagination
+      <ErrorOverlayPagination
         activeIdx={activeIdx}
         readyErrors={mockErrors}
+        onActiveIndexChange={setActiveIdx}
+      />
+    )
+  },
+}
+
+export const VeryManyErrors: Story = {
+  render: function ErrorOverlayPaginationStory() {
+    const [activeIdx, setActiveIdx] = useState(1233)
+    return (
+      <ErrorOverlayPagination
+        activeIdx={activeIdx}
+        readyErrors={Array(780).fill(mockErrors).flat()}
         onActiveIndexChange={setActiveIdx}
       />
     )
