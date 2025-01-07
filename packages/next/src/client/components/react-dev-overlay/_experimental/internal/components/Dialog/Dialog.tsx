@@ -82,7 +82,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       aria-describedby={props['aria-describedby']}
       aria-modal="true"
     >
-      <div data-nextjs-dialog-banner className={`banner-${type}`} />
       {children}
     </div>
   )

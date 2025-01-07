@@ -67,21 +67,21 @@ describe('app-dir - capture-console-error', () => {
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 1,
-          "description": "trigger an console <error>",
-          "source": "app/browser/event/page.js (7:17) @ error
+       {
+         "callStacks": "",
+         "count": 1,
+         "description": "trigger an console <error>",
+         "source": "app/browser/event/page.js (7:17) @ onClick
 
-           5 |     <button
-           6 |       onClick={() => {
-        >  7 |         console.error('trigger an console <%s>', 'error')
-             |                 ^
-           8 |       }}
-           9 |     >
-          10 |       click to error",
-          "title": "Console Error",
-        }
+          5 |     <button
+          6 |       onClick={() => {
+       >  7 |         console.error('trigger an console <%s>', 'error')
+            |                 ^
+          8 |       }}
+          9 |     >
+         10 |       click to error",
+         "title": "Console Error",
+       }
       `)
     }
   })
@@ -113,21 +113,21 @@ describe('app-dir - capture-console-error', () => {
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 2,
-          "description": "trigger an console.error in render",
-          "source": "app/browser/render/page.js (4:11) @ error
+       {
+         "callStacks": "",
+         "count": 2,
+         "description": "trigger an console.error in render",
+         "source": "app/browser/render/page.js (4:11) @ Page
 
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error('trigger an console.error in render')
-            |           ^
-          5 |   return <p>render</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
+         2 |
+         3 | export default function Page() {
+       > 4 |   console.error('trigger an console.error in render')
+           |           ^
+         5 |   return <p>render</p>
+         6 | }
+         7 |",
+         "title": "Console Error",
+       }
       `)
     }
   })
@@ -159,21 +159,21 @@ describe('app-dir - capture-console-error', () => {
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 2,
-          "description": "trigger an console.error in render",
-          "source": "app/browser/render/page.js (4:11) @ error
+       {
+         "callStacks": "",
+         "count": 2,
+         "description": "trigger an console.error in render",
+         "source": "app/browser/render/page.js (4:11) @ Page
 
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error('trigger an console.error in render')
-            |           ^
-          5 |   return <p>render</p>
-          6 | }
-          7 |",
-          "title": "Console Error",
-        }
+         2 |
+         3 | export default function Page() {
+       > 4 |   console.error('trigger an console.error in render')
+           |           ^
+         5 |   return <p>render</p>
+         6 | }
+         7 |",
+         "title": "Console Error",
+       }
       `)
     }
   })
@@ -205,21 +205,21 @@ describe('app-dir - capture-console-error', () => {
       `)
     } else {
       expect(result).toMatchInlineSnapshot(`
-        {
-          "callStacks": "",
-          "count": 2,
-          "description": "ssr console error:client",
-          "source": "app/ssr/page.js (4:11) @ error
+       {
+         "callStacks": "",
+         "count": 2,
+         "description": "ssr console error:client",
+         "source": "app/ssr/page.js (4:11) @ Page
 
-          2 |
-          3 | export default function Page() {
-        > 4 |   console.error(
-            |           ^
-          5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
-          6 |   )
-          7 |   return <p>ssr</p>",
-          "title": "Console Error",
-        }
+         2 |
+         3 | export default function Page() {
+       > 4 |   console.error(
+           |           ^
+         5 |     'ssr console error:' + (typeof window === 'undefined' ? 'server' : 'client')
+         6 |   )
+         7 |   return <p>ssr</p>",
+         "title": "Console Error",
+       }
       `)
     }
   })

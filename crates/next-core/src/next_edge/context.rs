@@ -200,8 +200,9 @@ pub async fn get_edge_resolve_options_context(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context_with_client_assets(
     mode: Vc<NextMode>,
-    project_path: ResolvedVc<FileSystemPath>,
+    root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
+    output_root_to_root_path: ResolvedVc<RcStr>,
     client_root: ResolvedVc<FileSystemPath>,
     asset_prefix: ResolvedVc<Option<RcStr>>,
     environment: ResolvedVc<Environment>,
@@ -212,8 +213,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
-            project_path,
+            root_path,
             output_root,
+            output_root_to_root_path,
             client_root,
             output_root.join("chunks/ssr".into()).to_resolved().await?,
             client_root
@@ -237,8 +239,9 @@ pub async fn get_edge_chunking_context_with_client_assets(
 #[turbo_tasks::function]
 pub async fn get_edge_chunking_context(
     mode: Vc<NextMode>,
-    project_path: ResolvedVc<FileSystemPath>,
+    root_path: ResolvedVc<FileSystemPath>,
     node_root: ResolvedVc<FileSystemPath>,
+    node_root_to_root_path: ResolvedVc<RcStr>,
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
@@ -247,8 +250,9 @@ pub async fn get_edge_chunking_context(
     let next_mode = mode.await?;
     Ok(Vc::upcast(
         BrowserChunkingContext::builder(
-            project_path,
+            root_path,
             output_root,
+            node_root_to_root_path,
             output_root,
             output_root.join("chunks".into()).to_resolved().await?,
             output_root.join("assets".into()).to_resolved().await?,

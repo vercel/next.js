@@ -7,7 +7,7 @@ import { StaticIndicator } from '../internal/container/StaticIndicator'
 import { Base } from '../internal/styles/Base'
 import { ComponentStyles } from '../internal/styles/ComponentStyles'
 import { CssReset } from '../internal/styles/CssReset'
-import { RootLayoutMissingTagsError } from '../internal/container/root-layout-missing-tags-error'
+import { RootLayoutMissingTagsError } from '../internal/container/RootLayoutMissingTagsError'
 import type { Dispatcher } from './hot-reloader-client'
 import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 
