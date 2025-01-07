@@ -8834,6 +8834,7 @@ dependencies = [
  "lazy_static",
  "once_cell",
  "patricia_tree",
+ "petgraph",
  "ref-cast",
  "regex",
  "rstest",
