@@ -1,4 +1,5 @@
 const mdxLoader = require('@mdx-js/loader')
+const { pathToFileURL } = require('node:url')
 
 function interopDefault(mod) {
   return mod.default || mod
