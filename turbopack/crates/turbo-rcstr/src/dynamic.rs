@@ -15,6 +15,7 @@ pub unsafe fn deref_from<'i>(ptr: TaggedValue) -> &'i String {
     &*cast(ptr)
 }
 
+/// Caller should call `forget` (or `clone`) on the returned `Arc`
 pub unsafe fn restore_arc(v: TaggedValue) -> Arc<String> {
     let ptr = v.get_ptr() as *const String;
     Arc::from_raw(ptr)
