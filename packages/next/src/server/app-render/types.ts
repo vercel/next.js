@@ -10,6 +10,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 
 import s from 'next/dist/compiled/superstruct'
+import type { WaitUntil } from '../lib/builtin-request-context'
 
 export type DynamicParamTypes =
   | 'catchall'
@@ -170,6 +171,8 @@ export interface RenderOptsPartial {
    */
   isDebugPPRSkeleton?: boolean
   isStaticGeneration?: boolean
+
+  builtInWaitUntil?: WaitUntil
 }
 
 export type RenderOpts = LoadComponentsReturnType<AppPageModule> &

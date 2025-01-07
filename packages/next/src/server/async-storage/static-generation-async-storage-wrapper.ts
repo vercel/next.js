@@ -42,6 +42,7 @@ export type StaticGenerationContext = {
     | 'nextExport'
     | 'isDraftMode'
     | 'isDebugPPRSkeleton'
+    | 'builtInWaitUntil'
   >
 }
 
