@@ -15,7 +15,7 @@ name: Test examples
 
 env:
   # TODO: LTS Version is now 22
-  NODE_MAINTENANCE_VERSION: 18
+  NODE_MAINTENANCE_VERSION: 18.18.2
   NODE_LTS_VERSION: 20
 
 jobs:

@@ -34,7 +34,7 @@ env:
   NEXT_E2E_TEST_TIMEOUT: 240000
   NEXT_TEST_JOB: 1
   # TODO: LTS Version is now 22
-  NODE_MAINTENANCE_VERSION: 18
+  NODE_MAINTENANCE_VERSION: 18.18.2
   NODE_LTS_VERSION: 20
 
 jobs:
@@ -43,7 +43,7 @@ jobs:
     name: Setup Next.js build
     uses: ./.github/workflows/setup-nextjs-build.yml
     with:
-      nodeVersion: ${{ env.NODE_LTS_VERSION }}
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       version: ${{ inputs.version || 'canary' }}
 
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
@@ -73,7 +73,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
           check-latest: true
       - uses: actions/cache/restore@v3
         id: restore-build
@@ -124,7 +124,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: ${{ env.NODE_LTS_VERSION }}
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
           check-latest: true
       - uses: actions/cache/restore@v3
         id: restore-build
