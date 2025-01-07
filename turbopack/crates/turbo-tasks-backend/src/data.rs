@@ -258,6 +258,7 @@ pub enum InProgressState {
         #[allow(dead_code)]
         once_task: bool,
         session_dependent: bool,
+        marked_as_completed: bool,
         done_event: Event,
     },
 }
