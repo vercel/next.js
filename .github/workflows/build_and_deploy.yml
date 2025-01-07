@@ -221,7 +221,7 @@ jobs:
             build: >-
               set -ex &&
               apk update &&
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev &&
               rustup show &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
@@ -239,7 +239,7 @@ jobs:
             build: >-
               set -ex &&
               apt update &&
-              apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
+              apt install -y pkg-config xz-utils dav1d libdav1d-dev clang-static llvm-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup show &&
               rustup target add aarch64-unknown-linux-gnu &&
@@ -261,7 +261,7 @@ jobs:
             build: >-
               set -ex &&
               apk update &&
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev &&
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               rustup show &&
