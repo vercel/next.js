@@ -1,4 +1,4 @@
-import { findPort, retry, waitFor } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import http from 'http'
 import { outdent } from 'outdent'
 import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
