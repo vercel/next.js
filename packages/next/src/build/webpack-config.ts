@@ -1309,6 +1309,12 @@ export default async function getBaseWebpackConfig(
                     },
                   ],
                 },
+                resourceQuery: {
+                  not: [
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadata),
+                    new RegExp(WEBPACK_RESOURCE_QUERIES.metadataImageMeta),
+                  ],
+                },
                 resolve: {
                   mainFields: getMainField(compilerType, true),
                   conditionNames: reactServerCondition,
