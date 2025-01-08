@@ -313,6 +313,21 @@ export async function writeConfigurationDefaults(
     )
   }
 
+  // During local development inside Next.js repo, exclude the test files coverage by the local tsconfig
+  if (process.env.NEXT_PRIVATE_LOCAL_DEV && userTsConfig.exclude) {
+    const tsGlob = '**/*.test.ts'
+    const tsxGlob = '**/*.test.tsx'
+    if (!userTsConfig.exclude.includes(tsGlob)) {
+      userTsConfig.exclude.push(tsGlob)
+    }
+    if (!userTsConfig.exclude.includes(tsxGlob)) {
+      userTsConfig.exclude.push(tsxGlob)
+    }
+    requiredActions.push(
+      'Local development only: Excluded test files from coverage'
+    )
+  }
+
   if (suggestedActions.length < 1 && requiredActions.length < 1) {
     return
   }
