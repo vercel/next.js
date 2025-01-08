@@ -184,6 +184,7 @@ import {
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
+import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -610,7 +611,7 @@ async function generateDynamicFlightRenderResult(
       ctx.clientReferenceManifest,
       ctx.workStore.route,
       requestStore
-    ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
+    )
   }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
@@ -1795,7 +1796,7 @@ async function renderToStream(
         clientReferenceManifest,
         workStore.route,
         requestStore
-      ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
+      )
 
       reactServerResult = new ReactServerResult(reactServerStream)
     } else {
@@ -2362,6 +2363,10 @@ async function spawnDynamicValidationInDev(
               return err.digest
             }
 
+            if ((err as DigestedError).digest) {
+              return (err as DigestedError).digest
+            }
+
             return getDigestForWellKnownError(err)
           },
           signal: finalServerController.signal,
@@ -2426,8 +2431,16 @@ async function spawnDynamicValidationInDev(
     ) {
       // we don't have a root because the abort errored in the root. We can just ignore this error
     } else {
-      // This error is something else and should bubble up
-      throw err
+      function LogUseCacheTimeoutError() {
+        if (isUseCacheTimeoutError(err)) {
+          // Make sure the error is propagated to the dev overlay.
+          console.error(err)
+        }
+
+        return null
+      }
+
+      resolveValidation(<LogUseCacheTimeoutError />)
     }
   }
 
