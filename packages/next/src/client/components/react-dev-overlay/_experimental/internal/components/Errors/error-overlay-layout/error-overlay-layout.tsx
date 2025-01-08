@@ -32,6 +32,7 @@ import {
   DIALOG_HEADER_STYLES,
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
+import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -118,4 +119,5 @@ export const styles = css`
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
   ${toolbarStyles}
+  ${CALL_STACK_STYLES}
 `

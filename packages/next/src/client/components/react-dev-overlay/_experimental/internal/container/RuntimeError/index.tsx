@@ -1,24 +1,15 @@
-import * as React from 'react'
-import { CodeFrame } from '../../components/CodeFrame'
 import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
+
+import { useMemo } from 'react'
+import { CodeFrame } from '../../components/CodeFrame'
+import { CallStack } from '../../components/Errors/call-stack/call-stack'
 import { noop as css } from '../../helpers/noop-template'
-import { CallStackFrame } from './CallStackFrame'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
-  const [isIgnoredExpanded, setIsIgnoredExpanded] = React.useState(false)
-  const {
-    firstFrame,
-    allLeadingFrames,
-    trailingCallStackFrames,
-    displayedFramesCount,
-  } = React.useMemo(() => {
-    const filteredFrames = error.frames.filter((frame) =>
-      isIgnoredExpanded ? true : !frame.ignored
-    )
-
-    const firstFirstPartyFrameIndex = filteredFrames.findIndex(
+  const { firstFrame } = useMemo(() => {
+    const firstFirstPartyFrameIndex = error.frames.findIndex(
       (entry) =>
         !entry.ignored &&
         Boolean(entry.originalCodeFrame) &&
@@ -26,63 +17,25 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
     )
 
     return {
-      displayedFramesCount: filteredFrames.length,
-      firstFrame: filteredFrames[firstFirstPartyFrameIndex] ?? null,
-      allLeadingFrames:
-        firstFirstPartyFrameIndex < 0
-          ? []
-          : filteredFrames.slice(0, firstFirstPartyFrameIndex),
-      trailingCallStackFrames: filteredFrames.slice(
-        firstFirstPartyFrameIndex + 1
-      ),
+      firstFrame: error.frames[firstFirstPartyFrameIndex] ?? null,
     }
-  }, [error.frames, isIgnoredExpanded])
+  }, [error.frames])
 
   return (
-    <React.Fragment>
-      {firstFrame ? (
-        <>
-          <h2>Source</h2>
-          {allLeadingFrames.map((frame, frameIndex) => (
-            <CallStackFrame
-              key={`call-stack-leading-${frameIndex}`}
-              frame={frame}
-            />
-          ))}
-          <CodeFrame
-            stackFrame={firstFrame.originalStackFrame!}
-            codeFrame={firstFrame.originalCodeFrame!}
-          />
-        </>
-      ) : undefined}
-
-      {trailingCallStackFrames.map((frame, frameIndex) => (
-        <CallStackFrame
-          key={`call-stack-leading-${frameIndex}`}
-          frame={frame}
+    <>
+      {firstFrame && (
+        <CodeFrame
+          stackFrame={firstFrame.originalStackFrame!}
+          codeFrame={firstFrame.originalCodeFrame!}
         />
-      ))}
-      {
-        // if the default displayed ignored frames count is equal equal to the total frames count, hide the button
-        displayedFramesCount === error.frames.length &&
-        !isIgnoredExpanded ? null : (
-          <button
-            data-expand-ignore-button={isIgnoredExpanded}
-            onClick={() => setIsIgnoredExpanded(!isIgnoredExpanded)}
-          >
-            {`${isIgnoredExpanded ? 'Hide' : 'Show'} ignored frames`}
-          </button>
-        )
-      }
-    </React.Fragment>
+      )}
+
+      <CallStack frames={error.frames} />
+    </>
   )
 }
 
 export const styles = css`
-  [data-nextjs-call-stack-frame] {
-    padding: var(--size-4);
-  }
-
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
@@ -101,6 +54,28 @@ export const styles = css`
     outline: none;
   }
 
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
+    position: relative;
+    margin-left: var(--size-gap);
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-button] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-button {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-button--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
   .nextjs-data-runtime-error-copy-button--error,
   .nextjs-data-runtime-error-copy-button--error:hover {
     color: var(--color-ansi-red);
