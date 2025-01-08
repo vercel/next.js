@@ -1160,18 +1160,18 @@ export default abstract class Server<
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
+
+          // Normalize all the query params to remove the prefixes.
           const routeParamKeys = new Set<string>()
+          for (const [key, value] of Object.entries(parsedUrl.query)) {
+            if (typeof value === 'undefined') continue
 
-          for (const key of Object.keys(parsedUrl.query)) {
-            const value = parsedUrl.query[key]
-
-            normalizeNextQueryParam(key, (normalizedKey) => {
-              if (!parsedUrl) return // typeguard
-
+            const normalizedKey = normalizeNextQueryParam(key)
+            if (normalizedKey) {
               parsedUrl.query[normalizedKey] = value
               routeParamKeys.add(normalizedKey)
               delete parsedUrl.query[key]
-            })
+            }
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1229,34 +1229,25 @@ export default abstract class Server<
               params = paramsResult.params
             }
 
+            const routeMatchesHeader = req.headers['x-now-route-matches']
             if (
-              req.headers['x-now-route-matches'] &&
+              typeof routeMatchesHeader === 'string' &&
+              routeMatchesHeader &&
               isDynamicRoute(matchedPath) &&
               !paramsResult.hasValidParams
             ) {
-              const opts: Record<string, string> = {}
-              const routeParams = utils.getParamsFromRouteMatches(
-                req,
-                opts,
-                getRequestMeta(req, 'locale')
-              )
+              const routeMatches =
+                utils.getParamsFromRouteMatches(routeMatchesHeader)
 
-              // If this returns a locale, it means that the locale was detected
-              // from the pathname.
-              if (opts.locale) {
-                addRequestMeta(req, 'locale', opts.locale)
+              if (routeMatches) {
+                paramsResult = utils.normalizeDynamicRouteParams(
+                  routeMatches,
+                  true
+                )
 
-                // As the locale was parsed from the pathname, we should mark
-                // that the locale was not inferred as the default.
-                removeRequestMeta(req, 'localeInferredFromDefault')
-              }
-              paramsResult = utils.normalizeDynamicRouteParams(
-                routeParams,
-                true
-              )
-
-              if (paramsResult.hasValidParams) {
-                params = paramsResult.params
+                if (paramsResult.hasValidParams) {
+                  params = paramsResult.params
+                }
               }
             }
 
@@ -1368,7 +1359,7 @@ export default abstract class Server<
           ) || []
 
         for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler.receiveExpiredTags === 'function') {
+          if (typeof handler?.receiveExpiredTags === 'function') {
             await handler.receiveExpiredTags(...expiredTags)
           }
         }

@@ -7,6 +7,7 @@ import { createNext, FileRef } from 'e2e-utils'
 import { NextInstance } from 'e2e-utils'
 import {
   check,
+  createNowRouteMatches,
   fetchViaHTTP,
   findPort,
   initNextServerScript,
@@ -669,7 +670,9 @@ describe('required server files', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=first',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -682,7 +685,9 @@ describe('required server files', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/[slug]`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=second',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -698,7 +703,9 @@ describe('required server files', () => {
     const html = await renderViaHTTP(appPort, '/fallback/first', undefined, {
       headers: {
         'x-matched-path': '/fallback/first',
-        'x-now-route-matches': '1=fallback%2ffirst',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'fallback/first',
+        }).toString(),
       },
     })
     const $ = cheerio.load(html)
@@ -711,7 +718,9 @@ describe('required server files', () => {
     const html2 = await renderViaHTTP(appPort, `/fallback/second`, undefined, {
       headers: {
         'x-matched-path': '/fallback/[slug]',
-        'x-now-route-matches': '1=fallback%2fsecond',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'fallback/second',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -727,7 +736,7 @@ describe('required server files', () => {
     const html = await renderViaHTTP(appPort, '/optional-ssg', undefined, {
       headers: {
         'x-matched-path': '/optional-ssg',
-        'x-now-route-matches': '1=optional-ssg',
+        'x-now-route-matches': '',
       },
     })
     const $ = cheerio.load(html)
@@ -737,7 +746,9 @@ describe('required server files', () => {
     const html2 = await renderViaHTTP(appPort, `/optional-ssg`, undefined, {
       headers: {
         'x-matched-path': '/optional-ssg',
-        'x-now-route-matches': '1=optional-ssg%2fanother',
+        'x-now-route-matches': createNowRouteMatches({
+          slug: 'another',
+        }).toString(),
       },
     })
     const $2 = cheerio.load(html2)
@@ -750,7 +761,9 @@ describe('required server files', () => {
   it('should return data correctly with x-matched-path', async () => {
     const res = await fetchViaHTTP(
       appPort,
-      `/_next/data/${next.buildId}/dynamic/first.json?nxtPslug=first`,
+      `/_next/data/${next.buildId}/dynamic/first.json?${createNowRouteMatches({
+        slug: 'first',
+      }).toString()}`,
       undefined,
       {
         headers: {
@@ -771,7 +784,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/fallback/[slug].json`,
-          'x-now-route-matches': '1=second',
+          'x-now-route-matches': createNowRouteMatches({
+            slug: 'second',
+          }).toString(),
         },
       }
     )
@@ -808,7 +823,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello&nxtPcatchAll=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -827,7 +844,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': '/catch-all/[[...rest]]',
-          'x-now-route-matches': '1=hello/world&nxtPcatchAll=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -865,7 +884,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello&nxtPrest=hello',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello',
+          }).toString(),
         },
       }
     )
@@ -882,7 +903,9 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/catch-all/[[...rest]].json`,
-          'x-now-route-matches': '1=hello/world&nxtPrest=hello/world',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: 'hello/world',
+          }).toString(),
         },
       }
     )
@@ -934,7 +957,9 @@ describe('required server files', () => {
     const res = await fetchViaHTTP(
       appPort,
       '/to-dynamic/%c0.%c0.',
-      '?path=%c0.%c0.',
+      {
+        path: '%c0.%c0.',
+      },
       {
         headers: {
           'x-matched-path': '/dynamic/[slug]',
@@ -1092,7 +1117,9 @@ describe('required server files', () => {
         path: `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
         headers: {
           'x-matched-path': `/_next/data/${next.buildId}/optional-ssg/[[...rest]].json`,
-          'x-now-route-matches': '1=',
+          'x-now-route-matches': createNowRouteMatches({
+            rest: '',
+          }).toString(),
         },
       },
       {
@@ -1149,8 +1176,7 @@ describe('required server files', () => {
       {
         headers: {
           'x-matched-path': '/optional-ssg/[[...rest]]',
-          'x-now-route-matches':
-            '1=en%2Fes%2Fhello%252Fworld&nxtPrest=en%2Fes%2Fhello%252Fworld',
+          'x-now-route-matches': 'nxtPrest=en%2Fes%2Fhello%252Fworld',
         },
       }
     )

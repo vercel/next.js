@@ -6,7 +6,10 @@ import type { NextFontManifest } from '../../build/webpack/plugins/next-font-man
 import type { ParsedUrlQuery } from 'querystring'
 import type { AppPageModule } from '../route-modules/app-page/module'
 import type { ExpireTime } from '../lib/revalidate'
-import type { LoadingModuleData } from '../../shared/lib/app-router-context.shared-runtime'
+import type {
+  HeadData,
+  LoadingModuleData,
+} from '../../shared/lib/app-router-context.shared-runtime'
 import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import type { __ApiPreviewProps } from '../api-utils'
 
@@ -131,7 +134,7 @@ export type FlightDataSegment = [
   /* segment of the rendered slice: */ Segment,
   /* treePatch */ FlightRouterState,
   /* cacheNodeSeedData */ CacheNodeSeedData | null, // Can be null during prefetch if there's no loading component
-  /* head: [viewport, metadata] */ [React.ReactNode, React.ReactNode],
+  /* head: viewport */ HeadData,
   /* isHeadPartial */ boolean,
 ]
 
