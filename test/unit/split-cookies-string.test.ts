@@ -1,6 +1,5 @@
-import type { SerializeOptions } from 'next/dist/compiled/cookie'
 import { splitCookiesString } from 'next/dist/server/web/utils'
-import { serialize } from 'next/dist/compiled/cookie'
+import { type SerializeOptions, serialize } from 'cookie'
 
 function generateCookies(
   ...cookieOptions: (SerializeOptions & { name: string; value: string })[]
