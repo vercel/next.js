@@ -35,27 +35,29 @@ export const CallStackFrame: React.FC<{
     return null
   }
 
+  const Comp = hasSource ? 'button' : 'div'
+
   return (
-    <div data-nextjs-call-stack-frame>
-      <div
+    <Comp
+      data-nextjs-call-stack-frame
+      onClick={hasSource ? open : undefined}
+      disabled={!hasSource}
+      title={hasSource ? 'Click to open in your editor' : undefined}
+    >
+      <span
         data-nextjs-frame-expanded={!frame.ignored}
         className="call-stack-frame-method-name"
       >
         <HotlinkedText text={formattedMethod} />
-        <External />
-      </div>
-      <div
+        {hasSource && <External />}
+      </span>
+      <span
         className="call-stack-frame-file-source"
-        data-has-source={hasSource ? 'true' : undefined}
-        data-no-source={hasSource ? undefined : 'true'}
-        tabIndex={hasSource ? 10 : undefined}
-        role={hasSource ? 'link' : undefined}
-        onClick={open}
-        title={hasSource ? 'Click to open in your editor' : undefined}
+        data-has-source={hasSource}
       >
-        <span>{fileSource}</span>
-      </div>
-    </div>
+        {fileSource}
+      </span>
+    </Comp>
   )
 }
 
@@ -79,9 +81,41 @@ function External() {
 }
 
 export const CALL_STACK_FRAME_STYLES = css`
-  [data-nextjs-call-stack-frame] {
+  div[data-nextjs-call-stack-frame] {
     padding: var(--size-1_5) var(--size-2);
     margin-bottom: var(--size-1);
+
+    border-radius: var(--rounded-lg);
+  }
+
+  button[data-nextjs-call-stack-frame] {
+    all: unset;
+    display: block;
+    box-sizing: border-box;
+    width: 100%;
+
+    user-select: text;
+    -webkit-user-select: text;
+    -moz-user-select: text;
+    -ms-user-select: text;
+
+    padding: var(--size-1_5) var(--size-2);
+    margin-bottom: var(--size-1);
+
+    border-radius: var(--rounded-lg);
+
+    &:not(:disabled):hover {
+      background: var(--color-gray-alpha-100);
+      cursor: pointer;
+    }
+
+    &:not(:disabled):active {
+      background: var(--color-gray-alpha-200);
+    }
+
+    &:focus {
+      outline: none;
+    }
   }
 
   .call-stack-frame-method-name {
