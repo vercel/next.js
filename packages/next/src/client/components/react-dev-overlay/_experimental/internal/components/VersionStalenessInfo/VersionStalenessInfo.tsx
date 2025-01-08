@@ -31,7 +31,7 @@ export function VersionStalenessInfo({
           (learn more)
         </a>
       )}
-      {isTurbopack ? ' (Turbopack)' : ''}
+      {isTurbopack && <span className="turbopack-text">Turbopack</span>}
     </span>
   )
 }
@@ -50,18 +50,18 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
       break
     case 'stale-patch':
     case 'stale-minor':
-      text = `${versionLabel} out of date`
+      text = `${versionLabel} (stale)`
       title = `There is a newer version (${expected}) available, upgrade recommended! `
       indicatorClass = 'stale'
       break
     case 'stale-major': {
-      text = `${versionLabel} is outdated`
+      text = `${versionLabel} (outdated)`
       title = `An outdated version detected (latest is ${expected}), upgrade is highly recommended!`
       indicatorClass = 'outdated'
       break
     }
     case 'stale-prerelease': {
-      text = `${versionLabel} is outdated`
+      text = `${versionLabel} (stale)`
       title = `There is a newer canary version (${expected}) available, please upgrade! `
       indicatorClass = 'stale'
       break
@@ -89,22 +89,38 @@ export const styles = css`
     border-radius: var(--rounded-full);
 
     color: var(--color-gray-900);
-    font-size: var(--size-font-smaller);
+    font-size: var(--size-font-11);
     font-weight: 500;
     line-height: var(--size-4);
   }
+
   .version-staleness-indicator.fresh {
     fill: var(--color-green-800);
     stroke: var(--color-green-300);
   }
-  /* TODO: Update when yellow palette is available */
   .version-staleness-indicator.stale {
-    fill: var(--color-ansi-yellow);
-    stroke: var(--color-ansi-bright-yellow);
+    fill: var(--color-amber-800);
+    stroke: var(--color-amber-300);
   }
   .version-staleness-indicator.outdated {
     fill: var(--color-red-800);
     stroke: var(--color-red-300);
+  }
+
+  .turbopack-text {
+    background: linear-gradient(280deg, #0096ff 0%, #ff1e56 100%);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .turbopack-text {
+      background: linear-gradient(280deg, #45b2ff 0%, #ff6d92 100%);
+      background-clip: text;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
   }
 `
 
