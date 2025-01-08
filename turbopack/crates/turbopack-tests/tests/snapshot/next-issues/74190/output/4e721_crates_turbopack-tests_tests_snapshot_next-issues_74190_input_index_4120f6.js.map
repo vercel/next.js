@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 6, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/next-issues/74190/input/index.js"],"sourcesContent":["var root = {};\n(function _(namespace, path, parent) {\n  for (var i = 0, keys = Object.keys(namespace); i < keys.length; i++) {\n    var key = keys[i];\n    console.debug(\"####\", path, path ? true : false)\n    parent[key] = _(namespace[key], path ? `${path}.${key}` : key, parent[key] || {});\n  }\n  return parent;\n})({\n  wrapper: {\n    data: {\n      key: {}\n    },\n  }\n}, \"\", root);\n"],"names":[],"mappings":"AAAA,IAAI,OAAO,CAAC;AACZ,CAAC,SAAS,EAAE,SAAS,EAAE,IAAI,EAAE,MAAM;IACjC,IAAK,IAAI,IAAI,GAAG,OAAO,OAAO,IAAI,CAAC,YAAY,IAAI,KAAK,MAAM,EAAE,IAAK;QACnE,IAAI,MAAM,IAAI,CAAC,EAAE;QACjB,QAAQ,KAAK,CAAC,QAAQ,MAAM,OAAO,OAAO;QAC1C,MAAM,CAAC,IAAI,GAAG,EAAE,SAAS,CAAC,IAAI,EAAE,OAAO,GAAG,KAAK,CAAC,EAAE,KAAK,GAAG,KAAK,MAAM,CAAC,IAAI,IAAI,CAAC;IACjF;IACA,OAAO;AACT,CAAC,EAAE;IACD,SAAS;QACP,MAAM;YACJ,KAAK,CAAC;QACR;IACF;AACF,GAAG,IAAI"}},
+    {"offset": {"line": 21, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}
