@@ -39,10 +39,13 @@ import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
+import DefaultCacheHandler from '../lib/cache-handlers/default'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
-const cacheHandlerMap: Map<string, CacheHandler> = new Map()
+const cacheHandlerMap: Map<string, CacheHandler> = new Map([
+  ['default', DefaultCacheHandler],
+])
 
 function generateCacheEntry(
   workStore: WorkStore,
