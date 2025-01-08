@@ -99,7 +99,7 @@ function runTests(startServer = nextStart) {
   })
 
   it('should expire cookies with a maxAge', async () => {
-    const expiry = '60'
+    const expiry = 60
     const res = await fetchViaHTTP(appPort, '/api/preview', {
       cookieMaxAge: expiry,
     })
