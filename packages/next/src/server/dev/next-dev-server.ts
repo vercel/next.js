@@ -770,6 +770,7 @@ export default class DevServer extends Server {
           isAppPath,
           requestHeaders,
           cacheHandler: this.nextConfig.cacheHandler,
+          cacheHandlers: this.nextConfig.experimental.cacheHandlers,
           cacheLifeProfiles: this.nextConfig.experimental.cacheLife,
           fetchCacheKeyPrefix: this.nextConfig.experimental.fetchCacheKeyPrefix,
           isrFlushToDisk: this.nextConfig.experimental.isrFlushToDisk,

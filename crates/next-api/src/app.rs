@@ -807,7 +807,7 @@ enum AppPageEndpointType {
     Rsc,
 }
 
-#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs)]
+#[derive(Copy, Clone, Serialize, Deserialize, PartialEq, Eq, Debug, TraceRawVcs, NonLocalValue)]
 enum AppEndpointType {
     Page {
         ty: AppPageEndpointType,
@@ -822,7 +822,7 @@ enum AppEndpointType {
     },
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 struct AppEndpoint {
     ty: AppEndpointType,
     app_project: ResolvedVc<AppProject>,
