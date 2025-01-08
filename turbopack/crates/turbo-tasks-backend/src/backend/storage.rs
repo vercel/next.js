@@ -119,7 +119,7 @@ impl PersistanceState {
     }
 }
 
-const INDEX_THRESHOLD: usize = 1024;
+const INDEX_THRESHOLD: usize = 128;
 
 type IndexedMap<T> = AutoMap<
     <<T as KeyValuePair>::Key as Indexed>::Index,
