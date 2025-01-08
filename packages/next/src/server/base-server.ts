@@ -1359,7 +1359,7 @@ export default abstract class Server<
           ) || []
 
         for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler.receiveExpiredTags === 'function') {
+          if (typeof handler?.receiveExpiredTags === 'function') {
             await handler.receiveExpiredTags(...expiredTags)
           }
         }
