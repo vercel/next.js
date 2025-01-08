@@ -570,7 +570,7 @@ export interface ExperimentalConfig {
 
   /**
    * @experimental This is temporary and will be **removed** in the short future.
-   * Enables the streaming metadata by default or not.
+   * When enabled will cause async metadata calls to stream rather than block the render.
    */
   streamingMetadata?: boolean
 }
@@ -1197,6 +1197,7 @@ export const defaultConfig: NextConfig = {
     dynamicIO: false,
     inlineCss: false,
     newDevOverlay: false,
+    streamingMetadata: false,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -31,7 +31,7 @@ describe('metadata-streaming', () => {
     // navigate from / to /slow, the metadata should be empty first, e.g. no title.
     // then the metadata should be loaded after few seconds.
     const browser = await next.browser('/')
-    await browser.eval(`document.getElementById('to-slow').click()`)
+    await browser.elementByCss('#to-slow').click()
 
     await retry(async () => {
       expect(await browser.elementByCss('title').text()).toBe('slow page')
