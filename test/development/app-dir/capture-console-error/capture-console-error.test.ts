@@ -7,6 +7,8 @@ import {
   getRedboxTotalErrorCount,
   openRedbox,
   hasRedboxCallStack,
+  assertNoRedbox,
+  assertNoConsoleErrors,
 } from 'next-test-utils'
 
 async function getRedboxResult(browser: any) {
@@ -320,46 +322,7 @@ describe('app-dir - capture-console-error', () => {
     const browser = await next.browser('/browser/error-event')
     await browser.elementByCss('button').click()
 
-    await openRedbox(browser)
-
-    const result = await getRedboxResult(browser)
-
-    if (process.env.TURBOPACK) {
-      expect(result).toMatchInlineSnapshot(`
-       {
-         "callStacks": "",
-         "count": 1,
-         "description": "",
-         "source": "app/browser/error-event/page.js (14:16) @ onClick
-
-         12 |
-         13 |         // Dispatch the event
-       > 14 |         window.dispatchEvent(errorEvent)
-            |                ^
-         15 |       }}
-         16 |     >
-         17 |       click to trigger error event",
-         "title": "Console Error",
-       }
-      `)
-    } else {
-      expect(result).toMatchInlineSnapshot(`
-       {
-         "callStacks": "",
-         "count": 1,
-         "description": "",
-         "source": "app/browser/error-event/page.js (14:16) @ onClick
-  
-         12 |
-         13 |         // Dispatch the event
-       > 14 |         window.dispatchEvent(errorEvent)
-            |                ^
-         15 |       }}
-         16 |     >
-         17 |       click to trigger error event",
-         "title": "Console Error",
-       }
-      `)
-    }
+    await assertNoRedbox(browser)
+    await assertNoConsoleErrors(browser)
   })
 })
