@@ -29,13 +29,17 @@ Next.js can start as a static site or even a strict SPA where everything is rend
 
 ## Examples
 
+Let's explore common patterns used to build SPAs and how Next.js solves them.
+
 ### Using React’s `use` within a Context Provider
 
 We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a client component with React’s [`use` hook](https://react.dev/reference/react/use).
 
-While you can [defer and pass a single Promise](/docs/app/getting-started/data-fetching-and-streaming#with-the-use-hook) as a prop to a client component, we generally see this pattern paired with a React context provider. This enables easier access from client components with a custom React hook.
+Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
 
-First, update your root layout to call the Promise, but do _not_ await it.
+By “hoisting” your data fetching to the root layout, Next.js starts the specified requests on the server early before any other components in your application. This eliminates client waterfalls and prevents having multiple roundtrips between client and server. It can also significantly improve performance, as your server is closer (and ideally colocated) to where your database is located.
+
+For example, update your root layout to call the Promise, but do _not_ await it.
 
 ```tsx filename="app/layout.tsx" switcher
 import { UserProvider } from './user-provider'
@@ -75,7 +79,9 @@ export default function RootLayout({ children }) {
 }
 ```
 
-Then, forward the Promise to the React context provider:
+While you can [defer and pass a single Promise](/docs/app/getting-started/data-fetching-and-streaming#with-the-use-hook) as a prop to a client component, we generally see this pattern paired with a React context provider. This enables easier access from client components with a custom React hook.
+
+You can forward a Promise to the React context provider:
 
 ```ts filename="app/user-provider.ts" switcher
 'use client';
@@ -165,10 +171,6 @@ export function Profile() {
   return '...'
 }
 ```
-
-Why is this faster than a strict SPA or client-only fetching? Next.js can start data fetching early on the server. In this example, that’s the root layout — the entry point to your application. The server can immediately begin streaming a response to the client.
-
-By “hoisting” your data fetching to the root layout, Next.js starts the specified requests on the server early before any other components in your application. This eliminates client waterfalls and prevents having multiple roundtrips between client and server. It can also significantly improve performance, as your server is closer (and ideally colocated) to where your database is located.
 
 The component that consumes the Promise (e.g. `Profile` above) will be suspended. This enables partial hydration. You can see the streamed and prerendered HTML before JavaScript has finished loading.
 
@@ -264,12 +266,12 @@ The `fallback` data can be prerendered and included in the initial HTML response
 
 Since the initial `fallback` data is automatically handled by Next.js, you can now delete any conditional logic previously needed to check if `data` was `undefined`. When the data is loading, the closest `<Suspense>` boundary will be suspended.
 
-|                      | SWR | RSC | RSC + SWR |
-| -------------------- | --- | --- | --------- |
-| SSR data             | ❌  | ✅  | ✅        |
-| Streaming while SSR  | ❌  | ✅  | ✅        |
-| Deduplicate requests | ✅  | ✅  | ✅        |
-| Client-side features | ✅  | ❌  | ✅        |
+|                      | SWR                 | RSC                 | RSC + SWR           |
+| -------------------- | ------------------- | ------------------- | ------------------- |
+| SSR data             | <Cross size={18} /> | <Check size={18} /> | <Check size={18} /> |
+| Streaming while SSR  | <Cross size={18} /> | <Check size={18} /> | <Check size={18} /> |
+| Deduplicate requests | <Check size={18} /> | <Check size={18} /> | <Check size={18} /> |
+| Client-side features | <Check size={18} /> | <Cross size={18} /> | <Check size={18} /> |
 
 ### SPAs with React Query
 
@@ -347,7 +349,7 @@ export default function SortProducts() {
 
 Learn more about how [routing and navigation](/docs/app/building-your-application/routing/linking-and-navigating#how-routing-and-navigation-works) work in Next.js.
 
-### Using Server Actions from client components
+### Using Server Actions in client components
 
 You can progressively adopt Server Actions while still using client components. This allows you to remove boilerplate code to call an API route, and instead use React features like `useActionState` to handle loading and error states.
 
