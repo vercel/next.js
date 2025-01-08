@@ -1,7 +1,7 @@
 /* eslint-env jest */
 
 import cheerio from 'cheerio'
-import cookie from 'cookie'
+import * as cookie from 'cookie'
 import fs from 'fs-extra'
 import {
   fetchViaHTTP,

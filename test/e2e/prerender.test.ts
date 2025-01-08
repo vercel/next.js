@@ -1,5 +1,5 @@
 import fs from 'fs-extra'
-import cookie from 'cookie'
+import * as cookie from 'cookie'
 import cheerio from 'cheerio'
 import { join, sep } from 'path'
 import escapeRegex from 'escape-string-regexp'
