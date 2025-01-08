@@ -16,6 +16,7 @@ export async function createIncrementalCache({
   dir,
   flushToDisk,
   cacheHandlers,
+  requestHeaders,
 }: {
   dynamicIO: boolean
   cacheHandler?: string
@@ -24,6 +25,7 @@ export async function createIncrementalCache({
   distDir: string
   dir: string
   flushToDisk?: boolean
+  requestHeaders?: Record<string, string | string[] | undefined>
   cacheHandlers?: Record<string, string | undefined>
 }) {
   // Custom cache handler overrides.
@@ -56,7 +58,7 @@ export async function createIncrementalCache({
 
   const incrementalCache = new IncrementalCache({
     dev: false,
-    requestHeaders: {},
+    requestHeaders: requestHeaders || {},
     flushToDisk,
     dynamicIO,
     maxMemoryCacheSize: cacheMaxMemorySize,
