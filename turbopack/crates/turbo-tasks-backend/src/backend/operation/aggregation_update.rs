@@ -34,6 +34,7 @@ use crate::{
 
 pub const LEAF_NUMBER: u32 = 16;
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
+const MAX_UPPERS_FOR_LEAF: u32 = 3;
 
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
@@ -1723,21 +1724,29 @@ impl AggregationUpdateQueue {
         let upper_count = get!(task, PersistentUpperCount)
             .copied()
             .unwrap_or_default();
+        if !is_aggregating_node(aggregation_number.effective) {
+            if upper_count > MAX_UPPERS_FOR_LEAF {
+                #[cfg(feature = "trace_aggregation_update")]
+                let _span = trace_span!(
+                    "optimize leaf",
+                    old_aggregation_number = aggregation_number.effective,
+                    upper_count
+                )
+                .entered();
+                self.push(AggregationUpdateJob::UpdateAggregationNumber {
+                    task_id,
+                    base_aggregation_number: LEAF_NUMBER,
+                    distance: None,
+                });
+            }
+            return;
+        }
         if upper_count <= aggregation_number.effective {
             // Doesn't need optimization
             return;
         }
         let uppers = get_uppers(&task);
         drop(task);
-
-        if !is_aggregating_node(aggregation_number.effective) {
-            self.push(AggregationUpdateJob::UpdateAggregationNumber {
-                task_id,
-                base_aggregation_number: LEAF_NUMBER,
-                distance: None,
-            });
-            return;
-        }
 
         let mut root_uppers = 0;
 
