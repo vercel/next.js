@@ -569,7 +569,6 @@ export interface ExperimentalConfig {
   newDevOverlay?: boolean
 
   /**
-   * @experimental This is temporary and will be **removed** in the short future.
    * When enabled will cause async metadata calls to stream rather than block the render.
    */
   streamingMetadata?: boolean
