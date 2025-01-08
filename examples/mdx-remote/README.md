@@ -4,28 +4,28 @@ This example shows how a simple blog might be built using the [next-mdx-remote](
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mdx-remote)
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/mdx-remote)
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mdx-remote&project-name=with-mdx-remote&repository-name=with-mdx-remote)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/mdx-remote&project-name=mdx-remote&repository-name=mdx-remote)
 
 ## How to use
 
 Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app) with [npm](https://docs.npmjs.com/cli/init), [Yarn](https://yarnpkg.com/lang/en/docs/cli/create/), [pnpm](https://pnpm.io), or [Bun](https://bun.sh/docs/cli/bunx) to bootstrap the example:
 
 ```bash
-npx create-next-app --example with-mdx-remote with-mdx-remote-app
+npx create-next-app --example mdx-remote mdx-remote-app
 ```
 
 ```bash
-yarn create next-app --example with-mdx-remote with-mdx-remote-app
+yarn create next-app --example mdx-remote mdx-remote-app
 ```
 
 ```bash
-pnpm create next-app --example with-mdx-remote with-mdx-remote-app
+pnpm create next-app --example mdx-remote mdx-remote-app
 ```
 
 ```bash
-bunx create-next-app --example with-mdx-remote with-mdx-remote-app
+bunx create-next-app --example mdx-remote mdx-remote-app
 ```
 
 Deploy it to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/app/building-your-application/deploying)).
