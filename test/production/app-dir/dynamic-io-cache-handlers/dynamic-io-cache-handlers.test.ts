@@ -14,6 +14,10 @@ describe('dynamic-io-cache-handlers', () => {
   let output = ''
   let next: NextInstance
 
+  if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+    return it('should skip', () => {})
+  }
+
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),
