@@ -315,4 +315,51 @@ describe('app-dir - capture-console-error', () => {
       `)
     }
   })
+
+  it('should display the error message in error event when event.error is not present', async () => {
+    const browser = await next.browser('/browser/error-event')
+    await browser.elementByCss('button').click()
+
+    await openRedbox(browser)
+
+    const result = await getRedboxResult(browser)
+
+    if (process.env.TURBOPACK) {
+      expect(result).toMatchInlineSnapshot(`
+       {
+         "callStacks": "",
+         "count": 1,
+         "description": "",
+         "source": "app/browser/error-event/page.js (14:16) @ onClick
+
+         12 |
+         13 |         // Dispatch the event
+       > 14 |         window.dispatchEvent(errorEvent)
+            |                ^
+         15 |       }}
+         16 |     >
+         17 |       click to trigger error event",
+         "title": "Console Error",
+       }
+      `)
+    } else {
+      expect(result).toMatchInlineSnapshot(`
+       {
+         "callStacks": "",
+         "count": 1,
+         "description": "",
+         "source": "app/browser/error-event/page.js (14:16) @ onClick
+  
+         12 |
+         13 |         // Dispatch the event
+       > 14 |         window.dispatchEvent(errorEvent)
+            |                ^
+         15 |       }}
+         16 |     >
+         17 |       click to trigger error event",
+         "title": "Console Error",
+       }
+      `)
+    }
+  })
 })
