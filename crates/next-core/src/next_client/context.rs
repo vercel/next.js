@@ -283,14 +283,9 @@ pub async fn get_client_module_options_context(
         .await?;
     let target_browsers = env.runtime_versions();
 
-    let mut next_client_rules = get_next_client_transforms_rules(
-        next_config,
-        ty.into_value(),
-        mode,
-        false,
-        encryption_key.clone(),
-    )
-    .await?;
+    let mut next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, false, encryption_key)
+            .await?;
     let foreign_next_client_rules =
         get_next_client_transforms_rules(next_config, ty.into_value(), mode, true, encryption_key)
             .await?;
