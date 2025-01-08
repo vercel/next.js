@@ -425,9 +425,6 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         if self.should_track_children() && matches!(consistency, ReadConsistency::Strong) {
-            if let Some(value) = check_in_progress(self, &task, reader) {
-                return value;
-            }
             // Ensure it's an root node
             loop {
                 let aggregation_number = get_aggregation_number(&task);
