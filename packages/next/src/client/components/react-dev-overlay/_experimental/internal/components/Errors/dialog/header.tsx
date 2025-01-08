@@ -15,7 +15,7 @@ export function ErrorOverlayDialogHeader({
   )
 }
 
-export const styles = css`
+export const DIALOG_HEADER_STYLES = css`
   .nextjs-container-errors-header {
     position: relative;
   }

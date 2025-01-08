@@ -14,11 +14,4 @@ export function ErrorOverlayDialogBody({
   )
 }
 
-export const styles = css`
-  .error-overlay-dialog {
-    background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--rounded-xl);
-    box-shadow: var(--shadow-md);
-  }
-`
+export const DIALOG_BODY_STYLES = css``

@@ -4,7 +4,7 @@ import type { VersionInfo } from '../../../../../../../../server/dev/parse-versi
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
-import { DialogBody, DialogContent, DialogFooter } from '../../Dialog'
+import { DialogContent, DialogFooter } from '../../Dialog'
 import { Overlay } from '../../Overlay'
 import {
   ErrorOverlayToolbar,
@@ -25,11 +25,13 @@ import {
   ErrorOverlayFloatingHeader,
   styles as floatingHeaderStyles,
 } from '../error-overlay-floating-header/error-overlay-floating-header'
-import { ErrorOverlayDialog, styles as dialogStyles } from '../dialog/dialog'
+
+import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
 import {
   ErrorOverlayDialogHeader,
-  styles as dialogHeaderStyles,
-} from '../dialog/dialog-header'
+  DIALOG_HEADER_STYLES,
+} from '../dialog/header'
+import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -85,9 +87,9 @@ export function ErrorOverlayLayout({
             </div>
             <ErrorMessage errorMessage={errorMessage} />
           </ErrorOverlayDialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            {children}
-          </DialogBody>
+
+          <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+
           <DialogFooter>
             {/* TODO: errorCode should not be undefined whatsoever */}
             <ErrorOverlayFooter
@@ -106,8 +108,10 @@ export function ErrorOverlayLayout({
 }
 
 export const styles = css`
-  ${dialogStyles}
-  ${dialogHeaderStyles}
+  ${DIALOG_STYLES}
+  ${DIALOG_HEADER_STYLES}
+  ${DIALOG_BODY_STYLES}
+
   ${floatingHeaderStyles}
   ${errorTypeLabelStyles}
   ${errorMessageStyles}

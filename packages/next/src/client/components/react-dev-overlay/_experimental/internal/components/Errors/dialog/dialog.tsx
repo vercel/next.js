@@ -23,7 +23,7 @@ export function ErrorOverlayDialog({
   )
 }
 
-export const styles = css`
+export const DIALOG_STYLES = css`
   .error-overlay-dialog {
     background: var(--color-background-100);
     border: 1px solid var(--color-gray-400);
