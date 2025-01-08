@@ -10,12 +10,7 @@ const styles = css`
     margin-right: auto;
     margin-left: auto;
 
-    background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
-    border-radius: var(--rounded-xl);
-    box-shadow: var(--shadow-md);
-    max-height: calc(100% - 56px);
-    position: relative;
+    z-index: 50;
     outline: none;
   }
 
