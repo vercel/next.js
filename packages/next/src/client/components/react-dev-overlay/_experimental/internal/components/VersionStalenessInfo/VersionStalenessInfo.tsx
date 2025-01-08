@@ -15,7 +15,11 @@ export function VersionStalenessInfo({
   if (!text) return null
 
   return (
-    <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
+    <span
+      className={`nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click ${
+        isTurbopack ? 'turbopack-border' : ''
+      }`}
+    >
       <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
       <span data-nextjs-version-checker title={title}>
         {text}
@@ -105,6 +109,15 @@ export const styles = css`
   .version-staleness-indicator.outdated {
     fill: var(--color-red-800);
     stroke: var(--color-red-300);
+  }
+
+  .turbopack-border {
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--color-background-100), var(--color-background-100))
+        padding-box,
+      linear-gradient(to right, #ea3c5a, #4194f7) border-box;
+    border-radius: var(--rounded-full);
   }
 
   .turbopack-text {
