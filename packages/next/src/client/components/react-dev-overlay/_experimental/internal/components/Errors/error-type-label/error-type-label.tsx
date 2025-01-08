@@ -13,25 +13,25 @@ type ErrorTypeLabelProps = {
 
 export function ErrorTypeLabel({ errorType }: ErrorTypeLabelProps) {
   return (
-    <h1
+    <span
       id="nextjs__container_errors_label"
       className="nextjs__container_errors_label"
     >
       {errorType}
-    </h1>
+    </span>
   )
 }
 
 export const styles = css`
   .nextjs__container_errors_label {
-    padding: var(--size-1_5);
+    padding: var(--size-0_5) var(--size-1_5);
     margin: 0;
     margin-bottom: var(--size-3);
     /* used --size instead of --rounded because --rounded is missing 6px */
     border-radius: var(--size-1_5);
     background: var(--color-red-100);
     font-weight: 600;
-    font-size: var(--size-3);
+    font-size: var(--size-font-11);
     color: var(--color-red-900);
     font-family: var(--font-stack-monospace);
     line-height: var(--size-5);
