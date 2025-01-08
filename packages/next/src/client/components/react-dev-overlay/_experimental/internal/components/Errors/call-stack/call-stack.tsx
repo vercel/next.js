@@ -133,5 +133,9 @@ export const CALL_STACK_STYLES = css`
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
     line-height: var(--size-5);
+
+    &:focus {
+      outline: none;
+    }
   }
 `

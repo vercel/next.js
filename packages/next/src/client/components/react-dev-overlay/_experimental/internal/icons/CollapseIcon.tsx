@@ -13,7 +13,6 @@ export function CollapseIcon({ collapsed }: { collapsed?: boolean } = {}) {
       strokeWidth="2"
       viewBox="0 0 24 24"
       // rotate 90 degrees if not collapsed.
-      // If collapsed isn't present, the rotation is applied via the `data-nextjs-collapsed-call-stack-details` element's `open` attribute
       {...(typeof collapsed === 'boolean'
         ? { style: { transform: collapsed ? undefined : 'rotate(90deg)' } }
         : {})}
