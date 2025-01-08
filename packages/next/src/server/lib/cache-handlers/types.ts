@@ -44,9 +44,9 @@ export interface CacheHandler {
 
   set(cacheKey: string, entry: Promise<CacheEntry>): Promise<void>
 
-  // This is called when unstable_expireTags('') is called
+  // This is called when expireTags('') is called
   // and should update tags manifest accordingly
-  unstable_expireTags(...tags: string[]): Promise<void>
+  expireTags(...tags: string[]): Promise<void>
 
   // This is called when an action request sends
   // NEXT_CACHE_REVALIDATED_TAGS_HEADER and tells

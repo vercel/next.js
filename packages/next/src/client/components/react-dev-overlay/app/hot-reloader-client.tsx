@@ -46,6 +46,7 @@ import type { DebugInfo } from '../types'
 import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../internal/helpers/stitched-error'
 import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
+import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -676,6 +677,7 @@ export default function HotReload({
     const handler = (event: MessageEvent<any>) => {
       try {
         const obj = JSON.parse(event.data)
+        handleDevBuildIndicatorHmrEvents(obj)
         processMessage(
           obj,
           sendMessage,

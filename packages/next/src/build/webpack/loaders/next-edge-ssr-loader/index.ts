@@ -85,7 +85,7 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
     const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
 
     if (!cacheHandlers.default) {
-      cacheHandlers.default = require.resolve(
+      cacheHandlers.__nextDefault = require.resolve(
         '../../../../server/lib/cache-handlers/default'
       )
     }

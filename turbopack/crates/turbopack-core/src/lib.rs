@@ -4,6 +4,7 @@
 #![feature(assert_matches)]
 #![feature(arbitrary_self_types)]
 #![feature(arbitrary_self_types_pointers)]
+#![feature(impl_trait_in_assoc_type)]
 #![feature(iter_intersperse)]
 
 pub mod asset;
@@ -21,6 +22,7 @@ pub mod ident;
 pub mod introspect;
 pub mod issue;
 pub mod module;
+pub mod module_graph;
 pub mod output;
 pub mod package_json;
 pub mod proxied_asset;
