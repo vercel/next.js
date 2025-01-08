@@ -3,7 +3,7 @@ import { noop as css } from '../../helpers/noop-template'
 
 export function VersionStalenessInfo({
   versionInfo,
-  isTurbopack = !!process.env.TURBOPACK,
+  isTurbopack,
 }: {
   versionInfo: VersionInfo | undefined
   isTurbopack?: boolean
@@ -111,25 +111,55 @@ export const styles = css`
     stroke: var(--color-red-300);
   }
 
-  .turbopack-border {
+  .nextjs-container-build-error-version-status.turbopack-border {
     border: 1px solid transparent;
     background:
       linear-gradient(var(--color-background-100), var(--color-background-100))
         padding-box,
-      linear-gradient(to right, #ea3c5a, #4194f7) border-box;
+      linear-gradient(
+          to right,
+          var(--color-turbopack-border-red) 0%,
+          var(--color-turbopack-border-blue) 100%
+        )
+        border-box;
     border-radius: var(--rounded-full);
   }
 
-  .turbopack-text {
-    background: linear-gradient(280deg, #0096ff 0%, #ff1e56 100%);
+  .nextjs-container-build-error-version-status > .turbopack-text {
+    background: linear-gradient(
+      to right,
+      var(--color-turbopack-text-red) 0%,
+      var(--color-turbopack-text-blue) 100%
+    );
     background-clip: text;
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
 
   @media (prefers-color-scheme: dark) {
-    .turbopack-text {
-      background: linear-gradient(280deg, #45b2ff 0%, #ff6d92 100%);
+    .nextjs-container-build-error-version-status.turbopack-border {
+      border: 1px solid transparent;
+      background:
+        linear-gradient(
+            var(--color-background-100),
+            var(--color-background-100)
+          )
+          padding-box,
+        linear-gradient(
+            to right,
+            var(--color-turbopack-border-red) 0%,
+            var(--color-turbopack-border-blue) 100%
+          )
+          border-box;
+      border-radius: var(--rounded-full);
+    }
+
+    .nextjs-container-build-error-version-status > .turbopack-text {
+      background: linear-gradient(
+        to right,
+        var(--color-turbopack-text-red) 0%,
+        var(--color-turbopack-text-blue) 100%
+      );
     }
   }
 `
