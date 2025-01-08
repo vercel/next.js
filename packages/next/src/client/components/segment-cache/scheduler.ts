@@ -91,21 +91,13 @@ export type PrefetchTask = {
   hasBackgroundWork: boolean
 
   /**
-   * True if the prefetch is blocked by network data. We remove tasks from the
-   * queue once they are blocked, and add them back when they receive data.
-   *
-   * isBlocked also indicates whether the task is currently in the queue; tasks
-   * are removed from the queue when they are blocked. Use this to avoid
-   * queueing the same task multiple times.
-   */
-  isBlocked: boolean
-
-  /**
    * The index of the task in the heap's backing array. Used to efficiently
    * change the priority of a task by re-sifting it, which requires knowing
    * where it is in the array. This is only used internally by the heap
    * algorithm. The naive alternative is indexOf every time a task is queued,
    * which has O(n) complexity.
+   *
+   * We also use this field to check whether a task is currently in the queue.
    */
   _heapIndex: number
 }
@@ -173,7 +165,7 @@ export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
   includeDynamicData: boolean
-): void {
+): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
@@ -182,7 +174,6 @@ export function schedulePrefetchTask(
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
-    isBlocked: false,
     _heapIndex: -1,
   }
   heapPush(taskHeap, task)
@@ -194,6 +185,27 @@ export function schedulePrefetchTask(
   // By deferring to a microtask, we only process the queue once per JS task.
   // If they have different priorities, it also ensures they are processed in
   // the optimal order.
+  ensureWorkIsScheduled()
+
+  return task
+}
+
+export function bumpPrefetchTask(task: PrefetchTask): void {
+  // Bump the prefetch task to the top of the queue, as if it were a fresh
+  // task. This is essentially the same as canceling the task and scheduling
+  // a new one, except it reuses the original object.
+  //
+  // The primary use case is to increase the relative priority of a Link-
+  // initated prefetch on hover.
+
+  // Assign a new sort ID. Higher sort IDs are higher priority.
+  task.sortId = sortIdCounter++
+  if (task._heapIndex !== -1) {
+    // The task is already in the queue.
+    heapResift(taskHeap, task)
+  } else {
+    heapPush(taskHeap, task)
+  }
   ensureWorkIsScheduled()
 }
 
@@ -263,12 +275,14 @@ function onPrefetchConnectionClosed(): void {
  */
 export function pingPrefetchTask(task: PrefetchTask) {
   // "Ping" a prefetch that's already in progress to notify it of new data.
-  if (!task.isBlocked) {
-    // Prefetch is already queued.
+  if (
+    // Check if prefetch is already queued.
+    // TODO: Check if task was canceled, too
+    task._heapIndex !== -1
+  ) {
     return
   }
-  // Unblock the task and requeue it.
-  task.isBlocked = false
+  // Add the task back to the queue.
   heapPush(taskHeap, task)
   ensureWorkIsScheduled()
 }
@@ -300,10 +314,8 @@ function processQueueInMicrotask() {
       case PrefetchTaskExitStatus.Blocked:
         // The task is blocked. It needs more data before it can proceed.
         // Keep the task out of the queue until the server responds.
-        task.isBlocked = true
-
-        // Continue to the next task
         heapPop(taskHeap)
+        // Continue to the next task
         task = heapPeek(taskHeap)
         continue
       case PrefetchTaskExitStatus.Done:
