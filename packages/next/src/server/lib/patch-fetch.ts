@@ -626,7 +626,7 @@ export function createPatchedFetcher(
               })
             }
             if (
-              res.status === 200 &&
+              (res.status === 200 || res.status === 404) &&
               incrementalCache &&
               cacheKey &&
               (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
