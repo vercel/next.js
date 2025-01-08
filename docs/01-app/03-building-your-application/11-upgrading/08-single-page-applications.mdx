@@ -23,15 +23,15 @@ Strict SPAs often require large amounts of JavaScript to load before the page ca
 
 Next.js can automatically code split your JavaScript bundles, and generate multiple HTML entry points into different routes. This avoids loading unnecessary JavaScript code on the client-side, reducing the bundle size and enabling faster page loads.
 
-The `next/link` component makes it easy and automatic to preload routes, giving you the fast page transitions of a strict SPA, but with the advantage of persisting application routing state to the URL for linking and sharing.
+The [`next/link`](/docs/app/api-reference/components/link) component automatically [prefetches](/docs/app/api-reference/components/link#prefetch) routes, giving you the fast page transitions of a strict SPA, but with the advantage of persisting application routing state to the URL for linking and sharing.
 
-Next.js can start as a static site or even a strict SPA where everything is rendered client side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
+Next.js can start as a static site or even a strict SPA where everything is rendered client-side. If your project grows, Next.js allows you to progressively add more server features (e.g. [React Server Components](/docs/app/building-your-application/rendering/server-components), [Server Actions](/docs/app/building-your-application/data-fetching/server-actions-and-mutations), and more) as needed.
 
 ## Examples
 
 ### Using React’s `use` within a Context Provider
 
-We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a client component with React’s `use` hook.
+We recommend fetching data in a parent component (or layout), returning the Promise, and then unwrapping the value in a client component with React’s [`use` hook](https://react.dev/reference/react/use).
 
 While you can [defer and pass a single Promise](/docs/app/getting-started/data-fetching-and-streaming#with-the-use-hook) as a prop to a client component, we generally see this pattern paired with a React context provider. This enables easier access from client components with a custom React hook.
 
@@ -174,7 +174,7 @@ The component that consumes the Promise (e.g. `Profile` above) will be suspended
 
 ### SPAs with SWR
 
-[SWR](https://swr.vercel.app) is a popular React library for simplified data fetching.
+[SWR](https://swr.vercel.app) is a popular React library for data fetching.
 
 With SWR 2.3.0 (and React 19+), you can gradually adopt server features alongside your existing SWR-based client data fetching code. This is an abstraction of the above `use()` pattern. This means you can move data fetching between the client and server-side, or use both:
 
@@ -279,7 +279,7 @@ Learn more in the [React Query documentation](https://tanstack.com/query/latest/
 
 ### Rendering components only in the browser
 
-Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a client component and only load it in the browser environment, you can use the following:
+Client components are [prerendered](https://github.com/reactwg/server-components/discussions/4) during `next build`. If you want to disable prerendering for a client component and only load it in the browser environment, you can use [`next/dynamic`](/docs/app/building-your-application/optimizing/lazy-loading#nextdynamic):
 
 ```jsx
 import dynamic from 'next/dynamic'
@@ -393,7 +393,7 @@ Learn more about [mutating data with Server Actions](/docs/app/building-your-app
 
 Next.js also supports generating a fully [static site](/docs/app/building-your-application/deploying/static-exports). This has some advantages over strict SPAs:
 
-- **Multiple prerendered HTML pages**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without waiting for the client JavaScript bundle.
+- **Automatic code-splitting**: Instead of shipping a single `index.html`, Next.js will generate an HTML file per route, so your visitors get the content faster without waiting for the client JavaScript bundle.
 - **Improved user experience:** Instead of a minimal skeleton for all routes, you get fully rendered pages for each route. When users navigate client side, transitions remain instant and SPA-like.
 
 To enable a static export, update your configuration:
