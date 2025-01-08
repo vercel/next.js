@@ -1309,8 +1309,10 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
             if !upper_ids.is_empty() {
-                if update_ucount_and_get!(follower, PersistentUpperCount, persistent_uppers)
-                    .is_power_of_two()
+                let new_count =
+                    update_ucount_and_get!(follower, PersistentUpperCount, persistent_uppers);
+                if (new_count - persistent_uppers).next_power_of_two()
+                    != new_count.next_power_of_two()
                 {
                     self.push_optimize_task(new_follower_id);
                 }
