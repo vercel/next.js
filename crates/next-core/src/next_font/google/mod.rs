@@ -667,7 +667,6 @@ async fn get_mock_stylesheet(
         env,
         project_path: _,
         chunking_context,
-        ..
     } = *execution_context.await?;
     let asset_context =
         node_evaluate_asset_context(execution_context, None, None, "next_font".into(), false);

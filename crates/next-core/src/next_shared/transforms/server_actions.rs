@@ -19,7 +19,7 @@ pub enum ActionsTransform {
 /// Returns a rule which applies the Next.js Server Actions transform.
 pub fn get_server_actions_transform_rule(
     transform: ActionsTransform,
-    encryption_key: RcStr,
+    encryption_key: ResolvedVc<RcStr>,
     enable_mdx_rs: bool,
     dynamic_io_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
@@ -43,7 +43,7 @@ pub fn get_server_actions_transform_rule(
 #[derive(Debug)]
 struct NextServerActions {
     transform: ActionsTransform,
-    encryption_key: RcStr,
+    encryption_key: ResolvedVc<RcStr>,
     dynamic_io_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 }
@@ -57,7 +57,7 @@ impl CustomTransformer for NextServerActions {
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
                 dynamic_io_enabled: self.dynamic_io_enabled,
-                hash_salt: self.encryption_key.clone().into(),
+                hash_salt: self.encryption_key.await?.to_string(),
                 cache_kinds: self.cache_kinds.await?.clone_value(),
             },
             ctx.comments.clone(),

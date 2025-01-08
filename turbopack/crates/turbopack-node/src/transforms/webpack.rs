@@ -202,7 +202,6 @@ impl WebpackLoadersProcessedAsset {
             project_path,
             chunking_context,
             env,
-            ..
         } = *transform.execution_context.await?;
         let source_content = this.source.content();
         let AssetContent::File(file) = *source_content.await? else {

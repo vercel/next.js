@@ -228,6 +228,7 @@ pub async fn get_client_module_options_context(
     ty: Value<ClientContextType>,
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
     let resolve_options_context = get_client_resolve_options_context(
@@ -285,19 +286,14 @@ pub async fn get_client_module_options_context(
     let mut next_client_rules = get_next_client_transforms_rules(
         next_config,
         ty.into_value(),
-        *execution_context,
         mode,
         false,
+        encryption_key.clone(),
     )
     .await?;
-    let foreign_next_client_rules = get_next_client_transforms_rules(
-        next_config,
-        ty.into_value(),
-        *execution_context,
-        mode,
-        true,
-    )
-    .await?;
+    let foreign_next_client_rules =
+        get_next_client_transforms_rules(next_config, ty.into_value(), mode, true, encryption_key)
+            .await?;
     let additional_rules: Vec<ModuleRule> = vec![
         get_swc_ecma_transform_plugin_rule(next_config, project_path).await?,
         get_relay_transform_rule(next_config, project_path).await?,

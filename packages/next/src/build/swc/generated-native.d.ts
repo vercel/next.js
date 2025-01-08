@@ -38,18 +38,18 @@ export interface TransformOutput {
   map?: string
   output?: string
 }
-export declare function mdxCompile(
+export function mdxCompile(
   value: string,
   option: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
-export declare function mdxCompileSync(value: string, option: Buffer): string
-export declare function minify(
+export function mdxCompileSync(value: string, option: Buffer): string
+export function minify(
   input: Buffer,
   opts: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<TransformOutput>
-export declare function minifySync(input: Buffer, opts: Buffer): TransformOutput
+export function minifySync(input: Buffer, opts: Buffer): TransformOutput
 export interface NapiEndpointConfig {}
 export interface NapiServerPath {
   path: string
@@ -62,15 +62,15 @@ export interface NapiWrittenEndpoint {
   serverPaths: Array<NapiServerPath>
   config: NapiEndpointConfig
 }
-export declare function endpointWriteToDisk(endpoint: {
+export function endpointWriteToDisk(endpoint: {
   __napiType: 'Endpoint'
 }): Promise<TurbopackResult>
-export declare function endpointServerChangedSubscribe(
+export function endpointServerChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   issues: boolean,
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function endpointClientChangedSubscribe(
+export function endpointClientChangedSubscribe(
   endpoint: { __napiType: 'Endpoint' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
@@ -178,15 +178,15 @@ export interface NapiTurboEngineOptions {
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
 }
-export declare function projectNew(
+export function projectNew(
   options: NapiProjectOptions,
   turboEngineOptions: NapiTurboEngineOptions
 ): Promise<{ __napiType: 'Project' }>
-export declare function projectUpdate(
+export function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
-export declare function projectShutdown(project: {
+export function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
 export interface AppPageNapiRoute {
@@ -223,11 +223,11 @@ export interface NapiEntrypoints {
   pagesAppEndpoint: ExternalObject<ExternalEndpoint>
   pagesErrorEndpoint: ExternalObject<ExternalEndpoint>
 }
-export declare function projectEntrypointsSubscribe(
+export function projectEntrypointsSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
-export declare function projectHmrEvents(
+export function projectHmrEvents(
   project: { __napiType: 'Project' },
   identifier: string,
   func: (...args: any[]) => any
@@ -235,7 +235,7 @@ export declare function projectHmrEvents(
 export interface HmrIdentifiers {
   identifiers: Array<string>
 }
-export declare function projectHmrIdentifiersSubscribe(
+export function projectHmrIdentifiersSubscribe(
   project: { __napiType: 'Project' },
   func: (...args: any[]) => any
 ): { __napiType: 'RootTask' }
@@ -260,7 +260,7 @@ export interface NapiUpdateInfo {
  *
  * The signature of the `func` is `(update_message: UpdateMessage) => void`.
  */
-export declare function projectUpdateInfoSubscribe(
+export function projectUpdateInfoSubscribe(
   project: { __napiType: 'Project' },
   aggregationMs: number,
   func: (...args: any[]) => any
@@ -268,35 +268,32 @@ export declare function projectUpdateInfoSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
+  originalFile?: string
   file: string
   line?: number
   column?: number
   methodName?: string
 }
-export declare function projectTraceSource(
+export function projectTraceSource(
   project: { __napiType: 'Project' },
   frame: StackFrame,
   currentDirectoryFileUrl: string
 ): Promise<StackFrame | null>
-export declare function projectGetSourceForAsset(
+export function projectGetSourceForAsset(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>
-export declare function projectGetSourceMap(
+export function projectGetSourceMap(
   project: { __napiType: 'Project' },
   filePath: string
 ): Promise<string | null>
-export declare function projectGetSourceMapSync(
+export function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: string
 ): string | null
 /** Runs exit handlers for the project registered using the [`ExitHandler`] API. */
-export declare function projectOnExit(project: {
-  __napiType: 'Project'
-}): Promise<void>
-export declare function rootTaskDispose(rootTask: {
-  __napiType: 'RootTask'
-}): void
+export function projectOnExit(project: { __napiType: 'Project' }): Promise<void>
+export function rootTaskDispose(rootTask: { __napiType: 'RootTask' }): void
 export interface NapiIssue {
   severity: string
   stage: string
@@ -329,24 +326,24 @@ export interface NapiDiagnostic {
   name: string
   payload: Record<string, string>
 }
-export declare function parse(
+export function parse(
   src: string,
   options: Buffer,
   filename?: string | undefined | null,
   signal?: AbortSignal | undefined | null
 ): Promise<string>
-export declare function transform(
+export function transform(
   src: string | Buffer | undefined,
   isModule: boolean,
   options: Buffer,
   signal?: AbortSignal | undefined | null
 ): Promise<unknown>
-export declare function transformSync(
+export function transformSync(
   src: string | Buffer | undefined,
   isModule: boolean,
   options: Buffer
 ): object
-export declare function startTurbopackTraceServer(path: string): void
+export function startTurbopackTraceServer(path: string): void
 export interface NextBuildContext {
   /** The root directory of the workspace. */
   root?: string
@@ -379,16 +376,16 @@ export interface NapiRewrite {
   has?: Array<NapiRouteHas>
   missing?: Array<NapiRouteHas>
 }
-export declare function getTargetTriple(): string
-export declare function initHeapProfiler(): ExternalObject<RefCell>
-export declare function teardownHeapProfiler(
+export function getTargetTriple(): string
+export function initHeapProfiler(): ExternalObject<RefCell>
+export function teardownHeapProfiler(
   guardExternal: ExternalObject<RefCell>
 ): void
 /**
  * Initialize tracing subscriber to emit traces. This configures subscribers
  * for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.
  */
-export declare function initCustomTraceSubscriber(
+export function initCustomTraceSubscriber(
   traceOutFilePath?: string | undefined | null
 ): ExternalObject<RefCell>
 /**
@@ -396,6 +393,6 @@ export declare function initCustomTraceSubscriber(
  * This should be called when parent node.js process exits, otherwise generated
  * trace may drop traces in the buffer.
  */
-export declare function teardownTraceSubscriber(
+export function teardownTraceSubscriber(
   guardExternal: ExternalObject<RefCell>
 ): void
