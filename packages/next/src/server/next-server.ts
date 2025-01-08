@@ -283,6 +283,8 @@ export default class NextNodeServer extends BaseServer<
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
+    await this.loadCustomCacheHandlers()
+
     for (const page of Object.keys(pagesManifest || {})) {
       await loadComponents({
         distDir: this.distDir,
@@ -374,25 +376,7 @@ export default class NextNodeServer extends BaseServer<
     )
   }
 
-  protected async getIncrementalCache({
-    requestHeaders,
-    requestProtocol,
-  }: {
-    requestHeaders: IncrementalCache['requestHeaders']
-    requestProtocol: 'http' | 'https'
-  }) {
-    const dev = !!this.renderOpts.dev
-    let CacheHandler: any
-    const { cacheHandler } = this.nextConfig
-
-    if (cacheHandler) {
-      CacheHandler = interopDefault(
-        await dynamicImportEsmDefault(
-          formatDynamicImportPath(this.distDir, cacheHandler)
-        )
-      )
-    }
-
+  protected async loadCustomCacheHandlers() {
     const { cacheHandlers } = this.nextConfig.experimental
 
     if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
@@ -412,6 +396,28 @@ export default class NextNodeServer extends BaseServer<
         ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
       }
     }
+  }
+
+  protected async getIncrementalCache({
+    requestHeaders,
+    requestProtocol,
+  }: {
+    requestHeaders: IncrementalCache['requestHeaders']
+    requestProtocol: 'http' | 'https'
+  }) {
+    const dev = !!this.renderOpts.dev
+    let CacheHandler: any
+    const { cacheHandler } = this.nextConfig
+
+    if (cacheHandler) {
+      CacheHandler = interopDefault(
+        await dynamicImportEsmDefault(
+          formatDynamicImportPath(this.distDir, cacheHandler)
+        )
+      )
+    }
+
+    await this.loadCustomCacheHandlers()
 
     // incremental-cache is request specific
     // although can have shared caches in module scope
