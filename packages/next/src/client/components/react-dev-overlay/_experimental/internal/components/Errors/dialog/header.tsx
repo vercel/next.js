@@ -3,13 +3,19 @@ import { noop as css } from '../../../helpers/noop-template'
 
 type ErrorOverlayDialogHeaderProps = {
   children?: React.ReactNode
+  isTurbopack?: boolean
 }
 
 export function ErrorOverlayDialogHeader({
   children,
+  isTurbopack,
 }: ErrorOverlayDialogHeaderProps) {
   return (
-    <DialogHeader className="nextjs-container-errors-header">
+    <DialogHeader
+      className={`nextjs-container-errors-header ${
+        isTurbopack ? 'turbopack' : ''
+      }`}
+    >
       {children}
     </DialogHeader>
   )
@@ -47,5 +53,25 @@ export const DIALOG_HEADER_STYLES = css`
     position: absolute;
     top: var(--size-4);
     right: var(--size-4);
+  }
+
+  .nextjs-container-errors-header.turbopack {
+    background-image: linear-gradient(
+      10deg,
+      var(--color-background-100) 60%,
+      var(--color-turbopack-background-red) 75%,
+      var(--color-turbopack-background-blue) 100%
+    );
+  }
+
+  @media (prefers-color-scheme: dark) {
+    .nextjs-container-errors-header.turbopack {
+      background-image: linear-gradient(
+        10deg,
+        var(--color-background-100) 60%,
+        var(--color-turbopack-background-red) 75%,
+        var(--color-turbopack-background-blue) 100%
+      );
+    }
   }
 `

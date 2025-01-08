@@ -98,6 +98,8 @@ export function Colors() {
           --color-turbopack-text-blue: #0096ff;
           --color-turbopack-border-red: #f0adbe;
           --color-turbopack-border-blue: #adccea;
+          --color-turbopack-background-red: #fff7f9;
+          --color-turbopack-background-blue: #f6fbff;
         }
 
         @media (prefers-color-scheme: dark) {
@@ -194,6 +196,8 @@ export function Colors() {
             --color-turbopack-text-blue: #45b2ff;
             --color-turbopack-border-red: #6e293b;
             --color-turbopack-border-blue: #284f80;
+            --color-turbopack-background-red: #250d12;
+            --color-turbopack-background-blue: #0a1723;
           }
         }
       `}
