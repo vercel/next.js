@@ -268,6 +268,7 @@ export declare function projectUpdateInfoSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
+  originalFile?: string
   file: string
   line?: number
   column?: number
