@@ -109,6 +109,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import DefaultCacheHandler from './lib/cache-handlers/default'
+import { cacheHandlerGlobal, cacheHandlersSymbol } from './use-cache/constants'
 
 export * from './base-server'
 
@@ -379,8 +380,8 @@ export default class NextNodeServer extends BaseServer<
   protected async loadCustomCacheHandlers() {
     const { cacheHandlers } = this.nextConfig.experimental
 
-    if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
-      ;(globalThis as any).__nextCacheHandlers = {}
+    if (!cacheHandlerGlobal.__nextCacheHandlers && cacheHandlers) {
+      cacheHandlerGlobal.__nextCacheHandlers = {}
 
       for (const key of Object.keys(cacheHandlers)) {
         if (cacheHandlers[key]) {
@@ -393,7 +394,9 @@ export default class NextNodeServer extends BaseServer<
       }
 
       if (!cacheHandlers.default) {
-        ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
+        cacheHandlerGlobal.__nextCacheHandlers.default =
+          cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
+          DefaultCacheHandler
       }
     }
   }
