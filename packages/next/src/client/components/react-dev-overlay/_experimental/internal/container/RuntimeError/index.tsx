@@ -41,19 +41,6 @@ export const styles = css`
     margin-bottom: var(--size-gap-double);
   }
 
-  [data-expand-ignore-button]:focus:not(:focus-visible),
-  [data-expand-ignore-button] {
-    background: none;
-    border: none;
-    color: var(--color-font);
-    cursor: pointer;
-    font-size: var(--size-font);
-    margin: var(--size-gap) 0;
-    padding: 0;
-    text-decoration: underline;
-    outline: none;
-  }
-
   [data-nextjs-data-runtime-error-copy-button],
   [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
     position: relative;
