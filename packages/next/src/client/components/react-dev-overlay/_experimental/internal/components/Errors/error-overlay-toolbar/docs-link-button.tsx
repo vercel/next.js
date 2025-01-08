@@ -1,9 +1,9 @@
 import { parseUrlFromText } from '../../../helpers/parse-url-from-text'
 
-const docsURLWhitelist = ['https://nextjs.org', 'https://react.dev']
+const docsURLAllowlist = ['https://nextjs.org', 'https://react.dev']
 
 function docsLinkMatcher(text: string): boolean {
-  return docsURLWhitelist.some((url) => text.startsWith(url))
+  return docsURLAllowlist.some((url) => text.startsWith(url))
 }
 
 function getDocsURLFromErrorMessage(text: string): string | null {
