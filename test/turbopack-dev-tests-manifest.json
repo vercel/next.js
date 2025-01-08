@@ -10504,11 +10504,11 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
+  "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
-      "yarn PnP should compile and serve the index page correctly with-mdx"
+      "yarn PnP should compile and serve the index page correctly mdx-pages"
     ],
     "flakey": [],
     "runtimeError": false
