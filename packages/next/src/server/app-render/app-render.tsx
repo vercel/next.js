@@ -913,11 +913,14 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
   })
 
-  const initialHeadMetadata = (
-    <React.Fragment key={flightDataPathMetadataKey}>
-      {/* Adding requestId as react key to make metadata remount for each render */}
-      <MetadataTree key={requestId} />
-    </React.Fragment>
+  const ErrorMetadataComponent = createSuspenseyMetadata(
+    () => (
+      <React.Fragment key={flightDataPathMetadataKey}>
+        {/* Adding requestId as react key to make metadata remount for each render */}
+        <MetadataTree key={requestId} />
+      </React.Fragment>
+    ),
+    !!ctx.renderOpts.serveStreamingMetadata
   )
 
   const initialHeadViewport = (
@@ -942,7 +945,9 @@ async function getErrorRSCPayload(
   const seedData: CacheNodeSeedData = [
     initialTree[0],
     <html id="__next_error__">
-      <head>{initialHeadMetadata}</head>
+      <head>
+        <ErrorMetadataComponent />
+      </head>
       <body />
     </html>,
     {},

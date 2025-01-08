@@ -97,7 +97,7 @@ export function createMetadataComponents({
     )
   }
 
-  async function viewport() {
+  function viewport() {
     return getResolvedViewport(
       tree,
       searchParams,
@@ -132,7 +132,7 @@ export function createMetadataComponents({
   }
   Viewport.displayName = VIEWPORT_BOUNDARY_NAME
 
-  async function metadata() {
+  function metadata() {
     return getResolvedMetadata(
       tree,
       searchParams,
@@ -146,11 +146,11 @@ export function createMetadataComponents({
 
   async function resolveFinalMetadata() {
     try {
-      return await metadata()
+      return metadata()
     } catch (error) {
       if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
-          return await getNotFoundMetadata(
+          return getNotFoundMetadata(
             tree,
             searchParams,
             getDynamicParamFromSegment,

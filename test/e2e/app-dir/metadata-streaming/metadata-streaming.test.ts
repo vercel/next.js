@@ -1,5 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
-import { retry, waitFor, createMultiDomMatcher } from 'next-test-utils'
+import { retry, createMultiDomMatcher } from 'next-test-utils'
 
 describe('metadata-streaming', () => {
   const { next } = nextTestSetup({
@@ -32,11 +32,7 @@ describe('metadata-streaming', () => {
     // then the metadata should be loaded after few seconds.
     const browser = await next.browser('/')
     await browser.eval(`document.getElementById('to-slow').click()`)
-    await retry(async () => {
-      expect(await browser.elementByCss('title').text()).toBe('slow page')
-    })
 
-    await waitFor(3 * 1000)
     await retry(async () => {
       expect(await browser.elementByCss('title').text()).toBe('slow page')
       const matchMultiDom = createMultiDomMatcher(browser)
@@ -54,5 +50,34 @@ describe('metadata-streaming', () => {
         robots: 'index, follow',
       })
     })
+  })
+
+  it('should send the blocking response for html limited bots', async () => {
+    const $ = await next.render$(
+      '/',
+      undefined, // no query
+      {
+        headers: {
+          'user-agent': 'Twitterbot',
+        },
+      }
+    )
+    expect(await $('title').text()).toBe('index page')
+  })
+
+  it('should send streaming response for headless browser bots', async () => {
+    const browser = await next.browser('/')
+    await retry(async () => {
+      expect(await browser.elementByCss('title').text()).toBe('index page')
+    })
+  })
+
+  it('should not insert metadata twice or inject into body', async () => {
+    const browser = await next.browser('/slow')
+
+    // each metadata should be inserted only once
+
+    expect(await browser.hasElementByCssSelector('body meta')).toBe(false)
+    expect(await browser.hasElementByCssSelector('body title')).toBe(false)
   })
 })
