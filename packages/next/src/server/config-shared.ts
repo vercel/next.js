@@ -14,7 +14,7 @@ import type { ExpireTime } from './lib/revalidate'
 import type { SupportedTestRunners } from '../cli/next-test'
 import type { ExperimentalPPRConfig } from './lib/experimental/ppr'
 import { INFINITE_CACHE } from '../lib/constants'
-import { HTML_LIMITED_BOT_UA_RE } from '../shared/lib/router/utils/is-bot'
+import { HTML_LIMITED_BOT_UA_ARRAY } from '../shared/lib/router/utils/is-bot'
 
 export type NextConfigComplete = Required<NextConfig> & {
   images: Required<ImageConfigComplete>
@@ -578,7 +578,7 @@ export interface ExperimentalConfig {
    * User Agent of bots that can handle streaming metadata.
    * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
    */
-  htmlLimitedBots?: RegExp
+  htmlLimitedBots?: string[]
 }
 
 export type ExportPathMap = {
@@ -1204,7 +1204,7 @@ export const defaultConfig: NextConfig = {
     inlineCss: false,
     newDevOverlay: false,
     streamingMetadata: false,
-    htmlLimitedBots: HTML_LIMITED_BOT_UA_RE,
+    htmlLimitedBots: HTML_LIMITED_BOT_UA_ARRAY,
   },
   bundlePagesRouterDependencies: false,
 }

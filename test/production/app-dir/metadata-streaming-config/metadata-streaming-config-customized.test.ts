@@ -7,7 +7,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
       'next.config.js': `
         module.exports = {
           experimental: {
-            htmlLimitedBots: /MyBot/i,
+            htmlLimitedBots: ['MyBot'],
           }
         }
       `,
@@ -28,7 +28,9 @@ describe('app-dir - metadata-streaming-config-customized', () => {
 
     expect(responseConfigManifest).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": "MyBot",
+       "htmlLimitedBots": [
+         "MyBot",
+       ],
        "version": 0,
      }
     `)

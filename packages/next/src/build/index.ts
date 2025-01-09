@@ -215,7 +215,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
-import { HTML_LIMITED_BOT_UA_RE } from '../shared/lib/router/utils/is-bot'
+import { HTML_LIMITED_BOT_UA_ARRAY } from '../shared/lib/router/utils/is-bot'
 
 type Fallback = null | boolean | string
 
@@ -1316,12 +1316,11 @@ export default async function build(
       )
       const responseConfigManifest: {
         version: number
-        htmlLimitedBots: string
+        htmlLimitedBots: string[]
       } = {
         version: 0,
-        htmlLimitedBots: (
-          config.experimental.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE
-        ).source,
+        htmlLimitedBots:
+          config.experimental.htmlLimitedBots || HTML_LIMITED_BOT_UA_ARRAY,
       }
       await writeManifest(responseConfigManifestPath, responseConfigManifest)
 

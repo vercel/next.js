@@ -83,10 +83,7 @@ import {
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import {
-  HTML_LIMITED_BOT_UA_RE,
-  isBot,
-} from '../shared/lib/router/utils/is-bot'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -178,6 +175,7 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
+import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -330,24 +328,6 @@ type ResponsePayload = {
 export type NextEnabledDirectories = {
   readonly pages: boolean
   readonly app: boolean
-}
-
-function shouldServeStreamingMetadata(
-  userAgent: string,
-  {
-    streamingMetadata,
-    htmlLimitedBots,
-  }: {
-    streamingMetadata: boolean
-    htmlLimitedBots: RegExp | undefined
-  }
-): boolean {
-  if (!streamingMetadata) {
-    return false
-  }
-
-  const blockingMetadataUA = htmlLimitedBots || HTML_LIMITED_BOT_UA_RE
-  return !blockingMetadataUA.test(userAgent)
 }
 
 export default abstract class Server<
@@ -2205,10 +2185,6 @@ export default abstract class Server<
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
-      opts.serveStreamingMetadata = shouldServeStreamingMetadata(
-        ua,
-        this.renderOpts.experimental
-      )
     }
 
     // In development, we always want to generate dynamic HTML.
