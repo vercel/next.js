@@ -1270,6 +1270,7 @@ export default async function loadConfig(
 
 export type ConfiguredExperimentalFeature =
   | { name: keyof ExperimentalConfig; type: 'boolean'; value: boolean }
+  | { name: keyof ExperimentalConfig; type: 'number'; value: number }
   | { name: keyof ExperimentalConfig; type: 'other' }
 
 export function getConfiguredExperimentalFeatures(
@@ -1296,7 +1297,9 @@ export function getConfiguredExperimentalFeatures(
         configuredExperimentalFeatures.push(
           typeof value === 'boolean'
             ? { name, type: 'boolean', value }
-            : { name, type: 'other' }
+            : typeof value === 'number'
+              ? { name, type: 'number', value }
+              : { name, type: 'other' }
         )
       }
     }
