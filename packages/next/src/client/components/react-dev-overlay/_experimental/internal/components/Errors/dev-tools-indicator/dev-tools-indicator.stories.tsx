@@ -1,10 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import { ErrorIndicator } from './ErrorIndicator'
+import { DevToolsIndicator } from './dev-tools-indicator'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
-const meta: Meta<typeof ErrorIndicator> = {
+const meta: Meta<typeof DevToolsIndicator> = {
   title: 'ErrorIndicator',
-  component: ErrorIndicator,
+  component: DevToolsIndicator,
   parameters: {
     layout: 'centered',
   },
@@ -12,7 +12,7 @@ const meta: Meta<typeof ErrorIndicator> = {
 }
 
 export default meta
-type Story = StoryObj<typeof ErrorIndicator>
+type Story = StoryObj<typeof DevToolsIndicator>
 
 // Mock error for stories
 const mockError = {

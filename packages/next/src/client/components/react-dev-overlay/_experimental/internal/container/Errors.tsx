@@ -24,7 +24,7 @@ import {
   isUnhandledConsoleOrRejection,
 } from '../helpers/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
-import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
+import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
 export type SupportedErrorEvent = {
@@ -186,7 +186,7 @@ export function Errors({
   useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
-      setDisplayState('hidden')
+      setDisplayState('minimized')
       setActiveIndex(0)
     }
   }, [errors.length])
@@ -195,30 +195,26 @@ export function Errors({
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
 
-  // This component shouldn't be rendered with no errors, but if it is, let's
-  // handle it gracefully by rendering nothing.
-  if (errors.length < 1 || activeError == null) {
-    return null
-  }
-
-  if (isLoading) {
-    // TODO: better loading state
-    return <Overlay />
-  }
-
   if (displayState === 'hidden') {
     return null
   }
 
-  if (displayState === 'minimized') {
+  const noIssues = errors.length < 1 || activeError == null
+
+  if (noIssues || displayState === 'minimized') {
     return (
-      <ErrorIndicator
+      <DevToolsIndicator
         hasStaticIndicator={hasStaticIndicator}
         readyErrors={readyErrors}
         fullscreen={fullscreen}
         hide={hide}
       />
     )
+  }
+
+  if (isLoading) {
+    // TODO: better loading state
+    return <Overlay />
   }
 
   const error = activeError.error
