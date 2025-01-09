@@ -21,11 +21,11 @@ describe('use-cache-hanging-inputs', () => {
   if (isNextDev) {
     it('should show an error toast after a timeout', async () => {
       const outputIndex = next.cliOutput.length
-      const browser = await next.browser('/')
+      const browser = await next.browser('/?n=1')
 
       // The request is pending while we stall on the hanging inputs, and
       // playwright will wait for the load even before continuing. So we don't
-      // neeed to wait for the "use cache" timeout of 50 seconds here.
+      // need to wait for the "use cache" timeout of 50 seconds here.
 
       await openRedbox(browser)
 
