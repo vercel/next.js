@@ -47,7 +47,9 @@ export function logStartInfo({
             : bold('⨯')
           : '·'
 
-      Log.bootstrap(`  ${symbol} ${exp.name}`)
+      const suffix = exp.type === 'number' ? `: ${exp.value}` : ''
+
+      Log.bootstrap(`  ${symbol} ${exp.name}${suffix}`)
     }
     /* indicate if there are more than the maximum shown no. flags */
     if (experimentalFeatures.length > maxExperimentalFeatures) {

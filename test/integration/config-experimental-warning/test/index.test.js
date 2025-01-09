@@ -129,6 +129,20 @@ describe('Config Experimental Warning', () => {
     expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
   })
 
+  it('should show the configured value for numerical features', async () => {
+    configFile.write(`
+      module.exports = {
+        experimental: {
+          cpus: 2
+        }
+      }
+    `)
+
+    const stdout = await collectStdoutFromDev(appDir)
+    expect(stdout).toMatch(experimentalHeader)
+    expect(stdout).toMatch(' · cpus: 2')
+  })
+
   it('should show warning with config from object with experimental and multiple keys', async () => {
     configFile.write(`
       module.exports = {
@@ -184,7 +198,7 @@ describe('Config Experimental Warning', () => {
       `)
         const stdout = await collectStdoutFromBuild(appDir)
         expect(stdout).toMatch(experimentalHeader)
-        expect(stdout).toMatch(' · cpus')
+        expect(stdout).toMatch(' · cpus: 2')
         expect(stdout).toMatch(' ✓ workerThreads')
         expect(stdout).toMatch(' ✓ scrollRestoration')
         expect(stdout).toMatch(' ⨯ prerenderEarlyExit')
