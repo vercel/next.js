@@ -175,6 +175,7 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
+import { nextConfigNormalizer } from './config'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
@@ -484,7 +485,9 @@ export default abstract class Server<
 
     // TODO: should conf be normalized to prevent missing
     // values from causing issues as this can be user provided
-    this.nextConfig = conf as NextConfigComplete
+    this.nextConfig = nextConfigNormalizer.toNormalizedNextConfig(
+      conf as NextConfigComplete
+    )
     this.hostname = hostname
     if (this.hostname) {
       // we format the hostname so that it can be fetched

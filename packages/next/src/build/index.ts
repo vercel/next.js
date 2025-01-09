@@ -89,7 +89,7 @@ import {
 } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
 import loadConfig, {
-  normalizeSerializableNextConfig,
+  nextConfigNormalizer,
   type SerializableNextConfig,
 } from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
@@ -2479,7 +2479,7 @@ export default async function build(
 
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
-            config: normalizeSerializableNextConfig({
+            config: nextConfigNormalizer.toSerializableNextConfig({
               ...config,
               configFile: undefined,
               ...(ciEnvironment.hasNextSupport
