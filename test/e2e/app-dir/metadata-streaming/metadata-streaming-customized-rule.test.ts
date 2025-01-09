@@ -8,7 +8,7 @@ describe('app-dir - metadata-streaming-customized-rule', () => {
         module.exports = {
           experimental: {
             streamingMetadata: true,
-            htmlLimitedBots: ['Minibot'],
+            htmlLimitedBots: /Minibot/i,
           }
         }
       `,

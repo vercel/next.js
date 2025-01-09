@@ -14,11 +14,11 @@ import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
+import { defaultConfig } from '../server/config-shared'
 import {
-  defaultConfig,
   nextConfigNormalizer,
   type SerializableNextConfig,
-} from '../server/config-shared'
+} from '../server/serializable-config'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'

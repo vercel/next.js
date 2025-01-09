@@ -1,7 +1,4 @@
-import type {
-  NextConfigComplete,
-  SerializableNextConfig,
-} from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
@@ -21,6 +18,7 @@ import type { WebpackLayerName } from '../lib/constants'
 import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { RouteModule } from '../server/route-modules/route-module'
 import type { NextComponentType } from '../shared/lib/utils'
+import type { SerializableNextConfig } from '../server/serializable-config'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
