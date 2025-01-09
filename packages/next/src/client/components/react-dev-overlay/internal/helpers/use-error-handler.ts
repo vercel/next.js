@@ -77,7 +77,11 @@ function onUnhandledError(event: WindowEventMap['error']): void | boolean {
     event.preventDefault()
     return false
   }
-  handleClientError(event.error, [])
+  // When there's an error property present, we log the error to error overlay.
+  // Otherwise we don't do anything as it's not logging in the console either.
+  if (event.error) {
+    handleClientError(event.error, [])
+  }
 }
 
 function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {
