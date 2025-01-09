@@ -87,7 +87,7 @@ module.exports = {
                 )
               } else if (useLightningcss) {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
-                  `"@media (min-width:480px) and (max-width:767.999px){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
+                  `"@media (min-width:480px) and (not (min-width:768px)){::placeholder{color:green}}.flex-parsing{flex:0 0 calc(50% - var(--vertical-gutter))}.transform-parsing{transform:translate3d(0,0)}.css-grid-shorthand{grid-column:span 2}.g-docs-sidenav .filter::-webkit-input-placeholder{opacity:.8}"`
                 )
               } else {
                 expect(cssContentWithoutSourceMap).toMatchInlineSnapshot(
@@ -234,37 +234,37 @@ module.exports = {
                 `)
               } else if (useLightningcss) {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
-                  {
-                    "mappings": "AAAA,mDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
-                    "names": [],
-                    "sourceRoot": "",
-                    "sourcesContent": [
-                      "@media (min-width: 480px) and (max-width: 767.999px) {
-                    ::placeholder {
-                      color: green;
-                    }
-                  }
+                 {
+                   "mappings": "AAAA,qDACE,cACE,WACF,CACF,CAEA,cACE,2CACF,CAEA,mBACE,0BACF,CAEA,oBACE,kBACF,CAEA,mDACE,UACF",
+                   "names": [],
+                   "sourceRoot": "",
+                   "sourcesContent": [
+                     "@media (min-width: 480px) and (not (min-width: 768px)) {
+                   ::placeholder {
+                     color: green;
+                   }
+                 }
 
-                  .flex-parsing {
-                    flex: 0 0 calc(50% - var(--vertical-gutter));
-                  }
+                 .flex-parsing {
+                   flex: 0 0 calc(50% - var(--vertical-gutter));
+                 }
 
-                  .transform-parsing {
-                    transform: translate3d(0px, 0px);
-                  }
+                 .transform-parsing {
+                   transform: translate3d(0px, 0px);
+                 }
 
-                  .css-grid-shorthand {
-                    grid-column: span 2;
-                  }
+                 .css-grid-shorthand {
+                   grid-column: span 2;
+                 }
 
-                  .g-docs-sidenav .filter::-webkit-input-placeholder {
-                    opacity: .8;
-                  }
+                 .g-docs-sidenav .filter::-webkit-input-placeholder {
+                   opacity: .8;
+                 }
 
-                  ",
-                    ],
-                    "version": 3,
-                  }
+                 ",
+                   ],
+                   "version": 3,
+                 }
                 `)
               } else {
                 expect(sourceMapContentParsed).toMatchInlineSnapshot(`
@@ -549,19 +549,19 @@ module.exports = {
               if (process.env.TURBOPACK && useLightningcss) {
                 expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
                   .toMatchInlineSnapshot(`
-".other{color:#00f}
+                 ".other{color:#00f}
 
 
-.test{color:red}"
-`)
+                 .test{color:red}"
+                `)
               } else if (process.env.TURBOPACK && !useLightningcss) {
                 expect(cssContent.replace(/\/\*.*?\*\//g, '').trim())
                   .toMatchInlineSnapshot(`
-".other{color:#00f}
+                 ".other{color:#00f}
 
 
-.test{color:red}"
-`)
+                 .test{color:red}"
+                `)
               } else if (useLightningcss) {
                 expect(
                   cssContent.replace(/\/\*.*?\*\//g, '').trim()
