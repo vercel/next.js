@@ -92,4 +92,43 @@ describe('segment cache (incremental opt in)', () => {
     it('page with PPR disabled, and has a loading boundary', () =>
       testPrefetchDeduping('/ppr-disabled-with-loading-boundary'))
   })
+
+  it(
+    'prefetches a shared layout on a PPR-enabled route that was previously ' +
+      'omitted from a non-PPR-enabled route',
+    async () => {
+      let act
+      const browser = await next.browser('/mixed-fetch-strategies', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      // Initiate a prefetch for the PPR-disabled route first. This will not
+      // include the /shared-layout/ segment, because it's inside the
+      // loading boundary.
+      await act(async () => {
+        const checkbox = await browser.elementById('ppr-disabled')
+        await checkbox.click()
+      })
+
+      // Then initiate a prefetch for the PPR-enabled route. This prefetch
+      // should include the /shared-layout/ segment despite the presence of
+      // the loading boundary, and despite the earlier non-PPR attempt
+      await act(async () => {
+        const checkbox = await browser.elementById('ppr-enabled')
+        await checkbox.click()
+      })
+
+      // Navigate to the PPR-enabled route
+      await act(async () => {
+        const link = await browser.elementByCss('#ppr-enabled + a')
+        await link.click()
+
+        // If we prefetched all the segments correctly, we should be able to
+        // reveal the page's loading state, before the server responds.
+        await browser.elementById('page-loading-boundary')
+      })
+    }
+  )
 })
