@@ -728,6 +728,7 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
+        extra_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
         if *self.project.per_page_module_graph().await? {
@@ -742,14 +743,21 @@ impl AppProject {
                         server_utils,
                         server_component_entries,
                     } = &*find_server_entries(*rsc_entry).await?;
-                    if !server_utils.is_empty() {
-                        let graph = SingleModuleGraph::new_with_entries_visited(
-                            server_utils.iter().map(|m| **m).collect(),
-                            visited_modules,
-                        );
-                        graphs.push(graph);
-                        visited_modules = VisitedModules::from_graph(graph)
-                    }
+
+                    let extra_entries = extra_entries
+                        .await?
+                        .into_iter()
+                        .map(|m| *ResolvedVc::upcast(*m));
+                    let graph = SingleModuleGraph::new_with_entries_visited(
+                        server_utils
+                            .iter()
+                            .map(|m| **m)
+                            .chain(extra_entries)
+                            .collect(),
+                        visited_modules,
+                    );
+                    graphs.push(graph);
+                    visited_modules = VisitedModules::from_graph(graph);
 
                     for module in server_component_entries.iter() {
                         let graph = SingleModuleGraph::new_with_entries_visited(
@@ -1021,6 +1029,7 @@ impl AppEndpoint {
             .app_module_graphs(
                 self,
                 *rsc_entry,
+                this.app_project.client_runtime_entries(),
                 matches!(this.ty, AppEndpointType::Page { .. }),
             )
             .await?;

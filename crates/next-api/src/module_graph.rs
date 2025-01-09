@@ -328,13 +328,13 @@ impl ClientReferencesGraph {
 
                     state_map.insert(module, current_server_component);
 
-                    match module_type {
+                    Ok(match module_type {
                         Some(
                             ClientReferenceMapType::EcmascriptClientReference { .. }
                             | ClientReferenceMapType::CssClientReference { .. },
                         ) => GraphTraversalAction::Skip,
                         _ => GraphTraversalAction::Continue,
-                    }
+                    })
                 },
                 |parent_info, node, state_map| {
                     let Some((parent_node, _)) = parent_info else {

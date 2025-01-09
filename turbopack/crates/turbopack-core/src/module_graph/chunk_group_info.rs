@@ -299,7 +299,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 .map(|e| NodeWithPriority {
                     depth: *module_depth.get(e).unwrap(),
                     chunk_group_len: 0,
-                    node: ModuleGraph::get_entry(&graphs, e).unwrap(),
+                    node: ModuleGraph::get_entry(&graphs, *e).unwrap(),
                 })
                 .collect::<BinaryHeap<_>>();
             for entry_node in &queue {

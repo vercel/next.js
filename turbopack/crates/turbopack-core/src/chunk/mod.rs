@@ -1,5 +1,6 @@
 pub mod availability_info;
 pub mod available_modules;
+pub mod chunk_graph;
 pub mod chunk_group;
 pub mod chunking;
 pub(crate) mod chunking_context;
@@ -219,6 +220,7 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
 type AsyncInfo =
     FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Vec<ResolvedVc<Box<dyn ChunkableModule>>>>;
 
+#[derive(Default)]
 pub struct ChunkContentResult {
     pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,

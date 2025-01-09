@@ -262,7 +262,7 @@ impl SingleModuleGraph {
         self.modules
             .get(&module)
             .copied()
-            .context("Couldn't find entry module in graph")
+            .context("Couldn't find module in graph")
     }
 
     /// Iterate over all nodes in the graph
@@ -446,7 +446,7 @@ impl SingleModuleGraph {
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
             &'a SingleModuleGraphModuleNode,
             &mut S,
-        ) -> GraphTraversalAction,
+        ) -> Result<GraphTraversalAction>,
         mut visit_postorder: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
             &'a SingleModuleGraphModuleNode,
@@ -496,7 +496,7 @@ impl SingleModuleGraph {
                     {
                         let action = visit_preorder(parent_arg, current_node, state);
                         stack.push((ReverseTopologicalPass::Visit, parent, current));
-                        if expanded.insert(current) && action == GraphTraversalAction::Continue {
+                        if expanded.insert(current) && action? == GraphTraversalAction::Continue {
                             stack.extend(iter_neighbors(graph, current).map(|(edge, child)| {
                                 (
                                     ReverseTopologicalPass::ExpandAndVisit,
@@ -584,13 +584,13 @@ impl ModuleGraph {
 
     fn get_entry(
         graphs: &[ReadRef<SingleModuleGraph>],
-        entry: &ResolvedVc<Box<dyn Module>>,
+        entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<GraphNodeIndex> {
         graphs
             .iter()
             .enumerate()
             .find_map(|(graph_idx, graph)| {
-                graph.modules.get(entry).map(|node_idx| GraphNodeIndex {
+                graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
                     graph_idx,
                     node_idx: *node_idx,
                 })
@@ -620,7 +620,7 @@ impl ModuleGraph {
 
         let mut queue = entries
             .into_iter()
-            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap())
+            .map(|e| ModuleGraph::get_entry(&graphs, *e).unwrap())
             .collect::<VecDeque<_>>();
         let mut visited = HashSet::new();
         for entry_node in &queue {
@@ -662,7 +662,7 @@ impl ModuleGraph {
     ///    - Can return [GraphTraversalAction]s to control the traversal
     pub async fn traverse_edges_from_entry<'a>(
         &self,
-        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
             Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
             &'_ SingleModuleGraphModuleNode,
@@ -720,15 +720,15 @@ impl ModuleGraph {
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entries_topological<'a, S>(
+    pub async fn traverse_edges_from_entries_topological<S>(
         &self,
-        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
         mut visit_preorder: impl FnMut(
             Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
             &'_ SingleModuleGraphModuleNode,
             &mut S,
-        ) -> GraphTraversalAction,
+        ) -> Result<GraphTraversalAction>,
         mut visit_postorder: impl FnMut(
             Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
             &'_ SingleModuleGraphModuleNode,
@@ -736,6 +736,8 @@ impl ModuleGraph {
         ),
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
+
+        let entries = entries.into_iter().collect::<Vec<_>>();
 
         enum ReverseTopologicalPass {
             Visit,
@@ -749,23 +751,19 @@ impl ModuleGraph {
         )> = entries
             .into_iter()
             .map(|e| {
-                (
+                anyhow::Ok((
                     ReverseTopologicalPass::ExpandAndVisit,
                     None,
-                    ModuleGraph::get_entry(&graphs, e).unwrap(),
-                )
+                    ModuleGraph::get_entry(&graphs, e)?,
+                ))
             })
-            .collect();
+            .collect::<Result<Vec<_>>>()?;
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = parent.map(|(parent_node, parent_edge)| {
-                (
-                    get_node!(graphs, parent_node),
-                    graphs[parent_node.graph_idx]
-                        .graph
-                        .edge_weight(parent_edge)
-                        .unwrap(),
-                )
+                let edge_weight = graphs[parent_node.graph_idx].graph.edge_weight(parent_edge);
+
+                (get_node!(graphs, parent_node), edge_weight.unwrap())
             });
             let current_node = get_node!(graphs, current);
             match pass {
@@ -775,17 +773,17 @@ impl ModuleGraph {
                 ReverseTopologicalPass::ExpandAndVisit => {
                     let action = visit_preorder(parent_arg, current_node, state);
                     stack.push((ReverseTopologicalPass::Visit, parent, current));
-                    if expanded.insert(current) && action == GraphTraversalAction::Continue {
+                    if expanded.insert(current) && action? == GraphTraversalAction::Continue {
                         let graph = &graphs[current.graph_idx].graph;
-                        let (neighbors, child_graph_idx) =
+                        let (neighbors, current) =
                             match graph.node_weight(current.node_idx).unwrap() {
                                 SingleModuleGraphNode::Module(_) => {
-                                    (iter_neighbors(graph, current.node_idx), current.graph_idx)
+                                    (iter_neighbors(graph, current.node_idx), current)
                                 }
                                 SingleModuleGraphNode::VisitedModule { idx } => (
                                     // We switch graphs
                                     iter_neighbors(&graphs[idx.graph_idx].graph, idx.node_idx),
-                                    idx.graph_idx,
+                                    *idx,
                                 ),
                             };
                         stack.extend(neighbors.map(|(edge, child)| {
@@ -793,7 +791,7 @@ impl ModuleGraph {
                                 ReverseTopologicalPass::ExpandAndVisit,
                                 Some((current, edge)),
                                 GraphNodeIndex {
-                                    graph_idx: child_graph_idx,
+                                    graph_idx: current.graph_idx,
                                     node_idx: child,
                                 },
                             )
