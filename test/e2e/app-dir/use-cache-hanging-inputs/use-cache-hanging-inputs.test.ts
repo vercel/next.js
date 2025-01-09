@@ -9,6 +9,9 @@ import {
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
+const expectedErrorMessage =
+  'Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
+
 describe('use-cache-hanging-inputs', () => {
   const { next, isNextDev, isTurbopack, skipped } = nextTestSetup({
     files: __dirname,
@@ -35,23 +38,19 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toMatchInlineSnapshot(
-          `"[ Cache ] Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache"."`
-        )
+        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
 
         // TODO(veil): This should have an error source if the source mapping works.
-        expect(errorSource).toMatchInlineSnapshot(`null`)
+        expect(errorSource).toBe(null)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
         // TODO(veil): Should include properly source mapped stack frames.
         expect(cliOutput).toContain(
           isTurbopack
-            ? `
-Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+            ? `${expectedErrorMessage}
     at [project]/app/search-params/page.tsx [app-rsc] (ecmascript)`
-            : `
-Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+            : `${expectedErrorMessage}
     at eval (webpack-internal:///(rsc)/./app/search-params/page.tsx:16:97)`
         )
       }, 180_000)
@@ -71,23 +70,19 @@ Error: Filling a cache during prerender timed out, likely because request-specif
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toMatchInlineSnapshot(
-          `"[ Cache ] Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache"."`
-        )
+        expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
 
         // TODO(veil): This should have an error source if the source mapping works.
-        expect(errorSource).toMatchInlineSnapshot(`null`)
+        expect(errorSource).toBe(null)
 
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
         // TODO(veil): Should include properly source mapped stack frames.
         expect(cliOutput).toContain(
           isTurbopack
-            ? `
-Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+            ? `${expectedErrorMessage}
     at [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)`
-            : `
-Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+            : `${expectedErrorMessage}
     at eval (webpack-internal:///(rsc)/./app/uncached-promise/page.tsx:25:97)`
         )
       }, 180_000)
@@ -114,9 +109,7 @@ Error: Filling a cache during prerender timed out, likely because request-specif
     it('should fail the build with errors after a timeout', async () => {
       const { cliOutput } = await next.build()
 
-      expect(cliOutput).toInclude(
-        'Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".'
-      )
+      expect(cliOutput).toInclude(expectedErrorMessage)
 
       expect(cliOutput).toInclude(
         'Error occurred prerendering page "/search-params"'
