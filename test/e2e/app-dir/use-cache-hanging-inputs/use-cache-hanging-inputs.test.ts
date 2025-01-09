@@ -41,12 +41,12 @@ describe('use-cache-hanging-inputs', () => {
 
       const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-      // TODO(veil): Source mapping is not done correctly.
+      // TODO(veil): Should include properly source mapped stack frames.
       expect(cliOutput).toContain(
         isTurbopack
           ? `
 Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
-    at [project]/app/page.tsx [app-rsc] (ecmascript) (.next/server/chunks/ssr/%5Broot%20of%20the%20server%5D__1edb37._.js:36:413)`
+    at [project]/app/page.tsx [app-rsc] (ecmascript)`
           : `
 Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
     at eval (webpack-internal:///(rsc)/./app/page.tsx:16:97)`
