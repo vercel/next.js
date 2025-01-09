@@ -293,7 +293,9 @@ impl Introspectable for NodeRenderContentSource {
             let entry = entry.await?;
             set.insert((
                 ResolvedVc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(*entry.module)),
+                IntrospectableModule::new(Vc::upcast(*entry.module))
+                    .to_resolved()
+                    .await?,
             ));
             set.insert((
                 ResolvedVc::cell("intermediate asset".into()),
@@ -301,7 +303,9 @@ impl Introspectable for NodeRenderContentSource {
                     *entry.chunking_context,
                     *entry.module,
                     *entry.runtime_entries,
-                )),
+                ))
+                .to_resolved()
+                .await?,
             ));
         }
         Ok(Vc::cell(set))
