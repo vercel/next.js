@@ -77,7 +77,9 @@ impl ClientReferenceManifest {
 
                 let client_chunk_item = ecmascript_client_reference
                     .client_module
-                    .as_chunk_item(Vc::upcast(client_chunking_context));
+                    .as_chunk_item(Vc::upcast(client_chunking_context))
+                    .to_resolved()
+                    .await?;
 
                 let client_module_id = client_chunk_item.id().await?;
 
@@ -116,16 +118,20 @@ impl ClientReferenceManifest {
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
                     let ssr_chunk_item = ecmascript_client_reference
                         .ssr_module
-                        .as_chunk_item(Vc::upcast(ssr_chunking_context));
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
+                        .to_resolved()
+                        .await?;
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
-                    let rsc_chunk_item: Vc<Box<dyn ChunkItem>> =
+                    let rsc_chunk_item: ResolvedVc<Box<dyn ChunkItem>> =
                         ResolvedVc::try_downcast_type::<EcmascriptClientReferenceProxyModule>(
                             parent_module,
                         )
                         .await?
                         .unwrap()
-                        .as_chunk_item(Vc::upcast(ssr_chunking_context));
+                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
+                        .to_resolved()
+                        .await?;
                     let rsc_module_id = rsc_chunk_item.id().await?;
 
                     let (ssr_chunks_paths, ssr_is_async) = if runtime == NextRuntime::Edge {
@@ -362,13 +368,13 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
 
 async fn is_item_async(
     availability_info: &AvailabilityInfo,
-    chunk_item: Vc<Box<dyn ChunkItem>>,
+    chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
 ) -> Result<bool> {
     let Some(available_chunk_items) = availability_info.available_chunk_items() else {
         return Ok(false);
     };
 
-    let Some(info) = &*available_chunk_items.get(chunk_item).await? else {
+    let Some(info) = available_chunk_items.await?.get(chunk_item).await? else {
         return Ok(false);
     };
 

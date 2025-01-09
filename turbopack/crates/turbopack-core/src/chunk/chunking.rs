@@ -53,7 +53,9 @@ pub async fn make_chunks(
         .await?
         .iter()
         .map(|&(chunk_item, async_info)| async move {
-            let chunk_item_info = chunk_item_info(chunking_context, chunk_item, async_info).await?;
+            let chunk_item_info =
+                chunk_item_info(chunking_context, *chunk_item, async_info.map(|info| *info))
+                    .await?;
             Ok((chunk_item, async_info, chunk_item_info))
         })
         .try_join()
@@ -118,8 +120,8 @@ pub async fn make_chunks(
 }
 
 type ChunkItemWithInfo = (
-    Vc<Box<dyn ChunkItem>>,
-    Option<Vc<AsyncModuleInfo>>,
+    ResolvedVc<Box<dyn ChunkItem>>,
+    Option<ResolvedVc<AsyncModuleInfo>>,
     usize,
     ReadRef<RcStr>,
 );
