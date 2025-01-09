@@ -30,7 +30,7 @@ export const HTML_LIMITED_BOT_UA_ARRAY = [
   'SkypeUriPreview',
 ]
 
-const HTML_LIMITED_BOT_UA_RE = new RegExp(
+export const HTML_LIMITED_BOT_UA_RE = new RegExp(
   HTML_LIMITED_BOT_UA_ARRAY.join('|'),
   'i'
 )

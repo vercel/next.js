@@ -12,6 +12,11 @@ describe('app-dir - metadata-streaming-config', () => {
     expect(requiredServerFiles.files).toContain(
       '.next/response-config-manifest.json'
     )
+    expect(
+      requiredServerFiles.config.experimental.htmlLimitedBots
+    ).toMatchInlineSnapshot(
+      `"Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview"`
+    )
 
     const responseConfigManifest = JSON.parse(
       await next.readFile('.next/response-config-manifest.json')
@@ -19,31 +24,7 @@ describe('app-dir - metadata-streaming-config', () => {
 
     expect(responseConfigManifest).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": [
-         "Mediapartners-Google",
-         "Slurp",
-         "DuckDuckBot",
-         "baiduspider",
-         "yandex",
-         "sogou",
-         "bitlybot",
-         "tumblr",
-         "vkShare",
-         "quora link preview",
-         "redditbot",
-         "ia_archiver",
-         "Bingbot",
-         "BingPreview",
-         "applebot",
-         "facebookexternalhit",
-         "facebookcatalog",
-         "Twitterbot",
-         "LinkedInBot",
-         "Slackbot",
-         "Discordbot",
-         "WhatsApp",
-         "SkypeUriPreview",
-       ],
+       "htmlLimitedBots": "Mediapartners-Google|Slurp|DuckDuckBot|baiduspider|yandex|sogou|bitlybot|tumblr|vkShare|quora link preview|redditbot|ia_archiver|Bingbot|BingPreview|applebot|facebookexternalhit|facebookcatalog|Twitterbot|LinkedInBot|Slackbot|Discordbot|WhatsApp|SkypeUriPreview",
        "version": 0,
      }
     `)

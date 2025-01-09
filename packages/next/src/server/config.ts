@@ -1314,6 +1314,29 @@ export function getConfiguredExperimentalFeatures(
   return configuredExperimentalFeatures
 }
 
+// Create a type that overrides the experimental htmlLimitedBots field from RegExp to string
+export type SerializableNextConfig = Omit<
+  NextConfigComplete,
+  'experimental'
+> & {
+  experimental: Omit<NextConfigComplete['experimental'], 'htmlLimitedBots'> & {
+    htmlLimitedBots: string
+  }
+}
+
+// Before serializing the config to the required files, we need to change the fields
+// that are primitives like RegExp that cannot handled by JSON.stringify to string,
+// so that they can be serialized properly rather than be treat as {}.
+export function normalizeSerializableNextConfig(config: NextConfigComplete) {
+  const normalizedConfig: any = { ...config }
+  if (config.experimental?.htmlLimitedBots instanceof RegExp) {
+    normalizedConfig.experimental.htmlLimitedBots =
+      config.experimental.htmlLimitedBots.source
+  }
+
+  return normalizedConfig as SerializableNextConfig
+}
+
 class CanaryOnlyError extends Error {
   constructor(feature: string) {
     super(

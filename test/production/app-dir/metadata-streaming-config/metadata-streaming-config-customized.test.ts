@@ -7,7 +7,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
       'next.config.js': `
         module.exports = {
           experimental: {
-            htmlLimitedBots: ['MyBot'],
+            htmlLimitedBots: /MyBot/i,
           }
         }
       `,
@@ -21,6 +21,9 @@ describe('app-dir - metadata-streaming-config-customized', () => {
     expect(requiredServerFiles.files).toContain(
       '.next/response-config-manifest.json'
     )
+    expect(
+      requiredServerFiles.config.experimental.htmlLimitedBots
+    ).toMatchInlineSnapshot(`"MyBot"`)
 
     const responseConfigManifest = JSON.parse(
       await next.readFile('.next/response-config-manifest.json')
@@ -28,9 +31,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
 
     expect(responseConfigManifest).toMatchInlineSnapshot(`
      {
-       "htmlLimitedBots": [
-         "MyBot",
-       ],
+       "htmlLimitedBots": "MyBot",
        "version": 0,
      }
     `)
