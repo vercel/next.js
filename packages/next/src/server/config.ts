@@ -1268,29 +1268,40 @@ export default async function loadConfig(
   return completeConfig
 }
 
-export function getEnabledExperimentalFeatures(
+export type ConfiguredExperimentalFeature =
+  | { name: keyof ExperimentalConfig; type: 'boolean'; value: boolean }
+  | { name: keyof ExperimentalConfig; type: 'other' }
+
+export function getConfiguredExperimentalFeatures(
   userNextConfigExperimental: NextConfig['experimental']
 ) {
-  const enabledExperiments: (keyof ExperimentalConfig)[] = []
+  const configuredExperimentalFeatures: ConfiguredExperimentalFeature[] = []
 
-  if (!userNextConfigExperimental) return enabledExperiments
+  if (!userNextConfigExperimental) {
+    return configuredExperimentalFeatures
+  }
 
   // defaultConfig.experimental is predefined and will never be undefined
   // This is only a type guard for the typescript
   if (defaultConfig.experimental) {
-    for (const featureName of Object.keys(
+    for (const name of Object.keys(
       userNextConfigExperimental
     ) as (keyof ExperimentalConfig)[]) {
+      const value = userNextConfigExperimental[name]
+
       if (
-        featureName in defaultConfig.experimental &&
-        userNextConfigExperimental[featureName] !==
-          defaultConfig.experimental[featureName]
+        name in defaultConfig.experimental &&
+        value !== defaultConfig.experimental[name]
       ) {
-        enabledExperiments.push(featureName)
+        configuredExperimentalFeatures.push(
+          typeof value === 'boolean'
+            ? { name, type: 'boolean', value }
+            : { name, type: 'other' }
+        )
       }
     }
   }
-  return enabledExperiments
+  return configuredExperimentalFeatures
 }
 
 class CanaryOnlyError extends Error {
