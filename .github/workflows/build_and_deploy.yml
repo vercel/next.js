@@ -246,7 +246,8 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               export CC_aarch64_unknown_linux_gnu=/usr/bin/clang &&
               export CFLAGS_aarch64_unknown_linux_gnu=\"--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu\" &&
-              export CFLAGS=\"$CFLAGS -D__GLIBC_USE\(...\)=0\" &&
+              export GCCVERSION=$(basename $(dirname $($GXX -print-libgcc-file-name))) &&
+              export CPLUS_INCLUDE_PATH=$PREFIX/$HOST/include/c++/$GCCVERSION:$PREFIX/lib/gcc/$HOST/$GCCVERSION/include &&
               cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu &&
               llvm-strip -x native/next-swc.*.node &&
               objdump -T native/next-swc.*.node | grep GLIBC_
