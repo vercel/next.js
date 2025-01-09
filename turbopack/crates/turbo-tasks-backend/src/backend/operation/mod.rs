@@ -389,7 +389,7 @@ pub trait TaskGuard: Debug {
 
 struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
-    task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
+    task: StorageWriteGuard<'a>,
     backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,

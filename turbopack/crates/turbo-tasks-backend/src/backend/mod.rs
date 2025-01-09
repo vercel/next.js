@@ -151,7 +151,7 @@ struct TurboTasksBackendInner<B: BackingStorage> {
 
     persisted_storage_data_log: Option<PersistedStorageLog>,
     persisted_storage_meta_log: Option<PersistedStorageLog>,
-    storage: Storage<TaskId, CachedDataItem>,
+    storage: Storage,
 
     /// Number of executing operations + Highest bit is set when snapshot is
     /// requested. When that bit is set, operations should pause until the

@@ -10,10 +10,11 @@ use auto_hash_map::{map::Entry, AutoMap};
 use dashmap::DashMap;
 use either::Either;
 use rustc_hash::FxHasher;
-use turbo_tasks::KeyValuePair;
+use turbo_tasks::{KeyValuePair, TaskId};
 
 use crate::{
     backend::indexed::Indexed,
+    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue},
     utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
 
@@ -121,29 +122,21 @@ impl PersistanceState {
 
 const INDEX_THRESHOLD: usize = 128;
 
-type IndexedMap<T> = AutoMap<
-    <<T as KeyValuePair>::Key as Indexed>::Index,
-    AutoMap<<T as KeyValuePair>::Key, <T as KeyValuePair>::Value>,
->;
+type IndexedMap =
+    AutoMap<Option<CachedDataItemIndex>, AutoMap<CachedDataItemKey, CachedDataItemValue>>;
 
-pub enum InnerStorage<T: KeyValuePair>
-where
-    T::Key: Indexed,
-{
+pub enum InnerStorage {
     Plain {
-        map: AutoMap<T::Key, T::Value>,
+        map: AutoMap<CachedDataItemKey, CachedDataItemValue>,
         persistance_state: PersistanceState,
     },
     Indexed {
-        map: IndexedMap<T>,
+        map: IndexedMap,
         persistance_state: PersistanceState,
     },
 }
 
-impl<T: KeyValuePair> InnerStorage<T>
-where
-    T::Key: Indexed,
-{
+impl InnerStorage {
     fn new() -> Self {
         Self::Plain {
             map: AutoMap::new(),
@@ -182,7 +175,7 @@ where
             return;
         };
         if plain_map.len() >= INDEX_THRESHOLD {
-            let mut map: IndexedMap<T> = AutoMap::new();
+            let mut map: IndexedMap = AutoMap::new();
             for (key, value) in take(plain_map).into_iter() {
                 let index = key.index();
                 map.entry(index).or_default().insert(key, value);
@@ -194,7 +187,10 @@ where
         }
     }
 
-    fn get_or_create_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
+    fn get_or_create_map_mut(
+        &mut self,
+        key: &CachedDataItemKey,
+    ) -> &mut AutoMap<CachedDataItemKey, CachedDataItemValue> {
         self.check_threshold();
         match self {
             InnerStorage::Plain { map, .. } => map,
@@ -202,7 +198,10 @@ where
         }
     }
 
-    fn get_map_mut(&mut self, key: &T::Key) -> Option<&mut AutoMap<T::Key, T::Value>> {
+    fn get_map_mut(
+        &mut self,
+        key: &CachedDataItemKey,
+    ) -> Option<&mut AutoMap<CachedDataItemKey, CachedDataItemValue>> {
         self.check_threshold();
         match self {
             InnerStorage::Plain { map, .. } => Some(map),
@@ -210,14 +209,20 @@ where
         }
     }
 
-    fn get_map(&self, key: &T::Key) -> Option<&AutoMap<T::Key, T::Value>> {
+    fn get_map(
+        &self,
+        key: &CachedDataItemKey,
+    ) -> Option<&AutoMap<CachedDataItemKey, CachedDataItemValue>> {
         match self {
             InnerStorage::Plain { map, .. } => Some(map),
             InnerStorage::Indexed { map, .. } => map.get(&key.index()),
         }
     }
 
-    fn index_map(&self, index: <T::Key as Indexed>::Index) -> Option<&AutoMap<T::Key, T::Value>> {
+    fn index_map(
+        &self,
+        index: <CachedDataItemKey as Indexed>::Index,
+    ) -> Option<&AutoMap<CachedDataItemKey, CachedDataItemValue>> {
         match self {
             InnerStorage::Plain { map, .. } => Some(map),
             InnerStorage::Indexed { map, .. } => map.get(&index),
@@ -226,15 +231,15 @@ where
 
     fn index_map_mut(
         &mut self,
-        index: <T::Key as Indexed>::Index,
-    ) -> Option<&mut AutoMap<T::Key, T::Value>> {
+        index: <CachedDataItemKey as Indexed>::Index,
+    ) -> Option<&mut AutoMap<CachedDataItemKey, CachedDataItemValue>> {
         match self {
             InnerStorage::Plain { map, .. } => Some(map),
             InnerStorage::Indexed { map, .. } => map.get_mut(&index),
         }
     }
 
-    pub fn add(&mut self, item: T) -> bool {
+    pub fn add(&mut self, item: CachedDataItem) -> bool {
         let (key, value) = item.into_key_and_value();
         match self.get_or_create_map_mut(&key).entry(key) {
             Entry::Occupied(_) => false,
@@ -245,12 +250,12 @@ where
         }
     }
 
-    pub fn insert(&mut self, item: T) -> Option<T::Value> {
+    pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
         let (key, value) = item.into_key_and_value();
         self.get_or_create_map_mut(&key).insert(key, value)
     }
 
-    pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
+    pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
         self.get_map_mut(key).and_then(|m| {
             if let Some(result) = m.remove(key) {
                 m.shrink_amortized();
@@ -261,15 +266,15 @@ where
         })
     }
 
-    pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
+    pub fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
         self.get_map(key).and_then(|m| m.get(key))
     }
 
-    pub fn get_mut(&mut self, key: &T::Key) -> Option<&mut T::Value> {
+    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
         self.get_map_mut(key).and_then(|m| m.get_mut(key))
     }
 
-    pub fn has_key(&self, key: &T::Key) -> bool {
+    pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.get_map(key)
             .map(|m| m.contains_key(key))
             .unwrap_or_default()
@@ -281,15 +286,15 @@ where
 
     pub fn iter(
         &self,
-        index: <T::Key as Indexed>::Index,
-    ) -> impl Iterator<Item = (&T::Key, &T::Value)> {
+        index: <CachedDataItemKey as Indexed>::Index,
+    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         self.index_map(index)
             .map(|m| m.iter())
             .into_iter()
             .flatten()
     }
 
-    pub fn iter_all(&self) -> impl Iterator<Item = (&T::Key, &T::Value)> {
+    pub fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
         match self {
             InnerStorage::Plain { map, .. } => Either::Left(map.iter()),
             InnerStorage::Indexed { map, .. } => {
@@ -300,44 +305,40 @@ where
 
     pub fn extract_if<'l, F>(
         &'l mut self,
-        index: <T::Key as Indexed>::Index,
+        index: <CachedDataItemKey as Indexed>::Index,
         mut f: F,
-    ) -> impl Iterator<Item = T> + use<'l, T, F>
+    ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
     where
-        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
     {
         self.index_map_mut(index)
             .map(move |m| m.extract_if(move |k, v| f(k, v)))
             .into_iter()
             .flatten()
-            .map(|(key, value)| T::from_key_and_value(key, value))
+            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
     }
 
-    pub fn extract_if_all<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = T> + use<'l, T, F>
+    pub fn extract_if_all<'l, F>(
+        &'l mut self,
+        mut f: F,
+    ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
     where
-        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
     {
         match self {
             InnerStorage::Plain { map, .. } => map
                 .extract_if(move |k, v| f(k, v))
-                .map(|(key, value)| T::from_key_and_value(key, value)),
+                .map(|(key, value)| CachedDataItem::from_key_and_value(key, value)),
             InnerStorage::Indexed { .. } => {
                 panic!("Do not use extract_if_all with indexed storage")
             }
         }
     }
-}
 
-impl<T: KeyValuePair> InnerStorage<T>
-where
-    T::Key: Indexed,
-    T::Value: Default,
-    T::Key: Clone,
-{
     pub fn update(
         &mut self,
-        key: &T::Key,
-        update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
+        key: &CachedDataItemKey,
+        update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
         let map = self.get_or_create_map_mut(key);
         if let Some(value) = map.get_mut(key) {
@@ -354,19 +355,11 @@ where
     }
 }
 
-pub struct Storage<K, T: KeyValuePair>
-where
-    T::Key: Indexed,
-{
-    map: DashMap<K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
+pub struct Storage {
+    map: DashMap<TaskId, InnerStorage, BuildHasherDefault<FxHasher>>,
 }
 
-impl<K, T> Storage<K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-    K: Eq + std::hash::Hash + Clone,
-{
+impl Storage {
     pub fn new() -> Self {
         let shard_amount =
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
@@ -379,7 +372,7 @@ where
         }
     }
 
-    pub fn access_mut(&self, key: K) -> StorageWriteGuard<'_, K, T> {
+    pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
             dashmap::mapref::entry::Entry::Vacant(e) => e.insert(InnerStorage::new()),
@@ -391,9 +384,9 @@ where
 
     pub fn access_pair_mut(
         &self,
-        key1: K,
-        key2: K,
-    ) -> (StorageWriteGuard<'_, K, T>, StorageWriteGuard<'_, K, T>) {
+        key1: TaskId,
+        key2: TaskId,
+    ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
         let (a, b) = get_multiple_mut(&self.map, key1, key2, || InnerStorage::new());
         (
             StorageWriteGuard { inner: a },
@@ -402,33 +395,19 @@ where
     }
 }
 
-pub struct StorageWriteGuard<'a, K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-{
-    inner: RefMut<'a, K, InnerStorage<T>>,
+pub struct StorageWriteGuard<'a> {
+    inner: RefMut<'a, TaskId, InnerStorage>,
 }
 
-impl<K, T> Deref for StorageWriteGuard<'_, K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-    K: Eq + Hash,
-{
-    type Target = InnerStorage<T>;
+impl Deref for StorageWriteGuard<'_> {
+    type Target = InnerStorage;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl<K, T> DerefMut for StorageWriteGuard<'_, K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-    K: Eq + Hash,
-{
+impl DerefMut for StorageWriteGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
