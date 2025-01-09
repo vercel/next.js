@@ -148,25 +148,40 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
-        expect(errorDescription).toMatchInlineSnapshot(
-          `"[ Cache ] Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache"."`
-        )
+        if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+          // TODO(react-time-info): Remove this branch for PPR when the issue is
+          // resolved where the inclusion of server timings in the RSC payload
+          // makes the serialized bound args not suitable to be used as a cache
+          // key.
 
-        // TODO(veil): This should have an error source if the source mapping works.
-        expect(errorSource).toMatchInlineSnapshot(`null`)
+          const expectedErrorMessagePpr =
+            'Error: Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
 
-        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+          expect(errorDescription).toBe(`[ Server ] ${expectedErrorMessagePpr}`)
 
-        // TODO(veil): Should include properly source mapped stack frames.
-        expect(cliOutput).toContain(
-          isTurbopack
-            ? `
-Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+          const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          expect(cliOutput).toContain(
+            `${expectedErrorMessagePpr}
+    at Page [Server] (<anonymous>)`
+          )
+        } else {
+          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+
+          // TODO(veil): This should have an error source if the source mapping works.
+          expect(errorSource).toBe(null)
+
+          const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          // TODO(veil): Should include properly source mapped stack frames.
+          expect(cliOutput).toContain(
+            isTurbopack
+              ? `${expectedErrorMessage}
     at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`
-            : `
-Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+              : `${expectedErrorMessage}
     at eval (webpack-internal:///(rsc)/./app/bound-args/page.tsx:25:97)`
-        )
+          )
+        }
       }, 180_000)
     })
 
