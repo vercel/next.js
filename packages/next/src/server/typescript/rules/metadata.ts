@@ -9,8 +9,8 @@ import {
 
 import type tsModule from 'typescript/lib/tsserverlibrary'
 
-const TYPE_ANOTATION = ': Metadata'
-const TYPE_ANOTATION_ASYNC = ': Promise<Metadata>'
+const TYPE_ANNOTATION = ': Metadata | null'
+const TYPE_ANNOTATION_ASYNC = ': Promise<Metadata | null>'
 const TYPE_IMPORT = `\n\nimport type { Metadata } from 'next'`
 
 // Find the `export const metadata = ...` node.
@@ -152,7 +152,7 @@ function updateVirtualFileWithType(
   const source = getSource(fileName)
   if (!source) return
 
-  // We annotate with the type in a vritual language service
+  // We annotate with the type in a virtual language service
   const sourceText = source.getFullText()
   let nodeEnd: number
   let annotation: string
@@ -164,13 +164,13 @@ function updateVirtualFileWithType(
       const isAsync = node.modifiers?.some(
         (m) => m.kind === ts.SyntaxKind.AsyncKeyword
       )
-      annotation = isAsync ? TYPE_ANOTATION_ASYNC : TYPE_ANOTATION
+      annotation = isAsync ? TYPE_ANNOTATION_ASYNC : TYPE_ANNOTATION
     } else {
       return
     }
   } else {
     nodeEnd = node.name.getFullStart() + node.name.getFullWidth()
-    annotation = TYPE_ANOTATION
+    annotation = TYPE_ANNOTATION
   }
 
   const newSource =
@@ -234,7 +234,7 @@ const metadata = {
 
     const ts = getTs()
 
-    // We annotate with the type in a vritual language service
+    // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
     if (pos === undefined) return prior
 
@@ -335,7 +335,7 @@ const metadata = {
       if (node.name?.getText() === 'generateMetadata') {
         if (isTyped(node)) return []
 
-        // We annotate with the type in a vritual language service
+        // We annotate with the type in a virtual language service
         const pos = updateVirtualFileWithType(fileName, node, true)
         if (!pos) return []
 
@@ -346,7 +346,7 @@ const metadata = {
         if (declaration.name.getText() === 'metadata') {
           if (isTyped(declaration)) break
 
-          // We annotate with the type in a vritual language service
+          // We annotate with the type in a virtual language service
           const pos = updateVirtualFileWithType(fileName, declaration)
           if (!pos) break
 
@@ -409,7 +409,7 @@ const metadata = {
                     declaration.getSourceFile().fileName
                   const isSameFile = declarationFileName === fileName
 
-                  // We annotate with the type in a vritual language service
+                  // We annotate with the type in a virtual language service
                   const pos = updateVirtualFileWithType(
                     declarationFileName,
                     declaration
@@ -461,7 +461,7 @@ const metadata = {
     if (!node) return
     if (isTyped(node)) return
 
-    // We annotate with the type in a vritual language service
+    // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
     if (pos === undefined) return
 
@@ -485,7 +485,7 @@ const metadata = {
     if (!node) return
     if (isTyped(node)) return
 
-    // We annotate with the type in a vritual language service
+    // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
     if (pos === undefined) return
 
@@ -500,7 +500,7 @@ const metadata = {
     if (!node) return
     if (isTyped(node)) return
     if (!isPositionInsideNode(position, node)) return
-    // We annotate with the type in a vritual language service
+    // We annotate with the type in a virtual language service
     const pos = updateVirtualFileWithType(fileName, node)
     if (pos === undefined) return
     const { languageService } = getProxiedLanguageService()
