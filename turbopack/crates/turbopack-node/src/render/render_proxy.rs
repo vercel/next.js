@@ -6,8 +6,9 @@ use futures::{
 };
 use parking_lot::Mutex;
 use serde::{Deserialize, Serialize};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, RcStr, TaskInput,
+    duration_span, mark_finished, prevent_gc, util::SharedError, RawVc, ResolvedVc, TaskInput,
     ValueToString, Vc,
 };
 use turbo_tasks_bytes::{Bytes, Stream};
@@ -31,19 +32,19 @@ use crate::{
 };
 
 /// Renders a module as static HTML in a node.js process.
-#[turbo_tasks::function]
-pub async fn render_proxy(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
-    body: Vc<Body>,
+#[turbo_tasks::function(operation)]
+pub async fn render_proxy_operation(
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
+    body: ResolvedVc<Body>,
     debug: bool,
 ) -> Result<Vc<ProxyResult>> {
     let render = render_stream(RenderStreamOptions {
@@ -94,7 +95,7 @@ pub async fn render_proxy(
 }
 
 async fn proxy_error(
-    path: Vc<FileSystemPath>,
+    path: ResolvedVc<FileSystemPath>,
     error: anyhow::Error,
     operation: Option<NodeJsOperation>,
 ) -> Result<(u16, RcStr)> {
@@ -121,10 +122,10 @@ async fn proxy_error(
 
     RenderingIssue {
         file_path: path,
-        message: StyledString::Text(message.into()).cell(),
+        message: StyledString::Text(message.into()).resolved_cell(),
         status: status.and_then(|status| status.code()),
     }
-    .cell()
+    .resolved_cell()
     .emit();
 
     Ok((status_code, body))
@@ -150,17 +151,17 @@ struct RenderStream(#[turbo_tasks(trace_ignore)] Stream<RenderItemResult>);
 
 #[derive(Clone, Debug, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
 struct RenderStreamOptions {
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    path: Vc<FileSystemPath>,
-    module: Vc<Box<dyn Module>>,
-    runtime_entries: Vc<EvaluatableAssets>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
-    output_root: Vc<FileSystemPath>,
-    project_dir: Vc<FileSystemPath>,
-    data: Vc<RenderData>,
-    body: Vc<Body>,
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    path: ResolvedVc<FileSystemPath>,
+    module: ResolvedVc<Box<dyn Module>>,
+    runtime_entries: ResolvedVc<EvaluatableAssets>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
+    output_root: ResolvedVc<FileSystemPath>,
+    project_dir: ResolvedVc<FileSystemPath>,
+    data: ResolvedVc<RenderData>,
+    body: ResolvedVc<Body>,
     debug: bool,
 }
 
@@ -234,17 +235,17 @@ async fn render_stream_internal(
 
     let stream = generator! {
         let intermediate_asset = get_intermediate_asset(
-            chunking_context,
-            module,
-            runtime_entries,
+            *chunking_context,
+            *module,
+            *runtime_entries,
         );
         let pool = get_renderer_pool(
-            cwd,
-            env,
+            *cwd,
+            *env,
             intermediate_asset,
-            intermediate_output_path,
-            output_root,
-            project_dir,
+            *intermediate_output_path,
+            *output_root,
+            *project_dir,
             debug,
         );
 
@@ -279,8 +280,8 @@ async fn render_stream_internal(
                 let trace = trace_stack(
                     error,
                     intermediate_asset,
-                    intermediate_output_path,
-                    project_dir
+                    *intermediate_output_path,
+                    *project_dir
                 )
                 .await?;
                 let (status, body) =  proxy_error(path, anyhow!("error rendering: {}", trace), Some(operation)).await?;
@@ -313,7 +314,7 @@ async fn render_stream_internal(
                     // headers/body to a proxy error.
                     operation.disallow_reuse();
                     let trace =
-                        trace_stack(error, intermediate_asset, intermediate_output_path, project_dir).await?;
+                        trace_stack(error, intermediate_asset, *intermediate_output_path, *project_dir).await?;
                     Err(anyhow!("error during streaming render: {}", trace))?;
                     return;
                 }

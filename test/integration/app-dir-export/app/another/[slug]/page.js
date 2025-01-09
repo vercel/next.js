@@ -6,7 +6,8 @@ export function generateStaticParams() {
   return [{ slug: 'first' }, { slug: 'second' }]
 }
 
-export default function Page({ params }) {
+export default async function Page(props) {
+  const params = await props.params
   return (
     <main>
       <h1>{params.slug}</h1>

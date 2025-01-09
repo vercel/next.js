@@ -6,10 +6,7 @@ import type { OutgoingHttpHeaders } from 'http'
 import type AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import type { ExportPathMap, NextConfigComplete } from '../server/config-shared'
 import type { Revalidate } from '../server/lib/revalidate'
-import type {
-  NextEnabledDirectories,
-  RequestLifecycleOpts,
-} from '../server/base-server'
+import type { NextEnabledDirectories } from '../server/base-server'
 import type {
   SerializableTurborepoAccessTraceResult,
   TurborepoAccessTraceResult,
@@ -41,6 +38,7 @@ export type FileWriter = (
 type PathMap = ExportPathMap[keyof ExportPathMap]
 
 export interface ExportPagesInput {
+  buildId: string
   paths: string[]
   exportPathMap: ExportPathMap
   parentSpanId: number
@@ -58,6 +56,7 @@ export interface ExportPagesInput {
 }
 
 export interface ExportPageInput {
+  buildId: string
   path: string
   pathMap: PathMap
   distDir: string
@@ -76,6 +75,7 @@ export interface ExportPageInput {
   debugOutput?: boolean
   nextConfigOutput?: NextConfigComplete['output']
   enableExperimentalReact?: boolean
+  sriEnabled: boolean
 }
 
 export type ExportedPageFile = {
@@ -116,7 +116,6 @@ export type WorkerRenderOptsPartial = PagesRenderOptsPartial &
   AppRenderOptsPartial
 
 export type WorkerRenderOpts = WorkerRenderOptsPartial &
-  RequestLifecycleOpts &
   LoadComponentsReturnType
 
 export interface ExportAppOptions {

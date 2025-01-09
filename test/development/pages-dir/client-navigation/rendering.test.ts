@@ -13,6 +13,8 @@ import { BUILD_MANIFEST, REACT_LOADABLE_MANIFEST } from 'next/constants'
 import path from 'path'
 import url from 'url'
 
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
+
 describe('Client Navigation rendering', () => {
   const { next } = nextTestSetup({
     files: path.join(__dirname, 'fixture'),
@@ -223,15 +225,22 @@ describe('Client Navigation rendering', () => {
 
       const buildManifest = await next.readJSON(`.next/${BUILD_MANIFEST}`)
       const reactLoadableManifest = await next.readJSON(
-        `.next/${REACT_LOADABLE_MANIFEST}`
+        process.env.TURBOPACK
+          ? `.next/server/pages/dynamic/ssr/${REACT_LOADABLE_MANIFEST}`
+          : `.next/${REACT_LOADABLE_MANIFEST}`
       )
       const resources = []
 
       const manifestKey = Object.keys(reactLoadableManifest).find((item) => {
         return item
           .replace(/\\/g, '/')
-          .endsWith('ssr.js -> ../../components/hello1')
+          .endsWith(
+            process.env.TURBOPACK
+              ? 'components/hello1.js [client] (ecmascript, next/dynamic entry)'
+              : 'ssr.js -> ../../components/hello1'
+          )
       })
+      expect(manifestKey).toBeString()
 
       // test dynamic chunk
       resources.push('/_next/' + reactLoadableManifest[manifestKey].files[0])
@@ -609,7 +618,13 @@ describe.each([[false], [true]])(
       const documentHeadElement =
         '<meta name="keywords" content="document head test"/>'
 
-      expect(html).toContain(`<head>${nextHeadElement}${documentHeadElement}`)
+      expect(html).toContain(
+        isReact18
+          ? // charset is not actually at the top.
+            // data-next-hide-fouc comes first
+            `</style></noscript>${nextHeadElement}${documentHeadElement}`
+          : `<head>${nextHeadElement}${documentHeadElement}`
+      )
     })
   }
 )

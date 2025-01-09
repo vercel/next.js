@@ -36,13 +36,36 @@ export async function loadEntrypoint(
     | 'pages-api',
   replacements: Record<`VAR_${string}`, string>,
   injections?: Record<string, string>,
-  imports?: Record<string, string | null>
+  imports?: Record<string, string | null>,
+  importMaps?: Record<string, Record<string, string>>
 ): Promise<string> {
   const filepath = path.resolve(
     path.join(TEMPLATES_ESM_FOLDER, `${entrypoint}.js`)
   )
 
   let file = await fs.readFile(filepath, 'utf8')
+
+  const importMapItems: Record<string, Record<string, string>> = {}
+
+  for (const key of Object.keys(importMaps || {})) {
+    importMapItems[key] = {}
+
+    for (const [innerKey, importPath] of Object.entries(
+      importMaps?.[key] || {}
+    )) {
+      file = `import ${key}_${innerKey} from ${JSON.stringify(importPath)}\n${file}`
+      importMapItems[key][innerKey] = `${key}_${innerKey}`
+    }
+  }
+
+  file = file.replace(
+    new RegExp(`cacheHandlers = {}`),
+    `cacheHandlers = {\n${Object.entries(importMapItems['cacheHandlers'] || {})
+      .map(([key, value]) => {
+        return `${key}: ${value}`
+      })
+      .join(',')}\n}`
+  )
 
   // Update the relative imports to be absolute. This will update any relative
   // imports to be relative to the root of the `next` package.

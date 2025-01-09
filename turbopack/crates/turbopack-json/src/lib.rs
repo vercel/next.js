@@ -7,18 +7,19 @@
 
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 use std::fmt::Write;
 
 use anyhow::{bail, Error, Result};
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_fs::{FileContent, FileJsonContent};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
     source::Source,
 };
 use turbopack_ecmascript::chunk::{
@@ -33,13 +34,13 @@ fn modifier() -> Vc<RcStr> {
 
 #[turbo_tasks::value]
 pub struct JsonModuleAsset {
-    source: Vc<Box<dyn Source>>,
+    source: ResolvedVc<Box<dyn Source>>,
 }
 
 #[turbo_tasks::value_impl]
 impl JsonModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn new(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         Self::cell(JsonModuleAsset { source })
     }
 }
@@ -63,14 +64,14 @@ impl Asset for JsonModuleAsset {
 #[turbo_tasks::value_impl]
 impl ChunkableModule for JsonModuleAsset {
     #[turbo_tasks::function]
-    async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
-        Ok(Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
+    fn as_chunk_item(
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
+        Vc::upcast(JsonChunkItem::cell(JsonChunkItem {
             module: self,
             chunking_context,
-        })))
+        }))
     }
 }
 
@@ -84,8 +85,8 @@ impl EcmascriptChunkPlaceable for JsonModuleAsset {
 
 #[turbo_tasks::value]
 struct JsonChunkItem {
-    module: Vc<JsonModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    module: ResolvedVc<JsonModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -96,13 +97,8 @@ impl ChunkItem for JsonChunkItem {
     }
 
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        Vc::upcast(*self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -114,7 +110,7 @@ impl ChunkItem for JsonChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        Vc::upcast(*self.module)
     }
 }
 
@@ -122,7 +118,7 @@ impl ChunkItem for JsonChunkItem {
 impl EcmascriptChunkItem for JsonChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]

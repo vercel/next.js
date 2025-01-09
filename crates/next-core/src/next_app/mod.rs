@@ -14,7 +14,8 @@ use std::{
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, RcStr, TaskInput};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, TaskInput};
 
 pub use crate::next_app::{
     app_client_references_chunks::{get_app_client_references_chunks, ClientReferencesChunks},
@@ -37,6 +38,7 @@ pub use crate::next_app::{
     Ord,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum PageSegment {
     /// e.g. `/dashboard`
@@ -141,6 +143,7 @@ impl Display for PageSegment {
     Ord,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum PageType {
     Page,
@@ -160,7 +163,17 @@ impl Display for PageType {
 /// intercepting routes, parallel routes and route/page suffixes that are not
 /// part of the pathname.
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct AppPage(pub Vec<PageSegment>);
 
@@ -259,6 +272,23 @@ impl AppPage {
         )
     }
 
+    pub fn is_intercepting(&self) -> bool {
+        let segment = if self.is_complete() {
+            // The `PageType` is the last segment for completed pages.
+            self.0.iter().nth_back(1)
+        } else {
+            self.0.last()
+        };
+
+        matches!(
+            segment,
+            Some(PageSegment::Static(segment))
+                if segment.starts_with("(.)")
+                    || segment.starts_with("(..)")
+                    || segment.starts_with("(...)")
+        )
+    }
+
     pub fn complete(&self, page_type: PageType) -> Result<Self> {
         self.clone_push(PageSegment::PageType(page_type))
     }
@@ -317,6 +347,7 @@ impl PartialOrd for AppPage {
     Ord,
     TaskInput,
     TraceRawVcs,
+    NonLocalValue,
 )]
 pub enum PathSegment {
     /// e.g. `/dashboard`
@@ -358,7 +389,17 @@ impl Display for PathSegment {
 /// Does not include internal modifiers as it's the equivalent of the http
 /// request path.
 #[derive(
-    Clone, Debug, Hash, PartialEq, Eq, Default, Serialize, Deserialize, TaskInput, TraceRawVcs,
+    Clone,
+    Debug,
+    Hash,
+    PartialEq,
+    Eq,
+    Default,
+    Serialize,
+    Deserialize,
+    TaskInput,
+    TraceRawVcs,
+    NonLocalValue,
 )]
 pub struct AppPath(pub Vec<PathSegment>);
 

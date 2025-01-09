@@ -9,7 +9,10 @@ use lazy_static::lazy_static;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
-use turbo_tasks::{trace::TraceRawVcs, RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{
     util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
     LinkContent, LinkType,
@@ -123,6 +126,16 @@ impl Pattern {
             Pattern::Dynamic => false,
             Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
                 list.iter().any(|p| p.has_constant_parts())
+            }
+        }
+    }
+
+    pub fn has_dynamic_parts(&self) -> bool {
+        match self {
+            Pattern::Constant(_) => false,
+            Pattern::Dynamic => true,
+            Pattern::Alternatives(list) | Pattern::Concatenation(list) => {
+                list.iter().any(|p| p.has_dynamic_parts())
             }
         }
     }
@@ -1182,7 +1195,7 @@ enum MatchResult<'a> {
     },
 }
 
-impl<'a> MatchResult<'a> {
+impl MatchResult<'_> {
     /// Returns true if the whole pattern matches the whole string
     fn is_match(&self) -> bool {
         match self {
@@ -1257,7 +1270,7 @@ impl From<RcStr> for Pattern {
 impl Display for Pattern {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Pattern::Constant(c) => write!(f, "\"{c}\""),
+            Pattern::Constant(c) => write!(f, "'{c}'"),
             Pattern::Dynamic => write!(f, "<dynamic>"),
             Pattern::Alternatives(list) => write!(
                 f,
@@ -1287,7 +1300,7 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize)]
+#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat)]
 pub enum PatternMatch {
     File(RcStr, Vc<FileSystemPath>),
     Directory(RcStr, Vc<FileSystemPath>),
@@ -1309,7 +1322,7 @@ impl PatternMatch {
 
 // TODO this isn't super efficient
 // avoid storing a large list of matches
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value(transparent, local)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -1322,7 +1335,7 @@ pub struct PatternMatches(Vec<PatternMatch>);
 /// symlinks when they are interested in that.
 #[turbo_tasks::function]
 pub async fn read_matches(
-    lookup_dir: Vc<FileSystemPath>,
+    lookup_dir: ResolvedVc<FileSystemPath>,
     prefix: RcStr,
     force_in_lookup_dir: bool,
     pattern: Vc<Pattern>,
@@ -1468,17 +1481,17 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir),
+                        PatternMatch::Directory(prefix.clone().into(), *lookup_dir),
                     ));
                 }
                 prefix.pop();
             }
             if prefix.is_empty() {
                 if let Some(pos) = pat.match_position("./") {
-                    results.push((pos, PatternMatch::Directory("./".into(), lookup_dir)));
+                    results.push((pos, PatternMatch::Directory("./".into(), *lookup_dir)));
                 }
                 if let Some(pos) = pat.could_match_position("./") {
-                    nested.push((pos, read_matches(lookup_dir, "./".into(), false, pattern)));
+                    nested.push((pos, read_matches(*lookup_dir, "./".into(), false, pattern)));
                 }
             } else {
                 prefix.push('/');
@@ -1486,7 +1499,7 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(lookup_dir, prefix.to_string().into(), false, pattern),
+                        read_matches(*lookup_dir, prefix.to_string().into(), false, pattern),
                     ));
                 }
                 prefix.pop();
@@ -1495,7 +1508,7 @@ pub async fn read_matches(
                 if let Some(pos) = pat.could_match_position(&prefix) {
                     nested.push((
                         pos,
-                        read_matches(lookup_dir, prefix.to_string().into(), false, pattern),
+                        read_matches(*lookup_dir, prefix.to_string().into(), false, pattern),
                     ));
                 }
                 prefix.pop();
@@ -1512,7 +1525,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::File(prefix.clone().into(), *path),
+                                        PatternMatch::File(prefix.clone().into(), **path),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1527,7 +1540,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), *path),
+                                        PatternMatch::Directory(prefix.clone().into(), **path),
                                     ));
                                 }
                                 prefix.push('/');
@@ -1535,13 +1548,13 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), *path),
+                                        PatternMatch::Directory(prefix.clone().into(), **path),
                                     ));
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
                                     nested.push((
                                         pos,
-                                        read_matches(*path, prefix.clone().into(), true, pattern),
+                                        read_matches(**path, prefix.clone().into(), true, pattern),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1562,13 +1575,16 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    **fs_path,
                                                 ),
                                             ));
                                         } else {
                                             results.push((
                                                 pos,
-                                                PatternMatch::File(prefix.clone().into(), *fs_path),
+                                                PatternMatch::File(
+                                                    prefix.clone().into(),
+                                                    **fs_path,
+                                                ),
                                             ));
                                         }
                                     }
@@ -1583,7 +1599,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    **fs_path,
                                                 ),
                                             ));
                                         }
@@ -1598,7 +1614,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    *fs_path,
+                                                    **fs_path,
                                                 ),
                                             ));
                                         }
@@ -1634,7 +1650,7 @@ pub async fn read_matches(
 #[cfg(test)]
 mod tests {
     use rstest::*;
-    use turbo_tasks::RcStr;
+    use turbo_rcstr::RcStr;
 
     use super::{longest_common_prefix, longest_common_suffix, Pattern};
 

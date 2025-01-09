@@ -24,6 +24,7 @@ export type EdgeSSRLoaderQuery = {
   pagesType: PAGE_TYPES
   sriEnabled: boolean
   cacheHandler?: string
+  cacheHandlers?: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: string
   serverActions?: {
@@ -75,10 +76,19 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
       pagesType,
       sriEnabled,
       cacheHandler,
+      cacheHandlers: cacheHandlersStringified,
       preferredRegion,
       middlewareConfig: middlewareConfigBase64,
       serverActions,
     } = this.getOptions()
+
+    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
+
+    if (!cacheHandlers.default) {
+      cacheHandlers.__nextDefault = require.resolve(
+        '../../../../server/lib/cache-handlers/default'
+      )
+    }
 
     const middlewareConfig: MiddlewareConfig = JSON.parse(
       Buffer.from(middlewareConfigBase64, 'base64').toString()
@@ -156,6 +166,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         },
         {
           incrementalCacheHandler: cacheHandler ?? null,
+        },
+        {
+          cacheHandlers: cacheHandlers ?? {},
         }
       )
     } else {
@@ -184,6 +197,9 @@ const edgeSSRLoader: webpack.LoaderDefinitionFunction<EdgeSSRLoaderQuery> =
         {
           userland500Page: userland500Path,
           incrementalCacheHandler: cacheHandler ?? null,
+        },
+        {
+          cacheHandlers: cacheHandlers || {},
         }
       )
     }

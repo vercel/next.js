@@ -1,6 +1,7 @@
 import { nextTestSetup, FileRef } from 'e2e-utils'
 import { retry } from 'next-test-utils'
 import { join } from 'path'
+import stripAnsi from 'strip-ansi'
 
 describe.each(
   ['default', process.env.TURBOPACK ? undefined : 'babelrc'].filter(Boolean)
@@ -22,7 +23,7 @@ describe.each(
   it('should show an experimental warning', async () => {
     await retry(() => {
       expect(next.cliOutput).toContain('Experiments (use with caution)')
-      expect(next.cliOutput).toContain('reactCompiler')
+      expect(stripAnsi(next.cliOutput)).toContain('✓ reactCompiler')
     })
   })
 

@@ -12,7 +12,7 @@ pub struct CallResolver<'a> {
 }
 
 /// On drop, serialize the state to disk
-impl<'a> Drop for CallResolver<'a> {
+impl Drop for CallResolver<'_> {
     fn drop(&mut self) {
         let file = OpenOptions::new()
             .create(true)

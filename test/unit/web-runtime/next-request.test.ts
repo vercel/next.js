@@ -13,9 +13,6 @@ it('should allow the 2nd parameter to be undefined', () => {
   const request = new NextRequest('https://vercel.com')
   expectTypeOf(request).toMatchTypeOf<NextRequest>()
 
-  expect(
-    new NextRequest('https://vercel.com', { geo: { city: 'Mars' } })
-  ).toHaveProperty('geo.city', 'Mars')
   expect(new NextRequest('https://vercel.com')).toHaveProperty(
     'nextUrl.pathname',
     '/'

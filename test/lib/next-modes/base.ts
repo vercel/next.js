@@ -37,6 +37,7 @@ export interface NextInstanceOpts {
   turbo?: boolean
   forcedPort?: string
   serverReadyPattern?: RegExp
+  patchFileDelay?: number
 }
 
 /**
@@ -51,7 +52,7 @@ type OmitFirstArgument<F> = F extends (
 
 // Do not rename or format. sync-react script relies on this line.
 // prettier-ignore
-const nextjsReactPeerVersion = "19.0.0-rc-7771d3a7-20240827";
+const nextjsReactPeerVersion = "^19.0.0";
 
 export class NextInstance {
   protected files: FileRef | { [filename: string]: string | FileRef }
@@ -63,6 +64,7 @@ export class NextInstance {
   protected resolutions?: PackageJson['resolutions']
   protected events: { [eventName: string]: Set<any> } = {}
   public testDir: string
+  tmpRepoDir: string
   protected isStopping: boolean = false
   protected isDestroyed: boolean = false
   protected childProcess?: ChildProcess
@@ -74,12 +76,11 @@ export class NextInstance {
   public forcedPort?: string
   public dirSuffix: string = ''
   public serverReadyPattern?: RegExp = / ✓ Ready in /
+  patchFileDelay: number = 0
 
   constructor(opts: NextInstanceOpts) {
     this.env = {}
     Object.assign(this, opts)
-
-    require('console').log('packageJson??', this.packageJson)
 
     if (!isNextDeploy) {
       this.env = {
@@ -173,9 +174,7 @@ export class NextInstance {
           'react-dom': reactVersion,
           '@types/react': 'latest',
           '@types/react-dom': 'latest',
-          // TODO: fix the TS error with the TS 5.6
-          // x-ref: https://github.com/vercel/next.js/actions/runs/10777104696/job/29887663970?pr=69784
-          typescript: '5.5.4',
+          typescript: 'latest',
           '@types/node': 'latest',
           ...this.dependencies,
           ...this.packageJson?.dependencies,
@@ -222,16 +221,17 @@ export class NextInstance {
               recursive: true,
             })
           } else {
-            const { installDir } = await createNextInstall({
+            const { installDir, tmpRepoDir } = await createNextInstall({
               parentSpan: rootSpan,
               dependencies: finalDependencies,
               resolutions: this.resolutions ?? null,
               installCommand: this.installCommand,
               packageJson: this.packageJson,
               dirSuffix: this.dirSuffix,
-              keepRepoDir: Boolean(process.env.NEXT_TEST_SKIP_CLEANUP),
+              keepRepoDir: true,
             })
             this.testDir = installDir
+            this.tmpRepoDir = tmpRepoDir
           }
           require('console').log('created next.js install, writing test files')
         }
@@ -400,19 +400,28 @@ export class NextInstance {
 
   public async start(useDirArg: boolean = false): Promise<void> {}
 
-  public async stop(): Promise<void> {
+  public async stop(
+    signal: 'SIGINT' | 'SIGTERM' | 'SIGKILL' = 'SIGKILL'
+  ): Promise<void> {
     if (this.childProcess) {
+      if (this.isStopping) {
+        // warn for debugging, but don't prevent sending two signals in succession
+        // (e.g. SIGINT and then SIGKILL)
+        require('console').error(
+          `Next server is already being stopped (received signal: ${signal})`
+        )
+      }
       this.isStopping = true
       const closePromise = once(this.childProcess, 'close')
       await new Promise<void>((resolve) => {
-        treeKill(this.childProcess.pid, 'SIGKILL', (err) => {
+        treeKill(this.childProcess.pid, signal, (err) => {
           if (err) {
             require('console').error('tree-kill', err)
           }
           resolve()
         })
       })
-      this.childProcess.kill('SIGKILL')
+      this.childProcess.kill(signal)
       await closePromise
       this.childProcess = undefined
       this.isStopping = false
@@ -456,6 +465,9 @@ export class NextInstance {
       if (!process.env.NEXT_TEST_SKIP_CLEANUP) {
         // Faster than `await fs.rm`. Benchmark before change.
         rmSync(this.testDir, { recursive: true, force: true })
+        if (this.tmpRepoDir) {
+          rmSync(this.tmpRepoDir, { recursive: true, force: true })
+        }
       }
       require('console').timeEnd(`destroyed next instance`)
     } catch (err) {
@@ -494,6 +506,13 @@ export class NextInstance {
     )
   }
 
+  public async remove(fileOrDirPath: string) {
+    await fs.rm(path.join(this.testDir, fileOrDirPath), {
+      recursive: true,
+      force: true,
+    })
+  }
+
   public async patchFile(
     filename: string,
     content: string | ((content: string) => string),
@@ -506,7 +525,10 @@ export class NextInstance {
 
     await fs.writeFile(
       outputPath,
-      typeof content === 'function' ? content(previousContent) : content
+      typeof content === 'function' ? content(previousContent) : content,
+      {
+        flush: true,
+      }
     )
 
     if (runWithTempContent) {
@@ -516,17 +538,14 @@ export class NextInstance {
         if (previousContent === undefined) {
           await fs.rm(outputPath)
         } else {
-          await fs.writeFile(outputPath, previousContent)
+          await fs.writeFile(outputPath, previousContent, {
+            flush: true,
+          })
         }
       }
     }
 
     return { newFile }
-  }
-
-  public async patchFileFast(filename: string, content: string) {
-    const outputPath = path.join(this.testDir, filename)
-    await fs.writeFile(outputPath, content)
   }
 
   public async renameFile(filename: string, newFilename: string) {
@@ -607,5 +626,12 @@ export class NextInstance {
     this.events[event]?.forEach((cb) => {
       cb(...args)
     })
+  }
+
+  public getCliOutputFromHere() {
+    const length = this.cliOutput.length
+    return () => {
+      return this.cliOutput.slice(length)
+    }
   }
 }

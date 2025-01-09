@@ -10,20 +10,21 @@
 
 #![feature(min_specialization)]
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 pub mod fixed;
 pub mod output_asset;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
-    output::OutputAsset,
-    reference::{ModuleReferences, SingleOutputAssetReference},
+    output::{OutputAsset, OutputAssets},
     source::Source,
 };
 use turbopack_css::embed::CssEmbed;
@@ -45,14 +46,17 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 #[derive(Clone)]
 pub struct StaticModuleAsset {
-    pub source: Vc<Box<dyn Source>>,
-    pub asset_context: Vc<Box<dyn AssetContext>>,
+    pub source: ResolvedVc<Box<dyn Source>>,
+    pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
 }
 
 #[turbo_tasks::value_impl]
 impl StaticModuleAsset {
     #[turbo_tasks::function]
-    pub fn new(source: Vc<Box<dyn Source>>, asset_context: Vc<Box<dyn AssetContext>>) -> Vc<Self> {
+    pub fn new(
+        source: ResolvedVc<Box<dyn Source>>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    ) -> Vc<Self> {
         Self::cell(StaticModuleAsset {
             source,
             asset_context,
@@ -61,10 +65,10 @@ impl StaticModuleAsset {
 
     #[turbo_tasks::function]
     async fn static_asset(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<StaticAsset>> {
-        Ok(StaticAsset::new(chunking_context, self.await?.source))
+        &self,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    ) -> Vc<StaticAsset> {
+        StaticAsset::new(*chunking_context, *self.source)
     }
 }
 
@@ -91,13 +95,16 @@ impl Asset for StaticModuleAsset {
 impl ChunkableModule for StaticModuleAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
-        self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
+        self: ResolvedVc<Self>,
+        chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
             chunking_context,
-            static_asset: self.static_asset(Vc::upcast(chunking_context)),
+            static_asset: self
+                .static_asset(*ResolvedVc::upcast(chunking_context))
+                .to_resolved()
+                .await?,
         })))
     }
 }
@@ -112,9 +119,9 @@ impl EcmascriptChunkPlaceable for StaticModuleAsset {
 
 #[turbo_tasks::value]
 struct ModuleChunkItem {
-    module: Vc<StaticModuleAsset>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    static_asset: Vc<StaticAsset>,
+    module: ResolvedVc<StaticModuleAsset>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    static_asset: ResolvedVc<StaticAsset>,
 }
 
 #[turbo_tasks::value_impl]
@@ -125,22 +132,13 @@ impl ChunkItem for ModuleChunkItem {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<ModuleReferences>> {
-        Ok(Vc::cell(vec![Vc::upcast(SingleOutputAssetReference::new(
-            Vc::upcast(self.static_asset),
-            Vc::cell(
-                format!(
-                    "static(url) {}",
-                    self.static_asset.ident().to_string().await?
-                )
-                .into(),
-            ),
-        ))]))
+    fn references(&self) -> Vc<OutputAssets> {
+        Vc::cell(vec![ResolvedVc::upcast(self.static_asset)])
     }
 
     #[turbo_tasks::function]
-    async fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+    fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -152,7 +150,7 @@ impl ChunkItem for ModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 }
 
@@ -160,7 +158,7 @@ impl ChunkItem for ModuleChunkItem {
 impl EcmascriptChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 
     #[turbo_tasks::function]
@@ -186,7 +184,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
 impl CssEmbed for ModuleChunkItem {
     #[turbo_tasks::function]
     fn embedded_asset(&self) -> Vc<Box<dyn OutputAsset>> {
-        Vc::upcast(self.static_asset)
+        *ResolvedVc::upcast(self.static_asset)
     }
 }
 

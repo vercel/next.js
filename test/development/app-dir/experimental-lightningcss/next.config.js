@@ -4,9 +4,6 @@
 const nextConfig = {
   experimental: {
     useLightningcss: true,
-    turbo: {
-      useSwcCss: false,
-    },
   },
 }
 

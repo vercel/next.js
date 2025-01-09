@@ -82,6 +82,19 @@ function execAsyncWithOutput(title, command, opts) {
 exports.execAsyncWithOutput = execAsyncWithOutput
 
 /**
+ * @template T
+ * @param {string} title
+ * @param {() => T} fn
+ * @returns {T}
+ */
+function execFn(title, fn) {
+  logCommand(title, fn.toString())
+  return fn()
+}
+
+exports.execFn = execFn
+
+/**
  * @param {string | string[]} command
  */
 function prettyCommand(command) {

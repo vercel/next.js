@@ -2,7 +2,9 @@
 #![feature(hash_raw_entry)]
 #![feature(box_patterns)]
 
-use std::{collections::HashSet, sync::Arc};
+use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
+
+use rustc_hash::FxHasher;
 
 use self::{reader::TraceReader, server::serve, store_container::StoreContainer};
 
@@ -19,6 +21,8 @@ mod store_container;
 mod u64_empty_string;
 mod u64_string;
 mod viewer;
+
+type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 fn main() {
     let args: HashSet<String> = std::env::args().skip(1).collect();

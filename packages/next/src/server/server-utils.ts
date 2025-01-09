@@ -20,6 +20,7 @@ import {
   NEXT_INTERCEPTION_MARKER_PREFIX,
   NEXT_QUERY_PARAM_PREFIX,
 } from '../lib/constants'
+import { normalizeNextQueryParam } from './web/utils'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
@@ -70,25 +71,18 @@ export function interpolateDynamicPath(
       builtParam = `[${builtParam}]`
     }
 
-    const paramIdx = pathname!.indexOf(builtParam)
+    let paramValue: string
+    const value = params[param]
 
-    if (paramIdx > -1) {
-      let paramValue: string
-      const value = params[param]
-
-      if (Array.isArray(value)) {
-        paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
-      } else if (value) {
-        paramValue = encodeURIComponent(value)
-      } else {
-        paramValue = ''
-      }
-
-      pathname =
-        pathname.slice(0, paramIdx) +
-        paramValue +
-        pathname.slice(paramIdx + builtParam.length)
+    if (Array.isArray(value)) {
+      paramValue = value.map((v) => v && encodeURIComponent(v)).join('/')
+    } else if (value) {
+      paramValue = encodeURIComponent(value)
+    } else {
+      paramValue = ''
     }
+
+    pathname = pathname.replaceAll(builtParam, paramValue)
   }
 
   return pathname
@@ -228,6 +222,9 @@ export function getUtils({
           sensitive: !!caseSensitive,
         }
       )
+
+      if (!parsedUrl.pathname) return false
+
       let params = matcher(parsedUrl.pathname)
 
       if ((rewrite.has || rewrite.missing) && params) {
@@ -265,20 +262,17 @@ export function getUtils({
         Object.assign(parsedUrl, parsedDestination)
 
         fsPathname = parsedUrl.pathname
+        if (!fsPathname) return false
 
         if (basePath) {
-          fsPathname =
-            fsPathname!.replace(new RegExp(`^${basePath}`), '') || '/'
+          fsPathname = fsPathname.replace(new RegExp(`^${basePath}`), '') || '/'
         }
 
         if (i18n) {
-          const destLocalePathResult = normalizeLocalePath(
-            fsPathname!,
-            i18n.locales
-          )
-          fsPathname = destLocalePathResult.pathname
+          const result = normalizeLocalePath(fsPathname, i18n.locales)
+          fsPathname = result.pathname
           parsedUrl.query.nextInternalLocale =
-            destLocalePathResult.detectedLocale || params.nextInternalLocale
+            result.detectedLocale || params.nextInternalLocale
         }
 
         if (fsPathname === page) {
@@ -321,102 +315,56 @@ export function getUtils({
     return rewriteParams
   }
 
-  function getParamsFromRouteMatches(
-    req: BaseNextRequest,
-    renderOpts?: any,
-    detectedLocale?: string
-  ) {
-    return getRouteMatcher(
-      (function () {
-        const { groups, routeKeys } = defaultRouteRegex!
+  function getParamsFromRouteMatches(routeMatchesHeader: string) {
+    // If we don't have a default route regex, we can't get params from route
+    // matches
+    if (!defaultRouteRegex) return null
 
-        return {
-          re: {
-            // Simulate a RegExp match from the \`req.url\` input
-            exec: (str: string) => {
-              const obj = Object.fromEntries(new URLSearchParams(str))
-              const matchesHasLocale =
-                i18n && detectedLocale && obj['1'] === detectedLocale
+    const { groups, routeKeys } = defaultRouteRegex
 
-              for (const key of Object.keys(obj)) {
-                const value = obj[key]
+    const matcher = getRouteMatcher({
+      re: {
+        // Simulate a RegExp match from the \`req.url\` input
+        exec: (str: string) => {
+          // Normalize all the prefixed query params.
+          const obj: Record<string, string> = Object.fromEntries(
+            new URLSearchParams(str)
+          )
+          for (const [key, value] of Object.entries(obj)) {
+            const normalizedKey = normalizeNextQueryParam(key)
+            if (!normalizedKey) continue
 
-                if (
-                  key !== NEXT_QUERY_PARAM_PREFIX &&
-                  key.startsWith(NEXT_QUERY_PARAM_PREFIX)
-                ) {
-                  const normalizedKey = key.substring(
-                    NEXT_QUERY_PARAM_PREFIX.length
-                  )
-                  obj[normalizedKey] = value
-                  delete obj[key]
-                }
-              }
+            obj[normalizedKey] = value
+            delete obj[key]
+          }
 
-              // favor named matches if available
-              const routeKeyNames = Object.keys(routeKeys || {})
-              const filterLocaleItem = (val: string | string[] | undefined) => {
-                if (i18n) {
-                  // locale items can be included in route-matches
-                  // for fallback SSG pages so ensure they are
-                  // filtered
-                  const isCatchAll = Array.isArray(val)
-                  const _val = isCatchAll ? val[0] : val
+          // Use all the named route keys.
+          const result = {} as RegExpExecArray
+          for (const keyName of Object.keys(routeKeys)) {
+            const paramName = routeKeys[keyName]
 
-                  if (
-                    typeof _val === 'string' &&
-                    i18n.locales.some((item) => {
-                      if (item.toLowerCase() === _val.toLowerCase()) {
-                        detectedLocale = item
-                        renderOpts.locale = detectedLocale
-                        return true
-                      }
-                      return false
-                    })
-                  ) {
-                    // remove the locale item from the match
-                    if (isCatchAll) {
-                      ;(val as string[]).splice(0, 1)
-                    }
+            // If this param name is not a valid parameter name, then skip it.
+            if (!paramName) continue
 
-                    // the value is only a locale item and
-                    // shouldn't be added
-                    return isCatchAll ? val.length === 0 : true
-                  }
-                }
-                return false
-              }
+            const group = groups[paramName]
+            const value = obj[keyName]
 
-              if (routeKeyNames.every((name) => obj[name])) {
-                return routeKeyNames.reduce((prev, keyName) => {
-                  const paramName = routeKeys?.[keyName]
+            // When we're missing a required param, we can't match the route.
+            if (!group.optional && !value) return null
 
-                  if (paramName && !filterLocaleItem(obj[keyName])) {
-                    prev[groups[paramName].pos] = obj[keyName]
-                  }
-                  return prev
-                }, {} as any)
-              }
+            result[group.pos] = value
+          }
 
-              return Object.keys(obj).reduce((prev, key) => {
-                if (!filterLocaleItem(obj[key])) {
-                  let normalizedKey = key
+          return result
+        },
+      },
+      groups,
+    })
 
-                  if (matchesHasLocale) {
-                    normalizedKey = parseInt(key, 10) - 1 + ''
-                  }
-                  return Object.assign(prev, {
-                    [normalizedKey]: obj[key],
-                  })
-                }
-                return prev
-              }, {})
-            },
-          },
-          groups,
-        }
-      })() as any
-    )(req.headers['x-now-route-matches'] as string) as ParsedUrlQuery
+    const routeMatches = matcher(routeMatchesHeader)
+    if (!routeMatches) return null
+
+    return routeMatches
   }
 
   return {

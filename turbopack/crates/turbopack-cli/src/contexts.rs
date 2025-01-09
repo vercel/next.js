@@ -1,13 +1,14 @@
 use std::fmt;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{FileSystem, FileSystemPath};
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
         EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext, ModuleRule,
-        ModuleRuleEffect, RuleCondition,
+        ModuleRuleEffect, RuleCondition, TypescriptTransformOptions,
     },
     ModuleAssetContext,
 };
@@ -50,7 +51,9 @@ async fn foreign_code_context_condition() -> Result<ContextCondition> {
 }
 
 #[turbo_tasks::function]
-pub async fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Result<Vc<ImportMap>> {
+pub async fn get_client_import_map(
+    project_path: ResolvedVc<FileSystemPath>,
+) -> Result<Vc<ImportMap>> {
     let mut import_map = ImportMap::empty();
 
     import_map.insert_singleton_alias("@swc/helpers", project_path);
@@ -62,9 +65,14 @@ pub async fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Result<V
         "@vercel/turbopack-ecmascript-runtime/",
         ImportMapping::PrimaryAlternative(
             "./*".into(),
-            Some(turbopack_ecmascript_runtime::embed_fs().root()),
+            Some(
+                turbopack_ecmascript_runtime::embed_fs()
+                    .root()
+                    .to_resolved()
+                    .await?,
+            ),
         )
-        .cell(),
+        .resolved_cell(),
     );
 
     Ok(import_map.cell())
@@ -73,11 +81,12 @@ pub async fn get_client_import_map(project_path: Vc<FileSystemPath>) -> Result<V
 #[turbo_tasks::function]
 pub async fn get_client_resolve_options_context(
     project_path: Vc<FileSystemPath>,
+    node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ResolveOptionsContext>> {
-    let next_client_import_map = get_client_import_map(project_path);
+    let next_client_import_map = get_client_import_map(project_path).to_resolved().await?;
     let module_options_context = ResolveOptionsContext {
-        enable_node_modules: Some(project_path.root().resolve().await?),
-        custom_conditions: vec!["development".into()],
+        enable_node_modules: Some(project_path.root().to_resolved().await?),
+        custom_conditions: vec![node_env.await?.to_string().into(), "browser".into()],
         import_map: Some(next_client_import_map),
         browser: true,
         module: true,
@@ -88,7 +97,7 @@ pub async fn get_client_resolve_options_context(
         enable_react: true,
         rules: vec![(
             foreign_code_context_condition().await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         ..module_options_context
     }
@@ -98,8 +107,8 @@ pub async fn get_client_resolve_options_context(
 #[turbo_tasks::function]
 async fn get_client_module_options_context(
     project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
-    env: Vc<Environment>,
+    execution_context: ResolvedVc<ExecutionContext>,
+    env: ResolvedVc<Environment>,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let module_options_context = ModuleOptionsContext {
@@ -109,7 +118,7 @@ async fn get_client_module_options_context(
         ..Default::default()
     };
 
-    let resolve_options_context = get_client_resolve_options_context(project_path);
+    let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
 
     let enable_react_refresh = matches!(*node_env.await?, NodeEnv::Development)
         && assert_can_resolve_react_refresh(project_path, resolve_options_context)
@@ -121,7 +130,7 @@ async fn get_client_module_options_context(
             react_refresh: enable_react_refresh,
             ..Default::default()
         }
-        .cell(),
+        .resolved_cell(),
     );
 
     let versions = *env.runtime_versions().await?;
@@ -136,33 +145,34 @@ async fn get_client_module_options_context(
     let module_rules = ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
-            prepend: Vc::cell(vec![
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+            prepend: ResolvedVc::cell(vec![
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     EmotionTransformer::new(&EmotionTransformConfig::default())
                         .expect("Should be able to create emotion transformer"),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
                     StyledComponentsTransformer::new(&StyledComponentsTransformConfig::default()),
                 ) as _)),
-                EcmascriptInputTransform::Plugin(Vc::cell(Box::new(StyledJsxTransformer::new(
-                    !module_options_context.css.use_swc_css,
-                    versions,
-                )) as _)),
+                EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(
+                    StyledJsxTransformer::new(versions),
+                ) as _)),
             ]),
-            append: Vc::cell(vec![]),
+            append: ResolvedVc::cell(vec![]),
         }],
     );
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_jsx,
-            enable_typescript_transform: Some(Default::default()),
+            enable_typescript_transform: Some(
+                TypescriptTransformOptions::default().resolved_cell(),
+            ),
             ..Default::default()
         },
-        enable_postcss_transform: Some(PostCssTransformOptions::default().cell()),
+        enable_postcss_transform: Some(PostCssTransformOptions::default().resolved_cell()),
         rules: vec![(
             foreign_code_context_condition().await?,
-            module_options_context.clone().cell(),
+            module_options_context.clone().resolved_cell(),
         )],
         module_rules: vec![module_rules],
         ..module_options_context
@@ -179,7 +189,7 @@ pub fn get_client_asset_context(
     compile_time_info: Vc<CompileTimeInfo>,
     node_env: Vc<NodeEnv>,
 ) -> Vc<Box<dyn AssetContext>> {
-    let resolve_options_context = get_client_resolve_options_context(project_path);
+    let resolve_options_context = get_client_resolve_options_context(project_path, node_env);
     let module_options_context = get_client_module_options_context(
         project_path,
         execution_context,
@@ -212,17 +222,20 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
-    Ok(
-        CompileTimeInfo::builder(Environment::new(Value::new(ExecutionEnvironment::Browser(
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
                 dom: true,
                 web_worker: false,
                 service_worker: false,
                 browserslist_query,
             }
-            .into(),
-        ))))
-        .defines(client_defines(&*node_env.await?))
-        .cell(),
+            .resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
     )
+    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .cell()
+    .await
 }

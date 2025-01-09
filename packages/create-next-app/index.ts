@@ -52,7 +52,7 @@ const program = new Command(packageJson.name)
   .option('--eslint', 'Initialize with ESLint config.')
   .option('--app', 'Initialize as an App Router project.')
   .option('--src-dir', "Initialize inside a 'src/' directory.")
-  .option('--turbo', 'Enable Turbopack by default for development.')
+  .option('--turbopack', 'Enable Turbopack by default for development.')
   .option(
     '--import-alias <prefix/*>',
     'Specify import alias to use (default "@/*").'
@@ -234,7 +234,7 @@ async function run(): Promise<void> {
       importAlias: '@/*',
       customizeImportAlias: false,
       empty: false,
-      turbo: false,
+      turbopack: true,
       disableGit: false,
     }
     const getPrefOrDefault = (field: string) =>
@@ -352,22 +352,22 @@ async function run(): Promise<void> {
       }
     }
 
-    if (!opts.turbo && !args.includes('--no-turbo')) {
+    if (!opts.turbopack && !args.includes('--no-turbopack')) {
       if (skipPrompt) {
-        opts.turbo = getPrefOrDefault('turbo')
+        opts.turbopack = getPrefOrDefault('turbopack')
       } else {
         const styledTurbo = blue('Turbopack')
-        const { turbo } = await prompts({
+        const { turbopack } = await prompts({
           onState: onPromptState,
           type: 'toggle',
-          name: 'turbo',
-          message: `Would you like to use ${styledTurbo} for ${`next dev`}?`,
-          initial: getPrefOrDefault('turbo'),
+          name: 'turbopack',
+          message: `Would you like to use ${styledTurbo} for \`next dev\`?`,
+          initial: getPrefOrDefault('turbopack'),
           active: 'Yes',
           inactive: 'No',
         })
-        opts.turbo = Boolean(turbo)
-        preferences.turbo = Boolean(turbo)
+        opts.turbopack = Boolean(turbopack)
+        preferences.turbopack = Boolean(turbopack)
       }
     }
 
@@ -388,7 +388,7 @@ async function run(): Promise<void> {
           onState: onPromptState,
           type: 'toggle',
           name: 'customizeImportAlias',
-          message: `Would you like to customize the ${styledImportAlias} (${defaults.importAlias} by default)?`,
+          message: `Would you like to customize the ${styledImportAlias} (\`${defaults.importAlias}\` by default)?`,
           initial: getPrefOrDefault('customizeImportAlias'),
           active: 'Yes',
           inactive: 'No',
@@ -430,8 +430,8 @@ async function run(): Promise<void> {
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
-      turbo: opts.turbo,
       api: opts.api,
+      turbopack: opts.turbopack,
       disableGit: opts.disableGit,
     })
   } catch (reason) {
@@ -463,7 +463,7 @@ async function run(): Promise<void> {
       importAlias: opts.importAlias,
       skipInstall: opts.skipInstall,
       empty: opts.empty,
-      turbo: opts.turbo,
+      turbopack: opts.turbopack,
       disableGit: opts.disableGit,
     })
   }

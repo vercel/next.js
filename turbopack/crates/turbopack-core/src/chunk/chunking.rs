@@ -4,11 +4,11 @@ use std::{
 };
 
 use anyhow::Result;
-use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_tasks::{RcStr, ReadRef, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
 use super::{
     AsyncModuleInfo, Chunk, ChunkItem, ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext,
@@ -18,8 +18,8 @@ use crate::output::OutputAssets;
 
 #[turbo_tasks::value]
 struct ChunkItemInfo {
-    ty: Vc<Box<dyn ChunkType>>,
-    name: Vc<RcStr>,
+    ty: ResolvedVc<Box<dyn ChunkType>>,
+    name: ResolvedVc<RcStr>,
     size: usize,
 }
 
@@ -30,12 +30,12 @@ async fn chunk_item_info(
     async_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<ChunkItemInfo>> {
     let asset_ident = chunk_item.asset_ident().to_string();
-    let ty = chunk_item.ty().resolve().await?;
+    let ty = chunk_item.ty().to_resolved().await?;
     let chunk_item_size = ty.chunk_item_size(chunking_context, chunk_item, async_info);
     Ok(ChunkItemInfo {
         ty,
         size: *chunk_item_size.await?,
-        name: asset_ident.resolve().await?,
+        name: asset_ident.to_resolved().await?,
     }
     .cell())
 }
@@ -53,12 +53,14 @@ pub async fn make_chunks(
         .await?
         .iter()
         .map(|&(chunk_item, async_info)| async move {
-            let chunk_item_info = chunk_item_info(chunking_context, chunk_item, async_info).await?;
+            let chunk_item_info =
+                chunk_item_info(chunking_context, *chunk_item, async_info.map(|info| *info))
+                    .await?;
             Ok((chunk_item, async_info, chunk_item_info))
         })
         .try_join()
         .await?;
-    let mut map = IndexMap::<_, Vec<_>>::new();
+    let mut map = FxIndexMap::<_, Vec<_>>::default();
     for (chunk_item, async_info, chunk_item_info) in chunk_items {
         map.entry(chunk_item_info.ty)
             .or_default()
@@ -107,18 +109,25 @@ pub async fn make_chunks(
         }
     }
 
-    Ok(Vc::cell(chunks))
+    // Resolve all chunks before returning
+    let resolved_chunks = chunks
+        .into_iter()
+        .map(|chunk| chunk.to_resolved())
+        .try_join()
+        .await?;
+
+    Ok(Vc::cell(resolved_chunks))
 }
 
 type ChunkItemWithInfo = (
-    Vc<Box<dyn ChunkItem>>,
-    Option<Vc<AsyncModuleInfo>>,
+    ResolvedVc<Box<dyn ChunkItem>>,
+    Option<ResolvedVc<AsyncModuleInfo>>,
     usize,
     ReadRef<RcStr>,
 );
 
 struct SplitContext<'a> {
-    ty: Vc<Box<dyn ChunkType>>,
+    ty: ResolvedVc<Box<dyn ChunkType>>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
     referenced_output_assets: &'a mut Vc<OutputAssets>,
@@ -228,7 +237,7 @@ async fn package_name_split(
     mut name: String,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    let mut map = IndexMap::<_, Vec<ChunkItemWithInfo>>::new();
+    let mut map = FxIndexMap::<_, Vec<ChunkItemWithInfo>>::default();
     for item in chunk_items {
         let (_, _, _, asset_ident) = &item;
         let package_name = package_name(asset_ident);
@@ -261,7 +270,7 @@ async fn folder_split(
     name: Cow<'_, str>,
     split_context: &mut SplitContext<'_>,
 ) -> Result<()> {
-    let mut map = IndexMap::<_, (_, Vec<ChunkItemWithInfo>)>::new();
+    let mut map = FxIndexMap::<_, (_, Vec<ChunkItemWithInfo>)>::default();
     loop {
         for item in chunk_items {
             let (_, _, _, asset_ident) = &item;
@@ -278,7 +287,7 @@ async fn folder_split(
             if let Some(new_location) = new_location {
                 chunk_items = list;
                 location = new_location;
-                map = IndexMap::new();
+                map = FxIndexMap::default();
                 continue;
             } else {
                 let mut key = format!("{}-{}", name, folder_name);

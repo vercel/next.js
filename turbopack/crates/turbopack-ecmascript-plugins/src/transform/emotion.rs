@@ -14,10 +14,12 @@ use swc_core::{
         visit::FoldWith,
     },
 };
-use turbo_tasks::{trace::TraceRawVcs, ValueDefault, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, OperationValue, ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
-#[derive(Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize)]
+#[derive(
+    Clone, PartialEq, Eq, Debug, TraceRawVcs, Serialize, Deserialize, NonLocalValue, OperationValue,
+)]
 #[serde(rename_all = "kebab-case")]
 pub enum EmotionLabelKind {
     DevOnly,
@@ -25,12 +27,9 @@ pub enum EmotionLabelKind {
     Never,
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionEmotionTransformConfig(Option<Vc<EmotionTransformConfig>>);
-
 //[TODO]: need to support importmap, there are type mismatch between
 //next.config.js to swc's emotion options
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, operation)]
 #[derive(Default, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct EmotionTransformConfig {
@@ -98,14 +97,13 @@ impl CustomTransformer for EmotionTransformer {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         #[cfg(feature = "transform_emotion")]
         {
-            let p = std::mem::replace(program, Program::Module(Module::dummy()));
             let hash = {
                 #[allow(clippy::disallowed_types)]
                 let mut hasher = std::collections::hash_map::DefaultHasher::new();
-                p.hash(&mut hasher);
+                program.hash(&mut hasher);
                 hasher.finish()
             };
-            *program = p.fold_with(&mut swc_emotion::emotion(
+            program.mutate(swc_emotion::emotion(
                 self.config.clone(),
                 Path::new(ctx.file_name_str),
                 hash as u32,

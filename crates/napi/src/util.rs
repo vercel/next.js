@@ -29,7 +29,6 @@ DEALINGS IN THE SOFTWARE.
 use std::{
     cell::RefCell,
     env,
-    fmt::Debug,
     fs::OpenOptions,
     io::{self, BufRead, Write},
     path::PathBuf,
@@ -52,13 +51,13 @@ static PANIC_LOG: Lazy<PathBuf> = Lazy::new(|| {
     path
 });
 
-pub fn log_panic_and_inform(err_info: impl Debug) {
+pub fn log_internal_error_and_inform(err_info: &str) {
     if cfg!(debug_assertions)
         || env::var("SWC_DEBUG") == Ok("1".to_string())
         || env::var("CI").is_ok_and(|v| !v.is_empty())
     {
         eprintln!(
-            "{}: An unexpected Turbopack error occurred:\n{:?}",
+            "{}: An unexpected Turbopack error occurred:\n{}",
             "FATAL".red().bold(),
             err_info
         );
@@ -121,8 +120,8 @@ pub fn log_panic_and_inform(err_info: impl Debug) {
         .open(PANIC_LOG.as_path())
         .unwrap_or_else(|_| panic!("Failed to open {}", PANIC_LOG.to_string_lossy()));
 
-    writeln!(log_file, "{}\n{:?}", LOG_DIVIDER, err_info).unwrap();
-    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {} to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
+    writeln!(log_file, "{}\n{}", LOG_DIVIDER, err_info).unwrap();
+    eprintln!("{}: An unexpected Turbopack error occurred. Please report the content of {}, along with a description of what you were doing when the error occurred, to https://github.com/vercel/next.js/issues/new", "FATAL".red().bold(), PANIC_LOG.to_string_lossy());
 }
 
 #[napi]

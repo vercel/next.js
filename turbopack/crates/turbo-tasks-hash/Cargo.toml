@@ -13,6 +13,5 @@ bench = false
 workspace = true
 
 [dependencies]
-md4 = "0.10.1"
 turbo-tasks-macros = { workspace = true }
 twox-hash = "1.6.3"

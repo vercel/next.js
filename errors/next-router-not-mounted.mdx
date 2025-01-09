@@ -14,6 +14,8 @@ If used in a test, mock out the router by mocking the `next/router`'s `useRouter
 
 If used in the `app` directory, migrate to the new hooks imported from `next/navigation`.
 
+If used in the `pages` directory, try to update the export to [`next/compat/router`](/docs/pages/api-reference/functions/use-router#the-nextcompatrouter-export). This is the same `useRouter` hook but does not throw this error, intended to be used while migrating from `pages` to `app`.
+
 ## Useful Links
 
 - [next-router-mock](https://www.npmjs.com/package/next-router-mock)

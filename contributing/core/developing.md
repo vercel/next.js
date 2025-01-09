@@ -12,9 +12,9 @@
   ```
   corepack enable pnpm
   ```
-- (Linux) Install LLD, the LLVM linker:
+- (Linux) Install LLD (the LLVM linker) and Clang (used by `rust-rocksdb`):
   ```
-  sudo apt install lld
+  sudo apt install lld clang
   ```
 
 ## Local Development

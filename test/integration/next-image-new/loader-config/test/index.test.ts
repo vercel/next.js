@@ -43,8 +43,8 @@ describe('Image Loader Config new', () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => {
-      killApp(app)
+    afterAll(async () => {
+      await killApp(app)
     })
     runTests('/')
   })
@@ -56,8 +56,8 @@ describe('Image Loader Config new', () => {
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests('/')
     }
@@ -67,8 +67,8 @@ describe('Image Loader Config new', () => {
       appPort = await findPort()
       app = await launchApp(appDir, appPort)
     })
-    afterAll(() => {
-      killApp(app)
+    afterAll(async () => {
+      await killApp(app)
     })
     runTests('/get-img-props')
   })
@@ -80,8 +80,8 @@ describe('Image Loader Config new', () => {
         appPort = await findPort()
         app = await nextStart(appDir, appPort)
       })
-      afterAll(() => {
-        killApp(app)
+      afterAll(async () => {
+        await killApp(app)
       })
       runTests('/get-img-props')
     }

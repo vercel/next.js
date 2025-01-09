@@ -36,7 +36,7 @@ import {
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
 import { eventCliSession } from '../telemetry/events'
-import { hasNextSupport } from '../telemetry/ci-info'
+import { hasNextSupport } from '../server/ci-info'
 import { Telemetry } from '../telemetry/storage'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -49,7 +49,6 @@ import { isAppRouteRoute } from '../lib/is-app-route-route'
 import { isAppPageRoute } from '../lib/is-app-page-route'
 import isError from '../lib/is-error'
 import { formatManifest } from '../build/manifests/formatter/format-manifest'
-import { validateRevalidate } from '../server/lib/patch-fetch'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -318,7 +317,6 @@ async function exportAppImpl(
   // Start the rendering process
   const renderOpts: WorkerRenderOptsPartial = {
     previewProps: prerenderManifest?.preview,
-    buildId,
     nextExport: true,
     assetPrefix: nextConfig.assetPrefix.replace(/\/$/, ''),
     distDir,
@@ -342,6 +340,7 @@ async function exportAppImpl(
     largePageDataBytes: nextConfig.experimental.largePageDataBytes,
     serverActions: nextConfig.experimental.serverActions,
     serverComponents: enabledDirectories.app,
+    cacheLifeProfiles: nextConfig.experimental.cacheLife,
     nextFontManifest: require(
       join(distDir, 'server', `${NEXT_FONT_MANIFEST}.json`)
     ),
@@ -355,9 +354,12 @@ async function exportAppImpl(
     deploymentId: nextConfig.deploymentId,
     experimental: {
       clientTraceMetadata: nextConfig.experimental.clientTraceMetadata,
-      swrDelta: nextConfig.swrDelta,
-      after: nextConfig.experimental.after ?? false,
+      expireTime: nextConfig.expireTime,
       dynamicIO: nextConfig.experimental.dynamicIO ?? false,
+      clientSegmentCache: nextConfig.experimental.clientSegmentCache ?? false,
+      inlineCss: nextConfig.experimental.inlineCss ?? false,
+      authInterrupts: !!nextConfig.experimental.authInterrupts,
+      streamingMetadata: !!nextConfig.experimental.streamingMetadata,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }
@@ -541,6 +543,7 @@ async function exportAppImpl(
     await Promise.all(
       chunks.map((paths) =>
         worker.exportPages({
+          buildId,
           paths,
           exportPathMap,
           parentSpanId: span.getId(),
@@ -599,7 +602,7 @@ async function exportAppImpl(
       // Update path info by path.
       const info = collector.byPath.get(path) ?? {}
       if (typeof result.revalidate !== 'undefined') {
-        info.revalidate = validateRevalidate(result.revalidate, path)
+        info.revalidate = result.revalidate
       }
       if (typeof result.metadata !== 'undefined') {
         info.metadata = result.metadata

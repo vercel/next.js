@@ -132,7 +132,7 @@ describe('app dir - metadata', () => {
 
       await matchMultiDom('meta', 'name', 'content', {
         'apple-itunes-app': 'app-id=myAppStoreID, app-argument=myAppArgument',
-        'apple-mobile-web-app-capable': 'yes',
+        'mobile-web-app-capable': 'yes',
         'apple-mobile-web-app-title': 'Apple Web App',
         'apple-mobile-web-app-status-bar-style': 'black-translucent',
       })
@@ -439,6 +439,15 @@ describe('app dir - metadata', () => {
 
       expect(favicon).toMatch('/favicon.ico')
       expect(icons).toEqual(['https://custom-icon-1.png'])
+    })
+
+    it('metadataBase should override fallback base for resolving OG images', async () => {
+      const browser = await next.browser('/metadata-base/opengraph')
+      const matchMultiDom = createMultiDomMatcher(browser)
+
+      await matchMultiDom('meta', 'property', 'content', {
+        'og:image': 'https://acme.com/og-image.png',
+      })
     })
   })
 

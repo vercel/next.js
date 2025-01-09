@@ -28,7 +28,6 @@ import { normalizeLocalePath } from '../../../shared/lib/i18n/normalize-locale-p
 import { removePathPrefix } from '../../../shared/lib/router/utils/remove-path-prefix'
 import { NextDataPathnameNormalizer } from '../../normalizers/request/next-data'
 import { BasePathPathnameNormalizer } from '../../normalizers/request/base-path'
-import { PostponedPathnameNormalizer } from '../../normalizers/request/postponed'
 
 import { addRequestMeta } from '../../request-meta'
 import {
@@ -195,9 +194,12 @@ export function getResolveRoutes(
       )
       defaultLocale = domainLocale?.defaultLocale || config.i18n.defaultLocale
 
-      parsedUrl.query.__nextDefaultLocale = defaultLocale
-      parsedUrl.query.__nextLocale =
+      addRequestMeta(req, 'defaultLocale', defaultLocale)
+      addRequestMeta(
+        req,
+        'locale',
         initialLocaleResult.detectedLocale || defaultLocale
+      )
 
       // ensure locale is present for resolving routes
       if (
@@ -286,7 +288,7 @@ export function getResolveRoutes(
           }
 
           if (pageOutput && curPathname?.startsWith('/_next/data')) {
-            parsedUrl.query.__nextDataReq = '1'
+            addRequestMeta(req, 'isNextDataReq', true)
           }
 
           if (config.useFileSystemPublicRoutes || didRewrite) {
@@ -302,9 +304,6 @@ export function getResolveRoutes(
           ? new BasePathPathnameNormalizer(config.basePath)
           : undefined,
       data: new NextDataPathnameNormalizer(fsChecker.buildId),
-      postponed: config.experimental.ppr
-        ? new PostponedPathnameNormalizer()
-        : undefined,
     }
 
     async function handleRoute(
@@ -388,11 +387,8 @@ export function getResolveRoutes(
             let updated = false
             if (normalizers.data.match(normalized)) {
               updated = true
-              parsedUrl.query.__nextDataReq = '1'
+              addRequestMeta(req, 'isNextDataReq', true)
               normalized = normalizers.data.normalize(normalized, true)
-            } else if (normalizers.postponed?.match(normalized)) {
-              updated = true
-              normalized = normalizers.postponed.normalize(normalized, true)
             }
 
             if (config.i18n) {
@@ -402,7 +398,7 @@ export function getResolveRoutes(
               )
 
               if (curLocaleResult.detectedLocale) {
-                parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+                addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
               }
             }
 
@@ -445,7 +441,7 @@ export function getResolveRoutes(
               matchedOutput = output
 
               if (output.locale) {
-                parsedUrl.query.__nextLocale = output.locale
+                addRequestMeta(req, 'locale', output.locale)
               }
               return {
                 parsedUrl,
@@ -587,6 +583,14 @@ export function getResolveRoutes(
               ) {
                 continue
               }
+
+              // for set-cookie, the header shouldn't be added to the response
+              // as it's only needed for the request to the middleware function.
+              if (key === 'x-middleware-set-cookie') {
+                req.headers[key] = value
+                continue
+              }
+
               if (value) {
                 resHeaders[key] = value
                 req.headers[key] = value
@@ -623,7 +627,7 @@ export function getResolveRoutes(
                 )
 
                 if (curLocaleResult.detectedLocale) {
-                  parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+                  addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
                 }
               }
             }
@@ -753,7 +757,7 @@ export function getResolveRoutes(
             )
 
             if (curLocaleResult.detectedLocale) {
-              parsedUrl.query.__nextLocale = curLocaleResult.detectedLocale
+              addRequestMeta(req, 'locale', curLocaleResult.detectedLocale)
             }
           }
           didRewrite = true

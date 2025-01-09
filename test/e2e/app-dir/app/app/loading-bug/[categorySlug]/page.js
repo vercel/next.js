@@ -7,7 +7,8 @@ const fetchCategory = async (categorySlug) => {
   return categorySlug + 'abc'
 }
 
-export default function Page({ params }) {
+export default function Page(props) {
+  const params = use(props.params)
   const category = use(fetchCategory(params.categorySlug))
 
   return <div id="category-id">{category}</div>

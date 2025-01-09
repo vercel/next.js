@@ -178,22 +178,18 @@ graph TD
 # Final
 ```mermaid
 graph TD
-    N0["Items: [ItemId(1, VarDeclarator(0))]"];
-    N1["Items: [ItemId(2, VarDeclarator(0))]"];
-    N2["Items: [ItemId(0, VarDeclarator(0))]"];
-    N3["Items: [ItemId(4, Normal)]"];
-    N4["Items: [ItemId(Export((&quot;getClientComponentLoaderMetrics&quot;, #2), &quot;getClientComponentLoaderMetrics&quot;))]"];
-    N5["Items: [ItemId(3, Normal)]"];
-    N6["Items: [ItemId(Export((&quot;wrapClientComponentLoader&quot;, #2), &quot;wrapClientComponentLoader&quot;))]"];
-    N7["Items: [ItemId(ModuleEvaluation)]"];
-    N6 --> N5;
-    N4 --> N3;
-    N5 --> N2;
-    N5 --> N1;
-    N5 --> N0;
+    N0["Items: [ItemId(0, VarDeclarator(0))]"];
+    N1["Items: [ItemId(1, VarDeclarator(0))]"];
+    N2["Items: [ItemId(2, VarDeclarator(0))]"];
+    N3["Items: [ItemId(3, Normal), ItemId(Export((&quot;wrapClientComponentLoader&quot;, #2), &quot;wrapClientComponentLoader&quot;))]"];
+    N4["Items: [ItemId(4, Normal), ItemId(Export((&quot;getClientComponentLoaderMetrics&quot;, #2), &quot;getClientComponentLoaderMetrics&quot;))]"];
+    N5["Items: [ItemId(ModuleEvaluation)]"];
+    N4 --> N0;
+    N4 --> N2;
+    N3 --> N1;
     N3 --> N2;
     N3 --> N0;
-    N3 --> N1;
+    N4 --> N1;
 ```
 # Entrypoints
 
@@ -202,11 +198,11 @@ graph TD
     Export(
         "getClientComponentLoaderMetrics",
     ): 4,
-    ModuleEvaluation: 7,
-    Exports: 8,
+    ModuleEvaluation: 5,
+    Exports: 6,
     Export(
         "wrapClientComponentLoader",
-    ): 6,
+    ): 3,
 }
 ```
 
@@ -214,96 +210,38 @@ graph TD
 # Modules (dev)
 ## Part 0
 ```js
-let clientComponentLoadTimes = 0;
-export { clientComponentLoadTimes as a } from "__TURBOPACK_VAR__" assert {
+let clientComponentLoadStart = 0;
+export { clientComponentLoadStart as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 1
 ```js
-let clientComponentLoadCount = 0;
-export { clientComponentLoadCount as b } from "__TURBOPACK_VAR__" assert {
+let clientComponentLoadTimes = 0;
+export { clientComponentLoadTimes as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
 ```js
-let clientComponentLoadStart = 0;
-export { clientComponentLoadStart as c } from "__TURBOPACK_VAR__" assert {
+let clientComponentLoadCount = 0;
+export { clientComponentLoadCount as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { b as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+import { a as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import { b as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import { c as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-function getClientComponentLoaderMetrics(options = {}) {
-    const metrics = clientComponentLoadStart === 0 ? undefined : {
-        clientComponentLoadStart,
-        clientComponentLoadTimes,
-        clientComponentLoadCount
-    };
-    if (options.reset) {
-        clientComponentLoadStart = 0;
-        clientComponentLoadTimes = 0;
-        clientComponentLoadCount = 0;
-    }
-    return metrics;
-}
-export { getClientComponentLoaderMetrics as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { d as getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-export { getClientComponentLoaderMetrics };
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { c as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { b as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { c as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
 };
 function wrapClientComponentLoader(ComponentMod) {
     if (!('performance' in globalThis)) {
@@ -333,34 +271,54 @@ function wrapClientComponentLoader(ComponentMod) {
         }
     };
 }
-export { wrapClientComponentLoader as e } from "__TURBOPACK_VAR__" assert {
+export { wrapClientComponentLoader };
+export { wrapClientComponentLoader as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 6
+## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { c as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
 };
-import { e as wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { a as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
-export { wrapClientComponentLoader };
+import { b as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
+};
+function getClientComponentLoaderMetrics(options = {}) {
+    const metrics = clientComponentLoadStart === 0 ? undefined : {
+        clientComponentLoadStart,
+        clientComponentLoadTimes,
+        clientComponentLoadCount
+    };
+    if (options.reset) {
+        clientComponentLoadStart = 0;
+        clientComponentLoadTimes = 0;
+        clientComponentLoadCount = 0;
+    }
+    return metrics;
+}
+export { getClientComponentLoaderMetrics };
+export { getClientComponentLoaderMetrics as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
-## Part 7
+## Part 5
 ```js
 "module evaluation";
 
 ```
-## Part 8
+## Part 6
 ```js
-export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getClientComponentLoaderMetrics"
-};
 export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export wrapClientComponentLoader"
+};
+export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export getClientComponentLoaderMetrics"
 };
 
 ```
@@ -376,11 +334,11 @@ export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
     Export(
         "getClientComponentLoaderMetrics",
     ): 4,
-    ModuleEvaluation: 7,
-    Exports: 8,
+    ModuleEvaluation: 5,
+    Exports: 6,
     Export(
         "wrapClientComponentLoader",
-    ): 6,
+    ): 3,
 }
 ```
 
@@ -388,96 +346,38 @@ export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
 # Modules (prod)
 ## Part 0
 ```js
-let clientComponentLoadTimes = 0;
-export { clientComponentLoadTimes as a } from "__TURBOPACK_VAR__" assert {
+let clientComponentLoadStart = 0;
+export { clientComponentLoadStart as a } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 1
 ```js
-let clientComponentLoadCount = 0;
-export { clientComponentLoadCount as b } from "__TURBOPACK_VAR__" assert {
+let clientComponentLoadTimes = 0;
+export { clientComponentLoadTimes as b } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 2
 ```js
-let clientComponentLoadStart = 0;
-export { clientComponentLoadStart as c } from "__TURBOPACK_VAR__" assert {
+let clientComponentLoadCount = 0;
+export { clientComponentLoadCount as c } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
 ## Part 3
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
+import { b as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+import { a as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import { b as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import { c as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { a as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-function getClientComponentLoaderMetrics(options = {}) {
-    const metrics = clientComponentLoadStart === 0 ? undefined : {
-        clientComponentLoadStart,
-        clientComponentLoadTimes,
-        clientComponentLoadCount
-    };
-    if (options.reset) {
-        clientComponentLoadStart = 0;
-        clientComponentLoadTimes = 0;
-        clientComponentLoadCount = 0;
-    }
-    return metrics;
-}
-export { getClientComponentLoaderMetrics as d } from "__TURBOPACK_VAR__" assert {
-    __turbopack_var__: true
-};
-
-```
-## Part 4
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-import { d as getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 3
-};
-export { getClientComponentLoaderMetrics };
-
-```
-## Part 5
-```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { c as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 2
-};
-import { b as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 1
+import { c as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
 };
 function wrapClientComponentLoader(ComponentMod) {
     if (!('performance' in globalThis)) {
@@ -507,34 +407,54 @@ function wrapClientComponentLoader(ComponentMod) {
         }
     };
 }
-export { wrapClientComponentLoader as e } from "__TURBOPACK_VAR__" assert {
+export { wrapClientComponentLoader };
+export { wrapClientComponentLoader as d } from "__TURBOPACK_VAR__" assert {
     __turbopack_var__: true
 };
 
 ```
-## Part 6
+## Part 4
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { c as clientComponentLoadCount } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -2
 };
-import { e as wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 5
+import { a as clientComponentLoadStart } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
 };
-export { wrapClientComponentLoader };
+import { b as clientComponentLoadTimes } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -1
+};
+function getClientComponentLoaderMetrics(options = {}) {
+    const metrics = clientComponentLoadStart === 0 ? undefined : {
+        clientComponentLoadStart,
+        clientComponentLoadTimes,
+        clientComponentLoadCount
+    };
+    if (options.reset) {
+        clientComponentLoadStart = 0;
+        clientComponentLoadTimes = 0;
+        clientComponentLoadCount = 0;
+    }
+    return metrics;
+}
+export { getClientComponentLoaderMetrics };
+export { getClientComponentLoaderMetrics as e } from "__TURBOPACK_VAR__" assert {
+    __turbopack_var__: true
+};
 
 ```
-## Part 7
+## Part 5
 ```js
 "module evaluation";
 
 ```
-## Part 8
+## Part 6
 ```js
-export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: "export getClientComponentLoaderMetrics"
-};
 export { wrapClientComponentLoader } from "__TURBOPACK_PART__" assert {
     __turbopack_part__: "export wrapClientComponentLoader"
+};
+export { getClientComponentLoaderMetrics } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: "export getClientComponentLoaderMetrics"
 };
 
 ```

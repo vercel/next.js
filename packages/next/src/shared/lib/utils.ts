@@ -107,9 +107,9 @@ export type NEXT_DATA = {
   gip?: boolean
   appGip?: boolean
   locale?: string
-  locales?: string[]
+  locales?: readonly string[]
   defaultLocale?: string
-  domainLocales?: DomainLocale[]
+  domainLocales?: readonly DomainLocale[]
   scriptLoader?: any[]
   isPreview?: boolean
   notFoundSrcPage?: string
@@ -150,7 +150,7 @@ export interface NextPageContext {
   /**
    * All configured locales
    */
-  locales?: string[]
+  locales?: readonly string[]
   /**
    * The configured default locale
    */
@@ -283,7 +283,7 @@ export type NextApiResponse<Data = any> = ServerResponse & {
    * Static Regeneration.
    * The path should be an actual path, not a rewritten path. E.g. for
    * "/blog/[slug]" this should be "/blog/post-1".
-   * @link https://nextjs.org/docs/basic-features/data-fetching/incremental-static-regeneration#on-demand-revalidation
+   * @link https://nextjs.org/docs/app/building-your-application/data-fetching/incremental-static-regeneration#on-demand-revalidation-with-revalidatepath
    */
   revalidate: (
     urlPath: string,

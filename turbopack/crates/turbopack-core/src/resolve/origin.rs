@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Upcast, Value, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Upcast, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 
 use super::{options::ResolveOptions, parse::Request, ModuleResolveResult};
@@ -7,7 +8,7 @@ use crate::{context::AssetContext, module::OptionModule, reference_type::Referen
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait ResolveOrigin {
     /// The origin path where resolving starts. This is pointing to a file,
     /// since that might be needed to infer custom resolving options for that
@@ -44,7 +45,7 @@ pub trait ResolveOriginExt: Send {
     fn resolve_options(self: Vc<Self>, reference_type: Value<ReferenceType>) -> Vc<ResolveOptions>;
 
     /// Adds a transition that is used for resolved assets.
-    fn with_transition(self: Vc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>>;
+    fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>>;
 }
 
 impl<T> ResolveOriginExt for T
@@ -65,10 +66,10 @@ where
             .resolve_options(self.origin_path(), reference_type)
     }
 
-    fn with_transition(self: Vc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {
+    fn with_transition(self: ResolvedVc<Self>, transition: RcStr) -> Vc<Box<dyn ResolveOrigin>> {
         Vc::upcast(
             ResolveOriginWithTransition {
-                previous: Vc::upcast(self),
+                previous: ResolvedVc::upcast(self),
                 transition,
             }
             .cell(),
@@ -101,16 +102,16 @@ async fn resolve_asset(
 /// A resolve origin for some path and context without additional modifications.
 #[turbo_tasks::value]
 pub struct PlainResolveOrigin {
-    asset_context: Vc<Box<dyn AssetContext>>,
-    origin_path: Vc<FileSystemPath>,
+    asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    origin_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl PlainResolveOrigin {
     #[turbo_tasks::function]
     pub fn new(
-        asset_context: Vc<Box<dyn AssetContext>>,
-        origin_path: Vc<FileSystemPath>,
+        asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        origin_path: ResolvedVc<FileSystemPath>,
     ) -> Vc<Self> {
         PlainResolveOrigin {
             asset_context,
@@ -124,19 +125,19 @@ impl PlainResolveOrigin {
 impl ResolveOrigin for PlainResolveOrigin {
     #[turbo_tasks::function]
     fn origin_path(&self) -> Vc<FileSystemPath> {
-        self.origin_path
+        *self.origin_path
     }
 
     #[turbo_tasks::function]
     fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
-        self.asset_context
+        *self.asset_context
     }
 }
 
 /// Wraps a ResolveOrigin to add a transition.
 #[turbo_tasks::value]
 struct ResolveOriginWithTransition {
-    previous: Vc<Box<dyn ResolveOrigin>>,
+    previous: ResolvedVc<Box<dyn ResolveOrigin>>,
     transition: RcStr,
 }
 

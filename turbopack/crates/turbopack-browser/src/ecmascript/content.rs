@@ -2,7 +2,8 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use indoc::writedoc;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::File;
 use turbopack_core::{
     asset::AssetContent,
@@ -22,21 +23,21 @@ use crate::BrowserChunkingContext;
 
 #[turbo_tasks::value(serialization = "none")]
 pub struct EcmascriptDevChunkContent {
-    pub(super) entries: Vc<EcmascriptDevChunkContentEntries>,
-    pub(super) chunking_context: Vc<BrowserChunkingContext>,
-    pub(super) chunk: Vc<EcmascriptDevChunk>,
+    pub(super) entries: ResolvedVc<EcmascriptDevChunkContentEntries>,
+    pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
+    pub(super) chunk: ResolvedVc<EcmascriptDevChunk>,
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
     pub(crate) async fn new(
-        chunking_context: Vc<BrowserChunkingContext>,
-        chunk: Vc<EcmascriptDevChunk>,
+        chunking_context: ResolvedVc<BrowserChunkingContext>,
+        chunk: ResolvedVc<EcmascriptDevChunk>,
         content: Vc<EcmascriptChunkContent>,
     ) -> Result<Vc<Self>> {
         let entries = EcmascriptDevChunkContentEntries::new(content)
-            .resolve()
+            .to_resolved()
             .await?;
         Ok(EcmascriptDevChunkContent {
             entries,
@@ -47,23 +48,20 @@ impl EcmascriptDevChunkContent {
     }
 
     #[turbo_tasks::function]
-    pub async fn entries(
-        self: Vc<EcmascriptDevChunkContent>,
-    ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
-        Ok(self.await?.entries)
+    pub fn entries(&self) -> Vc<EcmascriptDevChunkContentEntries> {
+        *self.entries
     }
 }
 
 #[turbo_tasks::value_impl]
 impl EcmascriptDevChunkContent {
     #[turbo_tasks::function]
-    pub(crate) async fn own_version(self: Vc<Self>) -> Result<Vc<EcmascriptDevChunkVersion>> {
-        let this = self.await?;
-        Ok(EcmascriptDevChunkVersion::new(
-            this.chunking_context.output_root(),
-            this.chunk.ident().path(),
-            this.entries,
-        ))
+    pub(crate) fn own_version(&self) -> Vc<EcmascriptDevChunkVersion> {
+        EcmascriptDevChunkVersion::new(
+            self.chunking_context.output_root(),
+            self.chunk.ident().path(),
+            *self.entries,
+        )
     }
 
     #[turbo_tasks::function]
@@ -110,6 +108,8 @@ impl EcmascriptDevChunkContent {
             let filename = chunk_path.file_name();
             write!(
                 code,
+                // findSourceMapURL assumes this co-located sourceMappingURL,
+                // and needs to be adjusted in case this is ever changed.
                 "\n\n//# sourceMappingURL={}.map",
                 urlencoding::encode(filename)
             )?;

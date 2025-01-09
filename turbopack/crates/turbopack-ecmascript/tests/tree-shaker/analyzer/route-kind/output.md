@@ -114,11 +114,8 @@ export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 (function(RouteKind) {
     RouteKind["PAGES"] = "PAGES";
@@ -138,14 +135,11 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 3
 ```js
+import { a as RouteKind } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 export { RouteKind };
 
@@ -189,11 +183,8 @@ export { RouteKind as a } from "__TURBOPACK_VAR__" assert {
 ```
 ## Part 1
 ```js
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
 import { a as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
+    __turbopack_part__: -0
 };
 (function(RouteKind) {
     RouteKind["PAGES"] = "PAGES";
@@ -213,14 +204,11 @@ import "__TURBOPACK_PART__" assert {
 ```
 ## Part 3
 ```js
+import { a as RouteKind } from "__TURBOPACK_PART__" assert {
+    __turbopack_part__: -0
+};
 import "__TURBOPACK_PART__" assert {
     __turbopack_part__: 1
-};
-import "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
-};
-import { a as RouteKind } from "__TURBOPACK_PART__" assert {
-    __turbopack_part__: 0
 };
 export { RouteKind };
 

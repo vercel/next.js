@@ -1,4 +1,5 @@
 import path from 'path'
+import * as React from 'react'
 import {
   DOT_NEXT_ALIAS,
   PAGES_DIR_ALIAS,
@@ -8,17 +9,21 @@ import {
   RSC_ACTION_CLIENT_WRAPPER_ALIAS,
   RSC_ACTION_VALIDATE_ALIAS,
   RSC_ACTION_ENCRYPTION_ALIAS,
+  RSC_CACHE_WRAPPER_ALIAS,
   type WebpackLayerName,
 } from '../lib/constants'
 import type { NextConfigComplete } from '../server/config-shared'
 import { defaultOverrides } from '../server/require-hook'
-import { NEXT_PROJECT_ROOT, hasExternalOtelApiPackage } from './webpack-config'
+import { hasExternalOtelApiPackage } from './webpack-config'
+import { NEXT_PROJECT_ROOT } from './next-dir-paths'
 import { WEBPACK_LAYERS } from '../lib/constants'
 import { isWebpackServerOnlyLayer } from './utils'
 
 interface CompilerAliases {
   [alias: string]: string | string[]
 }
+
+const isReact19 = typeof React.use === 'function'
 
 export function createWebpackAliases({
   distDir,
@@ -89,6 +94,12 @@ export function createWebpackAliases({
   return {
     '@vercel/og$': 'next/dist/server/og/image-response',
 
+    // Avoid bundling both entrypoints in React 19 when we just need one.
+    // Also avoids bundler warnings in React 18 where react-dom/server.edge doesn't exist.
+    'next/dist/server/ReactDOMServerPages': isReact19
+      ? 'react-dom/server.edge'
+      : 'react-dom/server.browser',
+
     // Alias next/dist imports to next/dist/esm assets,
     // let this alias hit before `next` alias.
     ...(isEdgeServer
@@ -150,6 +161,9 @@ export function createWebpackAliases({
       'next/dist/build/webpack/loaders/next-flight-loader/server-reference',
 
     [RSC_ACTION_ENCRYPTION_ALIAS]: 'next/dist/server/app-render/encryption',
+
+    [RSC_CACHE_WRAPPER_ALIAS]:
+      'next/dist/build/webpack/loaders/next-flight-loader/cache-wrapper',
 
     ...(isClient || isEdgeServer
       ? {
@@ -223,6 +237,7 @@ export function createAppRouterApiAliases(isServerOnlyLayer: boolean) {
   const mapping: Record<string, string> = {
     head: 'next/dist/client/components/noop-head',
     dynamic: 'next/dist/api/app-dynamic',
+    link: 'next/dist/client/app-dir/link',
   }
 
   if (isServerOnlyLayer) {

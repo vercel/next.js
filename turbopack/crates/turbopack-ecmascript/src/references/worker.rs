@@ -1,9 +1,11 @@
 use anyhow::{bail, Result};
 use swc_core::{
+    common::util::take::Take,
     ecma::ast::{Expr, ExprOrSpread, Lit, NewExpr},
     quote_expr,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
@@ -12,7 +14,6 @@ use turbopack_core::{
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::try_to_severity;
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -24,10 +25,10 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct WorkerAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub path: Vc<AstPath>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub in_try: bool,
 }
 
@@ -35,10 +36,10 @@ pub struct WorkerAssetReference {
 impl WorkerAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(WorkerAssetReference {
@@ -56,31 +57,32 @@ impl WorkerAssetReference {
         self: &WorkerAssetReference,
     ) -> Result<Option<Vc<WorkerLoaderModule>>> {
         let module = url_resolve(
-            self.origin,
-            self.request,
+            *self.origin,
+            *self.request,
             // TODO support more worker types
             Value::new(ReferenceType::Worker(WorkerReferenceSubType::WebWorker)),
-            Some(self.issue_source),
-            try_to_severity(self.in_try),
+            Some(*self.issue_source),
+            self.in_try,
         );
 
         let Some(module) = *module.first_module().await? else {
-            bail!("Expected worker to resolve to a module");
+            return Ok(None);
         };
-        let Some(chunkable) = Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(module).await?
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
         else {
             CodeGenerationIssue {
-                severity: IssueSeverity::Bug.into(),
-                title: StyledString::Text("non-ecmascript placeable asset".into()).cell(),
-                message: StyledString::Text("asset is not placeable in ESM chunks".into()).cell(),
-                path: self.origin.origin_path(),
+                severity: IssueSeverity::Bug.resolved_cell(),
+                title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
+                message: StyledString::Text("asset is not placeable in ESM chunks".into())
+                    .resolved_cell(),
+                path: self.origin.origin_path().to_resolved().await?,
             }
-            .cell()
+            .resolved_cell()
             .emit();
             return Ok(None);
         };
 
-        Ok(Some(WorkerLoaderModule::new(chunkable)))
+        Ok(Some(WorkerLoaderModule::new(*chunkable)))
     }
 }
 
@@ -89,9 +91,12 @@ impl ModuleReference for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
         if let Some(worker_loader_module) = self.worker_loader_module().await? {
-            Ok(ModuleResolveResult::module(Vc::upcast(worker_loader_module)).cell())
+            Ok(ModuleResolveResult::module(ResolvedVc::upcast(
+                worker_loader_module.to_resolved().await?,
+            ))
+            .cell())
         } else {
-            Ok(ModuleResolveResult::unresolveable().cell())
+            Ok(ModuleResolveResult::unresolvable().cell())
         }
     }
 }
@@ -129,13 +134,23 @@ impl CodeGenerateable for WorkerAssetReference {
         let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
             let message = if let Expr::New(NewExpr { args, ..}) = expr {
                 if let Some(args) = args {
-                    match args.iter_mut().next() {
+                    match args.first_mut() {
                         Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = quote_expr!(
                                 "__turbopack_require__($item_id)",
                                 item_id: Expr = item_id
                             );
+
+                            if let Some(opts) = args.get_mut(1) {
+                                if opts.spread.is_none(){
+                                    *opts.expr = *quote_expr!(
+                                        "{...$opts, type: undefined}",
+                                        opts: Expr = (*opts.expr).take()
+                                    );
+                                }
+
+                            }
                             return;
                         }
                         // These are SWC bugs: https://github.com/swc-project/swc/issues/5394
@@ -158,9 +173,6 @@ impl CodeGenerateable for WorkerAssetReference {
             );
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .into())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }

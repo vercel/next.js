@@ -279,7 +279,7 @@ export async function writeConfigurationDefaults(
           'tsconfig.json'
         )} extends another configuration, which means we cannot add the Next.js TypeScript plugin automatically. To improve your development experience, we recommend adding the Next.js plugin (\`${cyan(
           '"plugins": [{ "name": "next" }]'
-        )}\`) manually to your TypeScript configuration. Learn more: https://nextjs.org/docs/app/building-your-application/configuring/typescript#the-typescript-plugin\n`
+        )}\`) manually to your TypeScript configuration. Learn more: https://nextjs.org/docs/app/api-reference/config/typescript#the-typescript-plugin\n`
       )
     } else if (!hasNextPlugin) {
       if (!('plugins' in userTsConfig.compilerOptions)) {
@@ -313,8 +313,34 @@ export async function writeConfigurationDefaults(
     )
   }
 
+  // During local development inside Next.js repo, exclude the test files coverage by the local tsconfig
+  if (process.env.NEXT_PRIVATE_LOCAL_DEV && userTsConfig.exclude) {
+    const tsGlob = '**/*.test.ts'
+    const tsxGlob = '**/*.test.tsx'
+    if (!userTsConfig.exclude.includes(tsGlob)) {
+      userTsConfig.exclude.push(tsGlob)
+    }
+    if (!userTsConfig.exclude.includes(tsxGlob)) {
+      userTsConfig.exclude.push(tsxGlob)
+    }
+    requiredActions.push(
+      'Local development only: Excluded test files from coverage'
+    )
+  }
+
   if (suggestedActions.length < 1 && requiredActions.length < 1) {
     return
+  }
+
+  if (process.env.NEXT_PRIVATE_LOCAL_DEV) {
+    // remove it from the required actions if it exists
+    if (
+      requiredActions[requiredActions.length - 1].includes(
+        'Local development only'
+      )
+    ) {
+      requiredActions.pop()
+    }
   }
 
   await fs.writeFile(

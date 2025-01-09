@@ -1,6 +1,6 @@
 use anyhow::Result;
-use indexmap::IndexSet;
-use turbo_tasks::{RcStr, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},
@@ -18,8 +18,8 @@ use crate::NodeJsChunkingContext;
 /// Production Ecmascript chunk targeting Node.js.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeChunk {
-    chunking_context: Vc<NodeJsChunkingContext>,
-    chunk: Vc<EcmascriptChunk>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
+    chunk: ResolvedVc<EcmascriptChunk>,
 }
 
 #[turbo_tasks::value_impl]
@@ -27,8 +27,8 @@ impl EcmascriptBuildNodeChunk {
     /// Creates a new [`Vc<EcmascriptBuildNodeChunk>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<NodeJsChunkingContext>,
-        chunk: Vc<EcmascriptChunk>,
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
+        chunk: ResolvedVc<EcmascriptChunk>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeChunk {
             chunking_context,
@@ -41,8 +41,8 @@ impl EcmascriptBuildNodeChunk {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Build Node Chunk".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Build Node Chunk".into())
     }
 }
 
@@ -57,7 +57,7 @@ impl EcmascriptBuildNodeChunk {
     async fn own_content(self: Vc<Self>) -> Result<Vc<EcmascriptBuildNodeChunkContent>> {
         let this = self.await?;
         Ok(EcmascriptBuildNodeChunkContent::new(
-            this.chunking_context,
+            *this.chunking_context,
             self,
             this.chunk.chunk_content(),
         ))
@@ -88,7 +88,9 @@ impl OutputAsset for EcmascriptBuildNodeChunk {
         }
 
         if include_source_map {
-            references.push(Vc::upcast(SourceMapAsset::new(Vc::upcast(self))));
+            references.push(ResolvedVc::upcast(
+                SourceMapAsset::new(Vc::upcast(self)).to_resolved().await?,
+            ));
         }
 
         Ok(Vc::cell(references))
@@ -145,11 +147,9 @@ impl Introspectable for EcmascriptBuildNodeChunk {
 
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
-        let mut children = IndexSet::new();
-        let introspectable_chunk = Vc::upcast::<Box<dyn Introspectable>>(self.chunk)
-            .resolve()
-            .await?;
-        children.insert((Vc::cell("chunk".into()), introspectable_chunk));
+        let mut children = FxIndexSet::default();
+        let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
+        children.insert((ResolvedVc::cell("chunk".into()), introspectable_chunk));
         Ok(Vc::cell(children))
     }
 }

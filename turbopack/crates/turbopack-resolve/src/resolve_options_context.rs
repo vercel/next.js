@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     condition::ContextCondition,
@@ -10,11 +11,11 @@ use turbopack_core::{
     },
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
     #[serde(default)]
-    pub emulate_environment: Option<Vc<Environment>>,
+    pub emulate_environment: Option<ResolvedVc<Environment>>,
     #[serde(default)]
     pub enable_types: bool,
     #[serde(default)]
@@ -29,7 +30,7 @@ pub struct ResolveOptionsContext {
     #[serde(default)]
     /// Enable resolving of the node_modules folder when within the provided
     /// directory
-    pub enable_node_modules: Option<Vc<FileSystemPath>>,
+    pub enable_node_modules: Option<ResolvedVc<FileSystemPath>>,
     #[serde(default)]
     /// Mark well-known Node.js modules as external imports and load them using
     /// native `require`. e.g. url, querystring, os
@@ -53,25 +54,28 @@ pub struct ResolveOptionsContext {
     /// If set, this import map will be applied to `ResolveOption::import_map`.
     /// It is always applied last, so any mapping defined within will take
     /// precedence over any other (e.g. tsconfig.json `compilerOptions.paths`).
-    pub import_map: Option<Vc<ImportMap>>,
+    pub import_map: Option<ResolvedVc<ImportMap>>,
     #[serde(default)]
     /// An import map to fall back to when a request could not be resolved.
     ///
     /// If set, this import map will be applied to
     /// `ResolveOption::fallback_import_map`. It is always applied last, so
     /// any mapping defined within will take precedence over any other.
-    pub fallback_import_map: Option<Vc<ImportMap>>,
+    pub fallback_import_map: Option<ResolvedVc<ImportMap>>,
     #[serde(default)]
     /// An additional resolved map to use after modules have been resolved.
-    pub resolved_map: Option<Vc<ResolvedMap>>,
+    pub resolved_map: Option<ResolvedVc<ResolvedMap>>,
     #[serde(default)]
     /// A list of rules to use a different resolve option context for certain
     /// context paths. The first matching is used.
-    pub rules: Vec<(ContextCondition, Vc<ResolveOptionsContext>)>,
+    pub rules: Vec<(ContextCondition, ResolvedVc<ResolveOptionsContext>)>,
     #[serde(default)]
     /// Plugins which get applied before and after resolving.
-    pub after_resolve_plugins: Vec<Vc<Box<dyn AfterResolvePlugin>>>,
-    pub before_resolve_plugins: Vec<Vc<Box<dyn BeforeResolvePlugin>>>,
+    pub after_resolve_plugins: Vec<ResolvedVc<Box<dyn AfterResolvePlugin>>>,
+    pub before_resolve_plugins: Vec<ResolvedVc<Box<dyn BeforeResolvePlugin>>>,
+    /// Warn instead of error for resolve errors
+    pub loose_errors: bool,
+
     #[serde(default)]
     pub placeholder_for_future_extensions: (),
 }
@@ -98,7 +102,9 @@ impl ResolveOptionsContext {
             resolve_options_context
                 .import_map
                 .map(|current_import_map| current_import_map.extend(import_map))
-                .unwrap_or(import_map),
+                .unwrap_or(import_map)
+                .to_resolved()
+                .await?,
         );
         Ok(resolve_options_context.into())
     }
@@ -117,7 +123,9 @@ impl ResolveOptionsContext {
                 .map(|current_fallback_import_map| {
                     current_fallback_import_map.extend(fallback_import_map)
                 })
-                .unwrap_or(fallback_import_map),
+                .unwrap_or(fallback_import_map)
+                .to_resolved()
+                .await?,
         );
         Ok(resolve_options_context.into())
     }

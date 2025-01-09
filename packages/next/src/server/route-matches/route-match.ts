@@ -1,4 +1,4 @@
-import type { Params } from '../../client/components/params'
+import type { Params } from '../request/params'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 
 /**

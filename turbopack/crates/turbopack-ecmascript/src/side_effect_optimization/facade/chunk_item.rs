@@ -2,20 +2,18 @@ use std::sync::Arc;
 
 use anyhow::{bail, Result};
 use swc_core::{
-    common::{util::take::Take, Globals, GLOBALS},
+    common::{util::take::Take, Globals},
     ecma::{
         ast::Program,
         codegen::{text_writer::JsWriter, Emitter},
-        visit::{VisitMutWith, VisitMutWithAstPath},
     },
 };
-use turbo_tasks::{TryJoinIterExt, Vc};
+use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
 };
 
 use super::module::EcmascriptModuleFacadeModule;
@@ -25,14 +23,14 @@ use crate::{
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
     code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo},
-    path_visitor::ApplyVisitors,
+    process_content_with_code_gens,
 };
 
 /// The chunk item for [EcmascriptModuleFacadeModule].
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModuleFacadeChunkItem {
-    pub(crate) module: Vc<EcmascriptModuleFacadeModule>,
-    pub(crate) chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub(crate) module: ResolvedVc<EcmascriptModuleFacadeModule>,
+    pub(crate) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -75,49 +73,24 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
             if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(*chunking_context, async_module_info));
             } else if let Some(code_gen) =
                 Vc::try_resolve_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context));
+                code_gens.push(code_gen.code_generation(*chunking_context));
             }
         }
         code_gens.push(self.module.async_module().code_generation(
-            chunking_context,
+            *chunking_context,
             async_module_info,
             references,
         ));
-        code_gens.push(exports.code_generation(chunking_context));
+        code_gens.push(exports.code_generation(*chunking_context));
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 
-        let mut visitors = Vec::new();
-        let mut root_visitors = Vec::new();
-        for code_gen in code_gens {
-            for (path, visitor) in code_gen.visitors.iter() {
-                if path.is_empty() {
-                    root_visitors.push(&**visitor);
-                } else {
-                    visitors.push((path, &**visitor));
-                }
-            }
-        }
-
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
-        GLOBALS.set(&Globals::new(), || {
-            if !visitors.is_empty() {
-                program.visit_mut_with_ast_path(
-                    &mut ApplyVisitors::new(visitors),
-                    &mut Default::default(),
-                );
-            }
-            for visitor in root_visitors {
-                program.visit_mut_with(&mut visitor.create());
-            }
-
-            program.visit_mut_with(&mut swc_core::ecma::transforms::base::hygiene::hygiene());
-            program.visit_mut_with(&mut swc_core::ecma::transforms::base::fixer::fixer(None));
-        });
+        process_content_with_code_gens(&mut program, &Globals::new(), None, &code_gens);
 
         let mut bytes: Vec<u8> = vec![];
 
@@ -150,25 +123,20 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        self.chunking_context
+        *self.chunking_context
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ChunkItem for EcmascriptModuleFacadeChunkItem {
     #[turbo_tasks::function]
-    fn references(&self) -> Vc<ModuleReferences> {
-        self.module.references()
-    }
-
-    #[turbo_tasks::function]
-    fn asset_ident(&self) -> Result<Vc<AssetIdent>> {
-        Ok(self.module.ident())
+    fn asset_ident(&self) -> Vc<AssetIdent> {
+        self.module.ident()
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        Vc::upcast(self.chunking_context)
+        *ResolvedVc::upcast(self.chunking_context)
     }
 
     #[turbo_tasks::function]
@@ -180,7 +148,7 @@ impl ChunkItem for EcmascriptModuleFacadeChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(self.module)
+        *ResolvedVc::upcast(self.module)
     }
 
     #[turbo_tasks::function]

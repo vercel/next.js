@@ -1,18 +1,8 @@
 import type webpack from 'webpack'
-import { createHash } from 'crypto'
 import { RSC_MODULE_TYPES } from '../../../shared/lib/constants'
 
 const imageExtensions = ['jpg', 'jpeg', 'png', 'webp', 'avif', 'ico', 'svg']
 const imageRegex = new RegExp(`\\.(${imageExtensions.join('|')})$`)
-
-// Determine if the whole module is server action, 'use server' in the top level of module
-export function isActionServerLayerEntryModule(mod: {
-  resource: string
-  buildInfo?: any
-}) {
-  const rscInfo = mod.buildInfo.rsc
-  return !!(rscInfo?.actions && rscInfo?.type === RSC_MODULE_TYPES.server)
-}
 
 // Determine if the whole module is client action, 'use server' in nested closure in the client module
 function isActionClientLayerModule(mod: { resource: string; buildInfo?: any }) {
@@ -53,24 +43,19 @@ export function isCSSMod(mod: {
   )
 }
 
+// Gives { id: name } record of actions from the build info.
 export function getActionsFromBuildInfo(mod: {
   resource: string
   buildInfo?: any
-}): undefined | string[] {
-  return mod.buildInfo?.rsc?.actions
+}): undefined | Record<string, string> {
+  return mod.buildInfo?.rsc?.actionIds
 }
 
-export function generateActionId(filePath: string, exportName: string) {
-  return createHash('sha1')
-    .update(filePath + ':' + exportName)
-    .digest('hex')
-}
-
-export function encodeToBase64<T extends {}>(obj: T): string {
+export function encodeToBase64<T extends object>(obj: T): string {
   return Buffer.from(JSON.stringify(obj)).toString('base64')
 }
 
-export function decodeFromBase64<T extends {}>(str: string): T {
+export function decodeFromBase64<T extends object>(str: string): T {
   return JSON.parse(Buffer.from(str, 'base64').toString('utf8'))
 }
 

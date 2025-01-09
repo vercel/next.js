@@ -3,22 +3,22 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    atoms::JsWord,
+    atoms::Atom,
     base::SwcComments,
-    common::{chain, collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
+    common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
         ast::{Module, ModuleItem, Program, Script},
         preset_env::{self, Targets},
         transforms::{
-            base::{feature::FeatureFlag, helpers::inject_helpers, Assumptions},
+            base::{assumptions::Assumptions, feature::FeatureFlag, helpers::inject_helpers},
             optimization::inline_globals2,
             react::react,
         },
-        visit::{FoldWith, VisitMutWith},
     },
     quote,
 };
-use turbo_tasks::{RcStr, ValueDefault, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -29,17 +29,17 @@ use turbopack_core::{
 #[derive(Debug, Clone, Hash)]
 pub enum EcmascriptInputTransform {
     CommonJs,
-    Plugin(Vc<TransformPlugin>),
-    PresetEnv(Vc<Environment>),
+    Plugin(ResolvedVc<TransformPlugin>),
+    PresetEnv(ResolvedVc<Environment>),
     React {
         #[serde(default)]
         development: bool,
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: Vc<Option<RcStr>>,
+        import_source: ResolvedVc<Option<RcStr>>,
         // swc.jsc.transform.react.runtime,
-        runtime: Vc<Option<RcStr>>,
+        runtime: ResolvedVc<Option<RcStr>>,
     },
     GlobalTypeofs {
         window_value: String,
@@ -81,17 +81,6 @@ pub trait CustomTransformer: Debug {
 #[derive(Debug)]
 pub struct TransformPlugin(#[turbo_tasks(trace_ignore)] Box<dyn CustomTransformer + Send + Sync>);
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionTransformPlugin(Option<Vc<TransformPlugin>>);
-
-#[turbo_tasks::value_impl]
-impl ValueDefault for OptionTransformPlugin {
-    #[turbo_tasks::function]
-    fn value_default() -> Vc<Self> {
-        Vc::cell(None)
-    }
-}
-
 #[async_trait]
 impl CustomTransformer for TransformPlugin {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
@@ -126,7 +115,7 @@ pub struct TransformContext<'a> {
     pub file_path_str: &'a str,
     pub file_name_str: &'a str,
     pub file_name_hash: u128,
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
 }
 
 impl EcmascriptInputTransform {
@@ -140,10 +129,10 @@ impl EcmascriptInputTransform {
         } = ctx;
         match self {
             EcmascriptInputTransform::GlobalTypeofs { window_value } => {
-                let mut typeofs: AHashMap<JsWord, JsWord> = Default::default();
-                typeofs.insert("window".into(), JsWord::from(&**window_value));
+                let mut typeofs: AHashMap<Atom, Atom> = Default::default();
+                typeofs.insert(Atom::from("window"), Atom::from(&**window_value));
 
-                program.visit_mut_with(&mut inline_globals2(
+                program.mutate(inline_globals2(
                     Default::default(),
                     Default::default(),
                     Default::default(),
@@ -190,7 +179,7 @@ impl EcmascriptInputTransform {
 
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                program.visit_mut_with(&mut react::<&dyn Comments>(
+                program.mutate(react::<&dyn Comments>(
                     source_map.clone(),
                     Some(&comments),
                     config,
@@ -220,9 +209,8 @@ impl EcmascriptInputTransform {
             EcmascriptInputTransform::CommonJs => {
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                program.visit_mut_with(&mut swc_core::ecma::transforms::module::common_js::<
-                    &dyn Comments,
-                >(
+                program.mutate(swc_core::ecma::transforms::module::common_js(
+                    swc_core::ecma::transforms::module::path::Resolver::Default,
                     unresolved_mark,
                     swc_core::ecma::transforms::module::util::Config {
                         allow_top_level_this: true,
@@ -232,7 +220,6 @@ impl EcmascriptInputTransform {
                         ..Default::default()
                     },
                     swc_core::ecma::transforms::base::feature::FeatureFlag::all(),
-                    Some(&comments),
                 ));
             }
             EcmascriptInputTransform::PresetEnv(env) => {
@@ -262,7 +249,7 @@ impl EcmascriptInputTransform {
 
                 // Explicit type annotation to ensure that we don't duplicate transforms in the
                 // final binary
-                *program = module_program.fold_with(&mut chain!(
+                *program = module_program.apply((
                     preset_env::preset_env::<&'_ dyn Comments>(
                         top_level_mark,
                         Some(&comments),
@@ -279,7 +266,7 @@ impl EcmascriptInputTransform {
             } => {
                 use swc_core::ecma::transforms::typescript::typescript;
                 let config = Default::default();
-                program.visit_mut_with(&mut typescript(config, unresolved_mark, top_level_mark));
+                program.mutate(typescript(config, unresolved_mark, top_level_mark));
             }
             EcmascriptInputTransform::Decorators {
                 is_legacy,
@@ -295,11 +282,7 @@ impl EcmascriptInputTransform {
                     ..Default::default()
                 };
 
-                let p = std::mem::replace(program, Program::Module(Module::dummy()));
-                *program = p.fold_with(&mut chain!(
-                    decorators(config),
-                    inject_helpers(unresolved_mark)
-                ));
+                program.mutate((decorators(config), inject_helpers(unresolved_mark)));
             }
             EcmascriptInputTransform::Plugin(transform) => {
                 transform.await?.transform(program, ctx).await?
@@ -322,7 +305,7 @@ pub fn remove_shebang(program: &mut Program) {
 
 #[turbo_tasks::value(shared)]
 pub struct UnsupportedServerActionIssue {
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -342,7 +325,7 @@ impl Issue for UnsupportedServerActionIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]

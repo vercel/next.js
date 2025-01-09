@@ -1,18 +1,19 @@
 import { getModuleBuildInfo } from '../get-module-build-info'
 import { stringifyRequest } from '../../stringify-request'
-import type { NextConfig } from '../../../../server/config-shared'
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../../lib/constants'
 import type { MiddlewareConfig } from '../../../analysis/get-page-static-info'
 import { loadEntrypoint } from '../../../load-entrypoint'
+import { isMetadataRoute } from '../../../../lib/metadata/is-metadata-route'
 
 export type EdgeAppRouteLoaderQuery = {
   absolutePagePath: string
   page: string
   appDirLoader: string
   preferredRegion: string | string[] | undefined
-  nextConfigOutput: NextConfig['output']
+  nextConfig: string
   middlewareConfig: string
+  cacheHandlers: string
 }
 
 const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQuery> =
@@ -23,6 +24,8 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       preferredRegion,
       appDirLoader: appDirLoaderBase64 = '',
       middlewareConfig: middlewareConfigBase64 = '',
+      nextConfig: nextConfigBase64,
+      cacheHandlers: cacheHandlersStringified,
     } = this.getOptions()
 
     const appDirLoader = Buffer.from(appDirLoaderBase64, 'base64').toString()
@@ -30,13 +33,21 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       Buffer.from(middlewareConfigBase64, 'base64').toString()
     )
 
+    const cacheHandlers = JSON.parse(cacheHandlersStringified || '{}')
+
+    if (!cacheHandlers.default) {
+      cacheHandlers.__nextDefault = require.resolve(
+        '../../../../server/lib/cache-handlers/default'
+      )
+    }
+
     // Ensure we only run this loader for as a module.
     if (!this._module) throw new Error('This loader is only usable as a module')
 
     const buildInfo = getModuleBuildInfo(this._module)
 
     buildInfo.nextEdgeSSR = {
-      isServerComponent: false,
+      isServerComponent: !isMetadataRoute(page), // Needed for 'use cache'.
       page: page,
       isAppDir: true,
     }
@@ -53,9 +64,25 @@ const EdgeAppRouteLoader: webpack.LoaderDefinitionFunction<EdgeAppRouteLoaderQue
       stringifiedPagePath.length - 1
     )}?${WEBPACK_RESOURCE_QUERIES.edgeSSREntry}`
 
-    return await loadEntrypoint('edge-app-route', {
-      VAR_USERLAND: modulePath,
-    })
+    const stringifiedConfig = Buffer.from(
+      nextConfigBase64 || '',
+      'base64'
+    ).toString()
+
+    return await loadEntrypoint(
+      'edge-app-route',
+      {
+        VAR_USERLAND: modulePath,
+        VAR_PAGE: page,
+      },
+      {
+        nextConfig: stringifiedConfig,
+      },
+      {},
+      {
+        cacheHandlers,
+      }
+    )
   }
 
 export default EdgeAppRouteLoader

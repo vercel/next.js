@@ -6,8 +6,8 @@ import isDockerFunction from 'next/dist/compiled/is-docker'
 import path from 'path'
 
 import { getAnonymousMeta } from './anonymous-meta'
-import * as ciEnvironment from './ci-info'
-import { _postPayload } from './post-payload'
+import * as ciEnvironment from '../server/ci-info'
+import { postNextTelemetryPayload } from './post-telemetry-payload'
 import { getRawProjectId } from './project-id'
 import { AbortController } from 'next/dist/compiled/@edge-runtime/ponyfill'
 import fs from 'fs'
@@ -30,16 +30,6 @@ const TELEMETRY_KEY_ID = `telemetry.anonymousId`
 const TELEMETRY_KEY_SALT = `telemetry.salt`
 
 export type TelemetryEvent = { eventName: string; payload: object }
-type EventContext = {
-  anonymousId: string
-  projectId: string
-  sessionId: string
-}
-type EventMeta = { [key: string]: unknown }
-type EventBatchShape = {
-  eventName: string
-  fields: object
-}
 
 type RecordObject = {
   isFulfilled: boolean
@@ -302,22 +292,19 @@ export class Telemetry {
       return Promise.resolve()
     }
 
-    const context: EventContext = {
-      anonymousId: this.anonymousId,
-      projectId: await this.getProjectId(),
-      sessionId: this.sessionId,
-    }
-    const meta: EventMeta = getAnonymousMeta()
     const postController = new AbortController()
-    const res = _postPayload(
-      `https://telemetry.nextjs.org/api/v1/record`,
+    const res = postNextTelemetryPayload(
       {
-        context,
-        meta,
+        context: {
+          anonymousId: this.anonymousId,
+          projectId: await this.getProjectId(),
+          sessionId: this.sessionId,
+        },
+        meta: getAnonymousMeta(),
         events: events.map(({ eventName, payload }) => ({
           eventName,
           fields: payload,
-        })) as Array<EventBatchShape>,
+        })),
       },
       postController.signal
     )

@@ -1,7 +1,8 @@
-import { unstable_after as after } from 'next/server'
+import { after, connection } from 'next/server'
 import { cliLog } from '../../../../utils/log'
 
-export default function Page() {
+export default async function Page() {
+  await connection()
   after(() => {
     cliLog({
       source: '[page] /interrupted/throws-error',

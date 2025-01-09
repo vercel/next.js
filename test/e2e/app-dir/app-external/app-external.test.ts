@@ -24,8 +24,8 @@ describe('app dir - external dependency', () => {
   const { next, skipped } = nextTestSetup({
     files: __dirname,
     dependencies: {
-      swr: 'latest',
-      undici: 'latest',
+      swr: '2.2.5',
+      undici: '6.21.0',
     },
     packageJson: {
       scripts: {
@@ -262,6 +262,11 @@ describe('app dir - external dependency', () => {
   it('should export client module references in esm', async () => {
     const html = await next.render('/esm-client-ref')
     expect(html).toContain('hello')
+  })
+
+  it('should support client module references with SSR-only ESM externals', async () => {
+    const html = await next.render('/esm-client-ref-external')
+    expect(html).toContain('client external-pure-esm-lib')
   })
 
   it('should support exporting multiple star re-exports', async () => {

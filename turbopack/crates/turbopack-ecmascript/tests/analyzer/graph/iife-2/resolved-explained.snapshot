@@ -1,0 +1,44 @@
+_ = (...) => parent
+
+i = (0 | ???*0*)
+- *0* updated with update expression
+  ⚠️  This value might have side effects
+
+key = ???*0*
+- *0* ???*1*[i]
+  ⚠️  unknown object
+  ⚠️  This value might have side effects
+- *1* ???*2*(???*4*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *2* Object*3*["keys"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *3* Object: The global Object variable
+- *4* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+keys = ???*0*
+- *0* ???*1*(???*3*)
+  ⚠️  unknown callee
+  ⚠️  This value might have side effects
+- *1* Object*2*["keys"]
+  ⚠️  unsupported property on global Object
+  ⚠️  This value might have side effects
+- *2* Object: The global Object variable
+- *3* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+namespace = ???*0*
+- *0* arguments[0]
+  ⚠️  function calls are not analysed yet
+
+parent = ???*0*
+- *0* arguments[2]
+  ⚠️  function calls are not analysed yet
+
+path = ???*0*
+- *0* arguments[1]
+  ⚠️  function calls are not analysed yet
+
+root = {}

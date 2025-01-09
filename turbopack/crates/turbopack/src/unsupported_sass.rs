@@ -1,7 +1,7 @@
 //! TODO(WEB-741) Remove this file once Sass is supported.
 
 use anyhow::Result;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -16,13 +16,13 @@ use turbopack_core::{
 /// Resolve plugins that warns when importing a sass file.
 #[turbo_tasks::value]
 pub(crate) struct UnsupportedSassResolvePlugin {
-    root: Vc<FileSystemPath>,
+    root: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
-    pub fn new(root: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn new(root: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         UnsupportedSassResolvePlugin { root }.cell()
     }
 }
@@ -37,10 +37,10 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
     #[turbo_tasks::function]
     async fn after_resolve(
         &self,
-        fs_path: Vc<FileSystemPath>,
-        lookup_path: Vc<FileSystemPath>,
+        fs_path: ResolvedVc<FileSystemPath>,
+        lookup_path: ResolvedVc<FileSystemPath>,
         _reference_type: Value<ReferenceType>,
-        request: Vc<Request>,
+        request: ResolvedVc<Request>,
     ) -> Result<Vc<ResolveResultOption>> {
         let extension = fs_path.extension().await?;
         if ["sass", "scss"].iter().any(|ext| *ext == &**extension) {
@@ -48,7 +48,7 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
                 file_path: lookup_path,
                 request,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 
@@ -58,8 +58,8 @@ impl AfterResolvePlugin for UnsupportedSassResolvePlugin {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSassModuleIssue {
-    file_path: Vc<FileSystemPath>,
-    request: Vc<Request>,
+    file_path: ResolvedVc<FileSystemPath>,
+    request: ResolvedVc<Request>,
 }
 
 #[turbo_tasks::value_impl]
@@ -83,14 +83,14 @@ impl Issue for UnsupportedSassModuleIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
     fn description(&self) -> Vc<OptionStyledString> {
         Vc::cell(Some(
             StyledString::Text("Turbopack does not yet support importing Sass modules.".into())
-                .cell(),
+                .resolved_cell(),
         ))
     }
 

@@ -55,10 +55,9 @@ export function expectUnsupportedModuleDevError(
   output = context.logs.output
 ) {
   expectUnsupportedModuleProdError(moduleName, output)
-  // turbopack have correct error overly, but doesn't emit those into cli
-  if (!process.env.TURBOPACK) {
-    expect(stripAnsi(output)).toContain(importStatement)
-  }
+  // Codeframe points to internal frame because this app is not isolated.
+  // TODO: Once this test runs in an isolated app, make sure the codeframe includes the import statement
+  // expect(stripAnsi(output)).toContain(importStatement)
 
   const moduleNotSupportedMessage = getUnsupportedModule(moduleName)
   expect(responseText).toContain(escapeLF(moduleNotSupportedMessage))

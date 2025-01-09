@@ -3,6 +3,7 @@ use std::{hash::Hash, thread::yield_now};
 use super::{
     balance_queue::BalanceQueue,
     in_progress::{finish_in_progress_without_node, start_in_progress, start_in_progress_all},
+    util::get_aggregated_remove_change,
     AggegatingNode, AggregationContext, AggregationNode, AggregationNodeGuard,
     PreparedInternalOperation, PreparedOperation, StackVec,
 };
@@ -207,14 +208,4 @@ pub fn notify_lost_follower<C: AggregationContext>(
     let p = upper.notify_lost_follower(ctx, balance_queue, upper_id, follower_id);
     drop(upper);
     p.apply(ctx, balance_queue);
-}
-
-fn get_aggregated_remove_change<C: AggregationContext>(
-    ctx: &C,
-    guard: &C::Guard<'_>,
-) -> Option<C::DataChange> {
-    match &**guard {
-        AggregationNode::Leaf { .. } => guard.get_remove_change(),
-        AggregationNode::Aggegating(aggegating) => ctx.data_to_remove_change(&aggegating.data),
-    }
 }

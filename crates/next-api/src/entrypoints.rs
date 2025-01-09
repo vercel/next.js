@@ -1,17 +1,17 @@
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ResolvedVc};
 
 use crate::{
     project::{Instrumentation, Middleware},
     route::{Endpoint, Route},
 };
 
-#[turbo_tasks::value(shared)]
+#[turbo_tasks::value(shared, local)]
 pub struct Entrypoints {
-    pub routes: IndexMap<RcStr, Route>,
+    pub routes: FxIndexMap<RcStr, Route>,
     pub middleware: Option<Middleware>,
     pub instrumentation: Option<Instrumentation>,
-    pub pages_document_endpoint: Vc<Box<dyn Endpoint>>,
-    pub pages_app_endpoint: Vc<Box<dyn Endpoint>>,
-    pub pages_error_endpoint: Vc<Box<dyn Endpoint>>,
+    pub pages_document_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub pages_app_endpoint: ResolvedVc<Box<dyn Endpoint>>,
+    pub pages_error_endpoint: ResolvedVc<Box<dyn Endpoint>>,
 }

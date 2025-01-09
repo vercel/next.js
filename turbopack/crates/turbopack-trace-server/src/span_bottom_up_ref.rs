@@ -4,13 +4,12 @@ use std::{
     sync::Arc,
 };
 
-use indexmap::IndexMap;
-
 use crate::{
     span::{SpanBottomUp, SpanGraphEvent, SpanIndex},
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     span_ref::SpanRef,
     store::{SpanId, Store},
+    FxIndexMap,
 };
 
 pub struct SpanBottomUpRef<'a> {
@@ -85,7 +84,8 @@ impl<'a> SpanBottomUpRef<'a> {
                     let _ = self.first_span().graph();
                     self.first_span().extra().graph.get().unwrap().clone()
                 } else {
-                    let mut map: IndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> = IndexMap::new();
+                    let mut map: FxIndexMap<&str, (Vec<SpanIndex>, Vec<SpanIndex>)> =
+                        FxIndexMap::default();
                     let mut queue = VecDeque::with_capacity(8);
                     for child in self.spans() {
                         let name = child.group_name();
@@ -176,7 +176,7 @@ impl<'a> SpanBottomUpRef<'a> {
     }
 }
 
-impl<'a> Debug for SpanBottomUpRef<'a> {
+impl Debug for SpanBottomUpRef<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         f.debug_struct("SpanBottomUpRef")
             .field("group_name", &self.group_name())

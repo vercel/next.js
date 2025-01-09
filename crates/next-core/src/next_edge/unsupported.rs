@@ -1,6 +1,6 @@
 use anyhow::Result;
 use indoc::formatdoc;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::AssetContent,
@@ -21,16 +21,16 @@ use turbopack_node::execution_context::ExecutionContext;
 /// This can be used by import map alias, refer `next_import_map` for the setup.
 #[turbo_tasks::value(shared)]
 pub struct NextEdgeUnsupportedModuleReplacer {
-    project_path: Vc<FileSystemPath>,
-    execution_context: Vc<ExecutionContext>,
+    project_path: ResolvedVc<FileSystemPath>,
+    execution_context: ResolvedVc<ExecutionContext>,
 }
 
 #[turbo_tasks::value_impl]
 impl NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     pub fn new(
-        project_path: Vc<FileSystemPath>,
-        execution_context: Vc<ExecutionContext>,
+        project_path: ResolvedVc<FileSystemPath>,
+        execution_context: ResolvedVc<ExecutionContext>,
     ) -> Vc<Self> {
         Self::cell(NextEdgeUnsupportedModuleReplacer {
             project_path,
@@ -43,7 +43,7 @@ impl NextEdgeUnsupportedModuleReplacer {
 impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
     #[turbo_tasks::function]
     fn replace(&self, _capture: Vc<Pattern>) -> Vc<ReplacedImportMapping> {
-        ReplacedImportMapping::Ignore.into()
+        ReplacedImportMapping::Ignore.cell()
     }
 
     #[turbo_tasks::function]
@@ -62,12 +62,13 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
               "#
             };
             let content = AssetContent::file(File::from(code).into());
-            let source = VirtualSource::new(root_path, content);
-            return Ok(
-                ImportMapResult::Result(ResolveResult::source(Vc::upcast(source)).into()).into(),
-            );
+            let source = VirtualSource::new(root_path, content).to_resolved().await?;
+            return Ok(ImportMapResult::Result(
+                ResolveResult::source(ResolvedVc::upcast(source)).resolved_cell(),
+            )
+            .cell());
         };
 
-        Ok(ImportMapResult::NoEntry.into())
+        Ok(ImportMapResult::NoEntry.cell())
     }
 }

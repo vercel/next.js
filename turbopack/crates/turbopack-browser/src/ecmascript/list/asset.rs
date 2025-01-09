@@ -1,5 +1,6 @@
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkingContext, EvaluatableAssets},
@@ -24,10 +25,10 @@ use crate::BrowserChunkingContext;
 /// * changing a chunk's path.
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptDevChunkList {
-    pub(super) chunking_context: Vc<BrowserChunkingContext>,
-    pub(super) ident: Vc<AssetIdent>,
-    pub(super) evaluatable_assets: Vc<EvaluatableAssets>,
-    pub(super) chunks: Vc<OutputAssets>,
+    pub(super) chunking_context: ResolvedVc<BrowserChunkingContext>,
+    pub(super) ident: ResolvedVc<AssetIdent>,
+    pub(super) evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    pub(super) chunks: ResolvedVc<OutputAssets>,
     pub(super) source: EcmascriptDevChunkListSource,
 }
 
@@ -36,10 +37,10 @@ impl EcmascriptDevChunkList {
     /// Creates a new [`Vc<EcmascriptDevChunkList>`].
     #[turbo_tasks::function]
     pub fn new(
-        chunking_context: Vc<BrowserChunkingContext>,
-        ident: Vc<AssetIdent>,
-        evaluatable_assets: Vc<EvaluatableAssets>,
-        chunks: Vc<OutputAssets>,
+        chunking_context: ResolvedVc<BrowserChunkingContext>,
+        ident: ResolvedVc<AssetIdent>,
+        evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+        chunks: ResolvedVc<OutputAssets>,
         source: Value<EcmascriptDevChunkListSource>,
     ) -> Vc<Self> {
         EcmascriptDevChunkList {
@@ -61,8 +62,8 @@ impl EcmascriptDevChunkList {
 #[turbo_tasks::value_impl]
 impl ValueToString for EcmascriptDevChunkList {
     #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell("Ecmascript Dev Chunk List".into()))
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("Ecmascript Dev Chunk List".into())
     }
 }
 
@@ -91,12 +92,12 @@ impl OutputAsset for EcmascriptDevChunkList {
     #[turbo_tasks::function]
     async fn ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.ident.await?.clone_value();
-        ident.add_modifier(modifier());
+        ident.add_modifier(modifier().to_resolved().await?);
 
         match self.source {
             EcmascriptDevChunkListSource::Entry => {}
             EcmascriptDevChunkListSource::Dynamic => {
-                ident.add_modifier(dynamic_modifier());
+                ident.add_modifier(dynamic_modifier().to_resolved().await?);
             }
         }
 
@@ -111,8 +112,8 @@ impl OutputAsset for EcmascriptDevChunkList {
     }
 
     #[turbo_tasks::function]
-    async fn references(&self) -> Result<Vc<OutputAssets>> {
-        Ok(self.chunks)
+    fn references(&self) -> Vc<OutputAssets> {
+        *self.chunks
     }
 }
 

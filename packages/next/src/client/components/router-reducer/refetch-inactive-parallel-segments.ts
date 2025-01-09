@@ -69,7 +69,6 @@ async function refreshInactiveParallelSegmentsImpl({
         // and might not contain the data we need to patch in interception route data (such as dynamic params from a previous segment)
         flightRouterState: [rootTree[0], rootTree[1], rootTree[2], 'refetch'],
         nextUrl: includeNextUrl ? state.nextUrl : null,
-        buildId: state.buildId,
       }
     ).then(({ flightData }) => {
       if (typeof flightData !== 'string') {

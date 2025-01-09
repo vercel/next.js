@@ -1,6 +1,7 @@
 import type { Socket } from 'net'
 import { mkdir, writeFile } from 'fs/promises'
 import { join, extname } from 'path'
+import { pathToFileURL } from 'url'
 
 import ws from 'next/dist/compiled/ws'
 
@@ -15,20 +16,24 @@ import type {
   TurbopackConnectedAction,
 } from './hot-reloader-types'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from './hot-reloader-types'
-import type { Update as TurbopackUpdate } from '../../build/swc'
-import {
-  createDefineEnv,
-  type Endpoint,
-  type TurbopackResult,
-  type WrittenEndpoint,
-} from '../../build/swc'
+import type {
+  Update as TurbopackUpdate,
+  Endpoint,
+  WrittenEndpoint,
+  TurbopackResult,
+  Project,
+} from '../../build/swc/types'
+import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
 import {
   getVersionInfo,
   matchNextPageBundleRequest,
 } from './hot-reloader-webpack'
 import { BLOCKED_PAGES } from '../../shared/lib/constants'
-import { getOverlayMiddleware } from '../../client/components/react-dev-overlay/server/middleware-turbopack'
+import {
+  getOverlayMiddleware,
+  getSourceMapMiddleware,
+} from '../../client/components/react-dev-overlay/server/middleware-turbopack'
 import { PageNotFoundError } from '../../shared/lib/utils'
 import { debounce } from '../utils'
 import { deleteAppClientCache, deleteCache } from './require-cache'
@@ -60,6 +65,7 @@ import {
   isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
+  isPersistentCachingEnabled,
 } from './turbopack-utils'
 import {
   propagateServerField,
@@ -76,10 +82,16 @@ import {
   splitEntryKey,
 } from './turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
-import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils'
+import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import { getNodeDebugType } from '../lib/utils'
+import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
+import {
+  setBundlerFindSourceMapImplementation,
+  type ModernSourceMapPayload,
+} from '../patch-error-inspect'
+import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -90,6 +102,51 @@ const isTestMode = !!(
 )
 
 const sessionId = Math.floor(Number.MAX_SAFE_INTEGER * Math.random())
+
+/**
+ * Replaces turbopack://[project] with the specified project in the `source` field.
+ */
+function rewriteTurbopackSources(
+  projectRoot: string,
+  sourceMap: ModernSourceMapPayload
+): void {
+  if ('sections' in sourceMap) {
+    for (const section of sourceMap.sections) {
+      rewriteTurbopackSources(projectRoot, section.map)
+    }
+  } else {
+    for (let i = 0; i < sourceMap.sources.length; i++) {
+      sourceMap.sources[i] = pathToFileURL(
+        join(
+          projectRoot,
+          sourceMap.sources[i].replace(/turbopack:\/\/\[project\]/, '')
+        )
+      ).toString()
+    }
+  }
+}
+
+function getSourceMapFromTurbopack(
+  project: Project,
+  projectRoot: string,
+  sourceURL: string
+): ModernSourceMapPayload | undefined {
+  let sourceMapJson: string | null = null
+
+  try {
+    sourceMapJson = project.getSourceMapSync(sourceURL)
+  } catch (err) {}
+
+  if (sourceMapJson === null) {
+    return undefined
+  } else {
+    const payload: ModernSourceMapPayload = JSON.parse(sourceMapJson)
+    // The sourcemap from Turbopack is not yet written to disk so its `sources`
+    // are not absolute paths yet. We need to rewrite them to be absolute paths.
+    rewriteTurbopackSources(projectRoot, payload)
+    return payload
+  }
+}
 
 export async function createHotReloaderTurbopack(
   opts: SetupOpts,
@@ -127,7 +184,10 @@ export async function createHotReloaderTurbopack(
   // of the current `next dev` invocation.
   hotReloaderSpan.stop()
 
-  const encryptionKey = await generateEncryptionKeyBase64(dev)
+  const encryptionKey = await generateEncryptionKeyBase64({
+    isBuild: false,
+    distDir,
+  })
 
   // TODO: Implement
   let clientRouterFilters: any
@@ -147,9 +207,13 @@ export async function createHotReloaderTurbopack(
         opts.nextConfig.experimental.turbo?.root ||
         opts.nextConfig.outputFileTracingRoot ||
         dir,
+      distDir,
       nextConfig: opts.nextConfig,
       jsConfig: await getTurbopackJsConfig(dir, nextConfig),
-      watch: dev,
+      watch: {
+        enable: dev,
+        pollIntervalMs: nextConfig.watchOptions?.pollIntervalMs,
+      },
       dev,
       env: process.env as Record<string, string>,
       defineEnv: createDefineEnv({
@@ -169,10 +233,17 @@ export async function createHotReloaderTurbopack(
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
+      persistentCaching: isPersistentCachingEnabled(opts.nextConfig),
       memoryLimit: opts.nextConfig.experimental.turbo?.memoryLimit,
     }
   )
-  opts.onCleanup(() => project.onExit())
+  setBundlerFindSourceMapImplementation(
+    getSourceMapFromTurbopack.bind(null, project, dir)
+  )
+  opts.onDevServerCleanup?.(async () => {
+    setBundlerFindSourceMapImplementation(() => undefined)
+    await project.onExit()
+  })
   const entrypointsSubscription = project.entrypointsSubscribe()
 
   const currentWrittenEntrypoints: Map<EntryKey, WrittenEndpoint> = new Map()
@@ -395,6 +466,9 @@ export async function createHotReloaderTurbopack(
     endpoint: Endpoint,
     makePayload: (
       change: TurbopackResult
+    ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
+    onError?: (
+      error: Error
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
   ) {
     if (changeSubscriptions.has(key)) {
@@ -405,15 +479,25 @@ export async function createHotReloaderTurbopack(
 
     const changedPromise = endpoint[`${side}Changed`](includeIssues)
     changeSubscriptions.set(key, changedPromise)
-    const changed = await changedPromise
+    try {
+      const changed = await changedPromise
 
-    for await (const change of changed) {
-      processIssues(currentEntryIssues, key, change, false, true)
-      const payload = await makePayload(change)
+      for await (const change of changed) {
+        processIssues(currentEntryIssues, key, change, false, true)
+        const payload = await makePayload(change)
+        if (payload) {
+          sendHmr(key, payload)
+        }
+      }
+    } catch (e) {
+      changeSubscriptions.delete(key)
+      const payload = await onError?.(e as Error)
       if (payload) {
         sendHmr(key, payload)
       }
+      return
     }
+    changeSubscriptions.delete(key)
   }
 
   async function unsubscribeFromChanges(key: EntryKey) {
@@ -458,6 +542,7 @@ export async function createHotReloaderTurbopack(
       // reload, only this client is out of date.
       const reloadAction: ReloadPageAction = {
         action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+        data: `error in HMR event subscription for ${id}: ${e}`,
       }
       sendToClient(client, reloadAction)
       client.close()
@@ -539,7 +624,13 @@ export async function createHotReloaderTurbopack(
       2
     )
   )
-  const overlayMiddleware = getOverlayMiddleware(project)
+
+  const middlewares = [
+    getOverlayMiddleware(project),
+    getSourceMapMiddleware(project),
+    getNextErrorFeedbackMiddleware(opts.telemetry),
+  ]
+
   const versionInfoPromise = getVersionInfo(
     isTestMode || opts.telemetry.isEnabled
   )
@@ -589,7 +680,17 @@ export async function createHotReloaderTurbopack(
         }
       }
 
-      await overlayMiddleware(req, res)
+      for (const middleware of middlewares) {
+        let calledNext = false
+
+        await middleware(req, res, () => {
+          calledNext = true
+        })
+
+        if (!calledNext) {
+          return { finished: true }
+        }
+      }
 
       // Request was not finished.
       return { finished: undefined }
@@ -626,9 +727,6 @@ export async function createHotReloaderTurbopack(
 
           // Next.js messages
           switch (parsedData.event) {
-            case 'ping':
-              // Ping doesn't need additional handling in Turbopack.
-              break
             case 'span-end': {
               hotReloaderSpan.manualTraceChild(
                 parsedData.spanName,
@@ -830,124 +928,141 @@ export async function createHotReloaderTurbopack(
       isApp,
       url: requestUrl,
     }) {
-      if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
-        return
-      }
-
-      let routeDef: Pick<RouteDefinition, 'filename' | 'bundlePath' | 'page'> =
-        definition ??
-        (await findPagePathData(
-          dir,
+      return hotReloaderSpan
+        .traceChild('ensure-page', {
           inputPage,
-          nextConfig.pageExtensions,
-          opts.pagesDir,
-          opts.appDir
-        ))
-
-      // If the route is actually an app page route, then we should have access
-      // to the app route definition, and therefore, the appPaths from it.
-      if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
-        appPaths = definition.appPaths
-      }
-
-      let page = routeDef.page
-      if (appPaths) {
-        const normalizedPage = normalizeAppPath(page)
-
-        // filter out paths that are not exact matches (e.g. catchall)
-        const matchingAppPaths = appPaths.filter(
-          (path) => normalizeAppPath(path) === normalizedPage
-        )
-
-        // the last item in the array is the root page, if there are parallel routes
-        page = matchingAppPaths[matchingAppPaths.length - 1]
-      }
-
-      const pathname = definition?.pathname ?? inputPage
-
-      if (page === '/_error') {
-        let finishBuilding = startBuilding(pathname, requestUrl, false)
-        try {
-          await handlePagesErrorRoute({
-            dev: true,
-            currentEntryIssues,
-            entrypoints: currentEntrypoints,
-            manifestLoader,
-            devRewrites: opts.fsChecker.rewrites,
-            productionRewrites: undefined,
-            logErrors: true,
-
-            hooks: {
-              subscribeToChanges,
-              handleWrittenEndpoint: (id, result) => {
-                clearRequireCache(id, result)
-                currentWrittenEntrypoints.set(id, result)
-                assetMapper.setPathsForKey(id, result.clientPaths)
-              },
-            },
-          })
-        } finally {
-          finishBuilding()
-        }
-        return
-      }
-
-      await currentEntriesHandling
-
-      const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
-      const normalizedAppPage = normalizedPageToTurbopackStructureRoute(
-        page,
-        extname(routeDef.filename)
-      )
-
-      const route = isInsideAppDir
-        ? currentEntrypoints.app.get(normalizedAppPage)
-        : currentEntrypoints.page.get(page)
-
-      if (!route) {
-        // TODO: why is this entry missing in turbopack?
-        if (page === '/middleware') return
-        if (page === '/src/middleware') return
-        if (page === '/instrumentation') return
-        if (page === '/src/instrumentation') return
-
-        throw new PageNotFoundError(`route not found ${page}`)
-      }
-
-      // We don't throw on ensureOpts.isApp === true for page-api
-      // since this can happen when app pages make
-      // api requests to page API routes.
-      if (isApp && route.type === 'page') {
-        throw new Error(`mis-matched route type: isApp && page for ${page}`)
-      }
-
-      const finishBuilding = startBuilding(pathname, requestUrl, false)
-      try {
-        await handleRouteType({
-          dev,
-          page,
-          pathname,
-          route,
-          currentEntryIssues,
-          entrypoints: currentEntrypoints,
-          manifestLoader,
-          readyIds,
-          devRewrites: opts.fsChecker.rewrites,
-          productionRewrites: undefined,
-          logErrors: true,
-
-          hooks: {
-            subscribeToChanges,
-            handleWrittenEndpoint: (id, result) => {
-              currentWrittenEntrypoints.set(id, result)
-              clearRequireCache(id, result)
-              assetMapper.setPathsForKey(id, result.clientPaths)
-            },
-          },
         })
-      } finally {
-        finishBuilding()
-      }
+        .traceAsyncFn(async () => {
+          if (BLOCKED_PAGES.includes(inputPage) && inputPage !== '/_error') {
+            return
+          }
+
+          await currentEntriesHandling
+
+          // TODO We shouldn't look into the filesystem again. This should use the information from entrypoints
+          let routeDef: Pick<
+            RouteDefinition,
+            'filename' | 'bundlePath' | 'page'
+          > =
+            definition ??
+            (await findPagePathData(
+              dir,
+              inputPage,
+              nextConfig.pageExtensions,
+              opts.pagesDir,
+              opts.appDir
+            ))
+
+          // If the route is actually an app page route, then we should have access
+          // to the app route definition, and therefore, the appPaths from it.
+          if (!appPaths && definition && isAppPageRouteDefinition(definition)) {
+            appPaths = definition.appPaths
+          }
+
+          let page = routeDef.page
+          if (appPaths) {
+            const normalizedPage = normalizeAppPath(page)
+
+            // filter out paths that are not exact matches (e.g. catchall)
+            const matchingAppPaths = appPaths.filter(
+              (path) => normalizeAppPath(path) === normalizedPage
+            )
+
+            // the last item in the array is the root page, if there are parallel routes
+            page = matchingAppPaths[matchingAppPaths.length - 1]
+          }
+
+          const pathname = definition?.pathname ?? inputPage
+
+          if (page === '/_error') {
+            let finishBuilding = startBuilding(pathname, requestUrl, false)
+            try {
+              await handlePagesErrorRoute({
+                dev: true,
+                currentEntryIssues,
+                entrypoints: currentEntrypoints,
+                manifestLoader,
+                devRewrites: opts.fsChecker.rewrites,
+                productionRewrites: undefined,
+                logErrors: true,
+
+                hooks: {
+                  subscribeToChanges,
+                  handleWrittenEndpoint: (id, result) => {
+                    clearRequireCache(id, result)
+                    currentWrittenEntrypoints.set(id, result)
+                    assetMapper.setPathsForKey(id, result.clientPaths)
+                  },
+                },
+              })
+            } finally {
+              finishBuilding()
+            }
+            return
+          }
+
+          const isInsideAppDir = routeDef.bundlePath.startsWith('app/')
+          const isEntryMetadataRouteFile = isMetadataRouteFile(
+            routeDef.filename.replace(opts.appDir || '', ''),
+            nextConfig.pageExtensions,
+            true
+          )
+          const normalizedAppPage = isEntryMetadataRouteFile
+            ? normalizedPageToTurbopackStructureRoute(
+                page,
+                extname(routeDef.filename)
+              )
+            : page
+
+          const route = isInsideAppDir
+            ? currentEntrypoints.app.get(normalizedAppPage)
+            : currentEntrypoints.page.get(page)
+
+          if (!route) {
+            // TODO: why is this entry missing in turbopack?
+            if (page === '/middleware') return
+            if (page === '/src/middleware') return
+            if (page === '/instrumentation') return
+            if (page === '/src/instrumentation') return
+
+            throw new PageNotFoundError(`route not found ${page}`)
+          }
+
+          // We don't throw on ensureOpts.isApp === true for page-api
+          // since this can happen when app pages make
+          // api requests to page API routes.
+          if (isApp && route.type === 'page') {
+            throw new Error(`mis-matched route type: isApp && page for ${page}`)
+          }
+
+          const finishBuilding = startBuilding(pathname, requestUrl, false)
+          try {
+            await handleRouteType({
+              dev,
+              page,
+              pathname,
+              route,
+              currentEntryIssues,
+              entrypoints: currentEntrypoints,
+              manifestLoader,
+              readyIds,
+              devRewrites: opts.fsChecker.rewrites,
+              productionRewrites: undefined,
+              logErrors: true,
+
+              hooks: {
+                subscribeToChanges,
+                handleWrittenEndpoint: (id, result) => {
+                  currentWrittenEntrypoints.set(id, result)
+                  clearRequireCache(id, result)
+                  assetMapper.setPathsForKey(id, result.clientPaths)
+                },
+              },
+            })
+          } finally {
+            finishBuilding()
+          }
+        })
     },
   }
 

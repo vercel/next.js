@@ -1,7 +1,8 @@
 use std::fmt::Write;
 
 use anyhow::Result;
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::{encode_hex, hash_xxh3_hash64, DeterministicHash, Xxh3Hash64Hasher};
 
@@ -11,27 +12,27 @@ use crate::resolve::ModulePart;
 #[derive(Clone, Debug, Hash)]
 pub struct AssetIdent {
     /// The primary path of the asset
-    pub path: Vc<FileSystemPath>,
+    pub path: ResolvedVc<FileSystemPath>,
     /// The query string of the asset (e.g. `?foo=bar`)
-    pub query: Vc<RcStr>,
+    pub query: ResolvedVc<RcStr>,
     /// The fragment of the asset (e.g. `#foo`)
-    pub fragment: Option<Vc<RcStr>>,
+    pub fragment: Option<ResolvedVc<RcStr>>,
     /// The assets that are nested in this asset
-    pub assets: Vec<(Vc<RcStr>, Vc<AssetIdent>)>,
+    pub assets: Vec<(ResolvedVc<RcStr>, ResolvedVc<AssetIdent>)>,
     /// The modifiers of this asset (e.g. `client chunks`)
-    pub modifiers: Vec<Vc<RcStr>>,
-    /// The part of the asset that is a (ECMAScript) module
-    pub part: Option<Vc<ModulePart>>,
+    pub modifiers: Vec<ResolvedVc<RcStr>>,
+    /// The parts of the asset that are (ECMAScript) modules
+    pub parts: Vec<ResolvedVc<ModulePart>>,
     /// The asset layer the asset was created from.
-    pub layer: Option<Vc<RcStr>>,
+    pub layer: Option<ResolvedVc<RcStr>>,
 }
 
 impl AssetIdent {
-    pub fn add_modifier(&mut self, modifier: Vc<RcStr>) {
+    pub fn add_modifier(&mut self, modifier: ResolvedVc<RcStr>) {
         self.modifiers.push(modifier);
     }
 
-    pub fn add_asset(&mut self, key: Vc<RcStr>, asset: Vc<AssetIdent>) {
+    pub fn add_asset(&mut self, key: ResolvedVc<RcStr>, asset: ResolvedVc<AssetIdent>) {
         self.assets.push((key, asset));
     }
 
@@ -40,7 +41,7 @@ impl AssetIdent {
         let path = self.path.await?;
         self.path = root
             .join(pattern.replace('*', &path.path).into())
-            .resolve()
+            .to_resolved()
             .await?;
         Ok(())
     }
@@ -95,12 +96,14 @@ impl ValueToString for AssetIdent {
             s.push(')');
         }
 
-        if let Some(part) = self.part {
-            let part = part.to_string().await?;
-            // facade is not included in ident as switching between facade and non-facade shouldn't
-            // change the ident
-            if part.as_str() != "facade" {
-                write!(s, " <{}>", part)?;
+        if !self.parts.is_empty() {
+            for part in self.parts.iter() {
+                let part = part.to_string().await?;
+                // facade is not included in ident as switching between facade and non-facade
+                // shouldn't change the ident
+                if part.as_str() != "facade" {
+                    write!(s, " <{}>", part)?;
+                }
             }
         }
 
@@ -117,48 +120,48 @@ impl AssetIdent {
 
     /// Creates an [AssetIdent] from a [Vc<FileSystemPath>]
     #[turbo_tasks::function]
-    pub fn from_path(path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn from_path(path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::new(Value::new(AssetIdent {
             path,
-            query: Vc::<RcStr>::default(),
+            query: ResolvedVc::cell(RcStr::default()),
             fragment: None,
             assets: Vec::new(),
             modifiers: Vec::new(),
-            part: None,
+            parts: Vec::new(),
             layer: None,
         }))
     }
 
     #[turbo_tasks::function]
-    pub fn with_query(&self, query: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_query(&self, query: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.query = query;
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_modifier(&self, modifier: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_modifier(&self, modifier: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.add_modifier(modifier);
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_part(&self, part: Vc<ModulePart>) -> Vc<Self> {
+    pub fn with_part(&self, part: ResolvedVc<ModulePart>) -> Vc<Self> {
         let mut this = self.clone();
-        this.part = Some(part);
+        this.parts.push(part);
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_path(&self, path: Vc<FileSystemPath>) -> Vc<Self> {
+    pub fn with_path(&self, path: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         let mut this = self.clone();
         this.path = path;
         Self::new(Value::new(this))
     }
 
     #[turbo_tasks::function]
-    pub fn with_layer(&self, layer: Vc<RcStr>) -> Vc<Self> {
+    pub fn with_layer(&self, layer: ResolvedVc<RcStr>) -> Vc<Self> {
         let mut this = self.clone();
         this.layer = Some(layer);
         Self::new(Value::new(this))
@@ -173,12 +176,12 @@ impl AssetIdent {
 
     #[turbo_tasks::function]
     pub fn path(&self) -> Vc<FileSystemPath> {
-        self.path
+        *self.path
     }
 
     #[turbo_tasks::function]
     pub fn query(&self) -> Vc<RcStr> {
-        self.query
+        *self.query
     }
 
     /// Computes a unique output asset name for the given asset identifier.
@@ -224,7 +227,7 @@ impl AssetIdent {
             fragment,
             assets,
             modifiers,
-            part,
+            parts,
             layer,
         } = self;
         let query = query.await?;
@@ -255,7 +258,7 @@ impl AssetIdent {
             modifier.deterministic_hash(&mut hasher);
             has_hash = true;
         }
-        if let Some(part) = part {
+        for part in parts.iter() {
             4_u8.deterministic_hash(&mut hasher);
             match &*part.await? {
                 ModulePart::Evaluation => {
@@ -281,14 +284,18 @@ impl AssetIdent {
                     5_u8.deterministic_hash(&mut hasher);
                     id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Locals => {
+                ModulePart::InternalEvaluation(id) => {
                     6_u8.deterministic_hash(&mut hasher);
+                    id.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Exports => {
+                ModulePart::Locals => {
                     7_u8.deterministic_hash(&mut hasher);
                 }
-                ModulePart::Facade => {
+                ModulePart::Exports => {
                     8_u8.deterministic_hash(&mut hasher);
+                }
+                ModulePart::Facade => {
+                    9_u8.deterministic_hash(&mut hasher);
                 }
             }
 

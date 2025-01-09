@@ -1,5 +1,6 @@
 pub mod analyze;
 pub mod code_gen;
+pub mod module;
 pub mod resolve;
 
 use std::{
@@ -11,9 +12,10 @@ use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use auto_hash_map::AutoSet;
 use serde::Serialize;
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    emit, CollectiblesSource, RawVc, RcStr, ReadRef, TransientInstance, TransientValue,
-    TryJoinIterExt, Upcast, ValueToString, Vc,
+    emit, CollectiblesSource, OperationVc, RawVc, ReadRef, ResolvedVc, TransientInstance,
+    TransientValue, TryJoinIterExt, Upcast, ValueToString, Vc,
 };
 use turbo_tasks_fs::{FileContent, FileLine, FileLinesContent, FileSystemPath};
 use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
@@ -21,6 +23,7 @@ use turbo_tasks_hash::{DeterministicHash, Xxh3Hash64Hasher};
 use crate::{
     asset::{Asset, AssetContent},
     source::Source,
+    source_map::{convert_to_turbopack_source_map, GenerateSourceMap, TokenWithSource},
     source_pos::SourcePos,
 };
 
@@ -94,7 +97,7 @@ pub enum StyledString {
     Strong(RcStr),
 }
 
-#[turbo_tasks::value_trait]
+#[turbo_tasks::value_trait(local)]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.
@@ -159,6 +162,7 @@ pub trait Issue {
             Some(detail) => Some((*detail.await?).clone()),
             None => None,
         };
+
         Ok(PlainIssue {
             severity: *self.severity().await?,
             file_path: self.file_path().to_string().await?.clone_value(),
@@ -199,8 +203,8 @@ trait IssueProcessingPath {
 
 #[turbo_tasks::value]
 pub struct IssueProcessingPathItem {
-    pub file_path: Option<Vc<FileSystemPath>>,
-    pub description: Vc<RcStr>,
+    pub file_path: Option<ResolvedVc<FileSystemPath>>,
+    pub description: ResolvedVc<RcStr>,
 }
 
 #[turbo_tasks::value_impl]
@@ -213,7 +217,7 @@ impl ValueToString for IssueProcessingPathItem {
                 format!("{} ({})", context.to_string().await?, description_str).into(),
             ))
         } else {
-            Ok(self.description)
+            Ok(*self.description)
         }
     }
 }
@@ -221,22 +225,21 @@ impl ValueToString for IssueProcessingPathItem {
 #[turbo_tasks::value_impl]
 impl IssueProcessingPathItem {
     #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueProcessingPathItem>> {
-        let this = self.await?;
+    pub async fn into_plain(&self) -> Result<Vc<PlainIssueProcessingPathItem>> {
         Ok(PlainIssueProcessingPathItem {
-            file_path: if let Some(context) = this.file_path {
+            file_path: if let Some(context) = self.file_path {
                 Some(context.to_string().await?)
             } else {
                 None
             },
-            description: this.description.await?,
+            description: self.description.await?,
         }
         .cell())
     }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionIssueProcessingPathItems(Option<Vec<Vc<IssueProcessingPathItem>>>);
+pub struct OptionIssueProcessingPathItems(Option<Vec<ResolvedVc<IssueProcessingPathItem>>>);
 
 #[turbo_tasks::value_impl]
 impl OptionIssueProcessingPathItems {
@@ -262,12 +265,15 @@ impl OptionIssueProcessingPathItems {
 }
 
 #[turbo_tasks::value]
-struct RootIssueProcessingPath(Vc<Box<dyn Issue>>);
+struct RootIssueProcessingPath(ResolvedVc<Box<dyn Issue>>);
 
 #[turbo_tasks::value_impl]
 impl IssueProcessingPath for RootIssueProcessingPath {
     #[turbo_tasks::function]
-    fn shortest_path(&self, issue: Vc<Box<dyn Issue>>) -> Vc<OptionIssueProcessingPathItems> {
+    fn shortest_path(
+        &self,
+        issue: ResolvedVc<Box<dyn Issue>>,
+    ) -> Vc<OptionIssueProcessingPathItems> {
         if self.0 == issue {
             Vc::cell(Some(Vec::new()))
         } else {
@@ -278,8 +284,8 @@ impl IssueProcessingPath for RootIssueProcessingPath {
 
 #[turbo_tasks::value]
 struct ItemIssueProcessingPath(
-    Option<Vc<IssueProcessingPathItem>>,
-    AutoSet<Vc<Box<dyn IssueProcessingPath>>>,
+    Option<ResolvedVc<IssueProcessingPathItem>>,
+    AutoSet<ResolvedVc<Box<dyn IssueProcessingPath>>>,
 );
 
 #[turbo_tasks::value_impl]
@@ -338,37 +344,37 @@ pub trait IssueExt {
     fn emit(self);
 }
 
-impl<T> IssueExt for Vc<T>
+impl<T> IssueExt for ResolvedVc<T>
 where
     T: Upcast<Box<dyn Issue>>,
 {
     fn emit(self) {
-        let issue = Vc::upcast::<Box<dyn Issue>>(self);
+        let issue = ResolvedVc::upcast::<Box<dyn Issue>>(self);
         emit(issue);
-        emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-            RootIssueProcessingPath::cell(RootIssueProcessingPath(issue)),
+        emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+            RootIssueProcessingPath::resolved_cell(RootIssueProcessingPath(issue)),
         ))
     }
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct Issues(Vec<Vc<Box<dyn Issue>>>);
+pub struct Issues(Vec<ResolvedVc<Box<dyn Issue>>>);
 
 /// A list of issues captured with [`Issue::peek_issues_with_path`] and
 /// [`Issue::take_issues_with_path`].
 #[turbo_tasks::value(shared)]
 #[derive(Debug)]
 pub struct CapturedIssues {
-    issues: AutoSet<Vc<Box<dyn Issue>>>,
+    issues: AutoSet<ResolvedVc<Box<dyn Issue>>>,
     #[cfg(feature = "issue_path")]
-    processing_path: Vc<ItemIssueProcessingPath>,
+    processing_path: ResolvedVc<ItemIssueProcessingPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl CapturedIssues {
     #[turbo_tasks::function]
-    pub async fn is_empty(self: Vc<Self>) -> Result<Vc<bool>> {
-        Ok(Vc::cell(self.await?.is_empty_ref()))
+    pub fn is_empty(&self) -> Vc<bool> {
+        Vc::cell(self.is_empty_ref())
     }
 }
 
@@ -385,7 +391,7 @@ impl CapturedIssues {
     }
 
     /// Returns an iterator over the issues.
-    pub fn iter(&self) -> impl Iterator<Item = Vc<Box<dyn Issue>>> + '_ {
+    pub fn iter(&self) -> impl Iterator<Item = ResolvedVc<Box<dyn Issue>>> + '_ {
         self.issues.iter().copied()
     }
 
@@ -393,10 +399,15 @@ impl CapturedIssues {
     /// issue to each issue.
     pub fn iter_with_shortest_path(
         &self,
-    ) -> impl Iterator<Item = (Vc<Box<dyn Issue>>, Vc<OptionIssueProcessingPathItems>)> + '_ {
+    ) -> impl Iterator<
+        Item = (
+            ResolvedVc<Box<dyn Issue>>,
+            Vc<OptionIssueProcessingPathItems>,
+        ),
+    > + '_ {
         self.issues.iter().map(|issue| {
             #[cfg(feature = "issue_path")]
-            let path = self.processing_path.shortest_path(*issue);
+            let path = self.processing_path.shortest_path(**issue);
             #[cfg(not(feature = "issue_path"))]
             let path = OptionIssueProcessingPathItems::none();
             (*issue, path)
@@ -410,7 +421,7 @@ impl CapturedIssues {
             .map(|&issue| async move {
                 #[cfg(feature = "issue_path")]
                 return issue
-                    .into_plain(self.processing_path.shortest_path(issue))
+                    .into_plain(self.processing_path.shortest_path(*issue))
                     .await;
                 #[cfg(not(feature = "issue_path"))]
                 return issue
@@ -427,8 +438,8 @@ impl CapturedIssues {
 #[turbo_tasks::value]
 #[derive(Clone, Debug)]
 pub struct IssueSource {
-    source: Vc<Box<dyn Source>>,
-    range: Option<Vc<SourceRange>>,
+    source: ResolvedVc<Box<dyn Source>>,
+    range: Option<ResolvedVc<SourceRange>>,
 }
 
 /// The end position is the first character after the range
@@ -444,7 +455,7 @@ impl IssueSource {
     // Sometimes we only have the source file that causes an issue, not the
     // exact location, such as as in some generated code.
     #[turbo_tasks::function]
-    pub fn from_source_only(source: Vc<Box<dyn Source>>) -> Vc<Self> {
+    pub fn from_source_only(source: ResolvedVc<Box<dyn Source>>) -> Vc<Self> {
         Self::cell(IssueSource {
             source,
             range: None,
@@ -453,14 +464,50 @@ impl IssueSource {
 
     #[turbo_tasks::function]
     pub fn from_line_col(
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         start: SourcePos,
         end: SourcePos,
     ) -> Vc<Self> {
         Self::cell(IssueSource {
             source,
-            range: Some(SourceRange::LineColumn(start, end).cell()),
+            range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
         })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn resolve_source_map(
+        self: Vc<Self>,
+        origin: Vc<FileSystemPath>,
+    ) -> Result<Vc<Self>> {
+        let this = self.await?;
+
+        if let Some(range) = this.range {
+            let (start, end) = match &*range.await? {
+                SourceRange::LineColumn(start, end) => (*start, *end),
+
+                SourceRange::ByteOffset(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*this.source.content().lines().await? {
+                        let start = find_line_and_column(lines.as_ref(), *start);
+                        let end = find_line_and_column(lines.as_ref(), *end);
+                        (start, end)
+                    } else {
+                        return Ok(self);
+                    }
+                }
+            };
+
+            // If we have a source map, map the line/column to the original source.
+            let mapped = source_pos(this.source, origin, start, end).await?;
+
+            if let Some((source, start, end)) = mapped {
+                return Ok(Self::cell(IssueSource {
+                    source,
+                    range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
+                }));
+            }
+        }
+
+        Ok(self)
     }
 
     /// Create a [`IssueSource`] from byte offsets given by an swc ast node
@@ -472,14 +519,20 @@ impl IssueSource {
     /// * `start`: The start index of the span. Must use **1-based** indexing.
     /// * `end`: The end index of the span. Must use **1-based** indexing.
     #[turbo_tasks::function]
-    pub fn from_swc_offsets(source: Vc<Box<dyn Source>>, start: usize, end: usize) -> Vc<Self> {
+    pub fn from_swc_offsets(
+        source: ResolvedVc<Box<dyn Source>>,
+        start: usize,
+        end: usize,
+    ) -> Vc<Self> {
         Self::cell(IssueSource {
             source,
             range: match (start == 0, end == 0) {
                 (true, true) => None,
-                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).cell()),
-                (false, true) => Some(SourceRange::ByteOffset(start - 1, start - 1).cell()),
-                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).cell()),
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
+                (false, true) => {
+                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
+                }
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
             },
         })
     }
@@ -495,7 +548,7 @@ impl IssueSource {
     /// * `start`: Byte offset into the source that the text begins. 0-based index and inclusive.
     /// * `end`: Byte offset into the source that the text ends. 0-based index and exclusive.
     pub async fn from_byte_offset(
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         start: usize,
         end: usize,
     ) -> Result<Vc<Self>> {
@@ -504,7 +557,7 @@ impl IssueSource {
             range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                Some(SourceRange::LineColumn(start, end).cell())
+                Some(SourceRange::LineColumn(start, end).resolved_cell())
             } else {
                 None
             },
@@ -518,11 +571,87 @@ impl IssueSource {
     }
 }
 
-#[turbo_tasks::value(transparent)]
-pub struct OptionIssueSource(Option<Vc<IssueSource>>);
+impl IssueSource {
+    /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
+    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+        Ok(match self.range {
+            Some(range) => match &*range.await? {
+                SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
+                SourceRange::LineColumn(start, end) => {
+                    if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
+                        let start = find_offset(lines.as_ref(), *start) + 1;
+                        let end = find_offset(lines.as_ref(), *end) + 1;
+                        Some((start, end))
+                    } else {
+                        None
+                    }
+                }
+            },
+            _ => None,
+        })
+    }
+}
+
+async fn source_pos(
+    source: ResolvedVc<Box<dyn Source>>,
+    origin: Vc<FileSystemPath>,
+    start: SourcePos,
+    end: SourcePos,
+) -> Result<Option<(ResolvedVc<Box<dyn Source>>, SourcePos, SourcePos)>> {
+    let Some(generator) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
+    else {
+        return Ok(None);
+    };
+
+    let srcmap = generator.generate_source_map();
+
+    let Some(srcmap) = *convert_to_turbopack_source_map(srcmap, origin).await? else {
+        return Ok(None);
+    };
+
+    let find = |line: usize, col: usize| async move {
+        let TokenWithSource {
+            token,
+            source_content,
+        } = &*srcmap.lookup_token_and_source(line, col).await?;
+
+        match &*token.await? {
+            crate::source_map::Token::Synthetic(t) => Ok::<_, anyhow::Error>((
+                SourcePos {
+                    line: t.generated_line as _,
+                    column: t.generated_column as _,
+                },
+                *source_content,
+            )),
+            crate::source_map::Token::Original(t) => Ok((
+                SourcePos {
+                    line: t.original_line as _,
+                    column: t.original_column as _,
+                },
+                *source_content,
+            )),
+        }
+    };
+
+    let (start, content_1) = find(start.line, start.column).await?;
+    let (end, content_2) = find(end.line, end.column).await?;
+
+    let Some((content_1, content_2)) = content_1.zip(content_2) else {
+        return Ok(None);
+    };
+
+    if content_1 != content_2 {
+        return Ok(None);
+    }
+
+    Ok(Some((content_1, start, end)))
+}
 
 #[turbo_tasks::value(transparent)]
-pub struct OptionStyledString(Option<Vc<StyledString>>);
+pub struct OptionIssueSource(Option<ResolvedVc<IssueSource>>);
+
+#[turbo_tasks::value(transparent)]
+pub struct OptionStyledString(Option<ResolvedVc<StyledString>>);
 
 #[turbo_tasks::value(shared, serialization = "none")]
 #[derive(Clone, Debug, PartialOrd, Ord, DeterministicHash, Serialize)]
@@ -567,14 +696,14 @@ impl Display for IssueStage {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssue {
     pub severity: IssueSeverity,
-    pub file_path: RcStr,
-
     pub stage: IssueStage,
 
     pub title: StyledString,
+    pub file_path: RcStr,
+
     pub description: Option<StyledString>,
     pub detail: Option<StyledString>,
     pub documentation_link: RcStr,
@@ -582,34 +711,6 @@ pub struct PlainIssue {
     pub source: Option<ReadRef<PlainIssueSource>>,
     pub sub_issues: Vec<ReadRef<PlainIssue>>,
     pub processing_path: ReadRef<PlainIssueProcessingPath>,
-}
-
-impl Ord for PlainIssue {
-    fn cmp(&self, other: &Self) -> Ordering {
-        macro_rules! cmp {
-            ($a:expr, $b:expr) => {
-                match $a.cmp(&$b) {
-                    Ordering::Equal => {}
-                    other => return other,
-                }
-            };
-        }
-
-        cmp!(self.severity, other.severity);
-        cmp!(self.stage, other.stage);
-        cmp!(self.title, other.title);
-        cmp!(self.file_path, other.file_path);
-        cmp!(self.description, other.description);
-        cmp!(self.detail, other.detail);
-        cmp!(self.documentation_link, other.documentation_link);
-        Ordering::Equal
-    }
-}
-
-impl PartialOrd for PlainIssue {
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        Some(self.cmp(other))
-    }
 }
 
 fn hash_plain_issue(issue: &PlainIssue, hasher: &mut Xxh3Hash64Hasher, full: bool) {
@@ -667,13 +768,13 @@ impl PlainIssue {
     /// same issue to pass from multiple processing paths, making for overly
     /// verbose logging.
     #[turbo_tasks::function]
-    pub async fn internal_hash(self: Vc<Self>, full: bool) -> Result<Vc<u64>> {
-        Ok(Vc::cell(self.await?.internal_hash_ref(full)))
+    pub fn internal_hash(&self, full: bool) -> Vc<u64> {
+        Vc::cell(self.internal_hash_ref(full))
     }
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainIssueSource {
     pub asset: ReadRef<PlainSource>,
     pub range: Option<(SourcePos, SourcePos)>,
@@ -682,16 +783,15 @@ pub struct PlainIssueSource {
 #[turbo_tasks::value_impl]
 impl IssueSource {
     #[turbo_tasks::function]
-    pub async fn into_plain(self: Vc<Self>) -> Result<Vc<PlainIssueSource>> {
-        let this = self.await?;
+    pub async fn into_plain(&self) -> Result<Vc<PlainIssueSource>> {
         Ok(PlainIssueSource {
-            asset: PlainSource::from_source(this.source).await?,
-            range: match this.range {
+            asset: PlainSource::from_source(*self.source).await?,
+            range: match self.range {
                 Some(range) => match &*range.await? {
                     SourceRange::LineColumn(start, end) => Some((*start, *end)),
                     SourceRange::ByteOffset(start, end) => {
                         if let FileLinesContent::Lines(lines) =
-                            &*this.source.content().lines().await?
+                            &*self.source.content().lines().await?
                         {
                             let start = find_line_and_column(lines.as_ref(), *start);
                             let end = find_line_and_column(lines.as_ref(), *end);
@@ -709,7 +809,7 @@ impl IssueSource {
 }
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialOrd, Ord)]
 pub struct PlainSource {
     pub ident: ReadRef<RcStr>,
     #[turbo_tasks(debug_ignore)]
@@ -719,7 +819,7 @@ pub struct PlainSource {
 #[turbo_tasks::value_impl]
 impl PlainSource {
     #[turbo_tasks::function]
-    pub async fn from_source(asset: Vc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
+    pub async fn from_source(asset: ResolvedVc<Box<dyn Source>>) -> Result<Vc<PlainSource>> {
         let asset_content = asset.content().await?;
         let content = match *asset_content {
             AssetContent::File(file_content) => file_content.await?,
@@ -735,11 +835,11 @@ impl PlainSource {
 }
 
 #[turbo_tasks::value(transparent, serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPath(Option<Vec<ReadRef<PlainIssueProcessingPathItem>>>);
 
 #[turbo_tasks::value(serialization = "none")]
-#[derive(Clone, Debug, DeterministicHash)]
+#[derive(Clone, Debug, DeterministicHash, PartialOrd, Ord)]
 pub struct PlainIssueProcessingPathItem {
     pub file_path: Option<ReadRef<RcStr>>,
     pub description: ReadRef<RcStr>,
@@ -814,13 +914,24 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
-                            file_path: file_path.into(),
-                            description: Vc::cell(RcStr::from(description.into())),
-                        })),
-                        children,
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
+                        Some(IssueProcessingPathItem::resolved_cell(
+                            IssueProcessingPathItem {
+                                file_path: match file_path.into() {
+                                    Some(path) => Some(path.to_resolved().await?),
+                                    None => None,
+                                },
+                                description: ResolvedVc::cell(RcStr::from(description.into())),
+                            },
+                        )),
+                        children
+                            .into_iter()
+                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                            .try_join()
+                            .await?
+                            .into_iter()
+                            .collect(),
                     )),
                 ));
             }
@@ -842,13 +953,24 @@ where
         {
             let children = self.take_collectibles();
             if !children.is_empty() {
-                emit(Vc::upcast::<Box<dyn IssueProcessingPath>>(
-                    ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
-                        Some(IssueProcessingPathItem::cell(IssueProcessingPathItem {
-                            file_path: file_path.into(),
-                            description: Vc::cell(RcStr::from(description.into())),
-                        })),
-                        children,
+                emit(ResolvedVc::upcast::<Box<dyn IssueProcessingPath>>(
+                    ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
+                        Some(IssueProcessingPathItem::resolved_cell(
+                            IssueProcessingPathItem {
+                                file_path: match file_path.into() {
+                                    Some(path) => Some(path.to_resolved().await?),
+                                    None => None,
+                                },
+                                description: ResolvedVc::cell(RcStr::from(description.into())),
+                            },
+                        )),
+                        children
+                            .into_iter()
+                            .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                            .try_join()
+                            .await?
+                            .into_iter()
+                            .collect(),
                     )),
                 ));
             }
@@ -866,40 +988,67 @@ where
 
     async fn peek_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self.peek_collectibles(),
+            issues: self
+                .peek_collectibles()
+                .into_iter()
+                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
             #[cfg(feature = "issue_path")]
-            processing_path: ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+            processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.peek_collectibles(),
+                self.peek_collectibles()
+                    .into_iter()
+                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .collect(),
             )),
         })
     }
 
     async fn take_issues_with_path(self) -> Result<CapturedIssues> {
         Ok(CapturedIssues {
-            issues: self.take_collectibles(),
+            issues: self
+                .take_collectibles()
+                .into_iter()
+                .map(|v: Vc<Box<dyn Issue>>| v.to_resolved())
+                .try_join()
+                .await?
+                .into_iter()
+                .collect(),
             #[cfg(feature = "issue_path")]
-            processing_path: ItemIssueProcessingPath::cell(ItemIssueProcessingPath(
+            processing_path: ItemIssueProcessingPath::resolved_cell(ItemIssueProcessingPath(
                 None,
-                self.take_collectibles(),
+                self.take_collectibles()
+                    .into_iter()
+                    .map(|v: Vc<Box<dyn IssueProcessingPath>>| v.to_resolved())
+                    .try_join()
+                    .await?
+                    .into_iter()
+                    .collect(),
             )),
         })
     }
 }
 
 pub async fn handle_issues<T: Send>(
-    source: Vc<T>,
+    source_op: OperationVc<T>,
     issue_reporter: Vc<Box<dyn IssueReporter>>,
     min_failing_severity: Vc<IssueSeverity>,
     path: Option<&str>,
     operation: Option<&str>,
 ) -> Result<()> {
-    let _ = source.resolve_strongly_consistent().await?;
-    let issues = source.peek_issues_with_path().await?;
+    let source_vc = source_op.connect();
+    let _ = source_vc.resolve_strongly_consistent().await?;
+    let issues = source_op.peek_issues_with_path().await?;
 
     let has_fatal = issue_reporter.report_issues(
         TransientInstance::new(issues),
-        TransientValue::new(Vc::into_raw(source)),
+        TransientValue::new(Vc::into_raw(source_vc)),
         min_failing_severity,
     );
 
@@ -936,4 +1085,9 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             }
         }
     }
+}
+
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
+    let line = &lines[pos.line];
+    line.bytes_offset + pos.column
 }

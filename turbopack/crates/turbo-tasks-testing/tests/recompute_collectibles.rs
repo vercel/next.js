@@ -1,7 +1,10 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // clippy bug causes false positive
 
 use anyhow::{bail, Result};
-use turbo_tasks::{emit, CollectiblesSource, RcStr, State, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{emit, CollectiblesSource, ResolvedVc, State, ValueToString, Vc};
 use turbo_tasks_testing::{register, run, Registration};
 
 static REGISTRATION: Registration = register!();
@@ -64,11 +67,11 @@ async fn inner_compute2(input: Vc<ChangingInput>, innerness: u32) -> Result<Vc<u
     if innerness > 0 {
         return Ok(inner_compute2(input, innerness - 1));
     }
-    let collectible: Vc<Box<dyn ValueToString>> = Vc::upcast(
+    let collectible: ResolvedVc<Box<dyn ValueToString>> = ResolvedVc::upcast(
         Collectible {
             value: *input.await?.state.get(),
         }
-        .cell(),
+        .resolved_cell(),
     );
     emit(collectible);
 

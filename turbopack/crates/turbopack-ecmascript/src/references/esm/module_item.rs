@@ -9,7 +9,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -24,13 +24,13 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct EsmModuleItem {
-    pub path: Vc<AstPath>,
+    pub path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl EsmModuleItem {
     #[turbo_tasks::function]
-    pub fn new(path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(EsmModuleItem { path })
     }
 }
@@ -103,6 +103,6 @@ impl CodeGenerateable for EsmModuleItem {
             }),
         );
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

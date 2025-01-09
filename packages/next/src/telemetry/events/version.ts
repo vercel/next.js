@@ -23,6 +23,8 @@ type EventCliSessionStarted = {
   localeDetectionEnabled: boolean | null
   imageDomainsCount: number | null
   imageRemotePatternsCount: number | null
+  imageLocalPatternsCount: number | null
+  imageQualities: string | null
   imageSizes: string | null
   imageLoader: string | null
   imageFormats: string | null
@@ -78,6 +80,8 @@ export function eventCliSession(
     | 'localeDetectionEnabled'
     | 'imageDomainsCount'
     | 'imageRemotePatternsCount'
+    | 'imageLocalPatternsCount'
+    | 'imageQualities'
     | 'imageSizes'
     | 'imageLoader'
     | 'imageFormats'
@@ -120,7 +124,11 @@ export function eventCliSession(
     imageRemotePatternsCount: images?.remotePatterns
       ? images.remotePatterns.length
       : null,
+    imageLocalPatternsCount: images?.localPatterns
+      ? images.localPatterns.length
+      : null,
     imageSizes: images?.imageSizes ? images.imageSizes.join(',') : null,
+    imageQualities: images?.qualities ? images.qualities.join(',') : null,
     imageLoader: images?.loader,
     imageFormats: images?.formats ? images.formats.join(',') : null,
     nextConfigOutput: nextConfig?.output || null,

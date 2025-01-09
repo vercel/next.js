@@ -230,6 +230,23 @@ describe('app dir - rsc basics', () => {
     expect(html).toContain('dynamic data!')
   })
 
+  describe.each(['node', 'edge'])(
+    'client references with TLA (%s)',
+    (runtime) => {
+      let url = `/async-client${runtime === 'edge' ? '/edge' : ''}`
+
+      it('should support TLA in sync client reference imports', async () => {
+        const html = await next.render(url + '/sync')
+        expect(html).toContain('client async')
+      })
+
+      it('should support TLA in lazy client reference', async () => {
+        const html = await next.render(url + '/lazy')
+        expect(html).toContain('client async')
+      })
+    }
+  )
+
   if (isPPREnabledByDefault) {
     // TODO: Figure out why this test is flaky when PPR is enabled
   } else {
@@ -388,7 +405,7 @@ describe('app dir - rsc basics', () => {
         const hasRCScript = /\$RC=function/.test(chunk)
         if (hasRCScript) results.push('refresh-script')
 
-        const isFallbackResolved = chunk.includes('fallback')
+        const isFallbackResolved = chunk.includes('$test-fallback-sentinel')
         if (isFallbackResolved) results.push('fallback')
       })
 
@@ -484,10 +501,11 @@ describe('app dir - rsc basics', () => {
 
   // TODO: (PPR) remove once PPR is stable
   const bundledReactVersionPattern =
-    process.env.__NEXT_EXPERIMENTAL_PPR === 'true' ? '-experimental-' : '-rc-'
+    process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+      ? '-experimental-'
+      : '-canary-'
 
-  // TODO: (React 19) During Beta, bundled and installed version match.
-  it.skip('should not use bundled react for pages with app', async () => {
+  it('should not use bundled react for pages with app', async () => {
     const ssrPaths = ['/pages-react', '/edge-pages-react']
     const promises = ssrPaths.map(async (pathname) => {
       const resPages$ = await next.render$(pathname)
@@ -507,7 +525,6 @@ describe('app dir - rsc basics', () => {
     const ssrAppReactVersions = [
       await resApp$('#react').text(),
       await resApp$('#react-dom').text(),
-      await resApp$('#react-dom-server').text(),
     ]
 
     ssrAppReactVersions.forEach((version) =>
@@ -532,12 +549,12 @@ describe('app dir - rsc basics', () => {
       ]
     `)
 
-    browserPagesReactVersions.forEach((version) =>
+    browserPagesReactVersions.forEach((version) => {
       expect(version).not.toMatch(bundledReactVersionPattern)
-    )
-    browserEdgePagesReactVersions.forEach((version) =>
+    })
+    browserEdgePagesReactVersions.forEach((version) => {
       expect(version).not.toMatch(bundledReactVersionPattern)
-    )
+    })
   })
 
   it('should use canary react for app', async () => {

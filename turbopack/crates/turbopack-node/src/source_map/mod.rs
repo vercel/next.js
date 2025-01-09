@@ -225,7 +225,7 @@ async fn resolve_source_mapping(
     let Some(sm) = *generate_source_map.generate_source_map().await? else {
         return Ok(ResolvedSourceMapping::NoSourceMap);
     };
-    let trace = SourceMapTrace::new(sm, line, column, name.map(|s| s.clone().into()))
+    let trace = SourceMapTrace::new(*sm, line, column, name.map(|s| s.clone().into()))
         .trace()
         .await?;
     match &*trace {
@@ -267,6 +267,7 @@ pub struct StructuredError {
     pub message: String,
     #[turbo_tasks(trace_ignore)]
     stack: Vec<StackFrame<'static>>,
+    cause: Option<Box<StructuredError>>,
 }
 
 impl StructuredError {
@@ -274,7 +275,7 @@ impl StructuredError {
         &self,
         assets_for_source_mapping: Vc<AssetsForSourceMapping>,
         root: Vc<FileSystemPath>,
-        project_dir: Vc<FileSystemPath>,
+        root_path: Vc<FileSystemPath>,
         formatting_mode: FormattingMode,
     ) -> Result<String> {
         let mut message = String::new();
@@ -294,8 +295,7 @@ impl StructuredError {
         for frame in &self.stack {
             let frame = frame.unmangle_identifiers(magic);
             let resolved =
-                resolve_source_mapping(assets_for_source_mapping, root, project_dir.root(), &frame)
-                    .await;
+                resolve_source_mapping(assets_for_source_mapping, root, root_path, &frame).await;
             write_resolved(
                 &mut message,
                 resolved,
@@ -305,6 +305,15 @@ impl StructuredError {
                 formatting_mode,
             )?;
         }
+
+        if let Some(cause) = &self.cause {
+            message.write_str("\nCaused by: ")?;
+            message.write_str(
+                &Box::pin(cause.print(assets_for_source_mapping, root, root_path, formatting_mode))
+                    .await?,
+            )?;
+        }
+
         Ok(message)
     }
 }

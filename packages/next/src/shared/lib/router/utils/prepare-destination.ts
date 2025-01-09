@@ -13,7 +13,7 @@ import {
 } from '../../../../server/lib/interception-routes'
 import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
 import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
-import type { Params } from '../../../../client/components/params'
+import type { Params } from '../../../../server/request/params'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -167,10 +167,6 @@ export function prepareDestination(args: {
   query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextDataReq
-  delete query.__nextInferredLocaleFromDefault
   delete query[NEXT_RSC_UNION_QUERY]
 
   let escapedDestination = args.destination

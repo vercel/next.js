@@ -1,18 +1,137 @@
 ---
-title: Prerender Error
+title: Prerender Error with Next.js
 ---
 
 ## Why This Error Occurred
 
-While prerendering a page an error occurred. This can occur for many reasons from adding non-pages e.g. `components` to your `pages` folder or expecting props to be populated which are not.
+While prerendering a page during `next build`, an error occurred. This can happen for various reasons, including:
+
+1. Incorrect file structure or non-page files in the `pages/` directory
+2. Expecting props to be populated which are not available during prerendering
+3. Using browser-only APIs in components without proper checks
+4. Incorrect configuration in `getStaticProps` or `getStaticPaths`
 
 ## Possible Ways to Fix It
 
-- Use Next.js 13 (or higher) and the [App Router](/docs#app-router-vs-pages-router), which allows [colocation](/docs/app/building-your-application/routing#colocation) of pages and other files (e.g. components, styles, tests, etc)
-- Make sure to move any non-pages out of the `pages` folder
-- Check for any code that assumes a prop is available, even when it might not be
-- Set default values for all dynamic pages' props (avoid `undefined`, use `null` instead so it can be serialized)
-- Check for any out of date modules that you might be relying on
-- Make sure your component handles `fallback` if it is enabled in `getStaticPaths`. [Fallback docs](/docs/pages/api-reference/functions/get-static-paths#fallback-false)
-- Make sure you are not trying to export (`output: 'export'` or `next export`) pages that have server-side rendering enabled [`getServerSideProps`](/docs/pages/building-your-application/data-fetching/get-server-side-props)
-- If necessary, you can [disable server-side rendering](/docs/pages/building-your-application/optimizing/lazy-loading#with-no-ssr) for a specific component that may be attempting to use browser APIs like `window`
+### 1. Ensure correct file structure and use App Router for colocation
+
+#### Pages Router
+
+In the Pages Router, only special files are allowed to generate pages. You cannot colocate other files (e.g., components, styles) within the `pages` directory.
+
+Correct structure:
+
+```
+pages/
+├── index.js
+└── about.js
+components/
+└── Header.js
+styles/
+└── globals.css
+```
+
+#### App Router (Next.js 13+)
+
+The App Router allows [colocation](/docs/app/getting-started/project-structure#colocation) of pages and other files in the same folder. This provides a more intuitive project structure.
+
+Example folder structure:
+
+```
+app/
+├── layout.tsx
+├── page.tsx
+├── about/
+│   └── page.tsx
+└── blog/
+    ├── page.tsx
+    └── PostCard.tsx
+```
+
+### 2. Handle undefined props and missing data
+
+#### Pages Router
+
+For the Pages Router, use conditional checks and return appropriate props or a 404 page:
+
+```jsx
+export async function getStaticProps(context) {
+  const data = await fetchData(context.params.id)
+  if (!data) {
+    return {
+      notFound: true,
+    }
+  }
+  return {
+    props: { data },
+  }
+}
+```
+
+### 3. Handle fallback in dynamic routes
+
+If you're using `fallback: true` or `fallback: 'blocking'` in `getStaticPaths`, ensure your page component can handle the loading state:
+
+```jsx
+import { useRouter } from 'next/router'
+
+function Post({ post }) {
+  const router = useRouter()
+
+  if (router.isFallback) {
+    return <div>Loading...</div>
+  }
+
+  return (
+    <article>
+      <h1>{post.title}</h1>
+      <p>{post.content}</p>
+    </article>
+  )
+}
+```
+
+### 4. Avoid exporting pages with server-side rendering
+
+If you're using `next export` or `output: 'export'` in your `next.config.js`, ensure that none of your pages use `getServerSideProps`. Instead, use `getStaticProps` for data fetching:
+
+```jsx
+export async function getStaticProps() {
+  const res = await fetch('https://api.vercel.app/blog')
+  const data = await res.json()
+
+  return {
+    props: { data },
+    revalidate: 60,
+  }
+}
+```
+
+### 5. Disable server-side rendering for components using browser APIs
+
+If a component relies on browser-only APIs like `window`, you can disable server-side rendering for that component:
+
+```jsx
+import dynamic from 'next/dynamic'
+
+const DynamicComponentWithNoSSR = dynamic(
+  () => import('../components/BrowserOnlyComponent'),
+  { ssr: false }
+)
+
+export default function Page() {
+  return (
+    <div>
+      <h1>My page</h1>
+      <DynamicComponentWithNoSSR />
+    </div>
+  )
+}
+```
+
+## Additional Resources
+
+- [Handling Errors in Next.js](/docs/app/building-your-application/routing/error-handling)
+- [Data Fetching in Next.js](/docs/app/building-your-application/data-fetching/fetching)
+
+If you continue to experience issues after trying these solutions, consider checking your server logs for more detailed error messages or reaching out to the Next.js community for support.

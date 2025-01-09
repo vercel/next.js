@@ -153,8 +153,8 @@
         "app-dir action handling fetch actions should handle calls to redirect() with a relative URL in a single pass",
         "app-dir action handling fetch actions should handle calls to redirect() with external URLs",
         "app-dir action handling fetch actions should handle redirects to routes that provide an invalid RSC response",
-        "app-dir action handling fetch actions should handle revalidatePath",
-        "app-dir action handling fetch actions should handle revalidateTag",
+        "app-dir action handling fetch actions should handle unstable_expirePath",
+        "app-dir action handling fetch actions should handle unstable_expireTag",
         "app-dir action handling fetch actions should invalidate client cache on other routes when cookies.set is called",
         "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
         "app-dir action handling fetch actions should invalidate client cache when tag is revalidated",
@@ -210,7 +210,7 @@
         "app-dir action handling should not expose action content in sourcemaps"
       ],
       "pending": [
-        "app-dir action handling fetch actions should handle revalidateTag + redirect",
+        "app-dir action handling fetch actions should handle unstable_expireTag + redirect",
         "app-dir action handling server actions render client components client component imported action should support importing client components from actions"
       ],
       "flakey": [],
@@ -1134,19 +1134,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/app-dir/app/flying-shuttle.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
-        "should output updated trace files should hard navigate on chunk load failure",
-        "should output updated trace files should have file hashes in trace files",
-        "should output updated trace files should only rebuild a changed app and pages route correctly",
-        "should output updated trace files should only rebuild just a changed app route correctly",
-        "should output updated trace files should only rebuild just a changed pages route correctly"
-      ],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/e2e/app-dir/app/index.test.ts": {
       "passed": [
         "app dir - basic <Link /> should allow linking from app page to pages page",
@@ -1269,20 +1256,20 @@
       "runtimeError": false
     },
     "test/e2e/app-dir/app/standalone-gsp.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "output: standalone with getStaticProps should work correctly with output standalone"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/e2e/app-dir/app/standalone.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "output: standalone with app dir should handle trace files correctly for route groups (nodejs only)",
         "output: standalone with app dir should work correctly with output standalone"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -2100,6 +2087,8 @@
         "app dir - metadata dynamic routes sitemap should not throw if client components are imported but not used in sitemap",
         "app dir - metadata dynamic routes sitemap should optimize routes without multiple generation API as static routes",
         "app dir - metadata dynamic routes sitemap should support alternate.languages in sitemap",
+        "app dir - metadata dynamic routes sitemap should support images in sitemap",
+        "app dir - metadata dynamic routes sitemap should support videos in sitemap",
         "app dir - metadata dynamic routes sitemap should support generate multi sitemaps with generateSitemaps",
         "app dir - metadata dynamic routes sitemap should support images in sitemap",
         "app dir - metadata dynamic routes social image routes should fill params into dynamic routes url of metadata images",
@@ -2381,30 +2370,30 @@
     },
     "test/e2e/app-dir/next-after-app/index.test.ts": {
       "passed": [
-        "unstable_after() in edge runtime does not allow modifying cookies in a callback",
-        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
-        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
-        "unstable_after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
-        "unstable_after() in edge runtime only runs callbacks after the response is fully sent",
-        "unstable_after() in edge runtime runs callbacks from nested unstable_after calls",
-        "unstable_after() in edge runtime runs in dynamic pages",
-        "unstable_after() in edge runtime runs in dynamic route handlers",
-        "unstable_after() in edge runtime runs in generateMetadata()",
-        "unstable_after() in edge runtime runs in middleware",
-        "unstable_after() in edge runtime runs in server actions",
-        "unstable_after() in edge runtime uses waitUntil from request context if available",
-        "unstable_after() in nodejs runtime does not allow modifying cookies in a callback",
-        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
-        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
-        "unstable_after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
-        "unstable_after() in nodejs runtime only runs callbacks after the response is fully sent",
-        "unstable_after() in nodejs runtime runs callbacks from nested unstable_after calls",
-        "unstable_after() in nodejs runtime runs in dynamic pages",
-        "unstable_after() in nodejs runtime runs in dynamic route handlers",
-        "unstable_after() in nodejs runtime runs in generateMetadata()",
-        "unstable_after() in nodejs runtime runs in middleware",
-        "unstable_after() in nodejs runtime runs in server actions",
-        "unstable_after() in nodejs runtime uses waitUntil from request context if available"
+        "after() in edge runtime does not allow modifying cookies in a callback",
+        "after() in edge runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "after() in edge runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "after() in edge runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "after() in edge runtime only runs callbacks after the response is fully sent",
+        "after() in edge runtime runs callbacks from nested after calls",
+        "after() in edge runtime runs in dynamic pages",
+        "after() in edge runtime runs in dynamic route handlers",
+        "after() in edge runtime runs in generateMetadata()",
+        "after() in edge runtime runs in middleware",
+        "after() in edge runtime runs in server actions",
+        "after() in edge runtime uses waitUntil from request context if available",
+        "after() in nodejs runtime does not allow modifying cookies in a callback",
+        "after() in nodejs runtime interrupted RSC renders runs callbacks if a user error was thrown in the RSC render",
+        "after() in nodejs runtime interrupted RSC renders runs callbacks if notFound() was called",
+        "after() in nodejs runtime interrupted RSC renders runs callbacks if redirect() was called",
+        "after() in nodejs runtime only runs callbacks after the response is fully sent",
+        "after() in nodejs runtime runs callbacks from nested after calls",
+        "after() in nodejs runtime runs in dynamic pages",
+        "after() in nodejs runtime runs in dynamic route handlers",
+        "after() in nodejs runtime runs in generateMetadata()",
+        "after() in nodejs runtime runs in middleware",
+        "after() in nodejs runtime runs in server actions",
+        "after() in nodejs runtime uses waitUntil from request context if available"
       ],
       "failed": [],
       "pending": [],
@@ -2415,10 +2404,10 @@
       "passed": [],
       "failed": [],
       "pending": [
-        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
-        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
-        "unstable_after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
-        "unstable_after() - pages runs in middleware"
+        "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getServerSideProps",
+        "after() - pages invalid usages errors at compile time when used in pages dir errors when used in getStaticProps",
+        "after() - pages invalid usages errors at compile time when used in pages dir errors when used in within a page component",
+        "after() - pages runs in middleware"
       ],
       "flakey": [],
       "runtimeError": false
@@ -2663,11 +2652,10 @@
         "app dir - not-found - basic with default runtime should use the not-found page for non-matching routes",
         "app dir - not-found - basic with runtime = edge should escalate notFound to parent layout if no not-found boundary present in current layer",
         "app dir - not-found - basic with runtime = edge should match dynamic route not-found boundary correctly",
-        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes"
-      ],
-      "failed": [
+        "app dir - not-found - basic with runtime = edge should use the not-found page for non-matching routes",
         "app dir - not-found - basic should include not found client reference manifest in the file trace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -3446,7 +3434,7 @@
     },
     "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts": {
       "passed": [
-        "app-dir revalidate-dynamic should correctly mark a route handler that uses revalidateTag as dynamic",
+        "app-dir revalidate-dynamic should correctly mark a route handler that uses unstable_expireTag as dynamic",
         "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-path",
         "app-dir revalidate-dynamic should revalidate the data with /api/revalidate-tag"
       ],
@@ -4681,11 +4669,10 @@
         "edge-render-getserversideprops should have correct query/params on rewrite",
         "edge-render-getserversideprops should have data routes in routes-manifest",
         "edge-render-getserversideprops should respond to _next/data for [id] correctly",
-        "edge-render-getserversideprops should respond to _next/data for index correctly"
-      ],
-      "failed": [
+        "edge-render-getserversideprops should respond to _next/data for index correctly",
         "edge-render-getserversideprops should not output trace files for edge routes"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -4730,10 +4717,10 @@
       "runtimeError": false
     },
     "test/e2e/favicon-short-circuit/favicon-short-circuit.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "favicon-short-circuit should not short circuit the favicon in production"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -5133,15 +5120,6 @@
         "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
         "instrumentation-hook-rsc instrumentation should run the edge instrumentation compiled version with the edge runtime",
         "instrumentation-hook-rsc instrumentation should run the instrumentation hook"
-      ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/e2e/instrumentation-hook/flying-shuttle/flying-shuttle.test.ts": {
-      "passed": [
-        "instrumentation-hook - flying-shuttle should only register without errors"
       ],
       "failed": [],
       "pending": [],
@@ -6050,9 +6028,10 @@
       "passed": [
         "prerender native module should render /blog/first correctly",
         "prerender native module should render /blog/second correctly",
-        "prerender native module should render index correctly"
+        "prerender native module should render index correctly",
+        "prerender native module should output traces"
       ],
-      "failed": ["prerender native module should output traces"],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -6134,12 +6113,10 @@
         "Prerender should support prerendered catchall-explicit route (nested)",
         "Prerender should support prerendered catchall-explicit route (single)",
         "Prerender should use correct caching headers for a no-revalidate page",
-        "Prerender should use correct caching headers for a revalidate page"
-      ],
-      "failed": [
-        "Prerender should handle fallback only page correctly HTML",
+        "Prerender should use correct caching headers for a revalidate page",
         "Prerender should output traces"
       ],
+      "failed": ["Prerender should handle fallback only page correctly HTML"],
       "pending": [
         "Prerender should reload page on failed data request, and retry"
       ],
@@ -6297,10 +6274,10 @@
         "streaming SSR with custom next configs should render styled-jsx styles in streaming",
         "streaming SSR with custom server should render page correctly under custom server"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "react 18 streaming SSR in minimal mode with node runtime should pass correct nextRuntime values"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -6511,20 +6488,20 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
+    "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
       "passed": [],
       "failed": [],
       "pending": [
-        "yarn PnP should compile and serve the index page correctly with-mdx"
+        "yarn PnP should compile and serve the index page correctly mdx-pages"
       ],
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/yarn-pnp/test/with-next-sass.test.ts": {
+    "test/e2e/yarn-pnp/test/with-sass.test.ts": {
       "passed": [],
       "failed": [],
       "pending": [
-        "yarn PnP should compile and serve the index page correctly with-next-sass"
+        "yarn PnP should compile and serve the index page correctly with-sass"
       ],
       "flakey": [],
       "runtimeError": false
@@ -7845,10 +7822,10 @@
       "runtimeError": false
     },
     "test/integration/css-minify/test/index.test.js": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "css-minify production mode should minify correctly by removing whitespace"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -8720,11 +8697,10 @@
         "Dynamic Routing production mode should serve file with space from static folder",
         "Dynamic Routing production mode should support long URLs for dynamic routes",
         "Dynamic Routing production mode should update dynamic values on mount",
-        "Dynamic Routing production mode should update with a hash in the URL"
-      ],
-      "failed": [
+        "Dynamic Routing production mode should update with a hash in the URL",
         "Dynamic Routing production mode should output a pages-manifest correctly"
       ],
+      "failed": [],
       "pending": [
         "Dynamic Routing development mode [catch all] should not decode slashes (end)",
         "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
@@ -8879,11 +8855,10 @@
         "Dynamic Routing production mode should serve file with space from static folder",
         "Dynamic Routing production mode should support long URLs for dynamic routes",
         "Dynamic Routing production mode should update dynamic values on mount",
-        "Dynamic Routing production mode should update with a hash in the URL"
-      ],
-      "failed": [
+        "Dynamic Routing production mode should update with a hash in the URL",
         "Dynamic Routing production mode should output a pages-manifest correctly"
       ],
+      "failed": [],
       "pending": [
         "Dynamic Routing development mode [catch all] should not decode slashes (end)",
         "Dynamic Routing development mode [catch all] should not decode slashes (middle)",
@@ -8970,25 +8945,25 @@
         "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code warns in dev at runtime",
         "Edge runtime configurable guards Edge API with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Edge API with use of Function as a type does not warn in dev at runtime",
-        "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Middleware using lib with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code warns in dev at runtime",
         "Edge runtime configurable guards Middleware with allowed, used dynamic code still warns in dev at runtime",
         "Edge runtime configurable guards Middleware with use of Function as a type does not warn in dev at runtime",
-        "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
         "Edge runtime configurable guards Multiple functions with different configurations warns in dev for allowed code",
-        "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code"
-      ],
-      "failed": [
-        "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Multiple functions with different configurations warns in dev for unallowed code",
+        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code",
         "Edge runtime configurable guards Edge API using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation",
-        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime",
-        "Edge runtime configurable guards Multiple functions with different configurations production mode fails to build because of unallowed code"
+        "Edge runtime configurable guards Middleware using lib with unallowed, used dynamic code production mode fails to build because of dynamic code evaluation"
       ],
-      "pending": [],
+      "failed": [],
+      "pending": [
+        "Edge runtime configurable guards Edge API with use of Function as a type production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware with use of Function as a type production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Edge API with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Edge API using lib with allowed, unused dynamic code production mode build and does not warn at runtime",
+        "Edge runtime configurable guards Middleware using lib with allowed, unused dynamic code production mode build and does not warn at runtime"
+      ],
       "flakey": [],
       "runtimeError": false
     },
@@ -9057,13 +9032,13 @@
         "Edge runtime code with imports Middleware importing unused 3rd party module production mode does not build and reports module not found error",
         "Edge runtime code with imports Middleware importing unused 3rd party module throws not-found module error in dev at runtime and highlights the faulty line",
         "Edge runtime code with imports Middleware importing unused node.js module does not throw in dev at runtime",
-        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line",
-        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
-        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
+        "Edge runtime code with imports Middleware statically importing node.js module throws unsupported module error in dev at runtime and highlights the faulty line"
       ],
       "failed": [
         "Edge runtime code with imports Edge API importing unused node.js module production mode does not throw in production at runtime",
-        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime"
+        "Edge runtime code with imports Middleware importing unused node.js module production mode does not throw in production at runtime",
+        "Edge runtime code with imports Edge API statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs",
+        "Edge runtime code with imports Middleware statically importing node.js module production mode throws unsupported module error in production at runtime and prints error on logs"
       ],
       "pending": [],
       "flakey": [],
@@ -12675,11 +12650,10 @@
     "test/integration/jsconfig-baseurl/test/index.test.js": {
       "passed": [
         "jsconfig.json baseurl default behavior should have correct module not found error",
-        "jsconfig.json baseurl default behavior should render the page"
-      ],
-      "failed": [
+        "jsconfig.json baseurl default behavior should render the page",
         "jsconfig.json baseurl should build production mode should trace correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -12714,12 +12688,11 @@
         "jsconfig paths without baseurl default behavior should have correct module not found error",
         "jsconfig paths without baseurl default behavior should resolve a single matching alias",
         "jsconfig paths without baseurl default behavior should resolve the first item in the array first",
-        "jsconfig paths without baseurl default behavior should resolve the second item as fallback"
-      ],
-      "failed": [
+        "jsconfig paths without baseurl default behavior should resolve the second item as fallback",
         "jsconfig paths should build production mode should trace correctly",
         "jsconfig paths without baseurl should build production mode should trace correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -14958,10 +14931,10 @@
     },
     "test/integration/styled-jsx-plugin/test/index.test.js": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "styled-jsx using in node_modules production mode should serve a page correctly"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -15609,64 +15582,68 @@
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/basic/basic.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - basic should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/mixed-module-actions/mixed-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - mixed-module-actions should not do tree shake for cjs module when import server actions"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/reexport/reexport.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - reexport should not have the unused action in the manifest"
+      ],
+      "failed": [
+        "actions-tree-shaking - reexport should keep all the action exports for namespace export case on client layer"
       ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions-edge.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/app-dir/actions-tree-shaking/shared-module-actions/shared-module-actions.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "actions-tree-shaking - shared-module-actions should not have the unused action in the manifest"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15685,6 +15662,15 @@
       "failed": [
         "actions-tree-shaking - use-effect-actions should not tree shake the used action under useEffect"
       ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/actions-tree-shaking/client-actions-tree-shaking/client-actions-tree-shaking.test.ts": {
+      "passed": [
+        "app-dir - client-actions-tree-shaking should not bundle unused server reference id in client bundles"
+      ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15760,13 +15746,12 @@
     "test/production/app-dir/client-components-tree-shaking/index.test.ts": {
       "passed": [
         "app-dir client-components-tree-shaking should able to resolve the client module entry with mixing rexports",
-        "app-dir client-components-tree-shaking should handle mixing namespace imports and named imports from client components"
-      ],
-      "failed": [
+        "app-dir client-components-tree-shaking should handle mixing namespace imports and named imports from client components",
         "app-dir client-components-tree-shaking should only include imported components 3rd party package in browser bundle with direct imports",
         "app-dir client-components-tree-shaking should only include imported relative components in browser bundle with direct imports",
         "app-dir client-components-tree-shaking should only include the imported identifier of CJS module in browser bundle"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -15793,7 +15778,8 @@
         "fetch-cache should have correct fetchUrl field for fetches and unstable_cache",
         "fetch-cache should not retry for failed fetch-cache GET",
         "fetch-cache should retry 3 times when revalidate times out",
-        "fetch-cache should update cache TTL even if cache data does not change"
+        "fetch-cache should update cache TTL even if cache data does not change",
+        "fetch-cache should batch revalidate tag requests if > 64"
       ],
       "pending": [],
       "flakey": [],
@@ -15838,6 +15824,26 @@
         "app-dir revalidate should be able to revalidate the cache via pages/api"
       ],
       "failed": [],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/server-action-period-hash/server-action-period-hash.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - server-action-period-hash should have same manifest between continuous two builds",
+        "app-dir - server-action-period-hash should have different manifest between two builds with period hash"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
+    "test/production/app-dir/server-action-period-hash/server-action-period-hash-custom-key.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is changed",
+        "app-dir - server-action-period-hash-custom-key should have different manifest if the encryption key from process env is same"
+      ],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16021,10 +16027,10 @@
     },
     "test/production/edge-config-validations/index.test.ts": {
       "passed": [],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Edge config validations fails to build when unstable_allowDynamic is not a string"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16032,10 +16038,10 @@
       "passed": [
         "Dynamic Code Evaluation (DCE) should not fail when \"function-bind\" package is used"
       ],
-      "failed": [
+      "failed": [],
+      "pending": [
         "Dynamic Code Evaluation (DCE) should show the user's import trace"
       ],
-      "pending": [],
       "flakey": [],
       "runtimeError": false
     },
@@ -16288,6 +16294,15 @@
       "flakey": [],
       "runtimeError": false
     },
+    "test/production/app-dir/metadata-revalidate/metadata-revalidate.test.ts": {
+      "passed": [],
+      "failed": [
+        "app-dir - metadata-revalidate should contain the routes in prerender manifest"
+      ],
+      "pending": [],
+      "flakey": [],
+      "runtimeError": false
+    },
     "test/production/middleware-typescript/test/index.test.ts": {
       "passed": ["middleware-typescript should have built and started"],
       "failed": [],
@@ -16439,11 +16454,10 @@
     },
     "test/production/pnpm-support/index.test.ts": {
       "passed": [
-        "pnpm support should build with dependencies installed via pnpm"
-      ],
-      "failed": [
+        "pnpm support should build with dependencies installed via pnpm",
         "pnpm support should execute client-side JS on each page in output: \"standalone\""
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16509,10 +16523,10 @@
       "runtimeError": false
     },
     "test/production/standalone-mode/ipv6/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "standalone mode: ipv6 hostname should load the page without any errors"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
@@ -16534,8 +16548,9 @@
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-app.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
+        "required server files app router should send the right cache headers for an app route",
+        "required server files app router should send the right cache headers for an app page",
         "required server files app router should not fail caching",
         "required server files app router should not send cache tags in minimal mode for SSR",
         "required server files app router should not send invalid soft tags to cache handler",
@@ -16543,13 +16558,13 @@
         "required server files app router should properly handle prerender for bot request",
         "required server files app router should send cache tags in minimal mode for ISR"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-i18n.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files i18n should bubble error correctly for API page",
         "required server files i18n should bubble error correctly for gip page",
         "required server files i18n should bubble error correctly for gsp page",
@@ -16580,16 +16595,15 @@
         "required server files i18n should set correct SWR headers with notFound gsp",
         "required server files i18n should set correct SWR headers with notFound gssp"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files-ppr.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files app router middleware rewrite should work with a dynamic path",
-        "required server files app router middleware rewrite should work with a dynamic path (with Next-Resume)",
-        "required server files app router middleware rewrite should work with a dynamic path (without Next-Resume)",
+        "required server files app router middleware rewrite should work with a dynamic path with Next-Resume",
         "required server files app router should handle RSC requests",
         "required server files app router should handle prefetch RSC requests",
         "required server files app router should not fail caching",
@@ -16603,15 +16617,16 @@
         "required server files app router should send cache tags in minimal mode for ISR",
         "required server files app router should still render when postponed is corrupted",
         "required server files app router should still render when postponed is corrupted with Next-Resume",
-        "required server files app router should still render when postponed is corrupted without Next-Resume"
+        "required server files app router should still render when postponed is corrupted without Next-Resume",
+        "required server files app router should handle revalidating the fallback page"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/required-server-files/required-server-files.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "required server files `cacheHandler` should have correct path",
         "required server files `cacheMaxMemorySize` should be disabled by setting to 0",
         "required server files `compress` should be `false` in nextEnv",
@@ -16665,18 +16680,19 @@
         "required server files should warn when \"next\" is imported directly",
         "required server files without minimalMode, with wasm should run middleware correctly"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false
     },
     "test/production/standalone-mode/response-cache/index.test.ts": {
-      "passed": [],
-      "failed": [
+      "passed": [
         "minimal-mode-response-cache app router revalidate should work with previous response cache",
         "minimal-mode-response-cache app router revalidate should work with previous response cache dynamic",
         "minimal-mode-response-cache should have correct \"Started server on\" log",
         "minimal-mode-response-cache should have correct responses"
       ],
+      "failed": [],
       "pending": [],
       "flakey": [],
       "runtimeError": false

@@ -1,13 +1,14 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::ecma::ast::Program;
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::issue::{Issue, IssueSeverity, IssueStage, OptionStyledString, StyledString};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
 
 /// A wrapper around an SWC's ecma transform wasm plugin module bytes, allowing
 /// it to operate with the turbo_tasks caching requirements.
+///
 /// Internally this contains a `CompiledPluginModuleBytes`, which points to the
 /// compiled, serialized wasmer::Module instead of raw file bytes to reduce the
 /// cost of the compilation.
@@ -48,7 +49,7 @@ impl SwcPluginModule {
 
 #[turbo_tasks::value(shared)]
 struct UnsupportedSwcEcmaTransformPluginsIssue {
-    pub file_path: Vc<FileSystemPath>,
+    pub file_path: ResolvedVc<FileSystemPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -64,16 +65,14 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
     }
 
     #[turbo_tasks::function]
-    async fn title(&self) -> Result<Vc<StyledString>> {
-        Ok(StyledString::Text(
-            "Unsupported SWC EcmaScript transform plugins on this platform.".into(),
-        )
-        .cell())
+    fn title(&self) -> Vc<StyledString> {
+        StyledString::Text("Unsupported SWC EcmaScript transform plugins on this platform.".into())
+            .cell()
     }
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.file_path
+        *self.file_path
     }
 
     #[turbo_tasks::function]
@@ -84,7 +83,7 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
                  platform."
                     .into(),
             )
-            .cell(),
+            .resolved_cell(),
         ))
     }
 }
@@ -93,12 +92,14 @@ impl Issue for UnsupportedSwcEcmaTransformPluginsIssue {
 #[derive(Debug)]
 pub struct SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    plugins: Vec<(Vc<SwcPluginModule>, serde_json::Value)>,
+    plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
 }
 
 impl SwcEcmaTransformPluginsTransformer {
     #[cfg(feature = "swc_ecma_transform_plugin")]
-    pub fn new(plugins: Vec<(Vc<SwcPluginModule>, serde_json::Value)>) -> Self {
+    pub fn new(
+        plugins: Vec<(turbo_tasks::ResolvedVc<SwcPluginModule>, serde_json::Value)>,
+    ) -> Self {
         Self { plugins }
     }
 
@@ -227,7 +228,7 @@ impl CustomTransformer for SwcEcmaTransformPluginsTransformer {
             UnsupportedSwcEcmaTransformPluginsIssue {
                 file_path: ctx.file_path,
             }
-            .cell()
+            .resolved_cell()
             .emit();
         }
 

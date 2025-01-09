@@ -4,14 +4,15 @@ use swc_core::{
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
     quote,
 };
-use turbo_tasks::{RcStr, Value, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
-use turbopack_resolve::ecmascript::{cjs_resolve, try_to_severity};
+use turbopack_resolve::ecmascript::cjs_resolve;
 
 use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
@@ -23,27 +24,27 @@ use crate::{
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub in_try: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl CjsAssetReference {
     #[turbo_tasks::function]
-    pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        issue_source: Vc<IssueSource>,
+    pub async fn new(
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
-    ) -> Vc<Self> {
-        Self::cell(CjsAssetReference {
+    ) -> Result<Vc<Self>> {
+        Ok(Self::cell(CjsAssetReference {
             origin,
             request,
             issue_source,
             in_try,
-        })
+        }))
     }
 }
 
@@ -52,10 +53,10 @@ impl ModuleReference for CjsAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
-            try_to_severity(self.in_try),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
+            self.in_try,
         )
     }
 }
@@ -76,10 +77,10 @@ impl ChunkableModuleReference for CjsAssetReference {}
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsRequireAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub path: Vc<AstPath>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub in_try: bool,
 }
 
@@ -87,10 +88,10 @@ pub struct CjsRequireAssetReference {
 impl CjsRequireAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireAssetReference {
@@ -108,10 +109,10 @@ impl ModuleReference for CjsRequireAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
-            try_to_severity(self.in_try),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
+            self.in_try,
         )
     }
 }
@@ -137,14 +138,14 @@ impl CodeGenerateable for CjsRequireAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
-            self.request,
-            self.origin,
+            *self.request,
+            *self.origin,
             Vc::upcast(chunking_context),
             cjs_resolve(
-                self.origin,
-                self.request,
-                Some(self.issue_source),
-                try_to_severity(self.in_try),
+                *self.origin,
+                *self.request,
+                Some(*self.issue_source),
+                self.in_try,
             ),
             Value::new(ChunkItem),
         )
@@ -176,17 +177,17 @@ impl CodeGenerateable for CjsRequireAssetReference {
             );
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct CjsRequireResolveAssetReference {
-    pub origin: Vc<Box<dyn ResolveOrigin>>,
-    pub request: Vc<Request>,
-    pub path: Vc<AstPath>,
-    pub issue_source: Vc<IssueSource>,
+    pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    pub request: ResolvedVc<Request>,
+    pub path: ResolvedVc<AstPath>,
+    pub issue_source: ResolvedVc<IssueSource>,
     pub in_try: bool,
 }
 
@@ -194,10 +195,10 @@ pub struct CjsRequireResolveAssetReference {
 impl CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     pub fn new(
-        origin: Vc<Box<dyn ResolveOrigin>>,
-        request: Vc<Request>,
-        path: Vc<AstPath>,
-        issue_source: Vc<IssueSource>,
+        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+        request: ResolvedVc<Request>,
+        path: ResolvedVc<AstPath>,
+        issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireResolveAssetReference {
@@ -215,10 +216,10 @@ impl ModuleReference for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
         cjs_resolve(
-            self.origin,
-            self.request,
-            Some(self.issue_source),
-            try_to_severity(self.in_try),
+            *self.origin,
+            *self.request,
+            Some(*self.issue_source),
+            self.in_try,
         )
     }
 }
@@ -244,14 +245,14 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
-            self.request,
-            self.origin,
+            *self.request,
+            *self.origin,
             Vc::upcast(chunking_context),
             cjs_resolve(
-                self.origin,
-                self.request,
-                Some(self.issue_source),
-                try_to_severity(self.in_try),
+                *self.origin,
+                *self.request,
+                Some(*self.issue_source),
+                self.in_try,
             ),
             Value::new(ChunkItem),
         )
@@ -287,14 +288,14 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             // but we can ignore that as it will be recomputed anyway.
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
 #[turbo_tasks::value(shared)]
 #[derive(Hash, Debug)]
 pub struct CjsRequireCacheAccess {
-    pub path: Vc<AstPath>,
+    pub path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
@@ -315,6 +316,6 @@ impl CodeGenerateable for CjsRequireCacheAccess {
             }
         }));
 
-        Ok(CodeGeneration { visitors }.into())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

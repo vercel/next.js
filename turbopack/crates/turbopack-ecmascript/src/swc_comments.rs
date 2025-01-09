@@ -3,7 +3,7 @@ use std::{cell::RefCell, collections::HashMap, mem::take};
 use swc_core::{
     base::SwcComments,
     common::{
-        comments::{Comment, Comments},
+        comments::{Comment, CommentKind, Comments},
         BytePos,
     },
 };
@@ -130,6 +130,31 @@ impl Comments for ImmutableComments {
         panic!("Comments are immutable after parsing")
     }
 
+    fn has_flag(&self, pos: BytePos, flag: &str) -> bool {
+        self.with_leading(pos, |cmts| {
+            for c in cmts {
+                if c.kind == CommentKind::Block {
+                    for line in c.text.lines() {
+                        // jsdoc
+                        let line = line.trim_start_matches(['*', ' ']);
+                        let line = line.trim();
+
+                        //
+                        if line.len() == (flag.len() + 5)
+                            && (line.starts_with("#__") || line.starts_with("@__"))
+                            && line.ends_with("__")
+                            && flag == &line[3..line.len() - 2]
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            false
+        })
+    }
+
     fn with_leading<F, Ret>(&self, pos: BytePos, f: F) -> Ret
     where
         Self: Sized,
@@ -185,7 +210,7 @@ impl<'a> CowComments<'a> {
     }
 }
 
-impl<'a> Comments for CowComments<'a> {
+impl Comments for CowComments<'_> {
     fn add_leading(
         &self,
         _pos: swc_core::common::BytePos,

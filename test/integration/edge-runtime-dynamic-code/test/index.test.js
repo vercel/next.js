@@ -22,6 +22,8 @@ const context = {
   appDir: join(__dirname, '../'),
 }
 
+const isTurbopack = process.env.TURBOPACK
+
 describe('Page using eval in development mode', () => {
   let output = ''
 
@@ -73,7 +75,7 @@ describe.each([
   },
 ])(
   '$title usage of dynamic code evaluation',
-  ({ extractValue, computeRoute }) => {
+  ({ extractValue, computeRoute, title }) => {
     ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
       'development mode',
       () => {
@@ -103,10 +105,50 @@ describe.each([
           expect(await extractValue(res)).toEqual(100)
           await waitFor(500)
           expect(output).toContain(EVAL_ERROR)
-          // TODO check why that has a backslash on windows
-          expect(output).toMatch(/lib[\\/]utils\.js/)
-          expect(output).toContain('usingEval')
-          expect(stripAnsi(output)).toContain("value: eval('100')")
+          if (title === 'Middleware') {
+            expect(output).toContain(
+              isTurbopack
+                ? '' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:11:16)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:12:52)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:12:53)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at eval (../packages/next/dist'
+            )
+          } else {
+            expect(output).toContain(
+              isTurbopack
+                ? '' +
+                    '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/utils.js:11:16)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:22)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '\n    at usingEval (../../test/integration/edge-runtime-dynamic-code/lib/utils.js:11:18)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:13:23)' +
+                    '\n   9 | export async function usingEval() {'
+            )
+          }
+
+          // TODO(veil): Inconsistent cursor position
+          if (isTurbopack) {
+            expect(output).toContain(
+              '' +
+                "\n> 11 |   return { value: eval('100') }" +
+                '\n     |                ^'
+            )
+          } else {
+            expect(output).toContain(
+              '' +
+                "\n> 11 |   return { value: eval('100') }" +
+                '\n     |                  ^'
+            )
+          }
         })
 
         it('does not show warning when no code uses eval', async () => {
@@ -127,11 +169,53 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_COMPILE_ERROR)
-          expect(output).toMatch(/lib[\\/]wasm\.js/)
-          expect(output).toContain('usingWebAssemblyCompile')
-          expect(stripAnsi(output)).toContain(
-            'await WebAssembly.compile(SQUARE_WASM_BUFFER)'
-          )
+          if (title === 'Middleware') {
+            expect(output).toContain(
+              isTurbopack
+                ? '' +
+                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:17)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                    '\n    at middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:24:68)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+            )
+          } else {
+            expect(output).toContain(
+              isTurbopack
+                ? '' +
+                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:17)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '' +
+                    '\n    at usingWebAssemblyCompile (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:22:23)' +
+                    '\n    at handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:17:42)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+            )
+
+            // TODO(veil): Inconsistent cursor position
+            if (isTurbopack) {
+              expect(output).toContain(
+                '' +
+                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
+                  '\n     |                 ^'
+              )
+            } else {
+              expect(output).toContain(
+                '' +
+                  '\n> 22 |   const module = await WebAssembly.compile(SQUARE_WASM_BUFFER)' +
+                  '\n     |                       ^'
+              )
+            }
+          }
         })
 
         it('shows a warning when running WebAssembly.instantiate with a buffer parameter', async () => {
@@ -142,11 +226,50 @@ describe.each([
           expect(await extractValue(res)).toEqual(81)
           await waitFor(500)
           expect(output).toContain(WASM_INSTANTIATE_ERROR)
-          expect(output).toMatch(/lib[\\/]wasm\.js/)
-          expect(output).toContain('usingWebAssemblyInstantiateWithBuffer')
-          expect(stripAnsi(output)).toContain(
-            'await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})'
-          )
+          if (title === 'Middleware') {
+            expect(output).toContain(
+              isTurbopack
+                ? '' +
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/middleware.js:37:29)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '' +
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async middleware (../../test/integration/edge-runtime-dynamic-code/middleware.js:37:29)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at '
+            )
+            expect(stripAnsi(output)).toContain(
+              '' +
+                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
+                '\n     |                       ^'
+            )
+          } else {
+            expect(output).toContain(
+              isTurbopack
+                ? '' +
+                    // TODO(veil): Turbopack duplicates project path
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:16)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+                : '' +
+                    '\n    at async usingWebAssemblyInstantiateWithBuffer (../../test/integration/edge-runtime-dynamic-code/lib/wasm.js:28:23)' +
+                    '\n    at async handler (../../test/integration/edge-runtime-dynamic-code/pages/api/route.js:21:16)' +
+                    // Next.js internal frame. Feel free to adjust.
+                    // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
+                    '\n    at'
+            )
+            expect(stripAnsi(output)).toContain(
+              '' +
+                '\n> 28 |   const { instance } = await WebAssembly.instantiate(SQUARE_WASM_BUFFER, {})' +
+                '\n     |                       ^'
+            )
+          }
         })
 
         it('does not show a warning when running WebAssembly.instantiate with a module parameter', async () => {
@@ -174,13 +297,18 @@ describe.each([
         })
 
         it('should have middleware warning during build', () => {
-          expect(buildResult.stderr).toContain(`Failed to compile`)
-          expect(buildResult.stderr).toContain(
-            `Used by usingEval, usingEvalSync`
-          )
-          expect(buildResult.stderr).toContain(
-            `Used by usingWebAssemblyCompile`
-          )
+          if (process.env.TURBOPACK) {
+            expect(buildResult.stderr).toContain(`Ecmascript file had an error`)
+          } else {
+            expect(buildResult.stderr).toContain(`Failed to compile`)
+            expect(buildResult.stderr).toContain(
+              `Used by usingEval, usingEvalSync`
+            )
+            expect(buildResult.stderr).toContain(
+              `Used by usingWebAssemblyCompile`
+            )
+          }
+
           expect(buildResult.stderr).toContain(DYNAMIC_CODE_ERROR)
         })
       }

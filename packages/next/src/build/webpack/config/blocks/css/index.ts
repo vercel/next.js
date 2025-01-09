@@ -181,6 +181,8 @@ export const css = curry(async function css(
           // Since it's optional and not required, we'll disable it by default
           // to avoid the confusion.
           fibers: false,
+          // TODO: Remove this once we upgrade to sass-loader 16
+          silenceDeprecations: ['legacy-js-api'],
           ...sassOptions,
         },
         additionalData: sassPrependData || sassAdditionalData,
@@ -617,7 +619,11 @@ export const css = curry(async function css(
           insert: function (linkTag: HTMLLinkElement) {
             if (typeof _N_E_STYLE_LOAD === 'function') {
               const { href, onload, onerror } = linkTag
-              _N_E_STYLE_LOAD(new URL(href).pathname).then(
+              _N_E_STYLE_LOAD(
+                href.indexOf(window.location.origin) === 0
+                  ? new URL(href).pathname
+                  : href
+              ).then(
                 () => onload?.call(linkTag, { type: 'load' } as Event),
                 () => onerror?.call(linkTag, {} as Event)
               )

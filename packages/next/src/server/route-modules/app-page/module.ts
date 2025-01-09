@@ -4,7 +4,10 @@ import type { RenderOpts } from '../../app-render/types'
 import type { NextParsedUrlQuery } from '../../request-meta'
 import type { LoaderTree } from '../../lib/app-dir-module'
 
-import { renderToHTMLOrFlight } from '../../app-render/app-render'
+import {
+  renderToHTMLOrFlight,
+  type AppSharedContext,
+} from '../../app-render/app-render'
 import {
   RouteModule,
   type RouteModuleOptions,
@@ -13,7 +16,7 @@ import {
 import * as vendoredContexts from './vendored/contexts/entrypoints'
 import type { BaseNextRequest, BaseNextResponse } from '../../base-http'
 import type { ServerComponentsHmrCache } from '../../response-cache'
-import type { FallbackRouteParams } from '../../../client/components/fallback-params'
+import type { FallbackRouteParams } from '../../request/fallback-params'
 
 let vendoredReactRSC
 let vendoredReactSSR
@@ -37,12 +40,13 @@ type AppPageUserlandModule = {
   loaderTree: LoaderTree
 }
 
-interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
+export interface AppPageRouteHandlerContext extends RouteModuleHandleContext {
   page: string
   query: NextParsedUrlQuery
   fallbackRouteParams: FallbackRouteParams | null
   renderOpts: RenderOpts
   serverComponentsHmrCache?: ServerComponentsHmrCache
+  sharedContext: AppSharedContext
 }
 
 export type AppPageRouteModuleOptions = RouteModuleOptions<
@@ -66,7 +70,27 @@ export class AppPageRouteModule extends RouteModule<
       context.query,
       context.fallbackRouteParams,
       context.renderOpts,
-      context.serverComponentsHmrCache
+      context.serverComponentsHmrCache,
+      false,
+      context.sharedContext
+    )
+  }
+
+  public warmup(
+    req: BaseNextRequest,
+    res: BaseNextResponse,
+    context: AppPageRouteHandlerContext
+  ): Promise<RenderResult> {
+    return renderToHTMLOrFlight(
+      req,
+      res,
+      context.page,
+      context.query,
+      context.fallbackRouteParams,
+      context.renderOpts,
+      context.serverComponentsHmrCache,
+      true,
+      context.sharedContext
     )
   }
 }

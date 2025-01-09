@@ -2,10 +2,7 @@
 @layer layer.bar {
 @media print and (orientation: portrait) {
 @supports not(display: inline-grid) and font-format(woff2) {
-.imported {
-  color: red;
-}
-
+.imported{color:red}
 }
 }
 }

@@ -32,17 +32,17 @@ pub async fn get_app_metadata_route_source(
     is_multi_dynamic: bool,
 ) -> Result<Vc<Box<dyn Source>>> {
     Ok(match metadata {
-        MetadataItem::Static { path } => static_route_source(mode, path),
+        MetadataItem::Static { path } => static_route_source(mode, *path),
         MetadataItem::Dynamic { path } => {
             let stem = path.file_stem().await?;
             let stem = stem.as_deref().unwrap_or_default();
 
             if stem == "robots" || stem == "manifest" {
-                dynamic_text_route_source(path)
+                dynamic_text_route_source(*path)
             } else if stem == "sitemap" {
-                dynamic_site_map_route_source(mode, path, is_multi_dynamic)
+                dynamic_site_map_route_source(mode, *path, is_multi_dynamic)
             } else {
-                dynamic_image_route_source(path)
+                dynamic_image_route_source(*path)
             }
         }
     })
@@ -60,11 +60,9 @@ pub async fn get_app_metadata_route_entry(
 ) -> Vc<AppEntry> {
     // Read original source's segment config before replacing source into
     // dynamic|static metadata route handler.
-    let original_path = match metadata {
-        MetadataItem::Static { path } | MetadataItem::Dynamic { path } => path,
-    };
+    let original_path = metadata.into_path();
 
-    let source = Vc::upcast(FileSource::new(original_path));
+    let source = Vc::upcast(FileSource::new(*original_path));
     let segment_config = parse_segment_config_from_source(source);
     let is_dynamic_metadata = matches!(metadata, MetadataItem::Dynamic { .. });
     let is_multi_dynamic: bool = if Some(segment_config).is_some() {
@@ -148,6 +146,15 @@ async fn static_route_source(
 
     let original_file_content_b64 = get_base64_file_content(path).await?;
 
+    let is_twitter = stem == "twitter-image";
+    let is_open_graph = stem == "opengraph-image";
+    // Twitter image file size limit is 5MB.
+    // General Open Graph image file size limit is 8MB.
+    // x-ref: https://developer.x.com/en/docs/x-for-websites/cards/overview/summary
+    // x-ref(facebook): https://developers.facebook.com/docs/sharing/webmasters/images
+    let file_size_limit = if is_twitter { 5 } else { 8 };
+    let img_name = if is_twitter { "Twitter" } else { "Open Graph" };
+
     let code = formatdoc! {
         r#"
             import {{ NextResponse }} from 'next/server'
@@ -155,6 +162,16 @@ async fn static_route_source(
             const contentType = {content_type}
             const cacheControl = {cache_control}
             const buffer = Buffer.from({original_file_content_b64}, 'base64')
+
+            if ({is_twitter} || {is_open_graph}) {{
+                const fileSizeInMB = buffer.byteLength / 1024 / 1024
+                if (fileSizeInMB > {file_size_limit}) {{
+                    throw new Error('File size for {img_name} image {path} exceeds {file_size_limit}MB. ' +
+                    `(Current: ${{fileSizeInMB.toFixed(2)}}MB)\n` +
+                    'Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata/opengraph-image#image-files-jpg-png-gif'
+                    )
+                }}
+            }}
 
             export function GET() {{
                 return new NextResponse(buffer, {{
@@ -170,6 +187,11 @@ async fn static_route_source(
         content_type = StringifyJs(&content_type),
         cache_control = StringifyJs(cache_control),
         original_file_content_b64 = StringifyJs(&original_file_content_b64),
+        is_twitter = is_twitter,
+        is_open_graph = is_open_graph,
+        file_size_limit = file_size_limit,
+        img_name = img_name,
+        path = StringifyJs(&path.to_string().await?),
     };
 
     let file = File::from(code);
@@ -279,7 +301,7 @@ async fn dynamic_site_map_route_source(
             }}
 
             export async function GET(_, ctx) {{
-                const {{ __metadata_id__: id, ...params }} = ctx.params || {{}}
+                const {{ __metadata_id__: id, ...params }} = await ctx.params || {{}}
                 const hasXmlExtension = id ? id.endsWith('.xml') : false
                 if (id && !hasXmlExtension) {{
                     return new NextResponse('Not Found', {{
@@ -347,12 +369,14 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
             }}
 
             export async function GET(_, ctx) {{
-                const {{ __metadata_id__, ...params }} = ctx.params || {{}}
+                const params = await ctx.params
+                const {{ __metadata_id__, ...rest }} = params || {{}}
+                const restParams = params ? rest : undefined
                 const targetId = __metadata_id__
                 let id = undefined
 
                 if (generateImageMetadata) {{
-                    const imageMetadata = await generateImageMetadata({{ params }})
+                    const imageMetadata = await generateImageMetadata({{ params: restParams }})
                     id = imageMetadata.find((item) => {{
                         if (process.env.NODE_ENV !== 'production') {{
                             if (item?.id == null) {{
@@ -369,7 +393,7 @@ async fn dynamic_image_route_source(path: Vc<FileSystemPath>) -> Result<Vc<Box<d
                     }}
                 }}
 
-                return handler({{ params: ctx.params ? params : undefined, id }})
+                return handler({{ params: restParams, id }})
             }}
         "#,
         resource_path = StringifyJs(&format!("./{}.{}", stem, ext)),

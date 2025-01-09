@@ -16,7 +16,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack_core::chunk::ChunkingContext;
 
 use crate::{
@@ -27,13 +27,13 @@ use crate::{
 
 #[turbo_tasks::value]
 pub struct Unreachable {
-    range: Vc<AstPathRange>,
+    range: ResolvedVc<AstPathRange>,
 }
 
 #[turbo_tasks::value_impl]
 impl Unreachable {
     #[turbo_tasks::function]
-    pub fn new(range: Vc<AstPathRange>) -> Vc<Self> {
+    pub fn new(range: ResolvedVc<AstPathRange>) -> Vc<Self> {
         Self::cell(Unreachable { range })
     }
 }
@@ -124,7 +124,7 @@ impl CodeGenerateable for Unreachable {
             }
         };
 
-        Ok(CodeGeneration { visitors }.cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }
 
@@ -133,7 +133,7 @@ struct ExtractDeclarations<'a> {
     in_nested_block_scope: bool,
 }
 
-impl<'a> VisitMut for ExtractDeclarations<'a> {
+impl VisitMut for ExtractDeclarations<'_> {
     fn visit_mut_var_decl(&mut self, decl: &mut VarDecl) {
         let VarDecl {
             span,

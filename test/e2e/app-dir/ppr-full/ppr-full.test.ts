@@ -275,7 +275,7 @@ describe('ppr-full', () => {
         for (const [pattern, client, nested] of patterns) {
           let slug: string
           if (nested) {
-            let slugs: string[] = []
+            const slugs: string[] = []
             for (let j = i + 1; j < i + 2; j++) {
               slugs.push(`slug-${pad(i)}/slug-${pad(j)}`)
             }
@@ -313,7 +313,7 @@ describe('ppr-full', () => {
             expect(streamEnd - start).toBeGreaterThanOrEqual(delay)
 
             if (client) {
-              let browser = await next.browser(pathname)
+              const browser = await next.browser(pathname)
               try {
                 await browser.waitForElementByCss('[data-slug]')
                 expect(
@@ -345,127 +345,228 @@ describe('ppr-full', () => {
       describe('Dynamic Shell', () => {
         it('should render the fallback shell on first visit', async () => {
           const random = Math.random().toString(16).slice(2)
-          const pathname = '/fallback/dynamic/params/on-first-visit-' + random
+          const pathname = `/fallback/dynamic/params/on-first-visit-${random}`
           const $ = await next.render$(pathname)
           expect($('[data-slug]').closest('[hidden]').length).toBe(1)
           expect($('[data-agent]').closest('[hidden]').length).toBe(1)
         })
 
-        it('should render the dynamic shell on the second visit', async () => {
-          const random = Math.random().toString(16).slice(2)
-          const pathname = '/fallback/dynamic/params/on-second-visit-' + random
+        if (isNextDeploy) {
+          it('should render the fallback shell every time', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/dynamic/params/on-second-visit-${random}`
 
-          let $ = await next.render$(pathname)
-          expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-          expect($('[data-agent]').closest('[hidden]').length).toBe(1)
-
-          await retry(async () => {
-            $ = await next.render$(pathname)
-            expect($('[data-slug]').closest('[hidden]').length).toBe(0)
+            let $ = await next.render$(pathname)
+            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
             expect($('[data-agent]').closest('[hidden]').length).toBe(1)
-          })
-        })
 
-        it('should render the dynamic shell as static if the page is static', async () => {
-          const random = Math.random().toString(16).slice(2)
-          const pathname = '/fallback/params/on-second-visit-' + random
-
-          // Expect that the slug had to be resumed.
-          let $ = await next.render$(pathname)
-          expect($('[data-slug]').closest('[hidden]').length).toBe(1)
-
-          // The slug didn't have to be resumed, and it should all be static.
-          await retry(async () => {
-            $ = await next.render$(pathname)
-            expect($('[data-slug]').closest('[hidden]').length).toBe(0)
-
-            const {
-              timings: { streamFirstChunk, start, streamEnd },
-              chunks,
-            } = await measurePPRTimings(async () => {
-              const res = await next.fetch(pathname)
-              expect(res.status).toBe(200)
-              if (isNextDeploy) {
-                expect(res.headers.get('x-vercel-cache')).toBe('HIT')
-              } else {
-                expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
-              }
-
-              return res.body
-            }, 1000)
-
-            expect(chunks.dynamic).toBe('')
-            expect(streamFirstChunk - start).toBeLessThan(500)
-            expect(streamEnd - start).toBeLessThan(500)
-          })
-        })
-
-        it('will only revalidate the page', async () => {
-          const random = Math.random().toString(16).slice(2)
-          const pathname = '/fallback/dynamic/params/revalidate-' + random
-
-          let $ = await next.render$(pathname)
-          const fallbackID = $('[data-layout]').data('layout') as string
-
-          let dynamicID: string
-          await retry(async () => {
-            $ = await next.render$(pathname)
-            dynamicID = $('[data-layout]').data('layout') as string
-
-            // These should be different,
-            expect(dynamicID).not.toBe(fallbackID)
+            for (let i = 0; i < 10; i++) {
+              $ = await next.render$(pathname)
+              expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+              expect($('[data-agent]').closest('[hidden]').length).toBe(1)
+            }
           })
 
-          // Now let's revalidate the page.
-          await next.fetch(
-            '/api/revalidate?pathname=' + encodeURIComponent(pathname)
-          )
+          it('should render the fallback shell even if the page is static', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/params/on-second-visit-${random}`
 
-          // We expect to get the fallback shell again.
-          if (!isNextDeploy) {
+            // Expect that the slug had to be resumed.
+            let $ = await next.render$(pathname)
+            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+
+            for (let i = 0; i < 10; i++) {
+              $ = await next.render$(pathname)
+              expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+            }
+          })
+
+          it('will not revalidate the fallback shell', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/dynamic/params/revalidate-${random}`
+
+            let $ = await next.render$(pathname)
+            const fallbackID = $('[data-layout]').data('layout') as string
+
+            // Now let's revalidate the page.
+            await next.fetch(
+              `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
+            )
+
+            // We expect to get the fallback shell again.
             $ = await next.render$(pathname)
             expect($('[data-layout]').data('layout')).toBe(fallbackID)
-          }
 
-          // Let's wait for the page to be revalidated.
-          await retry(async () => {
-            $ = await next.render$(pathname)
-            const newDynamicID = $('[data-layout]').data('layout') as string
-            expect(newDynamicID).not.toBe(dynamicID)
+            // Let's wait for the page to be revalidated.
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              const newDynamicID = $('[data-layout]').data('layout') as string
+              expect(newDynamicID).toBe(fallbackID)
+            })
           })
-        })
+        } else {
+          it('should render the route shell on the second visit', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/dynamic/params/on-second-visit-${random}`
 
-        it('will revalidate the page and fallback shell', async () => {
+            let $ = await next.render$(pathname)
+            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+            expect($('[data-agent]').closest('[hidden]').length).toBe(1)
+
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              expect($('[data-slug]').closest('[hidden]').length).toBe(0)
+              expect($('[data-agent]').closest('[hidden]').length).toBe(1)
+            })
+          })
+
+          it('should render the dynamic shell as static if the page is static', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/params/on-second-visit-${random}`
+
+            // Expect that the slug had to be resumed.
+            let $ = await next.render$(pathname)
+            expect($('[data-slug]').closest('[hidden]').length).toBe(1)
+
+            // The slug didn't have to be resumed, and it should all be static.
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              expect($('[data-slug]').closest('[hidden]').length).toBe(0)
+
+              const {
+                timings: { streamFirstChunk, start, streamEnd },
+                chunks,
+              } = await measurePPRTimings(async () => {
+                const res = await next.fetch(pathname)
+                expect(res.status).toBe(200)
+                expect(res.headers.get('x-nextjs-cache')).toBe('HIT')
+
+                return res.body
+              }, 1000)
+
+              expect(chunks.dynamic).toBe('')
+              expect(streamFirstChunk - start).toBeLessThan(500)
+              expect(streamEnd - start).toBeLessThan(500)
+            })
+          })
+
+          it('will only revalidate the page', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/dynamic/params/revalidate-${random}`
+
+            let $ = await next.render$(pathname)
+            const fallbackID = $('[data-layout]').data('layout') as string
+
+            let dynamicID: string
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              dynamicID = $('[data-layout]').data('layout') as string
+
+              // These should be different,
+              expect(dynamicID).not.toBe(fallbackID)
+            })
+
+            // Now let's revalidate the page.
+            await next.fetch(
+              `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
+            )
+
+            // We expect to get the fallback shell again.
+            $ = await next.render$(pathname)
+            expect($('[data-layout]').data('layout')).toBe(fallbackID)
+
+            // Let's wait for the page to be revalidated.
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              const newDynamicID = $('[data-layout]').data('layout') as string
+              expect(newDynamicID).not.toBe(dynamicID)
+            })
+          })
+
+          it('will revalidate the page and fallback shell', async () => {
+            const random = Math.random().toString(16).slice(2)
+            const pathname = `/fallback/dynamic/params/revalidate-${random}`
+
+            let $ = await next.render$(pathname)
+            const fallbackID = $('[data-layout]').data('layout') as string
+
+            let dynamicID: string
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              dynamicID = $('[data-layout]').data('layout') as string
+
+              // These should be different,
+              expect(dynamicID).not.toBe(fallbackID)
+            })
+
+            // Now let's revalidate the page.
+            await next.fetch(
+              `/api/revalidate?pathname=${encodeURIComponent(pathname)}`
+            )
+
+            // We expect to get the fallback shell.
+            $ = await next.render$(pathname)
+
+            // When deployed to Vercel, it will serve a stale version of the dynamic shell
+            // Whereas with `next start` it will serve the fallback shell
+            expect($('[data-layout]').data('layout')).toBe(fallbackID)
+
+            // Let's wait for the page to be revalidated.
+            let revalidatedDynamicID: string
+            await retry(async () => {
+              $ = await next.render$(pathname)
+              revalidatedDynamicID = $('[data-layout]').data('layout') as string
+              expect(revalidatedDynamicID).not.toBe(dynamicID)
+              expect(revalidatedDynamicID).not.toBe(fallbackID)
+            })
+          })
+        }
+
+        /**
+         * This test is really here to just to force the the suite to have the expected route
+         * as part of the build. If this failed we'd get a build error and all the tests would fail
+         */
+        it('will allow dynamic fallback shells even when static is enforced', async () => {
           const random = Math.random().toString(16).slice(2)
-          const pathname = '/fallback/dynamic/params/revalidate-' + random
+          const pathname = `/fallback/dynamic/params/revalidate-${random}`
 
           let $ = await next.render$(pathname)
-          const fallbackID = $('[data-layout]').data('layout') as string
-
-          let dynamicID: string
-          await retry(async () => {
-            $ = await next.render$(pathname)
-            dynamicID = $('[data-layout]').data('layout') as string
-
-            // These should be different,
-            expect(dynamicID).not.toBe(fallbackID)
-          })
-
-          // Now let's revalidate the page.
-          await next.fetch(
-            '/api/revalidate?pathname=/fallback/dynamic/params/[slug]'
-          )
-
-          // We expect to get a revalidated shell, not the same one as before.
-          $ = await next.render$(pathname)
-          expect($('[data-layout]').data('layout')).not.toBe(fallbackID)
-
-          // Let's wait for the page to be revalidated.
-          await retry(async () => {
-            $ = await next.render$(pathname)
-            expect($('[data-layout]').data('layout')).not.toBe(dynamicID)
-          })
+          expect($('[data-slug]').text()).toBe(`revalidate-${random}`)
         })
+      })
+
+      it('should allow client layouts without postponing fallback if params are not accessed', async () => {
+        const $ = await next.render$('/fallback/client/params/page/slug-01')
+
+        let selector = $(
+          '[data-file="app/fallback/client/params/[slug]/loading"]'
+        )
+        expect(selector.length).toBe(1)
+        expect(selector.closest('[hidden]').length).toBe(0)
+
+        selector = $('[data-file="app/fallback/client/params/[slug]/layout"]')
+        expect(selector.length).toBe(1)
+        expect(selector.closest('[hidden]').length).toBe(0)
+
+        selector = $('[data-file="app/fallback/client/params/[slug]/page"]')
+        expect(selector.length).toBe(1)
+        expect(selector.closest('[hidden]').length).toBe(1)
+      })
+
+      it('should postpone in client layout when fallback params are accessed', async () => {
+        const $ = await next.render$('/fallback/client/params/layout/slug-01')
+
+        let selector = $('[data-fallback="true"]')
+        expect(selector.length).toBe(1)
+        expect(selector.closest('[hidden]').length).toBe(0)
+
+        selector = $('[data-file="app/fallback/client/params/[slug]/layout"]')
+        expect(selector.length).toBe(1)
+        expect(selector.closest('[hidden]').length).toBe(1)
+
+        selector = $('[data-file="app/fallback/client/params/[slug]/page"]')
+        expect(selector.length).toBe(1)
+        expect(selector.closest('[hidden]').length).toBe(1)
       })
     })
   }

@@ -1,4 +1,6 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
+#![allow(clippy::needless_return)] // tokio macro-generated code doesn't respect this
 
 use std::{
     future::{Future, IntoFuture},
@@ -224,8 +226,8 @@ impl Doublable for WrappedU64 {
     }
 
     #[turbo_tasks::function]
-    async fn double_vc(self: Vc<Self>) -> Result<Vc<Self>> {
-        let val = self.await?.0;
+    async fn double_vc(&self) -> Result<Vc<Self>> {
+        let val = self.0;
         Ok(WrappedU64(val * 2).cell())
     }
 }

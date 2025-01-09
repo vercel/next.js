@@ -44,6 +44,7 @@ describe('Required Server Files', () => {
         }
         await fs.rename(join(appDir, 'pages'), join(appDir, 'pages-bak'))
 
+        process.env.NEXT_PRIVATE_TEST_HEADERS = '1'
         nextApp = nextServer({
           conf: {},
           dir: appDir,
@@ -57,6 +58,7 @@ describe('Required Server Files', () => {
         console.log(`Listening at ::${appPort}`)
       })
       afterAll(async () => {
+        delete process.env.NEXT_PRIVATE_TEST_HEADERS
         if (server) server.close()
         await fs.rename(join(appDir, 'pages-bak'), join(appDir, 'pages'))
       })
@@ -234,7 +236,7 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': '/fallback/first',
-              'x-now-route-matches': '1=first',
+              'x-now-route-matches': 'nxtPslug=first',
             },
           }
         )
@@ -252,7 +254,7 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': '/fallback/[slug]',
-              'x-now-route-matches': '1=second',
+              'x-now-route-matches': 'nxtPslug=second',
             },
           }
         )
@@ -289,7 +291,7 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': `/_next/data/${buildId}/fallback/[slug].json`,
-              'x-now-route-matches': '1=second',
+              'x-now-route-matches': 'nxtPslug=second',
             },
           }
         )
@@ -326,7 +328,7 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
-              'x-now-route-matches': '1=hello&catchAll=hello',
+              'x-now-route-matches': 'nxtPrest=hello&catchAll=hello',
             },
           }
         )
@@ -345,7 +347,8 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': '/catch-all/[[...rest]]',
-              'x-now-route-matches': '1=hello/world&catchAll=hello/world',
+              'x-now-route-matches':
+                'nxtPrest=hello/world&catchAll=hello/world',
             },
           }
         )
@@ -382,7 +385,7 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
-              'x-now-route-matches': '1=hello&rest=hello',
+              'x-now-route-matches': 'nxtPrest=hello&rest=hello',
             },
           }
         )
@@ -399,7 +402,7 @@ describe('Required Server Files', () => {
           {
             headers: {
               'x-matched-path': `/_next/data/${buildId}/catch-all/[[...rest]].json`,
-              'x-now-route-matches': '1=hello/world&rest=hello/world',
+              'x-now-route-matches': 'nxtPrest=hello/world&rest=hello/world',
             },
           }
         )

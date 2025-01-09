@@ -7,7 +7,7 @@ use swc_core::{
     common::DUMMY_SP,
     ecma::{
         ast::*,
-        visit::{Fold, FoldWith},
+        visit::{fold_pass, Fold, FoldWith},
     },
 };
 
@@ -16,11 +16,11 @@ pub struct Config {
     pub optimize_use_state: bool,
 }
 
-pub fn optimize_server_react(config: Config) -> impl Fold {
-    OptimizeServerReact {
+pub fn optimize_server_react(config: Config) -> impl Pass {
+    fold_pass(OptimizeServerReact {
         optimize_use_state: config.optimize_use_state,
         ..Default::default()
-    }
+    })
 }
 
 #[derive(Debug, Default)]
@@ -58,6 +58,38 @@ fn effect_has_side_effect_deps(call: &CallExpr) -> bool {
     }
 
     false
+}
+
+fn wrap_expr_with_env_prod_condition(call: CallExpr) -> Expr {
+    // Wrap the call expression with the condition
+    // turn it into `process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE && <call>`.
+    // And `process.env.__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE` will be treated as `false` in
+    // minification. In this way the expression and dependencies are still available in
+    // compilation during bundling, but will be removed in the final DEC.
+    Expr::Bin(BinExpr {
+        span: DUMMY_SP,
+        left: Box::new(Expr::Member(MemberExpr {
+            obj: (Box::new(Expr::Member(MemberExpr {
+                obj: (Box::new(Expr::Ident(Ident {
+                    sym: "process".into(),
+                    span: DUMMY_SP,
+                    ..Default::default()
+                }))),
+                prop: MemberProp::Ident(IdentName {
+                    sym: "env".into(),
+                    span: DUMMY_SP,
+                }),
+                span: DUMMY_SP,
+            }))),
+            prop: (MemberProp::Ident(IdentName {
+                sym: "__NEXT_PRIVATE_MINIMIZE_MACRO_FALSE".into(),
+                span: DUMMY_SP,
+            })),
+            span: DUMMY_SP,
+        })),
+        op: op!("&&"),
+        right: Box::new(Expr::Call(call)),
+    })
 }
 
 impl Fold for OptimizeServerReact {
@@ -101,16 +133,17 @@ impl Fold for OptimizeServerReact {
     fn fold_expr(&mut self, expr: Expr) -> Expr {
         if let Expr::Call(call) = &expr {
             if let Callee::Expr(box Expr::Ident(f)) = &call.callee {
-                // Remove `useEffect` call
+                // Mark `useEffect` as DCE'able
                 if let Some(use_effect_ident) = &self.use_effect_ident {
                     if &f.to_id() == use_effect_ident && !effect_has_side_effect_deps(call) {
-                        return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
+                        // return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
+                        return wrap_expr_with_env_prod_condition(call.clone());
                     }
                 }
-                // Remove `useLayoutEffect` call
+                // Mark `useLayoutEffect` as DCE'able
                 if let Some(use_layout_effect_ident) = &self.use_layout_effect_ident {
                     if &f.to_id() == use_layout_effect_ident && !effect_has_side_effect_deps(call) {
-                        return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
+                        return wrap_expr_with_env_prod_condition(call.clone());
                     }
                 }
             } else if let Some(react_ident) = &self.react_ident {
@@ -118,9 +151,10 @@ impl Fold for OptimizeServerReact {
                     if let box Expr::Ident(f) = &member.obj {
                         if &f.to_id() == react_ident {
                             if let MemberProp::Ident(i) = &member.prop {
-                                // Remove `React.useEffect` and `React.useLayoutEffect` calls
+                                // Mark `React.useEffect` and `React.useLayoutEffect` as DCE'able
+                                // calls in production
                                 if i.sym == "useEffect" || i.sym == "useLayoutEffect" {
-                                    return Expr::Lit(Lit::Null(Null { span: DUMMY_SP }));
+                                    return wrap_expr_with_env_prod_condition(call.clone());
                                 }
                             }
                         }

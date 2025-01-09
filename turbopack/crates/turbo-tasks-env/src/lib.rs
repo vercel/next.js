@@ -1,4 +1,5 @@
 #![feature(arbitrary_self_types)]
+#![feature(arbitrary_self_types_pointers)]
 
 mod command_line;
 mod custom;
@@ -8,8 +9,8 @@ mod filter;
 use std::{env, sync::Mutex};
 
 use anyhow::Result;
-use indexmap::IndexMap;
-use turbo_tasks::{RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, Vc};
 
 pub use self::{
     command_line::CommandLineProcessEnv, custom::CustomProcessEnv, dotenv::DotenvProcessEnv,
@@ -17,25 +18,25 @@ pub use self::{
 };
 
 #[turbo_tasks::value(transparent)]
-pub struct EnvMap(#[turbo_tasks(trace_ignore)] IndexMap<RcStr, RcStr>);
+pub struct EnvMap(#[turbo_tasks(trace_ignore)] FxIndexMap<RcStr, RcStr>);
 
 #[turbo_tasks::value_impl]
 impl EnvMap {
     #[turbo_tasks::function]
     pub fn empty() -> Vc<Self> {
-        EnvMap(IndexMap::new()).cell()
+        EnvMap(FxIndexMap::default()).cell()
     }
 }
 
 #[turbo_tasks::value_impl]
 impl ProcessEnv for EnvMap {
     #[turbo_tasks::function]
-    async fn read_all(self: Vc<Self>) -> Result<Vc<EnvMap>> {
-        Ok(self)
+    fn read_all(self: Vc<Self>) -> Vc<EnvMap> {
+        self
     }
 
     #[turbo_tasks::function]
-    async fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
+    fn read(self: Vc<Self>, name: RcStr) -> Vc<Option<RcStr>> {
         case_insensitive_read(self, name)
     }
 }
@@ -56,10 +57,10 @@ pub trait ProcessEnv {
     }
 }
 
-pub fn sorted_env_vars() -> IndexMap<RcStr, RcStr> {
+pub fn sorted_env_vars() -> FxIndexMap<RcStr, RcStr> {
     let mut vars = env::vars()
         .map(|(k, v)| (k.into(), v.into()))
-        .collect::<IndexMap<_, _>>();
+        .collect::<FxIndexMap<_, _>>();
     vars.sort_keys();
     vars
 }
@@ -77,7 +78,7 @@ pub async fn case_insensitive_read(map: Vc<EnvMap>, name: RcStr) -> Result<Vc<Op
 #[turbo_tasks::function]
 async fn to_uppercase_map(map: Vc<EnvMap>) -> Result<Vc<EnvMap>> {
     let map = &*map.await?;
-    let mut new = IndexMap::with_capacity(map.len());
+    let mut new = FxIndexMap::with_capacity_and_hasher(map.len(), Default::default());
     for (k, v) in map {
         new.insert(k.to_uppercase().into(), v.clone());
     }

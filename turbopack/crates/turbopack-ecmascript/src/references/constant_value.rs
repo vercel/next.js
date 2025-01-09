@@ -1,6 +1,6 @@
 use anyhow::Result;
 use swc_core::quote;
-use turbo_tasks::{Value, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
 
 use super::AstPath;
@@ -12,13 +12,13 @@ use crate::{
 #[turbo_tasks::value]
 pub struct ConstantValue {
     value: CompileTimeDefineValue,
-    path: Vc<AstPath>,
+    path: ResolvedVc<AstPath>,
 }
 
 #[turbo_tasks::value_impl]
 impl ConstantValue {
     #[turbo_tasks::function]
-    pub fn new(value: Value<CompileTimeDefineValue>, path: Vc<AstPath>) -> Vc<Self> {
+    pub fn new(value: Value<CompileTimeDefineValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
         Self::cell(ConstantValue {
             value: value.into_value(),
             path,
@@ -45,9 +45,6 @@ impl CodeGenerateable for ConstantValue {
             };
         });
 
-        Ok(CodeGeneration {
-            visitors: vec![visitor],
-        }
-        .cell())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }
