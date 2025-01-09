@@ -782,7 +782,7 @@ export default class MiddlewarePlugin {
         compilation,
       })
 
-      // parser hooks aren't available in RSPack
+      // parser hooks aren't available in rspack
       if (!process.env.NEXT_RSPACK) {
         hooks.parser.for('javascript/auto').tap(NAME, codeAnalyzer)
         hooks.parser.for('javascript/dynamic').tap(NAME, codeAnalyzer)
