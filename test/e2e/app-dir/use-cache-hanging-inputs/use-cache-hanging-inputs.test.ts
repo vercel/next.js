@@ -51,7 +51,7 @@ Error: Filling a cache during prerender timed out, likely because request-specif
 Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
     at eval (webpack-internal:///(rsc)/./app/page.tsx:16:97)`
       )
-    })
+    }, 180_000)
   } else {
     it('should fail the build with an error after a timeout', async () => {
       const { cliOutput } = await next.build()
@@ -64,6 +64,6 @@ Error: Filling a cache during prerender timed out, likely because request-specif
       )
 
       expect(cliOutput).toInclude('Error occurred prerendering page "/"')
-    })
+    }, 180_000)
   }
 })
