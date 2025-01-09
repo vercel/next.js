@@ -42,6 +42,8 @@ describe('ReactRefreshRequire app', () => {
     // We only edited Bar, and it accepted.
     // So we expect it to re-run alone.
     await session.evaluate(() => ((window as any).log = []))
+    expect(await session.evaluate(() => (window as any).log)).toEqual([])
+
     await session.patch(
       './bar.js',
       `window.log.push('init BarV2'); export default function Bar() { return null; };`
@@ -53,6 +55,8 @@ describe('ReactRefreshRequire app', () => {
     // We only edited Bar, and it accepted.
     // So we expect it to re-run alone.
     await session.evaluate(() => ((window as any).log = []))
+    expect(await session.evaluate(() => (window as any).log)).toEqual([])
+
     await session.patch(
       './bar.js',
       `window.log.push('init BarV3'); export default function Bar() { return null; };`
