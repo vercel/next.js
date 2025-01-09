@@ -2381,6 +2381,12 @@ async function spawnDynamicValidationInDev(
           {
             signal: finalClientController.signal,
             onError: (err, errorInfo) => {
+              if (isUseCacheTimeoutError(err)) {
+                dynamicValidation.dynamicErrors.push(err)
+
+                return
+              }
+
               if (
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
@@ -2416,16 +2422,22 @@ async function spawnDynamicValidationInDev(
     ) {
       // we don't have a root because the abort errored in the root. We can just ignore this error
     } else {
-      function LogUseCacheTimeoutError() {
-        if (isUseCacheTimeoutError(err)) {
+      if (
+        // "use cache" timeout errors in the root are already handled via `dynamicValidation.dynamicErrors`.
+        !isUseCacheTimeoutError(err) &&
+        // Do not log well-known errors.
+        !getDigestForWellKnownError(err)
+      ) {
+        function LogError() {
           // Make sure the error is propagated to the dev overlay.
           console.error(err)
+          return null
         }
 
-        return null
-      }
+        resolveValidation(<LogError />)
 
-      resolveValidation(<LogUseCacheTimeoutError />)
+        return
+      }
     }
   }
 
