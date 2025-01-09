@@ -1,0 +1,47 @@
+import Link from 'next/link'
+import Image from 'next/image'
+import { Button } from "@/components/ui/button"
+
+export function Header() {
+  return (
+    <header className="bg-white shadow-sm">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
+        <div className="flex items-center">
+          <Link href="/" className="flex items-center">
+            <div className="logo-glitch">
+              <Image
+                src="/logo.png"
+                alt="Clipfxmarketing"
+                width={80}
+                height={80}
+                className="h-16 w-auto"
+                priority
+              />
+            </div>
+          </Link>
+        </div>
+        <nav className="hidden md:flex space-x-10">
+          <Link href="#services" className="text-base font-medium text-gray-500 hover:text-primary transition-colors">
+            Services
+          </Link>
+          <Link href="#portfolio" className="text-base font-medium text-gray-500 hover:text-primary transition-colors">
+            Portfolio
+          </Link>
+          <Link href="#testimonials" className="text-base font-medium text-gray-500 hover:text-primary transition-colors">
+            Testimonials
+          </Link>
+          <Link href="#contact" className="text-base font-medium text-gray-500 hover:text-primary transition-colors">
+            Contact
+          </Link>
+        </nav>
+        <div className="flex items-center">
+          <Button className="bg-primary hover:bg-primary/90 text-white">
+            Get Started
+          </Button>
+        </div>
+      </div>
+    </header>
+  )
+}
+
+
