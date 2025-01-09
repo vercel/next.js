@@ -63,29 +63,29 @@ async function getStackFramesContent(browser) {
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.tsx (5:5) @ Page
+         "app/rsc/page.tsx (5:6) @ Page
 
-          3 | export default function Page() {
-          4 |   return (
-        > 5 |     <div>
-            |     ^
-          6 |       {list.map((item, index) => (
-          7 |         <span>{item}</span>
-          8 |       ))}"
-      `)
+           3 | export default function Page() {
+           4 |   return (
+         > 5 |     <div>
+             |      ^
+           6 |       {list.map((item, index) => (
+           7 |         <span>{item}</span>
+           8 |       ))}"
+        `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
         expect(source).toMatchInlineSnapshot(`
-        "app/rsc/page.tsx (5:6) @ Page
+                 "app/rsc/page.tsx (5:6) @ Page
 
-          3 | export default function Page() {
-          4 |   return (
-        > 5 |     <div>
-            |      ^
-          6 |       {list.map((item, index) => (
-          7 |         <span>{item}</span>
-          8 |       ))}"
-      `)
+                   3 | export default function Page() {
+                   4 |   return (
+                 > 5 |     <div>
+                     |      ^
+                   6 |       {list.map((item, index) => (
+                   7 |         <span>{item}</span>
+                   8 |       ))}"
+              `)
       }
     })
 
@@ -98,29 +98,29 @@ async function getStackFramesContent(browser) {
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
         expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.tsx (7:5) @ Page
+                 "app/ssr/page.tsx (7:5) @ Page
 
-           5 | export default function Page() {
-           6 |   return (
-        >  7 |     <div>
-             |     ^
-           8 |       {list.map((item, index) => (
-           9 |         <p>{item}</p>
-          10 |       ))}"
-      `)
+                    5 | export default function Page() {
+                    6 |   return (
+                 >  7 |     <div>
+                      |     ^
+                    8 |       {list.map((item, index) => (
+                    9 |         <p>{item}</p>
+                   10 |       ))}"
+              `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`""`)
         expect(source).toMatchInlineSnapshot(`
-        "app/ssr/page.tsx (7:6) @ Page
+                 "app/ssr/page.tsx (7:6) @ Page
 
-           5 | export default function Page() {
-           6 |   return (
-        >  7 |     <div>
-             |      ^
-           8 |       {list.map((item, index) => (
-           9 |         <p>{item}</p>
-          10 |       ))}"
-      `)
+                    5 | export default function Page() {
+                    6 |   return (
+                 >  7 |     <div>
+                      |      ^
+                    8 |       {list.map((item, index) => (
+                    9 |         <p>{item}</p>
+                   10 |       ))}"
+              `)
       }
     })
   }
