@@ -30,6 +30,7 @@ pub async fn make_chunk_group(
         *chunking_context.environment().chunk_loading().await?,
         ChunkLoading::Edge
     );
+    let should_trace = *chunking_context.is_tracing_enabled().await?;
 
     let ChunkContentResult {
         chunkable_modules,
@@ -43,7 +44,7 @@ pub async fn make_chunk_group(
         chunk_group_entries,
         availability_info,
         can_split_async,
-        *chunking_context.is_tracing_enabled().await?,
+        should_trace,
     )
     .await?;
 
@@ -144,10 +145,11 @@ pub async fn make_chunk_group(
     // Insert async chunk loaders for every referenced async module
     let async_loaders = async_modules
         .into_iter()
-        .map(|module| {
-            chunking_context
+        .map(async |module| {
+            Ok(chunking_context
                 .async_loader_chunk_item(*module, Value::new(availability_info))
                 .to_resolved()
+                .await?)
         })
         .try_join()
         .await?;

@@ -1,7 +1,7 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItemTy, ChunkItems},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemTy, ChunkItems},
     output::OutputAsset,
 };
 
@@ -26,20 +26,15 @@ impl EcmascriptChunkContent {
         Ok(ChunkItems(
             self.chunk_items
                 .iter()
-                .map(|(ty, item, _)| async move {
+                .filter_map(|(ty, item, _)| {
                     if matches!(ty, ChunkItemTy::Included) {
-                        Ok(Some(item))
+                        Some(item)
                     } else {
-                        Ok(None)
+                        None
                     }
                 })
-                .try_join()
-                .await?
-                .into_iter()
-                .flatten()
-                .map(|item| async move { Ok(ResolvedVc::upcast(*item)) })
-                .try_join()
-                .await?,
+                .map(|item| ResolvedVc::upcast::<Box<dyn ChunkItem>>(*item))
+                .collect(),
         )
         .cell())
     }

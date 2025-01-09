@@ -45,7 +45,7 @@ impl ChunkType for EcmascriptChunkType {
         let content = EcmascriptChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(|(ty, chunk_item, async_info)| async move {
+                .map(async |(ty, chunk_item, async_info)| {
                     let Some(chunk_item) =
                         ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
                             .await?

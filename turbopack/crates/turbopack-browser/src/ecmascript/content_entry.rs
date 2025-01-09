@@ -28,7 +28,7 @@ pub struct EcmascriptDevChunkContentEntry {
 
 impl EcmascriptDevChunkContentEntry {
     pub async fn new(
-        chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Self> {
         let code = chunk_item.code(async_module_info).to_resolved().await?;

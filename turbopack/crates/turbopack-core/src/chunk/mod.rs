@@ -774,7 +774,7 @@ pub enum ChunkItemTy {
 
 pub type ChunkItemWithAsyncModuleInfo = (
     ChunkItemTy,
-    Vc<Box<dyn ChunkItem>>,
+    ResolvedVc<Box<dyn ChunkItem>>,
     Option<Vc<AsyncModuleInfo>>,
 );
 

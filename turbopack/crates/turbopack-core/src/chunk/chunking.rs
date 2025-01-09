@@ -26,12 +26,12 @@ struct ChunkItemInfo {
 #[turbo_tasks::function]
 async fn chunk_item_info(
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_item: Vc<Box<dyn ChunkItem>>,
+    chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
     async_info: Option<Vc<AsyncModuleInfo>>,
 ) -> Result<Vc<ChunkItemInfo>> {
     let asset_ident = chunk_item.asset_ident().to_string();
     let ty = chunk_item.ty().to_resolved().await?;
-    let chunk_item_size = ty.chunk_item_size(chunking_context, chunk_item, async_info);
+    let chunk_item_size = ty.chunk_item_size(chunking_context, *chunk_item, async_info);
     Ok(ChunkItemInfo {
         ty,
         size: *chunk_item_size.await?,
@@ -54,8 +54,7 @@ pub async fn make_chunks(
         .iter()
         .map(|&(ty, chunk_item, async_info)| async move {
             let chunk_item_info =
-                chunk_item_info(chunking_context, *chunk_item, async_info.map(|info| *info))
-                    .await?;
+                chunk_item_info(chunking_context, *chunk_item, async_info).await?;
             Ok((ty, chunk_item, async_info, chunk_item_info))
         })
         .try_join()
@@ -79,9 +78,9 @@ pub async fn make_chunks(
             .into_iter()
             .map(|(ty, chunk_item, async_info, chunk_item_info)| async move {
                 Ok((
-                    *ty,
-                    *chunk_item,
-                    *async_info,
+                    ty,
+                    chunk_item,
+                    async_info,
                     chunk_item_info.size,
                     chunk_item_info.name.await?,
                 ))

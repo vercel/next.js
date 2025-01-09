@@ -503,11 +503,14 @@ impl ChunkType for CssChunkType {
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(|(_, chunk_item, _async_info)| async move {
+                .map(async |(_, chunk_item, _async_info)| {
+                    let Some(chunk_item) =
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
+                    else {
+                        bail!("Chunk item is not an css chunk item but reporting chunk type css");
+                    };
                     // CSS doesn't need to care about async_info, so we can discard it
-                    ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
-                        .await?
-                        .context("Chunk item is not an css chunk item but reporting chunk type css")
+                    Ok(chunk_item)
                 })
                 .try_join()
                 .await?,
