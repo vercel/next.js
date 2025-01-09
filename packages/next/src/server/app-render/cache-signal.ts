@@ -24,6 +24,7 @@ export class CacheSignal {
     if (!this.tickPending) {
       this.tickPending = true
       process.nextTick(() => {
+        console.log('noMorePendingCaches nextTick', { count: this.count })
         this.tickPending = false
         if (this.count === 0) {
           for (let i = 0; i < this.earlyListeners.length; i++) {
@@ -36,6 +37,7 @@ export class CacheSignal {
     if (!this.taskPending) {
       this.taskPending = true
       setTimeout(() => {
+        console.log('noMorePendingCaches setTimeout', { count: this.count })
         this.taskPending = false
         if (this.count === 0) {
           for (let i = 0; i < this.listeners.length; i++) {
@@ -66,6 +68,7 @@ export class CacheSignal {
    * cache reads to be initiated.
    */
   cacheReady() {
+    console.log('cacheReady called')
     return new Promise<void>((resolve) => {
       this.listeners.push(resolve)
       if (this.count === 0) {
@@ -75,10 +78,12 @@ export class CacheSignal {
   }
 
   beginRead() {
+    console.trace('cacheSignal beginRead')
     this.count++
   }
 
   endRead() {
+    console.trace('cacheSignal endRead')
     // If this is the last read we need to wait a task before we can claim the cache is settled.
     // The cache read will likely ping a Server Component which can read from the cache again and this
     // will play out in a microtask so we need to only resolve pending listeners if we're still at 0

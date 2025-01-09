@@ -21,6 +21,7 @@ import {
   getRenderResumeDataCache,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
+import { createAbortHangingInputSignal } from './dynamic-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -81,17 +82,30 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const { clientModules } = getClientReferenceManifestForRsc()
 
-  // Create an error before any asynchrounous calls, to capture the original
+  // Create an error before any asynchronous calls, to capture the original
   // call stack in case we need it when the serialization errors.
   const error = new Error()
   Error.captureStackTrace(error, encryptActionBoundArgs)
 
   let didCatchError = false
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  // TODO: No abort signal for server actions? (type is encoded in actionId)
+  const abortHangingInputSignal =
+    workUnitStore?.type === 'prerender'
+      ? createAbortHangingInputSignal(workUnitStore)
+      : undefined
+
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
     renderToReadableStream(args, clientModules, {
+      signal: abortHangingInputSignal,
       onError(err) {
+        if (abortHangingInputSignal?.aborted) {
+          return
+        }
+
         // We're only reporting one error at a time, starting with the first.
         if (didCatchError) {
           return
@@ -103,7 +117,11 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
         // stack, because err.stack is a useless Flight Server call stack.
         error.message = err instanceof Error ? err.message : String(err)
       },
-    })
+    }),
+    // We pass the abort signal to `streamToString` so that no chunks are
+    // included that are emitted after the signal was already aborted. This
+    // ensures that we can encode hanging promises.
+    abortHangingInputSignal
   )
 
   if (didCatchError) {
@@ -117,7 +135,7 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
     throw error
   }
 
-  const workUnitStore = workUnitAsyncStorage.getStore()
+  console.log({ type: workUnitAsyncStorage.getStore()?.type, serialized })
 
   if (!workUnitStore) {
     return encodeActionBoundArg(actionId, serialized)
@@ -148,23 +166,51 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   return encrypted
 }
 
+// TODO: move out of module scope into something that lives for the duration of
+// the prerender.
+const decryptedBoundArgs = new Map<string, string>()
+
 // Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(
   actionId: string,
-  encrypted: Promise<string>
+  encryptedPromise: Promise<string>
 ) {
   const { edgeRscModuleMapping, rscModuleMapping } =
     getClientReferenceManifestForRsc()
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  const cacheSignal =
+    workUnitStore?.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+
+  const encrypted = await encryptedPromise
+
+  // TODO: can this move further down?
+  cacheSignal?.beginRead()
+  console.log(workUnitStore?.type, 'before decodeActionBoundArg')
+
   // Decrypt the serialized string with the action id as the salt.
-  const decrypted = await decodeActionBoundArg(actionId, await encrypted)
+  // console.log({ encryptedPromise })
+  console.log({ encrypted })
+  let decrypted = decryptedBoundArgs.get(encrypted)
+
+  if (!decrypted) {
+    decrypted = await decodeActionBoundArg(actionId, encrypted)
+  }
+
+  decryptedBoundArgs.set(encrypted, decrypted)
+
+  console.log(workUnitStore?.type, 'after decodeActionBoundArg')
+  console.log({ type: workUnitAsyncStorage.getStore()?.type, decrypted })
+
+  cacheSignal?.endRead()
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
     new ReadableStream({
       start(controller) {
         controller.enqueue(textEncoder.encode(decrypted))
-        controller.close()
+        // controller.close()
       },
     }),
     {

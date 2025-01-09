@@ -101,13 +101,23 @@ export async function streamToBuffer(
 }
 
 export async function streamToString(
-  stream: ReadableStream<Uint8Array>
+  stream: ReadableStream<Uint8Array>,
+  signal?: AbortSignal
 ): Promise<string> {
   const decoder = new TextDecoder('utf-8', { fatal: true })
   let string = ''
 
   for await (const chunk of stream) {
-    string += decoder.decode(chunk, { stream: true })
+    if (signal?.aborted) {
+      console.log('ABORTED in streamToString')
+      return string
+    }
+
+    const decodedChunk = decoder.decode(chunk, { stream: true })
+    if (signal) {
+      console.log('CHUNK', decodedChunk)
+    }
+    string += decodedChunk
   }
 
   string += decoder.decode()

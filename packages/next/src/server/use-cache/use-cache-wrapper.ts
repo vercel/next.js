@@ -41,6 +41,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
+import { createAbortHangingInputSignal } from '../app-render/dynamic-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -277,6 +278,8 @@ async function generateCacheEntryImpl(
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
+  // console.log('encodedArguments', encodedArguments)
+
   const [, , args] =
     typeof encodedArguments === 'string'
       ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
@@ -286,6 +289,14 @@ async function generateCacheEntryImpl(
           {
             async *[Symbol.asyncIterator]() {
               for (const entry of encodedArguments) {
+                // console.log({
+                //   type: outerWorkUnitStore?.type,
+                //   renderSignalAborted:
+                //     outerWorkUnitStore?.type === 'prerender'
+                //       ? outerWorkUnitStore.renderSignal.aborted
+                //       : false,
+                //   entry,
+                // })
                 yield entry
               }
 
@@ -299,6 +310,8 @@ async function generateCacheEntryImpl(
           getServerModuleMap(),
           { temporaryReferences }
         )
+
+  // console.log('decode args', args)
 
   // Track the timestamp when we started copmuting the result.
   const startTime = performance.timeOrigin + performance.now()
@@ -314,9 +327,10 @@ async function generateCacheEntryImpl(
     // we assume you stalled on hanging input and deopt. This needs to be lower than
     // just the general timeout of 60 seconds.
     timer = setTimeout(() => {
+      console.log('TIMEOUT')
       controller.abort(timeoutError)
       // TODO: change back to 50 seconds
-    }, 50000)
+    }, 3000)
   }
 
   const stream = renderToReadableStream(
@@ -495,29 +509,10 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
-      let abortHangingInputSignal: undefined | AbortSignal
-      if (workUnitStore && workUnitStore.type === 'prerender') {
-        // In a prerender, we may end up with hanging Promises as inputs due them stalling
-        // on connection() or because they're loading dynamic data. In that case we need to
-        // abort the encoding of the arguments since they'll never complete.
-        const controller = new AbortController()
-        abortHangingInputSignal = controller.signal
-        if (workUnitStore.cacheSignal) {
-          // If we have a cacheSignal it means we're in a prospective render. If the input
-          // we're waiting on is coming from another cache, we do want to wait for it so that
-          // we can resolve this cache entry too.
-          workUnitStore.cacheSignal.inputReady().then(() => {
-            controller.abort()
-          })
-        } else {
-          // Otherwise we're in the final render and we should already have all our caches
-          // filled. We might still be waiting on some microtasks so we wait one tick before
-          // giving up. When we give up, we still want to render the content of this cache
-          // as deeply as we can so that we can suspend as deeply as possible in the tree
-          // or not at all if we don't end up waiting for the input.
-          process.nextTick(() => controller.abort())
-        }
-      }
+      const abortHangingInputSignal =
+        workUnitStore?.type === 'prerender'
+          ? createAbortHangingInputSignal(workUnitStore)
+          : undefined
 
       if (boundArgsLength > 0) {
         if (args.length === 0) {
@@ -527,6 +522,7 @@ export function cache(
         }
 
         const encryptedBoundArgs = args.shift()
+        // TODO: Handle hanging promises here?
         const boundArgs = await decryptActionBoundArgs(id, encryptedBoundArgs)
 
         if (!Array.isArray(boundArgs)) {
@@ -543,6 +539,7 @@ export function cache(
 
         args.unshift(boundArgs)
       }
+      console.log(workUnitAsyncStorage.getStore()?.type, 'args', args)
 
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
@@ -550,12 +547,14 @@ export function cache(
         { temporaryReferences, signal: abortHangingInputSignal }
       )
 
+      console.log({ type: workUnitStore?.type, encodedArguments })
       const serializedCacheKey =
         typeof encodedArguments === 'string'
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
             encodedArguments
           : await encodeFormData(encodedArguments)
+      console.log({ type: workUnitStore?.type, serializedCacheKey })
 
       let stream: undefined | ReadableStream = undefined
 

@@ -2171,6 +2171,7 @@ async function spawnDynamicValidationInDev(
 
   let initialServerStream
   try {
+    console.log('START INITIAL SERVER')
     initialServerStream = workUnitAsyncStorage.run(
       initialServerPrerenderStore,
       ComponentMod.renderToReadableStream,
@@ -2178,6 +2179,11 @@ async function spawnDynamicValidationInDev(
       clientReferenceManifest.clientModules,
       {
         onError: (err) => {
+          console.log(
+            'ON ERROR INITIAL SERVER',
+            err,
+            initialServerPrerenderController.signal.aborted
+          )
           const digest = getDigestForWellKnownError(err)
 
           if (digest) {
@@ -2227,6 +2233,7 @@ async function spawnDynamicValidationInDev(
     // are already loaded.
     await warmFlightResponse(warmupStream, clientReferenceManifest)
 
+    console.log('START INITIAL CLIENT')
     const prerender = require('react-dom/static.edge')
       .prerender as (typeof import('react-dom/static.edge'))['prerender']
     const pendingInitialClientResult = workUnitAsyncStorage.run(
@@ -2242,6 +2249,11 @@ async function spawnDynamicValidationInDev(
       {
         signal: initialClientController.signal,
         onError: (err) => {
+          console.log(
+            'ON ERROR INITIAL CLIENT',
+            err,
+            initialClientController.signal.aborted
+          )
           const digest = getDigestForWellKnownError(err)
 
           if (digest) {
@@ -2277,6 +2289,7 @@ async function spawnDynamicValidationInDev(
   await cacheSignal.cacheReady()
   // It is important that we abort the SSR render first to avoid
   // connection closed errors from having an incomplete RSC stream
+  console.log('abort initial controllers')
   initialClientController.abort()
   initialServerRenderController.abort()
   initialServerPrerenderController.abort()
@@ -2331,6 +2344,7 @@ async function spawnDynamicValidationInDev(
     isNotFound
   )
 
+  console.log('START FINAL SERVER')
   const serverPrerenderStreamResult = await prerenderServerWithPhases(
     finalServerController.signal,
     () =>
@@ -2341,15 +2355,20 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest.clientModules,
         {
           onError: (err) => {
+            console.log(
+              'ON ERROR FINAL SERVER',
+              err,
+              finalServerController.signal.aborted
+            )
+            if (isUseCacheTimeoutError(err)) {
+              return err.digest
+            }
+
             if (
               finalServerController.signal.aborted &&
               isPrerenderInterruptedError(err)
             ) {
               return err.digest
-            }
-
-            if ((err as DigestedError).digest) {
-              return (err as DigestedError).digest
             }
 
             return getDigestForWellKnownError(err)
@@ -2358,10 +2377,12 @@ async function spawnDynamicValidationInDev(
         }
       ),
     () => {
+      console.log('ABORT FINAL SERVER RENDER')
       finalServerController.abort()
     }
   )
 
+  console.log('START FINAL CLIENT')
   const serverPhasedStream = serverPrerenderStreamResult.asPhasedStream()
   try {
     const prerender = require('react-dom/static.edge')
@@ -2381,6 +2402,11 @@ async function spawnDynamicValidationInDev(
           {
             signal: finalClientController.signal,
             onError: (err, errorInfo) => {
+              console.log(
+                'ON ERROR FINAL CLIENT',
+                err,
+                finalClientController.signal.aborted
+              )
               if (isUseCacheTimeoutError(err)) {
                 dynamicValidation.dynamicErrors.push(err)
 
@@ -2411,6 +2437,7 @@ async function spawnDynamicValidationInDev(
           }
         ),
       () => {
+        console.log('ABORT FINAL CLIENT RENDER')
         finalClientController.abort()
         serverPhasedStream.assertExhausted()
       }
@@ -2431,6 +2458,7 @@ async function spawnDynamicValidationInDev(
   }
 
   function LogDynamicValidation() {
+    console.log('LogDynamicValidation')
     try {
       throwIfDisallowedDynamic(
         route,
