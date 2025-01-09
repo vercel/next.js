@@ -242,7 +242,7 @@ function assignDefaults(
   if (
     !process.env.__NEXT_VERSION?.includes('canary') &&
     !process.env.__NEXT_TEST_MODE &&
-    !process.env.NEXT_PRIVATE_SKIP_CANARY_CHECK
+    !process.env.NEXT_PRIVATE_LOCAL_DEV
   ) {
     // Prevents usage of certain experimental features outside of canary
     if (result.experimental?.ppr) {

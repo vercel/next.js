@@ -59,7 +59,11 @@ impl EcmascriptDevChunkContentEntries {
                 async move {
                     Ok((
                         chunk_item.id().await?,
-                        EcmascriptDevChunkContentEntry::new(chunk_item, async_module_info).await?,
+                        EcmascriptDevChunkContentEntry::new(
+                            *chunk_item,
+                            async_module_info.map(|info| *info),
+                        )
+                        .await?,
                     ))
                 }
                 .instrument(info_span!(

@@ -34,11 +34,12 @@ impl AsyncLoaderChunkItem {
         let module = self.module.await?;
         if let Some(chunk_items) = module.availability_info.available_chunk_items() {
             if chunk_items
+                .await?
                 .get(
                     module
                         .inner
                         .as_chunk_item(*ResolvedVc::upcast(self.chunking_context))
-                        .resolve()
+                        .to_resolved()
                         .await?,
                 )
                 .await?
