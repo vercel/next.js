@@ -81,6 +81,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (type.$$typeof) {
@@ -3528,6 +3530,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -4276,6 +4280,8 @@
           return describeBuiltInComponentFrame("SuspenseList");
         case REACT_SUSPENSE_TYPE:
           return describeBuiltInComponentFrame("Suspense");
+        case REACT_VIEW_TRANSITION_TYPE:
+          return describeBuiltInComponentFrame("ViewTransition");
       }
       return "";
     }
@@ -5309,6 +5315,12 @@
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
             task.keyPath = _prevKeyPath3;
+            return;
+          case REACT_VIEW_TRANSITION_TYPE:
+            var _prevKeyPath4 = task.keyPath;
+            task.keyPath = keyPath;
+            renderNodeDestructive(request, task, props.children, -1);
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_SCOPE_TYPE:
             throw Error(
@@ -7847,6 +7859,7 @@
       REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
       REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -9056,9 +9069,6 @@
     var didWarnAboutInvalidateContextType = new Set();
     var didWarnOnInvalidCallback = new Set();
     var classComponentUpdater = {
-        isMounted: function () {
-          return !1;
-        },
         enqueueSetState: function (inst, payload, callback) {
           var internals = inst._reactInternals;
           null === internals.queue
@@ -9281,5 +9291,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToReadableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.1.0-experimental-42687267-20250108";
+    exports.version = "19.1.0-experimental-74ea0c73-20250109";
   })();

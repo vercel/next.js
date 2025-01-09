@@ -27,6 +27,7 @@ var React = require("next/dist/compiled/react"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
   isArrayImpl = Array.isArray,
   scheduleMicrotask = queueMicrotask;
@@ -2821,9 +2822,6 @@ function switchContext(newSnapshot) {
     (currentActiveSnapshot = newSnapshot));
 }
 var classComponentUpdater = {
-    isMounted: function () {
-      return !1;
-    },
     enqueueSetState: function (inst, payload) {
       inst = inst._reactInternals;
       null !== inst.queue && inst.queue.push(payload);
@@ -3987,6 +3985,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = type;
         return;
+      case REACT_VIEW_TRANSITION_TYPE:
       case REACT_SCOPE_TYPE:
         throw Error("ReactDOMServer does not yet support scope components.");
       case REACT_SUSPENSE_TYPE:
@@ -5580,13 +5579,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_728 = React.version;
 if (
-  "19.1.0-canary-42687267-20250108" !==
+  "19.1.0-canary-74ea0c73-20250109" !==
   isomorphicReactPackageVersion$jscomp$inline_728
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_728 +
-        "\n  - react-dom:  19.1.0-canary-42687267-20250108\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.1.0-canary-74ea0c73-20250109\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5677,4 +5676,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-canary-42687267-20250108";
+exports.version = "19.1.0-canary-74ea0c73-20250109";
