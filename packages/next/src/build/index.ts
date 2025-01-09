@@ -14,7 +14,11 @@ import { makeRe } from 'next/dist/compiled/picomatch'
 import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
-import { defaultConfig } from '../server/config-shared'
+import {
+  defaultConfig,
+  nextConfigNormalizer,
+  type SerializableNextConfig,
+} from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
@@ -88,10 +92,7 @@ import {
   getSortedRouteObjects,
 } from '../shared/lib/router/utils'
 import type { __ApiPreviewProps } from '../server/api-utils'
-import loadConfig, {
-  nextConfigNormalizer,
-  type SerializableNextConfig,
-} from '../server/config'
+import loadConfig from '../server/config'
 import type { BuildManifest } from '../server/get-page-files'
 import { normalizePagePath } from '../shared/lib/page-path/normalize-page-path'
 import { getPagePath } from '../server/require'
