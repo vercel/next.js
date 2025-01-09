@@ -125,53 +125,34 @@ const INDEX_THRESHOLD: usize = 128;
 type IndexedMap =
     AutoMap<Option<CachedDataItemIndex>, AutoMap<CachedDataItemKey, CachedDataItemValue>>;
 
-pub enum InnerStorage {
-    Plain {
-        map: AutoMap<CachedDataItemKey, CachedDataItemValue>,
-        persistance_state: PersistanceState,
-    },
-    Indexed {
-        map: IndexedMap,
-        persistance_state: PersistanceState,
-    },
+enum InnerStorageMap {
+    Plain(AutoMap<CachedDataItemKey, CachedDataItemValue>),
+    Indexed(IndexedMap),
+}
+
+pub struct InnerStorage {
+    map: InnerStorageMap,
+    persistance_state: PersistanceState,
 }
 
 impl InnerStorage {
     fn new() -> Self {
-        Self::Plain {
-            map: AutoMap::new(),
+        Self {
+            map: InnerStorageMap::Plain(AutoMap::new()),
             persistance_state: PersistanceState::default(),
         }
     }
 
     pub fn persistance_state(&self) -> &PersistanceState {
-        match self {
-            InnerStorage::Plain {
-                persistance_state, ..
-            } => persistance_state,
-            InnerStorage::Indexed {
-                persistance_state, ..
-            } => persistance_state,
-        }
+        &self.persistance_state
     }
 
     pub fn persistance_state_mut(&mut self) -> &mut PersistanceState {
-        match self {
-            InnerStorage::Plain {
-                persistance_state, ..
-            } => persistance_state,
-            InnerStorage::Indexed {
-                persistance_state, ..
-            } => persistance_state,
-        }
+        &mut self.persistance_state
     }
 
     fn check_threshold(&mut self) {
-        let InnerStorage::Plain {
-            map: plain_map,
-            persistance_state,
-        } = self
-        else {
+        let InnerStorageMap::Plain(plain_map) = &mut self.map else {
             return;
         };
         if plain_map.len() >= INDEX_THRESHOLD {
@@ -180,10 +161,7 @@ impl InnerStorage {
                 let index = key.index();
                 map.entry(index).or_default().insert(key, value);
             }
-            *self = InnerStorage::Indexed {
-                map,
-                persistance_state: take(persistance_state),
-            };
+            self.map = InnerStorageMap::Indexed(map);
         }
     }
 
@@ -192,9 +170,9 @@ impl InnerStorage {
         key: &CachedDataItemKey,
     ) -> &mut AutoMap<CachedDataItemKey, CachedDataItemValue> {
         self.check_threshold();
-        match self {
-            InnerStorage::Plain { map, .. } => map,
-            InnerStorage::Indexed { map, .. } => map.entry(key.index()).or_default(),
+        match &mut self.map {
+            InnerStorageMap::Plain(map) => map,
+            InnerStorageMap::Indexed(map) => map.entry(key.index()).or_default(),
         }
     }
 
@@ -203,9 +181,9 @@ impl InnerStorage {
         key: &CachedDataItemKey,
     ) -> Option<&mut AutoMap<CachedDataItemKey, CachedDataItemValue>> {
         self.check_threshold();
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get_mut(&key.index()),
+        match &mut self.map {
+            InnerStorageMap::Plain(map) => Some(map),
+            InnerStorageMap::Indexed(map) => map.get_mut(&key.index()),
         }
     }
 
@@ -213,9 +191,9 @@ impl InnerStorage {
         &self,
         key: &CachedDataItemKey,
     ) -> Option<&AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get(&key.index()),
+        match &self.map {
+            InnerStorageMap::Plain(map) => Some(map),
+            InnerStorageMap::Indexed(map) => map.get(&key.index()),
         }
     }
 
@@ -223,9 +201,9 @@ impl InnerStorage {
         &self,
         index: <CachedDataItemKey as Indexed>::Index,
     ) -> Option<&AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get(&index),
+        match &self.map {
+            InnerStorageMap::Plain(map) => Some(map),
+            InnerStorageMap::Indexed(map) => map.get(&index),
         }
     }
 
@@ -233,9 +211,9 @@ impl InnerStorage {
         &mut self,
         index: <CachedDataItemKey as Indexed>::Index,
     ) -> Option<&mut AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get_mut(&index),
+        match &mut self.map {
+            InnerStorageMap::Plain(map) => Some(map),
+            InnerStorageMap::Indexed(map) => map.get_mut(&index),
         }
     }
 
@@ -281,7 +259,7 @@ impl InnerStorage {
     }
 
     pub fn is_indexed(&self) -> bool {
-        matches!(self, InnerStorage::Indexed { .. })
+        matches!(self.map, InnerStorageMap::Indexed { .. })
     }
 
     pub fn iter(
@@ -295,11 +273,9 @@ impl InnerStorage {
     }
 
     pub fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        match self {
-            InnerStorage::Plain { map, .. } => Either::Left(map.iter()),
-            InnerStorage::Indexed { map, .. } => {
-                Either::Right(map.iter().flat_map(|(_, m)| m.iter()))
-            }
+        match &self.map {
+            InnerStorageMap::Plain(map) => Either::Left(map.iter()),
+            InnerStorageMap::Indexed(map) => Either::Right(map.iter().flat_map(|(_, m)| m.iter())),
         }
     }
 
@@ -325,11 +301,11 @@ impl InnerStorage {
     where
         F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
     {
-        match self {
-            InnerStorage::Plain { map, .. } => map
+        match &mut self.map {
+            InnerStorageMap::Plain(map) => map
                 .extract_if(move |k, v| f(k, v))
                 .map(|(key, value)| CachedDataItem::from_key_and_value(key, value)),
-            InnerStorage::Indexed { .. } => {
+            InnerStorageMap::Indexed { .. } => {
                 panic!("Do not use extract_if_all with indexed storage")
             }
         }
