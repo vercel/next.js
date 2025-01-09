@@ -224,28 +224,17 @@ export class ClientReferenceManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(
-      PLUGIN_NAME,
-      (compilation, { normalModuleFactory }) => {
-        // compilation.dependencyFactories.set(
-        //   webpack.dependencies.ModuleDependency,
-        //   normalModuleFactory
-        // )
-        // compilation.dependencyTemplates.set(
-        //   webpack.dependencies.ModuleDependency,
-        //   new webpack.dependencies.NullDependency.Template()
-        // )
-        compilation.hooks.processAssets.tap(
-          {
-            name: PLUGIN_NAME,
-            // Have to be in the optimize stage to run after updating the CSS
-            // asset hash via extract mini css plugin.
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
-          },
-          (assets) => this.createAsset(assets, compilation, compiler.context)
-        )
-      }
-    )
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: PLUGIN_NAME,
+          // Have to be in the optimize stage to run after updating the CSS
+          // asset hash via extract mini css plugin.
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+        },
+        (assets) => this.createAsset(assets, compilation, compiler.context)
+      )
+    })
   }
 
   createAsset(

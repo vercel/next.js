@@ -145,7 +145,7 @@ export function createEmptyCacheNode(): CacheNode {
     lazyData: null,
     rsc: null,
     prefetchRsc: null,
-    head: [null, null],
+    head: null,
     prefetchHead: null,
     parallelRoutes: new Map(),
     loading: null,
@@ -275,30 +275,29 @@ function Router({
     const routerInstance: AppRouterInstance = {
       back: () => window.history.back(),
       forward: () => window.history.forward(),
-      prefetch:
-        process.env.__NEXT_PPR && process.env.__NEXT_CLIENT_SEGMENT_CACHE
-          ? // Unlike the old implementation, the Segment Cache doesn't store its
-            // data in the router reducer state; it writes into a global mutable
-            // cache. So we don't need to dispatch an action.
-            (href) =>
-              prefetchWithSegmentCache(
-                href,
-                actionQueue.state.nextUrl,
-                actionQueue.state.tree
-              )
-          : (href, options) => {
-              // Use the old prefetch implementation.
-              const url = createPrefetchURL(href)
-              if (url !== null) {
-                startTransition(() => {
-                  dispatch({
-                    type: ACTION_PREFETCH,
-                    url,
-                    kind: options?.kind ?? PrefetchKind.FULL,
-                  })
+      prefetch: process.env.__NEXT_CLIENT_SEGMENT_CACHE
+        ? // Unlike the old implementation, the Segment Cache doesn't store its
+          // data in the router reducer state; it writes into a global mutable
+          // cache. So we don't need to dispatch an action.
+          (href) =>
+            prefetchWithSegmentCache(
+              href,
+              actionQueue.state.nextUrl,
+              actionQueue.state.tree
+            )
+        : (href, options) => {
+            // Use the old prefetch implementation.
+            const url = createPrefetchURL(href)
+            if (url !== null) {
+              startTransition(() => {
+                dispatch({
+                  type: ACTION_PREFETCH,
+                  url,
+                  kind: options?.kind ?? PrefetchKind.FULL,
                 })
-              }
-            },
+              })
+            }
+          },
       replace: (href, options = {}) => {
         startTransition(() => {
           navigate(href, 'replace', options.scroll ?? true)

@@ -439,6 +439,7 @@ describe('Error overlay for hydration errors in App router', () => {
                        <RedirectBoundary>
                          <RedirectErrorBoundary router={{...}}>
                            <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
+                             <__next_metadata_boundary__>
                              <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
                                <Page params={Promise} searchParams={Promise}>
      >                           <table>
@@ -894,18 +895,19 @@ describe('Error overlay for hydration errors in App router', () => {
            <RedirectBoundary>
              <RedirectErrorBoundary router={{...}}>
                <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                 <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                   <Page params={Promise} searchParams={Promise}>
-                     <div>
+                 <__next_metadata_boundary__>
+                   <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                     <Page params={Promise} searchParams={Promise}>
                        <div>
                          <div>
                            <div>
-                             <Mismatch>
-                               <p>
-                                 <span>
-                                   ...
-       +                            client
-       -                            server"
+                             <div>
+                               <Mismatch>
+                                 <p>
+                                   <span>
+                                     ...
+       +                              client
+       -                              server"
       `)
     } else {
       expect(fullPseudoHtml).toMatchInlineSnapshot(`
@@ -914,18 +916,19 @@ describe('Error overlay for hydration errors in App router', () => {
            <RedirectBoundary>
              <RedirectErrorBoundary router={{...}}>
                <InnerLayoutRouter url="/" tree={[...]} cacheNode={{lazyData:null, ...}} segmentPath={[...]}>
-                 <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
-                   <Page params={Promise} searchParams={Promise}>
-                     <div>
+                 <__next_metadata_boundary__>
+                   <ClientPageRoot Component={function Page} searchParams={{}} params={{}}>
+                     <Page params={Promise} searchParams={Promise}>
                        <div>
                          <div>
                            <div>
-                             <Mismatch>
-                               <p>
-                                 <span>
-                                   ...
-       +                            client
-       -                            server"
+                             <div>
+                               <Mismatch>
+                                 <p>
+                                   <span>
+                                     ...
+       +                              client
+       -                              server"
       `)
     }
   })

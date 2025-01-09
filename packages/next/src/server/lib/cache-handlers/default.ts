@@ -103,7 +103,7 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
-  async unstable_expireTags(...tags) {
+  async expireTags(...tags) {
     for (const tag of tags) {
       if (!tagsManifest.items[tag]) {
         tagsManifest.items[tag] = {}
@@ -113,8 +113,11 @@ const DefaultCacheHandler: CacheHandler = {
     }
   },
 
+  // This is only meant to invalidate in memory tags
+  // not meant to be propagated like expireTags would
+  // in multi-instance scenario
   async receiveExpiredTags(...tags): Promise<void> {
-    return this.unstable_expireTags(...tags)
+    return this.expireTags(...tags)
   },
 }
 

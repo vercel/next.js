@@ -348,8 +348,7 @@ describe('app dir - prefetching', () => {
       beforePageLoad(page: Page) {
         page.on('request', async (req: Request) => {
           const url = new URL(req.url())
-          const headers = await req.allHeaders()
-          if (headers['rsc']) {
+          if (url.searchParams.has('_rsc')) {
             rscRequests.push(url.pathname + url.search)
           }
         })

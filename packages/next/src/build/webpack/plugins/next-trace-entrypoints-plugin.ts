@@ -1,10 +1,8 @@
 import nodePath from 'path'
-import crypto from 'crypto'
 import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import type { SWCLoaderOptions } from '../loaders/next-swc-loader'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
@@ -126,10 +124,6 @@ export interface BuildTraceContext {
   }
 }
 
-export function getHash(content: string | Buffer): string {
-  return crypto.createHash('sha1').update(content).digest('hex')
-}
-
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   public buildTraceContext: BuildTraceContext = {}
 
@@ -142,12 +136,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private entryTraces: Map<string, Map<string, { bundled: boolean }>>
   private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
-  private traceHashes: Map<string, string>
   private compilerType: CompilerNameValues
-  private swcLoaderConfig: {
-    loader: string
-    options: SWCLoaderOptions
-  }
 
   constructor({
     rootDir,
@@ -159,7 +148,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     traceIgnores,
     esmExternals,
     outputFileTracingRoot,
-    swcLoaderConfig,
   }: {
     rootDir: string
     compilerType: CompilerNameValues
@@ -170,7 +158,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     traceIgnores?: string[]
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
-    swcLoaderConfig: TraceEntryPointsPlugin['swcLoaderConfig']
   }) {
     this.rootDir = rootDir
     this.appDir = appDir
@@ -181,9 +168,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
     this.optOutBundlingPackages = optOutBundlingPackages
-    this.traceHashes = new Map()
     this.compilerType = compilerType
-    this.swcLoaderConfig = swcLoaderConfig
   }
 
   // Here we output all traced assets and webpack chunks to a

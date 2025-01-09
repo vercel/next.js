@@ -71,7 +71,7 @@ function fillCacheHelper(
           rsc:
             fillLazyItems || incomingSegment !== PAGE_SEGMENT_KEY ? rsc : null,
           prefetchRsc: null,
-          head: [null, null],
+          head: null,
           prefetchHead: null,
           loading,
           parallelRoutes:

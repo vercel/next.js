@@ -179,20 +179,6 @@ export class FlightClientEntryPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    // compiler.hooks.compilation.tap(
-    //   PLUGIN_NAME,
-    //   (compilation, { normalModuleFactory }) => {
-    //     compilation.dependencyFactories.set(
-    //       webpack.dependencies.ModuleDependency,
-    //       normalModuleFactory
-    //     )
-    //     compilation.dependencyTemplates.set(
-    //       webpack.dependencies.ModuleDependency,
-    //       new webpack.dependencies.NullDependency.Template()
-    //     )
-    //   }
-    // )
-
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) =>
       this.createClientEntries(compiler, compilation)
     )
@@ -933,14 +919,14 @@ export class FlightClientEntryPlugin {
           if (err) {
             return reject(err)
           }
-  
+
           compilation.moduleGraph
             .getExportsInfo(module!)
             .setUsedInUnknownWay(
               this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
             )
           return resolve(module)
-        });
+        })
       } else {
         const entry = compilation.entries.get(options.name!)!
         entry.includeDependencies.push(dependency)
@@ -962,7 +948,9 @@ export class FlightClientEntryPlugin {
             compilation.moduleGraph
               .getExportsInfo(module)
               .setUsedInUnknownWay(
-                this.isEdgeServer ? EDGE_RUNTIME_WEBPACK : DEFAULT_RUNTIME_WEBPACK
+                this.isEdgeServer
+                  ? EDGE_RUNTIME_WEBPACK
+                  : DEFAULT_RUNTIME_WEBPACK
               )
 
             return resolve(module)

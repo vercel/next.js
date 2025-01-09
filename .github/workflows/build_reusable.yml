@@ -86,6 +86,7 @@ env:
   VERCEL_TEST_TOKEN: ${{ secrets.VERCEL_TEST_TOKEN }}
   VERCEL_TEST_TEAM: vtest314-next-e2e-tests
   NEXT_RSPACK: 1
+  NEXT_TEST_PREFER_OFFLINE: 1
 
 jobs:
   build:

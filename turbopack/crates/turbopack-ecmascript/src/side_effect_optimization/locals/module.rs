@@ -93,8 +93,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleLocalsModule {
             exports,
             star_exports: vec![],
         }
-        .cell();
-        Ok(EcmascriptExports::EsmExports(exports.to_resolved().await?).cell())
+        .resolved_cell();
+        Ok(EcmascriptExports::EsmExports(exports).cell())
     }
 
     #[turbo_tasks::function]

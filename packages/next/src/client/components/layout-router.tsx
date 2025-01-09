@@ -389,6 +389,9 @@ function InnerLayoutRouter({
 
         return serverResponse
       })
+
+      // Suspend while waiting for lazyData to resolve
+      use(lazyData)
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
@@ -549,7 +552,7 @@ export default function OuterLayoutRouter({
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,

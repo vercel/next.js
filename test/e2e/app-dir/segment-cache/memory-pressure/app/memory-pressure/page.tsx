@@ -3,6 +3,10 @@ import Link from 'next/link'
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
+function Tab0() {
+  return 'Intentionally empty'
+}
+
 function Tab1() {
   return <Link href="/memory-pressure/0">Link 0</Link>
 }
@@ -17,10 +21,26 @@ function Tab2() {
 
 export default function MemoryPressure() {
   const router = useRouter()
-  const [selectedTab, setSelectedTab] = useState('1')
+  const [selectedTab, setSelectedTab] = useState('0')
 
   const handlePageChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     setSelectedTab(event.target.value)
+  }
+
+  let tab
+  switch (selectedTab) {
+    case '0':
+      tab = <Tab0 />
+      break
+    case '1':
+      tab = <Tab1 />
+      break
+    case '2':
+      tab = <Tab2 />
+      break
+    default:
+      tab = null
+      break
   }
 
   return (
@@ -59,12 +79,24 @@ export default function MemoryPressure() {
         <label>
           <input
             type="radio"
+            value="0"
+            checked={selectedTab === '0'}
+            onChange={handlePageChange}
+            name="tabSelection"
+          />
+          Tab 0
+        </label>
+      </div>
+      <div>
+        <label>
+          <input
+            type="radio"
             value="1"
             checked={selectedTab === '1'}
             onChange={handlePageChange}
             name="tabSelection"
           />
-          Page 1
+          Tab 1
         </label>
       </div>
       <div>
@@ -76,10 +108,10 @@ export default function MemoryPressure() {
             onChange={handlePageChange}
             name="tabSelection"
           />
-          Page 2
+          Tab 2
         </label>
       </div>
-      <div>{selectedTab === '1' ? <Tab1 /> : <Tab2 />}</div>
+      <div>{tab}</div>
     </form>
   )
 }

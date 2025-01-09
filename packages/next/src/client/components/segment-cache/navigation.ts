@@ -213,7 +213,6 @@ function readRenderSnapshotFromCache(
         isPartial = segmentEntry.isPartial
         break
       }
-      case EntryStatus.Empty:
       case EntryStatus.Pending: {
         // We haven't received data for this segment yet, but there's already
         // an in-progress request. Since it's extremely likely to arrive
@@ -231,12 +230,11 @@ function readRenderSnapshotFromCache(
         isPartial = true
         break
       }
+      case EntryStatus.Empty:
       case EntryStatus.Rejected:
         break
-      default: {
-        const _exhaustiveCheck: never = segmentEntry
-        break
-      }
+      default:
+        segmentEntry satisfies never
     }
   }
 

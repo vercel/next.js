@@ -10,7 +10,6 @@ const testedExamples = [
   'api-routes-middleware',
   'api-routes-rate-limit',
   'api-routes-rest',
-  'app-dir-mdx',
   'basic-css',
   'basic-export',
   'blog',
@@ -28,6 +27,7 @@ const testedExamples = [
   'image-component',
   'image-legacy-component',
   'layout-component',
+  'mdx',
   'middleware',
   'middleware-matcher',
   'nested-components',
@@ -51,10 +51,10 @@ const testedExamples = [
   'with-webassembly',
 
   // Library integrations that we can't break
+  'mdx-pages',
+  'mdx-remote',
   'with-jest',
   'with-jest-babel',
-  'with-mdx',
-  'with-mdx-remote',
   'with-turbopack',
 ]
 

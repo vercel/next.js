@@ -145,9 +145,8 @@ impl Chunk for EcmascriptChunk {
         Ok(ChunkItems(
             chunk_items
                 .iter()
-                .map(|(item, _)| async move { Ok(ResolvedVc::upcast(item.to_resolved().await?)) })
-                .try_join()
-                .await?,
+                .map(|&(item, _)| ResolvedVc::upcast(item))
+                .collect(),
         )
         .cell())
     }

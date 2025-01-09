@@ -210,7 +210,7 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let loader_references = self.module.loader().references().await?;
-        references_to_output_assets(loader_references.iter().map(|r| **r).collect::<_>()).await
+        references_to_output_assets(&*loader_references).await
     }
 
     #[turbo_tasks::function]
