@@ -8,6 +8,7 @@ import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
+import { ExternalSmall } from '../../icons/external-small'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
@@ -59,7 +60,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
-      <div>
+      <div className="code-frame-header">
         <p
           role="link"
           onClick={open}
@@ -70,19 +71,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
+          <ExternalSmall />
         </p>
       </div>
       <pre>
@@ -108,16 +97,29 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
 export const CODE_FRAME_STYLES = css`
   [data-nextjs-codeframe] {
-    overflow: auto;
-    border-radius: var(--size-gap-half);
-    background-color: var(--color-ansi-bg);
-    color: var(--color-ansi-fg);
-    margin-bottom: var(--size-gap-double);
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    flex: 1 0 0;
+
+    background-color: var(--color-background-200);
+    overflow: hidden;
+    color: var(--color-gray-1000);
+    text-overflow: ellipsis;
+    font-family: var(--font-stack-monospace);
+    font-size: 12px;
+    line-height: 16px;
   }
+
+  .code-frame-header {
+    border-top: 1px solid var(--color-gray-400);
+  }
+
   [data-nextjs-codeframe]::selection,
   [data-nextjs-codeframe] *::selection {
     background-color: var(--color-ansi-selection);
   }
+
   [data-nextjs-codeframe] * {
     color: inherit;
     background-color: transparent;
@@ -129,12 +131,7 @@ export const CODE_FRAME_STYLES = css`
     padding: calc(var(--size-gap) + var(--size-gap-half))
       calc(var(--size-gap-double) + var(--size-gap-half));
   }
-  [data-nextjs-codeframe] > div {
-    display: inline-block;
-    width: auto;
-    min-width: 100%;
-    border-bottom: 1px solid var(--color-ansi-bright-black);
-  }
+
   [data-nextjs-codeframe] > div > p {
     display: flex;
     align-items: center;
@@ -144,11 +141,6 @@ export const CODE_FRAME_STYLES = css`
   }
   [data-nextjs-codeframe] > div > p:hover {
     text-decoration: underline dotted;
-  }
-  [data-nextjs-codeframe] div > p > svg {
-    width: auto;
-    height: 1em;
-    margin-left: 8px;
   }
   [data-nextjs-codeframe] div > pre {
     overflow: hidden;
