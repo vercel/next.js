@@ -22,7 +22,7 @@ use crate::{
     chunk::ChunkingType,
     issue::{Issue, IssueExt},
     module::{Module, Modules},
-    reference::primary_chunkable_referenced_modules,
+    reference::{primary_chunkable_referenced_modules, ModuleReference},
 };
 
 #[turbo_tasks::value(transparent)]

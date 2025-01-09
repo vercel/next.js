@@ -709,51 +709,102 @@ pub(crate) async fn analyse_ecmascript_module(
     module: Vc<EcmascriptModuleAsset>,
     part: Option<Vc<ModulePart>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-    let module_ref = module.await?;
-    let ty = Value::new(module.ty().await?.clone_value());
-    // TODO a hack
-    let options = module.options().normalize();
-    let transforms = module_ref.transforms.normalize();
-    let mut result = analyse_ecmascript_module_inner(
-        module.origin_path(),
-        module.source(),
-        transforms,
-        ty,
-        module.determine_module_type(),
-        part,
-        options,
-        CompileTimeInfoKeys::new(*module_ref.compile_time_info),
-        None,
-    )
-    .to_resolved()
-    .await;
-    if let Err(err) = &result {
-        if err
-            .chain()
-            .last()
-            .is_some_and(|err| err.downcast_ref::<RequiredCompileTimeInfoError>().is_some())
-        {
-            result = analyse_ecmascript_module_inner(
-                module.origin_path(),
-                module.source(),
-                transforms,
-                ty,
-                module.determine_module_type(),
-                part,
-                options,
-                CompileTimeInfoKeys::new(*module_ref.compile_time_info),
-                Some(*module_ref.compile_time_info),
-            )
-            .to_resolved()
-            .await;
+    let span = {
+        let module = module.ident().to_string().await?;
+        tracing::info_span!("analyse ecmascript module", module = display(module))
+    };
+    async move {
+        let module_ref = module.await?;
+        let ty = Value::new(module.ty().await?.clone_value());
+        // TODO a hack
+        let options = module.options().normalize();
+        let transforms = module_ref.transforms.normalize();
+        // let ident = module.ident().to_string().await?;
+        // if ident.contains("app/page.tsx") {
+        // println!("analyse_ecmascript_module {:?}", ident);
+        //     println!(
+        //         "analyse_ecmascript_module a\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+        //         *module.origin_path().to_resolved().await?,
+        //         *module.source().to_resolved().await?,
+        //         *transforms.to_resolved().await?,
+        //         ty,
+        //         *module.determine_module_type().to_resolved().await?,
+        //         part,
+        //         *options.to_resolved().await?,
+        //         *CompileTimeInfoKeys::new(*module_ref.compile_time_info)
+        //             .to_resolved()
+        //             .await?,
+        //     );
+        //     // println!(
+        //     //     "analyse_ecmascript_module a\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+        //     //     module.origin_path(),
+        //     //     module.source(),
+        //     //     transforms,
+        //     //     module.determine_module_type(),
+        //     //     options,
+        //     //     CompileTimeInfoKeys::new(*module_ref.compile_time_info),
+        //     // );
+        //     // println!(
+        //     //     "analyse_ecmascript_module b\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}\n{:?}",
+        //     //     module.origin_path().to_resolved().await?,
+        //     //     module.source().to_resolved().await?,
+        //     //     transforms,
+        //     //     module.determine_module_type().to_resolved().await?,
+        //     //     options.to_resolved().await?,
+        //     //     CompileTimeInfoKeys::new(*module_ref.compile_time_info)
+        //     //         .to_resolved()
+        //     //         .await?,
+        //     // );
+        //     // println!(
+        //     //     "analyse_ecmascript_module c\n{:?}\n{:?}\n{:?}",
+        //     //     transforms.dbg().await?,
+        //     //     transforms.await?,
+        //     //     options.dbg().await?,
+        //     // );
+        // }
+        let mut result = analyse_ecmascript_module_inner(
+            module.origin_path(),
+            module.source(),
+            transforms,
+            ty,
+            module.determine_module_type(),
+            part,
+            options,
+            CompileTimeInfoKeys::new(*module_ref.compile_time_info),
+            None,
+        )
+        .to_resolved()
+        .await;
+        if let Err(err) = &result {
+            if err
+                .chain()
+                .last()
+                .is_some_and(|err| err.downcast_ref::<RequiredCompileTimeInfoError>().is_some())
+            {
+                result = analyse_ecmascript_module_inner(
+                    module.origin_path(),
+                    module.source(),
+                    transforms,
+                    ty,
+                    module.determine_module_type(),
+                    part,
+                    options,
+                    CompileTimeInfoKeys::new(*module_ref.compile_time_info),
+                    Some(*module_ref.compile_time_info),
+                )
+                .to_resolved()
+                .await;
+            }
         }
+        // println!(
+        //     "analyse_ecmascript_module {:?} {:?}",
+        //     module.ident().to_string().await?,
+        //     module_ref.compile_time_info.dbg().await?,
+        // );
+        Ok(result?.for_module(module))
     }
-    // println!(
-    //     "analyse_ecmascript_module {:?} {:?}",
-    //     module.ident().to_string().await?,
-    //     module_ref.compile_time_info.dbg().await?,
-    // );
-    Ok(result?.for_module(module))
+    .instrument(span)
+    .await
 }
 
 #[turbo_tasks::function]
@@ -768,11 +819,13 @@ pub(crate) async fn analyse_ecmascript_module_inner(
     compile_time_info_keys: Vc<CompileTimeInfoKeys>,
     compile_time_info: Option<Vc<CompileTimeInfo>>,
 ) -> Result<Vc<SharedAnalyzeEcmascriptModuleResult>> {
-    println!(
-        "analyse_ecmascript_module_inner {:?} {:?}",
-        origin_path.to_string().await?,
-        compile_time_info.is_some()
-    );
+    // if origin_path.await?.to_string().contains("app/page.tsx") {
+    // println!(
+    //     "analyse_ecmascript_module_inner {:?} {:?}",
+    //     origin_path.to_string().await?,
+    //     compile_time_info.is_some()
+    // );
+    // }
     let span = {
         let module = origin_path.to_string().await?.to_string();
         tracing::info_span!("analyse ecmascript module inner", module = module)

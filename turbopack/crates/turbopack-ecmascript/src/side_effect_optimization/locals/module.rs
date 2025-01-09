@@ -2,14 +2,15 @@ use std::collections::BTreeMap;
 
 use anyhow::{bail, Result};
 use turbo_tasks::{ResolvedVc, Vc};
-use turbo_tasks_fs::glob::Glob;
+use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkableModule, ChunkingContext},
+    context::AssetContext,
     ident::AssetIdent,
-    module::Module,
+    module::{Module, OptionModule},
     reference::ModuleReferences,
-    resolve::ModulePart,
+    resolve::{origin::ResolveOrigin, parse::Request, ModulePart},
 };
 
 use super::chunk_item::EcmascriptModuleLocalsChunkItem;
@@ -59,6 +60,24 @@ impl Asset for EcmascriptModuleLocalsModule {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<AssetContent> {
         self.module.content()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ResolveOrigin for EcmascriptModuleLocalsModule {
+    #[turbo_tasks::function]
+    fn origin_path(&self) -> Vc<FileSystemPath> {
+        self.module.origin_path()
+    }
+
+    #[turbo_tasks::function]
+    fn asset_context(&self) -> Vc<Box<dyn AssetContext>> {
+        self.module.asset_context()
+    }
+
+    #[turbo_tasks::function]
+    async fn get_inner_asset(&self, request: Vc<Request>) -> Vc<OptionModule> {
+        self.module.get_inner_asset(request)
     }
 }
 
