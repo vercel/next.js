@@ -1222,6 +1222,13 @@ export default async function loadConfig(
       }
     }
 
+    // For deployment, deserialize the regex config
+    if (typeof userConfig.experimental?.htmlLimitedBots === 'string') {
+      userConfig.experimental.htmlLimitedBots = new RegExp(
+        userConfig.experimental.htmlLimitedBots
+      )
+    }
+
     onLoadUserConfig?.(userConfig)
     const completeConfig = assignDefaults(
       dir,
