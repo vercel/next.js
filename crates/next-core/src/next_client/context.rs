@@ -325,6 +325,7 @@ pub async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: None,
+            import_externals: *next_config.import_externals().await?,
             ..Default::default()
         },
         // preset_env_versions: Some(env),

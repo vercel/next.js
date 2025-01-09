@@ -18,7 +18,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -104,6 +104,16 @@ impl EcmascriptInputTransforms {
         let mut transforms = self.await?.clone_value();
         transforms.extend(other.await?.clone_value());
         Ok(Vc::cell(transforms))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn normalize(&self) -> Vc<Self> {
+        Self::normalize_inner(self.0.iter().cloned().map(Value::new).collect())
+    }
+
+    #[turbo_tasks::function]
+    async fn normalize_inner(transforms: Vec<Value<EcmascriptInputTransform>>) -> Vc<Self> {
+        Vc::cell(transforms.into_iter().map(Value::into_value).collect())
     }
 }
 

@@ -562,7 +562,8 @@ pub async fn get_server_module_options_context(
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: None,
             import_externals: *next_config.import_externals().await?,
-            ignore_dynamic_requests: true,
+            // TODO
+            ignore_dynamic_requests: false,
             ..Default::default()
         },
         execution_context: Some(execution_context),

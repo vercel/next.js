@@ -568,23 +568,59 @@ pub struct CompileTimeInfoKeys {
 
 #[turbo_tasks::value_impl]
 impl CompileTimeInfoKeys {
+    // #[turbo_tasks::function]
+    // pub async fn new(compile_time_info: Vc<CompileTimeInfo>) -> Result<Vc<Self>> {
+    //     let compile_time_info = compile_time_info.await?;
+    //     Ok(Self {
+    //         defines: compile_time_info
+    //             .defines
+    //             .individual()
+    //             .await?
+    //             .keys()
+    //             .cloned()
+    //             .collect(),
+    //         free_var_references: compile_time_info
+    //             .free_var_references
+    //             .individual()
+    //             .await?
+    //             .keys()
+    //             .cloned()
+    //             .collect(),
+    //     }
+    //     .cell())
+    // }
     #[turbo_tasks::function]
     pub async fn new(compile_time_info: Vc<CompileTimeInfo>) -> Result<Vc<Self>> {
         let compile_time_info = compile_time_info.await?;
-        Ok(Self {
-            defines: compile_time_info
+        Ok(Self::new_inner(
+            compile_time_info
                 .defines
                 .individual()
                 .await?
                 .keys()
                 .cloned()
+                .map(Value::new)
                 .collect(),
-            free_var_references: compile_time_info
+            compile_time_info
                 .free_var_references
                 .individual()
                 .await?
                 .keys()
                 .cloned()
+                .map(Value::new)
+                .collect(),
+        ))
+    }
+    #[turbo_tasks::function]
+    async fn new_inner(
+        defines: Vec<Value<Vec<DefineableNameSegment>>>,
+        free_var_references: Vec<Value<Vec<DefineableNameSegment>>>,
+    ) -> Result<Vc<Self>> {
+        Ok(Self {
+            defines: defines.into_iter().map(Value::into_value).collect(),
+            free_var_references: free_var_references
+                .into_iter()
+                .map(Value::into_value)
                 .collect(),
         }
         .cell())
@@ -674,14 +710,18 @@ pub(crate) async fn analyse_ecmascript_module(
     part: Option<Vc<ModulePart>>,
 ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
     let module_ref = module.await?;
+    let ty = Value::new(module.ty().await?.clone_value());
+    // TODO a hack
+    let options = module.options().normalize();
+    let transforms = module_ref.transforms.normalize();
     let mut result = analyse_ecmascript_module_inner(
         module.origin_path(),
         module.source(),
-        *module_ref.transforms,
-        module.ty(),
+        transforms,
+        ty,
         module.determine_module_type(),
         part,
-        module.options(),
+        options,
         CompileTimeInfoKeys::new(*module_ref.compile_time_info),
         None,
     )
@@ -696,11 +736,11 @@ pub(crate) async fn analyse_ecmascript_module(
             result = analyse_ecmascript_module_inner(
                 module.origin_path(),
                 module.source(),
-                *module_ref.transforms,
-                module.ty(),
+                transforms,
+                ty,
                 module.determine_module_type(),
                 part,
-                module.options(),
+                options,
                 CompileTimeInfoKeys::new(*module_ref.compile_time_info),
                 Some(*module_ref.compile_time_info),
             )
@@ -721,7 +761,7 @@ pub(crate) async fn analyse_ecmascript_module_inner(
     origin_path: ResolvedVc<FileSystemPath>,
     source: ResolvedVc<Box<dyn Source>>,
     transforms: ResolvedVc<EcmascriptInputTransforms>,
-    ty: Vc<EcmascriptModuleAssetType>,
+    ty: Value<EcmascriptModuleAssetType>,
     module_type: Vc<ModuleTypeResult>,
     part: Option<Vc<ModulePart>>,
     options: Vc<EcmascriptOptions>,
@@ -741,7 +781,7 @@ pub(crate) async fn analyse_ecmascript_module_inner(
         origin_path,
         source,
         transforms,
-        Value::new(*ty.await?),
+        ty,
         module_type,
         part,
         options.await?,

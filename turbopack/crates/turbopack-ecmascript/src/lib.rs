@@ -118,6 +118,7 @@ pub enum SpecifiedModuleType {
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -148,6 +149,40 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptOptions {
+    #[turbo_tasks::function]
+    pub fn new(
+        refresh: bool,
+        tree_shaking_mode: Option<TreeShakingMode>,
+        specified_module_type: SpecifiedModuleType,
+        url_rewrite_behavior: Option<UrlRewriteBehavior>,
+        import_externals: bool,
+        ignore_dynamic_requests: bool,
+    ) -> Vc<Self> {
+        Self {
+            refresh,
+            tree_shaking_mode,
+            specified_module_type,
+            url_rewrite_behavior,
+            import_externals,
+            ignore_dynamic_requests,
+        }
+        .cell()
+    }
+    #[turbo_tasks::function]
+    pub fn normalize(&self) -> Vc<Self> {
+        Self::new(
+            self.refresh,
+            self.tree_shaking_mode,
+            self.specified_module_type,
+            self.url_rewrite_behavior,
+            self.import_externals,
+            self.ignore_dynamic_requests,
+        )
+    }
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
