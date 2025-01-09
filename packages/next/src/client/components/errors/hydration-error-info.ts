@@ -1,4 +1,4 @@
-import { getHydrationErrorStackInfo } from '../../../../is-hydration-error'
+import { getHydrationErrorStackInfo } from '../is-hydration-error'
 
 export type HydrationErrorState = {
   // Hydration warning template format: <message> <serverContent> <clientContent>
