@@ -35,7 +35,9 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         .map((line, a) =>
           ~(a = line.indexOf('|'))
             ? line.substring(0, a) +
-              line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
+              line
+                .substring(a + 1)
+                .replace(`^\\ {${miniLeadingSpacesLength}}`, '')
             : line
         )
         .join('\n')
@@ -113,6 +115,7 @@ export const CODE_FRAME_STYLES = css`
 
   .code-frame-header {
     border-top: 1px solid var(--color-gray-400);
+    border-bottom: 1px solid var(--color-gray-400);
   }
 
   [data-nextjs-codeframe]::selection,

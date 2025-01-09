@@ -25,35 +25,11 @@ const baseStackFrame = {
 export const SimpleCodeFrame: Story = {
   args: {
     stackFrame: baseStackFrame,
-    codeFrame: `   8 | function MyComponent() {
-   9 |   return (
-> 10 |     <div>Hello World</div>
+    codeFrame: `   8 | \u001b[31mfunction\u001b[39m \u001b[31mMyComponent\u001b[39m() {
+   9 |   \u001b[31mreturn\u001b[39m (
+> 10 |     <\u001b[31mdiv\u001b[39m>Hello \u001b[31mWorld\u001b[39m</\u001b[31mdiv\u001b[39m>
      |     ^
   11 |   )
   12 | }`,
-  },
-}
-
-export const WithSyntaxHighlighting: Story = {
-  args: {
-    stackFrame: baseStackFrame,
-    codeFrame: `   8 | function MyComponent() {
-   9 |   return (
-> 10 |     \u001b[31m<div>\u001b[39mHello World\u001b[31m</div>\u001b[39m
-     |     ^
-  11 |   )
-  12 | }`,
-  },
-}
-
-export const LongIndentation: Story = {
-  args: {
-    stackFrame: baseStackFrame,
-    codeFrame: `   8 |     function deeplyNested() {
-   9 |         return (
-> 10 |             <div>
-     |             ^
-  11 |                 Deeply Nested Content
-  12 |             </div>`,
   },
 }
