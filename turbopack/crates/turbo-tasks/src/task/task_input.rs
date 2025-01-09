@@ -1,6 +1,7 @@
 use std::{any::Any, fmt::Debug, future::Future, hash::Hash, time::Duration};
 
 use anyhow::Result;
+use either::Either;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 
@@ -217,6 +218,29 @@ impl<'de, T> Deserialize<'de> for TransientInstance<T> {
         Err(serde::de::Error::custom(
             "cannot deserialize transient task inputs",
         ))
+    }
+}
+
+impl<L, R> TaskInput for Either<L, R>
+where
+    L: TaskInput,
+    R: TaskInput,
+{
+    fn resolve(&self) -> impl Future<Output = Result<Self>> + Send + '_ {
+        self.as_ref().map_either(
+            |l| async move { anyhow::Ok(Either::Left(l.resolve().await?)) },
+            |r| async move { anyhow::Ok(Either::Right(r.resolve().await?)) },
+        )
+    }
+
+    fn is_resolved(&self) -> bool {
+        self.as_ref()
+            .either(TaskInput::is_resolved, TaskInput::is_resolved)
+    }
+
+    fn is_transient(&self) -> bool {
+        self.as_ref()
+            .either(TaskInput::is_transient, TaskInput::is_transient)
     }
 }
 
