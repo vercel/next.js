@@ -35,70 +35,70 @@
  * ```
  */
 class StringXor {
-	constructor() {
-		/** @type {Buffer|undefined} */
-		this._value = undefined;
-	}
+  constructor() {
+    /** @type {Buffer|undefined} */
+    this._value = undefined
+  }
 
-	/**
-	 * Adds a string to the current StringXor object.
-	 *
-	 * @param {string} str string
-	 * @returns {void}
-	 */
-	add(str) {
-		const len = str.length;
-		const value = this._value;
-		if (value === undefined) {
-			/**
-			 * We are choosing to use Buffer.allocUnsafe() because it is often faster than Buffer.alloc() because
-			 * it allocates a new buffer of the specified size without initializing the memory.
-			 */
-			const newValue = (this._value = Buffer.allocUnsafe(len));
-			for (let i = 0; i < len; i++) {
-				newValue[i] = str.charCodeAt(i);
-			}
-			return;
-		}
-		const valueLen = value.length;
-		if (valueLen < len) {
-			const newValue = (this._value = Buffer.allocUnsafe(len));
-			let i;
-			for (i = 0; i < valueLen; i++) {
-				newValue[i] = value[i] ^ str.charCodeAt(i);
-			}
-			for (; i < len; i++) {
-				newValue[i] = str.charCodeAt(i);
-			}
-		} else {
-			for (let i = 0; i < len; i++) {
-				value[i] = value[i] ^ str.charCodeAt(i);
-			}
-		}
-	}
+  /**
+   * Adds a string to the current StringXor object.
+   *
+   * @param {string} str string
+   * @returns {void}
+   */
+  add(str) {
+    const len = str.length
+    const value = this._value
+    if (value === undefined) {
+      /**
+       * We are choosing to use Buffer.allocUnsafe() because it is often faster than Buffer.alloc() because
+       * it allocates a new buffer of the specified size without initializing the memory.
+       */
+      const newValue = (this._value = Buffer.allocUnsafe(len))
+      for (let i = 0; i < len; i++) {
+        newValue[i] = str.charCodeAt(i)
+      }
+      return
+    }
+    const valueLen = value.length
+    if (valueLen < len) {
+      const newValue = (this._value = Buffer.allocUnsafe(len))
+      let i
+      for (i = 0; i < valueLen; i++) {
+        newValue[i] = value[i] ^ str.charCodeAt(i)
+      }
+      for (; i < len; i++) {
+        newValue[i] = str.charCodeAt(i)
+      }
+    } else {
+      for (let i = 0; i < len; i++) {
+        value[i] = value[i] ^ str.charCodeAt(i)
+      }
+    }
+  }
 
-	/**
-	 * Returns a string that represents the current state of the StringXor object. We chose to use "latin1" encoding
-	 * here because "latin1" encoding is a single-byte encoding that can represent all characters in the
-	 * [ISO-8859-1 character set](https://en.wikipedia.org/wiki/ISO/IEC_8859-1). This is useful when working
-	 * with binary data that needs to be represented as a string.
-	 *
-	 * @returns {string} Returns a string that represents the current state of the StringXor object.
-	 */
-	toString() {
-		const value = this._value;
-		return value === undefined ? "" : value.toString("latin1");
-	}
+  /**
+   * Returns a string that represents the current state of the StringXor object. We chose to use "latin1" encoding
+   * here because "latin1" encoding is a single-byte encoding that can represent all characters in the
+   * [ISO-8859-1 character set](https://en.wikipedia.org/wiki/ISO/IEC_8859-1). This is useful when working
+   * with binary data that needs to be represented as a string.
+   *
+   * @returns {string} Returns a string that represents the current state of the StringXor object.
+   */
+  toString() {
+    const value = this._value
+    return value === undefined ? '' : value.toString('latin1')
+  }
 
-	/**
-	 * Updates the hash with the current state of the StringXor object.
-	 *
-	 * @param {Hash} hash Hash instance
-	 */
-	updateHash(hash) {
-		const value = this._value;
-		if (value !== undefined) hash.update(value);
-	}
+  /**
+   * Updates the hash with the current state of the StringXor object.
+   *
+   * @param {Hash} hash Hash instance
+   */
+  updateHash(hash) {
+    const value = this._value
+    if (value !== undefined) hash.update(value)
+  }
 }
 
-module.exports = StringXor;
+module.exports = StringXor
