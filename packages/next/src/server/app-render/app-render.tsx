@@ -2422,22 +2422,11 @@ async function spawnDynamicValidationInDev(
     ) {
       // we don't have a root because the abort errored in the root. We can just ignore this error
     } else {
-      if (
-        // "use cache" timeout errors in the root are already handled via `dynamicValidation.dynamicErrors`.
-        !isUseCacheTimeoutError(err) &&
-        // Do not log well-known errors.
-        !getDigestForWellKnownError(err)
-      ) {
-        function LogError() {
-          // Make sure the error is propagated to the dev overlay.
-          console.error(err)
-          return null
-        }
-
-        resolveValidation(<LogError />)
-
-        return
-      }
+      // If an error is thrown in the root before prerendering is aborted, we
+      // don't want to rethrow it here, otherwise this would lead to a hanging
+      // response and unhandled rejection. We also don't want to log it, because
+      // it's most likely already logged as part of the normal render. So we
+      // just fall through here, to make sure `resolveValidation` is called.
     }
   }
 
