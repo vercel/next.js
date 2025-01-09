@@ -113,10 +113,10 @@ function runTests(startServer = nextStart) {
     expect(cookies.length).toBe(2)
     expect(cookies[0]).toMatchObject({ Path: '/', SameSite: 'None' })
     expect(cookies[0]).toHaveProperty('__prerender_bypass')
-    expect(cookies[0]['Max-Age']).toBe(expiry)
+    expect(parseInt(cookies[0]['Max-Age'])).toBe(expiry)
     expect(cookies[1]).toMatchObject({ Path: '/', SameSite: 'None' })
     expect(cookies[1]).toHaveProperty('__next_preview_data')
-    expect(cookies[1]['Max-Age']).toBe(expiry)
+    expect(parseInt(cookies[1]['Max-Age'])).toBe(expiry)
   })
   it('should set custom path cookies', async () => {
     const path = '/path'
