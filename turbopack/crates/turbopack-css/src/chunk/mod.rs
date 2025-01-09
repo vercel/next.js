@@ -3,7 +3,7 @@ pub mod source_map;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
@@ -502,13 +502,10 @@ impl ChunkType for CssChunkType {
             chunk_items: chunk_items
                 .iter()
                 .map(|(chunk_item, _async_info)| async move {
-                    let Some(chunk_item) =
-                        Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
-                    else {
-                        bail!("Chunk item is not an css chunk item but reporting chunk type css");
-                    };
                     // CSS doesn't need to care about async_info, so we can discard it
-                    chunk_item.to_resolved().await
+                    ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
+                        .await?
+                        .context("Chunk item is not an css chunk item but reporting chunk type css")
                 })
                 .try_join()
                 .await?,

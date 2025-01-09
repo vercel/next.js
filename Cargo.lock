@@ -8385,6 +8385,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "new_debug_unreachable",
  "serde",
  "triomphe 0.1.12",
  "turbo-tasks-hash",
@@ -8420,6 +8421,7 @@ dependencies = [
  "auto-hash-map",
  "concurrent-queue",
  "dashmap 6.1.0",
+ "either",
  "erased-serde",
  "event-listener 2.5.3",
  "futures",

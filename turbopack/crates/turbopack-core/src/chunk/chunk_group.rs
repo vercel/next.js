@@ -2,9 +2,7 @@ use std::collections::HashSet;
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
-use turbo_tasks::{
-    FxIndexMap, FxIndexSet, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc,
-};
+use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 
 use super::{
     availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItemInfo,
@@ -22,7 +20,7 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
@@ -53,7 +51,7 @@ pub async fn make_chunk_group(
         .keys()
         .copied()
         .chain(self_async_children.into_iter())
-        .map(|chunk_item| (chunk_item, AutoSet::<Vc<Box<dyn ChunkItem>>>::new()))
+        .map(|chunk_item| (chunk_item, AutoSet::<ResolvedVc<Box<dyn ChunkItem>>>::new()))
         .collect::<FxIndexMap<_, _>>();
 
     // Propagate async inheritance
@@ -86,7 +84,7 @@ pub async fn make_chunk_group(
     let mut chunk_items = chunk_items
         .into_iter()
         .map(|chunk_item| (chunk_item, None))
-        .collect::<FxIndexMap<_, Option<Vc<AsyncModuleInfo>>>>();
+        .collect::<FxIndexMap<_, Option<ResolvedVc<AsyncModuleInfo>>>>();
 
     // Insert AsyncModuleInfo for every async module
     for (async_item, referenced_async_modules) in async_chunk_items {
@@ -96,13 +94,18 @@ pub async fn make_chunk_group(
                     .iter()
                     .copied()
                     .filter(|item| referenced_async_modules.contains(item))
+                    .map(|item| *item)
                     .collect()
             } else {
                 Default::default()
             };
         chunk_items.insert(
             async_item,
-            Some(AsyncModuleInfo::new(referenced_async_modules)),
+            Some(
+                AsyncModuleInfo::new(referenced_async_modules)
+                    .to_resolved()
+                    .await?,
+            ),
         );
     }
 
@@ -112,7 +115,7 @@ pub async fn make_chunk_group(
             .iter()
             .map(|(&chunk_item, async_info)| async move {
                 Ok((
-                    chunk_item.to_resolved().await?,
+                    chunk_item,
                     AvailableChunkItemInfo {
                         is_async: async_info.is_some(),
                     },
@@ -130,9 +133,12 @@ pub async fn make_chunk_group(
     let async_loaders = async_modules
         .into_iter()
         .map(|module| {
-            chunking_context.async_loader_chunk_item(*module, Value::new(availability_info))
+            chunking_context
+                .async_loader_chunk_item(*module, Value::new(availability_info))
+                .to_resolved()
         })
-        .collect::<Vec<_>>();
+        .try_join()
+        .await?;
     let has_async_loaders = !async_loaders.is_empty();
     let async_loader_chunk_items = async_loaders.iter().map(|&chunk_item| (chunk_item, None));
 
@@ -151,7 +157,7 @@ pub async fn make_chunk_group(
 
     let mut referenced_output_assets = (*external_output_assets.await?).clone();
     referenced_output_assets.extend(
-        references_to_output_assets(external_module_references)
+        references_to_output_assets(&external_module_references)
             .await?
             .await?
             .iter()
@@ -175,7 +181,7 @@ pub async fn make_chunk_group(
 
     // Pass chunk items to chunking algorithm
     let mut chunks = make_chunks(
-        chunking_context,
+        *chunking_context,
         Vc::cell(chunk_items.into_iter().collect()),
         "".into(),
         Vc::cell(referenced_output_assets),
@@ -188,7 +194,7 @@ pub async fn make_chunk_group(
         // We want them to be separate since they are specific to this chunk group due
         // to available chunk items differing
         let async_loader_chunks = make_chunks(
-            chunking_context,
+            *chunking_context,
             Vc::cell(async_loader_chunk_items.into_iter().collect()),
             "async-loader-".into(),
             async_loader_external_module_references,
@@ -206,7 +212,7 @@ pub async fn make_chunk_group(
 }
 
 pub async fn references_to_output_assets(
-    references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    references: impl IntoIterator<Item = &ResolvedVc<Box<dyn ModuleReference>>>,
 ) -> Result<Vc<OutputAssets>> {
     let output_assets = references
         .into_iter()
