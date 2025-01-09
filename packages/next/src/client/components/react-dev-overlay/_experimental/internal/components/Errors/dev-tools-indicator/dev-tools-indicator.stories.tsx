@@ -1,9 +1,10 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { DevToolsIndicator } from './dev-tools-indicator'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
+import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 
 const meta: Meta<typeof DevToolsIndicator> = {
-  title: 'ErrorIndicator',
+  title: 'DevToolsIndicator',
   component: DevToolsIndicator,
   parameters: {
     layout: 'centered',
@@ -13,6 +14,12 @@ const meta: Meta<typeof DevToolsIndicator> = {
 
 export default meta
 type Story = StoryObj<typeof DevToolsIndicator>
+
+// Mock version info for stories
+const mockVersionInfo: VersionInfo = {
+  installed: '15.1.2',
+  staleness: 'stale-major',
+}
 
 // Mock error for stories
 const mockError = {
@@ -42,6 +49,7 @@ export const SingleError: Story = {
     readyErrors: [mockError],
     fullscreen: () => console.log('Fullscreen clicked'),
     hide: () => console.log('Hide clicked'),
+    versionInfo: mockVersionInfo,
   },
 }
 
@@ -51,6 +59,7 @@ export const MultipleErrors: Story = {
     readyErrors: [mockError, { ...mockError, id: 2 }, { ...mockError, id: 3 }],
     fullscreen: () => console.log('Fullscreen clicked'),
     hide: () => console.log('Hide clicked'),
+    versionInfo: mockVersionInfo,
   },
 }
 
@@ -60,5 +69,6 @@ export const WithStaticIndicator: Story = {
     readyErrors: [mockError],
     fullscreen: () => console.log('Fullscreen clicked'),
     hide: () => console.log('Hide clicked'),
+    versionInfo: mockVersionInfo,
   },
 }

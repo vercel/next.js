@@ -33,6 +33,7 @@ export const Default: Story = {
       staleness: 'fresh',
     },
     hasStaticIndicator: true,
+    isTurbopackEnabled: true,
   },
 }
 
@@ -46,5 +47,6 @@ export const NoErrors: Story = {
       staleness: 'fresh',
     },
     hasStaticIndicator: true,
+    isTurbopackEnabled: true,
   },
 }

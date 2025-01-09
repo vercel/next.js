@@ -72,6 +72,7 @@ export default class ReactDevOverlay extends React.PureComponent<
             <>
               {hasRuntimeErrors ? (
                 <Errors
+                  isTurbopackEnabled={!!process.env.TURBOPACK}
                   isAppDir={true}
                   initialDisplayState={
                     isReactError ? 'fullscreen' : 'minimized'

@@ -1,3 +1,4 @@
+import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import { Toast } from '../../Toast'
 import React, { useState } from 'react'
@@ -6,22 +7,28 @@ import React, { useState } from 'react'
 // TODO: add E2E tests to cover different scenarios
 
 export function DevToolsIndicator({
+  versionInfo,
   hasStaticIndicator,
   readyErrors,
   fullscreen,
   hide,
+  isTurbopackEnabled,
 }: {
+  versionInfo: VersionInfo | undefined
   readyErrors: ReadyRuntimeError[]
   fullscreen: () => void
   hide: () => void
   hasStaticIndicator?: boolean
+  isTurbopackEnabled: boolean
 }) {
   return (
     <DevToolsPopover
+      semver={versionInfo?.installed}
       onIssuesClick={fullscreen}
       issueCount={readyErrors.length}
       isStaticRoute={hasStaticIndicator === true}
       hide={hide}
+      isTurbopackEnabled={isTurbopackEnabled}
     />
   )
 }
@@ -31,11 +38,15 @@ const DevToolsPopover = ({
   issueCount,
   isStaticRoute,
   hide,
+  semver,
+  isTurbopackEnabled,
 }: {
   onIssuesClick: () => void
   issueCount: number
   isStaticRoute: boolean
   hide: () => void
+  semver: string | undefined
+  isTurbopackEnabled: boolean
 }) => {
   // TODO: close when clicking outside
 
@@ -86,8 +97,13 @@ const DevToolsPopover = ({
           </div>
           <div data-nextjs-dev-tools-footer>
             <div data-nextjs-dev-tools-footer-text>
-              <p data-nextjs-dev-tools-version>Next.js 14.0.1</p>
-              <p data-nextjs-dev-tools-version>Turbopack enabled</p>
+              {semver ? (
+                <p data-nextjs-dev-tools-version>Next.js {semver}</p>
+              ) : null}
+
+              <p data-nextjs-dev-tools-version>
+                Turbopack {isTurbopackEnabled ? 'enabled' : 'not enabled'}
+              </p>
             </div>
           </div>
         </div>

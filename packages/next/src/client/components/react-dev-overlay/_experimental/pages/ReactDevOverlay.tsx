@@ -60,6 +60,7 @@ export default function ReactDevOverlay({
               errors={state.errors}
               versionInfo={state.versionInfo}
               initialDisplayState={'fullscreen'}
+              isTurbopackEnabled={!!process.env.TURBOPACK}
             />
           ) : undefined}
         </ShadowPortal>

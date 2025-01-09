@@ -38,6 +38,7 @@ export type ErrorsProps = {
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
   debugInfo?: DebugInfo
+  isTurbopackEnabled: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -108,6 +109,8 @@ export function Errors({
   initialDisplayState,
   hasStaticIndicator,
   debugInfo,
+  versionInfo,
+  isTurbopackEnabled,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -181,17 +184,19 @@ export function Errors({
     [activeIdx, readyErrors]
   )
 
+  const minimize = useCallback(() => setDisplayState('minimized'), [])
+
   // Reset component state when there are no errors to be displayed.
-  // This should never happen, but lets handle it.
+  // Note: We show the dev tools indicator in minimized state even with no errors
+  // as it serves as a persistent development tools access point
   useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
-      setDisplayState('minimized')
+      minimize()
       setActiveIndex(0)
     }
-  }, [errors.length])
+  }, [errors.length, minimize])
 
-  const minimize = useCallback(() => setDisplayState('minimized'), [])
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
 
@@ -208,6 +213,8 @@ export function Errors({
         readyErrors={readyErrors}
         fullscreen={fullscreen}
         hide={hide}
+        versionInfo={versionInfo}
+        isTurbopackEnabled={isTurbopackEnabled}
       />
     )
   }
