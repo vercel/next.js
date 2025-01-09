@@ -2761,7 +2761,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.6",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -3399,9 +3399,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss"
-version = "1.0.0-alpha.61"
+version = "1.0.0-alpha.63"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "20c9e1f991b3861d25bf872ecca2eb6a73f7a9fe671da047cd1f9b49c65cbc40"
+checksum = "8a75fcbcdbcc84fc1ae7c60c31f99337560b620757a9bfc1c9f84df3cff8ac24"
 dependencies = [
  "ahash 0.8.11",
  "bitflags 2.5.0",
@@ -3439,9 +3439,9 @@ dependencies = [
 
 [[package]]
 name = "lightningcss-napi"
-version = "0.4.0"
+version = "0.4.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f76d2c3181b0c8c499a629034f141177fef173af08aa19c8b7dab4268ca61e30"
+checksum = "8f5e41d371670417f71b779fe6d66959a68c21fbda563a747d795ac525f72450"
 dependencies = [
  "cssparser",
  "lightningcss",
@@ -4484,9 +4484,9 @@ dependencies = [
 
 [[package]]
 name = "parcel_selectors"
-version = "0.28.0"
+version = "0.28.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7645c578d3a5c4cdf667af1ad39765f5f751c4883d251e050d5e1204b5cad0a9"
+checksum = "dccbc6fb560df303a44e511618256029410efbc87779018f751ef12c488271fe"
 dependencies = [
  "bitflags 2.5.0",
  "cssparser",
@@ -6195,10 +6195,11 @@ dependencies = [
 
 [[package]]
 name = "static-self"
-version = "0.1.1"
+version = "0.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "253e76c8c993a7b1b201b0539228b334582153cd4364292822d2c30776d469c7"
+checksum = "f6635404b73efc136af3a7956e53c53d4f34b2f16c95a15c438929add0f69412"
 dependencies = [
+ "indexmap 2.5.0",
  "smallvec",
  "static-self-derive",
 ]

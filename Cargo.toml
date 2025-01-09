@@ -151,12 +151,12 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.61", features = [
+lightningcss = { version = "1.0.0-alpha.63", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.4.0", default-features = false, features = [
+lightningcss-napi = { version = "0.4.3", default-features = false, features = [
   "visitor"
 ]}
 markdown = "1.0.0-alpha.18"
@@ -165,7 +165,7 @@ nohash-hasher = "0.2.0"
 notify = "6.1.1"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
-parcel_selectors = "0.28.0"
+parcel_selectors = "0.28.1"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 petgraph = "0.6.3"
