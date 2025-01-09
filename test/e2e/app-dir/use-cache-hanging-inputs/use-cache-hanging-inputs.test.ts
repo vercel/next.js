@@ -3,6 +3,9 @@ import {
   getRedboxDescription,
   getRedboxSource,
   openRedbox,
+  assertHasRedbox,
+  getRedboxTitle,
+  getRedboxTotalErrorCount,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -88,6 +91,24 @@ Error: Filling a cache during prerender timed out, likely because request-specif
     at eval (webpack-internal:///(rsc)/./app/uncached-promise/page.tsx:25:97)`
         )
       }, 180_000)
+    })
+
+    describe('when an error is thrown', () => {
+      it('should show an error overlay with only one error', async () => {
+        const browser = await next.browser('/error')
+
+        await assertHasRedbox(browser)
+
+        const count = await getRedboxTotalErrorCount(browser)
+        const title = await getRedboxTitle(browser)
+        const description = await getRedboxDescription(browser)
+
+        expect({ count, title, description }).toEqual({
+          count: 1,
+          title: 'Unhandled Runtime Error',
+          description: '[ Cache ] Error: kaputt!',
+        })
+      })
     })
   } else {
     it('should fail the build with errors after a timeout', async () => {
