@@ -49,7 +49,7 @@ export default async function loadJsConfig(
 ): Promise<{
   useTypeScript: boolean
   jsConfig: JsConfig
-  jsConfigPath: string
+  jsConfigPath?: string
   resolvedBaseUrl: ResolvedBaseUrl
 }> {
   let typeScriptPath: string | undefined
@@ -111,6 +111,10 @@ export default async function loadJsConfig(
     useTypeScript,
     jsConfig,
     resolvedBaseUrl,
-    jsConfigPath: useTypeScript ? tsConfigPath : jsConfigPath,
+    jsConfigPath: useTypeScript
+      ? tsConfigPath
+      : fs.existsSync(jsConfigPath)
+        ? jsConfigPath
+        : undefined,
   }
 }
