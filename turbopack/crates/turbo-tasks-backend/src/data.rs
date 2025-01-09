@@ -304,21 +304,22 @@ pub enum RootType {
 }
 
 #[derive(Debug)]
+pub struct InProgressStateInner {
+    pub stale: bool,
+    #[allow(dead_code)]
+    pub once_task: bool,
+    pub session_dependent: bool,
+    pub marked_as_completed: bool,
+    pub done_event: Event,
+    /// Children that should be connected to the task and have their active_count decremented
+    /// once the task completes.
+    pub new_children: FxHashSet<TaskId>,
+}
+
+#[derive(Debug)]
 pub enum InProgressState {
-    Scheduled {
-        done_event: Event,
-    },
-    InProgress {
-        stale: bool,
-        #[allow(dead_code)]
-        once_task: bool,
-        session_dependent: bool,
-        marked_as_completed: bool,
-        done_event: Event,
-        /// Children that should be connected to the task and have their active_count decremented
-        /// once the task completes.
-        new_children: FxHashSet<TaskId>,
-    },
+    Scheduled { done_event: Event },
+    InProgress(Box<InProgressStateInner>),
 }
 
 transient_traits!(InProgressState);

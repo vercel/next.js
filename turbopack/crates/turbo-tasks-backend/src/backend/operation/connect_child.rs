@@ -10,7 +10,7 @@ use crate::{
         },
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey, InProgressState},
+    data::{CachedDataItem, CachedDataItemKey, InProgressState, InProgressStateInner},
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -38,7 +38,7 @@ impl ConnectChildOperation {
             return;
         }
         let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
-        let Some(InProgressState::InProgress { new_children, .. }) =
+        let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
             get_mut!(parent_task, InProgress)
         else {
             panic!("Task is not in progress while calling another task");

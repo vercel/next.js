@@ -54,7 +54,8 @@ use crate::{
     data::{
         ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataUpdate, CellRef, CollectibleRef,
-        CollectiblesRef, DirtyState, InProgressCellState, InProgressState, OutputValue, RootType,
+        CollectiblesRef, DirtyState, InProgressCellState, InProgressState, InProgressStateInner,
+        OutputValue, RootType,
     },
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
@@ -408,7 +409,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             if let Some(in_progress) = get!(task, InProgress) {
                 match in_progress {
                     InProgressState::Scheduled { done_event, .. }
-                    | InProgressState::InProgress { done_event, .. } => {
+                    | InProgressState::InProgress(box InProgressStateInner {
+                        done_event, ..
+                    }) => {
                         let reader_desc = reader.map(|r| this.get_task_desc_fn(r));
                         let listener = done_event.listen_with_note(move || {
                             if let Some(reader_desc) = reader_desc.as_ref() {
@@ -1008,14 +1011,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 return None;
             };
             task.add_new(CachedDataItem::InProgress {
-                value: InProgressState::InProgress {
+                value: InProgressState::InProgress(Box::new(InProgressStateInner {
                     stale: false,
                     once_task,
                     done_event,
                     session_dependent: false,
                     marked_as_completed: false,
                     new_children: Default::default(),
-                },
+                })),
             });
 
             if self.should_track_children() {
@@ -1136,22 +1139,22 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = get_mut!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
-        let &mut InProgressState::InProgress {
+        let &mut InProgressState::InProgress(box InProgressStateInner {
             stale,
             ref mut new_children,
             ..
-        } = in_progress
+        }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
 
         // If the task is stale, reschedule it
         if stale {
-            let Some(InProgressState::InProgress {
+            let Some(InProgressState::InProgress(box InProgressStateInner {
                 done_event,
                 new_children,
                 ..
-            }) = remove!(task, InProgress)
+            })) = remove!(task, InProgress)
             else {
                 unreachable!();
             };
@@ -1290,14 +1293,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let Some(in_progress) = remove!(task, InProgress) else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
-        let InProgressState::InProgress {
+        let InProgressState::InProgress(box InProgressStateInner {
             done_event,
             once_task: _,
             stale,
             session_dependent,
             marked_as_completed: _,
             new_children,
-        } = in_progress
+        }) = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
         };
@@ -1641,9 +1644,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
-        if let Some(InProgressState::InProgress {
-            session_dependent, ..
-        }) = get_mut!(task, InProgress)
+        if let Some(InProgressState::InProgress(box InProgressStateInner {
+            session_dependent,
+            ..
+        })) = get_mut!(task, InProgress)
         {
             *session_dependent = true;
         }
@@ -1656,10 +1660,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     ) {
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task, TaskDataCategory::Data);
-        if let Some(InProgressState::InProgress {
+        if let Some(InProgressState::InProgress(box InProgressStateInner {
             marked_as_completed,
             ..
-        }) = get_mut!(task, InProgress)
+        })) = get_mut!(task, InProgress)
         {
             *marked_as_completed = true;
             // TODO this should remove the dirty state (also check session_dependent)
