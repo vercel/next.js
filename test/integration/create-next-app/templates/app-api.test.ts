@@ -66,7 +66,7 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--js',
           '--api',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
         ],
@@ -98,7 +98,7 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--ts',
           '--api',
-          '--no-turbo',
+          '--no-turbopack',
           '--no-src-dir',
           '--no-import-alias',
         ],
@@ -127,7 +127,7 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--ts',
           '--api',
-          '--no-turbo',
+          '--no-turbopack',
           '--src-dir',
           '--no-import-alias',
         ],
@@ -153,7 +153,7 @@ describe('create-next-app --api (Headless App)', () => {
     })
   })
 
-  it('should enable turbopack dev with --turbo flag', async () => {
+  it('should enable turbopack dev with --turbopack flag', async () => {
     await useTempDir(async (cwd) => {
       const projectName = 'app-turbo'
       const { exitCode } = await run(
@@ -161,7 +161,7 @@ describe('create-next-app --api (Headless App)', () => {
           projectName,
           '--ts',
           '--api',
-          '--turbo',
+          '--turbopack',
           '--no-src-dir',
           '--no-import-alias',
         ],
@@ -174,7 +174,7 @@ describe('create-next-app --api (Headless App)', () => {
       expect(exitCode).toBe(0)
       const projectRoot = join(cwd, projectName)
       const pkgJson = require(join(projectRoot, 'package.json'))
-      expect(pkgJson.scripts.dev).toBe('next dev --turbo')
+      expect(pkgJson.scripts.dev).toBe('next dev --turbopack')
 
       await tryNextDev({
         cwd,
