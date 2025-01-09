@@ -1,7 +1,7 @@
 import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 
 import { useMemo } from 'react'
-import { CodeFrame } from '../../components/CodeFrame'
+import { CodeFrame } from '../../components/CodeFrame/CodeFrame'
 import { CallStack } from '../../components/Errors/call-stack/call-stack'
 import { noop as css } from '../../helpers/noop-template'
 import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'

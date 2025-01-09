@@ -1,19 +1,19 @@
-import Anser from 'next/dist/compiled/anser'
-import * as React from 'react'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+
+import Anser from 'next/dist/compiled/anser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+
+import { useMemo } from 'react'
+import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
-import { HotlinkedText } from '../hot-linked-text'
+import { noop as css } from '../../helpers/noop-template'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
-export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
-  stackFrame,
-  codeFrame,
-}) {
+export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   // Strip leading spaces out of the code frame:
-  const formattedFrame = React.useMemo<string>(() => {
+  const formattedFrame = useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
 
     // Find the minimum length of leading spaces after `|` in the code frame
@@ -42,7 +42,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
     return lines.join('\n')
   }, [codeFrame])
 
-  const decoded = React.useMemo(() => {
+  const decoded = useMemo(() => {
     return Anser.ansiToJson(formattedFrame, {
       json: true,
       use_classes: true,
@@ -105,3 +105,53 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
     </div>
   )
 }
+
+export const CODE_FRAME_STYLES = css`
+  [data-nextjs-codeframe] {
+    overflow: auto;
+    border-radius: var(--size-gap-half);
+    background-color: var(--color-ansi-bg);
+    color: var(--color-ansi-fg);
+    margin-bottom: var(--size-gap-double);
+  }
+  [data-nextjs-codeframe]::selection,
+  [data-nextjs-codeframe] *::selection {
+    background-color: var(--color-ansi-selection);
+  }
+  [data-nextjs-codeframe] * {
+    color: inherit;
+    background-color: transparent;
+    font-family: var(--font-stack-monospace);
+  }
+
+  [data-nextjs-codeframe] > * {
+    margin: 0;
+    padding: calc(var(--size-gap) + var(--size-gap-half))
+      calc(var(--size-gap-double) + var(--size-gap-half));
+  }
+  [data-nextjs-codeframe] > div {
+    display: inline-block;
+    width: auto;
+    min-width: 100%;
+    border-bottom: 1px solid var(--color-ansi-bright-black);
+  }
+  [data-nextjs-codeframe] > div > p {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    margin: 0;
+  }
+  [data-nextjs-codeframe] > div > p:hover {
+    text-decoration: underline dotted;
+  }
+  [data-nextjs-codeframe] div > p > svg {
+    width: auto;
+    height: 1em;
+    margin-left: 8px;
+  }
+  [data-nextjs-codeframe] div > pre {
+    overflow: hidden;
+    display: inline-block;
+  }
+`

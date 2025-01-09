@@ -1,4 +1,4 @@
-import { styles as codeFrame } from '../components/CodeFrame/styles'
+import { CODE_FRAME_STYLES } from '../components/CodeFrame/CodeFrame'
 import { styles as dialog } from '../components/Dialog'
 import { styles as errorLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 import { styles as bottomStacks } from '../components/Errors/error-overlay-bottom-stacks/error-overlay-bottom-stacks'
@@ -29,7 +29,7 @@ export function ComponentStyles() {
         ${footer}
         ${bottomStacks}
         ${pagination}
-        ${codeFrame}
+        ${CODE_FRAME_STYLES}
         ${terminal}
         ${buildErrorStyles}
         ${containerErrorStyles}
