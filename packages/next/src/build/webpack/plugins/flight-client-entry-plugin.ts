@@ -179,20 +179,6 @@ export class FlightClientEntryPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(
-      PLUGIN_NAME,
-      (compilation, { normalModuleFactory }) => {
-        compilation.dependencyFactories.set(
-          webpack.dependencies.ModuleDependency,
-          normalModuleFactory
-        )
-        compilation.dependencyTemplates.set(
-          webpack.dependencies.ModuleDependency,
-          new webpack.dependencies.NullDependency.Template()
-        )
-      }
-    )
-
     compiler.hooks.finishMake.tapPromise(PLUGIN_NAME, (compilation) =>
       this.createClientEntries(compiler, compilation)
     )
