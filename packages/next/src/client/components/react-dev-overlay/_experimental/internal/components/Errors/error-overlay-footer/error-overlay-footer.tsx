@@ -32,7 +32,9 @@ export const styles = css`
   .error-overlay-footer p {
     color: var(--color-gray-900);
     margin: 0;
-    line-height: var(--size-font-big);
+    font-size: 14px;
+    font-weight: 500;
+    line-height: 20px;
   }
 
   .error-overlay-footer-message {
