@@ -150,7 +150,7 @@ export function createMetadataComponents({
     } catch (error) {
       if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
-          return getNotFoundMetadata(
+          return await getNotFoundMetadata(
             tree,
             searchParams,
             getDynamicParamFromSegment,
