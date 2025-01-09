@@ -14,7 +14,10 @@ use turbo_tasks::{KeyValuePair, TaskId};
 
 use crate::{
     backend::indexed::Indexed,
-    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue},
+    data::{
+        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
+        CachedDataItemValueRef,
+    },
     utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
 
@@ -244,8 +247,10 @@ impl InnerStorage {
         })
     }
 
-    pub fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
-        self.get_map(key).and_then(|m| m.get(key))
+    pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+        self.get_map(key)
+            .and_then(|m| m.get(key))
+            .map(|value| value.as_ref())
     }
 
     pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
@@ -272,11 +277,14 @@ impl InnerStorage {
             .flatten()
     }
 
-    pub fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<Item = (&CachedDataItemKey, CachedDataItemValueRef<'_>)> {
         match &self.map {
             InnerStorageMap::Plain(map) => Either::Left(map.iter()),
             InnerStorageMap::Indexed(map) => Either::Right(map.iter().flat_map(|(_, m)| m.iter())),
         }
+        .map(|(key, value)| (key, value.as_ref()))
     }
 
     pub fn extract_if<'l, F>(
@@ -294,21 +302,19 @@ impl InnerStorage {
             .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
     }
 
+    /// Note this function must only be used on non-indexed storage
     pub fn extract_if_all<'l, F>(
         &'l mut self,
         mut f: F,
     ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, CachedDataItemValueRef<'b>) -> bool + 'l,
     {
-        match &mut self.map {
-            InnerStorageMap::Plain(map) => map
-                .extract_if(move |k, v| f(k, v))
-                .map(|(key, value)| CachedDataItem::from_key_and_value(key, value)),
-            InnerStorageMap::Indexed { .. } => {
-                panic!("Do not use extract_if_all with indexed storage")
-            }
-        }
+        let InnerStorageMap::Plain(map) = &mut self.map else {
+            panic!("Do not use extract_if_all with indexed storage")
+        };
+        map.extract_if(move |k, v| f(k, v.as_ref()))
+            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
     }
 
     pub fn update(
@@ -393,9 +399,9 @@ macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key {
+        if let Some($crate::data::CachedDataItemValueRef::$key {
             value,
-        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
+        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input) {
             Some(value)
         } else {
             None

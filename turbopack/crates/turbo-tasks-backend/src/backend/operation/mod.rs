@@ -21,7 +21,10 @@ use crate::{
         TurboTasksBackend, TurboTasksBackendInner,
     },
     backing_storage::BackingStorage,
-    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue},
+    data::{
+        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
+        CachedDataItemValueRef,
+    },
 };
 
 pub trait Operation:
@@ -365,7 +368,7 @@ pub trait TaskGuard: Debug {
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     );
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
-    fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue>;
+    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
     fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue>;
     fn has_key(&self, key: &CachedDataItemKey) -> bool;
     fn is_indexed(&self) -> bool;
@@ -373,7 +376,6 @@ pub trait TaskGuard: Debug {
         &self,
         index: CachedDataItemIndex,
     ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
-    fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
     fn extract_if<'l, F>(
         &'l mut self,
         index: CachedDataItemIndex,
@@ -383,7 +385,7 @@ pub trait TaskGuard: Debug {
         F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
     fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, CachedDataItemValueRef<'b>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
 }
 
@@ -588,7 +590,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
+    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
         self.check_access(key.category());
         self.task.get(key)
     }
@@ -614,10 +616,6 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.iter(Some(index))
     }
 
-    fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        self.task.iter_all()
-    }
-
     fn extract_if<'l, F>(
         &'l mut self,
         index: CachedDataItemIndex,
@@ -641,9 +639,10 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }))
     }
 
+    /// Note this function must only be used on non-indexed storage
     fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, CachedDataItemValueRef<'b>) -> bool + 'l,
     {
         if !self.backend.should_persist() || self.task_id.is_transient() {
             return Either::Left(self.task.extract_if_all(f));

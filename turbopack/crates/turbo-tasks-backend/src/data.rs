@@ -742,3 +742,14 @@ pub enum CachedDataUpdate {
     /// An item was replaced. This is step 2 and tells about the new value.
     Replace2 { value: CachedDataItemValue },
 }
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_sizes() {
+        assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
+        assert_eq!(std::mem::size_of::<super::CachedDataUpdate>(), 48);
+    }
+}

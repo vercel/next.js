@@ -50,8 +50,8 @@ use crate::{
     backing_storage::BackingStorage,
     data::{
         ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
-        CachedDataItemValue, CachedDataUpdate, CellRef, CollectibleRef, CollectiblesRef,
-        DirtyState, InProgressCellState, InProgressState, OutputValue, RootState,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataUpdate, CellRef, CollectibleRef,
+        CollectiblesRef, DirtyState, InProgressCellState, InProgressState, OutputValue, RootState,
     },
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
@@ -1257,7 +1257,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task.remove(&CachedDataItemKey::CellTypeMaxIndex { cell_type });
         }
 
-        let mut removed_data = Vec::new();
+        let mut removed_data: Vec<CachedDataItem> = Vec::new();
         let mut old_edges = Vec::new();
 
         // Remove no longer existing cells and notify in progress cells
@@ -1336,7 +1336,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 match (key, value) {
                     (
                         &CachedDataItemKey::InProgressCell { cell },
-                        CachedDataItemValue::InProgressCell { value },
+                        CachedDataItemValueRef::InProgressCell { value },
                     ) if cell_counters
                         .get(&cell.type_id)
                         .is_none_or(|start_index| cell.index >= *start_index) =>
@@ -1356,8 +1356,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     }
                     (
                         &CachedDataItemKey::OutdatedCollectible { collectible },
-                        &CachedDataItemValue::OutdatedCollectible { value },
-                    ) => old_edges.push(OutdatedEdge::Collectible(collectible, value)),
+                        CachedDataItemValueRef::OutdatedCollectible { value },
+                    ) => old_edges.push(OutdatedEdge::Collectible(collectible, *value)),
                     (&CachedDataItemKey::OutdatedCellDependency { target }, _) => {
                         old_edges.push(OutdatedEdge::CellDependency(target));
                     }

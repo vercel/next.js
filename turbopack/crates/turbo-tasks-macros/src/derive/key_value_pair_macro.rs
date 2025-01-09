@@ -130,15 +130,13 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             Reserved,
         }
 
-        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #[derive(Debug, Copy, Clone, PartialEq, Eq)]
         #vis enum #value_ref_name<'l> {
             #(
                 #variant_names {
                     #value_ref_decl
                 },
             )*
-            #[default]
-            Reserved,
         }
     }
     .into()
