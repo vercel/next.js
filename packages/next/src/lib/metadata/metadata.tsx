@@ -146,7 +146,7 @@ export function createMetadataComponents({
 
   async function resolveFinalMetadata() {
     try {
-      return metadata()
+      return await metadata()
     } catch (error) {
       if (!errorType && isHTTPAccessFallbackError(error)) {
         try {
