@@ -18,11 +18,11 @@ import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   type HydrationErrorState,
   getHydrationWarningType,
-} from '../helpers/hydration-error-info'
+} from '../../../../errors/hydration-error-info'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
-} from '../helpers/console-error'
+} from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
