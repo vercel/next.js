@@ -239,7 +239,7 @@ jobs:
             build: >-
               set -ex &&
               apt update &&
-              apt install -y pkg-config xz-utils dav1d libdav1d-dev llvm-dev libzstd-dev lzma-dev autotools-dev autoconf &&
+              apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
               export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
               rustup show &&
               rustup target add aarch64-unknown-linux-gnu &&
