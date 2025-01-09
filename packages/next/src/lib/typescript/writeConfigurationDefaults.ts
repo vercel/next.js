@@ -332,6 +332,17 @@ export async function writeConfigurationDefaults(
     return
   }
 
+  if (process.env.NEXT_PRIVATE_LOCAL_DEV) {
+    // remove it from the required actions if it exists
+    if (
+      requiredActions[requiredActions.length - 1].includes(
+        'Local development only'
+      )
+    ) {
+      requiredActions.pop()
+    }
+  }
+
   await fs.writeFile(
     tsConfigPath,
     CommentJson.stringify(userTsConfig, null, 2) + os.EOL
