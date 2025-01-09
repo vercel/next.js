@@ -251,7 +251,14 @@ where
     }
 
     pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
-        self.get_map_mut(key).and_then(|m| m.remove(key))
+        self.get_map_mut(key).and_then(|m| {
+            if let Some(result) = m.remove(key) {
+                m.shrink_amortized();
+                Some(result)
+            } else {
+                None
+            }
+        })
     }
 
     pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
@@ -339,6 +346,7 @@ where
                 *value = v;
             } else {
                 map.remove(key);
+                map.shrink_amortized();
             }
         } else if let Some(v) = update(None) {
             map.insert(key.clone(), v);
