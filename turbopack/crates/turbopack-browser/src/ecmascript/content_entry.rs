@@ -56,7 +56,7 @@ impl EcmascriptDevChunkContentEntries {
             .chunk_items
             .iter()
             .map(|(ty, item, async_info)| async move {
-                if matches!(*ty.await?, ChunkItemTy::Included) {
+                if matches!(ty, ChunkItemTy::Included) {
                     Ok(Some((item, async_info)))
                 } else {
                     Ok(None)

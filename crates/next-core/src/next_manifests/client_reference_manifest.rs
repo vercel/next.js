@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
@@ -130,7 +130,7 @@ impl ClientReferenceManifest {
                         EcmascriptClientReferenceProxyModule,
                     >(parent_module)
                     .await?
-                    .expect("Expected EcmascriptClientReferenceProxyModule");
+                    .context("Expected EcmascriptClientReferenceProxyModule")?;
 
                     let rsc_chunk_item = rsc_module
                         .as_chunk_item(Vc::upcast(ssr_chunking_context))
@@ -378,11 +378,11 @@ async fn is_item_async(
     availability_info: &AvailabilityInfo,
     module: ResolvedVc<Box<dyn ChunkableModule>>,
 ) -> Result<bool> {
-    let Some(available_chunk_items) = availability_info.available_modules() else {
+    let Some(available_modules) = availability_info.available_modules() else {
         return Ok(false);
     };
 
-    let Some(info) = *available_chunk_items.get(*module).await? else {
+    let Some(info) = &*available_modules.get(module).await? else {
         return Ok(false);
     };
 

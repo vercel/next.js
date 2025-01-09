@@ -154,7 +154,7 @@ pub async fn make_chunk_group(
     let has_async_loaders = !async_loaders.is_empty();
     let async_loader_chunk_items = async_loaders
         .iter()
-        .map(|&chunk_item| (ChunkItemTy::Included.resolved_cell(), chunk_item, None));
+        .map(|&chunk_item| (ChunkItemTy::Included, chunk_item, None));
 
     // And also add output assets referenced by async chunk loaders
     let async_loader_references = async_loaders

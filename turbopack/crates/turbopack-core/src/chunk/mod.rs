@@ -762,7 +762,9 @@ impl AsyncModuleInfo {
     }
 }
 
-#[turbo_tasks::value]
+#[derive(
+    Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, TraceRawVcs, TaskInput,
+)]
 pub enum ChunkItemTy {
     /// The ChunkItem should be included as content in the chunk.
     Included,
@@ -771,9 +773,9 @@ pub enum ChunkItemTy {
 }
 
 pub type ChunkItemWithAsyncModuleInfo = (
-    ResolvedVc<ChunkItemTy>,
-    ResolvedVc<Box<dyn ChunkItem>>,
-    Option<ResolvedVc<AsyncModuleInfo>>,
+    ChunkItemTy,
+    Vc<Box<dyn ChunkItem>>,
+    Option<Vc<AsyncModuleInfo>>,
 );
 
 #[turbo_tasks::value(transparent)]

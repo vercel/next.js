@@ -49,8 +49,8 @@ pub async fn make_chunks(
     key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vc<Chunks>> {
+    let chunk_items = chunk_items.await?;
     let chunk_items = chunk_items
-        .await?
         .iter()
         .map(|&(ty, chunk_item, async_info)| async move {
             let chunk_item_info =
@@ -60,6 +60,7 @@ pub async fn make_chunks(
         })
         .try_join()
         .await?;
+
     let mut map = FxIndexMap::<_, Vec<_>>::default();
     for (ty, chunk_item, async_info, chunk_item_info) in chunk_items {
         map.entry(chunk_item_info.ty).or_default().push((
@@ -78,9 +79,9 @@ pub async fn make_chunks(
             .into_iter()
             .map(|(ty, chunk_item, async_info, chunk_item_info)| async move {
                 Ok((
-                    ty,
-                    chunk_item,
-                    async_info,
+                    *ty,
+                    *chunk_item,
+                    *async_info,
                     chunk_item_info.size,
                     chunk_item_info.name.await?,
                 ))
@@ -124,9 +125,9 @@ pub async fn make_chunks(
 }
 
 type ChunkItemWithInfo = (
-    ResolvedVc<ChunkItemTy>,
+    ChunkItemTy,
     ResolvedVc<Box<dyn ChunkItem>>,
-    Option<ResolvedVc<AsyncModuleInfo>>,
+    Option<Vc<AsyncModuleInfo>>,
     usize,
     ReadRef<RcStr>,
 );

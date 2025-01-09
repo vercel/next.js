@@ -8,7 +8,7 @@ use turbopack_core::{
 use super::item::EcmascriptChunkItem;
 
 type EcmascriptChunkItemWithAsyncInfo = (
-    ResolvedVc<ChunkItemTy>,
+    ChunkItemTy,
     ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     Option<ResolvedVc<AsyncModuleInfo>>,
 );
@@ -27,7 +27,7 @@ impl EcmascriptChunkContent {
             self.chunk_items
                 .iter()
                 .map(|(ty, item, _)| async move {
-                    if matches!(*ty.await?, ChunkItemTy::Included) {
+                    if matches!(ty, ChunkItemTy::Included) {
                         Ok(Some(item))
                     } else {
                         Ok(None)
