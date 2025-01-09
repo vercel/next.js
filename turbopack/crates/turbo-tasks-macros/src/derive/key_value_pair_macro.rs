@@ -9,6 +9,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     let vis = &input.vis;
     let key_name = Ident::new(&format!("{}Key", input.ident), input.ident.span());
     let value_name = Ident::new(&format!("{}Value", input.ident), input.ident.span());
+    let value_ref_name = Ident::new(&format!("{}ValueRef", input.ident), input.ident.span());
 
     let variant_names = input
         .variants
@@ -58,10 +59,14 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
     let value_pat = patterns(&value_fields);
     let value_clone_fields = clone_fields(&value_fields);
 
+    let value_ref_decl = ref_field_declarations(&value_fields);
+    let value_ref_fields = ref_fields(&value_fields);
+
     quote! {
         impl turbo_tasks::KeyValuePair for #ident {
             type Key = #key_name;
             type Value = #value_name;
+            type ValueRef<'l> = #value_ref_name<'l> where Self: 'l;
 
             fn key(&self) -> #key_name {
                 match self {
@@ -75,6 +80,14 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 match self {
                     #(
                         #ident::#variant_names { #value_pat .. } => #value_name::#variant_names { #value_clone_fields },
+                    )*
+                }
+            }
+
+            fn value_ref(&self) -> #value_ref_name<'_> {
+                match self {
+                    #(
+                        #ident::#variant_names { #value_pat .. } => #value_ref_name::#variant_names { #value_ref_fields },
                     )*
                 }
             }
@@ -111,6 +124,17 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
             #(
                 #variant_names {
                     #value_decl
+                },
+            )*
+            #[default]
+            Reserved,
+        }
+
+        #[derive(Debug, Copy, Clone, Default, PartialEq, Eq)]
+        #vis enum #value_ref_name<'l> {
+            #(
+                #variant_names {
+                    #value_ref_decl
                 },
             )*
             #[default]
@@ -162,6 +186,27 @@ fn clone_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
     variant_pat
 }
 
+fn ref_fields(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
+    let variant_pat = fields
+        .iter()
+        .map(|fields| {
+            let pat = fields
+                .iter()
+                .map(|field| {
+                    let ident = field.ident.as_ref().unwrap();
+                    quote! {
+                        #ident
+                    }
+                })
+                .collect::<Vec<_>>();
+            quote! {
+                #(#pat,)*
+            }
+        })
+        .collect::<Vec<_>>();
+    variant_pat
+}
+
 fn field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
     fields
         .iter()
@@ -175,6 +220,29 @@ fn field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStre
                     quote! {
                         #(#attrs)*
                         #ident: #ty
+                    }
+                })
+                .collect::<Vec<_>>();
+            quote! {
+                #(#fields),*
+            }
+        })
+        .collect::<Vec<_>>()
+}
+
+fn ref_field_declarations(fields: &[Vec<&syn::Field>]) -> Vec<proc_macro2::TokenStream> {
+    fields
+        .iter()
+        .map(|fields| {
+            let fields = fields
+                .iter()
+                .map(|field| {
+                    let ty = &field.ty;
+                    let ident = field.ident.as_ref().unwrap();
+                    let attrs = &field.attrs;
+                    quote! {
+                        #(#attrs)*
+                        #ident: &'l #ty
                     }
                 })
                 .collect::<Vec<_>>();
