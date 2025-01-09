@@ -90,10 +90,7 @@ export default function transformSource(
 
   // A client boundary.
   if (buildInfo.rsc?.type === RSC_MODULE_TYPES.client) {
-    const assumedSourceType = getAssumedSourceType(
-      module,
-      "auto"
-    )
+    const assumedSourceType = getAssumedSourceType(module, 'auto')
 
     const clientRefs = buildInfo.rsc.clientRefs!
     const stringifiedResourceKey = JSON.stringify(resourceKey)
