@@ -1,6 +1,7 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
-use turbo_tasks::Vc;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::ModuleRule;
 
 use crate::{
@@ -27,6 +28,7 @@ pub async fn get_next_client_transforms_rules(
     context_ty: ClientContextType,
     mode: Vc<NextMode>,
     foreign_code: bool,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -73,6 +75,7 @@ pub async fn get_next_client_transforms_rules(
             is_app_dir = true;
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
+                encryption_key,
                 enable_mdx_rs,
                 dynamic_io_enabled,
                 cache_kinds,

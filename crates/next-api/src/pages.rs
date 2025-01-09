@@ -330,6 +330,7 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
+            self.project().encryption_key(),
         ))
     }
 
@@ -436,6 +437,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
+            self.project().encryption_key(),
         ))
     }
 
@@ -450,6 +452,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
+            self.project().encryption_key(),
         ))
     }
 
@@ -464,6 +467,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
+            self.project().encryption_key(),
         ))
     }
 
@@ -478,6 +482,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
+            self.project().encryption_key(),
         ))
     }
 
@@ -492,6 +497,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
+            self.project().encryption_key(),
         ))
     }
 
@@ -508,6 +514,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
+            self.project().encryption_key(),
         ))
     }
 
