@@ -83,7 +83,7 @@ import {
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { isBot } from '../shared/lib/router/utils/is-bot'
+import { isBot, isHtmlLimitedBotUA } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -594,6 +594,7 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1666,13 +1667,17 @@ export default abstract class Server<
       'renderOpts'
     >
   ): Promise<void> {
-    const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
+    const ua = partialContext.req.headers['user-agent'] || ''
+    const isBotRequest = isBot(ua)
+
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
-        isBot: !!isBotRequest,
+        serveStreamingMetadata:
+          this.renderOpts.experimental.streamingMetadata &&
+          !isHtmlLimitedBotUA(ua),
       },
     }
     const payload = await fn(ctx)
@@ -2162,7 +2167,8 @@ export default abstract class Server<
     if ('amp' in query && !query.amp) delete query.amp
 
     if (opts.supportsDynamicResponse === true) {
-      const isBotRequest = isBot(req.headers['user-agent'] || '')
+      const ua = req.headers['user-agent'] || ''
+      const isBotRequest = isBot(ua)
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
         // The built-in `Document` component also supports dynamic HTML for concurrent mode.
@@ -2175,7 +2181,8 @@ export default abstract class Server<
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
-      opts.isBot = isBotRequest
+      opts.serveStreamingMetadata =
+        opts.experimental.streamingMetadata && !isHtmlLimitedBotUA(ua)
     }
 
     // In development, we always want to generate dynamic HTML.

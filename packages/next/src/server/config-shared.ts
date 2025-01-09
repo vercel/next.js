@@ -567,6 +567,11 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  /**
+   * When enabled will cause async metadata calls to stream rather than block the render.
+   */
+  streamingMetadata?: boolean
 }
 
 export type ExportPathMap = {
@@ -1191,6 +1196,7 @@ export const defaultConfig: NextConfig = {
     dynamicIO: false,
     inlineCss: false,
     newDevOverlay: false,
+    streamingMetadata: false,
   },
   bundlePagesRouterDependencies: false,
 }
