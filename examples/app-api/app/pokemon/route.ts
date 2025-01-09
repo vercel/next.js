@@ -1,5 +1,4 @@
-import { NextResponse } from "next/server";
-import { requestHandler } from "@/app/request-handler";
+import { NextResponse, NextRequest } from "next/server";
 
 const POKEMON_TYPES = [
   "normal",
@@ -22,7 +21,7 @@ const POKEMON_TYPES = [
   "fairy",
 ];
 
-export const GET = requestHandler(async (request) => {
+export async function GET(request: NextRequest) {
   const url = request.nextUrl.toString();
 
   const { searchParams } = request.nextUrl;
@@ -48,4 +47,4 @@ export const GET = requestHandler(async (request) => {
   });
 
   return NextResponse.json(pokedex);
-});
+}

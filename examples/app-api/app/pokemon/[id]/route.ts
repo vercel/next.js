@@ -1,11 +1,12 @@
-import { NextResponse } from "next/server";
-import { requestHandler } from "@/app/request-handler";
+import { NextResponse, NextRequest } from "next/server";
 
-export const GET = requestHandler(async (_, context) => {
-  const res = await fetch(
-    `https://api.vercel.app/pokemon/${context.params.id}`,
-  );
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const id = (await params).id;
+  const res = await fetch(`https://api.vercel.app/pokemon/${id}`);
   const pokemon = await res.json();
 
   return NextResponse.json(pokemon);
-});
+}
