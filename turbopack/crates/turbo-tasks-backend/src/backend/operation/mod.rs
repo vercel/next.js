@@ -473,10 +473,9 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task
                 .insert(CachedDataItem::from_key_and_value(key, value))
         } else if value.is_persistent() {
-            let old = self.task.insert(CachedDataItem::from_key_and_value(
-                key.clone(),
-                value.clone(),
-            ));
+            let old = self
+                .task
+                .insert(CachedDataItem::from_key_and_value(key, value.clone()));
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log(key.category())
@@ -490,7 +489,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 );
             old
         } else {
-            let item = CachedDataItem::from_key_and_value(key.clone(), value);
+            let item = CachedDataItem::from_key_and_value(key, value);
             if let Some(old) = self.task.insert(item) {
                 if old.is_persistent() {
                     self.task.persistance_state_mut().add_persisting_item();
@@ -569,14 +568,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 && key.is_persistent()
                 && value.is_persistent()
             {
-                let key = key.clone();
                 self.task.persistance_state_mut().add_persisting_item();
                 self.backend
                     .persisted_storage_log(key.category())
                     .unwrap()
                     .push(
                         self.task_id,
-                        key,
+                        *key,
                         value.is_persistent().then(|| value.clone()),
                         None,
                     );
