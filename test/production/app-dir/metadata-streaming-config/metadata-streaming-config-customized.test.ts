@@ -7,6 +7,7 @@ describe('app-dir - metadata-streaming-config-customized', () => {
       'next.config.js': `
         module.exports = {
           experimental: {
+            streamingMetadata: true,
             htmlLimitedBots: /MyBot/i,
           }
         }
