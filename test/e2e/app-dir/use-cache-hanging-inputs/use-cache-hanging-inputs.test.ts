@@ -134,6 +134,42 @@ describe('use-cache-hanging-inputs', () => {
       }, 180_000)
     })
 
+    describe('when a "use cache" function is closing over an uncached promise', () => {
+      it('should show an error toast after a timeout', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await next.browser('/bound-args')
+
+        // The request is pending while we stall on the hanging inputs, and
+        // playwright will wait for the load even before continuing. So we don't
+        // need to wait for the "use cache" timeout of 50 seconds here.
+
+        await openRedbox(browser)
+
+        const errorDescription = await getRedboxDescription(browser)
+        const errorSource = await getRedboxSource(browser)
+
+        expect(errorDescription).toMatchInlineSnapshot(
+          `"[ Cache ] Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache"."`
+        )
+
+        // TODO(veil): This should have an error source if the source mapping works.
+        expect(errorSource).toMatchInlineSnapshot(`null`)
+
+        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+        // TODO(veil): Should include properly source mapped stack frames.
+        expect(cliOutput).toContain(
+          isTurbopack
+            ? `
+Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+    at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`
+            : `
+Error: Filling a cache during prerender timed out, likely because request-specific arguments such as params, searchParams, cookies() or dynamic data were used inside "use cache".
+    at eval (webpack-internal:///(rsc)/./app/bound-args/page.tsx:25:97)`
+        )
+      }, 180_000)
+    })
+
     describe('when an error is thrown', () => {
       it('should show an error overlay with only one error', async () => {
         const browser = await next.browser('/error')
@@ -156,6 +192,10 @@ describe('use-cache-hanging-inputs', () => {
       const { cliOutput } = await next.build()
 
       expect(cliOutput).toInclude(expectedErrorMessage)
+
+      expect(cliOutput).toInclude(
+        'Error occurred prerendering page "/bound-args"'
+      )
 
       expect(cliOutput).toInclude(
         'Error occurred prerendering page "/search-params"'

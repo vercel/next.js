@@ -41,6 +41,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
+import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -312,7 +313,7 @@ async function generateCacheEntryImpl(
           { temporaryReferences }
         )
 
-  // Track the timestamp when we started copmuting the result.
+  // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
@@ -506,29 +507,10 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
-      let abortHangingInputSignal: undefined | AbortSignal
-      if (workUnitStore && workUnitStore.type === 'prerender') {
-        // In a prerender, we may end up with hanging Promises as inputs due them stalling
-        // on connection() or because they're loading dynamic data. In that case we need to
-        // abort the encoding of the arguments since they'll never complete.
-        const controller = new AbortController()
-        abortHangingInputSignal = controller.signal
-        if (workUnitStore.cacheSignal) {
-          // If we have a cacheSignal it means we're in a prospective render. If the input
-          // we're waiting on is coming from another cache, we do want to wait for it so that
-          // we can resolve this cache entry too.
-          workUnitStore.cacheSignal.inputReady().then(() => {
-            controller.abort()
-          })
-        } else {
-          // Otherwise we're in the final render and we should already have all our caches
-          // filled. We might still be waiting on some microtasks so we wait one tick before
-          // giving up. When we give up, we still want to render the content of this cache
-          // as deeply as we can so that we can suspend as deeply as possible in the tree
-          // or not at all if we don't end up waiting for the input.
-          process.nextTick(() => controller.abort())
-        }
-      }
+      const hangingInputAbortSignal =
+        workUnitStore?.type === 'prerender'
+          ? createHangingInputAbortSignal(workUnitStore)
+          : undefined
 
       if (boundArgsLength > 0) {
         if (args.length === 0) {
@@ -558,7 +540,7 @@ export function cache(
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
         [buildId, id, args],
-        { temporaryReferences, signal: abortHangingInputSignal }
+        { temporaryReferences, signal: hangingInputAbortSignal }
       )
 
       const serializedCacheKey =
