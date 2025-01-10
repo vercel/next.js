@@ -7,6 +7,9 @@ const meta: Meta<typeof CallStack> = {
   component: CallStack,
   parameters: {
     layout: 'fullscreen',
+    backgrounds: {
+      default: 'background-100-dark',
+    },
   },
   decorators: [withShadowPortal],
 }
