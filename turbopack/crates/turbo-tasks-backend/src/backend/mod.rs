@@ -1391,6 +1391,14 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         drop(removed_data);
 
+        let mut task = ctx.task(task_id, TaskDataCategory::All);
+        task.shrink_to_fit(CachedDataItemType::CellData);
+        task.shrink_to_fit(CachedDataItemType::CellTypeMaxIndex);
+        task.shrink_to_fit(CachedDataItemType::CellDependency);
+        task.shrink_to_fit(CachedDataItemType::OutputDependency);
+        task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
+        drop(task);
+
         false
     }
 

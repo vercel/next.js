@@ -152,6 +152,16 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                                     .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
                             }
                         },
+                        shrink_to_fit: quote! {
+                            #storage_name::#variant_name { .. } => {
+                                // nothing to do
+                            }
+                        },
+                        is_empty: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.is_none()
+                            }
+                        },
                         iter: quote! {
                             #storage_name::#variant_name { storage } => {
                                 #iter_name::#variant_name(storage.iter())
@@ -212,6 +222,16 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                             (#storage_name::#variant_name { storage }, #key_name::#variant_name { #(#key_fields)* }) => {
                                 storage.get_mut(#(#key_fields)*)
                                     .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
+                            }
+                        },
+                        shrink_to_fit: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.shrink_to_fit()
+                            }
+                        },
+                        is_empty: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.is_empty()
                             }
                         },
                         iter: quote! {
@@ -277,6 +297,16 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                                     .map(|#(#value_fields)*| #value_ref_mut_name::#variant_name { #(#value_fields)* })
                             }
                         },
+                        shrink_to_fit: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.shrink_to_fit()
+                            }
+                        },
+                        is_empty: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.is_empty()
+                            }
+                        },
                         iter: quote! {
                             #storage_name::#variant_name { storage } => {
                                 #iter_name::#variant_name(storage.iter())
@@ -306,6 +336,14 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
         .collect::<Vec<_>>();
     let storage_get = storage.iter().map(|decl| &decl.get).collect::<Vec<_>>();
     let storage_get_mut = storage.iter().map(|decl| &decl.get_mut).collect::<Vec<_>>();
+    let storage_shrink_to_fit = storage
+        .iter()
+        .map(|decl| &decl.shrink_to_fit)
+        .collect::<Vec<_>>();
+    let storage_is_empty = storage
+        .iter()
+        .map(|decl| &decl.is_empty)
+        .collect::<Vec<_>>();
     let storage_iter = storage.iter().map(|decl| &decl.iter).collect::<Vec<_>>();
     let storage_iterator = storage
         .iter()
@@ -536,6 +574,22 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            pub fn shrink_to_fit(&mut self) {
+                match self {
+                    #(
+                        #storage_shrink_to_fit
+                    )*
+                }
+            }
+
+            pub fn is_empty(&self) -> bool {
+                match self {
+                    #(
+                        #storage_is_empty
+                    )*
+                }
+            }
+
             pub fn iter(&self) -> #iter_name {
                 match self {
                     #(
@@ -708,6 +762,8 @@ struct StorageDecl {
     contains_key: proc_macro2::TokenStream,
     get: proc_macro2::TokenStream,
     get_mut: proc_macro2::TokenStream,
+    shrink_to_fit: proc_macro2::TokenStream,
+    is_empty: proc_macro2::TokenStream,
     iter: proc_macro2::TokenStream,
 
     iterator: proc_macro2::TokenStream,

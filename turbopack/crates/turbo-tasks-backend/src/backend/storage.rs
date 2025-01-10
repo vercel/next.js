@@ -5,6 +5,7 @@ use std::{
 };
 
 use dashmap::DashMap;
+use either::Either;
 use rustc_hash::FxHasher;
 use turbo_tasks::{KeyValuePair, TaskId};
 
@@ -155,6 +156,10 @@ impl InnerStorage {
         self.map.iter_mut().find(|m| m.ty() == ty)
     }
 
+    fn get_map_index(&mut self, ty: CachedDataItemType) -> Option<usize> {
+        self.map.iter_mut().position(|m| m.ty() == ty)
+    }
+
     fn get_map(&self, ty: CachedDataItemType) -> Option<&CachedDataItemStorage> {
         self.map.iter().find(|m| m.ty() == ty)
     }
@@ -170,7 +175,14 @@ impl InnerStorage {
     }
 
     pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-        self.get_map_mut(key.ty()).and_then(|m| m.remove(key))
+        self.get_map_index(key.ty()).and_then(|i| {
+            let storage = &mut self.map[i];
+            let result = storage.remove(key);
+            if result.is_some() && storage.is_empty() {
+                self.map.swap_remove(i);
+            }
+            result
+        })
     }
 
     pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
@@ -210,20 +222,27 @@ impl InnerStorage {
     {
         // TODO this could be more efficient when the storage would support extract_if directly.
         // This requires some macro magic to make it work...
-        self.get_map_mut(ty)
-            .map(move |m| {
-                let items_to_extract = m
-                    .iter()
-                    .filter(|(k, v)| f(*k, *v))
-                    .map(|(key, _)| key)
-                    .collect::<Vec<_>>();
-                items_to_extract.into_iter().map(move |key| {
-                    let value = m.remove(&key).unwrap();
-                    CachedDataItem::from_key_and_value(key, value)
-                })
-            })
+        // But we could potentially avoid the two temporary Vecs.
+        let Some(i) = self.get_map_index(ty) else {
+            return Either::Left(std::iter::empty());
+        };
+        let storage = &mut self.map[i];
+        let items_to_extract = storage
+            .iter()
+            .filter(|(k, v)| f(*k, *v))
+            .map(|(key, _)| key)
+            .collect::<Vec<_>>();
+        let items = items_to_extract
             .into_iter()
-            .flatten()
+            .map(move |key| {
+                let value = storage.remove(&key).unwrap();
+                CachedDataItem::from_key_and_value(key, value)
+            })
+            .collect::<Vec<_>>();
+        if self.map[i].is_empty() {
+            self.map.swap_remove(i);
+        }
+        Either::Right(items.into_iter())
     }
 
     pub fn update(
@@ -234,6 +253,12 @@ impl InnerStorage {
         let map = self.get_or_create_map_mut(key.ty());
         if let Some(v) = update(map.remove(&key)) {
             map.insert(CachedDataItem::from_key_and_value(key, v));
+        }
+    }
+
+    pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
+        if let Some(map) = self.get_map_mut(ty) {
+            map.shrink_to_fit();
         }
     }
 }
