@@ -11,6 +11,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,
+    EcmascriptChunkItemWithAsyncInfo,
 };
 
 /// A chunk item's content entry.
@@ -55,13 +56,19 @@ impl EcmascriptDevChunkContentEntries {
         let included_chunk_items = chunk_content
             .chunk_items
             .iter()
-            .map(|(ty, item, async_info)| async move {
-                if matches!(ty, ChunkItemTy::Included) {
-                    Ok(Some((item, async_info)))
-                } else {
-                    Ok(None)
-                }
-            })
+            .map(
+                async |EcmascriptChunkItemWithAsyncInfo {
+                           ty,
+                           chunk_item,
+                           async_info,
+                       }| {
+                    if matches!(ty, ChunkItemTy::Included) {
+                        Ok(Some((chunk_item, async_info)))
+                    } else {
+                        Ok(None)
+                    }
+                },
+            )
             .try_join()
             .await?
             .into_iter()

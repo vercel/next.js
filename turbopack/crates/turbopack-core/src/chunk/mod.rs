@@ -772,11 +772,12 @@ pub enum ChunkItemTy {
     Passthrough,
 }
 
-pub type ChunkItemWithAsyncModuleInfo = (
-    ChunkItemTy,
-    ResolvedVc<Box<dyn ChunkItem>>,
-    Option<Vc<AsyncModuleInfo>>,
-);
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput)]
+pub struct ChunkItemWithAsyncModuleInfo {
+    pub ty: ChunkItemTy,
+    pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
+}
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);

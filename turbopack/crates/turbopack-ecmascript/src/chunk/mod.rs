@@ -29,7 +29,7 @@ pub use self::{
     data::EcmascriptChunkData,
     item::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemExt,
-        EcmascriptChunkItemOptions,
+        EcmascriptChunkItemOptions, EcmascriptChunkItemWithAsyncInfo,
     },
     placeable::{EcmascriptChunkPlaceable, EcmascriptExports},
 };
@@ -139,8 +139,13 @@ impl Chunk for EcmascriptChunk {
         let mut referenced_output_assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = content
             .chunk_items
             .iter()
-            .map(|(_, chunk_item, _)| async move {
-                Ok(chunk_item.references().await?.into_iter().copied())
+            .map(async |with_info| {
+                Ok(with_info
+                    .chunk_item
+                    .references()
+                    .await?
+                    .into_iter()
+                    .copied())
             })
             .try_flat_join()
             .await?;
