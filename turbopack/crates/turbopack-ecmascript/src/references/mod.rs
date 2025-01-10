@@ -1238,7 +1238,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 if done
                     .iter()
-                    .any(|done_ast_path| ast_path.starts_with(&done_ast_path))
+                    .any(|done_ast_path| ast_path.starts_with(done_ast_path))
                 {
                     continue;
                 }
