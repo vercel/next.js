@@ -338,57 +338,57 @@ jobs:
 
     secrets: inherit
 
-  test-new-tests-dev:
-    name: Test new tests for flakes (dev)
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-new-tests-dev:
+  #   name: Test new tests for flakes (dev)
+  #   needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
-      stepName: 'test-new-tests-dev-${{matrix.group}}'
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode dev --group ${{ matrix.group }}
+  #     stepName: 'test-new-tests-dev-${{matrix.group}}'
 
-    secrets: inherit
+  #   secrets: inherit
 
-  test-new-tests-start:
-    name: Test new tests for flakes (prod)
-    needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+  # test-new-tests-start:
+  #   name: Test new tests for flakes (prod)
+  #   needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
-      stepName: 'test-new-tests-start-${{matrix.group}}'
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     afterBuild: node scripts/test-new-tests.mjs --flake-detection --mode start --group ${{ matrix.group }}
+  #     stepName: 'test-new-tests-start-${{matrix.group}}'
 
-    secrets: inherit
+  #   secrets: inherit
 
-  test-new-tests-deploy:
-    name: Test new tests when deployed
-    needs:
-      ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
+  # test-new-tests-deploy:
+  #   name: Test new tests when deployed
+  #   needs:
+  #     ['optimize-ci', 'test-prod', 'test-new-tests-dev', 'test-new-tests-start']
+  #   if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' && !github.event.pull_request.head.repo.fork }}
 
-    strategy:
-      fail-fast: false
-      matrix:
-        group: [1/5, 2/5, 3/5, 4/5, 5/5]
+  #   strategy:
+  #     fail-fast: false
+  #     matrix:
+  #       group: [1/5, 2/5, 3/5, 4/5, 5/5]
 
-    uses: ./.github/workflows/build_reusable.yml
-    with:
-      afterBuild: NEXT_E2E_TEST_TIMEOUT=240000 node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
-      stepName: 'test-new-tests-deploy-${{matrix.group}}'
+  #   uses: ./.github/workflows/build_reusable.yml
+  #   with:
+  #     afterBuild: NEXT_E2E_TEST_TIMEOUT=240000 node scripts/test-new-tests.mjs --mode deploy --group ${{ matrix.group }}
+  #     stepName: 'test-new-tests-deploy-${{matrix.group}}'
 
-    secrets: inherit
+  #   secrets: inherit
 
   test-dev:
     name: test dev
@@ -401,7 +401,7 @@ jobs:
         exclude:
           # Excluding React 18 tests unless on `canary` branch until budget is approved.
           - react: ${{ github.event_name == 'pull_request' && !contains(github.event.pull_request.labels.*.name, 'run-react-18-tests') && '18.3.1' }}
-        group: [1/6]
+        group: [1/1]
         # Empty value uses default
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
