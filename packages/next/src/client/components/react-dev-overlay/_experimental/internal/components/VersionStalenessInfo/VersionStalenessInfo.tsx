@@ -117,9 +117,6 @@ export const styles = css`
   @media (prefers-color-scheme: dark) {
     .turbopack-text {
       background: linear-gradient(280deg, #45b2ff 0%, #ff6d92 100%);
-      background-clip: text;
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
     }
   }
 `
