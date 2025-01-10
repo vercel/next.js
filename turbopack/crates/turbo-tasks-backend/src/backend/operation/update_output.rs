@@ -13,10 +13,7 @@ use crate::{
         storage::{get, get_many},
         TaskDataCategory,
     },
-    data::{
-        CachedDataItem, CachedDataItemKey, CachedDataItemValue, CellRef, InProgressState,
-        OutputValue,
-    },
+    data::{CachedDataItem, CachedDataItemKey, CellRef, InProgressState, OutputValue},
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -50,13 +47,10 @@ impl UpdateOutputOperation {
             return;
         }
         let old_error = task.remove(&CachedDataItemKey::Error {});
-        let current_output = task.get(&CachedDataItemKey::Output {});
+        let current_output = get!(task, Output);
         let output_value = match output {
             Ok(Ok(RawVc::TaskOutput(output_task_id))) => {
-                if let Some(CachedDataItemValue::Output {
-                    value: OutputValue::Output(current_task_id),
-                }) = current_output
-                {
+                if let Some(OutputValue::Output(current_task_id)) = current_output {
                     if *current_task_id == output_task_id {
                         return;
                     }
@@ -64,13 +58,10 @@ impl UpdateOutputOperation {
                 OutputValue::Output(output_task_id)
             }
             Ok(Ok(RawVc::TaskCell(output_task_id, cell))) => {
-                if let Some(CachedDataItemValue::Output {
-                    value:
-                        OutputValue::Cell(CellRef {
-                            task: current_task_id,
-                            cell: current_cell,
-                        }),
-                }) = current_output
+                if let Some(OutputValue::Cell(CellRef {
+                    task: current_task_id,
+                    cell: current_cell,
+                })) = current_output
                 {
                     if *current_task_id == output_task_id && *current_cell == cell {
                         return;
@@ -113,11 +104,11 @@ impl UpdateOutputOperation {
 
         let dependent_tasks = ctx
             .should_track_dependencies()
-            .then(|| get_many!(task, OutputDependent { task } => *task))
+            .then(|| get_many!(task, OutputDependent { task } => task))
             .unwrap_or_default();
         let children = ctx
             .should_track_children()
-            .then(|| get_many!(task, Child { task } => *task))
+            .then(|| get_many!(task, Child { task } => task))
             .unwrap_or_default();
 
         let mut queue = AggregationUpdateQueue::new();

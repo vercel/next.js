@@ -847,12 +847,13 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
         convertRootTreePrefetchToRouteTree(serverData),
         serverData.head,
         serverData.isHeadPartial,
-        Date.now() + serverData.staleTime,
+        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled
@@ -1114,17 +1115,19 @@ function writeDynamicTreeResponseIntoCache(
 
   const flightRouterState = flightData.tree
   // TODO: Extract to function
-  const staleTimeHeader = response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
-  const staleTime =
-    staleTimeHeader !== null
-      ? parseInt(staleTimeHeader, 10)
+  const staleTimeHeaderSeconds = response.headers.get(
+    NEXT_ROUTER_STALE_TIME_HEADER
+  )
+  const staleTimeMs =
+    staleTimeHeaderSeconds !== null
+      ? parseInt(staleTimeHeaderSeconds, 10) * 1000
       : STATIC_STALETIME_MS
   fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
     flightData.head,
     flightData.isHeadPartial,
-    now + staleTime,
+    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled
@@ -1189,17 +1192,17 @@ function writeDynamicRenderResponseIntoCache(
           encodeSegment(segment)
         )
       }
-      const staleTimeHeader = response.headers.get(
+      const staleTimeHeaderSeconds = response.headers.get(
         NEXT_ROUTER_STALE_TIME_HEADER
       )
-      const staleTime =
-        staleTimeHeader !== null
-          ? parseInt(staleTimeHeader, 10)
+      const staleTimeMs =
+        staleTimeHeaderSeconds !== null
+          ? parseInt(staleTimeHeaderSeconds, 10) * 1000
           : STATIC_STALETIME_MS
       writeSeedDataIntoCache(
         now,
         route,
-        now + staleTime,
+        now + staleTimeMs,
         seedData,
         segmentKey,
         spawnedEntries

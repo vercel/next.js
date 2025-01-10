@@ -216,6 +216,7 @@ export interface RenderOptsPartial {
     inlineCss: boolean
     authInterrupts: boolean
     streamingMetadata: boolean
+    htmlLimitedBots: string | undefined
   }
   postponed?: string
 

@@ -51,9 +51,9 @@ fn get_followers_with_aggregation_number(
     aggregation_number: u32,
 ) -> Vec<TaskId> {
     if is_aggregating_node(aggregation_number) {
-        get_many!(task, Follower { task } count if *count > 0 => *task)
+        get_many!(task, Follower { task } count if *count > 0 => task)
     } else {
-        get_many!(task, Child { task } => *task)
+        get_many!(task, Child { task } => task)
     }
 }
 
@@ -66,12 +66,12 @@ fn get_followers(task: &impl TaskGuard) -> Vec<TaskId> {
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
 pub fn get_uppers(task: &impl TaskGuard) -> Vec<TaskId> {
-    get_many!(task, Upper { task } count if *count > 0 => *task)
+    get_many!(task, Upper { task } count if *count > 0 => task)
 }
 
 /// Returns an iterator of tasks that are considered as "upper" tasks of the task. See `get_uppers`
 fn iter_uppers<'a>(task: &'a (impl TaskGuard + 'a)) -> impl Iterator<Item = TaskId> + 'a {
-    iter_many!(task, Upper { task } count if *count > 0 => *task)
+    iter_many!(task, Upper { task } count if *count > 0 => task)
 }
 
 /// Returns the aggregation number of the task.
@@ -175,7 +175,7 @@ impl AggregatedDataUpdate {
         let aggregation = get_aggregation_number(task);
         let mut dirty_container_count = Default::default();
         let mut collectibles_update: Vec<_> =
-            get_many!(task, Collectible { collectible } count => (*collectible, *count));
+            get_many!(task, Collectible { collectible } count => (collectible, *count));
         if is_aggregating_node(aggregation) {
             dirty_container_count = get!(task, AggregatedDirtyContainerCount)
                 .cloned()
@@ -185,7 +185,7 @@ impl AggregatedDataUpdate {
                 AggregatedCollectible {
                     collectible
                 } count if *count > 0 => {
-                    *collectible
+                    collectible
                 }
             );
             for collectible in collectibles {
@@ -321,8 +321,8 @@ impl AggregatedDataUpdate {
                     CollectiblesDependent {
                         collectible_type,
                         task,
-                    } if *collectible_type == ty => {
-                        *task
+                    } if collectible_type == ty => {
+                        task
                     }
                 );
                 if !dependent.is_empty() {
@@ -1027,7 +1027,7 @@ impl AggregationUpdateQueue {
             // if it has an `AggregateRoot` we can skip visiting the nested nodes since
             // this would already be scheduled by the `AggregateRoot`
             if !task.has_key(&CachedDataItemKey::AggregateRoot {}) {
-                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => *task);
+                let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
                 if !dirty_containers.is_empty() || dirty {
                     task.insert(CachedDataItem::AggregateRoot {
                         value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
@@ -1613,7 +1613,7 @@ impl AggregationUpdateQueue {
             if !is_aggregating_node(old) && is_aggregating_node(aggregation_number) {
                 // When converted from leaf to aggregating node, all children become
                 // followers
-                let children: Vec<_> = get_many!(task, Child { task } => *task);
+                let children: Vec<_> = get_many!(task, Child { task } => task);
                 for child_id in children {
                     task.add_new(CachedDataItem::Follower {
                         task: child_id,
@@ -1625,7 +1625,7 @@ impl AggregationUpdateQueue {
             if is_aggregating_node(aggregation_number) {
                 // followers might become inner nodes when the aggregation number is
                 // increased
-                let followers = iter_many!(task, Follower { task } count if *count > 0 => *task);
+                let followers = iter_many!(task, Follower { task } count if *count > 0 => task);
                 for follower_id in followers {
                     self.push(AggregationUpdateJob::BalanceEdge {
                         upper_id: task_id,
@@ -1637,7 +1637,7 @@ impl AggregationUpdateQueue {
                     self.push(AggregationUpdateJob::BalanceEdge { upper_id, task_id });
                 }
             } else {
-                let children = iter_many!(task, Child { task } => *task);
+                let children = iter_many!(task, Child { task } => task);
                 for child_id in children {
                     self.push(AggregationUpdateJob::UpdateAggregationNumber {
                         task_id: child_id,
