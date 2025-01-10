@@ -168,7 +168,7 @@ export const installTemplate = async ({
       if (tailwind) {
         const tailwindConfigFile = path.join(
           root,
-          mode === "ts" ? "tailwind.config.ts" : "tailwind.config.js",
+          mode === "ts" ? "tailwind.config.ts" : "tailwind.config.mjs",
         );
         await fs.writeFile(
           tailwindConfigFile,
