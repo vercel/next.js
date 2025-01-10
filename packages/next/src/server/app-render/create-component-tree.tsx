@@ -568,8 +568,8 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        {layerAssets}
         {parallelRouteProps.children}
+        {layerAssets}
       </React.Fragment>,
       parallelRouteCacheNodeSeedData,
       loadingData,
@@ -763,23 +763,23 @@ async function createComponentTreeInternal({
               forbidden={forbiddenClientSegment}
               unauthorized={unauthorizedClientSegment}
             >
-              {layerAssets}
               {clientSegment}
+              {layerAssets}
             </HTTPAccessFallbackBoundary>
           )
         } else {
           segmentNode = (
             <React.Fragment key={cacheNodeKey}>
-              {layerAssets}
               {clientSegment}
+              {layerAssets}
             </React.Fragment>
           )
         }
       } else {
         segmentNode = (
           <React.Fragment key={cacheNodeKey}>
-            {layerAssets}
             {clientSegment}
+            {layerAssets}
           </React.Fragment>
         )
       }
@@ -815,15 +815,15 @@ async function createComponentTreeInternal({
               ) : undefined
             }
           >
-            {layerAssets}
             {serverSegment}
+            {layerAssets}
           </HTTPAccessFallbackBoundary>
         )
       } else {
         segmentNode = (
           <React.Fragment key={cacheNodeKey}>
-            {layerAssets}
             {serverSegment}
+            {layerAssets}
           </React.Fragment>
         )
       }
@@ -876,12 +876,12 @@ function createErrorBoundaryClientSegmentRoot({
     }
     return (
       <>
-        {layerAssets}
         <ClientSegmentRoot
           Component={SegmentComponent}
           slots={notFoundParallelRouteProps}
           params={currentParams}
         />
+        {layerAssets}
       </>
     )
   }
