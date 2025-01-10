@@ -305,11 +305,12 @@ impl ImportMap {
     ) -> Self {
         let mut data = ImportMap::default();
 
-        m.visit_with(&mut Analyzer {
+        let mut analyzer = Analyzer {
             data: &mut data,
             source,
             comments,
-        });
+        };
+        m.visit_with(&mut analyzer);
 
         data
     }
