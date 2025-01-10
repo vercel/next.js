@@ -135,33 +135,6 @@ export const styles = css`
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
   }
-
-  @media (prefers-color-scheme: dark) {
-    .nextjs-container-build-error-version-status.turbopack-border {
-      border: 1px solid transparent;
-      background:
-        linear-gradient(
-            var(--color-background-100),
-            var(--color-background-100)
-          )
-          padding-box,
-        linear-gradient(
-            to right,
-            var(--color-turbopack-border-red) 0%,
-            var(--color-turbopack-border-blue) 100%
-          )
-          border-box;
-      border-radius: var(--rounded-full);
-    }
-
-    .nextjs-container-build-error-version-status > .turbopack-text {
-      background: linear-gradient(
-        to right,
-        var(--color-turbopack-text-red) 0%,
-        var(--color-turbopack-text-blue) 100%
-      );
-    }
-  }
 `
 
 function Eclipse({ className }: { className: string }) {

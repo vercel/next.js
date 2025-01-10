@@ -47,23 +47,4 @@ export const DIALOG_STYLES = css`
         )
         border-box;
   }
-
-  @media (prefers-color-scheme: dark) {
-    .error-overlay-dialog.turbopack {
-      border: 1px solid transparent;
-      background:
-        linear-gradient(
-            var(--color-background-100),
-            var(--color-background-100)
-          )
-          padding-box,
-        linear-gradient(
-            to right top,
-            var(--color-gray-400) 75%,
-            var(--color-turbopack-border-blue) 87.5%,
-            var(--color-turbopack-border-red) 100%
-          )
-          border-box;
-    }
-  }
 `

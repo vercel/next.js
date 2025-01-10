@@ -65,15 +65,4 @@ export const DIALOG_HEADER_STYLES = css`
       var(--color-turbopack-background-blue) 100%
     );
   }
-
-  @media (prefers-color-scheme: dark) {
-    .nextjs-error-overlay-dialog-header-turbopack-background {
-      background-image: linear-gradient(
-        10deg,
-        var(--color-background-100) 60%,
-        var(--color-turbopack-background-red) 75%,
-        var(--color-turbopack-background-blue) 100%
-      );
-    }
-  }
 `
