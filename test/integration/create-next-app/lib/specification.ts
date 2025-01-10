@@ -176,12 +176,17 @@ export const projectSpecification: ProjectSpecification = {
     js: {
       deps: ['next'],
       devDeps: [],
-      files: ['app/route.js', 'jsconfig.json'],
+      files: ['app/route.js', 'app/[slug]/route.js', 'jsconfig.json'],
     },
     ts: {
       deps: ['next'],
       devDeps: ['@types/node', '@types/react', 'typescript'],
-      files: ['app/route.ts', 'tsconfig.json', 'next-env.d.ts'],
+      files: [
+        'app/route.ts',
+        'app/[slug]/route.ts',
+        'tsconfig.json',
+        'next-env.d.ts',
+      ],
     },
   },
   'app-empty': {
