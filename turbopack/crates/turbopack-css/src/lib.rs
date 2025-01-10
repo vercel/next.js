@@ -1,3 +1,4 @@
+#![feature(async_closure)]
 #![feature(min_specialization)]
 #![feature(box_patterns)]
 #![feature(iter_intersperse)]
