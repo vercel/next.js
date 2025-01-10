@@ -32,6 +32,7 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
+use rustc_hash::FxHashSet;
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -52,7 +53,7 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{vdbg, FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
@@ -881,6 +882,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .get_mut()
         .extend(effects.into_iter().map(Action::Effect).rev());
 
+    let mut done = FxHashSet::default();
+
     while let Some(action) = queue_stack.get_mut().pop() {
         let effect = match action {
             Action::LeaveScope(func_ident) => {
@@ -1184,7 +1187,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 in_try: _,
             } => {
                 if let JsValue::Module(ModuleValue {
-                    esm_reference_index,
+                    esm_reference_index: Some(esm_reference_index),
                     ..
                 }) = &obj
                 {
@@ -1199,6 +1202,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 Some(export.to_string().into()),
                                 ResolvedVc::cell(ast_path.clone()),
                             ));
+                            done.insert(ast_path.clone());
+                            continue;
                         }
                     }
                 }
@@ -1219,6 +1224,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
+                if done
+                    .iter()
+                    .any(|done_ast_path| ast_path.starts_with(&done_ast_path))
+                {
+                    continue;
+                }
+
                 if let Some(&r) = import_references.get(esm_reference_index) {
                     if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference(
