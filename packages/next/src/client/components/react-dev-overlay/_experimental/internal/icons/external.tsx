@@ -1,19 +1,6 @@
-export function ExternalIcon({
-  height,
-  width,
-  className,
-}: {
-  height: number
-  width: number
-  className?: string
-}) {
+export function ExternalIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      width={width}
-      height={height}
-      className={className}
-    >
+    <svg xmlns="http://www.w3.org/2000/svg" {...props}>
       <path
         fillRule="evenodd"
         clipRule="evenodd"
