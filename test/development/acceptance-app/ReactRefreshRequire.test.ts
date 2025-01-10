@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -7,16 +7,13 @@ import { outdent } from 'outdent'
 describe('ReactRefreshRequire app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L989-L1048
   test('re-runs accepted modules', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -67,13 +64,12 @@ describe('ReactRefreshRequire app', () => {
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
     // expect(Refresh.performFullRefresh).not.toHaveBeenCalled();
-
-    await cleanup()
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L1050-L1137
   test('propagates a hot update to closest accepted module', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -172,12 +168,11 @@ describe('ReactRefreshRequire app', () => {
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled();
     // expect(Refresh.performFullRefresh).not.toHaveBeenCalled();
-
-    await cleanup()
   })
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L1139-L1307
   test('propagates hot update to all inverse dependencies', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -312,8 +307,6 @@ describe('ReactRefreshRequire app', () => {
     // TODO:
     // expect(Refresh.performReactRefresh).toHaveBeenCalled()
     // expect(Refresh.performFullRefresh).not.toHaveBeenCalled()
-
-    await cleanup()
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L1309-L1406
@@ -374,7 +367,8 @@ describe('ReactRefreshRequire app', () => {
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L2373-L2472
   // TODO-APP: investigate why it fails in app
   test.skip('propagates a module that stops accepting in next version', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     // Accept in parent
     await session.write(
@@ -493,8 +487,6 @@ describe('ReactRefreshRequire app', () => {
 
     // expect(Refresh.performFullRefresh).toHaveBeenCalled();
     expect(didFullRefresh).toBe(true)
-
-    await cleanup()
   })
 
   // https://github.com/facebook/metro/blob/b651e535cd0fc5df6c0803b9aa647d664cb9a6c3/packages/metro/src/lib/polyfills/__tests__/require-test.js#L2474-L2521

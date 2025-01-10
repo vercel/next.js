@@ -1,6 +1,6 @@
 # With Sitemap example
 
-This example shows how to generate a `sitemap.xml` file based on the pages in your [Next.js](https://nextjs.org/) app. The sitemap will be generated and saved in the `public` directory after starting the development server or by making a build.
+This example shows how to generate a `sitemap.xml` file based on the pages in your [Next.js](https://nextjs.org/) app.
 
 ## Deploy your own
 

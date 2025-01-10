@@ -1,0 +1,23 @@
+{
+  "name": "@next/swc-darwin-x64",
+  "version": "0.0.0",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/vercel/next.js",
+    "directory": "crates/napi/npm/darwin-x64"
+  },
+  "os": [
+    "darwin"
+  ],
+  "cpu": [
+    "x64"
+  ],
+  "main": "next-swc.darwin-x64.node",
+  "files": [
+    "next-swc.darwin-x64.node"
+  ],
+  "license": "MIT",
+  "engines": {
+    "node": ">= 10"
+  }
+}

@@ -18,7 +18,7 @@ let devOutput
 ;(process.env.TURBOPACK ? describe.skip : describe)(
   'svgo-webpack with Image Component',
   () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         it('should not fail to build invalid usage of the Image component', async () => {
@@ -31,26 +31,28 @@ let devOutput
         })
       }
     )
-
-    describe('development mode', () => {
-      beforeAll(async () => {
-        devOutput = { stdout: '', stderr: '' }
-        appPort = await findPort()
-        app = await launchApp(appDir, appPort, {
-          onStdout: (msg) => {
-            devOutput.stdout += msg
-          },
-          onStderr: (msg) => {
-            devOutput.stderr += msg
-          },
+    ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+      'development mode',
+      () => {
+        beforeAll(async () => {
+          devOutput = { stdout: '', stderr: '' }
+          appPort = await findPort()
+          app = await launchApp(appDir, appPort, {
+            onStdout: (msg) => {
+              devOutput.stdout += msg
+            },
+            onStderr: (msg) => {
+              devOutput.stderr += msg
+            },
+          })
         })
-      })
-      afterAll(() => killApp(app))
+        afterAll(() => killApp(app))
 
-      it('should print error when invalid Image usage', async () => {
-        await renderViaHTTP(appPort, '/', {})
-        expect(devOutput.stderr).toBeFalsy()
-      })
-    })
+        it('should print error when invalid Image usage', async () => {
+          await renderViaHTTP(appPort, '/', {})
+          expect(devOutput.stderr).toBeFalsy()
+        })
+      }
+    )
   }
 )

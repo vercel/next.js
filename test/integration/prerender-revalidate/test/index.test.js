@@ -66,37 +66,40 @@ function runTests(route, routePath) {
 }
 
 describe('SSG Prerender Revalidate', () => {
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [])
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort, {})
-      buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir, [])
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort, {})
+        buildId = await fs.readFile(join(appDir, '.next/BUILD_ID'), 'utf8')
+      })
+      afterAll(() => killApp(app))
 
-    runTests('/', '/')
-    runTests('/named', '/named')
-    runTests('/nested', '/nested')
-    runTests('/nested/named', '/nested/named')
+      runTests('/', '/')
+      runTests('/named', '/named')
+      runTests('/nested', '/nested')
+      runTests('/nested/named', '/nested/named')
 
-    it('should return cache-control header on 304 status', async () => {
-      const url = `http://localhost:${appPort}`
-      const res1 = await fetchViaHTTP(url, '/static')
-      const cacheControl200 = res1.headers.get('Cache-Control')
-      const etag = res1.headers.get('ETag')
+      it('should return cache-control header on 304 status', async () => {
+        const url = `http://localhost:${appPort}`
+        const res1 = await fetchViaHTTP(url, '/static')
+        const cacheControl200 = res1.headers.get('Cache-Control')
+        const etag = res1.headers.get('ETag')
 
-      const headers = { 'If-None-Match': etag }
-      const res2 = await fetchViaHTTP(url, '/static', undefined, { headers })
-      const cacheControl304 = res2.headers.get('Cache-Control')
-      expect(cacheControl304).toEqual(cacheControl200)
-    })
-  })
+        const headers = { 'If-None-Match': etag }
+        const res2 = await fetchViaHTTP(url, '/static', undefined, { headers })
+        const cacheControl304 = res2.headers.get('Cache-Control')
+        expect(cacheControl304).toEqual(cacheControl200)
+      })
+    }
+  )
 
   // Regression test for https://github.com/vercel/next.js/issues/24806
   describe('[regression] production mode and incremental cache size exceeded', () => {
-    ;(process.env.TURBOPACK ? describe.skip : describe)(
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
       'production mode',
       () => {
         beforeAll(async () => {

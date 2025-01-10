@@ -13,6 +13,7 @@ export = defineRule({
     schema: [],
   },
   create(context) {
+    const { sourceCode } = context
     let documentImportName
     return {
       ImportDeclaration(node) {
@@ -26,7 +27,7 @@ export = defineRule({
         }
       },
       ReturnStatement(node) {
-        const ancestors = context.getAncestors()
+        const ancestors = sourceCode.getAncestors(node)
         const documentClass = ancestors.find(
           (ancestorNode) =>
             ancestorNode.type === 'ClassDeclaration' &&
@@ -39,7 +40,6 @@ export = defineRule({
           return
         }
 
-        // @ts-expect-error - `node.argument` could be a `JSXElement` which has property `children`
         if (
           node.argument &&
           'children' in node.argument &&

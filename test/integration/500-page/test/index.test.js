@@ -60,16 +60,19 @@ const runTests = (mode = 'server') => {
 }
 
 describe('500 Page Support', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('dev')
-  })
+      runTests('dev')
+    }
+  )
   describe('development mode 2', () => {
     it('shows error with getInitialProps in pages/500 dev', async () => {
       await fs.move(pages500, `${pages500}.bak`)
@@ -100,26 +103,73 @@ describe('500 Page Support', () => {
       expect(stderr).toMatch(gip500Err)
     })
   })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests('server')
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
+      runTests('server')
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
     'production mode 2',
     () => {
+      it('should have correct cache control for 500 page with getStaticProps', async () => {
+        const orig500 = await fs.readFile(pages500, 'utf8')
+
+        try {
+          await fs.writeFile(
+            pages500,
+            `
+            export default function Page() {
+              return (
+                <p>custom 500</p>
+              )
+            }
+            
+            export function getStaticProps() {
+              return {
+                props: {
+                  now: Date.now(),
+                }
+              }
+            }
+          `
+          )
+
+          await fs.remove(join(appDir, '.next'))
+          const { code } = await nextBuild(appDir, [], {
+            stderr: true,
+            stdout: true,
+          })
+          expect(code).toBe(0)
+
+          const appPort = await findPort()
+          const app = await nextStart(appDir, appPort)
+          const res = await fetchViaHTTP(appPort, '/err')
+
+          await killApp(app)
+          expect(res.status).toBe(500)
+          expect(res.headers.get('cache-control')).toBe(
+            'private, no-cache, no-store, max-age=0, must-revalidate'
+          )
+        } finally {
+          await fs.writeFile(pages500, orig500)
+        }
+      })
+
       it('does not build 500 statically with getInitialProps in _app', async () => {
         await fs.writeFile(
           pagesApp,
           `
         import App from 'next/app'
-  
+
         const page = ({ Component, pageProps }) => <Component {...pageProps} />
         page.getInitialProps = (ctx) => App.getInitialProps(ctx)
         export default page
@@ -233,19 +283,19 @@ describe('500 Page Support', () => {
           function Error({ statusCode }) {
             return <p>Error status: {statusCode}</p>
           }
-  
+
           Error.getInitialProps = ({ req, res, err }) => {
             console.error('called _error.getInitialProps')
-  
+
             if (req.url === '/500') {
               throw new Error('should not export /500')
             }
-  
+
             return {
               statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
             }
           }
-  
+
           export default Error
         `
         )
@@ -284,19 +334,19 @@ describe('500 Page Support', () => {
           function Error({ statusCode }) {
             return <p>Error status: {statusCode}</p>
           }
-  
+
           Error.getInitialProps = ({ req, res, err }) => {
             console.error('called _error.getInitialProps')
-  
+
             if (req.url === '/500') {
               throw new Error('should not export /500')
             }
-  
+
             return {
               statusCode: res && res.statusCode ? res.statusCode : err ? err.statusCode : 404
             }
           }
-  
+
           export default Error
         `
         )
@@ -306,18 +356,18 @@ describe('500 Page Support', () => {
           function App({ pageProps, Component }) {
             return <Component {...pageProps} />
           }
-  
+
           App.getInitialProps = async ({ Component, ctx }) => {
             // throw _app GIP err here
             let pageProps = {}
-  
+
             if (Component.getInitialProps) {
               pageProps = await Component.getInitialProps(ctx)
             }
-  
+
             return { pageProps }
           }
-  
+
           export default App
         `
         )

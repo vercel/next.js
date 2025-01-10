@@ -10,9 +10,9 @@ An `<img>` element was used to display an image instead of `<Image />` from `nex
 
 ## Possible Ways to Fix It
 
-Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/building-your-application/optimizing/images).
+1. Use [`next/image`](/docs/pages/api-reference/components/image) to improve performance with automatic [Image Optimization](/docs/pages/building-your-application/optimizing/images).
 
-> Note: If deploying to a [managed hosting provider](/docs/pages/building-your-application/deploying), remember to check provider pricing since optimized images might be charged differently than the original images.
+> **Note**: If deploying to a [managed hosting provider](/docs/pages/building-your-application/deploying), remember to check provider pricing since optimized images might be charged differently than the original images.
 >
 > Common image optimization platform pricing:
 >
@@ -20,7 +20,7 @@ Use [`next/image`](/docs/pages/api-reference/components/image) to improve perfor
 > - [Cloudinary pricing](https://cloudinary.com/pricing)
 > - [imgix pricing](https://imgix.com/pricing)
 
-> Note: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
+> **Note**: If self-hosting, remember to install [`sharp`](https://www.npmjs.com/package/sharp) and check if your server has enough storage to cache the optimized images.
 
 ```jsx filename="pages/index.js"
 import Image from 'next/image'
@@ -39,9 +39,17 @@ function Home() {
 export default Home
 ```
 
-If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](/docs/pages/api-reference/components/image#unoptimized).
+2. If you would like to use `next/image` features such as blur-up placeholders but disable Image Optimization, you can do so using [unoptimized](/docs/pages/api-reference/components/image#unoptimized):
 
-Or, use a `<picture>` element with the nested `<img>` element:
+```jsx filename="pages/index.js"
+import Image from 'next/image'
+
+const UnoptimizedImage = (props) => {
+  return <Image {...props} unoptimized />
+}
+```
+
+3. You can also use the `<picture>` element with the nested `<img>` element:
 
 ```jsx filename="pages/index.js"
 function Home() {
@@ -60,8 +68,20 @@ function Home() {
 }
 ```
 
+4. You can use a [custom image loader](/docs/pages/building-your-application/optimizing/images#loaders) to optimize images. Set [loaderFile](/docs/pages/api-reference/components/image#loaderfile) to the path of your custom loader.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    loader: 'custom',
+    loaderFile: './my/image/loader.js',
+  },
+}
+```
+
 ## Useful Links
 
 - [Image Component and Image Optimization](/docs/pages/building-your-application/optimizing/images)
 - [next/image API Reference](/docs/pages/api-reference/components/image)
 - [Largest Contentful Paint (LCP)](/learn/seo/web-performance/lcp)
+- [Next.js config loaderFile option](/docs/pages/api-reference/components/image#loaderfile)

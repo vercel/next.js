@@ -1,7 +1,7 @@
 import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../../../../server/future/helpers/interception-routes'
+} from '../../../../server/lib/interception-routes'
 
 // Identify /[param]/ in route string
 const TEST_ROUTE = /\/\[[^/]+?\](?=\/|$)/

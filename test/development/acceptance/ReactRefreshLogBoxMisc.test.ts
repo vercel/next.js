@@ -1,4 +1,4 @@
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { outdent } from 'outdent'
@@ -12,7 +12,8 @@ describe.skip('ReactRefreshLogBox', () => {
   })
 
   test('<Link> with multiple children', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -30,7 +31,7 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Multiple children were passed to <Link> with \`href\` of \`/\` but only one child is supported https://nextjs.org/docs/messages/link-multiple-children"`
     )
@@ -46,12 +47,11 @@ describe.skip('ReactRefreshLogBox', () => {
           ).href
       )
     ).toMatch('https://nextjs.org/docs/messages/link-multiple-children')
-
-    await cleanup()
   })
 
   test('<Link> component props errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -64,7 +64,7 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toMatchInlineSnapshot(
       `"Error: Failed prop type: The prop \`href\` expects a \`string\` or \`object\` in \`<Link>\`, but got \`undefined\` instead."`
     )
@@ -79,7 +79,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await session.patch(
       'index.js',
@@ -103,7 +103,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await session.patch(
       'index.js',
@@ -127,7 +127,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await session.patch(
       'index.js',
@@ -151,7 +151,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(false)
+    await session.assertNoRedbox()
 
     await session.patch(
       'index.js',
@@ -175,7 +175,7 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toMatchSnapshot()
 
     await session.patch(
@@ -200,14 +200,13 @@ describe.skip('ReactRefreshLogBox', () => {
         }
       `
     )
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
     expect(await session.getRedboxDescription()).toMatchSnapshot()
-
-    await cleanup()
   })
 
   test('server-side only compilation errors', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'pages/index.js',
@@ -226,7 +225,6 @@ describe.skip('ReactRefreshLogBox', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
-    await cleanup()
+    await session.assertHasRedbox()
   })
 })

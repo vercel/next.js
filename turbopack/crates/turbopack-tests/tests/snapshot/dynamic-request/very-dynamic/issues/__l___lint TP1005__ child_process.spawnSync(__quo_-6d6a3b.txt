@@ -1,0 +1,13 @@
+[92;4msuggestion - [analysis] [project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:7:0  lint TP1005 child_process.spawnSync("node", FreeVar(Math)["random"]()) is very dynamic
+  
+       3 | 
+       4 | const unknown = Math.random();
+       5 | 
+       6 | child_process.spawnSync(unknown);
+         + v--------------------------------------v
+       7 + child_process.spawnSync("node", unknown);
+         + ^--------------------------------------^
+       8 | child_process.spawnSync("node", [unknown, unknown]);
+       9 | 
+      10 | require(unknown);
+      11 |

@@ -1,5 +1,5 @@
 import { useRouter } from 'next/router'
-import React from 'react'
+import React, { type JSX } from 'react'
 import { hello } from '../components/hello'
 import Image from '../components/image'
 import Link from '../components/link'

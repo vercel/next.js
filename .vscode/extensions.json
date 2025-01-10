@@ -5,6 +5,7 @@
     "esbenp.prettier-vscode",
     "dbaeumer.vscode-eslint",
     "usernamehw.errorlens",
+    "ast-grep.ast-grep-vscode",
 
     // Testing
     "orta.vscode-jest",
@@ -22,6 +23,9 @@
     "ms-vscode.vscode-js-profile-flame",
 
     // MDX Authoring
-    "unifiedjs.vscode-mdx"
+    "unifiedjs.vscode-mdx",
+
+    // CSS Authoring (mainly Dev Overlay)
+    "styled-components.vscode-styled-components"
   ]
 }

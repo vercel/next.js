@@ -57,7 +57,8 @@ let postcssInstancePromise: Promise<any>
 export async function lazyPostCSS(
   rootDirectory: string,
   supportedBrowsers: string[] | undefined,
-  disablePostcssPresetEnv: boolean | undefined
+  disablePostcssPresetEnv: boolean | undefined,
+  useLightningcss: boolean | undefined
 ) {
   if (!postcssInstancePromise) {
     postcssInstancePromise = (async () => {
@@ -128,7 +129,8 @@ export async function lazyPostCSS(
       const postCssPlugins = await getPostCssPlugins(
         rootDirectory,
         supportedBrowsers,
-        disablePostcssPresetEnv
+        disablePostcssPresetEnv,
+        useLightningcss
       )
 
       return {
@@ -148,6 +150,7 @@ export const css = curry(async function css(
   const {
     prependData: sassPrependData,
     additionalData: sassAdditionalData,
+    implementation: sassImplementation,
     ...sassOptions
   } = ctx.sassOptions
 
@@ -155,7 +158,8 @@ export const css = curry(async function css(
     lazyPostCSS(
       ctx.rootDirectory,
       ctx.supportedBrowsers,
-      ctx.experimental.disablePostcssPresetEnv
+      ctx.experimental.disablePostcssPresetEnv,
+      ctx.experimental.useLightningcss
     )
 
   const sassPreprocessors: webpack.RuleSetUseItem[] = [
@@ -164,6 +168,7 @@ export const css = curry(async function css(
     {
       loader: require.resolve('next/dist/compiled/sass-loader'),
       options: {
+        implementation: sassImplementation,
         // Source maps are required so that `resolve-url-loader` can locate
         // files original to their source directory.
         sourceMap: true,
@@ -176,6 +181,8 @@ export const css = curry(async function css(
           // Since it's optional and not required, we'll disable it by default
           // to avoid the confusion.
           fibers: false,
+          // TODO: Remove this once we upgrade to sass-loader 16
+          silenceDeprecations: ['legacy-js-api'],
           ...sassOptions,
         },
         additionalData: sassPrependData || sassAdditionalData,
@@ -208,9 +215,6 @@ export const css = curry(async function css(
   const nextFontLoaders: Array<[string | RegExp, string, any?]> = [
     [require.resolve('next/font/google/target.css'), googleLoader],
     [require.resolve('next/font/local/target.css'), localLoader],
-    // TODO: remove this in the next major version
-    [/node_modules[\\/]@next[\\/]font[\\/]google[\\/]target.css/, googleLoader],
-    [/node_modules[\\/]@next[\\/]font[\\/]local[\\/]target.css/, localLoader],
   ]
 
   nextFontLoaders.forEach(([fontLoaderTarget, fontLoaderPath]) => {
@@ -263,7 +267,7 @@ export const css = curry(async function css(
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: false,
+              sideEffects: true,
               test: regexCssModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -283,7 +287,7 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: false,
+          sideEffects: true,
           test: regexCssModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
@@ -303,7 +307,7 @@ export const css = curry(async function css(
         // For app dir, we need to match the specific app layer.
         ctx.hasAppDir
           ? markRemovable({
-              sideEffects: false,
+              sideEffects: true,
               test: regexSassModules,
               issuerLayer: APP_LAYER_RULE,
               use: [
@@ -324,7 +328,7 @@ export const css = curry(async function css(
             })
           : null,
         markRemovable({
-          sideEffects: false,
+          sideEffects: true,
           test: regexSassModules,
           issuerLayer: PAGES_LAYER_RULE,
           use: getCssModuleLoader(
@@ -403,11 +407,11 @@ export const css = curry(async function css(
     const allowedPagesGlobalCSSIssuer = ctx.hasAppDir
       ? undefined
       : shouldIncludeExternalCSSImports
-      ? undefined
-      : {
-          and: [ctx.rootDirectory],
-          not: [/node_modules/],
-        }
+        ? undefined
+        : {
+            and: [ctx.rootDirectory],
+            not: [/node_modules/],
+          }
 
     fns.push(
       loader({
@@ -612,6 +616,21 @@ export const css = curry(async function css(
           // If this warning were to trigger, it'd be unactionable by the user,
           // but likely not valid -- so we disable it.
           ignoreOrder: true,
+          insert: function (linkTag: HTMLLinkElement) {
+            if (typeof _N_E_STYLE_LOAD === 'function') {
+              const { href, onload, onerror } = linkTag
+              _N_E_STYLE_LOAD(
+                href.indexOf(window.location.origin) === 0
+                  ? new URL(href).pathname
+                  : href
+              ).then(
+                () => onload?.call(linkTag, { type: 'load' } as Event),
+                () => onerror?.call(linkTag, {} as Event)
+              )
+            } else {
+              document.head.appendChild(linkTag)
+            }
+          },
         })
       )
     )

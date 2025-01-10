@@ -6,10 +6,10 @@ export function SuperShared({ from }: { from: 'flight' | 'fizz' | 'dynamic' }) {
     from === 'flight'
       ? 'loaded on the server (RSC)'
       : from === 'fizz'
-      ? 'loaded on the client (Fizz/Fiber)'
-      : from === 'dynamic'
-      ? 'loaded dynamically'
-      : 'not configured to say where it was loaded'
+        ? 'loaded on the client (Fizz/Fiber)'
+        : from === 'dynamic'
+          ? 'loaded dynamically'
+          : 'not configured to say where it was loaded'
 
   if (typeof globalThis.UNKNOWN_GLOBAL_BINDING === 'boolean') {
     thingOne()

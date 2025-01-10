@@ -33,9 +33,20 @@ export default function createSpinner(
     const origStopAndPersist = spinner.stopAndPersist.bind(spinner)
 
     const logHandle = (method: any, args: any[]) => {
-      origStop()
+      // Enter a new line before logging new message, to avoid
+      // the new message shows up right after the spinner in the same line.
+      const isInProgress = spinner?.isSpinning
+      if (spinner && isInProgress) {
+        // Reset the current running spinner to empty line by `\r`
+        spinner.prefixText = '\r'
+        spinner.text = '\r'
+        spinner.clear()
+        origStop()
+      }
       method(...args)
-      spinner!.start()
+      if (spinner && isInProgress) {
+        spinner.start()
+      }
     }
 
     console.log = (...args: any) => logHandle(origLog, args)
@@ -47,18 +58,18 @@ export default function createSpinner(
       console.warn = origWarn
       console.error = origError
     }
-    spinner.setText = (newText: string) => {
+    spinner.setText = (newText) => {
       text = newText
       prefixText = ` ${Log.prefixes.info} ${newText} `
       spinner!.prefixText = prefixText
       return spinner!
     }
-    spinner.stop = (): ora.Ora => {
+    spinner.stop = () => {
       origStop()
       resetLog()
       return spinner!
     }
-    spinner.stopAndPersist = (): ora.Ora => {
+    spinner.stopAndPersist = () => {
       // Add \r at beginning to reset the current line of loading status text
       const suffixText = `\r ${Log.prefixes.event} ${text} `
       if (spinner) {

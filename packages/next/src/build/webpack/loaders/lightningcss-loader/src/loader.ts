@@ -22,8 +22,6 @@ import { ECacheKey } from './interface'
 
 const encoder = new TextEncoder()
 
-const moduleRegExp = /\.module\.\w+$/i
-
 function createUrlAndImportVisitor(
   visitorOptions: any,
   apis: ApiParam[],
@@ -281,6 +279,16 @@ export async function LightningCssLoader(
     return
   }
 
+  if (options.postcss) {
+    const { postcssWithPlugins } = await options.postcss()
+
+    if (postcssWithPlugins?.plugins?.length > 0) {
+      throw new Error(
+        `[${LOADER_NAME}]: experimental.useLightningcss does not work with postcss plugins. Please remove 'useLightningcss: true' from your configuration.`
+      )
+    }
+  }
+
   const exports: CssExport[] = []
   const imports: CssImport[] = []
   const icssImports: CssImport[] = []
@@ -354,14 +362,13 @@ export async function LightningCssLoader(
     } = transform({
       ...opts,
       visitor,
-      cssModules:
-        options.modules && moduleRegExp.test(this.resourcePath)
-          ? {
-              pattern: process.env.__NEXT_TEST_MODE
-                ? '[name]__[local]'
-                : '[name]__[hash]__[local]',
-            }
-          : undefined,
+      cssModules: options.modules
+        ? {
+            pattern: process.env.__NEXT_TEST_MODE
+              ? '[name]__[local]'
+              : '[name]__[hash]__[local]',
+          }
+        : undefined,
       filename: this.resourcePath,
       code: encoder.encode(source),
       sourceMap: this.sourceMap,

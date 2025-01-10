@@ -1,8 +1,6 @@
 import type { LoaderTree } from '../../server/lib/app-dir-module'
-// eslint-disable-next-line @typescript-eslint/no-unused-expressions
-;('TURBOPACK { transition: next-ssr }')
-import { AppPageRouteModule } from '../../server/future/route-modules/app-page/module.compiled'
-import { RouteKind } from '../../server/future/route-kind'
+import { AppPageRouteModule } from '../../server/route-modules/app-page/module.compiled' with { 'turbopack-transition': 'next-ssr' }
+import { RouteKind } from '../../server/route-kind' with { 'turbopack-transition': 'next-server-utility' }
 
 // These are injected by the loader afterwards.
 
@@ -20,7 +18,7 @@ declare const pages: any
 
 export { tree, pages }
 
-export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR'
+export { default as GlobalError } from 'VAR_MODULE_GLOBAL_ERROR' with { 'turbopack-transition': 'next-server-utility' }
 
 // These are injected by the loader afterwards.
 declare const __next_app_require__: any
@@ -29,13 +27,12 @@ declare const __next_app_load_chunk__: any
 // INJECT:__next_app_require__
 // INJECT:__next_app_load_chunk__
 
-export const originalPathname = 'VAR_ORIGINAL_PATHNAME'
 export const __next_app__ = {
   require: __next_app_require__,
   loadChunk: __next_app_load_chunk__,
 }
 
-export * from '../../server/app-render/entry-base'
+export * from '../../server/app-render/entry-base' with { 'turbopack-transition': 'next-server-utility' }
 
 // Create and export the route module that will be consumed.
 export const routeModule = new AppPageRouteModule({

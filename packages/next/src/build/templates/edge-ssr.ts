@@ -17,12 +17,16 @@ declare const incrementalCacheHandler: any
 // const renderToHTML = undefined
 
 import { renderToHTML } from '../../server/render'
-import RouteModule from '../../server/future/route-modules/pages/module'
+import RouteModule from '../../server/route-modules/pages/module'
 
 import type { RequestData } from '../../server/web/types'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { PAGE_TYPES } from '../../lib/page-types'
+import {
+  cacheHandlerGlobal,
+  cacheHandlersSymbol,
+} from '../../server/use-cache/constants'
 
 // injected by the loader afterwards.
 declare const pagesType: PAGE_TYPES
@@ -39,6 +43,18 @@ declare const user500RouteModuleOptions: any
 // INJECT:pageRouteModuleOptions
 // INJECT:errorRouteModuleOptions
 // INJECT:user500RouteModuleOptions
+
+const cacheHandlers = {}
+
+if (!cacheHandlerGlobal.__nextCacheHandlers) {
+  cacheHandlerGlobal.__nextCacheHandlers = cacheHandlers
+
+  if (!cacheHandlerGlobal.__nextCacheHandlers.default) {
+    cacheHandlerGlobal.__nextCacheHandlers.default =
+      cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
+      cacheHandlerGlobal.__nextCacheHandlers.__nextDefault
+  }
+}
 
 const pageMod = {
   ...userlandPage,
@@ -82,8 +98,8 @@ const error500Mod = userland500Page
 const maybeJSONParse = (str?: string) => (str ? JSON.parse(str) : undefined)
 
 const buildManifest: BuildManifest = self.__BUILD_MANIFEST as any
-const prerenderManifest = maybeJSONParse(self.__PRERENDER_MANIFEST)
 const reactLoadableManifest = maybeJSONParse(self.__REACT_LOADABLE_MANIFEST)
+const dynamicCssManifest = maybeJSONParse(self.__DYNAMIC_CSS_MANIFEST)
 const subresourceIntegrityManifest = sriEnabled
   ? maybeJSONParse(self.__SUBRESOURCE_INTEGRITY_MANIFEST)
   : undefined
@@ -99,12 +115,12 @@ const render = getRender({
   error500Mod,
   Document,
   buildManifest,
-  prerenderManifest,
   renderToHTML,
   reactLoadableManifest,
+  dynamicCssManifest,
   subresourceIntegrityManifest,
   config: nextConfig,
-  buildId: 'VAR_BUILD_ID',
+  buildId: process.env.__NEXT_BUILD_ID!,
   nextFontManifest,
   incrementalCacheHandler,
 })

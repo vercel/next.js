@@ -1,8 +1,7 @@
 import { join } from 'path'
-import webdriver from 'next-webdriver'
+import webdriver, { BrowserInterface } from 'next-webdriver'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import { check, shouldRunTurboDevTest } from 'next-test-utils'
-import { BrowserInterface } from 'test/lib/browsers/base'
 
 // [TODO]: It is unclear why turbopack takes longer to run this test
 // remove once it's fixed

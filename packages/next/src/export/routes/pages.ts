@@ -1,8 +1,13 @@
 import type { ExportRouteResult, FileWriter } from '../types'
-import type { RenderOpts } from '../../server/render'
+import type {
+  PagesRenderContext,
+  PagesSharedContext,
+  RenderOpts,
+} from '../../server/render'
 import type { LoadComponentsReturnType } from '../../server/load-components'
 import type { AmpValidation } from '../types'
 import type { NextParsedUrlQuery } from '../../server/request-meta'
+import type { Params } from '../../server/request/params'
 
 import RenderResult from '../../server/render-result'
 import { join } from 'path'
@@ -18,7 +23,7 @@ import {
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import AmpHtmlValidator from 'next/dist/compiled/amphtml-validator'
 import { FileType, fileExists } from '../../lib/file-exists'
-import { lazyRenderPagesPage } from '../../server/future/route-modules/pages/module.render'
+import { lazyRenderPagesPage } from '../../server/route-modules/pages/module.render'
 
 export const enum ExportedPagesFiles {
   HTML = 'HTML',
@@ -27,12 +32,16 @@ export const enum ExportedPagesFiles {
   AMP_DATA = 'AMP_PAGE_DATA',
 }
 
-export async function exportPages(
+/**
+ * Renders & exports a page associated with the /pages directory
+ */
+export async function exportPagesPage(
   req: MockedRequest,
   res: MockedResponse,
   path: string,
   page: string,
   query: NextParsedUrlQuery,
+  params: Params | undefined,
   htmlFilepath: string,
   htmlFilename: string,
   ampPath: string,
@@ -42,6 +51,8 @@ export async function exportPages(
   pagesDataDir: string,
   buildExport: boolean,
   isDynamic: boolean,
+  sharedContext: PagesSharedContext,
+  renderContext: PagesRenderContext,
   hasOrigQueryValues: boolean,
   renderOpts: RenderOpts,
   components: LoadComponentsReturnType,
@@ -51,6 +62,12 @@ export async function exportPages(
     ampFirst: components.pageConfig?.amp === true,
     hasQuery: Boolean(query.amp),
     hybrid: components.pageConfig?.amp === 'hybrid',
+  }
+
+  if (!ampValidatorPath) {
+    ampValidatorPath = require.resolve(
+      'next/dist/compiled/amphtml-validator/validator_wasm.js'
+    )
   }
 
   const inAmpMode = isInAmpMode(ampState)
@@ -64,6 +81,15 @@ export async function exportPages(
   // prerendered the file
   if (!buildExport && components.getStaticProps && !isDynamic) {
     return
+  }
+
+  // Pages router merges page params (e.g. [lang]) with query params
+  // primarily to support them both being accessible on `useRouter().query`.
+  // If we extracted dynamic params from the path, we need to merge them
+  // back into the query object.
+  const searchAndDynamicParams = {
+    ...query,
+    ...params,
   }
 
   if (components.getStaticProps && !htmlFilepath.endsWith('.html')) {
@@ -84,16 +110,10 @@ export async function exportPages(
     }
   } else {
     /**
-     * This sets environment variable to be used at the time of static export by head.tsx.
+     * This sets environment variable to be used at the time of SSR by head.tsx.
      * Using this from process.env allows targeting SSR by calling
-     * `process.env.__NEXT_OPTIMIZE_FONTS`.
-     * TODO(prateekbh@): Remove this when experimental.optimizeFonts are being cleaned up.
+     * `process.env.__NEXT_OPTIMIZE_CSS`.
      */
-    if (renderOpts.optimizeFonts) {
-      process.env.__NEXT_OPTIMIZE_FONTS = JSON.stringify(
-        renderOpts.optimizeFonts
-      )
-    }
     if (renderOpts.optimizeCss) {
       process.env.__NEXT_OPTIMIZE_CSS = JSON.stringify(true)
     }
@@ -102,8 +122,10 @@ export async function exportPages(
         req,
         res,
         page,
-        query,
-        renderOpts
+        searchAndDynamicParams,
+        renderOpts,
+        sharedContext,
+        renderContext
       )
     } catch (err) {
       if (!isBailoutToCSRError(err)) throw err
@@ -117,7 +139,7 @@ export async function exportPages(
   const validateAmp = async (
     rawAmpHtml: string,
     ampPageName: string,
-    validatorPath?: string
+    validatorPath: string | undefined
   ) => {
     const validator = await AmpHtmlValidator.getInstance(validatorPath)
     const result = validator.validateString(rawAmpHtml)
@@ -158,8 +180,10 @@ export async function exportPages(
           req,
           res,
           page,
-          { ...query, amp: '1' },
-          renderOpts
+          { ...searchAndDynamicParams, amp: '1' },
+          renderOpts,
+          sharedContext,
+          renderContext
         )
       } catch (err) {
         if (!isBailoutToCSRError(err)) throw err
@@ -170,7 +194,7 @@ export async function exportPages(
           ? ampRenderResult.toUnchunkedString()
           : ''
       if (!renderOpts.ampSkipValidation) {
-        await validateAmp(ampHtml, page + '?amp=1')
+        await validateAmp(ampHtml, page + '?amp=1', ampValidatorPath)
       }
 
       await fileWriter(

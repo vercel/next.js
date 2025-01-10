@@ -88,4 +88,8 @@ async function main() {
   }
 }
 
-main().catch(console.error)
+main().catch((err) => {
+  console.error(err)
+  // Ensure the process exists with a non-zero exit code so that the workflow fails
+  process.exit(1)
+})

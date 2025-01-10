@@ -2,12 +2,12 @@ import { Suspense, unstable_postpone as postpone } from 'react'
 import { Optimistic } from '../../../components/optimistic'
 import { ServerHtml } from '../../../components/server-html'
 
-export default ({ searchParams }) => {
+export default (props) => {
   return (
     <>
       <ServerHtml />
       <Suspense fallback="loading...">
-        <Optimistic searchParams={searchParams} />
+        <Optimistic searchParams={props.searchParams} />
       </Suspense>
       <Suspense fallback="loading...">
         <IncidentalPostpone />

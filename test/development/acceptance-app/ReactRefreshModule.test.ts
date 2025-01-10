@@ -1,21 +1,18 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { outdent } from 'outdent'
 
 describe('ReactRefreshModule app', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
   it('should allow any variable names', async () => {
-    const { session, cleanup } = await sandbox(next, new Map([]))
-    expect(await session.hasRedbox()).toBe(false)
+    await using sandbox = await createSandbox(next, new Map([]))
+    const { session } = sandbox
+    await session.assertNoRedbox()
 
     const variables = [
       '_a',
@@ -37,12 +34,10 @@ describe('ReactRefreshModule app', () => {
           }
         `
       )
-      expect(await session.hasRedbox()).toBe(false)
+      await session.assertNoRedbox()
       expect(next.cliOutput).not.toContain(
         `'${variable}' has already been declared`
       )
     }
-
-    await cleanup()
   })
 })

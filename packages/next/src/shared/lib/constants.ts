@@ -10,19 +10,6 @@ export const COMPILER_NAMES = {
   edgeServer: 'edge-server',
 } as const
 
-/**
- * Headers that are set by the Next.js server and should be stripped from the
- * request headers going to the user's application.
- */
-export const INTERNAL_HEADERS = [
-  'x-invoke-error',
-  'x-invoke-output',
-  'x-invoke-path',
-  'x-invoke-query',
-  'x-invoke-status',
-  'x-middleware-invoke',
-] as const
-
 export type CompilerNameValues = ValueOf<typeof COMPILER_NAMES>
 
 export const COMPILER_INDEXES: {
@@ -42,6 +29,7 @@ export const PHASE_DEVELOPMENT_SERVER = 'phase-development-server'
 export const PHASE_TEST = 'phase-test'
 export const PHASE_INFO = 'phase-info'
 export const PAGES_MANIFEST = 'pages-manifest.json'
+export const WEBPACK_STATS = 'webpack-stats.json'
 export const APP_PATHS_MANIFEST = 'app-paths-manifest.json'
 export const APP_PATH_ROUTES_MANIFEST = 'app-path-routes-manifest.json'
 export const BUILD_MANIFEST = 'build-manifest.json'
@@ -57,11 +45,16 @@ export const IMAGES_MANIFEST = 'images-manifest.json'
 export const SERVER_FILES_MANIFEST = 'required-server-files.json'
 export const DEV_CLIENT_PAGES_MANIFEST = '_devPagesManifest.json'
 export const MIDDLEWARE_MANIFEST = 'middleware-manifest.json'
-export const DEV_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
+export const TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST =
+  '_clientMiddlewareManifest.json'
+export const DEV_CLIENT_MIDDLEWARE_MANIFEST = '_devMiddlewareManifest.json'
 export const REACT_LOADABLE_MANIFEST = 'react-loadable-manifest.json'
-export const AUTOMATIC_FONT_OPTIMIZATION_MANIFEST = 'font-manifest.json'
 export const SERVER_DIRECTORY = 'server'
-export const CONFIG_FILES = ['next.config.js', 'next.config.mjs']
+export const CONFIG_FILES = [
+  'next.config.js',
+  'next.config.mjs',
+  'next.config.ts',
+]
 export const BUILD_ID_FILE = 'BUILD_ID'
 export const BLOCKED_PAGES = ['/_document', '/_app', '/_error']
 export const CLIENT_PUBLIC_FILES_PATH = 'public'
@@ -82,6 +75,8 @@ export const MIDDLEWARE_REACT_LOADABLE_MANIFEST =
 // server/interception-route-rewrite-manifest.js
 export const INTERCEPTION_ROUTE_REWRITE_MANIFEST =
   'interception-route-rewrite-manifest'
+// server/dynamic-css-manifest.js
+export const DYNAMIC_CSS_MANIFEST = 'dynamic-css-manifest'
 
 // static/runtime/main.js
 export const CLIENT_STATIC_FILES_RUNTIME_MAIN = `main`
@@ -103,11 +98,6 @@ export const DEFAULT_RUNTIME_WEBPACK = 'webpack-runtime'
 export const EDGE_RUNTIME_WEBPACK = 'edge-runtime-webpack'
 export const STATIC_PROPS_ID = '__N_SSG'
 export const SERVER_PROPS_ID = '__N_SSP'
-export const GOOGLE_FONT_PROVIDER = 'https://fonts.googleapis.com/'
-export const OPTIMIZED_FONT_PROVIDERS = [
-  { url: GOOGLE_FONT_PROVIDER, preconnect: 'https://fonts.gstatic.com' },
-  { url: 'https://use.typekit.net', preconnect: 'https://use.typekit.net' },
-]
 export const DEFAULT_SERIF_FONT = {
   name: 'Times New Roman',
   xAvgCharWidth: 821,

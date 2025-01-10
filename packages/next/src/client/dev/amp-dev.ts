@@ -1,7 +1,10 @@
 /* globals __webpack_hash__ */
 import { displayContent } from './fouc'
 import initOnDemandEntries from './on-demand-entries-client'
-import { addMessageListener, connectHMR } from './error-overlay/websocket'
+import {
+  addMessageListener,
+  connectHMR,
+} from '../components/react-dev-overlay/pages/websocket'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../server/dev/hot-reloader-types'
 
 declare global {
@@ -105,7 +108,10 @@ addMessageListener((message) => {
     }
   } catch (err: any) {
     console.warn(
-      '[HMR] Invalid message: ' + message + '\n' + (err?.stack ?? '')
+      '[HMR] Invalid message: ' +
+        JSON.stringify(message) +
+        '\n' +
+        (err?.stack ?? '')
     )
   }
 })

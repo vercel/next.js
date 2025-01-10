@@ -4,10 +4,10 @@ name: Notify new Next.js release
 on:
   release:
     types: [published]
-
 jobs:
   notify:
     runs-on: ubuntu-latest
+    if: ${{ github.event_name == 'release' }}
     steps:
       - uses: actions/github-script@v7
         id: notify-new-release
@@ -15,7 +15,7 @@ jobs:
           result-encoding: string
           retries: 3
           retry-exempt-status-codes: 400,401
-          # Default github token cannot dispath events to the remote repo, it should be
+          # Default github token cannot dispatch events to the remote repo, it should be
           # a PAT with access to contenst:read&write + metadata:read.
           github-token: ${{ secrets.TURBOPACK_TEST_TOKEN }}
           # Note `event_type` and `client_payload` are contract between vercel/turbo,
@@ -29,3 +29,55 @@ jobs:
                 version: context.ref
               }
             })
+  front-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - id: nextPackageInfo
+        name: Get `next` package info
+        run: |
+          cd packages/next 
+          {
+            echo 'value<<EOF'
+            cat package.json
+            echo EOF
+          } >> "$GITHUB_OUTPUT"
+      - id: version
+        name: Extract `next` version
+        run: echo 'value=${{ fromJson(steps.nextPackageInfo.outputs.value).version }}' >> "$GITHUB_OUTPUT"
+      - name: Check token
+        run: gh auth status
+        env:
+          GITHUB_TOKEN: ${{ secrets.FRONT_TEST_TOKEN }}
+      - uses: actions/github-script@v7
+        name: Trigger vercel/front sync
+        id: trigger-front-sync
+        with:
+          retries: 3
+          retry-exempt-status-codes: 400,401,404
+          # Default github token cannot dispatch events to the remote repo, it should be
+          # a PAT with Actions write access (https://docs.github.com/en/rest/actions/workflows?apiVersion=2022-11-28#create-a-workflow-dispatch-event)
+          github-token: ${{ secrets.FRONT_TEST_TOKEN }}
+          # Note `workflow_id` and `inputs` are contract between vercel/front,
+          # if these need to be changed both side should be updated accordingly.
+          script: |
+            await github.request(
+              "POST /repos/{owner}/{repo}/actions/workflows/{workflow_id}/dispatches",
+              {
+                owner: "vercel",
+                repo: "front",
+                workflow_id: "cron-update-next.yml",
+                ref: "main",
+                inputs: {
+                  version: "${{ steps.version.outputs.value }}",
+                },
+              }
+            );
+            // Ideally we'd include a URL to this specific sync.
+            // However, creating a workflow_dispatch event does not produce an ID: https://github.com/orgs/community/discussions/9752
+            console.info(
+              "Sync started in https://github.com/vercel/front/actions/workflows/cron-update-next.yml?query=event%3Aworkflow_dispatch"
+            );
+            console.info(
+              "This may not start a new sync if one is already in progress. Check the logs of the cron-update-next Workflow run."
+            );

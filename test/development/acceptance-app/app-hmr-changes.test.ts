@@ -1,5 +1,5 @@
 import { FileRef, nextTestSetup } from 'e2e-utils'
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import path from 'path'
 
 jest.setTimeout(240 * 1000)
@@ -10,7 +10,7 @@ describe('Error overlay - RSC build errors', () => {
     dependencies: {
       '@next/mdx': 'canary',
       'react-wrap-balancer': '^0.2.4',
-      'react-tweet': '^2.0.2',
+      'react-tweet': '^3.2.0',
       '@mdx-js/react': '^2.3.0',
       tailwindcss: '^3.2.6',
       typescript: 'latest',
@@ -26,12 +26,12 @@ describe('Error overlay - RSC build errors', () => {
     'Skipped in webpack',
     () => {
       it('should handle successive HMR changes with errors correctly', async () => {
-        const { session, cleanup } = await sandbox(
+        await using sandbox = await createSandbox(
           next,
           undefined,
           '/2020/develop-preview-test'
         )
-
+        const { session } = sandbox
         expect(
           await session.evaluate('document.documentElement.innerHTML')
         ).toContain('A few years ago I tweeted')
@@ -51,19 +51,17 @@ describe('Error overlay - RSC build errors', () => {
           await session.patch(pagePath, break2.replace('break 3', '<Hello />'))
 
           await session.patch(pagePath, break2)
-          expect(await session.hasRedbox()).toBe(true)
+          await session.assertHasRedbox()
 
           await session.patch(pagePath, break1)
 
           await session.patch(pagePath, originalPage)
-          expect(await session.hasRedbox()).toBe(false)
+          await session.assertNoRedbox()
         }
 
         expect(
           await session.evaluate('document.documentElement.innerHTML')
         ).toContain('A few years ago I tweeted')
-
-        await cleanup()
       })
     }
   )

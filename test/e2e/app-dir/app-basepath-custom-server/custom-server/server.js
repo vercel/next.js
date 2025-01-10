@@ -18,7 +18,10 @@ async function main() {
     try {
       const parsedUrl = parse(req.url, true)
       const { pathname } = parsedUrl
-
+      res.setHeader(
+        'set-cookie',
+        'custom-server-test-cookie=custom-server-test-cookie-val'
+      )
       if (pathname.startsWith('/base')) {
         await handle(req, res, parsedUrl)
       } else {

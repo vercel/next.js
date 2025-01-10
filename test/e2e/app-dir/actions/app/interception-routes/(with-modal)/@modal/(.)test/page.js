@@ -1,16 +1,16 @@
+import { Form } from '../../../form'
+
 export default function TestPageIntercepted() {
   async function action(data) {
     'use server'
 
-    console.log('Action Submitted (Intercepted)')
+    return 'Action Submitted (Intercepted)'
   }
 
   return (
-    <form action={action}>
+    <div id="modal-data">
       in "modal"
-      <button type="submit" id="submit-intercept-action">
-        Test
-      </button>
-    </form>
+      <Form action={action} id="submit-intercept-action" />
+    </div>
   )
 }

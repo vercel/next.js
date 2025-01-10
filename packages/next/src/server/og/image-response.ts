@@ -44,15 +44,19 @@ export class ImageResponse extends Response {
 
     const options = args[1] || {}
 
+    const headers = new Headers({
+      'content-type': 'image/png',
+      'cache-control':
+        process.env.NODE_ENV === 'development'
+          ? 'no-cache, no-store'
+          : 'public, immutable, no-transform, max-age=31536000',
+    })
+    if (options.headers) {
+      const newHeaders = new Headers(options.headers)
+      newHeaders.forEach((value, key) => headers.set(key, value))
+    }
     super(readable, {
-      headers: {
-        'content-type': 'image/png',
-        'cache-control':
-          process.env.NODE_ENV === 'development'
-            ? 'no-cache, no-store'
-            : 'public, immutable, no-transform, max-age=31536000',
-        ...options.headers,
-      },
+      headers,
       status: options.status,
       statusText: options.statusText,
     })

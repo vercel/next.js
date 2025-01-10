@@ -15,6 +15,7 @@ import { imageExtMimeTypeMap } from '../../../lib/mime-type'
 import { WEBPACK_RESOURCE_QUERIES } from '../../../lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import type { PageExtensions } from '../../page-extensions-type'
+import { getLoaderModuleNamedExports } from './utils'
 
 interface Options {
   segment: string
@@ -23,42 +24,8 @@ interface Options {
   basePath: string
 }
 
-export async function getNamedExports(
-  resourcePath: string,
-  context: webpack.LoaderContext<any>
-): Promise<string[]> {
-  const mod = await new Promise<webpack.NormalModule>((res, rej) => {
-    context.loadModule(
-      resourcePath,
-      (err: null | Error, _source: any, _sourceMap: any, module: any) => {
-        if (err) {
-          return rej(err)
-        }
-        res(module)
-      }
-    )
-  })
-
-  const exportNames =
-    mod.dependencies
-      ?.filter((dep) => {
-        return (
-          [
-            'HarmonyExportImportedSpecifierDependency',
-            'HarmonyExportSpecifierDependency',
-          ].includes(dep.constructor.name) &&
-          'name' in dep &&
-          dep.name !== 'default'
-        )
-      })
-      .map((dep: any) => {
-        return dep.name
-      }) || []
-  return exportNames
-}
-
-// [NOTE] For turbopack
-// refer loader_tree's write_static|dynamic_metadata for corresponding features
+// [NOTE] For turbopack, refer to app_page_loader_tree's write_metadata_item for
+// corresponding features.
 async function nextMetadataImageLoader(
   this: webpack.LoaderContext<Options>,
   content: Buffer
@@ -95,7 +62,7 @@ async function nextMetadataImageLoader(
 
   if (isDynamicResource) {
     const exportedFieldsExcludingDefault = (
-      await getNamedExports(resourcePath, this)
+      await getLoaderModuleNamedExports(resourcePath, this)
     ).filter((name) => name !== 'default')
 
     // re-export and spread as `exportedImageData` to avoid non-exported error
@@ -121,7 +88,7 @@ async function nextMetadataImageLoader(
     }
 
     export default async function (props) {
-      const { __metadata_id__: _, ...params } = props.params
+      const { __metadata_id__: _, ...params } = await props.params
       const imageUrl = fillMetadataSegment(${JSON.stringify(
         pathnamePrefix
       )}, params, ${JSON.stringify(pageSegment)})
@@ -160,8 +127,7 @@ async function nextMetadataImageLoader(
   }
 
   const imageSize: { width?: number; height?: number } = await getImageSize(
-    content,
-    extension as 'avif' | 'webp' | 'png' | 'jpeg'
+    content
   ).catch((err) => err)
 
   if (imageSize instanceof Error) {
@@ -202,11 +168,11 @@ async function nextMetadataImageLoader(
   return `\
   import { fillMetadataSegment } from 'next/dist/lib/metadata/get-metadata-route'
 
-  export default (props) => {
+  export default async (props) => {
     const imageData = ${JSON.stringify(imageData)}
     const imageUrl = fillMetadataSegment(${JSON.stringify(
       pathnamePrefix
-    )}, props.params, ${JSON.stringify(pageSegment)})
+    )}, await props.params, ${JSON.stringify(pageSegment)})
 
     return [{
       ...imageData,

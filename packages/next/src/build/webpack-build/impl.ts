@@ -1,6 +1,7 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
+import { stringBufferUtils } from 'next/dist/compiled/webpack-sources3'
 import { red } from '../../lib/picocolors'
-import formatWebpackMessages from '../../client/dev/error-overlay/format-webpack-messages'
+import formatWebpackMessages from '../../client/components/react-dev-overlay/internal/helpers/format-webpack-messages'
 import { nonNullable } from '../../lib/non-nullable'
 import type { COMPILER_INDEXES } from '../../shared/lib/constants'
 import {
@@ -81,6 +82,7 @@ export async function webpackBuildImpl(
   const nextBuildSpan = NextBuildContext.nextBuildSpan!
   const dir = NextBuildContext.dir!
   const config = NextBuildContext.config!
+  process.env.NEXT_COMPILER_NAME = compilerName || 'server'
 
   const runWebpackSpan = nextBuildSpan.traceChild('run-webpack-compiler')
   const entrypoints = await nextBuildSpan
@@ -106,6 +108,7 @@ export async function webpackBuildImpl(
   const commonWebpackOptions = {
     isServer: false,
     buildId: NextBuildContext.buildId!,
+    encryptionKey: NextBuildContext.encryptionKey!,
     config: config,
     appDir: NextBuildContext.appDir!,
     pagesDir: NextBuildContext.pagesDir!,
@@ -151,6 +154,14 @@ export async function webpackBuildImpl(
           middlewareMatchers: entrypoints.middlewareMatchers,
           compilerType: COMPILER_NAMES.edgeServer,
           entrypoints: entrypoints.edgeServer,
+          edgePreviewProps: {
+            __NEXT_PREVIEW_MODE_ID:
+              NextBuildContext.previewProps!.previewModeId,
+            __NEXT_PREVIEW_MODE_ENCRYPTION_KEY:
+              NextBuildContext.previewProps!.previewModeEncryptionKey,
+            __NEXT_PREVIEW_MODE_SIGNING_KEY:
+              NextBuildContext.previewProps!.previewModeSigningKey,
+          },
           ...info,
         }),
       ])
@@ -176,6 +187,11 @@ export async function webpackBuildImpl(
   debug(`starting compiler`, compilerName)
   // We run client and server compilation separately to optimize for memory usage
   await runWebpackSpan.traceAsyncFn(async () => {
+    if (config.experimental.webpackMemoryOptimizations) {
+      stringBufferUtils.disableDualStringBufferCaching()
+      stringBufferUtils.enterStringInterningRange()
+    }
+
     // Run the server compilers first and then the client
     // compiler to track the boundary of server/client components.
     let clientResult: SingleCompilerResult | null = null
@@ -188,7 +204,7 @@ export async function webpackBuildImpl(
       | UnwrapPromise<ReturnType<typeof runCompiler>>[0]
       | null = null
 
-    let inputFileSystem: any
+    let inputFileSystem: webpack.Compiler['inputFileSystem'] | undefined
 
     if (!compilerName || compilerName === 'server') {
       debug('starting server compiler')
@@ -245,23 +261,22 @@ export async function webpackBuildImpl(
       }
     }
 
-    inputFileSystem.purge()
+    if (config.experimental.webpackMemoryOptimizations) {
+      stringBufferUtils.exitStringInterningRange()
+    }
+    inputFileSystem?.purge?.()
 
     result = {
-      warnings: ([] as any[])
-        .concat(
-          clientResult?.warnings,
-          serverResult?.warnings,
-          edgeServerResult?.warnings
-        )
-        .filter(nonNullable),
-      errors: ([] as any[])
-        .concat(
-          clientResult?.errors,
-          serverResult?.errors,
-          edgeServerResult?.errors
-        )
-        .filter(nonNullable),
+      warnings: [
+        ...(clientResult?.warnings ?? []),
+        ...(serverResult?.warnings ?? []),
+        ...(edgeServerResult?.warnings ?? []),
+      ].filter(nonNullable),
+      errors: [
+        ...(clientResult?.errors ?? []),
+        ...(serverResult?.errors ?? []),
+        ...(edgeServerResult?.errors ?? []),
+      ].filter(nonNullable),
       stats: [
         clientResult?.stats,
         serverResult?.stats,

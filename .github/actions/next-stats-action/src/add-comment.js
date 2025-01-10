@@ -106,8 +106,8 @@ module.exports = async function addComment(
                   ? '⚠️ '
                   : ''
                 : change > 0
-                ? '⚠️ '
-                : ''
+                  ? '⚠️ '
+                  : ''
               change = `${warn}${change < 0 ? '-' : '+'}${
                 useRawValue ? absChange : prettify(absChange, prettyType)
               }`

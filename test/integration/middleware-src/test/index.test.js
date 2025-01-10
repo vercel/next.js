@@ -89,37 +89,42 @@ describe.each([
 ])('$title', ({ setup, teardown, runTest }) => {
   beforeAll(() => setup())
   afterAll(() => teardown())
-
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTest()
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    let exportOutput = ''
-
-    beforeAll(async () => {
-      nextConfig.write(`module.exports = { output: 'export' }`)
-      const result = await nextBuild(appDir, [], {
-        stderr: true,
-        stdout: true,
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
       })
+      afterAll(() => killApp(app))
 
-      const outdir = join(__dirname, '..', 'out')
-      await fs.remove(outdir).catch(() => {})
+      runTest()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let exportOutput = ''
 
-      exportOutput = result.stderr + result.stdout
-    })
-    afterAll(() => nextConfig.delete())
+      beforeAll(async () => {
+        nextConfig.write(`module.exports = { output: 'export' }`)
+        const result = await nextBuild(appDir, [], {
+          stderr: true,
+          stdout: true,
+        })
 
-    it('should warn about middleware on export', async () => {
-      expect(exportOutput).toContain(
-        'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
-      )
-    })
-  })
+        const outdir = join(__dirname, '..', 'out')
+        await fs.remove(outdir).catch(() => {})
+
+        exportOutput = result.stderr + result.stdout
+      })
+      afterAll(() => nextConfig.delete())
+
+      it('should warn about middleware on export', async () => {
+        expect(exportOutput).toContain(
+          'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
+        )
+      })
+    }
+  )
 })

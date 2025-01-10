@@ -2,10 +2,10 @@
 
 import { join } from 'path'
 import {
+  assertHasRedbox,
   findPort,
   getRedboxHeader,
   getRedboxSource,
-  hasRedbox,
   killApp,
   launchApp,
   nextBuild,
@@ -22,7 +22,7 @@ function runTests({ isDev }) {
   it('should show error', async () => {
     if (isDev) {
       const browser = await webdriver(appPort, '/')
-      expect(await hasRedbox(browser)).toBe(true)
+      await assertHasRedbox(browser)
       expect(await getRedboxHeader(browser)).toMatch('Failed to compile')
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
@@ -41,44 +41,59 @@ function runTests({ isDev }) {
         `)
       }
     } else {
-      expect(stripAnsi(stderr)).toContain(
-        'Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
-      )
+      const output = stripAnsi(stderr)
+      if (process.env.TURBOPACK) {
+        expect(output).toContain(
+          `./test/integration/next-image-new/invalid-image-import/public/invalid.svg
+Processing image failed
+Failed to parse svg source code for image dimensions`
+        )
+      } else {
+        expect(output).toContain(
+          'Error: Image import "../public/invalid.svg" is not a valid image file. The image may be corrupted or an unsupported format.'
+        )
+      }
     }
   })
 }
 
 describe('Missing Import Image Tests', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      stderr = ''
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort, {
-        onStderr(msg) {
-          stderr += msg || ''
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        stderr = ''
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort, {
+          onStderr(msg) {
+            stderr += msg || ''
+          },
+        })
       })
-    })
-    afterAll(async () => {
-      if (app) {
-        await killApp(app)
-      }
-    })
+      afterAll(async () => {
+        if (app) {
+          await killApp(app)
+        }
+      })
 
-    runTests({ isDev: true })
-  })
-  ;(process.env.TURBOPACK ? describe.skip : describe)('production mode', () => {
-    beforeAll(async () => {
-      stderr = ''
-      const result = await nextBuild(appDir, [], { stderr: true })
-      stderr = result.stderr
-    })
-    afterAll(async () => {
-      if (app) {
-        await killApp(app)
-      }
-    })
+      runTests({ isDev: true })
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        stderr = ''
+        const result = await nextBuild(appDir, [], { stderr: true })
+        stderr = result.stderr
+      })
+      afterAll(async () => {
+        if (app) {
+          await killApp(app)
+        }
+      })
 
-    runTests({ isDev: false })
-  })
+      runTests({ isDev: false })
+    }
+  )
 })

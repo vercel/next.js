@@ -1,18 +1,17 @@
 import { NextInstance, createNext } from 'e2e-utils'
-import { trace } from 'next/src/trace'
+import { trace } from 'next/dist/trace'
 import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
-import {
-  createDefineEnv,
+import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
+import type {
   Diagnostics,
   Entrypoints,
   Issue,
-  loadBindings,
   Project,
   StyledString,
   TurbopackResult,
   UpdateInfo,
-} from 'next/src/build/swc'
-import loadConfig from 'next/src/server/config'
+} from 'next/dist/build/swc/types'
+import loadConfig from 'next/dist/server/config'
 import path from 'path'
 
 function normalizePath(path: string) {
@@ -191,6 +190,12 @@ describe('next.rs api', () => {
     console.log(next.testDir)
     const nextConfig = await loadConfig(PHASE_DEVELOPMENT_SERVER, next.testDir)
     const bindings = await loadBindings()
+    const distDir = path.join(
+      process.env.NEXT_SKIP_ISOLATE
+        ? path.resolve(__dirname, '../../..')
+        : next.testDir,
+      '.next'
+    )
     project = await bindings.turbo.createProject({
       env: {},
       jsConfig: {
@@ -198,28 +203,32 @@ describe('next.rs api', () => {
       },
       nextConfig: nextConfig,
       projectPath: next.testDir,
+      distDir,
       rootPath: process.env.NEXT_SKIP_ISOLATE
         ? path.resolve(__dirname, '../../..')
         : next.testDir,
-      watch: true,
+      watch: {
+        enable: true,
+      },
       dev: true,
       defineEnv: createDefineEnv({
         isTurbopack: true,
-        allowedRevalidateHeaderKeys: undefined,
         clientRouterFilters: undefined,
         config: nextConfig,
         dev: true,
-        distDir: path.join(
-          process.env.NEXT_SKIP_ISOLATE
-            ? path.resolve(__dirname, '../../..')
-            : next.testDir,
-          '.next'
-        ),
+        distDir: distDir,
         fetchCacheKeyPrefix: undefined,
         hasRewrites: false,
         middlewareMatchers: undefined,
-        previewModeId: undefined,
       }),
+      buildId: 'development',
+      encryptionKey: '12345',
+      previewProps: {
+        previewModeId: 'development',
+        previewModeEncryptionKey: '12345',
+        previewModeSigningKey: '12345',
+      },
+      browserslistQuery: 'last 2 versions',
     })
     projectUpdateSubscription = filterMapAsyncIterator(
       project.updateInfoSubscribe(1000),
@@ -470,9 +479,8 @@ describe('next.rs api', () => {
         switch (route.type) {
           case 'page': {
             await route.htmlEndpoint.writeToDisk()
-            serverSideSubscription = await route.dataEndpoint.serverChanged(
-              false
-            )
+            serverSideSubscription =
+              await route.dataEndpoint.serverChanged(false)
             break
           }
           case 'app-page': {
@@ -499,7 +507,7 @@ describe('next.rs api', () => {
             expect(result.done).toBe(false)
             expect(result.value).toHaveProperty('resource', expect.toBeObject())
             expect(result.value).toHaveProperty('type', 'issues')
-            expect(result.value).toHaveProperty('issues', expect.toBeEmpty())
+            expect(normalizeIssues(result.value.issues)).toEqual([])
             expect(result.value).toHaveProperty(
               'diagnostics',
               expect.toBeEmpty()
@@ -633,7 +641,7 @@ describe('next.rs api', () => {
 
     const count = process.env.CI ? 300 : 1000
     for (let i = 0; i < count; i++) {
-      await next.patchFileFast(file, nextContent)
+      await next.patchFile(file, nextContent)
       const content = currentContent
       currentContent = nextContent
       nextContent = content

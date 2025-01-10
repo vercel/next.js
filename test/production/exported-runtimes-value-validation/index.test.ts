@@ -11,7 +11,7 @@ describe('Exported runtimes value validation', () => {
     expect(result).toMatchObject({
       code: 1,
       stderr: expect.stringContaining(
-        `Provided runtime "something-odd" is not supported.`
+        `Invalid enum value. Expected 'edge' | 'experimental-edge' | 'nodejs', received 'something-odd'`
       ),
     })
   })
@@ -23,10 +23,8 @@ describe('Exported runtimes value validation', () => {
       { stdout: true, stderr: true }
     )
 
-    console.log(result.stderr, result.stdout)
-
-    // The build should still succeed with invalid config being ignored
-    expect(result.code).toBe(0)
+    // The build should fail to prevent unexpected behavior
+    expect(result.code).toBe(1)
 
     // Template Literal with Expressions
     expect(result.stderr).toEqual(
@@ -67,6 +65,11 @@ describe('Exported runtimes value validation', () => {
         'Next.js can\'t recognize the exported `config` field in route "/array-spread-operator"'
       )
     )
+    // ensure only 1 occurrence of the log
+    expect(
+      result.stderr.match(/field in route "\/array-spread-operator"/g)?.length
+    ).toBe(1)
+
     expect(result.stderr).toEqual(
       expect.stringContaining(
         'Unsupported spread operator in the Array Expression at "config.runtime"'

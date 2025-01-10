@@ -37,11 +37,14 @@ export class SitecorePagePropsFactory {
   ): Promise<SitecorePageProps> {
     const extendedProps = await (Object.values(plugins) as Plugin[])
       .sort((p1, p2) => p1.order - p2.order)
-      .reduce(async (result, plugin) => {
-        const props = await result;
-        const newProps = await plugin.exec(props, context);
-        return newProps;
-      }, Promise.resolve({} as SitecorePageProps));
+      .reduce(
+        async (result, plugin) => {
+          const props = await result;
+          const newProps = await plugin.exec(props, context);
+          return newProps;
+        },
+        Promise.resolve({} as SitecorePageProps),
+      );
 
     return extendedProps;
   }

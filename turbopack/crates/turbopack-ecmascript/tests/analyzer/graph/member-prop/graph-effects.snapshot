@@ -1,0 +1,67 @@
+[
+    Member {
+        obj: FreeVar(
+            "A",
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "B",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 1..4,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "A",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Expr,
+            ),
+            ExprStmt(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+            MemberExpr(
+                Obj,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 1..2,
+        in_try: false,
+    },
+]

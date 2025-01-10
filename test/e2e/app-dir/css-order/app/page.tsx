@@ -1,11 +1,9 @@
-import Link from 'next/link'
+import Nav from './nav'
 
 export default function Page() {
   return (
     <div>
-      <p>hello world</p>
-      <Link href={'/first'}>First</Link>
-      <Link href={'/second'}>Second</Link>
+      <Nav />
     </div>
   )
 }

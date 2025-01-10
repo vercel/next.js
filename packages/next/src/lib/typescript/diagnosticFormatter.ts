@@ -73,8 +73,8 @@ function getFormattedLayoutAndPageDiagnosticMessageText(
     const type = /page\.[^.]+$/.test(relativeSourceFilepath)
       ? 'Page'
       : /route\.[^.]+$/.test(relativeSourceFilepath)
-      ? 'Route'
-      : 'Layout'
+        ? 'Route'
+        : 'Layout'
 
     // Reference of error codes:
     // https://github.com/Microsoft/TypeScript/blob/main/src/compiler/diagnosticMessages.json

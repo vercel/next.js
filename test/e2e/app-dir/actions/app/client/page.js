@@ -58,32 +58,10 @@ export default function Counter() {
       </button>
       <form>
         <button
-          id="redirect"
-          formAction={() => redirectAction('/redirect-target')}
+          id="redirect-pages"
+          formAction={() => redirectAction('/pages-dir')}
         >
-          redirect
-        </button>
-      </form>
-      <form>
-        <button
-          id="redirect-external"
-          formAction={() =>
-            redirectAction(
-              'https://next-data-api-endpoint.vercel.app/api/random?page'
-            )
-          }
-        >
-          redirect external
-        </button>
-      </form>
-      <form>
-        <button
-          id="redirect-absolute"
-          formAction={() =>
-            redirectAction(location.origin + '/redirect-target')
-          }
-        >
-          redirect internal with domain
+          redirect to a pages route
         </button>
       </form>
       <form action={getHeaders}>

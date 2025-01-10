@@ -1,8 +1,9 @@
 import React from 'react'
 import Link from 'next/link'
 
-const links = [
+export const links = [
   { href: '/', tag: 'pre-generated' },
+  { href: '/metadata', tag: 'pre-generated' },
   { href: '/nested/a', tag: 'pre-generated' },
   { href: '/nested/b', tag: 'on-demand' },
   { href: '/nested/c', tag: 'on-demand' },
@@ -31,19 +32,21 @@ const links = [
     tag: "dynamic = 'force-dynamic', on-demand, no-gsp",
   },
   { href: '/dynamic/force-static', tag: "dynamic = 'force-static'" },
-  { href: '/edge/suspense', tag: 'edge, pre-generated' },
-  { href: '/edge/suspense/a', tag: 'edge, pre-generated' },
-  { href: '/edge/suspense/b', tag: 'edge, on-demand' },
-  { href: '/edge/suspense/c', tag: 'edge, on-demand' },
-  { href: '/edge/no-suspense', tag: 'edge, no suspense, pre-generated' },
-  { href: '/edge/no-suspense/a', tag: 'edge, no suspense, pre-generated' },
-  { href: '/edge/no-suspense/b', tag: 'edge, no suspense, on-demand' },
-  { href: '/edge/no-suspense/c', tag: 'edge, no suspense, on-demand' },
   { href: '/navigation/not-found', tag: 'not-found' },
-  { href: '/navigation/not-found/no-store', tag: 'not-found, dynamic' },
+  { href: '/navigation/not-found/dynamic', tag: 'not-found' },
   { href: '/navigation/redirect', tag: 'redirect' },
-  { href: '/navigation/redirect/no-store', tag: 'redirect, dynamic' },
   { href: '/pages', tag: 'pages' },
+  { href: '/fallback/params/browser-01', tag: 'fallback, params' },
+  { href: '/fallback/use-params/browser-01', tag: 'fallback, use-params' },
+  { href: '/fallback/use-pathname/browser-01', tag: 'fallback, use-pathname' },
+  {
+    href: '/fallback/use-selected-layout-segment/browser-01',
+    tag: 'fallback, use-selected-layout-segment',
+  },
+  {
+    href: '/fallback/use-selected-layout-segments/browser-01',
+    tag: 'fallback, use-selected-layout-segments',
+  },
 ]
 
 export const Links = () => {

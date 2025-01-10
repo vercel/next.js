@@ -10,14 +10,11 @@ trigger:
       - docs
       - errors
       - examples
-  # Do not run Azure on `canary`, `main`, or release tags. This unnecessarily
-  # increases the backlog, and the change was already tested on the PR.
+  # Do not run Azure on release tags. This unnecessarily increases the backlog.
   branches:
     include:
       - '*'
     exclude:
-      - canary
-      - main
       - refs/tags/*
 
 pr:
@@ -34,7 +31,7 @@ pr:
 variables:
   PNPM_CACHE_FOLDER: $(Pipeline.Workspace)/.pnpm-store
   NEXT_TELEMETRY_DISABLED: '1'
-  node_version: ^18.17.0
+  node_version: ^18.18.2
 
 stages:
   - stage: Test
@@ -69,8 +66,9 @@ stages:
           - script: npx playwright@1.35.1 install chromium
             condition: eq(variables['isDocsOnly'], 'No')
 
+          # Test critical app router and CNA tests to cover basic usage cases with windows
           - script: |
-              node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js
+              node run-tests.js -c 1 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js test/integration/create-next-app/examples.test.ts test/integration/create-next-app/index.test.ts test/integration/create-next-app/package-manager/pnpm.test.ts
             condition: eq(variables['isDocsOnly'], 'No')
             displayName: 'Run tests'
 

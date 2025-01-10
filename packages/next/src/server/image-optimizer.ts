@@ -1,10 +1,8 @@
 import { createHash } from 'crypto'
 import { promises } from 'fs'
-import { cpus } from 'os'
 import type { IncomingMessage, ServerResponse } from 'http'
 import { mediaType } from 'next/dist/compiled/@hapi/accept'
 import contentDisposition from 'next/dist/compiled/content-disposition'
-import { getOrientation, Orientation } from 'next/dist/compiled/get-orientation'
 import imageSizeOf from 'next/dist/compiled/image-size'
 import isAnimated from 'next/dist/compiled/is-animated'
 import { join } from 'path'
@@ -12,22 +10,23 @@ import nodeUrl, { type UrlWithParsedQuery } from 'url'
 
 import { getImageBlurSvg } from '../shared/lib/image-blur-svg'
 import type { ImageConfigComplete } from '../shared/lib/image-config'
-import { hasMatch } from '../shared/lib/match-remote-pattern'
+import { hasLocalMatch } from '../shared/lib/match-local-pattern'
+import { hasRemoteMatch } from '../shared/lib/match-remote-pattern'
 import type { NextConfigComplete } from './config-shared'
 import { createRequestResponseMocks } from './lib/mock-request'
-// Do not import anything other than types from this module
-// because it will throw an error when using `outputFileTracing`
-// as `jest-worker` is ignored in file tracing. Use `await import`
-// or `require` instead.
-import type { Operation } from './lib/squoosh/main'
 import type { NextUrlWithParsedQuery } from './request-meta'
-import type {
-  IncrementalCacheEntry,
-  IncrementalCacheValue,
+import {
+  CachedRouteKind,
+  type CachedImageValue,
+  type IncrementalCacheEntry,
+  type IncrementalCacheItem,
+  type IncrementalCacheValue,
 } from './response-cache'
 import { sendEtagResponse } from './send-payload'
 import { getContentType, getExtension } from './serve-static'
 import * as Log from '../build/output/log'
+import isError from '../lib/is-error'
+import { parseUrl } from '../lib/url'
 
 type XCacheHeader = 'MISS' | 'HIT' | 'STALE'
 
@@ -38,28 +37,42 @@ const JPEG = 'image/jpeg'
 const GIF = 'image/gif'
 const SVG = 'image/svg+xml'
 const ICO = 'image/x-icon'
-const CACHE_VERSION = 3
+const ICNS = 'image/x-icns'
+const TIFF = 'image/tiff'
+const BMP = 'image/bmp'
+const CACHE_VERSION = 4
 const ANIMATABLE_TYPES = [WEBP, PNG, GIF]
-const VECTOR_TYPES = [SVG]
+const BYPASS_TYPES = [SVG, ICO, ICNS, BMP]
 const BLUR_IMG_SIZE = 8 // should match `next-image-loader`
 const BLUR_QUALITY = 70 // should match `next-image-loader`
 
-let sharp: typeof import('sharp') | undefined
+let _sharp: typeof import('sharp')
 
-try {
-  sharp = require(process.env.NEXT_SHARP_PATH || 'sharp')
-  if (sharp && sharp.concurrency() > 1) {
-    // Reducing concurrency should reduce the memory usage too.
-    // We more aggressively reduce in dev but also reduce in prod.
-    // https://sharp.pixelplumbing.com/api-utility#concurrency
-    const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
-    sharp.concurrency(Math.floor(Math.max(cpus().length / divisor, 1)))
+export function getSharp(concurrency: number | null | undefined) {
+  if (_sharp) {
+    return _sharp
   }
-} catch (e) {
-  // Sharp not present on the server, Squoosh fallback will be used
+  try {
+    _sharp = require('sharp')
+    if (_sharp && _sharp.concurrency() > 1) {
+      // Reducing concurrency should reduce the memory usage too.
+      // We more aggressively reduce in dev but also reduce in prod.
+      // https://sharp.pixelplumbing.com/api-utility#concurrency
+      const divisor = process.env.NODE_ENV === 'development' ? 4 : 2
+      _sharp.concurrency(
+        concurrency ?? Math.floor(Math.max(_sharp.concurrency() / divisor, 1))
+      )
+    }
+  } catch (e: unknown) {
+    if (isError(e) && e.code === 'MODULE_NOT_FOUND') {
+      throw new Error(
+        'Module `sharp` not found. Please run `npm install --cpu=wasm32 sharp` to install it.'
+      )
+    }
+    throw e
+  }
+  return _sharp
 }
-
-let showSharpMissingWarning = process.env.NODE_ENV === 'production'
 
 export interface ImageParamsResult {
   href: string
@@ -76,6 +89,7 @@ interface ImageUpstream {
   buffer: Buffer
   contentType: string | null | undefined
   cacheControl: string | null | undefined
+  etag: string
 }
 
 function getSupportedMimeType(options: string[], accept = ''): string {
@@ -91,8 +105,24 @@ export function getHash(items: (string | number | Buffer)[]) {
       hash.update(item)
     }
   }
-  // See https://en.wikipedia.org/wiki/Base64#Filenames
-  return hash.digest('base64').replace(/\//g, '-')
+  // See https://en.wikipedia.org/wiki/Base64#URL_applications
+  return hash.digest('base64url')
+}
+
+export function extractEtag(
+  etag: string | null | undefined,
+  imageBuffer: Buffer
+) {
+  if (etag) {
+    // upstream etag needs to be base64url encoded due to weak etag signature
+    // as we store this in the cache-entry file name.
+    return Buffer.from(etag).toString('base64url')
+  }
+  return getImageEtag(imageBuffer)
+}
+
+export function getImageEtag(image: Buffer) {
+  return getHash([image])
 }
 
 async function writeToCacheDir(
@@ -101,9 +131,13 @@ async function writeToCacheDir(
   maxAge: number,
   expireAt: number,
   buffer: Buffer,
-  etag: string
+  etag: string,
+  upstreamEtag: string
 ) {
-  const filename = join(dir, `${maxAge}.${expireAt}.${etag}.${extension}`)
+  const filename = join(
+    dir,
+    `${maxAge}.${expireAt}.${etag}.${upstreamEtag}.${extension}`
+  )
 
   await promises.rm(dir, { recursive: true, force: true }).catch(() => {})
 
@@ -140,6 +174,9 @@ export function detectContentType(buffer: Buffer) {
   if ([0x3c, 0x3f, 0x78, 0x6d, 0x6c].every((b, i) => buffer[i] === b)) {
     return SVG
   }
+  if ([0x3c, 0x73, 0x76, 0x67].every((b, i) => buffer[i] === b)) {
+    return SVG
+  }
   if (
     [0, 0, 0, 0, 0x66, 0x74, 0x79, 0x70, 0x61, 0x76, 0x69, 0x66].every(
       (b, i) => !b || buffer[i] === b
@@ -149,6 +186,15 @@ export function detectContentType(buffer: Buffer) {
   }
   if ([0x00, 0x00, 0x01, 0x00].every((b, i) => buffer[i] === b)) {
     return ICO
+  }
+  if ([0x69, 0x63, 0x6e, 0x73].every((b, i) => buffer[i] === b)) {
+    return ICNS
+  }
+  if ([0x49, 0x49, 0x2a, 0x00].every((b, i) => buffer[i] === b)) {
+    return TIFF
+  }
+  if ([0x42, 0x4d].every((b, i) => buffer[i] === b)) {
+    return BMP
   }
   return null
 }
@@ -172,6 +218,8 @@ export class ImageOptimizerCache {
       formats = ['image/webp'],
     } = imageData
     const remotePatterns = nextConfig.images?.remotePatterns || []
+    const localPatterns = nextConfig.images?.localPatterns
+    const qualities = nextConfig.images?.qualities
     const { url, w, q } = query
     let href: string
 
@@ -187,11 +235,33 @@ export class ImageOptimizerCache {
       return { errorMessage: '"url" parameter cannot be an array' }
     }
 
+    if (url.length > 3072) {
+      return { errorMessage: '"url" parameter is too long' }
+    }
+
+    if (url.startsWith('//')) {
+      return {
+        errorMessage: '"url" parameter cannot be a protocol-relative URL (//)',
+      }
+    }
+
     let isAbsolute: boolean
 
     if (url.startsWith('/')) {
       href = url
       isAbsolute = false
+      if (
+        /\/_next\/image($|\/)/.test(
+          decodeURIComponent(parseUrl(url)?.pathname ?? '')
+        )
+      ) {
+        return {
+          errorMessage: '"url" parameter cannot be recursive',
+        }
+      }
+      if (!hasLocalMatch(localPatterns, url)) {
+        return { errorMessage: '"url" parameter is not allowed' }
+      }
     } else {
       let hrefParsed: URL
 
@@ -207,7 +277,7 @@ export class ImageOptimizerCache {
         return { errorMessage: '"url" parameter is invalid' }
       }
 
-      if (!hasMatch(domains, remotePatterns, hrefParsed)) {
+      if (!hasRemoteMatch(domains, remotePatterns, hrefParsed)) {
         return { errorMessage: '"url" parameter is not allowed' }
       }
     }
@@ -216,19 +286,28 @@ export class ImageOptimizerCache {
       return { errorMessage: '"w" parameter (width) is required' }
     } else if (Array.isArray(w)) {
       return { errorMessage: '"w" parameter (width) cannot be an array' }
+    } else if (!/^[0-9]+$/.test(w)) {
+      return {
+        errorMessage: '"w" parameter (width) must be an integer greater than 0',
+      }
     }
 
     if (!q) {
       return { errorMessage: '"q" parameter (quality) is required' }
     } else if (Array.isArray(q)) {
       return { errorMessage: '"q" parameter (quality) cannot be an array' }
+    } else if (!/^[0-9]+$/.test(q)) {
+      return {
+        errorMessage:
+          '"q" parameter (quality) must be an integer between 1 and 100',
+      }
     }
 
     const width = parseInt(w, 10)
 
     if (width <= 0 || isNaN(width)) {
       return {
-        errorMessage: '"w" parameter (width) must be a number greater than 0',
+        errorMessage: '"w" parameter (width) must be an integer greater than 0',
       }
     }
 
@@ -247,12 +326,24 @@ export class ImageOptimizerCache {
       }
     }
 
-    const quality = parseInt(q)
+    const quality = parseInt(q, 10)
 
     if (isNaN(quality) || quality < 1 || quality > 100) {
       return {
         errorMessage:
-          '"q" parameter (quality) must be a number between 1 and 100',
+          '"q" parameter (quality) must be an integer between 1 and 100',
+      }
+    }
+
+    if (qualities) {
+      if (isDev) {
+        qualities.push(BLUR_QUALITY)
+      }
+
+      if (!qualities.includes(quality)) {
+        return {
+          errorMessage: `"q" parameter (quality) of ${q} is not allowed`,
+        }
       }
     }
 
@@ -306,23 +397,26 @@ export class ImageOptimizerCache {
       const now = Date.now()
 
       for (const file of files) {
-        const [maxAgeSt, expireAtSt, etag, extension] = file.split('.', 4)
+        const [maxAgeSt, expireAtSt, etag, upstreamEtag, extension] =
+          file.split('.', 5)
         const buffer = await promises.readFile(join(cacheDir, file))
         const expireAt = Number(expireAtSt)
         const maxAge = Number(maxAgeSt)
 
         return {
           value: {
-            kind: 'IMAGE',
+            kind: CachedRouteKind.IMAGE,
             etag,
             buffer,
             extension,
+            upstreamEtag,
           },
           revalidateAfter:
             Math.max(maxAge, this.nextConfig.images.minimumCacheTTL) * 1000 +
             Date.now(),
           curRevalidate: maxAge,
           isStale: now > expireAt,
+          isFallback: false,
         }
       }
     } catch (_) {
@@ -339,7 +433,7 @@ export class ImageOptimizerCache {
       revalidate?: number | false
     }
   ) {
-    if (value?.kind !== 'IMAGE') {
+    if (value?.kind !== CachedRouteKind.IMAGE) {
       throw new Error('invariant attempted to set non-image to image-cache')
     }
 
@@ -357,7 +451,8 @@ export class ImageOptimizerCache {
         revalidate,
         expireAt,
         value.buffer,
-        value.etag
+        value.etag,
+        value.upstreamEtag
       )
     } catch (err) {
       Log.error(`Failed to write image to cache ${cacheKey}`, err)
@@ -411,6 +506,22 @@ export function getMaxAge(str: string | null | undefined): number {
   }
   return 0
 }
+export function getPreviouslyCachedImageOrNull(
+  upstreamImage: ImageUpstream,
+  previousCacheEntry: IncrementalCacheItem | undefined
+): CachedImageValue | null {
+  if (
+    previousCacheEntry?.value?.kind === 'IMAGE' &&
+    // Images that are SVGs, animated or failed the optimization previously end up using upstreamEtag as their etag as well,
+    // in these cases we want to trigger a new "optimization" attempt.
+    previousCacheEntry.value.upstreamEtag !== previousCacheEntry.value.etag &&
+    // and the upstream etag is the same as the previous cache entry's
+    upstreamImage.etag === previousCacheEntry.value.upstreamEtag
+  ) {
+    return previousCacheEntry.value
+  }
+  return null
+}
 
 export async function optimizeImage({
   buffer,
@@ -418,114 +529,73 @@ export async function optimizeImage({
   quality,
   width,
   height,
-  nextConfigOutput,
+  concurrency,
+  limitInputPixels,
+  sequentialRead,
+  timeoutInSeconds,
 }: {
   buffer: Buffer
   contentType: string
   quality: number
   width: number
   height?: number
-  nextConfigOutput?: 'standalone' | 'export'
+  concurrency?: number | null
+  limitInputPixels?: number
+  sequentialRead?: boolean | null
+  timeoutInSeconds?: number
 }): Promise<Buffer> {
-  let optimizedBuffer = buffer
-  if (sharp) {
-    // Begin sharp transformation logic
-    const transformer = sharp(buffer, {
-      sequentialRead: true,
+  const sharp = getSharp(concurrency)
+  const transformer = sharp(buffer, {
+    limitInputPixels,
+    sequentialRead: sequentialRead ?? undefined,
+  })
+    .timeout({
+      seconds: timeoutInSeconds ?? 7,
     })
+    .rotate()
 
-    transformer.rotate()
-
-    if (height) {
-      transformer.resize(width, height)
-    } else {
-      transformer.resize(width, undefined, {
-        withoutEnlargement: true,
-      })
-    }
-
-    if (contentType === AVIF) {
-      if (transformer.avif) {
-        const avifQuality = quality - 15
-        transformer.avif({
-          quality: Math.max(avifQuality, 0),
-          chromaSubsampling: '4:2:0', // same as webp
-        })
-      } else {
-        Log.warnOnce(
-          `Your installed version of the 'sharp' package does not support AVIF images. Run 'npm i sharp@latest' to upgrade to the latest version.\n` +
-            'Read more: https://nextjs.org/docs/messages/sharp-version-avif'
-        )
-        transformer.webp({ quality })
-      }
-    } else if (contentType === WEBP) {
-      transformer.webp({ quality })
-    } else if (contentType === PNG) {
-      transformer.png({ quality })
-    } else if (contentType === JPEG) {
-      transformer.jpeg({ quality, progressive: true })
-    }
-
-    optimizedBuffer = await transformer.toBuffer()
-    // End sharp transformation logic
+  if (height) {
+    transformer.resize(width, height)
   } else {
-    if (showSharpMissingWarning && nextConfigOutput === 'standalone') {
-      Log.error(
-        `Error: 'sharp' is required to be installed in standalone mode for the image optimization to function correctly. Read more at: https://nextjs.org/docs/messages/sharp-missing-in-production`
-      )
-      throw new ImageError(500, 'Internal Server Error')
-    }
-    // Show sharp warning in production once
-    if (showSharpMissingWarning) {
-      Log.warnOnce(
-        `For production Image Optimization with Next.js, the optional 'sharp' package is strongly recommended. Run 'npm i sharp', and Next.js will use it automatically for Image Optimization.\n` +
-          'Read more: https://nextjs.org/docs/messages/sharp-missing-in-production'
-      )
-      showSharpMissingWarning = false
-    }
-
-    // Begin Squoosh transformation logic
-    const orientation = await getOrientation(buffer)
-
-    const operations: Operation[] = []
-
-    if (orientation === Orientation.RIGHT_TOP) {
-      operations.push({ type: 'rotate', numRotations: 1 })
-    } else if (orientation === Orientation.BOTTOM_RIGHT) {
-      operations.push({ type: 'rotate', numRotations: 2 })
-    } else if (orientation === Orientation.LEFT_BOTTOM) {
-      operations.push({ type: 'rotate', numRotations: 3 })
-    } else {
-      // TODO: support more orientations
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
-      // const _: never = orientation
-    }
-
-    if (height) {
-      operations.push({ type: 'resize', width, height })
-    } else {
-      operations.push({ type: 'resize', width })
-    }
-
-    const { processBuffer } =
-      require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
-
-    if (contentType === AVIF) {
-      optimizedBuffer = await processBuffer(buffer, operations, 'avif', quality)
-    } else if (contentType === WEBP) {
-      optimizedBuffer = await processBuffer(buffer, operations, 'webp', quality)
-    } else if (contentType === PNG) {
-      optimizedBuffer = await processBuffer(buffer, operations, 'png', quality)
-    } else if (contentType === JPEG) {
-      optimizedBuffer = await processBuffer(buffer, operations, 'jpeg', quality)
-    }
+    transformer.resize(width, undefined, {
+      withoutEnlargement: true,
+    })
   }
+
+  if (contentType === AVIF) {
+    transformer.avif({
+      quality: Math.max(quality - 20, 1),
+      effort: 3,
+    })
+  } else if (contentType === WEBP) {
+    transformer.webp({ quality })
+  } else if (contentType === PNG) {
+    transformer.png({ quality })
+  } else if (contentType === JPEG) {
+    transformer.jpeg({ quality, mozjpeg: true })
+  }
+
+  const optimizedBuffer = await transformer.toBuffer()
 
   return optimizedBuffer
 }
 
 export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
-  const res = await fetch(href)
+  const res = await fetch(href, {
+    signal: AbortSignal.timeout(7_000),
+  }).catch((err) => err as Error)
+
+  if (res instanceof Error) {
+    const err = res as Error
+    if (err.name === 'TimeoutError') {
+      Log.error('upstream image response timed out for', href)
+      throw new ImageError(
+        504,
+        '"url" parameter is valid but upstream response timed out'
+      )
+    }
+    throw err
+  }
 
   if (!res.ok) {
     Log.error('upstream image response failed for', href, res.status)
@@ -538,8 +608,8 @@ export async function fetchExternalImage(href: string): Promise<ImageUpstream> {
   const buffer = Buffer.from(await res.arrayBuffer())
   const contentType = res.headers.get('Content-Type')
   const cacheControl = res.headers.get('Cache-Control')
-
-  return { buffer, contentType, cacheControl }
+  const etag = extractEtag(res.headers.get('ETag'), buffer)
+  return { buffer, contentType, cacheControl, etag }
 }
 
 export async function fetchInternalImage(
@@ -574,7 +644,9 @@ export async function fetchInternalImage(
     const buffer = Buffer.concat(mocked.res.buffers)
     const contentType = mocked.res.getHeader('Content-Type')
     const cacheControl = mocked.res.getHeader('Cache-Control')
-    return { buffer, contentType, cacheControl }
+    const etag = extractEtag(mocked.res.getHeader('ETag'), buffer)
+
+    return { buffer, contentType, cacheControl, etag }
   } catch (err) {
     Log.error('upstream image response failed for', href, err)
     throw new ImageError(
@@ -591,17 +663,38 @@ export async function imageOptimizer(
     'href' | 'width' | 'quality' | 'mimeType'
   >,
   nextConfig: {
-    output: NextConfigComplete['output']
+    experimental: Pick<
+      NextConfigComplete['experimental'],
+      | 'imgOptConcurrency'
+      | 'imgOptMaxInputPixels'
+      | 'imgOptSequentialRead'
+      | 'imgOptTimeoutInSeconds'
+    >
     images: Pick<
       NextConfigComplete['images'],
       'dangerouslyAllowSVG' | 'minimumCacheTTL'
     >
   },
-  isDev: boolean | undefined
-): Promise<{ buffer: Buffer; contentType: string; maxAge: number }> {
+  opts: {
+    isDev?: boolean
+    silent?: boolean
+    previousCacheEntry?: IncrementalCacheItem
+  }
+): Promise<{
+  buffer: Buffer
+  contentType: string
+  maxAge: number
+  etag: string
+  upstreamEtag: string
+  error?: unknown
+}> {
   const { href, quality, width, mimeType } = paramsResult
-  const upstreamBuffer = imageUpstream.buffer
-  const maxAge = getMaxAge(imageUpstream.cacheControl)
+  const { buffer: upstreamBuffer, etag: upstreamEtag } = imageUpstream
+  const maxAge = Math.max(
+    nextConfig.images.minimumCacheTTL,
+    getMaxAge(imageUpstream.cacheControl)
+  )
+
   const upstreamType =
     detectContentType(upstreamBuffer) ||
     imageUpstream.contentType?.toLowerCase().trim()
@@ -611,34 +704,48 @@ export async function imageOptimizer(
       upstreamType.startsWith('image/svg') &&
       !nextConfig.images.dangerouslyAllowSVG
     ) {
-      Log.error(
-        `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
-      )
+      if (!opts.silent) {
+        Log.error(
+          `The requested resource "${href}" has type "${upstreamType}" but dangerouslyAllowSVG is disabled`
+        )
+      }
       throw new ImageError(
         400,
         '"url" parameter is valid but image type is not allowed'
       )
     }
-
     if (ANIMATABLE_TYPES.includes(upstreamType) && isAnimated(upstreamBuffer)) {
-      Log.warnOnce(
-        `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
-      )
-      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
+      if (!opts.silent) {
+        Log.warnOnce(
+          `The requested resource "${href}" is an animated image so it will not be optimized. Consider adding the "unoptimized" property to the <Image>.`
+        )
+      }
+      return {
+        buffer: upstreamBuffer,
+        contentType: upstreamType,
+        maxAge,
+        etag: upstreamEtag,
+        upstreamEtag,
+      }
     }
-    if (VECTOR_TYPES.includes(upstreamType)) {
-      // We don't warn here because we already know that "dangerouslyAllowSVG"
-      // was enabled above, therefore the user explicitly opted in.
-      // If we add more VECTOR_TYPES besides SVG, perhaps we could warn for those.
-      return { buffer: upstreamBuffer, contentType: upstreamType, maxAge }
+    if (BYPASS_TYPES.includes(upstreamType)) {
+      return {
+        buffer: upstreamBuffer,
+        contentType: upstreamType,
+        maxAge,
+        etag: upstreamEtag,
+        upstreamEtag,
+      }
     }
     if (!upstreamType.startsWith('image/') || upstreamType.includes(',')) {
-      Log.error(
-        "The requested resource isn't a valid image for",
-        href,
-        'received',
-        upstreamType
-      )
+      if (!opts.silent) {
+        Log.error(
+          "The requested resource isn't a valid image for",
+          href,
+          'received',
+          upstreamType
+        )
+      }
       throw new ImageError(400, "The requested resource isn't a valid image.")
     }
   }
@@ -657,47 +764,63 @@ export async function imageOptimizer(
   } else {
     contentType = JPEG
   }
+  const previouslyCachedImage = getPreviouslyCachedImageOrNull(
+    imageUpstream,
+    opts.previousCacheEntry
+  )
+  if (previouslyCachedImage) {
+    return {
+      buffer: previouslyCachedImage.buffer,
+      contentType,
+      maxAge: opts?.previousCacheEntry?.curRevalidate || maxAge,
+      etag: previouslyCachedImage.etag,
+      upstreamEtag: previouslyCachedImage.upstreamEtag,
+    }
+  }
+
   try {
     let optimizedBuffer = await optimizeImage({
       buffer: upstreamBuffer,
       contentType,
       quality,
       width,
-      nextConfigOutput: nextConfig.output,
+      concurrency: nextConfig.experimental.imgOptConcurrency,
+      limitInputPixels: nextConfig.experimental.imgOptMaxInputPixels,
+      sequentialRead: nextConfig.experimental.imgOptSequentialRead,
+      timeoutInSeconds: nextConfig.experimental.imgOptTimeoutInSeconds,
     })
-    if (optimizedBuffer) {
-      if (isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
-        const { getMetadata } =
-          require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
-        // During `next dev`, we don't want to generate blur placeholders with webpack
-        // because it can delay starting the dev server. Instead, `next-image-loader.js`
-        // will inline a special url to lazily generate the blur placeholder at request time.
-        const meta = await getMetadata(optimizedBuffer)
-        const opts = {
-          blurWidth: meta.width,
-          blurHeight: meta.height,
-          blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
-            'base64'
-          )}`,
-        }
-        optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(opts)))
-        contentType = 'image/svg+xml'
+    if (opts.isDev && width <= BLUR_IMG_SIZE && quality === BLUR_QUALITY) {
+      // During `next dev`, we don't want to generate blur placeholders with webpack
+      // because it can delay starting the dev server. Instead, `next-image-loader.js`
+      // will inline a special url to lazily generate the blur placeholder at request time.
+      const meta = await getImageSize(optimizedBuffer)
+      const blurOpts = {
+        blurWidth: meta.width,
+        blurHeight: meta.height,
+        blurDataURL: `data:${contentType};base64,${optimizedBuffer.toString(
+          'base64'
+        )}`,
       }
-      return {
-        buffer: optimizedBuffer,
-        contentType,
-        maxAge: Math.max(maxAge, nextConfig.images.minimumCacheTTL),
-      }
-    } else {
-      throw new ImageError(500, 'Unable to optimize buffer')
+      optimizedBuffer = Buffer.from(unescape(getImageBlurSvg(blurOpts)))
+      contentType = 'image/svg+xml'
+    }
+    return {
+      buffer: optimizedBuffer,
+      contentType,
+      maxAge,
+      etag: getImageEtag(optimizedBuffer),
+      upstreamEtag,
     }
   } catch (error) {
-    if (upstreamBuffer && upstreamType) {
+    if (upstreamType) {
       // If we fail to optimize, fallback to the original image
       return {
         buffer: upstreamBuffer,
         contentType: upstreamType,
         maxAge: nextConfig.images.minimumCacheTTL,
+        etag: upstreamEtag,
+        upstreamEtag,
+        error,
       }
     } else {
       throw new ImageError(
@@ -768,6 +891,7 @@ export function sendResponse(
   url: string,
   extension: string,
   buffer: Buffer,
+  etag: string,
   isStatic: boolean,
   xCache: XCacheHeader,
   imagesConfig: ImageConfigComplete,
@@ -775,7 +899,6 @@ export function sendResponse(
   isDev: boolean
 ) {
   const contentType = getContentType(extension)
-  const etag = getHash([buffer])
   const result = setResponseHeaders(
     req,
     res,
@@ -794,29 +917,10 @@ export function sendResponse(
   }
 }
 
-export async function getImageSize(
-  buffer: Buffer,
-  // Should match VALID_BLUR_EXT
-  extension: 'avif' | 'webp' | 'png' | 'jpeg'
-): Promise<{
+export async function getImageSize(buffer: Buffer): Promise<{
   width?: number
   height?: number
 }> {
-  // TODO: upgrade "image-size" package to support AVIF
-  // See https://github.com/image-size/image-size/issues/348
-  if (extension === 'avif') {
-    if (sharp) {
-      const transformer = sharp(buffer)
-      const { width, height } = await transformer.metadata()
-      return { width, height }
-    } else {
-      const { decodeBuffer } =
-        require('./lib/squoosh/main') as typeof import('./lib/squoosh/main')
-      const { width, height } = await decodeBuffer(buffer)
-      return { width, height }
-    }
-  }
-
   const { width, height } = imageSizeOf(buffer)
   return { width, height }
 }

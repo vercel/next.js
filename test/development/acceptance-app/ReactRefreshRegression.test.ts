@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { check } from 'next-test-utils'
@@ -11,9 +11,8 @@ describe('ReactRefreshRegression app', () => {
     dependencies: {
       'styled-components': '5.1.0',
       '@next/mdx': 'canary',
-      '@mdx-js/loader': '0.18.0',
-      react: 'latest',
-      'react-dom': 'latest',
+      '@mdx-js/loader': '2.2.1',
+      '@mdx-js/react': '2.2.1',
     },
     skipStart: true,
   })
@@ -57,7 +56,8 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    const { session, cleanup } = await sandbox(next, files)
+    await using sandbox = await createSandbox(next, files)
+    const { session } = sandbox
 
     // We start here.
     await session.patch(
@@ -76,14 +76,13 @@ describe('ReactRefreshRegression app', () => {
     )
 
     // Verify no hydration mismatch:
-    expect(await session.hasRedbox()).toBe(false)
-
-    await cleanup()
+    await session.assertNoRedbox()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with static generation', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
@@ -138,13 +137,12 @@ describe('ReactRefreshRegression app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('Count: 2')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with dynamic rendering', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
@@ -218,13 +216,12 @@ describe('ReactRefreshRegression app', () => {
       () => session.evaluate(() => document.querySelector('p').textContent),
       'Count: 2'
     )
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13978
   test('can fast refresh a page with config', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
@@ -268,51 +265,48 @@ describe('ReactRefreshRegression app', () => {
     expect(
       await session.evaluate(() => document.querySelector('p').textContent)
     ).toBe('1')
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/11504
   test('shows an overlay for anonymous function server-side error', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
       `export default function () { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
       "> 1 | export default function () { throw new Error('boom'); }
           |                                    ^"
     `)
-
-    await cleanup()
   })
 
   test('shows an overlay for server-side error in server component', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
       `export default function Page() { throw new Error('boom'); }`
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
       "> 1 | export default function Page() { throw new Error('boom'); }
           |                                        ^"
     `)
-
-    await cleanup()
   })
 
   test('shows an overlay for server-side error in client component', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
@@ -322,7 +316,7 @@ describe('ReactRefreshRegression app', () => {
       `
     )
 
-    expect(await session.hasRedbox()).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
     expect(source.split(/\r?\n/g).slice(2).join('\n')).toMatchInlineSnapshot(`
@@ -330,20 +324,14 @@ describe('ReactRefreshRegression app', () => {
         > 2 | export default function Page() { throw new Error('boom'); }
             |                                        ^"
       `)
-
-    await cleanup()
   })
 
   // https://github.com/vercel/next.js/issues/13574
-  // Test is skipped with Turbopack as the package uses webpack loaders
-  ;(process.env.TURBOPACK ? describe.skip : describe)(
-    'Turbopack skipped tests',
-    () => {
-      test('custom loader mdx should have Fast Refresh enabled', async () => {
-        const files = new Map()
-        files.set(
-          'next.config.js',
-          outdent`
+  test('custom loader mdx should have Fast Refresh enabled', async () => {
+    const files = new Map()
+    files.set(
+      'next.config.js',
+      outdent`
         const withMDX = require("@next/mdx")({
           extension: /\\.mdx?$/,
         });
@@ -351,46 +339,44 @@ describe('ReactRefreshRegression app', () => {
           pageExtensions: ["js", "mdx"],
         });
       `
-        )
-        files.set('app/content.mdx', `Hello World!`)
-        files.set(
-          'app/page.js',
-          outdent`
+    )
+    files.set('app/content.mdx', `Hello World!`)
+    files.set(
+      'app/page.js',
+      outdent`
         'use client'
         import MDX from './content.mdx'
         export default function Page() {
           return <div id="content"><MDX /></div>
         }
       `
-        )
+    )
 
-        const { session, cleanup } = await sandbox(next, files)
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#content').textContent
-          )
-        ).toBe('Hello World!')
+    await using sandbox = await createSandbox(next, files)
+    const { session } = sandbox
 
-        let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
-        expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox()).toBe(false)
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#content').textContent
-          )
-        ).toBe('Hello Foo!')
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#content').textContent
+      )
+    ).toBe('Hello World!')
 
-        didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
-        expect(didNotReload).toBe(true)
-        expect(await session.hasRedbox()).toBe(false)
-        expect(
-          await session.evaluate(
-            () => document.querySelector('#content').textContent
-          )
-        ).toBe('Hello Bar!')
+    let didNotReload = await session.patch('app/content.mdx', `Hello Foo!`)
+    expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#content').textContent
+      )
+    ).toBe('Hello Foo!')
 
-        await cleanup()
-      })
-    }
-  )
+    didNotReload = await session.patch('app/content.mdx', `Hello Bar!`)
+    expect(didNotReload).toBe(true)
+    await session.assertNoRedbox()
+    expect(
+      await session.evaluate(
+        () => document.querySelector('#content').textContent
+      )
+    ).toBe('Hello Bar!')
+  })
 })

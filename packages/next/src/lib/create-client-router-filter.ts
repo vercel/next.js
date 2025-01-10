@@ -7,7 +7,7 @@ import { tryToParsePath } from './try-to-parse-path'
 import {
   extractInterceptionRouteInformation,
   isInterceptionRouteAppPath,
-} from '../server/future/helpers/interception-routes'
+} from '../server/lib/interception-routes'
 
 export function createClientRouterFilter(
   paths: string[],

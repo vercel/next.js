@@ -10,7 +10,7 @@ title: 'Link `passHref`'
 
 ## Possible Ways to Fix It
 
-If you're using a custom component that wraps an `<a>` tag, make sure to add `passHref`:
+If you're using a custom component that wraps an `<a>` tag, make sure to add `passHref` and `legacyBehavior`:
 
 ```jsx filename="nav-link.js"
 import Link from 'next/link'
@@ -22,7 +22,7 @@ const StyledLink = styled.a`
 
 function NavLink({ href, name }) {
   return (
-    <Link href={href} passHref>
+    <Link href={href} passHref legacyBehavior>
       <StyledLink>{name}</StyledLink>
     </Link>
   )

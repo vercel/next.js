@@ -1,10 +1,10 @@
-import { PagesRouteModule } from '../../server/future/route-modules/pages/module.compiled'
-import { RouteKind } from '../../server/future/route-kind'
+import { PagesRouteModule } from '../../server/route-modules/pages/module.compiled'
+import { RouteKind } from '../../server/route-kind'
 import { hoist } from './helpers'
 
 // Import the app and document modules.
-import Document from 'VAR_MODULE_DOCUMENT'
-import App from 'VAR_MODULE_APP'
+import * as document from 'VAR_MODULE_DOCUMENT'
+import * as app from 'VAR_MODULE_APP'
 
 // Import the userland code.
 import * as userland from 'VAR_USERLAND'
@@ -52,8 +52,9 @@ export const routeModule = new PagesRouteModule({
     filename: '',
   },
   components: {
-    App,
-    Document,
+    // default export might not exist when optimized for data only
+    App: app.default,
+    Document: document.default,
   },
   userland,
 })

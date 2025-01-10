@@ -1,0 +1,10 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/relative-uri-import/input/another.css [test] (css, ) */
+.bar{background-color:green}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/relative-uri-import/input/other.css [test] (css, ) */
+.foo{background-color:red}
+
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/relative-uri-import/input/index.css [test] (css) */
+body{background-color:#00f}
+
+/*# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_css_relative-uri-import_input_32f7a1._.css.map*/

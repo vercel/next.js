@@ -1,0 +1,13 @@
+a = FreeVar(import)("a")
+
+b = (???*0* | FreeVar(import)("a") | FreeVar(import)("b"))
+- *0* b
+  ⚠️  pattern without value
+
+c = FreeVar(import)(
+    ((FreeVar(process)["env"]["NEXT_RUNTIME"] === "edge") ? "next/dist/compiled/@vercel/og/index.edge.js" : "next/dist/compiled/@vercel/og/index.node.js")
+)
+
+earlyExit = (...) => (undefined | hoisted)
+
+hoisted = (...) => undefined

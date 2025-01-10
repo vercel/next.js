@@ -4,7 +4,7 @@ import os from 'os'
 import { join } from 'path'
 
 import findUp from 'next/dist/compiled/find-up'
-import { File, nextBuild, nextLint } from 'next-test-utils'
+import { nextLint } from 'next-test-utils'
 
 const dirFirstTimeSetup = join(__dirname, '../first-time-setup')
 const dirCustomConfig = join(__dirname, '../custom-config')
@@ -21,20 +21,13 @@ const dirIgnoreDuringBuilds = join(__dirname, '../ignore-during-builds')
 const dirBaseDirectories = join(__dirname, '../base-directories')
 const dirCustomDirectories = join(__dirname, '../custom-directories')
 const dirConfigInPackageJson = join(__dirname, '../config-in-package-json')
-const dirInvalidOlderEslintVersion = join(
-  __dirname,
-  '../invalid-eslint-version'
-)
 const dirMaxWarnings = join(__dirname, '../max-warnings')
 const dirEmptyDirectory = join(__dirname, '../empty-directory')
-const dirEslintIgnore = join(__dirname, '../eslint-ignore')
-const dirNoEslintPlugin = join(__dirname, '../no-eslint-plugin')
 const dirNoConfig = join(__dirname, '../no-config')
-const dirEslintCache = join(__dirname, '../eslint-cache')
-const dirEslintCacheCustomDir = join(__dirname, '../eslint-cache-custom-dir')
 const dirFileLinting = join(__dirname, '../file-linting')
 const mjsCjsLinting = join(__dirname, '../mjs-cjs-linting')
 const dirTypescript = join(__dirname, '../with-typescript')
+const formatterAsync = join(__dirname, '../formatter-async/format.js')
 
 describe('Next Lint', () => {
   describe('First Time Setup ', () => {
@@ -128,7 +121,9 @@ describe('Next Lint', () => {
         'We created the .eslintrc.json file for you and included your selected configuration'
       )
       expect(eslintrcJson).toMatchObject({ extends: 'next/core-web-vitals' })
+    })
 
+    test('creates .eslintrc.json file with a default app router configuration', async () => {
       // App Router
       const { stdout: appStdout, eslintrcJson: appEslintrcJson } =
         await nextLintTemp(null, true)
@@ -211,6 +206,42 @@ describe('Next Lint', () => {
     )
   })
 
+  test('verify options name and type with auto-generated help output', async () => {
+    const options = [
+      '-d, --dir, <dirs...>',
+      '--file, <files...>',
+      '--ext, [exts...]',
+      '-c, --config, <config>',
+      '--resolve-plugins-relative-to, <rprt>',
+      '--strict',
+      '--rulesdir, <rulesdir...>',
+      '--fix',
+      '--fix-type <fixType>',
+      '--ignore-path <path>',
+      '--no-ignore',
+      '--quiet',
+      '--max-warnings [maxWarnings]',
+      '-o, --output-file, <outputFile>',
+      '-f, --format, <format>',
+      '--no-inline-config',
+      '--report-unused-disable-directives-severity <level>',
+      '--no-cache',
+      '--cache-location, <cacheLocation>',
+      '--cache-strategy, [cacheStrategy]',
+      '--error-on-unmatched-pattern',
+    ]
+    const { stdout, stderr } = await nextLint(dirNoConfig, ['-h'], {
+      stdout: true,
+      stderr: true,
+    })
+
+    const output = stdout + stderr
+
+    for (let option of options) {
+      expect(output).toContain(option)
+    }
+  })
+
   test('base directories are linted by default', async () => {
     const { stdout, stderr } = await nextLint(dirBaseDirectories, [], {
       stdout: true,
@@ -222,7 +253,7 @@ describe('Next Lint', () => {
       'Error: `next/head` should not be imported in `pages/_document.js`. Use `<Head />` from `next/document` instead'
     )
     expect(output).toContain(
-      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images.'
     )
     expect(output).toContain('Warning: Do not include stylesheets manually')
     expect(output).toContain('Warning: Synchronous scripts should not be used')
@@ -246,7 +277,7 @@ describe('Next Lint', () => {
 
     const output = stdout + stderr
     expect(output).toContain(
-      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images.'
     )
     expect(output).toContain('Error: Synchronous scripts should not be used.')
   })
@@ -276,7 +307,7 @@ describe('Next Lint', () => {
 
     const output = stdout + stderr
     expect(output).toContain(
-      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images.'
     )
     expect(output).toContain('Error: Synchronous scripts should not be used.')
   })
@@ -411,6 +442,21 @@ describe('Next Lint', () => {
     expect(stdout).toContain('2 warnings found')
   })
 
+  test('format flag supports async formatters', async () => {
+    const { stdout, stderr } = await nextLint(
+      dirMaxWarnings,
+      ['-f', formatterAsync],
+      {
+        stdout: true,
+        stderr: true,
+      }
+    )
+
+    const output = stdout + stderr
+    expect(output).toContain('Async results:')
+    expect(stdout).toContain('Synchronous scripts should not be used.')
+  })
+
   test('file flag can selectively lint only a single file', async () => {
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -451,14 +497,14 @@ describe('Next Lint', () => {
 
     expect(output).toContain('pages/bar.js')
     expect(output).toContain(
-      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images.'
+      'Warning: Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images.'
     )
 
     expect(output).not.toContain('pages/index.js')
     expect(output).not.toContain('Synchronous scripts should not be used.')
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
+  test('format flag "json" creates a file respecting the chosen format', async () => {
     const filePath = `${__dirname}/output/output.json`
     const { stdout, stderr } = await nextLint(
       dirFileLinting,
@@ -494,7 +540,7 @@ describe('Next Lint', () => {
           }),
           expect.objectContaining({
             message:
-              'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element',
+              'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element',
           }),
         ])
       )
@@ -510,54 +556,6 @@ describe('Next Lint', () => {
     }
   })
 
-  test('output flag create a file respecting the chosen format', async () => {
-    const filePath = `${__dirname}/output/output.txt`
-    const { stdout, stderr } = await nextLint(
-      dirFileLinting,
-      ['--format', 'compact', '--output-file', filePath],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-
-    const cliOutput = stdout + stderr
-    const fileOutput = fs.readFileSync(filePath, 'utf8')
-
-    expect(cliOutput).toContain(`The output file has been created: ${filePath}`)
-
-    expect(fileOutput).toContain('file-linting/pages/bar.js')
-    expect(fileOutput).toContain(
-      'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
-    )
-    expect(fileOutput).toContain(
-      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
-    )
-
-    expect(fileOutput).toContain('file-linting/pages/index.js')
-    expect(fileOutput).toContain(
-      'Synchronous scripts should not be used. See: https://nextjs.org/docs/messages/no-sync-scripts'
-    )
-  })
-
-  test('show error message when the file path is a directory', async () => {
-    const filePath = `${__dirname}`
-    const { stdout, stderr } = await nextLint(
-      dirFileLinting,
-      ['--format', 'compact', '--output-file', filePath],
-      {
-        stdout: true,
-        stderr: true,
-      }
-    )
-
-    const cliOutput = stdout + stderr
-
-    expect(cliOutput).toContain(
-      `Cannot write to output file path, it is a directory: ${filePath}`
-    )
-  })
-
   test('lint files with cjs and mjs file extension', async () => {
     const { stdout, stderr } = await nextLint(mjsCjsLinting, [], {
       stdout: true,
@@ -571,7 +569,7 @@ describe('Next Lint', () => {
       'img elements must have an alt prop, either with meaningful text, or an empty string for decorative images.'
     )
     expect(output).toContain(
-      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
+      'Using `<img>` could result in slower LCP and higher bandwidth. Consider using `<Image />` from `next/image` or a custom image loader to automatically optimize images. This may incur additional usage or cost from your provider. See: https://nextjs.org/docs/messages/no-img-element'
     )
 
     expect(output).toContain('pages/index.cjs')

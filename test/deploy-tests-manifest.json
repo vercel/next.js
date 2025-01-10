@@ -1,0 +1,62 @@
+{
+  "version": 2,
+  "suites": {
+    "test/e2e/app-dir/actions/app-action.test.ts": {
+      "failed": [
+        "app-dir action handling fetch actions should invalidate client cache when path is revalidated",
+        "app-dir action handling fetch actions should handle unstable_expireTag"
+      ]
+    },
+    "test/e2e/app-dir/app-static/app-static.test.ts": {
+      "failed": [
+        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache",
+        "app-dir static/dynamic handling new tags have been specified on subsequent fetch should not fetch from memory cache after unstable_expireTag is used"
+      ]
+    },
+    "test/e2e/app-dir/metadata/metadata.test.ts": {
+      "failed": [
+        "app dir - metadata react cache should have same title and page value on initial load",
+        "app dir - metadata react cache should have same title and page value when navigating"
+      ]
+    },
+    "test/e2e/middleware-rewrites/test/index.test.ts": {
+      "failed": ["Middleware Rewrite should handle catch-all rewrite correctly"]
+    }
+  },
+  "rules": {
+    "include": [
+      "test/e2e/**/*.test.{t,j}s{,x}",
+      "test/production/**/*.test.{t,j}s{,x}"
+    ],
+    "exclude": [
+      "test/e2e/cancel-request/stream-cancel.test.ts",
+      "test/e2e/new-link-behavior/material-ui.test.ts",
+      "test/e2e/react-dnd-compile/react-dnd-compile.test.ts",
+      "test/e2e/skip-trailing-slash-redirect/index.test.ts",
+      "test/e2e/app-dir/app-compilation/index.test.ts",
+      "test/e2e/app-dir/rsc-webpack-loader/rsc-webpack-loader.test.ts",
+      "test/e2e/swc-warnings/index.test.ts",
+      "test/e2e/third-parties/index.test.ts",
+      "test/e2e/app-dir/app-routes/app-custom-route-base-path.test.ts",
+      "test/e2e/app-dir/mdx/mdx.test.ts",
+      "test/e2e/app-dir/modularizeimports/modularizeimports.test.ts",
+      "test/e2e/app-dir/third-parties/basic.test.ts",
+      "test/e2e/app-dir/app-static/app-static-custom-handler.test.ts",
+      "test/e2e/app-dir/options-request/options-request.test.ts",
+      "test/e2e/app-dir/revalidate-dynamic/revalidate-dynamic.test.ts",
+      "test/e2e/app-dir/syntax-highlighter-crash/syntax-highlighter-crash.test.ts",
+      "test/e2e/new-link-behavior/stitches.test.ts",
+      "test/e2e/next-image-forward-ref/index.test.ts",
+      "test/e2e/react-compiler/react-compiler.test.ts",
+      "test/e2e/app-dir/i18n-hybrid/i18n-hybrid.test.js",
+      "test/e2e/app-dir/metadata/metadata.test.ts",
+      "test/e2e/app-dir/rsc-basic/rsc-basic.test.ts",
+      "test/e2e/basepath.test.ts",
+      "test/e2e/postcss-config-cjs/index.test.ts",
+      "test/e2e/socket-io/index.test.js",
+      "test/e2e/middleware-matcher/index.test.ts",
+      "test/e2e/next-script/index.test.ts",
+      "test/production/standalone-mode/**/*"
+    ]
+  }
+}

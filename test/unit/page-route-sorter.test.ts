@@ -213,4 +213,10 @@ describe('getSortedRoutes', () => {
       ])
     ).toThrow(/differ only by non-word/)
   })
+
+  it('catches param names start with three-dot character not actual three dots', () => {
+    expect(() => getSortedRoutes(['[…three-dots]'])).toThrow(
+      /Detected a three-dot character/
+    )
+  })
 })

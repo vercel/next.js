@@ -12,7 +12,7 @@ type TimeData = {
 
 const timeZones = ["cet", "gmt"];
 
-export const revalidate = 10;
+export const revalidate = 500;
 
 export async function generateStaticParams() {
   return timeZones.map((timezone) => ({ timezone }));

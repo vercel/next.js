@@ -1,19 +1,30 @@
-import { findPort, waitFor } from 'next-test-utils'
+import { findPort, retry } from 'next-test-utils'
 import http from 'http'
+import url from 'url'
 import { outdent } from 'outdent'
-import { FileRef, createNext } from 'e2e-utils'
+import { isNextDev, isNextStart, nextTestSetup } from 'e2e-utils'
 
 describe('app-fetch-deduping', () => {
-  if ((global as any).isNextStart) {
+  if (isNextStart) {
     describe('during static generation', () => {
+      const { next } = nextTestSetup({ files: __dirname, skipStart: true })
       let externalServerPort: number
       let externalServer: http.Server
-      let requests = []
+      let successfulRequests = []
 
       beforeAll(async () => {
         externalServerPort = await findPort()
         externalServer = http.createServer((req, res) => {
-          requests.push(req.url)
+          const parsedUrl = url.parse(req.url, true)
+          const overrideStatus = parsedUrl.query.status
+
+          // if the requested url has a "status" search param, override the response status
+          if (overrideStatus) {
+            res.statusCode = Number(overrideStatus)
+          } else {
+            successfulRequests.push(req.url)
+          }
+
           res.end(`Request ${req.url} received at ${Date.now()}`)
         })
 
@@ -29,34 +40,30 @@ describe('app-fetch-deduping', () => {
       })
 
       beforeEach(() => {
-        requests = []
+        successfulRequests = []
       })
 
       afterAll(() => externalServer.close())
 
-      it('dedupes requests amongst static workers when experimental.staticWorkerRequestDeduping is enabled', async () => {
-        const next = await createNext({
-          files: new FileRef(__dirname),
-          env: { TEST_SERVER_PORT: `${externalServerPort}` },
-          nextConfig: {
-            experimental: {
-              staticWorkerRequestDeduping: true,
-            },
-          },
-        })
-
-        expect(requests.length).toBe(1)
-
-        await next.destroy()
+      it('dedupes requests amongst static workers', async () => {
+        await next.patchFile(
+          'next.config.js',
+          `module.exports = {
+            env: { TEST_SERVER_PORT: "${externalServerPort}" },
+          }`
+        )
+        await next.build()
+        expect(successfulRequests.length).toBe(1)
       })
     })
-  } else if ((global as any).isNextDev) {
+  } else if (isNextDev) {
     describe('during next dev', () => {
-      it('should dedupe requests called from the same component', async () => {
-        const next = await createNext({
-          files: new FileRef(__dirname),
-        })
+      const { next } = nextTestSetup({ files: __dirname, patchFileDelay: 500 })
+      function invocation(cliOutput: string): number {
+        return cliOutput.match(/Route Handler invoked/g).length
+      }
 
+      it('should dedupe requests called from the same component', async () => {
         await next.patchFile(
           'app/test/page.tsx',
           outdent`
@@ -71,28 +78,23 @@ describe('app-fetch-deduping', () => {
             const time = await getTime()
           
             return <h1>{time}</h1>
-          }
-        `
+          }`
         )
 
         await next.render('/test')
 
-        let count = next.cliOutput.split('Starting...').length - 1
-        expect(count).toBe(1)
-
-        await next.destroy()
+        expect(invocation(next.cliOutput)).toBe(1)
+        await next.stop()
       })
 
       it('should dedupe pending revalidation requests', async () => {
-        const next = await createNext({
-          files: new FileRef(__dirname),
-        })
-
+        await next.start()
+        const revalidate = 5
         await next.patchFile(
           'app/test/page.tsx',
           outdent`
           async function getTime() {
-            const res = await fetch("http://localhost:${next.appPort}/api/time", { next: { revalidate: 5 } })
+            const res = await fetch("http://localhost:${next.appPort}/api/time", { next: { revalidate: ${revalidate} } })
             return res.text()
           }
           
@@ -102,27 +104,18 @@ describe('app-fetch-deduping', () => {
             const time = await getTime()
           
             return <h1>{time}</h1>
-          }
-        `
+          }`
         )
 
         await next.render('/test')
 
-        let count = next.cliOutput.split('Starting...').length - 1
-        expect(count).toBe(1)
-
-        const outputIndex = next.cliOutput.length
+        expect(invocation(next.cliOutput)).toBe(1)
 
         // wait for the revalidation to finish
-        await waitFor(6000)
-
-        await next.render('/test')
-
-        count =
-          next.cliOutput.slice(outputIndex).split('Starting...').length - 1
-        expect(count).toBe(1)
-
-        await next.destroy()
+        await retry(async () => {
+          await next.render('/test')
+          expect(invocation(next.cliOutput)).toBe(2)
+        }, 10_000)
       })
     })
   } else {

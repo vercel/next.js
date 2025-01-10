@@ -1,0 +1,7 @@
+  x Conflicting directives "use server" and "use cache" found in the same file. You cannot place both directives at the top of a file. Please remove one of them.
+  | 
+   ,-[input.js:2:1]
+ 1 | 'use cache'
+ 2 | 'use server'
+   : ^^^^^^^^^^^^
+   `----

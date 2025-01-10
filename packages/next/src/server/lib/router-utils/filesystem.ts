@@ -13,7 +13,7 @@ import path from 'path'
 import fs from 'fs/promises'
 import * as Log from '../../../build/output/log'
 import setupDebug from 'next/dist/compiled/debug'
-import LRUCache from 'next/dist/compiled/lru-cache'
+import { LRUCache } from '../lru-cache'
 import loadCustomRoutes, { type Rewrite } from '../../../lib/load-custom-routes'
 import { modifyRouteRegex } from '../../../lib/redirect-status'
 import { FileType, fileExists } from '../../../lib/file-exists'
@@ -37,9 +37,9 @@ import {
 } from '../../../shared/lib/constants'
 import { normalizePathSep } from '../../../shared/lib/page-path/normalize-path-sep'
 import { normalizeMetadataRoute } from '../../../lib/metadata/get-metadata-route'
-import { RSCPathnameNormalizer } from '../../future/normalizers/request/rsc'
-import { PostponedPathnameNormalizer } from '../../future/normalizers/request/postponed'
-import { PrefetchRSCPathnameNormalizer } from '../../future/normalizers/request/prefetch-rsc'
+import { RSCPathnameNormalizer } from '../../normalizers/request/rsc'
+import { PrefetchRSCPathnameNormalizer } from '../../normalizers/request/prefetch-rsc'
+import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
 
 export type FsOutput = {
   type:
@@ -104,17 +104,13 @@ export async function setupFsCheck(opts: {
   ) => void
 }) {
   const getItemsLru = !opts.dev
-    ? new LRUCache<string, FsOutput | null>({
-        max: 1024 * 1024,
-        length(value, key) {
-          if (!value) return key?.length || 0
-          return (
-            (key || '').length +
-            (value.fsPath || '').length +
-            value.itemPath.length +
-            value.type.length
-          )
-        },
+    ? new LRUCache<FsOutput | null>(1024 * 1024, function length(value) {
+        if (!value) return 0
+        return (
+          (value.fsPath || '').length +
+          value.itemPath.length +
+          value.type.length
+        )
       })
     : undefined
 
@@ -162,7 +158,7 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(publicFolderPath)) {
         // Ensure filename is encoded and normalized.
-        publicFolderItems.add(encodeURI(normalizePathSep(file)))
+        publicFolderItems.add(encodeURIPath(normalizePathSep(file)))
       }
     } catch (err: any) {
       if (err.code !== 'ENOENT') {
@@ -173,7 +169,7 @@ export async function setupFsCheck(opts: {
     try {
       for (const file of await recursiveReadDir(legacyStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
-        legacyStaticFolderItems.add(encodeURI(normalizePathSep(file)))
+        legacyStaticFolderItems.add(encodeURIPath(normalizePathSep(file)))
       }
       Log.warn(
         `The static directory has been deprecated in favor of the public directory. https://nextjs.org/docs/messages/static-dir-deprecated`
@@ -188,7 +184,10 @@ export async function setupFsCheck(opts: {
       for (const file of await recursiveReadDir(nextStaticFolderPath)) {
         // Ensure filename is encoded and normalized.
         nextStaticFolderItems.add(
-          path.posix.join('/_next/static', encodeURI(normalizePathSep(file)))
+          path.posix.join(
+            '/_next/static',
+            encodeURIPath(normalizePathSep(file))
+          )
         )
       }
     } catch (err) {
@@ -381,9 +380,6 @@ export async function setupFsCheck(opts: {
     prefetchRSC: opts.config.experimental.ppr
       ? new PrefetchRSCPathnameNormalizer()
       : undefined,
-    postponed: opts.config.experimental.ppr
-      ? new PostponedPathnameNormalizer()
-      : undefined,
   }
 
   return {
@@ -423,10 +419,17 @@ export async function setupFsCheck(opts: {
 
       const { basePath } = opts.config
 
-      if (basePath && !pathHasPrefix(itemPath, basePath)) {
+      const hasBasePath = pathHasPrefix(itemPath, basePath)
+
+      // Return null if path doesn't start with basePath
+      if (basePath && !hasBasePath) {
         return null
       }
-      itemPath = removePathPrefix(itemPath, basePath) || '/'
+
+      // Remove basePath if it exists.
+      if (basePath && hasBasePath) {
+        itemPath = removePathPrefix(itemPath, basePath) || '/'
+      }
 
       // Simulate minimal mode requests by normalizing RSC and postponed
       // requests.
@@ -435,8 +438,6 @@ export async function setupFsCheck(opts: {
           itemPath = normalizers.prefetchRSC.normalize(itemPath, true)
         } else if (normalizers.rsc.match(itemPath)) {
           itemPath = normalizers.rsc.normalize(itemPath, true)
-        } else if (normalizers.postponed?.match(itemPath)) {
-          itemPath = normalizers.postponed.normalize(itemPath, true)
         }
       }
 
@@ -548,7 +549,7 @@ export async function setupFsCheck(opts: {
 
         // check decoded variant as well
         if (!matchedItem && !opts.dev) {
-          matchedItem = items.has(curItemPath)
+          matchedItem = items.has(curDecodedItemPath)
           if (matchedItem) curItemPath = curDecodedItemPath
           else {
             // x-ref: https://github.com/vercel/next.js/issues/54008
@@ -558,7 +559,7 @@ export async function setupFsCheck(opts: {
             // encoded version: `/_next/static/chunks/pages/blog/%5Bslug%5D-d4858831b91b69f6.js`
             try {
               // encode the special characters in the path and retrieve again to determine if path exists.
-              const encodedCurItemPath = encodeURI(curItemPath)
+              const encodedCurItemPath = encodeURIPath(curItemPath)
               matchedItem = items.has(encodedCurItemPath)
             } catch {}
           }

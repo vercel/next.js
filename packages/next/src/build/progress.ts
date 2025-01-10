@@ -47,7 +47,7 @@ export const createProgress = (total: number, label: string) => {
     },
   })
 
-  return () => {
+  const run = () => {
     curProgress++
 
     // Make sure we only log once
@@ -68,19 +68,34 @@ export const createProgress = (total: number, label: string) => {
     }
 
     const isFinished = curProgress === total
+    const message = `${label} (${curProgress}/${total})`
     if (progressSpinner && !isFinished) {
-      progressSpinner.setText(`${label} (${curProgress}/${total})`)
+      progressSpinner.setText(message)
     } else {
-      if (progressSpinner) {
-        progressSpinner.stop()
+      progressSpinner?.stop()
+      if (isFinished) {
+        Log.event(message)
+      } else {
+        Log.info(`${message} ${process.stdout.isTTY ? '\n' : '\r'}`)
       }
-      console.log(
-        ` ${
-          isFinished ? Log.prefixes.event : Log.prefixes.info
-        } ${label} (${curProgress}/${total}) ${
-          isFinished ? '' : process.stdout.isTTY ? '\n' : '\r'
-        }`
-      )
     }
+  }
+
+  const clear = () => {
+    if (
+      progressSpinner &&
+      // Ensure only reset and clear once to avoid set operation overflow in ora
+      progressSpinner.isSpinning
+    ) {
+      progressSpinner.prefixText = '\r'
+      progressSpinner.text = '\r'
+      progressSpinner.clear()
+      progressSpinner.stop()
+    }
+  }
+
+  return {
+    run,
+    clear,
   }
 }

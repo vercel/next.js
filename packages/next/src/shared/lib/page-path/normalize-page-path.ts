@@ -16,8 +16,8 @@ export function normalizePagePath(page: string): string {
     /^\/index(\/|$)/.test(page) && !isDynamicRoute(page)
       ? `/index${page}`
       : page === '/'
-      ? '/index'
-      : ensureLeadingSlash(page)
+        ? '/index'
+        : ensureLeadingSlash(page)
 
   if (process.env.NEXT_RUNTIME !== 'edge') {
     const { posix } = require('path')

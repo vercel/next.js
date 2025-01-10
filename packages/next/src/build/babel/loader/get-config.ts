@@ -7,6 +7,7 @@ import loadConfig from 'next/dist/compiled/babel/core-lib-config'
 import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
+import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -70,7 +71,11 @@ function getPlugins(
   const { isServer, isPageFile, isNextDist, hasModuleExports } =
     cacheCharacteristics
 
-  const { hasReactRefresh, development } = loaderOptions
+  const { development } = loaderOptions
+  const hasReactRefresh =
+    loaderOptions.transformMode !== 'standalone'
+      ? loaderOptions.hasReactRefresh
+      : false
 
   const applyCommonJsItem = hasModuleExports
     ? createConfigItem(require('../plugins/commonjs'), { type: 'plugin' })
@@ -260,14 +265,29 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
-  let { isServer, pagesDir, development, hasJsxRuntime, configFile } =
-    loaderOptions
+  const hasReactCompiler = (() => {
+    if (
+      loaderOptions.reactCompilerPlugins &&
+      loaderOptions.reactCompilerPlugins.length === 0
+    ) {
+      return false
+    }
 
-  let customConfig: any = configFile
-    ? getCustomBabelConfig(configFile)
-    : undefined
+    if (
+      loaderOptions.reactCompilerExclude &&
+      loaderOptions.reactCompilerExclude(filename)
+    ) {
+      return false
+    }
 
-  checkCustomBabelConfigDeprecation(customConfig)
+    return true
+  })()
+
+  const reactCompilerPluginsIfEnabled = hasReactCompiler
+    ? loaderOptions.reactCompilerPlugins ?? []
+    : []
+
+  let { isServer, pagesDir, srcDir, development } = loaderOptions
 
   let options = {
     babelrc: false,
@@ -275,29 +295,72 @@ function getFreshConfig(
     filename,
     inputSourceMap: inputSourceMap || undefined,
 
-    // Set the default sourcemap behavior based on Webpack's mapping flag,
-    // but allow users to override if they want.
-    sourceMaps:
-      loaderOptions.sourceMaps === undefined
-        ? this.sourceMap
-        : loaderOptions.sourceMaps,
-
     // Ensure that Webpack will get a full absolute path in the sourcemap
     // so that it can properly map the module back to its internal cached
     // modules.
     sourceFileName: filename,
+    sourceMaps: this.sourceMap,
+  } as any
 
-    plugins: [
+  const baseCaller = {
+    name: 'next-babel-turbo-loader',
+    supportsStaticESM: true,
+    supportsDynamicImport: true,
+
+    // Provide plugins with insight into webpack target.
+    // https://github.com/babel/babel-loader/issues/787
+    target: target,
+
+    // Webpack 5 supports TLA behind a flag. We enable it by default
+    // for Babel, and then webpack will throw an error if the experimental
+    // flag isn't enabled.
+    supportsTopLevelAwait: true,
+
+    isServer,
+    srcDir,
+    pagesDir,
+    isDev: development,
+
+    ...loaderOptions.caller,
+  }
+
+  if (loaderOptions.transformMode === 'standalone') {
+    options.plugins = [jsx, ...reactCompilerPluginsIfEnabled]
+    options.presets = [
+      [
+        require('next/dist/compiled/babel/preset-typescript'),
+        { allowNamespaces: true },
+      ],
+    ]
+    options.caller = baseCaller
+  } else {
+    let { configFile, hasJsxRuntime } = loaderOptions
+    let customConfig: any = configFile
+      ? getCustomBabelConfig(configFile)
+      : undefined
+
+    checkCustomBabelConfigDeprecation(customConfig)
+
+    // Set the default sourcemap behavior based on Webpack's mapping flag,
+    // but allow users to override if they want.
+    options.sourceMaps =
+      loaderOptions.sourceMaps === undefined
+        ? this.sourceMap
+        : loaderOptions.sourceMaps
+
+    options.plugins = [
       ...getPlugins(loaderOptions, cacheCharacteristics),
+      ...reactCompilerPluginsIfEnabled,
       ...(customConfig?.plugins || []),
-    ],
+    ]
 
     // target can be provided in babelrc
-    target: isServer ? undefined : customConfig?.target,
-    // env can be provided in babelrc
-    env: customConfig?.env,
+    options.target = isServer ? undefined : customConfig?.target
 
-    presets: (() => {
+    // env can be provided in babelrc
+    options.env = customConfig?.env
+
+    options.presets = (() => {
       // If presets is defined the user will have next/babel in their babelrc
       if (customConfig?.presets) {
         return customConfig.presets
@@ -310,32 +373,15 @@ function getFreshConfig(
 
       // If no custom config is provided the default is to use next/babel
       return ['next/babel']
-    })(),
+    })()
 
-    overrides: loaderOptions.overrides,
+    options.overrides = loaderOptions.overrides
 
-    caller: {
-      name: 'next-babel-turbo-loader',
-      supportsStaticESM: true,
-      supportsDynamicImport: true,
-
-      // Provide plugins with insight into webpack target.
-      // https://github.com/babel/babel-loader/issues/787
-      target: target,
-
-      // Webpack 5 supports TLA behind a flag. We enable it by default
-      // for Babel, and then webpack will throw an error if the experimental
-      // flag isn't enabled.
-      supportsTopLevelAwait: true,
-
-      isServer,
-      pagesDir,
-      isDev: development,
+    options.caller = {
+      ...baseCaller,
       hasJsxRuntime,
-
-      ...loaderOptions.caller,
-    },
-  } as any
+    }
+  }
 
   // Babel does strict checks on the config so undefined is not allowed
   if (typeof options.target === 'undefined') {
@@ -404,7 +450,7 @@ export default function getConfig(
     filename
   )
 
-  if (loaderOptions.configFile) {
+  if (loaderOptions.transformMode === 'default' && loaderOptions.configFile) {
     // Ensures webpack invalidates the cache for this loader when the config file changes
     this.addDependency(loaderOptions.configFile)
   }
@@ -425,7 +471,11 @@ export default function getConfig(
     }
   }
 
-  if (loaderOptions.configFile && !configFiles.has(loaderOptions.configFile)) {
+  if (
+    loaderOptions.transformMode === 'default' &&
+    loaderOptions.configFile &&
+    !configFiles.has(loaderOptions.configFile)
+  ) {
     configFiles.add(loaderOptions.configFile)
     Log.info(
       `Using external babel configuration from ${loaderOptions.configFile}`

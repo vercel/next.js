@@ -1,6 +1,6 @@
 # Example app using nested components
 
-Taking advantage of the composable nature of React components we can modularize our apps in self-contained, meaningful components. This example has a page under `pages/index.tsx` that uses `components/paragraph.tsx` and `components/post.tsx` that can be styled and managed separately.
+Taking advantage of the composable nature of React components we can modularize our apps in self-contained, meaningful components. This example has a page under `app/page.tsx` that uses `app/_components/paragraph.tsx` and `app/_components/post.tsx` that can be styled and managed separately.
 
 ## Deploy your own
 

@@ -11,6 +11,7 @@ const cwd = process.cwd()
 
 ;(async function () {
   let isCanary = true
+  let isReleaseCandidate = false
 
   try {
     const tagOutput = execSync(
@@ -21,6 +22,7 @@ const cwd = process.cwd()
     if (tagOutput.trim().startsWith('v')) {
       isCanary = tagOutput.includes('-canary')
     }
+    isReleaseCandidate = tagOutput.includes('-rc')
   } catch (err) {
     console.log(err)
 
@@ -30,7 +32,9 @@ const cwd = process.cwd()
     }
     throw err
   }
-  console.log(`Publishing ${isCanary ? 'canary' : 'stable'}`)
+  console.log(
+    `Publishing ${isCanary ? 'canary' : isReleaseCandidate ? 'rc' : 'stable'}`
+  )
 
   if (!process.env.NPM_TOKEN) {
     console.log('No NPM_TOKEN, exiting...')
@@ -53,7 +57,11 @@ const cwd = process.cwd()
           '--access',
           'public',
           '--ignore-scripts',
-          ...(isCanary ? ['--tag', 'canary'] : []),
+          ...(isCanary
+            ? ['--tag', 'canary']
+            : isReleaseCandidate
+              ? ['--tag', 'rc']
+              : []),
         ],
         { stdio: 'pipe' }
       )

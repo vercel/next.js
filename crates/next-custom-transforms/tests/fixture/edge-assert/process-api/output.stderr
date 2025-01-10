@@ -1,0 +1,6 @@
+  x A Node.js API is used (process.loadEnvFile at line: 1) which is not supported in the Edge Runtime.
+  | Learn more: https://nextjs.org/docs/api-reference/edge-runtime
+   ,-[input.js:1:1]
+ 1 | console.log(process.loadEnvFile())
+   :             ^^^^^^^^^^^^^^^^^^^
+   `----

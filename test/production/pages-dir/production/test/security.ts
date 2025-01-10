@@ -326,10 +326,8 @@ export default (next: NextInstance) => {
           const src = await browser.elementById('img').getAttribute('src')
           expect(src).toMatch(/_next\/image\?.*xss\.svg/)
           expect(await browser.elementById('msg').text()).toBe('safe')
-          browser = await webdriver(
-            next.appPort,
-            '/_next/image?url=%2Fxss.svg&w=256&q=75'
-          )
+          await browser.eval(`document.getElementById("btn").click()`)
+          await browser.waitForIdleNetwork()
           expect(await browser.elementById('msg').text()).toBe('safe')
         } finally {
           if (browser) await browser.close()

@@ -1,0 +1,13 @@
+[92;4msuggestion - [analysis] [project]/turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js  /turbopack/crates/turbopack-tests/tests/snapshot/dynamic-request/very-dynamic/input/index.js:14:0  lint TP1004 fs.readFileSync(FreeVar(Math)["random"]()) is very dynamic
+  
+      10 | require(unknown);
+      11 | 
+      12 | import(unknown);
+      13 | 
+         + v----------------------v
+      14 + fs.readFileSync(unknown);
+         + ^----------------------^
+      15 | readFileSync(unknown);
+      16 | 
+      17 | new URL(unknown, import.meta.url);
+      18 |

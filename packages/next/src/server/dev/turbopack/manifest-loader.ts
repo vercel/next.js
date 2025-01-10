@@ -2,42 +2,48 @@ import type {
   EdgeFunctionDefinition,
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
+import type { StatsAsset, StatsChunk, StatsChunkGroup, StatsModule, StatsCompilation as WebpackStats } from 'webpack'
 import type { BuildManifest } from '../../get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
-import { generateRandomActionKeyRaw } from '../../app-render/action-encryption-utils'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
-import type { LoadableManifest } from '../../load-components'
+import type {
+  REACT_LOADABLE_MANIFEST} from '../../../shared/lib/constants';
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
-  AUTOMATIC_FONT_OPTIMIZATION_MANIFEST,
   BUILD_MANIFEST,
   INTERCEPTION_ROUTE_REWRITE_MANIFEST,
   MIDDLEWARE_BUILD_MANIFEST,
   MIDDLEWARE_MANIFEST,
-  MIDDLEWARE_REACT_LOADABLE_MANIFEST,
   NEXT_FONT_MANIFEST,
   PAGES_MANIFEST,
-  REACT_LOADABLE_MANIFEST,
   SERVER_REFERENCE_MANIFEST,
+  TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
+  WEBPACK_STATS,
 } from '../../../shared/lib/constants'
 import { join, posix } from 'path'
-import { readFile, writeFile } from 'fs/promises'
+import { readFile } from 'fs/promises'
 import type { SetupOpts } from '../../lib/router-utils/setup-dev-bundler'
-import { deleteCache } from '../../../build/webpack/plugins/nextjs-require-cache-hot-reloader'
+import { deleteCache } from '../require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import {
   type ClientBuildManifest,
   normalizeRewritesForBuildManifest,
   srcEmptySsgManifest,
+  processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
-import type { PageEntrypoints } from './types'
+import type { Entrypoints } from './types'
 import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
+import type { CustomRoutes } from '../../../lib/load-custom-routes'
+import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { existsSync } from 'fs'
+import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
+import { tryToParsePath } from '../../../lib/try-to-parse-path'
 
 interface InstrumentationDefinition {
   files: string[]
@@ -48,6 +54,21 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
+const getManifestPath = (page: string, distDir: string, name: string, type: string) => {
+  let manifestPath = posix.join(
+    distDir,
+    `server`,
+    type,
+    type === 'middleware' || type === 'instrumentation'
+      ? ''
+      : type === 'app'
+        ? page
+        : getAssetPathFromRoute(page),
+    name
+  )
+  return manifestPath
+}
+
 async function readPartialManifest<T>(
   distDir: string,
   name:
@@ -55,6 +76,7 @@ async function readPartialManifest<T>(
     | typeof BUILD_MANIFEST
     | typeof APP_BUILD_MANIFEST
     | typeof PAGES_MANIFEST
+    | typeof WEBPACK_STATS
     | typeof APP_PATHS_MANIFEST
     | `${typeof SERVER_REFERENCE_MANIFEST}.json`
     | `${typeof NEXT_FONT_MANIFEST}.json`
@@ -62,17 +84,20 @@ async function readPartialManifest<T>(
   pageName: string,
   type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
 ): Promise<T> {
-  const manifestPath = posix.join(
-    distDir,
-    `server`,
-    type,
-    type === 'middleware' || type === 'instrumentation'
-      ? ''
-      : type === 'app'
-      ? pageName
-      : getAssetPathFromRoute(pageName),
-    name
-  )
+  const page = pageName
+  const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
+  let manifestPath = getManifestPath(page, distDir, name, type)
+
+  // Check the ambiguity of /sitemap and /sitemap.xml
+  if (isSitemapRoute && !existsSync(manifestPath)) {
+    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
+  }
+  // existsSync is faster than using the async version
+  if(!existsSync(manifestPath) && page.endsWith('/route')) {
+    // TODO: Improve implementation of metadata routes, currently it requires this extra check for the variants of the files that can be written.
+    let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
+    manifestPath = getManifestPath(metadataPage, distDir, name, type)
+  }
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
 
@@ -82,17 +107,27 @@ export class TurbopackManifestLoader {
   private appPathsManifests: Map<EntryKey, PagesManifest> = new Map()
   private buildManifests: Map<EntryKey, BuildManifest> = new Map()
   private fontManifests: Map<EntryKey, NextFontManifest> = new Map()
-  private loadableManifests: Map<EntryKey, LoadableManifest> = new Map()
   private middlewareManifests: Map<EntryKey, TurbopackMiddlewareManifest> =
     new Map()
   private pagesManifests: Map<string, PagesManifest> = new Map()
+  private webpackStats: Map<EntryKey, WebpackStats> = new Map()
+  private encryptionKey: string
 
   private readonly distDir: string
   private readonly buildId: string
 
-  constructor({ distDir, buildId }: { buildId: string; distDir: string }) {
+  constructor({
+    distDir,
+    buildId,
+    encryptionKey,
+  }: {
+    buildId: string
+    distDir: string
+    encryptionKey: string
+  }) {
     this.distDir = distDir
     this.buildId = buildId
+    this.encryptionKey = encryptionKey
   }
 
   delete(key: EntryKey) {
@@ -101,9 +136,9 @@ export class TurbopackManifestLoader {
     this.appPathsManifests.delete(key)
     this.buildManifests.delete(key)
     this.fontManifests.delete(key)
-    this.loadableManifests.delete(key)
     this.middlewareManifests.delete(key)
     this.pagesManifests.delete(key)
+    this.webpackStats.delete(key)
   }
 
   async loadActionManifest(pageName: string): Promise<void> {
@@ -123,7 +158,7 @@ export class TurbopackManifestLoader {
     const manifest: ActionManifest = {
       node: {},
       edge: {},
-      encryptionKey: await generateRandomActionKeyRaw(true),
+      encryptionKey: this.encryptionKey,
     }
 
     function mergeActionIds(
@@ -165,11 +200,10 @@ export class TurbopackManifestLoader {
     const json = JSON.stringify(actionManifest, null, 2)
     deleteCache(actionManifestJsonPath)
     deleteCache(actionManifestJsPath)
-    await writeFile(actionManifestJsonPath, json, 'utf-8')
-    await writeFile(
+    await writeFileAtomic(actionManifestJsonPath, json)
+    await writeFileAtomic(
       actionManifestJsPath,
-      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`,
-      'utf-8'
+      `self.__RSC_SERVER_MANIFEST=${JSON.stringify(json)}`
     )
   }
 
@@ -235,17 +269,20 @@ export class TurbopackManifestLoader {
     )
   }
 
-  /**
-   * Turbopack doesn't support this functionality, so it writes an empty manifest.
-   */
-  private async writeAutomaticFontOptimizationManifest() {
-    const manifestPath = join(
+  private async writeWebpackStats(): Promise<void> {
+    const webpackStats = this.mergeWebpackStats(
+      this.webpackStats.values()
+    )
+    const path = join(
       this.distDir,
       'server',
-      AUTOMATIC_FONT_OPTIMIZATION_MANIFEST
+      WEBPACK_STATS
     )
-
-    await writeFileAtomic(manifestPath, JSON.stringify([]))
+    deleteCache(path)
+    await writeFileAtomic(
+      path,
+      JSON.stringify(webpackStats, null, 2)
+    )
   }
 
   async loadBuildManifest(
@@ -258,6 +295,77 @@ export class TurbopackManifestLoader {
     )
   }
 
+  async loadWebpackStats(
+    pageName: string,
+    type: 'app' | 'pages' = 'pages'
+  ): Promise<void> {
+    this.webpackStats.set(
+      getEntryKey(type, 'client', pageName),
+      await readPartialManifest(this.distDir, WEBPACK_STATS, pageName, type)
+    )
+  }
+
+  private mergeWebpackStats(statsFiles: Iterable<WebpackStats>): WebpackStats {
+    const entrypoints: Record<string, StatsChunkGroup> = {};
+    const assets: Map<string, StatsAsset> = new Map()
+    const chunks: Map<string, StatsChunk> = new Map()
+    const modules: Map<string | number, StatsModule> = new Map()
+
+    for (const statsFile of statsFiles) {
+      if (statsFile.entrypoints) {
+        for (const [k, v] of Object.entries(
+          statsFile.entrypoints
+        )) {
+          if (!entrypoints[k]) {
+            entrypoints[k] = v
+          }
+        }
+      }
+
+      if (statsFile.assets) {
+        for (const asset of statsFile.assets) {
+          if (!assets.has(asset.name)) {
+            assets.set(asset.name, asset)
+          }
+        }
+      }
+
+      if (statsFile.chunks) {
+        for (const chunk of statsFile.chunks) {
+          if (!chunks.has(chunk.name)) {
+            chunks.set(chunk.name, chunk)
+          }
+        }
+      }
+
+      if (statsFile.modules) {
+        for (const module of statsFile.modules) {
+          const id = module.id;
+          if (id != null) {
+            // Merge the chunk list for the module. This can vary across endpoints.
+            const existing = modules.get(id);
+            if (existing == null) {
+              modules.set(id, module)
+            } else if (module.chunks != null && existing.chunks != null) {
+              for (const chunk of module.chunks) {
+                if (!existing.chunks.includes(chunk)) {
+                  existing.chunks.push(chunk)
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+
+    return {
+      entrypoints,
+      assets: [...assets.values()],
+      chunks: [...chunks.values()],
+      modules: [...modules.values()],
+    }
+  }
+
   private mergeBuildManifests(manifests: Iterable<BuildManifest>) {
     const manifest: Partial<BuildManifest> & Pick<BuildManifest, 'pages'> = {
       pages: {
@@ -268,8 +376,8 @@ export class TurbopackManifestLoader {
       ampDevFiles: [],
       polyfillFiles: [],
       lowPriorityFiles: [
-        'static/development/_ssgManifest.js',
-        'static/development/_buildManifest.js',
+        `static/${this.buildId}/_ssgManifest.js`,
+        `static/${this.buildId}/_buildManifest.js`,
       ],
       rootMainFiles: [],
       ampFirstPages: [],
@@ -277,14 +385,23 @@ export class TurbopackManifestLoader {
     for (const m of manifests) {
       Object.assign(manifest.pages, m.pages)
       if (m.rootMainFiles.length) manifest.rootMainFiles = m.rootMainFiles
+      // polyfillFiles should always be the same, so we can overwrite instead of actually merging
+      if (m.polyfillFiles.length) manifest.polyfillFiles = m.polyfillFiles
     }
     return manifest
   }
 
   private async writeBuildManifest(
-    pageEntrypoints: PageEntrypoints,
-    rewrites: SetupOpts['fsChecker']['rewrites']
+    entrypoints: Entrypoints,
+    devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined,
+    productionRewrites: CustomRoutes['rewrites'] | undefined
   ): Promise<void> {
+    const rewrites = productionRewrites ?? {
+      ...devRewrites,
+      beforeFiles: (devRewrites?.beforeFiles ?? []).map(processRoute),
+      afterFiles: (devRewrites?.afterFiles ?? []).map(processRoute),
+      fallback: (devRewrites?.fallback ?? []).map(processRoute),
+    }
     const buildManifest = this.mergeBuildManifests(this.buildManifests.values())
     const buildManifestPath = join(this.distDir, BUILD_MANIFEST)
     const middlewareBuildManifestPath = join(
@@ -320,17 +437,24 @@ export class TurbopackManifestLoader {
       )};`
     )
 
+    const pagesKeys = [...entrypoints.page.keys()]
+    if (entrypoints.global.app) {
+      pagesKeys.push('/_app')
+    }
+    if (entrypoints.global.error) {
+      pagesKeys.push('/_error')
+    }
+
+    const sortedPageKeys = getSortedRoutes(pagesKeys)
     const content: ClientBuildManifest = {
-      __rewrites: rewrites
-        ? (normalizeRewritesForBuildManifest(rewrites) as any)
-        : { afterFiles: [], beforeFiles: [], fallback: [] },
+      __rewrites: normalizeRewritesForBuildManifest(rewrites) as any,
       ...Object.fromEntries(
-        [...pageEntrypoints.keys()].map((pathname) => [
+        sortedPageKeys.map((pathname) => [
           pathname,
-          `static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`,
+          [`static/chunks/pages${pathname === '/' ? '/index' : pathname}.js`],
         ])
       ),
-      sortedPages: [...pageEntrypoints.keys()],
+      sortedPages: sortedPageKeys,
     }
     const buildManifestJs = `self.__BUILD_MANIFEST = ${JSON.stringify(
       content
@@ -342,6 +466,26 @@ export class TurbopackManifestLoader {
     await writeFileAtomic(
       join(this.distDir, 'static', this.buildId, '_ssgManifest.js'),
       srcEmptySsgManifest
+    )
+  }
+
+  private async writeClientMiddlewareManifest(): Promise<void> {
+    const middlewareManifest = this.mergeMiddlewareManifests(
+      this.middlewareManifests.values()
+    )
+
+    const matchers = middlewareManifest?.middleware['/']?.matchers || []
+
+    const clientMiddlewareManifestPath = join(
+      this.distDir,
+      'static',
+      this.buildId,
+      `${TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST}`
+    )
+    deleteCache(clientMiddlewareManifestPath)
+    await writeFileAtomic(
+      clientMiddlewareManifestPath,
+      JSON.stringify(matchers, null, 2)
     )
   }
 
@@ -420,51 +564,6 @@ export class TurbopackManifestLoader {
     )
   }
 
-  async loadLoadableManifest(
-    pageName: string,
-    type: 'app' | 'pages' = 'pages'
-  ): Promise<void> {
-    this.loadableManifests.set(
-      getEntryKey(type, 'server', pageName),
-      await readPartialManifest(
-        this.distDir,
-        REACT_LOADABLE_MANIFEST,
-        pageName,
-        type
-      )
-    )
-  }
-
-  private mergeLoadableManifests(manifests: Iterable<LoadableManifest>) {
-    const manifest: LoadableManifest = {}
-    for (const m of manifests) {
-      Object.assign(manifest, m)
-    }
-    return manifest
-  }
-
-  private async writeLoadableManifest(): Promise<void> {
-    const loadableManifest = this.mergeLoadableManifests(
-      this.loadableManifests.values()
-    )
-    const loadableManifestPath = join(this.distDir, REACT_LOADABLE_MANIFEST)
-    const middlewareloadableManifestPath = join(
-      this.distDir,
-      'server',
-      `${MIDDLEWARE_REACT_LOADABLE_MANIFEST}.js`
-    )
-
-    const json = JSON.stringify(loadableManifest, null, 2)
-
-    deleteCache(loadableManifestPath)
-    deleteCache(middlewareloadableManifestPath)
-    await writeFileAtomic(loadableManifestPath, json)
-    await writeFileAtomic(
-      middlewareloadableManifestPath,
-      `self.__REACT_LOADABLE_MANIFEST=${JSON.stringify(json)}`
-    )
-  }
-
   async loadMiddlewareManifest(
     pageName: string,
     type: 'pages' | 'app' | 'middleware' | 'instrumentation'
@@ -496,7 +595,7 @@ export class TurbopackManifestLoader {
     manifests: Iterable<TurbopackMiddlewareManifest>
   ): MiddlewareManifest {
     const manifest: MiddlewareManifest = {
-      version: 2,
+      version: 3,
       middleware: {},
       sortedMiddleware: [],
       functions: {},
@@ -547,6 +646,20 @@ export class TurbopackManifestLoader {
     const middlewareManifest = this.mergeMiddlewareManifests(
       this.middlewareManifests.values()
     )
+
+    // Normalize regexes as it uses path-to-regexp
+    for (const key in middlewareManifest.middleware) {
+      middlewareManifest.middleware[key].matchers.forEach((matcher) => {
+        if (!matcher.regexp.startsWith('^')) {
+          const parsedPage = tryToParsePath(matcher.regexp)
+          if (parsedPage.error || !parsedPage.regexStr) {
+            throw new Error(`Invalid source: ${matcher.regexp}`)
+          }
+          matcher.regexp = parsedPage.regexStr
+        }
+      })
+    }
+
     const middlewareManifestPath = join(
       this.distDir,
       'server',
@@ -585,21 +698,26 @@ export class TurbopackManifestLoader {
   }
 
   async writeManifests({
-    rewrites,
-    pageEntrypoints,
+    devRewrites,
+    productionRewrites,
+    entrypoints,
   }: {
-    rewrites: SetupOpts['fsChecker']['rewrites']
-    pageEntrypoints: PageEntrypoints
+    devRewrites: SetupOpts['fsChecker']['rewrites'] | undefined
+    productionRewrites: CustomRoutes['rewrites'] | undefined
+    entrypoints: Entrypoints
   }) {
     await this.writeActionManifest()
     await this.writeAppBuildManifest()
     await this.writeAppPathsManifest()
-    await this.writeAutomaticFontOptimizationManifest()
-    await this.writeBuildManifest(pageEntrypoints, rewrites)
+    await this.writeBuildManifest(entrypoints, devRewrites, productionRewrites)
     await this.writeFallbackBuildManifest()
-    await this.writeLoadableManifest()
     await this.writeMiddlewareManifest()
+    await this.writeClientMiddlewareManifest()
     await this.writeNextFontManifest()
     await this.writePagesManifest()
+
+    if (process.env.TURBOPACK_STATS != null) {
+      await this.writeWebpackStats()
+    }
   }
 }

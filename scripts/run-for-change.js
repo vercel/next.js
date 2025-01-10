@@ -23,7 +23,7 @@ const CHANGE_ITEM_GROUPS = {
     'packages/eslint-plugin-next/README.md',
     'packages/next-codemod/license.md',
     'packages/next-codemod/README.md',
-    'packages/next-swc/crates/wasm/README.md',
+    'crates/wasm/README.md',
     'packages/next-swc/README.md',
     'packages/next-bundle-analyzer/readme.md',
     'packages/next-mdx/license.md',
@@ -39,6 +39,9 @@ const CHANGE_ITEM_GROUPS = {
     'packages/create-next-app',
     'test/integration/create-next-app',
     'examples/basic-css',
+    'examples/mdx-pages',
+    'examples/with-sass',
+    'examples/with-eslint',
   ],
   'next-codemod': ['packages/next-codemod'],
   'next-swc': [
