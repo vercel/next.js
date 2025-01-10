@@ -15,9 +15,13 @@ packages/next-codemod/transforms/__testfixtures__/
 packages/next-codemod/transforms/__tests__/
 scripts/
 test/
+turbo/
 turbopack/**/tests/
 
 **/*.test.*
 **/*.md
 **/*.toml
 **/*.txt
+**/*.yaml
+**/*.yml
+.*
