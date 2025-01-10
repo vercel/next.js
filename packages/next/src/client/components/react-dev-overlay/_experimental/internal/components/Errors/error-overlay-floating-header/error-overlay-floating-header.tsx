@@ -38,9 +38,9 @@ export const styles = css`
     align-items: center;
 
     width: 100%;
-    margin-right: auto;
-    margin-left: auto;
-    margin-bottom: var(--size-2);
+    position: absolute;
+    transform: translateY(-32px);
+
     outline: none;
 
     @media (min-width: 576px) {

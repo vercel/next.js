@@ -66,18 +66,18 @@ export function ErrorOverlayLayout({
 }: ErrorOverlayLayoutProps) {
   return (
     <Overlay fixed={isBuildError}>
-      <ErrorOverlayFloatingHeader
-        readyErrors={readyErrors}
-        activeIdx={activeIdx}
-        setActiveIndex={setActiveIndex}
-        versionInfo={versionInfo}
-      />
       <Dialog
         type="error"
         aria-labelledby="nextjs__container_errors_label"
         aria-describedby="nextjs__container_errors_desc"
         onClose={onClose}
       >
+        <ErrorOverlayFloatingHeader
+          readyErrors={readyErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          versionInfo={versionInfo}
+        />
         <DialogContent>
           <DialogHeader className="nextjs-container-errors-header">
             <div
