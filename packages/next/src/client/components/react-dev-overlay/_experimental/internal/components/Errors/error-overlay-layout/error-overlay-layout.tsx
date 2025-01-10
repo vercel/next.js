@@ -4,13 +4,7 @@ import type { VersionInfo } from '../../../../../../../../server/dev/parse-versi
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
-import {
-  Dialog,
-  DialogHeader,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-} from '../../Dialog'
+import { DialogContent, DialogFooter } from '../../Dialog'
 import { Overlay } from '../../Overlay'
 import {
   ErrorOverlayToolbar,
@@ -31,6 +25,13 @@ import {
   ErrorOverlayFloatingHeader,
   styles as floatingHeaderStyles,
 } from '../error-overlay-floating-header/error-overlay-floating-header'
+
+import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
+import {
+  ErrorOverlayDialogHeader,
+  DIALOG_HEADER_STYLES,
+} from '../dialog/header'
+import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -66,12 +67,8 @@ export function ErrorOverlayLayout({
 }: ErrorOverlayLayoutProps) {
   return (
     <Overlay fixed={isBuildError}>
-      <Dialog
-        type="error"
-        aria-labelledby="nextjs__container_errors_label"
-        aria-describedby="nextjs__container_errors_desc"
-        onClose={onClose}
-      >
+
+      <ErrorOverlayDialog onClose={onClose}>
         <ErrorOverlayFloatingHeader
           readyErrors={readyErrors}
           activeIdx={activeIdx}
@@ -79,7 +76,7 @@ export function ErrorOverlayLayout({
           versionInfo={versionInfo}
         />
         <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
+          <ErrorOverlayDialogHeader>
             <div
               className="nextjs__container_errors__error_title"
               // allow assertion in tests before error rating is implemented
@@ -89,10 +86,10 @@ export function ErrorOverlayLayout({
               <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
             </div>
             <ErrorMessage errorMessage={errorMessage} />
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            {children}
-          </DialogBody>
+          </ErrorOverlayDialogHeader>
+
+          <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+
           <DialogFooter>
             {/* TODO: errorCode should not be undefined whatsoever */}
             <ErrorOverlayFooter
@@ -105,12 +102,16 @@ export function ErrorOverlayLayout({
           errorsCount={readyErrors?.length ?? 0}
           activeIdx={activeIdx ?? 0}
         />
-      </Dialog>
+      </ErrorOverlayDialog>
     </Overlay>
   )
 }
 
 export const styles = css`
+  ${DIALOG_STYLES}
+  ${DIALOG_HEADER_STYLES}
+  ${DIALOG_BODY_STYLES}
+
   ${floatingHeaderStyles}
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
