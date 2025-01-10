@@ -8,7 +8,7 @@ use turbo_tasks::{
     CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
-use crate::backend::{indexed::Indexed, TaskDataCategory};
+use crate::backend::TaskDataCategory;
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -623,100 +623,6 @@ pub mod allow_mut_access {
     pub const AggregateRoot: () = ();
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
-pub enum CachedDataItemIndex {
-    Children,
-    Collectibles,
-    Follower,
-    Upper,
-    AggregatedDirtyContainer,
-    AggregatedCollectible,
-    CellData,
-    CellTypeMaxIndex,
-    CellDependent,
-    OutputDependent,
-    CollectiblesDependent,
-    Dependencies,
-    InProgressCell,
-}
-
-#[allow(non_upper_case_globals, dead_code)]
-pub mod indicies {
-    use super::CachedDataItemIndex;
-
-    pub const Child: CachedDataItemIndex = CachedDataItemIndex::Children;
-    pub const OutdatedChild: CachedDataItemIndex = CachedDataItemIndex::Children;
-    pub const Collectible: CachedDataItemIndex = CachedDataItemIndex::Collectibles;
-    pub const OutdatedCollectible: CachedDataItemIndex = CachedDataItemIndex::Collectibles;
-    pub const Follower: CachedDataItemIndex = CachedDataItemIndex::Follower;
-    pub const Upper: CachedDataItemIndex = CachedDataItemIndex::Upper;
-    pub const AggregatedDirtyContainer: CachedDataItemIndex =
-        CachedDataItemIndex::AggregatedDirtyContainer;
-    pub const AggregatedCollectible: CachedDataItemIndex =
-        CachedDataItemIndex::AggregatedCollectible;
-    pub const CellData: CachedDataItemIndex = CachedDataItemIndex::CellData;
-    pub const CellTypeMaxIndex: CachedDataItemIndex = CachedDataItemIndex::CellTypeMaxIndex;
-    pub const CellDependent: CachedDataItemIndex = CachedDataItemIndex::CellDependent;
-    pub const OutputDependent: CachedDataItemIndex = CachedDataItemIndex::OutputDependent;
-    pub const CollectiblesDependent: CachedDataItemIndex =
-        CachedDataItemIndex::CollectiblesDependent;
-    pub const OutputDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
-    pub const CellDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
-    pub const CollectibleDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
-    pub const OutdatedOutputDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
-    pub const OutdatedCellDependency: CachedDataItemIndex = CachedDataItemIndex::Dependencies;
-    pub const OutdatedCollectiblesDependency: CachedDataItemIndex =
-        CachedDataItemIndex::Dependencies;
-    pub const OutdatedCollectibleDependency: CachedDataItemIndex =
-        CachedDataItemIndex::Dependencies;
-    pub const InProgressCell: CachedDataItemIndex = CachedDataItemIndex::InProgressCell;
-}
-
-impl Indexed for CachedDataItemKey {
-    type Index = Option<CachedDataItemIndex>;
-
-    fn index(&self) -> Option<CachedDataItemIndex> {
-        match self {
-            CachedDataItemKey::Child { .. } => Some(CachedDataItemIndex::Children),
-            CachedDataItemKey::OutdatedChild { .. } => Some(CachedDataItemIndex::Children),
-            CachedDataItemKey::Collectible { .. } => Some(CachedDataItemIndex::Collectibles),
-            CachedDataItemKey::OutdatedCollectible { .. } => {
-                Some(CachedDataItemIndex::Collectibles)
-            }
-            CachedDataItemKey::Follower { .. } => Some(CachedDataItemIndex::Follower),
-            CachedDataItemKey::Upper { .. } => Some(CachedDataItemIndex::Upper),
-            CachedDataItemKey::AggregatedDirtyContainer { .. } => {
-                Some(CachedDataItemIndex::AggregatedDirtyContainer)
-            }
-            CachedDataItemKey::AggregatedCollectible { .. } => {
-                Some(CachedDataItemIndex::AggregatedCollectible)
-            }
-            CachedDataItemKey::CellData { .. } => Some(CachedDataItemIndex::CellData),
-            CachedDataItemKey::CellTypeMaxIndex { .. } => {
-                Some(CachedDataItemIndex::CellTypeMaxIndex)
-            }
-            CachedDataItemKey::CellDependent { .. } => Some(CachedDataItemIndex::CellDependent),
-            CachedDataItemKey::OutputDependent { .. } => Some(CachedDataItemIndex::OutputDependent),
-            CachedDataItemKey::OutputDependency { .. } => Some(CachedDataItemIndex::Dependencies),
-            CachedDataItemKey::CellDependency { .. } => Some(CachedDataItemIndex::Dependencies),
-            CachedDataItemKey::CollectiblesDependency { .. } => {
-                Some(CachedDataItemIndex::Dependencies)
-            }
-            CachedDataItemKey::OutdatedOutputDependency { .. } => {
-                Some(CachedDataItemIndex::Dependencies)
-            }
-            CachedDataItemKey::OutdatedCellDependency { .. } => {
-                Some(CachedDataItemIndex::Dependencies)
-            }
-            CachedDataItemKey::OutdatedCollectiblesDependency { .. } => {
-                Some(CachedDataItemIndex::Dependencies)
-            }
-            CachedDataItemKey::InProgressCell { .. } => Some(CachedDataItemIndex::InProgressCell),
-            _ => None,
-        }
-    }
-}
-
 impl CachedDataItemValue {
     pub fn is_persistent(&self) -> bool {
         match self {
@@ -741,4 +647,16 @@ pub enum CachedDataUpdate {
     Replace1 { old_item: CachedDataItem },
     /// An item was replaced. This is step 2 and tells about the new value.
     Replace2 { value: CachedDataItemValue },
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn test_sizes() {
+        assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemKey>(), 20);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemValue>(), 32);
+        assert_eq!(std::mem::size_of::<super::CachedDataItemStorage>(), 48);
+        assert_eq!(std::mem::size_of::<super::CachedDataUpdate>(), 48);
+    }
 }
