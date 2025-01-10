@@ -1,5 +1,7 @@
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { noop as css } from '../../../helpers/noop-template'
 import { LeftArrow } from '../../../icons/LeftArrow'
 import { RightArrow } from '../../../icons/RightArrow'
 
@@ -9,7 +11,7 @@ type ErrorPaginationProps = {
   onActiveIndexChange: (index: number) => void
 }
 
-export function ErrorPagination({
+export function ErrorOverlayPagination({
   readyErrors,
   activeIdx,
   onActiveIndexChange,
@@ -114,35 +116,99 @@ export function ErrorPagination({
   }, [nav, activeIdx, readyErrors.length])
 
   return (
-    <div data-nextjs-dialog-left-right>
-      <nav ref={onNav}>
-        <button
-          ref={buttonLeft}
-          type="button"
-          disabled={activeIdx === 0}
-          aria-disabled={activeIdx === 0}
-          onClick={handlePrevious}
+    <>
+      {readyErrors.length > 0 && (
+        <nav
+          className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
+          ref={onNav}
         >
-          <LeftArrow title="previous" />
-        </button>
-        <button
-          ref={buttonRight}
-          type="button"
-          disabled={activeIdx === readyErrors.length - 1}
-          aria-disabled={activeIdx === readyErrors.length - 1}
-          onClick={handleNext}
-        >
-          <RightArrow title="next" />
-        </button>
-        <small>
-          <span>{activeIdx + 1}</span> of{' '}
-          <span data-nextjs-dialog-header-total-count>
-            {readyErrors.length}
-          </span>
-          {' issue'}
-          {readyErrors.length < 2 ? '' : 's'}
-        </small>
-      </nav>
-    </div>
+          <button
+            ref={buttonLeft}
+            type="button"
+            disabled={activeIdx === 0}
+            aria-disabled={activeIdx === 0}
+            onClick={handlePrevious}
+            className="error-overlay-pagination-button"
+          >
+            <LeftArrow
+              title="previous"
+              className="error-overlay-pagination-button-icon"
+            />
+          </button>
+          <div className="error-overlay-pagination-count">
+            <span>{activeIdx + 1}/</span>
+            <span data-nextjs-dialog-header-total-count>
+              {readyErrors.length}
+            </span>
+          </div>
+          <button
+            ref={buttonRight}
+            type="button"
+            disabled={activeIdx === readyErrors.length - 1}
+            aria-disabled={activeIdx === readyErrors.length - 1}
+            onClick={handleNext}
+            className="error-overlay-pagination-button"
+          >
+            <RightArrow
+              title="next"
+              className="error-overlay-pagination-button-icon"
+            />
+          </button>
+        </nav>
+      )}
+    </>
   )
 }
+
+export const styles = css`
+  .error-overlay-pagination {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 4px;
+    gap: 8px;
+    background: var(--color-background-100);
+    box-shadow: var(--shadow-sm);
+
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--rounded-full);
+  }
+
+  .error-overlay-pagination-count {
+    color: var(--color-gray-900);
+    text-align: center;
+    font-size: var(--size-font-small);
+    font-weight: 500;
+    line-height: 16px;
+  }
+
+  .error-overlay-pagination-button {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    padding: 4px;
+    background: var(--color-gray-300);
+
+    border: none;
+    border-radius: var(--rounded-full);
+
+    &:focus {
+      outline: none;
+    }
+
+    &:not(:disabled):active {
+      background: var(--color-gray-500);
+    }
+
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+  }
+
+  .error-overlay-pagination-button-icon {
+    color: var(--color-gray-1000);
+  }
+`
