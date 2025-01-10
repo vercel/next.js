@@ -36,7 +36,7 @@ impl Introspectable for IntrospectionSource {
     #[turbo_tasks::function]
     fn children(&self) -> Vc<IntrospectableChildren> {
         let name = ResolvedVc::cell("root".into());
-        Vc::cell(self.roots.iter().map(|root| (name, **root)).collect())
+        Vc::cell(self.roots.iter().map(|root| (name, *root)).collect())
     }
 }
 

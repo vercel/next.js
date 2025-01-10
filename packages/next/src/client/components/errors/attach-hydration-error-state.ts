@@ -1,7 +1,7 @@
 import {
   isHydrationError,
   getDefaultHydrationErrorMessage,
-} from '../../../../is-hydration-error'
+} from '../is-hydration-error'
 import {
   hydrationErrorState,
   getReactHydrationDiffSegments,

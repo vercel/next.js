@@ -11,6 +11,7 @@ import { styles as versionStaleness } from '../components/VersionStalenessInfo'
 import { styles as buildErrorStyles } from '../container/BuildError'
 import { styles as containerErrorStyles } from '../container/Errors'
 import { styles as containerRuntimeErrorStyles } from '../container/RuntimeError'
+import { styles as devToolsIndicator } from '../components/Errors/dev-tools-indicator/styles'
 import { noop as css } from '../helpers/noop-template'
 
 export function ComponentStyles() {
@@ -30,6 +31,7 @@ export function ComponentStyles() {
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
         ${versionStaleness}
+        ${devToolsIndicator}
       `}
     </style>
   )

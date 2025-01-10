@@ -247,12 +247,14 @@ impl Introspectable for ChunkGroupFilesAsset {
     }
 
     #[turbo_tasks::function]
-    fn children(&self) -> Vc<IntrospectableChildren> {
+    async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
         children.insert((
             ResolvedVc::cell("inner asset".into()),
-            IntrospectableModule::new(*ResolvedVc::upcast(self.module)),
+            IntrospectableModule::new(*ResolvedVc::upcast(self.module))
+                .to_resolved()
+                .await?,
         ));
-        Vc::cell(children)
+        Ok(Vc::cell(children))
     }
 }

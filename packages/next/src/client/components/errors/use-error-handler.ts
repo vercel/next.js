@@ -1,12 +1,12 @@
 import { useEffect } from 'react'
 import { attachHydrationErrorState } from './attach-hydration-error-state'
-import { isNextRouterError } from '../../../../is-next-router-error'
+import { isNextRouterError } from '../is-next-router-error'
 import { storeHydrationErrorStateFromConsoleArgs } from './hydration-error-info'
-import { formatConsoleArgs } from '../../../../../lib/console'
-import isError from '../../../../../../lib/is-error'
+import { formatConsoleArgs } from '../../lib/console'
+import isError from '../../../lib/is-error'
 import { createUnhandledError } from './console-error'
 import { enqueueConsecutiveDedupedError } from './enqueue-client-error'
-import { getReactStitchedError } from './stitched-error'
+import { getReactStitchedError } from '../errors/stitched-error'
 
 const queueMicroTask =
   globalThis.queueMicrotask || ((cb: () => void) => Promise.resolve().then(cb))
@@ -77,7 +77,11 @@ function onUnhandledError(event: WindowEventMap['error']): void | boolean {
     event.preventDefault()
     return false
   }
-  handleClientError(event.error, [])
+  // When there's an error property present, we log the error to error overlay.
+  // Otherwise we don't do anything as it's not logging in the console either.
+  if (event.error) {
+    handleClientError(event.error, [])
+  }
 }
 
 function onUnhandledRejection(ev: WindowEventMap['unhandledrejection']): void {

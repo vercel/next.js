@@ -18,13 +18,13 @@ import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   type HydrationErrorState,
   getHydrationWarningType,
-} from '../helpers/hydration-error-info'
+} from '../../../../errors/hydration-error-info'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
-} from '../helpers/console-error'
+} from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
-import { ErrorIndicator } from '../components/Errors/ErrorIndicator/ErrorIndicator'
+import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
 export type SupportedErrorEvent = {
@@ -38,6 +38,7 @@ export type ErrorsProps = {
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
   debugInfo?: DebugInfo
+  isTurbopackEnabled: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -108,6 +109,8 @@ export function Errors({
   initialDisplayState,
   hasStaticIndicator,
   debugInfo,
+  versionInfo,
+  isTurbopackEnabled,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -181,44 +184,44 @@ export function Errors({
     [activeIdx, readyErrors]
   )
 
+  const minimize = useCallback(() => setDisplayState('minimized'), [])
+
   // Reset component state when there are no errors to be displayed.
-  // This should never happen, but lets handle it.
+  // Note: We show the dev tools indicator in minimized state even with no errors
+  // as it serves as a persistent development tools access point
   useEffect(() => {
     if (errors.length < 1) {
       setLookups({})
-      setDisplayState('hidden')
+      minimize()
       setActiveIndex(0)
     }
-  }, [errors.length])
+  }, [errors.length, minimize])
 
-  const minimize = useCallback(() => setDisplayState('minimized'), [])
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
-
-  // This component shouldn't be rendered with no errors, but if it is, let's
-  // handle it gracefully by rendering nothing.
-  if (errors.length < 1 || activeError == null) {
-    return null
-  }
-
-  if (isLoading) {
-    // TODO: better loading state
-    return <Overlay />
-  }
 
   if (displayState === 'hidden') {
     return null
   }
 
-  if (displayState === 'minimized') {
+  const noIssues = errors.length < 1 || activeError == null
+
+  if (noIssues || displayState === 'minimized') {
     return (
-      <ErrorIndicator
+      <DevToolsIndicator
         hasStaticIndicator={hasStaticIndicator}
         readyErrors={readyErrors}
         fullscreen={fullscreen}
         hide={hide}
+        versionInfo={versionInfo}
+        isTurbopackEnabled={isTurbopackEnabled}
       />
     )
+  }
+
+  if (isLoading) {
+    // TODO: better loading state
+    return <Overlay />
   }
 
   const error = activeError.error

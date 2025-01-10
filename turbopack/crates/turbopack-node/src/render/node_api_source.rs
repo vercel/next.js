@@ -191,7 +191,9 @@ impl Introspectable for NodeApiContentSource {
             let entry = entry.await?;
             set.insert((
                 ResolvedVc::cell("module".into()),
-                IntrospectableModule::new(Vc::upcast(*entry.module)),
+                IntrospectableModule::new(Vc::upcast(*entry.module))
+                    .to_resolved()
+                    .await?,
             ));
             set.insert((
                 ResolvedVc::cell("intermediate asset".into()),
@@ -199,7 +201,9 @@ impl Introspectable for NodeApiContentSource {
                     *entry.chunking_context,
                     Vc::upcast(*entry.module),
                     *entry.runtime_entries,
-                )),
+                ))
+                .to_resolved()
+                .await?,
             ));
         }
         Ok(Vc::cell(set))

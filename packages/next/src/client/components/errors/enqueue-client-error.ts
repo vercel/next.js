@@ -1,4 +1,4 @@
-import { isHydrationError } from '../../../../is-hydration-error'
+import { isHydrationError } from '../is-hydration-error'
 
 // Dedupe the two consecutive errors: If the previous one is same as current one, ignore the current one.
 export function enqueueConsecutiveDedupedError(

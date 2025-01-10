@@ -64,7 +64,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -76,7 +76,7 @@ pub enum ModuleResolveResultItem {
         traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
-    Unknown(Vc<Box<dyn Source>>),
+    Unknown(ResolvedVc<Box<dyn Source>>),
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
@@ -88,7 +88,7 @@ impl ModuleResolveResultItem {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
             ModuleResolveResultItem::Unknown(source) => {
-                emit_unknown_module_type_error(source).await?;
+                emit_unknown_module_type_error(*source).await?;
                 None
             }
             ModuleResolveResultItem::Error(_err) => {

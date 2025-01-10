@@ -1,5 +1,5 @@
 import React from 'react'
-import isError from '../../../../../lib/is-error'
+import isError from '../../../lib/is-error'
 
 const REACT_ERROR_STACK_BOTTOM_FRAME = 'react-stack-bottom-frame'
 const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(

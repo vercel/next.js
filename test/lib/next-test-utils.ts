@@ -1545,3 +1545,18 @@ export function createNowRouteMatches(
 
   return urlSearchParams
 }
+
+export async function assertNoConsoleErrors(browser: BrowserInterface) {
+  const logs = await browser.log()
+  const warningsAndErrors = logs.filter((log) => {
+    return (
+      log.source === 'warning' ||
+      (log.source === 'error' &&
+        // These are expected when we visit 404 pages.
+        log.message !==
+          'Failed to load resource: the server responded with a status of 404 (Not Found)')
+    )
+  })
+
+  expect(warningsAndErrors).toEqual([])
+}

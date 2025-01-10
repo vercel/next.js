@@ -904,12 +904,15 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, false)
+      const { envInfo, experimentalFeatures } = await getStartServerInfo(
+        dir,
+        false
+      )
       logStartInfo({
         networkUrl: null,
         appUrl: null,
         envInfo,
-        expFeatureInfo,
+        experimentalFeatures,
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)

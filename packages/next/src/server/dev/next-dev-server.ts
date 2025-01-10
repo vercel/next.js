@@ -6,7 +6,6 @@ import type { ParsedUrl } from '../../shared/lib/router/utils/parse-url'
 import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { MiddlewareRoutingItem } from '../base-server'
-import type { FunctionComponent } from 'react'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import type { RouteMatcherManager } from '../route-matcher-managers/route-matcher-manager'
 import {
@@ -70,10 +69,11 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
+import type { ReactDevOverlayType } from '../../client/components/react-dev-overlay/pages/ReactDevOverlay'
 
 // Load ReactDevOverlay only when needed
-let ReactDevOverlayImpl: FunctionComponent
-const ReactDevOverlay = (props: any) => {
+let ReactDevOverlayImpl: ReactDevOverlayType
+const ReactDevOverlay: ReactDevOverlayType = (props) => {
   if (ReactDevOverlayImpl === undefined) {
     ReactDevOverlayImpl =
       require('../../client/components/react-dev-overlay/pages/client').ReactDevOverlay
