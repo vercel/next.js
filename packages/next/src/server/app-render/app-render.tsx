@@ -2356,15 +2356,15 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest.clientModules,
         {
           onError: (err) => {
+            if (isUseCacheTimeoutError(err)) {
+              return err.digest
+            }
+
             if (
               finalServerController.signal.aborted &&
               isPrerenderInterruptedError(err)
             ) {
               return err.digest
-            }
-
-            if ((err as DigestedError).digest) {
-              return (err as DigestedError).digest
             }
 
             return getDigestForWellKnownError(err)
