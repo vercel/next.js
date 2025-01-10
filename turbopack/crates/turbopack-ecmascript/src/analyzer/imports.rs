@@ -4,6 +4,7 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
@@ -305,35 +306,64 @@ impl ImportMap {
     ) -> Self {
         let mut data = ImportMap::default();
 
+        // We have to analyze imports first to determine if a star import is dynamic.
+        // We can't do this in the visitor because import may (and likely) comes before usages, and
+        // a method invoked after visitor will not work because we need to preserve the import
+        // order.
+
+        let mut dynamic_star_imports = FxHashSet::default();
+
+        if let Program::Module(m) = m {
+            let mut candidates = vec![];
+
+            // Imports are hoisted to the top of the module.
+            // So we have to collect all imports first.
+            m.body.iter().for_each(|stmt| {
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = stmt {
+                    for s in &import.specifiers {
+                        if let ImportSpecifier::Namespace(s) = s {
+                            candidates.push(s.local.to_id());
+                        }
+                    }
+                }
+            });
+
+            let mut analyzer = StarImportAnalyzer {
+                candidates,
+                dynamic_star_imports: &mut dynamic_star_imports,
+            };
+            m.visit_with(&mut analyzer);
+        }
+
         let mut analyzer = Analyzer {
             data: &mut data,
             source,
             comments,
-            pending_star_imports: Default::default(),
+            dynamic_star_imports,
         };
         m.visit_with(&mut analyzer);
-        analyzer.handle_pending_star_imports();
 
         data
     }
 }
+
+struct StarImportAnalyzer<'a> {
+    /// The local identifiers of the star imports
+    candidates: Vec<Id>,
+    dynamic_star_imports: &'a mut FxHashSet<Id>,
+}
+
+impl<'a> Visit for StarImportAnalyzer<'a> {}
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
     source: Option<Vc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
 
-    pending_star_imports: FxIndexMap<Id, StarImport>,
-}
-
-#[derive(Default)]
-struct StarImport {
-    has_dynamic_access: bool,
+    dynamic_star_imports: FxHashSet<Id>,
 }
 
 impl Analyzer<'_> {
-    fn handle_pending_star_imports(&mut self) {}
-
     fn ensure_reference(
         &mut self,
         span: Span,
