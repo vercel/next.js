@@ -728,7 +728,7 @@ dependencies = [
  "bitflags 2.5.0",
  "cexpr",
  "clang-sys",
- "itertools 0.13.0",
+ "itertools 0.10.5",
  "log",
  "prettyplease",
  "proc-macro2",
@@ -3917,17 +3917,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "75761162ae2b0e580d7e7c390558127e5f01b4194debd6221fd8c207fc80e3f5"
 dependencies = [
  "twox-hash 1.6.3",
-]
-
-[[package]]
-name = "lzma-sys"
-version = "0.1.20"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5fda04ab3764e6cde78b9974eec4f779acaba7c4e84b36eca3cf77c581b85d27"
-dependencies = [
- "cc",
- "libc",
- "pkg-config",
 ]
 
 [[package]]
@@ -10229,7 +10218,7 @@ dependencies = [
 [[package]]
 name = "virtual-fs"
 version = "0.21.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10258,7 +10247,7 @@ dependencies = [
 [[package]]
 name = "virtual-mio"
 version = "0.7.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "async-trait",
  "bytes",
@@ -10273,7 +10262,7 @@ dependencies = [
 [[package]]
 name = "virtual-net"
 version = "0.14.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10516,7 +10505,7 @@ dependencies = [
 [[package]]
 name = "wasmer"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "bindgen",
  "bytes",
@@ -10543,13 +10532,12 @@ dependencies = [
  "wasmparser 0.216.0",
  "wat",
  "windows-sys 0.59.0",
- "xz",
 ]
 
 [[package]]
 name = "wasmer-cache"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "blake3",
  "hex",
@@ -10560,7 +10548,7 @@ dependencies = [
 [[package]]
 name = "wasmer-compiler"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "backtrace",
  "bytes",
@@ -10590,7 +10578,7 @@ dependencies = [
 [[package]]
 name = "wasmer-compiler-cranelift"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "cranelift-codegen",
  "cranelift-entity",
@@ -10631,7 +10619,7 @@ dependencies = [
 [[package]]
 name = "wasmer-config"
 version = "0.12.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "bytesize",
@@ -10652,7 +10640,7 @@ dependencies = [
 [[package]]
 name = "wasmer-derive"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "proc-macro-error2",
  "proc-macro2",
@@ -10663,7 +10651,7 @@ dependencies = [
 [[package]]
 name = "wasmer-journal"
 version = "0.18.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10714,7 +10702,7 @@ dependencies = [
 [[package]]
 name = "wasmer-package"
 version = "0.4.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "bytes",
@@ -10739,7 +10727,7 @@ dependencies = [
 [[package]]
 name = "wasmer-types"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "bytecheck 0.6.11",
  "enum-iterator 0.7.0",
@@ -10759,7 +10747,7 @@ dependencies = [
 [[package]]
 name = "wasmer-vm"
 version = "5.0.5-rc1"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "backtrace",
  "cc",
@@ -10785,7 +10773,7 @@ dependencies = [
 [[package]]
 name = "wasmer-wasix"
 version = "0.35.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "async-trait",
@@ -10856,7 +10844,7 @@ dependencies = [
 [[package]]
 name = "wasmer-wasix-types"
 version = "0.35.0"
-source = "git+https://github.com/kdy1/wasmer?branch=build-deps#08311a2ec011abfb3704727f49e3189d5aec6d89"
+source = "git+https://github.com/kdy1/wasmer?branch=build-deps#afedc9315eb1c7fefddff7a3c6ada0235e78678a"
 dependencies = [
  "anyhow",
  "bitflags 1.3.2",
@@ -11455,24 +11443,6 @@ name = "xxhash-rust"
 version = "0.8.12"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6a5cbf750400958819fb6178eaa83bee5cd9c29a26a40cc241df8c70fdd46984"
-
-[[package]]
-name = "xz"
-version = "0.1.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3c887690ff2a2e233e8e49633461521f98ec57fbff9d59a884c9a4f04ec1da34"
-dependencies = [
- "xz2",
-]
-
-[[package]]
-name = "xz2"
-version = "0.1.7"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "388c44dc09d76f1536602ead6d325eb532f5c122f17782bd57fb47baeeb767e2"
-dependencies = [
- "lzma-sys",
-]
 
 [[package]]
 name = "yansi"
