@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import { LinkAccordion } from '../../components/link-accordion'
 
 export default function FullyStaticStart() {
   return (
@@ -9,7 +9,9 @@ export default function FullyStaticStart() {
       </p>
       <ul>
         <li>
-          <Link href="/partially-static/target-page">Target</Link>
+          <LinkAccordion href="/partially-static/target-page">
+            Target
+          </LinkAccordion>
         </li>
       </ul>
     </>

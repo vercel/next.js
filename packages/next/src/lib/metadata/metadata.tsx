@@ -37,6 +37,7 @@ import {
   METADATA_BOUNDARY_NAME,
   VIEWPORT_BOUNDARY_NAME,
 } from './metadata-constants'
+import { AsyncMetadata } from './async-metadata'
 
 // Use a promise to share the status of the metadata resolving,
 // returning two components `MetadataTree` and `MetadataOutlet`
@@ -55,6 +56,7 @@ export function createMetadataComponents({
   workStore,
   MetadataBoundary,
   ViewportBoundary,
+  serveStreamingMetadata,
 }: {
   tree: LoaderTree
   searchParams: Promise<ParsedUrlQuery>
@@ -66,6 +68,7 @@ export function createMetadataComponents({
   workStore: WorkStore
   MetadataBoundary: (props: { children: React.ReactNode }) => React.ReactNode
   ViewportBoundary: (props: { children: React.ReactNode }) => React.ReactNode
+  serveStreamingMetadata: boolean
 }): {
   MetadataTree: React.ComponentType
   ViewportTree: React.ComponentType
@@ -94,7 +97,7 @@ export function createMetadataComponents({
     )
   }
 
-  async function viewport() {
+  function viewport() {
     return getResolvedViewport(
       tree,
       searchParams,
@@ -129,7 +132,7 @@ export function createMetadataComponents({
   }
   Viewport.displayName = VIEWPORT_BOUNDARY_NAME
 
-  async function metadata() {
+  function metadata() {
     return getResolvedMetadata(
       tree,
       searchParams,
@@ -141,7 +144,7 @@ export function createMetadataComponents({
     )
   }
 
-  async function Metadata() {
+  async function resolveFinalMetadata() {
     try {
       return await metadata()
     } catch (error) {
@@ -164,10 +167,21 @@ export function createMetadataComponents({
       return null
     }
   }
+  async function Metadata() {
+    if (serveStreamingMetadata) {
+      return <AsyncMetadata promise={resolveFinalMetadata()} />
+    }
+    return await resolveFinalMetadata()
+  }
+
   Metadata.displayName = METADATA_BOUNDARY_NAME
 
   async function getMetadataReady(): Promise<void> {
-    await metadata()
+    // Only warm up metadata() call when it's blocking metadata,
+    // otherwise it will be fully managed by AsyncMetadata component.
+    if (!serveStreamingMetadata) {
+      await metadata()
+    }
     return undefined
   }
 

@@ -496,6 +496,11 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
+   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   */
+  viewTransition?: boolean
+
+  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -567,6 +572,11 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  /**
+   * When enabled will cause async metadata calls to stream rather than block the render.
+   */
+  streamingMetadata?: boolean
 }
 
 export type ExportPathMap = {
@@ -1178,6 +1188,7 @@ export const defaultConfig: NextConfig = {
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
+    viewTransition: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1191,6 +1202,7 @@ export const defaultConfig: NextConfig = {
     dynamicIO: false,
     inlineCss: false,
     newDevOverlay: false,
+    streamingMetadata: false,
   },
   bundlePagesRouterDependencies: false,
 }

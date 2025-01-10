@@ -419,14 +419,27 @@ pub async fn get_server_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
-    let mut next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false, next_runtime)
-            .await?;
-    let mut foreign_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
-            .await?;
+    let mut next_server_rules = get_next_server_transforms_rules(
+        next_config,
+        ty.into_value(),
+        mode,
+        false,
+        next_runtime,
+        encryption_key,
+    )
+    .await?;
+    let mut foreign_next_server_rules = get_next_server_transforms_rules(
+        next_config,
+        ty.into_value(),
+        mode,
+        true,
+        next_runtime,
+        encryption_key,
+    )
+    .await?;
     let mut internal_custom_rules = get_next_server_internal_transforms_rules(
         ty.into_value(),
         next_config.mdx_rs().await?.is_some(),

@@ -148,9 +148,7 @@ impl Introspectable for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let mut children = FxIndexSet::default();
-        let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk)
-            .resolve()
-            .await?;
+        let introspectable_chunk = ResolvedVc::upcast::<Box<dyn Introspectable>>(self.chunk);
         children.insert((ResolvedVc::cell("chunk".into()), introspectable_chunk));
         Ok(Vc::cell(children))
     }

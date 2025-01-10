@@ -1,19 +1,20 @@
-import Anser from 'next/dist/compiled/anser'
-import * as React from 'react'
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
+
+import Anser from 'next/dist/compiled/anser'
 import stripAnsi from 'next/dist/compiled/strip-ansi'
+
+import { useMemo } from 'react'
+import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
-import { HotlinkedText } from '../hot-linked-text'
+import { noop as css } from '../../helpers/noop-template'
+import { ExternalIcon } from '../../icons/external'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
-export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
-  stackFrame,
-  codeFrame,
-}) {
+export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
   // Strip leading spaces out of the code frame:
-  const formattedFrame = React.useMemo<string>(() => {
+  const formattedFrame = useMemo<string>(() => {
     const lines = codeFrame.split(/\r?\n/g)
 
     // Find the minimum length of leading spaces after `|` in the code frame
@@ -34,7 +35,9 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
         .map((line, a) =>
           ~(a = line.indexOf('|'))
             ? line.substring(0, a) +
-              line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
+              line
+                .substring(a + 1)
+                .replace(`^\\ {${miniLeadingSpacesLength}}`, '')
             : line
         )
         .join('\n')
@@ -42,7 +45,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
     return lines.join('\n')
   }, [codeFrame])
 
-  const decoded = React.useMemo(() => {
+  const decoded = useMemo(() => {
     return Anser.ansiToJson(formattedFrame, {
       json: true,
       use_classes: true,
@@ -59,7 +62,7 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
   // TODO: make the caret absolute
   return (
     <div data-nextjs-codeframe>
-      <div>
+      <div className="code-frame-header">
         <p
           role="link"
           onClick={open}
@@ -67,22 +70,11 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
           title="Click to open in your editor"
         >
           <span>
+            <FileIcon />
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
-            <polyline points="15 3 21 3 21 9"></polyline>
-            <line x1="10" y1="14" x2="21" y2="3"></line>
-          </svg>
+          <ExternalIcon width={16} height={16} />
         </p>
       </div>
       <pre>
@@ -103,5 +95,78 @@ export const CodeFrame: React.FC<CodeFrameProps> = function CodeFrame({
         ))}
       </pre>
     </div>
+  )
+}
+
+export const CODE_FRAME_STYLES = css`
+  [data-nextjs-codeframe] {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    flex: 1 0 0;
+
+    background-color: var(--color-background-200);
+    overflow: hidden;
+    color: var(--color-gray-1000);
+    text-overflow: ellipsis;
+    font-family: var(--font-stack-monospace);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .code-frame-header {
+    border-top: 1px solid var(--color-gray-400);
+    border-bottom: 1px solid var(--color-gray-400);
+  }
+
+  [data-nextjs-codeframe]::selection,
+  [data-nextjs-codeframe] *::selection {
+    background-color: var(--color-ansi-selection);
+  }
+
+  [data-nextjs-codeframe] * {
+    color: inherit;
+    background-color: transparent;
+    font-family: var(--font-stack-monospace);
+  }
+
+  [data-nextjs-codeframe] > * {
+    margin: 0;
+    padding: calc(var(--size-gap) + var(--size-gap-half))
+      calc(var(--size-gap-double) + var(--size-gap-half));
+  }
+
+  [data-nextjs-codeframe] > div > p {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    margin: 0;
+  }
+  [data-nextjs-codeframe] > div > p:hover {
+    text-decoration: underline dotted;
+  }
+  [data-nextjs-codeframe] div > pre {
+    overflow: hidden;
+    display: inline-block;
+  }
+
+  [data-nextjs-codeframe] svg {
+    color: var(--color-gray-900);
+    margin-right: 6px;
+  }
+`
+
+// TODO: Add more Icons (react, next, etc.)
+function FileIcon() {
+  return (
+    <svg width="16" height="17" fill="none" xmlns="http://www.w3.org/2000/svg">
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M14.5 7v7a2.5 2.5 0 0 1-2.5 2.5H4A2.5 2.5 0 0 1 1.5 14V.5h7.586a1 1 0 0 1 .707.293l4.414 4.414a1 1 0 0 1 .293.707V7zM13 7v7a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V2h5v5h5zM9.5 2.621V5.5h2.879L9.5 2.621z"
+        fill="currentColor"
+      />
+    </svg>
   )
 }

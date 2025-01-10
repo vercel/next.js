@@ -462,7 +462,9 @@ impl Introspectable for CssChunk {
                 .map(|chunk_item| async move {
                     Ok((
                         entry_module_key().to_resolved().await?,
-                        IntrospectableModule::new(chunk_item.module()),
+                        IntrospectableModule::new(chunk_item.module())
+                            .to_resolved()
+                            .await?,
                     ))
                 })
                 .try_join()

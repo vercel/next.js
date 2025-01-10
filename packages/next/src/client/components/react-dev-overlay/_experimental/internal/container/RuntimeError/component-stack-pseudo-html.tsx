@@ -1,6 +1,7 @@
 import { useMemo, Fragment, useState } from 'react'
 import type { ComponentStackFrame } from '../../helpers/parse-component-stack'
 import { CollapseIcon } from '../../icons/CollapseIcon'
+import { noop as css } from '../../helpers/noop-template'
 
 function getAdjacentProps(isAdj: boolean) {
   return { 'data-nextjs-container-errors-pseudo-html--tag-adjacent': isAdj }
@@ -307,3 +308,36 @@ export function PseudoHtmlDiff({
     </div>
   )
 }
+
+export const PSEUDO_HTML_DIFF_STYLES = css`
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+  }
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='add'] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='remove'] {
+    color: var(--color-ansi-red);
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-error] {
+    color: var(--color-ansi-red);
+    font-weight: bold;
+  }
+  /* hide but text are still accessible in DOM */
+  [data-nextjs-container-errors-pseudo-html--hint] {
+    display: inline-block;
+    font-size: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
+    color: var(--color-accents-1);
+  }
+`

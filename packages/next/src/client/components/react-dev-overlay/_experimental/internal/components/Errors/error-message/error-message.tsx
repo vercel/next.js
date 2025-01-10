@@ -19,6 +19,7 @@ export function ErrorMessage({ errorMessage }: ErrorMessageProps) {
 
 export const styles = css`
   .nextjs__container_errors_desc {
+    margin: 0;
     color: var(--color-red-900);
     font-weight: 500;
     font-size: var(--size-font);
