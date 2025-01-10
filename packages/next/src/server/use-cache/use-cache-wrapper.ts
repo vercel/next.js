@@ -41,7 +41,7 @@ import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
-import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
+import { createHangingInputAbortSignal } from '../app-render/create-hanging-input-abort-signal'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 

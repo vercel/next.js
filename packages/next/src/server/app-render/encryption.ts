@@ -21,7 +21,7 @@ import {
   getRenderResumeDataCache,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
-import { createHangingInputAbortSignal } from './dynamic-rendering'
+import { createHangingInputAbortSignal } from './create-hanging-input-abort-signal'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
