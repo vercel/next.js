@@ -141,6 +141,20 @@ async fn taking_collectibles_parallel() {
     .unwrap()
 }
 
+#[tokio::test]
+async fn taking_collectibles_with_resolve() {
+    run(&REGISTRATION, || async {
+        let result_op = my_transitive_emitting_function_with_resolve("resolve".into());
+        result_op.connect().strongly_consistent().await?;
+        let list = result_op.take_collectibles::<Box<dyn ValueToString>>();
+        assert_eq!(list.len(), 2);
+
+        anyhow::Ok(())
+    })
+    .await
+    .unwrap()
+}
+
 #[turbo_tasks::value(transparent)]
 struct Collectibles(AutoSet<ResolvedVc<Box<dyn ValueToString>>>);
 
@@ -225,6 +239,18 @@ async fn my_emitting_function(_key: RcStr) -> Result<()> {
     Ok(())
 }
 
+#[turbo_tasks::function]
+async fn my_transitive_emitting_function_with_thing(key: RcStr, _thing: Vc<Thing>) -> Result<()> {
+    let _ = my_emitting_function(key);
+    Ok(())
+}
+
+#[turbo_tasks::function(operation)]
+async fn my_transitive_emitting_function_with_resolve(key: RcStr) -> Result<()> {
+    let _ = my_transitive_emitting_function_with_thing(key, get_thing(0));
+    Ok(())
+}
+
 #[turbo_tasks::value(shared)]
 struct Thing(u32);
 
@@ -240,4 +266,9 @@ impl ValueToString for Thing {
     fn to_string(&self) -> Vc<RcStr> {
         Vc::cell(self.0.to_string().into())
     }
+}
+
+#[turbo_tasks::function]
+fn get_thing(v: u32) -> Vc<Thing> {
+    Thing::cell(Thing(v))
 }
