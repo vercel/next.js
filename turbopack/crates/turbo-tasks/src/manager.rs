@@ -348,7 +348,7 @@ pub enum TaskPersistence {
     LocalCells,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
     /// may later trigger re-computation.
@@ -1509,8 +1509,9 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         local_task_id: LocalTaskId,
         // we don't currently support reading a local output outside of it's own task, so
         // consistency is currently irrelevant
-        _consistency: ReadConsistency,
+        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
+        debug_assert_eq!(consistency, ReadConsistency::Eventual);
         CURRENT_GLOBAL_TASK_STATE.with(|gts| loop {
             let gts_read = gts.read().unwrap();
             gts_read.assert_task_id(parent_task_id);
