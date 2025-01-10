@@ -4,7 +4,7 @@ import { styles as errorLayout } from '../components/Errors/error-overlay-layout
 import { styles as bottomStacks } from '../components/Errors/error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { styles as pagination } from '../components/Errors/error-overlay-pagination/error-overlay-pagination'
 import { styles as overlay } from '../components/Overlay/styles'
-import { styles as footer } from '../components/Errors/error-overlay-footer/styles'
+import { styles as footer } from '../components/Errors/error-overlay-footer/error-overlay-footer'
 import { styles as terminal } from '../components/Terminal/styles'
 import { styles as toast } from '../components/Toast'
 import { styles as versionStaleness } from '../components/VersionStalenessInfo/VersionStalenessInfo'

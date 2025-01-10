@@ -271,6 +271,7 @@ export function Errors({
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
+      versionInfo={versionInfo}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -412,9 +413,9 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: var(--size-3);
   }
   .error-overlay-notes-container {
-    padding: var(--size-4);
-    padding-top: 0;
+    padding: 0 var (--size-4);
   }
 `
