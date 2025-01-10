@@ -213,11 +213,13 @@ pub struct EcmascriptChunkItemOptions {
     pub placeholder_for_future_extensions: (),
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
 pub struct EcmascriptChunkItemWithAsyncInfo {
     pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
-    pub async_info: Option<Vc<AsyncModuleInfo>>,
+    pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
 #[turbo_tasks::value_trait]

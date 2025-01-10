@@ -382,7 +382,7 @@ async fn is_item_async(
         return Ok(false);
     };
 
-    let Some(info) = &*available_modules.get(module).await? else {
+    let Some(info) = &*available_modules.get(*module).await? else {
         return Ok(false);
     };
 

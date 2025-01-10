@@ -763,7 +763,17 @@ impl AsyncModuleInfo {
 }
 
 #[derive(
-    Copy, Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Hash, TraceRawVcs, TaskInput,
+    Copy,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
 )]
 pub enum ChunkItemTy {
     /// The ChunkItem should be included as content in the chunk.
@@ -772,7 +782,10 @@ pub enum ChunkItemTy {
     Passthrough,
 }
 
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
+// #[turbo_tasks::value]
 pub struct ChunkItemWithAsyncModuleInfo {
     pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,

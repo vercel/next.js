@@ -58,7 +58,10 @@ pub(super) async fn chunk_items(
                        async_info,
                        ..
                    }| {
-                Ok((chunk_item.id().await?, chunk_item.code(async_info).await?))
+                Ok((
+                    chunk_item.id().await?,
+                    chunk_item.code(async_info.map(|info| *info)).await?,
+                ))
             },
         )
         .try_join()

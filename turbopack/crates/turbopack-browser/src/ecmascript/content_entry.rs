@@ -80,7 +80,7 @@ impl EcmascriptDevChunkContentEntries {
                     Ok((
                         chunk_item.id().await?,
                         EcmascriptDevChunkContentEntry::new(
-                            *chunk_item,
+                            chunk_item,
                             async_module_info.map(|info| *info),
                         )
                         .await?,

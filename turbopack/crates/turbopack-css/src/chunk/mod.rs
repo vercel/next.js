@@ -3,7 +3,7 @@ pub mod source_map;
 
 use std::fmt::Write;
 
-use anyhow::{bail, Context, Result};
+use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueDefault, ValueToString, Vc};
 use turbo_tasks_fs::{rope::Rope, File, FileSystem};
