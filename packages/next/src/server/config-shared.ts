@@ -24,7 +24,7 @@ export type NextConfigComplete = Required<NextConfig> & {
   // override NextConfigComplete.experimental.htmlLimitedBots to string
   // because it's not defined in NextConfigComplete.experimental
   experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
-    htmlLimitedBots: string
+    htmlLimitedBots: string | undefined
   }
 }
 

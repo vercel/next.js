@@ -596,8 +596,7 @@ export default abstract class Server<
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
-        htmlLimitedBots:
-          this.nextConfig.experimental.htmlLimitedBots.toString(),
+        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
