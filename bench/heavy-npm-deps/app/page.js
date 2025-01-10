@@ -1,3 +1,4 @@
+'use client'
 import { LodashComponent } from '../components/lodash'
 // import { MantineComponent } from "../components/mantine";
 // import { MermaidComponent } from "../components/mermaid";

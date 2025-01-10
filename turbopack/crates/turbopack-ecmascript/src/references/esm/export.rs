@@ -26,6 +26,7 @@ use turbopack_core::{
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, StyledString},
     module::Module,
     reference::ModuleReference,
+    resolve::origin::ResolveOrigin,
 };
 
 use super::base::ReferencedAsset;
@@ -496,6 +497,7 @@ impl CodeGenerateable for EsmExports {
     async fn code_generation(
         self: Vc<Self>,
         _context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let expanded = self.expand_exports().await?;
 

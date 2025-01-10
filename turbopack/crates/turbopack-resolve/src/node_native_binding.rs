@@ -13,7 +13,10 @@ use turbopack_core::{
     file_source::FileSource,
     raw_module::RawModule,
     reference::ModuleReference,
-    resolve::{pattern::Pattern, resolve_raw, ModuleResolveResult, RequestKey, ResolveResultItem},
+    resolve::{
+        origin::ResolveOrigin, pattern::Pattern, resolve_raw, ModuleResolveResult, RequestKey,
+        ResolveResultItem,
+    },
     source::Source,
     target::{CompileTarget, Platform},
 };

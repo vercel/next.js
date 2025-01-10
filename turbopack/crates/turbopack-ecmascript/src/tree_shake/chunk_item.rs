@@ -61,6 +61,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             *analyze.async_module,
             *analyze.source_map,
             *analyze.exports,
+            Vc::upcast(*module.full_module),
             async_module_info,
         );
 

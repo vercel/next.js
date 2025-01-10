@@ -107,7 +107,7 @@ fn bench_link(b: &mut Bencher, input: &BenchInput) {
                     .to_resolved()
                     .await?,
                 )
-                .cell()
+                .resolved_cell()
                 .await?;
                 link(
                     &input.var_graph,

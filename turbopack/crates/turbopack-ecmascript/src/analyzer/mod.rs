@@ -26,9 +26,10 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, Vc};
 use turbopack_core::compile_time_info::{
-    CompileTimeDefineValue, DefineableNameSegment, FreeVarReference,
+    CompileTimeDefineValue, CompileTimeDefinesIndividual, DefineableNameSegment, FreeVarReference,
+    FreeVarReferencesIndividual,
 };
 
 use self::imports::ImportAnnotations;
@@ -1924,14 +1925,15 @@ impl JsValue {
     ///
     /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
     /// `self` is just `foo`.
-    pub fn match_free_var_reference<'a, T>(
+    pub fn match_free_var_reference(
         &self,
         var_graph: Option<&VarGraph>,
-        free_var_references: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
+        free_var_references_keys: &[Vec<DefineableNameSegment>],
+        free_var_references: Option<ReadRef<FreeVarReferencesIndividual>>,
         prefix_self: &Option<DefineableNameSegment>,
-    ) -> Option<&'a T> {
+    ) -> Result<Option<ResolvedVc<FreeVarReference>>> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
-            for (name, value) in free_var_references.iter() {
+            for name in free_var_references_keys.iter() {
                 if name.len() != def_name_len + (prefix_self.is_some() as usize) {
                     continue;
                 }
@@ -1952,27 +1954,32 @@ impl JsValue {
                                 .is_some_and(|id| var_graph.values.contains_key(id))
                             {
                                 // `typeof foo...` but `foo` was reassigned
-                                return None;
+                                return Ok(None);
                             }
                         }
                     }
 
-                    return Some(value);
+                    return Ok(Some(
+                        *crate::references::try_compile_time_info(free_var_references)?
+                            .get(name)
+                            .unwrap(),
+                    ));
                 }
             }
         }
 
-        None
+        Ok(None)
     }
 
     /// Returns any matching defined replacement that matches this value. Optionally also prefixes
     /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
-    pub fn match_define<'a, T>(
+    pub fn match_define(
         &self,
-        defines: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
-    ) -> Option<&'a T> {
+        defines_keys: &[Vec<DefineableNameSegment>],
+        defines: Option<ReadRef<CompileTimeDefinesIndividual>>,
+    ) -> Result<Option<ResolvedVc<CompileTimeDefineValue>>> {
         if let Some(def_name_len) = self.get_defineable_name_len() {
-            for (name, value) in defines.iter() {
+            for name in defines_keys.iter() {
                 if name.len() != def_name_len {
                     continue;
                 }
@@ -1983,12 +1990,16 @@ impl JsValue {
                     .rev()
                     .eq(self.iter_defineable_name_rev())
                 {
-                    return Some(value);
+                    return Ok(Some(
+                        *crate::references::try_compile_time_info(defines)?
+                            .get(name)
+                            .unwrap(),
+                    ));
                 }
             }
         }
 
-        None
+        Ok(None)
     }
 }
 
@@ -3863,7 +3874,7 @@ pub mod test_utils {
     /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor(
         v: JsValue,
-        compile_time_info: Vc<CompileTimeInfo>,
+        compile_time_info: ResolvedVc<CompileTimeInfo>,
         attributes: &ImportAttributes,
     ) -> Result<(JsValue, bool)> {
         let ImportAttributes { ignore, .. } = *attributes;
@@ -3963,7 +3974,7 @@ pub mod test_utils {
                 }
             }
             _ => {
-                let (mut v, m1) = replace_well_known(v, compile_time_info).await?;
+                let (mut v, m1) = replace_well_known(v, Some(compile_time_info)).await?;
                 let m2 = replace_builtin(&mut v);
                 let m = m1 || m2 || v.make_nested_operations_unknown();
                 return Ok((v, m));
@@ -4332,7 +4343,7 @@ mod tests {
                 .to_resolved()
                 .await?,
             )
-            .cell()
+            .resolved_cell()
             .await?;
             link(
                 var_graph,

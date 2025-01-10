@@ -46,16 +46,16 @@ struct IssueCollectorInner {
     emitted: bool,
 }
 
-impl Drop for IssueCollectorInner {
-    fn drop(&mut self) {
-        if !self.emitted {
-            panic!(
-                "IssueCollector and IssueEmitter were dropped without calling \
-                 `collector.emit().await?`"
-            );
-        }
-    }
-}
+// impl Drop for IssueCollectorInner {
+//     fn drop(&mut self) {
+//         if !self.emitted {
+//             panic!(
+//                 "IssueCollector and IssueEmitter were dropped without calling \
+//                  `collector.emit().await?`"
+//             );
+//         }
+//     }
+// }
 
 pub struct IssueEmitter {
     pub source: ResolvedVc<Box<dyn Source>>,

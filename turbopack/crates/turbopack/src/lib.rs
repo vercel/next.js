@@ -48,9 +48,11 @@ use turbopack_core::{
         ReferenceType,
     },
     resolve::{
-        options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
-        ExternalTraced, ExternalType, ModulePart, ModuleResolveResult, ModuleResolveResultItem,
-        ResolveResult, ResolveResultItem,
+        options::ResolveOptions,
+        origin::{PlainResolveOrigin, ResolveOrigin},
+        parse::Request,
+        resolve, ExternalTraced, ExternalType, ModulePart, ModuleResolveResult,
+        ModuleResolveResultItem, ResolveResult, ResolveResultItem,
     },
     source::Source,
 };

@@ -35,7 +35,7 @@ use turbo_tasks::{ReadRef, ResolvedVc, Value};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::{ReferenceType, UrlReferenceSubType};
-use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform};
+use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformPlugin};
 
 use crate::next_image::{module::BlurPlaceholderMode, StructuredImageModuleType};
 
@@ -137,6 +137,30 @@ pub(crate) fn get_ecma_transform_rule(
     prepend: bool,
 ) -> ModuleRule {
     let transformer = EcmascriptInputTransform::Plugin(ResolvedVc::cell(transformer as _));
+    let (prepend, append) = if prepend {
+        (
+            ResolvedVc::cell(vec![transformer]),
+            ResolvedVc::cell(vec![]),
+        )
+    } else {
+        (
+            ResolvedVc::cell(vec![]),
+            ResolvedVc::cell(vec![transformer]),
+        )
+    };
+
+    ModuleRule::new(
+        module_rule_match_js_no_url(enable_mdx_rs),
+        vec![ModuleRuleEffect::ExtendEcmascriptTransforms { prepend, append }],
+    )
+}
+
+pub(crate) fn get_ecma_transform_rule_new(
+    transformer: ResolvedVc<TransformPlugin>,
+    enable_mdx_rs: bool,
+    prepend: bool,
+) -> ModuleRule {
+    let transformer = EcmascriptInputTransform::Plugin(transformer);
     let (prepend, append) = if prepend {
         (
             ResolvedVc::cell(vec![transformer]),

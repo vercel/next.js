@@ -118,6 +118,7 @@ pub enum SpecifiedModuleType {
     Deserialize,
     TraceRawVcs,
     NonLocalValue,
+    TaskInput,
 )]
 #[serde(rename_all = "kebab-case")]
 pub enum TreeShakingMode {
@@ -148,6 +149,40 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptOptions {
+    #[turbo_tasks::function]
+    pub fn new(
+        refresh: bool,
+        tree_shaking_mode: Option<TreeShakingMode>,
+        specified_module_type: SpecifiedModuleType,
+        url_rewrite_behavior: Option<UrlRewriteBehavior>,
+        import_externals: bool,
+        ignore_dynamic_requests: bool,
+    ) -> Vc<Self> {
+        Self {
+            refresh,
+            tree_shaking_mode,
+            specified_module_type,
+            url_rewrite_behavior,
+            import_externals,
+            ignore_dynamic_requests,
+        }
+        .cell()
+    }
+    #[turbo_tasks::function]
+    pub fn normalize(&self) -> Vc<Self> {
+        Self::new(
+            self.refresh,
+            self.tree_shaking_mode,
+            self.specified_module_type,
+            self.url_rewrite_behavior,
+            self.import_externals,
+            self.ignore_dynamic_requests,
+        )
+    }
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -397,6 +432,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             *analyze.async_module,
             *analyze.source_map,
             *analyze.exports,
+            Vc::upcast(self),
             async_module_info,
         ))
     }
@@ -465,8 +501,17 @@ impl EcmascriptModuleAsset {
     }
 
     #[turbo_tasks::function]
-    pub fn parse(&self) -> Vc<ParseResult> {
-        parse(*self.source, Value::new(self.ty), *self.transforms)
+    pub async fn parse(&self) -> Result<Vc<ParseResult>> {
+        Ok(parse(
+            *self.source,
+            Value::new(self.ty),
+            self.transforms
+                .await?
+                .iter()
+                .cloned()
+                .map(Value::new)
+                .collect(),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -719,6 +764,7 @@ impl EcmascriptModuleContent {
         async_module: Vc<OptionAsyncModule>,
         source_map: ResolvedVc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
         let mut code_gens = Vec::new();
@@ -727,11 +773,15 @@ impl EcmascriptModuleContent {
             if let Some(code_gen) =
                 ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(
+                    chunking_context,
+                    origin,
+                    async_module_info,
+                ));
             } else if let Some(code_gen) =
                 ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context));
+                code_gens.push(code_gen.code_generation(chunking_context, origin));
             }
         }
         if let Some(async_module) = *async_module.await? {
@@ -744,15 +794,15 @@ impl EcmascriptModuleContent {
         for c in code_generation.await?.iter() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(chunking_context));
+                    code_gens.push(c.code_generation(chunking_context, origin));
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    code_gens.push(c.code_generation(chunking_context, async_module_info));
+                    code_gens.push(c.code_generation(chunking_context, origin, async_module_info));
                 }
             }
         }
         if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gens.push(exports.code_generation(chunking_context));
+            code_gens.push(exports.code_generation(chunking_context, origin));
         }
 
         // need to keep that around to allow references into that

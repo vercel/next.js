@@ -15,10 +15,12 @@ pub async fn get_styled_jsx_transform_rule(
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let versions = *target_browsers.await?;
 
-    let transformer = StyledJsxTransformer::new(versions);
-    Ok(Some(get_ecma_transform_rule(
-        Box::new(transformer),
-        enable_mdx_rs,
-        true,
-    )))
+    Ok(None)
+
+    // let transformer = StyledJsxTransformer::new(versions);
+    // Ok(Some(get_ecma_transform_rule(
+    //     Box::new(transformer),
+    //     enable_mdx_rs,
+    //     true,
+    // )))
 }

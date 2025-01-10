@@ -17,6 +17,7 @@ use turbo_tasks::{
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
+    compile_time_info::CompileTimeInfo,
     issue::IssueSource,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
@@ -27,8 +28,44 @@ use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{AstPath, EcmascriptModuleReferenceable},
 };
+
+#[turbo_tasks::value]
+#[derive(Hash, Clone, Debug)]
+pub struct AmdDefineAssetReferenceable {
+    pub request: ResolvedVc<Request>,
+    pub issue_source: ResolvedVc<IssueSource>,
+    pub in_try: bool,
+}
+
+#[turbo_tasks::value_impl]
+impl AmdDefineAssetReferenceable {
+    #[turbo_tasks::function]
+    pub fn new(
+        request: ResolvedVc<Request>,
+        issue_source: ResolvedVc<IssueSource>,
+        in_try: bool,
+    ) -> Vc<Self> {
+        Self::cell(Self {
+            request,
+            issue_source,
+            in_try,
+        })
+    }
+}
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for AmdDefineAssetReferenceable {
+    #[turbo_tasks::function]
+    fn as_reference(&self, origin: Vc<Box<dyn ResolveOrigin>>) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(AmdDefineAssetReference::new(
+            origin,
+            *self.request,
+            *self.issue_source,
+            self.in_try,
+        ))
+    }
+}
 
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
@@ -126,7 +163,6 @@ pub enum AmdDefineFactoryType {
 #[derive(Debug)]
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
-    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     path: ResolvedVc<AstPath>,
     factory_type: AmdDefineFactoryType,
     issue_source: ResolvedVc<IssueSource>,
@@ -136,7 +172,6 @@ pub struct AmdDefineWithDependenciesCodeGen {
 impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
-        origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         path: ResolvedVc<AstPath>,
         factory_type: AmdDefineFactoryType,
         issue_source: ResolvedVc<IssueSource>,
@@ -144,7 +179,6 @@ impl AmdDefineWithDependenciesCodeGen {
     ) -> Vc<Self> {
         Self::cell(AmdDefineWithDependenciesCodeGen {
             dependencies_requests,
-            origin,
             path,
             factory_type,
             issue_source,
@@ -159,6 +193,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
     async fn code_generation(
         &self,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
@@ -173,14 +208,9 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                     } => ResolvedElement::PatternMapping {
                         pattern_mapping: PatternMapping::resolve_request(
                             **request,
-                            *self.origin,
-                            Vc::upcast(chunking_context),
-                            cjs_resolve(
-                                *self.origin,
-                                **request,
-                                Some(*self.issue_source),
-                                self.in_try,
-                            ),
+                            origin,
+                            chunking_context,
+                            cjs_resolve(origin, **request, Some(*self.issue_source), self.in_try),
                             Value::new(ChunkItem),
                         )
                         .await?,

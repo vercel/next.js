@@ -15,13 +15,13 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, resolve::origin::ResolveOrigin};
 
 use super::EsmAssetReference;
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration, VisitorFactory},
     create_visitor,
-    references::AstPath,
+    references::{esm::base::EsmAssetReferenceable, AstPath, EcmascriptModuleReferenceable},
 };
 
 #[turbo_tasks::value(shared)]
@@ -42,14 +42,14 @@ impl EsmBindings {
     Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue,
 )]
 pub struct EsmBinding {
-    pub reference: ResolvedVc<EsmAssetReference>,
+    pub reference: ResolvedVc<EsmAssetReferenceable>,
     pub export: Option<RcStr>,
     pub ast_path: ResolvedVc<AstPath>,
 }
 
 impl EsmBinding {
     pub fn new(
-        reference: ResolvedVc<EsmAssetReference>,
+        reference: ResolvedVc<EsmAssetReferenceable>,
         export: Option<RcStr>,
         ast_path: ResolvedVc<AstPath>,
     ) -> Self {
@@ -63,9 +63,13 @@ impl EsmBinding {
     async fn to_visitors(
         &self,
         visitors: &mut Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<()> {
         let item = self.clone();
-        let imported_module = self.reference.get_referenced_asset();
+        let imported_module = self
+            .reference
+            .as_esm_reference(origin)
+            .get_referenced_asset();
 
         let mut ast_path = item.ast_path.await?.clone_value();
         let imported_module = imported_module.await?.get_ident().await?;
@@ -156,12 +160,13 @@ impl CodeGenerateable for EsmBindings {
     async fn code_generation(
         &self,
         _context: Vc<Box<dyn ChunkingContext>>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
         let bindings = self.bindings.clone();
 
         for item in bindings.into_iter() {
-            item.to_visitors(&mut visitors).await?;
+            item.to_visitors(&mut visitors, origin).await?;
         }
 
         Ok(CodeGeneration::visitors(visitors))

@@ -1,4 +1,8 @@
-use std::{future::Future, sync::Arc};
+use std::{
+    future::Future,
+    hash::{DefaultHasher, Hash, Hasher},
+    sync::Arc,
+};
 
 use anyhow::{anyhow, Context, Result};
 use swc_core::{
@@ -22,7 +26,9 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{util::WrapFuture, ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebug, util::WrapFuture, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::{FileContent, FileSystemPath};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
@@ -154,11 +160,65 @@ impl SourceMapGenConfig for InlineSourcesContentConfig {
 }
 
 #[turbo_tasks::function]
+async fn automatic() -> Vc<Option<RcStr>> {
+    Vc::cell(Some("automatic".into()))
+}
+#[turbo_tasks::function]
+async fn none() -> Vc<Option<RcStr>> {
+    Vc::cell(None)
+}
+
+#[turbo_tasks::function]
 pub async fn parse(
     source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: Vec<Value<EcmascriptInputTransform>>,
 ) -> Result<Vc<ParseResult>> {
+    Ok(parse2(
+        *source, ty,
+        transforms, /* vec![
+                    *     Value::new(EcmascriptInputTransform::TypeScript {
+                    *         use_define_for_class_fields: true,
+                    *     }),
+                    *     Value::new(EcmascriptInputTransform::React {
+                    *         development: true,
+                    *         refresh: false,
+                    *         import_source: none().to_resolved().await?,
+                    *         runtime: automatic().to_resolved().await?,
+                    *     }),
+                    * ], */
+    ))
+}
+
+#[turbo_tasks::function]
+async fn parse2(
+    source: ResolvedVc<Box<dyn Source>>,
+    ty: Value<EcmascriptModuleAssetType>,
+    transforms: Vec<Value<EcmascriptInputTransform>>,
+) -> Result<Vc<ParseResult>> {
+    // println!(
+    //     "parse transform {:?} {:?} {:?} {:?}",
+    //     source.ident().to_string().await?,
+    //     ty,
+    //     transforms,
+    //     transforms.iter().map(|v| v.dbg()).try_join().await?,
+    //     // transforms
+    //     //     .iter()
+    //     //     .map(|v| {
+    //     //         let mut state = DefaultHasher::new();
+    //     //         v.hash(&mut state);
+    //     //         state.finish()
+    //     //     })
+    //     //     .collect::<Vec<_>>(),
+    //     // {
+    //     //     let mut state = DefaultHasher::new();
+    //     //     for t in &transforms {
+    //     //         t.hash(&mut state);
+    //     //     }
+    //     //     state.finish()
+    //     // }
+    // );
+
     let name = source.ident().to_string().await?.to_string();
     let span = tracing::info_span!("parse ecmascript", name = name, ty = display(&*ty));
     match parse_internal(source, ty, transforms)
@@ -176,7 +236,7 @@ pub async fn parse(
 async fn parse_internal(
     source: ResolvedVc<Box<dyn Source>>,
     ty: Value<EcmascriptModuleAssetType>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: Vec<Value<EcmascriptInputTransform>>,
 ) -> Result<Vc<ParseResult>> {
     let content = source.content();
     let fs_path_vc = source.ident().path();
@@ -206,7 +266,6 @@ async fn parse_internal(
             FileContent::NotFound => ParseResult::NotFound.cell(),
             FileContent::Content(file) => match file.content().to_str() {
                 Ok(string) => {
-                    let transforms = &*transforms.await?;
                     match parse_file_content(
                         string.into_owned(),
                         fs_path_vc,
@@ -215,7 +274,7 @@ async fn parse_internal(
                         file_path_hash,
                         source,
                         ty,
-                        transforms,
+                        &transforms,
                     )
                     .await
                     {
@@ -255,7 +314,7 @@ async fn parse_file_content(
     file_path_hash: u128,
     source: ResolvedVc<Box<dyn Source>>,
     ty: EcmascriptModuleAssetType,
-    transforms: &[EcmascriptInputTransform],
+    transforms: &[Value<EcmascriptInputTransform>],
 ) -> Result<Vc<ParseResult>> {
     let source_map: Arc<swc_core::common::SourceMap> = Default::default();
     let (emitter, collector) = IssueEmitter::new(

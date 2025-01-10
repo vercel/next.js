@@ -17,7 +17,7 @@ use turbopack_core::{
     chunk::{module_id_strategies::ModuleIdStrategy, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
-        FreeVarReferences,
+        FreeVarReference, FreeVarReferences,
     },
     condition::ContextCondition,
     environment::{
@@ -367,7 +367,20 @@ async fn next_server_defines(define_env: Vc<EnvMap>) -> Result<Vc<CompileTimeDef
 
 #[turbo_tasks::function]
 async fn next_server_free_vars(define_env: Vc<EnvMap>) -> Result<Vc<FreeVarReferences>> {
-    Ok(free_var_references!(..defines(&*define_env.await?).into_iter()).cell())
+    Ok(free_var_references!(
+        ..defines(&*define_env.await?).into_iter(),
+        Buffer = FreeVarReference::EcmaScriptModule {
+            request: "node:buffer".into(),
+            lookup_path: None,
+            export: Some("Buffer".into()),
+        },
+        process = FreeVarReference::EcmaScriptModule {
+            request: "node:process".into(),
+            lookup_path: None,
+            export: Some("default".into()),
+        }
+    )
+    .cell())
 }
 
 #[turbo_tasks::function]
@@ -547,9 +560,10 @@ pub async fn get_server_module_options_context(
 
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
-            enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
+            enable_typeof_window_inlining: None,
             import_externals: *next_config.import_externals().await?,
-            ignore_dynamic_requests: true,
+            // TODO
+            ignore_dynamic_requests: false,
             ..Default::default()
         },
         execution_context: Some(execution_context),
@@ -664,7 +678,6 @@ pub async fn get_server_module_options_context(
                     .collect();
 
             foreign_next_server_rules.extend(custom_source_transform_rules.iter().cloned());
-            foreign_next_server_rules.extend(internal_custom_rules);
 
             custom_source_transform_rules.push(
                 get_next_react_server_components_transform_rule(next_config, false, Some(*app_dir))

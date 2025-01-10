@@ -275,20 +275,20 @@ export function getDefineEnv({
       false,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
-    ...(isNodeOrEdgeCompilation
-      ? {
-          // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
-          // This is typically found in unmaintained modules from the
-          // pre-webpack era (common in server-side code)
-          'global.GENTLY': false,
-        }
-      : undefined),
-    ...(isNodeOrEdgeCompilation
-      ? {
-          'process.env.__NEXT_EXPERIMENTAL_REACT':
-            needsExperimentalReact(config),
-        }
-      : undefined),
+    // ...(isNodeOrEdgeCompilation
+    // ? {
+    // Fix bad-actors in the npm ecosystem (e.g. `node-formidable`)
+    // This is typically found in unmaintained modules from the
+    // pre-webpack era (common in server-side code)
+    'global.GENTLY': false,
+    // }
+    // : undefined),
+    // ...(isNodeOrEdgeCompilation
+    // ? {
+    'process.env.__NEXT_EXPERIMENTAL_REACT':
+      isNodeOrEdgeCompilation && needsExperimentalReact(config),
+    // }
+    // : undefined),
     'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
       config.experimental.newDevOverlay ?? false,
   }

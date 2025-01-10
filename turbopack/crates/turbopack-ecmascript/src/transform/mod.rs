@@ -18,7 +18,7 @@ use swc_core::{
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     environment::Environment,
@@ -37,9 +37,9 @@ pub enum EcmascriptInputTransform {
         #[serde(default)]
         refresh: bool,
         // swc.jsc.transform.react.importSource
-        import_source: ResolvedVc<Option<RcStr>>,
+        import_source: Option<RcStr>,
         // swc.jsc.transform.react.runtime,
-        runtime: ResolvedVc<Option<RcStr>>,
+        runtime: Option<RcStr>,
     },
     GlobalTypeofs {
         window_value: String,
@@ -105,6 +105,16 @@ impl EcmascriptInputTransforms {
         transforms.extend(other.await?.clone_value());
         Ok(Vc::cell(transforms))
     }
+
+    #[turbo_tasks::function]
+    pub async fn normalize(&self) -> Vc<Self> {
+        Self::normalize_inner(self.0.iter().cloned().map(Value::new).collect())
+    }
+
+    #[turbo_tasks::function]
+    async fn normalize_inner(transforms: Vec<Value<EcmascriptInputTransform>>) -> Vc<Self> {
+        Vc::cell(transforms.into_iter().map(Value::into_value).collect())
+    }
 }
 
 pub struct TransformContext<'a> {
@@ -146,7 +156,7 @@ impl EcmascriptInputTransform {
                 runtime,
             } => {
                 use swc_core::ecma::transforms::react::{Options, Runtime};
-                let runtime = if let Some(runtime) = &*runtime.await? {
+                let runtime = if let Some(runtime) = &*runtime {
                     match runtime.as_str() {
                         "classic" => Runtime::Classic,
                         "automatic" => Runtime::Automatic,
@@ -164,7 +174,7 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.as_deref().map(ToString::to_string),
+                    import_source: import_source.as_deref().map(ToString::to_string),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
                             refresh_reg: "__turbopack_refresh__.register".to_string(),

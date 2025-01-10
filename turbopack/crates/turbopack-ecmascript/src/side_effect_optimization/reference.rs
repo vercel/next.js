@@ -9,7 +9,7 @@ use turbopack_core::{
     },
     module::Module,
     reference::ModuleReference,
-    resolve::{ModulePart, ModuleResolveResult},
+    resolve::{origin::ResolveOrigin, ModulePart, ModuleResolveResult},
 };
 
 use super::{
@@ -18,7 +18,7 @@ use super::{
 use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
-    references::esm::base::ReferencedAsset,
+    references::{esm::base::ReferencedAsset, EcmascriptModuleReferenceable},
     utils::module_id_to_lit,
 };
 
@@ -47,6 +47,17 @@ impl EcmascriptModulePartReference {
     #[turbo_tasks::function]
     pub fn new(module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>) -> Vc<Self> {
         EcmascriptModulePartReference { module, part: None }.cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for EcmascriptModulePartReference {
+    #[turbo_tasks::function]
+    fn as_reference(
+        self: Vc<Self>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(self)
     }
 }
 
@@ -113,6 +124,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
     async fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;

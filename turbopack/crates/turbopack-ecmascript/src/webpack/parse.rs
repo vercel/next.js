@@ -20,7 +20,7 @@ use crate::{
     analyzer::{graph::EvalContext, JsValue},
     parse::{parse, ParseResult},
     utils::unparen,
-    EcmascriptInputTransforms, EcmascriptModuleAssetType,
+    EcmascriptInputTransform, EcmascriptInputTransforms, EcmascriptModuleAssetType,
 };
 
 #[turbo_tasks::value(shared, serialization = "none")]
@@ -199,7 +199,7 @@ fn get_require_prefix(stmts: &Vec<Stmt>) -> Option<Lit> {
 #[turbo_tasks::function]
 pub async fn webpack_runtime(
     source: Vc<Box<dyn Source>>,
-    transforms: Vc<EcmascriptInputTransforms>,
+    transforms: Vec<Value<EcmascriptInputTransform>>,
 ) -> Result<Vc<WebpackRuntime>> {
     let parsed = parse(
         source,

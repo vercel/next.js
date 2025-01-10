@@ -5,7 +5,10 @@ use swc_core::ecma::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
-use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
+use turbopack_core::{
+    chunk::{AsyncModuleInfo, ChunkingContext},
+    resolve::origin::ResolveOrigin,
+};
 
 /// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
@@ -94,6 +97,7 @@ pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Vc<CodeGeneration>;
 }
 
@@ -102,6 +106,7 @@ pub trait CodeGenerateableWithAsyncModuleInfo {
     fn code_generation(
         self: Vc<Self>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
+        origin: Vc<Box<dyn ResolveOrigin>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<CodeGeneration>;
 }

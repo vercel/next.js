@@ -17,7 +17,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, resolve::origin::ResolveOrigin};
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -44,6 +44,7 @@ impl CodeGenerateable for Unreachable {
     async fn code_generation(
         &self,
         _context: Vc<Box<dyn ChunkingContext>>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
     ) -> Result<Vc<CodeGeneration>> {
         let range = self.range.await?;
         let visitors = match &*range {

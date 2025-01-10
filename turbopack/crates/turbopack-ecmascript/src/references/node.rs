@@ -9,11 +9,14 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::ModuleReference,
     resolve::{
+        origin::ResolveOrigin,
         pattern::{read_matches, Pattern, PatternMatch},
         ModuleResolveResult, RequestKey,
     },
     source::Source,
 };
+
+use crate::references::EcmascriptModuleReferenceable;
 
 #[turbo_tasks::value]
 #[derive(Hash, Clone, Debug)]
@@ -26,6 +29,17 @@ impl PackageJsonReference {
     #[turbo_tasks::function]
     pub fn new(package_json: ResolvedVc<FileSystemPath>) -> Vc<Self> {
         Self::cell(PackageJsonReference { package_json })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for PackageJsonReference {
+    #[turbo_tasks::function]
+    fn as_reference(
+        self: Vc<Self>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(self)
     }
 }
 
@@ -64,6 +78,17 @@ impl DirAssetReference {
     #[turbo_tasks::function]
     pub fn new(source: ResolvedVc<Box<dyn Source>>, path: ResolvedVc<Pattern>) -> Vc<Self> {
         Self::cell(DirAssetReference { source, path })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl EcmascriptModuleReferenceable for DirAssetReference {
+    #[turbo_tasks::function]
+    fn as_reference(
+        self: Vc<Self>,
+        _origin: Vc<Box<dyn ResolveOrigin>>,
+    ) -> Vc<Box<dyn ModuleReference>> {
+        Vc::upcast(self)
     }
 }
 

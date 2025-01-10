@@ -5,13 +5,13 @@ use swc_core::{
     common::FileName,
     ecma::{ast::Program, visit::VisitWith},
 };
-use turbo_tasks::Vc;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::ModuleRule;
-use turbopack_ecmascript::{CustomTransformer, TransformContext};
+use turbopack_ecmascript::{CustomTransformer, TransformContext, TransformPlugin};
 
 use super::get_ecma_transform_rule;
-use crate::next_config::NextConfig;
+use crate::{next_config::NextConfig, next_shared::transforms::get_ecma_transform_rule_new};
 
 /// Returns a rule which applies the Next.js react server components transform.
 /// This transform owns responsibility to assert various import / usage
@@ -35,12 +35,10 @@ pub async fn get_next_react_server_components_transform_rule(
 ) -> Result<ModuleRule> {
     let enable_mdx_rs = next_config.mdx_rs().await?.is_some();
     let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
-    Ok(get_ecma_transform_rule(
-        Box::new(NextJsReactServerComponents::new(
-            is_react_server_layer,
-            dynamic_io_enabled,
-            app_dir,
-        )),
+    Ok(get_ecma_transform_rule_new(
+        NextJsReactServerComponents::new(is_react_server_layer, dynamic_io_enabled, app_dir)
+            .to_resolved()
+            .await?,
         enable_mdx_rs,
         true,
     ))
@@ -50,20 +48,22 @@ pub async fn get_next_react_server_components_transform_rule(
 struct NextJsReactServerComponents {
     is_react_server_layer: bool,
     dynamic_io_enabled: bool,
-    app_dir: Option<Vc<FileSystemPath>>,
+    app_dir: Option<ResolvedVc<FileSystemPath>>,
 }
 
+#[turbo_tasks::value_impl]
 impl NextJsReactServerComponents {
+    #[turbo_tasks::function]
     fn new(
         is_react_server_layer: bool,
         dynamic_io_enabled: bool,
-        app_dir: Option<Vc<FileSystemPath>>,
-    ) -> Self {
-        Self {
+        app_dir: Option<ResolvedVc<FileSystemPath>>,
+    ) -> Vc<TransformPlugin> {
+        Vc::cell(Box::new(Self {
             is_react_server_layer,
             dynamic_io_enabled,
             app_dir,
-        }
+        }) as _)
     }
 }
 
