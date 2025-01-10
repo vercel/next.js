@@ -437,7 +437,7 @@ impl Visit for Analyzer<'_> {
         for s in &import.specifiers {
             let symbol = internal_symbol
                 .clone()
-                .unwrap_or_else(|| get_import_symbol_from_import(s));
+                .unwrap_or_else(|| get_import_symbol_from_import(s, &self.dynamic_star_imports));
             let i = self.ensure_reference(
                 import.span,
                 import.src.value.clone(),
@@ -701,7 +701,10 @@ fn parse_with(with: Option<&ObjectLit>) -> Option<ImportedSymbol> {
     })
 }
 
-fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol {
+fn get_import_symbol_from_import(
+    specifier: &ImportSpecifier,
+    dynamic_star_imports: &FxHashSet<Id>,
+) -> ImportedSymbol {
     match specifier {
         ImportSpecifier::Named(ImportNamedSpecifier {
             local, imported, ..
@@ -710,7 +713,14 @@ fn get_import_symbol_from_import(specifier: &ImportSpecifier) -> ImportedSymbol 
             _ => local.sym.clone(),
         }),
         ImportSpecifier::Default(..) => ImportedSymbol::Symbol(js_word!("default")),
-        ImportSpecifier::Namespace(..) => ImportedSymbol::Exports,
+        ImportSpecifier::Namespace(s) => {
+            if dynamic_star_imports.contains(&s.local.to_id()) {
+                ImportedSymbol::Exports
+            } else {
+                // This practically results in skipping the import if it's side-effect free
+                ImportedSymbol::ModuleEvaluation
+            }
+        }
     }
 }
 
