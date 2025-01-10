@@ -15,10 +15,6 @@ import { existsSync, promises as fs } from 'fs'
 import os from 'os'
 import { Worker } from '../lib/worker'
 import { defaultConfig } from '../server/config-shared'
-import {
-  nextConfigNormalizer,
-  type SerializableNextConfig,
-} from '../server/serializable-config'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
@@ -219,7 +215,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
-import { HTML_LIMITED_BOT_UA_RE } from '../shared/lib/router/utils/is-bot'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 
 type Fallback = null | boolean | string
 
@@ -533,7 +529,7 @@ async function writeFunctionsConfigManifest(
 
 interface RequiredServerFilesManifest {
   version: number
-  config: SerializableNextConfig
+  config: NextConfigComplete
   appDir: string
   relativeAppDir: string
   files: string[]
@@ -1323,9 +1319,8 @@ export default async function build(
         htmlLimitedBots: string
       } = {
         version: 0,
-        htmlLimitedBots: (
-          config.experimental.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE
-        ).source,
+        htmlLimitedBots:
+          config.experimental.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
       }
       await writeManifest(responseConfigManifestPath, responseConfigManifest)
 
@@ -2480,7 +2475,7 @@ export default async function build(
 
           const serverFilesManifest: RequiredServerFilesManifest = {
             version: 1,
-            config: nextConfigNormalizer.toSerializableNextConfig({
+            config: {
               ...config,
               configFile: undefined,
               ...(ciEnvironment.hasNextSupport
@@ -2499,7 +2494,7 @@ export default async function build(
                 // @ts-expect-error internal field TODO: fix this, should use a separate mechanism to pass the info.
                 isExperimentalCompile: isCompileMode,
               },
-            }),
+            },
             appDir: dir,
             relativeAppDir: path.relative(outputFileTracingRoot, dir),
             files: [

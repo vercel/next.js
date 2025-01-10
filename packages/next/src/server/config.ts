@@ -1222,11 +1222,10 @@ export default async function loadConfig(
       }
     }
 
-    // For deployment, deserialize the regex config
-    if (typeof userConfig.experimental?.htmlLimitedBots === 'string') {
-      userConfig.experimental.htmlLimitedBots = new RegExp(
-        userConfig.experimental.htmlLimitedBots
-      )
+    // serialize the regex config into string
+    if (userConfig.experimental?.htmlLimitedBots instanceof RegExp) {
+      userConfig.experimental.htmlLimitedBots =
+        userConfig.experimental.htmlLimitedBots.source
     }
 
     onLoadUserConfig?.(userConfig)

@@ -1,4 +1,4 @@
-import { HTML_LIMITED_BOT_UA_RE } from '../../shared/lib/router/utils/is-bot'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../../shared/lib/router/utils/is-bot'
 
 export function shouldServeStreamingMetadata(
   userAgent: string,
@@ -7,13 +7,16 @@ export function shouldServeStreamingMetadata(
     htmlLimitedBots,
   }: {
     streamingMetadata: boolean
-    htmlLimitedBots: RegExp | undefined
+    htmlLimitedBots: string | undefined
   }
 ): boolean {
   if (!streamingMetadata) {
     return false
   }
 
-  const blockingMetadataUARegex = htmlLimitedBots || HTML_LIMITED_BOT_UA_RE
+  const blockingMetadataUARegex = new RegExp(
+    htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
+    'i'
+  )
   return !blockingMetadataUARegex.test(userAgent)
 }

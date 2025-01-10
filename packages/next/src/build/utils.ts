@@ -18,7 +18,6 @@ import type { WebpackLayerName } from '../lib/constants'
 import type { AppPageModule } from '../server/route-modules/app-page/module'
 import type { RouteModule } from '../server/route-modules/route-module'
 import type { NextComponentType } from '../shared/lib/utils'
-import type { SerializableNextConfig } from '../server/serializable-config'
 
 import '../server/require-hook'
 import '../server/node-polyfill-crypto'
@@ -1467,7 +1466,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: SerializableNextConfig,
+  serverConfig: NextConfigComplete,
   middlewareManifest: MiddlewareManifest,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>
