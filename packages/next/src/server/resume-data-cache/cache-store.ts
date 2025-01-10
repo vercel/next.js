@@ -21,6 +21,12 @@ export type FetchCacheStore = CacheStore<CachedFetchValue>
 export type EncryptedBoundArgsCacheStore = CacheStore<string>
 
 /**
+ * An in-memory-only cache store for decrypted bound args of inline server
+ * functions.
+ */
+export type DecryptedBoundArgsCacheStore = CacheStore<string>
+
+/**
  * Serialized format for "use cache" entries
  */
 interface UseCacheCacheStoreSerialized {
