@@ -309,8 +309,10 @@ impl ImportMap {
             data: &mut data,
             source,
             comments,
+            pending_star_imports: Default::default(),
         };
         m.visit_with(&mut analyzer);
+        analyzer.handle_pending_star_imports();
 
         data
     }
@@ -320,9 +322,18 @@ struct Analyzer<'a> {
     data: &'a mut ImportMap,
     source: Option<Vc<Box<dyn Source>>>,
     comments: Option<&'a dyn Comments>,
+
+    pending_star_imports: FxIndexMap<Id, StarImport>,
+}
+
+#[derive(Default)]
+struct StarImport {
+    has_dynamic_access: bool,
 }
 
 impl Analyzer<'_> {
+    fn handle_pending_star_imports(&mut self) {}
+
     fn ensure_reference(
         &mut self,
         span: Span,
