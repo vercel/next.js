@@ -1195,6 +1195,18 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         if let JsValue::Constant(super::analyzer::ConstantValue::Str(export)) =
                             &prop
                         {
+                            let r = r.await?;
+                            let r = EsmAssetReference::new(
+                                *r.origin,
+                                *r.request,
+                                *r.issue_source,
+                                Value::new(r.annotations.clone()),
+                                Some(ModulePart::export(export.as_str().into())),
+                                r.import_externals,
+                            )
+                            .to_resolved()
+                            .await?;
+
                             analysis.add_local_reference(r);
                             analysis.add_import_reference(r);
                             analysis.add_binding(EsmBinding::new(
