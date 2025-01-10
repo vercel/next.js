@@ -13,7 +13,7 @@ const styles = css`
     border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-md);
     max-height: calc(100% - 56px);
-    overflow-y: hidden;
+    position: relative;
   }
 
   @media (max-height: 812px) {
