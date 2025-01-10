@@ -354,21 +354,44 @@ struct StarImportAnalyzer<'a> {
 }
 
 impl Visit for StarImportAnalyzer<'_> {
-    fn visit_ident(&mut self, node: &Ident) {
-        if self.candidates.contains(&node.to_id()) {
-            self.dynamic_star_imports.insert(node.to_id());
+    fn visit_expr(&mut self, node: &Expr) {
+        if let Expr::Ident(i) = node {
+            if self.candidates.contains(&i.to_id()) {
+                self.dynamic_star_imports.insert(i.to_id());
+            }
         }
     }
+
+    fn visit_import_decl(&mut self, _: &ImportDecl) {}
 
     fn visit_member_expr(&mut self, node: &MemberExpr) {
         match &node.prop {
             MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
+                if node.obj.is_ident() {
+                    return;
+                }
                 // We can skip `visit_expr(obj)` because it's not a dynamic access
                 node.obj.visit_children_with(self);
             }
             MemberProp::Computed(..) => {
                 node.obj.visit_with(self);
                 node.prop.visit_with(self);
+            }
+        }
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        if let Pat::Ident(i) = pat {
+            if self.candidates.contains(&i.to_id()) {
+                self.dynamic_star_imports.insert(i.to_id());
+            }
+        }
+    }
+
+    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Ident(i) = node {
+            if self.candidates.contains(&i.to_id()) {
+                self.dynamic_star_imports.insert(i.to_id());
             }
         }
     }
