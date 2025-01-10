@@ -1309,20 +1309,23 @@ export default async function build(
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
-      // Write html limited bots config to response-config-manifest
-      const responseConfigManifestPath = path.join(
-        distDir,
-        RESPONSE_CONFIG_MANIFEST
-      )
-      const responseConfigManifest: {
-        version: number
-        htmlLimitedBots: string
-      } = {
-        version: 0,
-        htmlLimitedBots:
-          config.experimental.htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
+      if (config.experimental.streamingMetadata) {
+        // Write html limited bots config to response-config-manifest
+        const responseConfigManifestPath = path.join(
+          distDir,
+          RESPONSE_CONFIG_MANIFEST
+        )
+        const responseConfigManifest: {
+          version: number
+          htmlLimitedBots: string
+        } = {
+          version: 0,
+          htmlLimitedBots:
+            config.experimental.htmlLimitedBots ||
+            HTML_LIMITED_BOT_UA_RE_STRING,
+        }
+        await writeManifest(responseConfigManifestPath, responseConfigManifest)
       }
-      await writeManifest(responseConfigManifestPath, responseConfigManifest)
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
