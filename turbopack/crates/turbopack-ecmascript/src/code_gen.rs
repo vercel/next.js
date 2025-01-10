@@ -1,3 +1,4 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::Stmt,
@@ -104,6 +105,22 @@ pub trait CodeGenerateableWithAsyncModuleInfo {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<CodeGeneration>;
+}
+
+pub enum UnresolvedCodeGen {
+    CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
+    CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
+}
+
+impl UnresolvedCodeGen {
+    pub async fn to_resolved(&self) -> Result<CodeGen> {
+        Ok(match self {
+            Self::CodeGenerateable(vc) => CodeGen::CodeGenerateable(vc.to_resolved().await?),
+            Self::CodeGenerateableWithAsyncModuleInfo(vc) => {
+                CodeGen::CodeGenerateableWithAsyncModuleInfo(vc.to_resolved().await?)
+            }
+        })
+    }
 }
 
 #[derive(
