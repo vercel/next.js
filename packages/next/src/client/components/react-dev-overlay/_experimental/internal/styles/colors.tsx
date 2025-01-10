@@ -6,11 +6,11 @@ export function Colors() {
     <style>
       {css`
         :host {
-          /* Background */
+          /* Background Light */
           --color-background-100: #ffffff;
           --color-background-200: #fafafa;
 
-          /* Syntax */
+          /* Syntax Light */
           --color-syntax-comment: #666666;
           --color-syntax-constant: #171717;
           --color-syntax-function: #0068d6;
@@ -21,7 +21,7 @@ export function Colors() {
           --color-syntax-string: #067a6e;
           --color-syntax-string-expression: #067a6e;
 
-          /* Gray Scale */
+          /* Gray Scale Light */
           --color-gray-100: #f2f2f2;
           --color-gray-200: #ebebeb;
           --color-gray-300: #e6e6e6;
@@ -33,7 +33,7 @@ export function Colors() {
           --color-gray-900: #666666;
           --color-gray-1000: #171717;
 
-          /* Gray Alpha Scale */
+          /* Gray Alpha Scale Light */
           --color-gray-alpha-100: rgba(0, 0, 0, 0.05);
           --color-gray-alpha-200: rgba(0, 0, 0, 0.081);
           --color-gray-alpha-300: rgba(0, 0, 0, 0.1);
@@ -45,7 +45,7 @@ export function Colors() {
           --color-gray-alpha-900: rgba(0, 0, 0, 0.605);
           --color-gray-alpha-1000: rgba(0, 0, 0, 0.91);
 
-          /* Blue Scale */
+          /* Blue Scale Light */
           --color-blue-100: #f0f7ff;
           --color-blue-200: #edf6ff;
           --color-blue-300: #e1f0ff;
@@ -57,7 +57,7 @@ export function Colors() {
           --color-blue-900: #0067d6;
           --color-blue-1000: #0025ad;
 
-          /* Red Scale */
+          /* Red Scale Light */
           --color-red-100: #fff0f0;
           --color-red-200: #ffebeb;
           --color-red-300: #ffe5e5;
@@ -69,7 +69,19 @@ export function Colors() {
           --color-red-900: #ca2a30;
           --color-red-1000: #381316;
 
-          /* Green Scale */
+          /* Amber Scale Light */
+          --color-amber-100: #fff6e5;
+          --color-amber-200: #fff4d5;
+          --color-amber-300: #fef0cd;
+          --color-amber-400: #ffddbf;
+          --color-amber-500: #ffc96b;
+          --color-amber-600: #f5b047;
+          --color-amber-700: #ffb224;
+          --color-amber-800: #ff990a;
+          --color-amber-900: #a35200;
+          --color-amber-1000: #4e2009;
+
+          /* Green Scale Light */
           --color-green-100: #effbef;
           --color-green-200: #eafaea;
           --color-green-300: #dcf6dc;
@@ -146,6 +158,18 @@ export function Colors() {
             --color-red-800: #da3036;
             --color-red-900: #ff6369;
             --color-red-1000: #ffecee;
+
+            /* Amber Scale Dark */
+            --color-amber-100: #271700;
+            --color-amber-200: #341c00;
+            --color-amber-300: #4a2900;
+            --color-amber-400: #573300;
+            --color-amber-500: #693f05;
+            --color-amber-600: #e79c13;
+            --color-amber-700: #ffb224;
+            --color-amber-800: #ff990a;
+            --color-amber-900: #f1a10d;
+            --color-amber-1000: #fef3dd;
 
             /* Green Scale Dark */
             --color-green-100: #0b2211;

@@ -2,7 +2,7 @@ import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 
 import { ErrorOverlayPagination } from '../error-overlay-pagination/error-overlay-pagination'
-import { VersionStalenessInfo } from '../../VersionStalenessInfo'
+import { VersionStalenessInfo } from '../../VersionStalenessInfo/VersionStalenessInfo'
 import { noop as css } from '../../../helpers/noop-template'
 
 type ErrorOverlayFloatingHeaderProps = {
