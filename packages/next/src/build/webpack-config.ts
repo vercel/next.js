@@ -1803,9 +1803,7 @@ export default async function getBaseWebpackConfig(
         }),
       // rspack doesn't support the parser hooks used here
       !isRspack && (isClient || isEdgeServer) && new DropClientPage(),
-      // rspack doesn't support all APIs we need for tracing via plugin
-      !isRspack &&
-        isNodeServer &&
+      isNodeServer &&
         !dev &&
         new (require('./webpack/plugins/next-trace-entrypoints-plugin')
           .TraceEntryPointsPlugin as typeof import('./webpack/plugins/next-trace-entrypoints-plugin').TraceEntryPointsPlugin)(

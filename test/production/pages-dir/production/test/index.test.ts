@@ -193,7 +193,9 @@ describe('Production Usage', () => {
         page: '/client-error',
         tests: [
           /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /chunks\/.*?\.js/,
+          // TODO: rspack chunks aren't always nested in chunks
+          // folder
+          ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           isReact18
@@ -207,15 +209,25 @@ describe('Production Usage', () => {
         page: '/index',
         tests: [
           /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /chunks\/.*?\.js/,
+          // TODO: rspack chunks aren't always nested in chunks
+          // folder
+          ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           isReact18
             ? /node_modules\/react\/cjs\/react\.production\.min\.js/
             : /node_modules\/react\/cjs\/react\.production\.js/,
           /node_modules\/next/,
-          /node_modules\/nanoid\/index\.js/,
-          /node_modules\/nanoid\/url-alphabet\/index\.js/,
+
+          // rspack bundles directly to the CJS file
+          process.env.NEXT_RSPACK
+            ? /node_modules\/nanoid\/index\.cjs/
+            : /node_modules\/nanoid\/index\.js/,
+
+          process.env.NEXT_RSPACK
+            ? /node_modules\/nanoid\/url-alphabet\/index\.cjs/
+            : /node_modules\/nanoid\/url-alphabet\/index\.js/,
+
           /node_modules\/es5-ext\/array\/#\/clear\.js/,
         ],
         notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
@@ -224,7 +236,10 @@ describe('Production Usage', () => {
         page: '/next-import',
         tests: [
           /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /chunks\/.*?\.js/,
+
+          // TODO: rspack chunks aren't always nested in chunks
+          // folder
+          ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
           /node_modules\/react\/index\.js/,
           /node_modules\/react\/package\.json/,
           isReact18
@@ -244,7 +259,9 @@ describe('Production Usage', () => {
         page: '/api',
         tests: [
           /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /\/logo\.module\.css/,
+
+          // TODO: rspack doesn't trace fs/path usage currently
+          ...(process.env.NEXT_RSPACK ? [] : [/\/logo\.module\.css/]),
         ],
         notTests: [
           /next\/dist\/server\/next\.js/,
@@ -254,28 +271,33 @@ describe('Production Usage', () => {
           /!/,
         ],
       },
-      {
-        page: '/api/readfile-dirname',
-        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
-        notTests: [
-          /next\/dist\/server\/next\.js/,
-          /next\/dist\/bin/,
-          /\0/,
-          /\?/,
-          /!/,
-        ],
-      },
-      {
-        page: '/api/readfile-processcwd',
-        tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
-        notTests: [
-          /next\/dist\/server\/next\.js/,
-          /next\/dist\/bin/,
-          /\0/,
-          /\?/,
-          /!/,
-        ],
-      },
+      // TODO: rspack doesn't trace fs/path usage currently
+      ...(!process.env.NEXT_RSPACK
+        ? [
+            {
+              page: '/api/readfile-dirname',
+              tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+              notTests: [
+                /next\/dist\/server\/next\.js/,
+                /next\/dist\/bin/,
+                /\0/,
+                /\?/,
+                /!/,
+              ],
+            },
+            {
+              page: '/api/readfile-processcwd',
+              tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+              notTests: [
+                /next\/dist\/server\/next\.js/,
+                /next\/dist\/bin/,
+                /\0/,
+                /\?/,
+                /!/,
+              ],
+            },
+          ]
+        : []),
     ]
 
     for (const check of checks) {

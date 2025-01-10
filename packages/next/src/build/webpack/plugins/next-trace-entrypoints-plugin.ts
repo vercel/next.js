@@ -1,5 +1,5 @@
 import nodePath from 'path'
-import type { Span } from '../../../trace'
+import { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
@@ -193,9 +193,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
       for (const entrypoint of compilation.entrypoints.values()) {
         const entryFiles = new Set<string>()
 
-        for (const chunk of entrypoint
-          .getEntrypointChunk()
-          .getAllReferencedChunks()) {
+        for (const chunk of process.env.NEXT_RSPACK
+          ? entrypoint.chunks
+          : entrypoint.getEntrypointChunk().getAllReferencedChunks()) {
           for (const file of chunk.files) {
             if (isTraceable(file)) {
               const filePath = nodePath.join(outputPath, file)
@@ -568,6 +568,27 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
 
   apply(compiler: webpack.Compiler) {
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tapAsync(
+        {
+          name: PLUGIN_NAME,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
+        },
+        (assets: any, callback: any) => {
+          this.createTraceAssets(
+            compilation,
+            assets,
+            new Span({ name: 'filler' })
+          )
+            .then(() => callback())
+            .catch((err) => callback(err))
+        }
+      )
+
+      // rspack doesn't support all API below so only create trace assets
+      if (process.env.NEXT_RSPACK) {
+        return
+      }
+
       const readlink = async (path: string): Promise<string | null> => {
         try {
           return await new Promise((resolve, reject) => {
@@ -613,22 +634,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         'next-trace-entrypoint-plugin'
       )
       traceEntrypointsPluginSpan.traceFn(() => {
-        compilation.hooks.processAssets.tapAsync(
-          {
-            name: PLUGIN_NAME,
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_SUMMARIZE,
-          },
-          (assets: any, callback: any) => {
-            this.createTraceAssets(
-              compilation,
-              assets,
-              traceEntrypointsPluginSpan
-            )
-              .then(() => callback())
-              .catch((err) => callback(err))
-          }
-        )
-
         let resolver = compilation.resolverFactory.get('normal')
 
         function getPkgName(name: string) {

@@ -96,17 +96,17 @@ async function webpackBuildWithWorker(
         combinedResult.buildTraceContext.entriesTrace!.entryNameMap =
           entryNameMap
       }
+    }
 
-      if (curResult.buildTraceContext?.chunksTrace) {
-        const { entryNameFilesMap } = curResult.buildTraceContext.chunksTrace!
+    if (curResult.buildTraceContext?.chunksTrace) {
+      const { entryNameFilesMap } = curResult.buildTraceContext.chunksTrace!
 
-        if (entryNameFilesMap) {
-          combinedResult.buildTraceContext.chunksTrace =
-            curResult.buildTraceContext.chunksTrace!
+      if (entryNameFilesMap) {
+        combinedResult.buildTraceContext.chunksTrace =
+          curResult.buildTraceContext.chunksTrace!
 
-          combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
-            entryNameFilesMap
-        }
+        combinedResult.buildTraceContext.chunksTrace!.entryNameFilesMap =
+          entryNameFilesMap
       }
     }
   }
