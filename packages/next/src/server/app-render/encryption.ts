@@ -181,7 +181,11 @@ export async function decryptActionBoundArgs(
       workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
 
     const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
-    decrypted = prerenderResumeDataCache?.decryptedBoundArgs.get(encrypted)
+    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+
+    decrypted =
+      prerenderResumeDataCache?.decryptedBoundArgs.get(encrypted) ??
+      renderResumeDataCache?.decryptedBoundArgs.get(encrypted)
 
     if (!decrypted) {
       cacheSignal?.beginRead()
