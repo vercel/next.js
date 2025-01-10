@@ -108,7 +108,7 @@ export default function Page() {
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <Posts posts={posts} />
+      <Posts postsPromise={posts} />
     </Suspense>
   )
 }
@@ -124,7 +124,7 @@ export default function Page() {
 
   return (
     <Suspense fallback={<div>Loading...</div>}>
-      <Posts posts={posts} />
+      <Posts postsPromise={posts} />
     </Suspense>
   )
 }
@@ -137,11 +137,11 @@ Then, in your Client Component, use the `use` hook read the promise:
 import { use } from 'react'
 
 export default function Posts({
-  posts,
+  postsPromise,
 }: {
-  posts: Promise<{ id: string; title: string }[]>
+  postsPromise: Promise<{ id: string; title: string }[]>
 }) {
-  const posts = use(posts)
+  const posts = use(postsPromise)
 
   return (
     <ul>
@@ -157,8 +157,8 @@ export default function Posts({
 'use client'
 import { use } from 'react'
 
-export default function Posts({ posts }) {
-  const posts = use(posts)
+export default function Posts({ postsPromise }) {
+  const posts = use(postsPromise)
 
   return (
     <ul>
