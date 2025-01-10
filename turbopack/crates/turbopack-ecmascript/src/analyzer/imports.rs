@@ -353,7 +353,26 @@ struct StarImportAnalyzer<'a> {
     dynamic_star_imports: &'a mut FxHashSet<Id>,
 }
 
-impl<'a> Visit for StarImportAnalyzer<'a> {}
+impl Visit for StarImportAnalyzer<'_> {
+    fn visit_ident(&mut self, node: &Ident) {
+        if self.candidates.contains(&node.to_id()) {
+            self.dynamic_star_imports.insert(node.to_id());
+        }
+    }
+
+    fn visit_member_expr(&mut self, node: &MemberExpr) {
+        match &node.prop {
+            MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
+                // We can skip `visit_expr(obj)` because it's not a dynamic access
+                node.obj.visit_children_with(self);
+            }
+            MemberProp::Computed(..) => {
+                node.obj.visit_with(self);
+                node.prop.visit_with(self);
+            }
+        }
+    }
+}
 
 struct Analyzer<'a> {
     data: &'a mut ImportMap,
