@@ -273,7 +273,12 @@ impl TurboPersistence {
                             // ignore blobs, they are read when needed
                         }
                         _ => {
-                            bail!("Unexpected file in persistence directory: {:?}", path);
+                            if !path
+                                .file_name()
+                                .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
+                            {
+                                bail!("Unexpected file in persistence directory: {:?}", path);
+                            }
                         }
                     }
                 }
@@ -283,7 +288,12 @@ impl TurboPersistence {
                         // Already read
                     }
                     _ => {
-                        bail!("Unexpected file in persistence directory: {:?}", path);
+                        if !path
+                            .file_name()
+                            .is_some_and(|s| s.as_encoded_bytes().starts_with(b"."))
+                        {
+                            bail!("Unexpected file in persistence directory: {:?}", path);
+                        }
                     }
                 }
             }
