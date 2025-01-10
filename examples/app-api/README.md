@@ -56,12 +56,6 @@ Here's an overview of the available routes:
    - Handles requests to undefined routes.
    - Returns a "Not Found" response for non-existent endpoints.
 
-Each route is wrapped with middleware that adds:
-
-- Request logging for monitoring and debugging.
-- Origin checking for security.
-- Authentication placeholders for future expansion.
-
 To explore these routes:
 
 1. Start the development server.
