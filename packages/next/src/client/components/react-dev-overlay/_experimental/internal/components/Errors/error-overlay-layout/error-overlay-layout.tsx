@@ -48,6 +48,7 @@ type ErrorOverlayLayoutProps = {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   footerMessage?: string
+  isTurbopack?: boolean
 }
 
 export function ErrorOverlayLayout({
@@ -64,19 +65,20 @@ export function ErrorOverlayLayout({
   activeIdx,
   setActiveIndex,
   footerMessage,
+  isTurbopack = !!process.env.TURBOPACK,
 }: ErrorOverlayLayoutProps) {
   return (
     <Overlay fixed={isBuildError}>
-
-      <ErrorOverlayDialog onClose={onClose}>
+      <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
         <ErrorOverlayFloatingHeader
           readyErrors={readyErrors}
           activeIdx={activeIdx}
           setActiveIndex={setActiveIndex}
           versionInfo={versionInfo}
+          isTurbopack={isTurbopack}
         />
         <DialogContent>
-          <ErrorOverlayDialogHeader>
+          <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
             <div
               className="nextjs__container_errors__error_title"
               // allow assertion in tests before error rating is implemented

@@ -10,6 +10,7 @@ type ErrorOverlayFloatingHeaderProps = {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   versionInfo?: VersionInfo
+  isTurbopack?: boolean
 }
 
 export function ErrorOverlayFloatingHeader({
@@ -17,6 +18,7 @@ export function ErrorOverlayFloatingHeader({
   activeIdx,
   setActiveIndex,
   versionInfo,
+  isTurbopack,
 }: ErrorOverlayFloatingHeaderProps) {
   return (
     <div className="error-overlay-floating-header">
@@ -26,7 +28,10 @@ export function ErrorOverlayFloatingHeader({
         activeIdx={activeIdx ?? 0}
         onActiveIndexChange={setActiveIndex ?? (() => {})}
       />
-      <VersionStalenessInfo versionInfo={versionInfo} />
+      <VersionStalenessInfo
+        versionInfo={versionInfo}
+        isTurbopack={isTurbopack}
+      />
     </div>
   )
 }

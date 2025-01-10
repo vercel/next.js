@@ -26,3 +26,10 @@ export const Default: Story = {
     children: "Module not found: Cannot find module './missing-module'",
   },
 }
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
+  },
+}
