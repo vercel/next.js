@@ -174,9 +174,9 @@ impl NextDynamicGraph {
 
             // module -> the client reference entry (if any)
             let mut state_map = HashMap::new();
-            graph.traverse_edges_from_entry(entry, |(parent_node, node)| {
+            graph.traverse_edges_from_entry(entry, |parent_info, node| {
                 let module = node.module;
-                let Some(parent_node) = parent_node else {
+                let Some((parent_node, _)) = parent_info else {
                     state_map.insert(module, VisitState::Entry);
                     return GraphTraversalAction::Continue;
                 };
@@ -362,9 +362,9 @@ impl ClientReferencesGraph {
                 entry,
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut HashMap::new(),
-                |(parent_node, node), state_map| {
+                |parent_info, node, state_map| {
                     let module = node.module;
-                    let Some(parent_node) = parent_node else {
+                    let Some((parent_node, _)) = parent_info else {
                         state_map.insert(module, None);
                         return GraphTraversalAction::Continue;
                     };
@@ -390,8 +390,8 @@ impl ClientReferencesGraph {
                         _ => GraphTraversalAction::Continue,
                     }
                 },
-                |(parent_node, node), state_map| {
-                    let Some(parent_node) = parent_node else {
+                |parent_info, node, state_map| {
+                    let Some((parent_node, _)) = parent_info else {
                         return;
                     };
                     let parent_module = parent_node.module;
