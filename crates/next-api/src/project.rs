@@ -276,7 +276,7 @@ impl ProjectContainer {
 
         self.await?.options_state.set(Some(options));
 
-        let project = self.project();
+        let project = self.project().resolve_strongly_consistent().await?;
         let project_fs = project.project_fs().strongly_consistent().await?;
         if watch.enable {
             project_fs
