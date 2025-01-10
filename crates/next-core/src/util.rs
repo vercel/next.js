@@ -13,7 +13,7 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::{
     self, json::parse_json_rope_with_source_context, rope::Rope, util::join_path, File,
-    FileContent, FileSystemPath,
+    FileContent, FileSystem, FileSystemPath,
 };
 use turbopack_core::{
     asset::AssetContent,
@@ -32,6 +32,7 @@ use turbopack_ecmascript::{
 };
 
 use crate::{
+    embed_js::next_js_fs,
     next_config::{NextConfig, RouteHas},
     next_import_map::get_next_package,
     next_manifests::MiddlewareMatcher,
@@ -138,6 +139,31 @@ pub async fn foreign_code_context_condition(
         )),
     ]);
     Ok(result)
+}
+
+/// Determines if the module is an internal asset (i.e overlay, fallback) coming
+/// from the embedded FS, don't apply user defined transforms.
+///
+/// [TODO] turbopack specific embed fs should be handled by internals of
+/// turbopack itself and user config should not try to leak this. However,
+/// currently we apply few transform options subject to next.js's configuration
+/// even if it's embedded assets.
+pub async fn internal_assets_conditions() -> Result<ContextCondition> {
+    Ok(ContextCondition::any(vec![
+        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
+        ContextCondition::InPath(
+            turbopack_ecmascript_runtime::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+        ContextCondition::InPath(
+            turbopack_node::embed_js::embed_fs()
+                .root()
+                .to_resolved()
+                .await?,
+        ),
+    ]))
 }
 
 #[derive(

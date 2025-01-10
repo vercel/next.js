@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
@@ -19,7 +19,6 @@ use turbopack_core::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
     },
-    condition::ContextCondition,
     environment::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
@@ -41,7 +40,6 @@ use super::{
     transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
 };
 use crate::{
-    embed_js::next_js_fs,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
@@ -71,8 +69,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        foreign_code_context_condition, get_transpiled_packages, load_next_js_templateon,
-        NextRuntime,
+        foreign_code_context_condition, get_transpiled_packages, internal_assets_conditions,
+        load_next_js_templateon, NextRuntime,
     },
 };
 
@@ -394,31 +392,6 @@ pub async fn get_server_compile_time_info(
     .free_var_references(next_server_free_vars(define_env).to_resolved().await?)
     .cell()
     .await
-}
-
-/// Determins if the module is an internal asset (i.e overlay, fallback) coming
-/// from the embedded FS, don't apply user defined transforms.
-///
-/// [TODO] turbopack specific embed fs should be handled by internals of
-/// turbopack itself and user config should not try to leak this. However,
-/// currently we apply few transform options subject to next.js's configuration
-/// even if it's embedded assets.
-async fn internal_assets_conditions() -> Result<ContextCondition> {
-    Ok(ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root().to_resolved().await?),
-        ContextCondition::InPath(
-            turbopack_ecmascript_runtime::embed_fs()
-                .root()
-                .to_resolved()
-                .await?,
-        ),
-        ContextCondition::InPath(
-            turbopack_node::embed_js::embed_fs()
-                .root()
-                .to_resolved()
-                .await?,
-        ),
-    ]))
 }
 
 #[turbo_tasks::function]
