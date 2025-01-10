@@ -18,6 +18,8 @@ jobs:
           ascending: true
           days-before-issue-stale: 730 # issues with no activity in over two years
           days-before-issue-close: 7
+          days-before-pr-close: -1
+          days-before-pr-stale: -1
           remove-issue-stale-when-updated: true
           stale-issue-label: 'stale'
           stale-issue-message: 'This issue has been automatically marked as stale due to two years of inactivity. It will be closed in 7 days unless there’s further input. If you believe this issue is still relevant, please leave a comment or provide updated details. Thank you.'
