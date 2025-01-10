@@ -123,7 +123,7 @@ use crate::{
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
+        ConstantNumber, ConstantString, JsValueUrlKind, ModuleValue, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
@@ -1183,6 +1183,26 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
+                if let JsValue::Module(ModuleValue {
+                    esm_reference_index,
+                    ..
+                }) = &obj
+                {
+                    if let Some(&r) = import_references.get(*esm_reference_index) {
+                        if let JsValue::Constant(super::analyzer::ConstantValue::Str(export)) =
+                            &prop
+                        {
+                            analysis.add_local_reference(r);
+                            analysis.add_import_reference(r);
+                            analysis.add_binding(EsmBinding::new(
+                                r,
+                                Some(export.to_string().into()),
+                                ResolvedVc::cell(ast_path.clone()),
+                            ));
+                        }
+                    }
+                }
+
                 let obj = analysis_state
                     .link_value(obj, ImportAttributes::empty_ref())
                     .await?;
