@@ -496,6 +496,11 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
+   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   */
+  viewTransition?: boolean
+
+  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -1183,6 +1188,7 @@ export const defaultConfig: NextConfig = {
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
+    viewTransition: false,
     staleTimes: {
       dynamic: 0,
       static: 300,

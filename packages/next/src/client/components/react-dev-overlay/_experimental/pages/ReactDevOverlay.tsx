@@ -31,29 +31,35 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
       <ErrorBoundary isMounted={isMounted} onError={onComponentError}>
         {children ?? null}
       </ErrorBoundary>
-      {isMounted ? (
-        <ShadowPortal>
-          <CssReset />
-          <Base />
-          <Colors />
-          <ComponentStyles />
+      <ShadowPortal>
+        <CssReset />
+        <Base />
+        <Colors />
+        <ComponentStyles />
 
-          {hasBuildError ? (
-            <BuildError
-              message={state.buildError!}
-              versionInfo={state.versionInfo}
-            />
-          ) : hasRuntimeErrors ? (
-            <Errors
-              isAppDir={false}
-              errors={state.errors}
-              versionInfo={state.versionInfo}
-              initialDisplayState={'fullscreen'}
-              isTurbopackEnabled={!!process.env.TURBOPACK}
-            />
-          ) : undefined}
-        </ShadowPortal>
-      ) : undefined}
+        {hasBuildError ? (
+          <BuildError
+            message={state.buildError!}
+            versionInfo={state.versionInfo}
+          />
+        ) : hasRuntimeErrors ? (
+          <Errors
+            isAppDir={false}
+            errors={state.errors}
+            versionInfo={state.versionInfo}
+            initialDisplayState={'fullscreen'}
+            isTurbopackEnabled={!!process.env.TURBOPACK}
+          />
+        ) : (
+          <Errors
+            isAppDir={false}
+            errors={state.errors}
+            versionInfo={state.versionInfo}
+            initialDisplayState={'minimized'}
+            isTurbopackEnabled={!!process.env.TURBOPACK}
+          />
+        )}
+      </ShadowPortal>
     </>
   )
 }

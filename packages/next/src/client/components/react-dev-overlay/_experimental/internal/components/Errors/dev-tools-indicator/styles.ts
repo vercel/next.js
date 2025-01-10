@@ -6,8 +6,6 @@ export const styles = css`
   }
 
   [data-nextjs-dev-tools-button] {
-    height: 40px;
-    width: 40px;
     border: none;
     background: none;
     padding: 0;
