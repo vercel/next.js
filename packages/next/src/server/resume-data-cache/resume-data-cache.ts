@@ -30,6 +30,14 @@ export interface RenderResumeDataCache {
    * The 'set' operation is omitted to enforce immutability.
    */
   readonly encryptedBoundArgs: Omit<EncryptedBoundArgsCacheStore, 'set'>
+
+  /**
+   * A read-only Map store for decrypted bound args of inline server functions.
+   * This is only intended for in-memory usage during pre-rendering, and must
+   * not be persisted in the resume store. The 'set' operation is omitted to
+   * enforce immutability.
+   */
+  readonly decryptedBoundArgs: Omit<DecryptedBoundArgsCacheStore, 'set'>
 }
 
 /**
@@ -172,6 +180,7 @@ export function createRenderResumeDataCache(
         cache: new Map(),
         fetch: new Map(),
         encryptedBoundArgs: new Map(),
+        decryptedBoundArgs: new Map(),
       }
     }
 
@@ -192,6 +201,7 @@ export function createRenderResumeDataCache(
       encryptedBoundArgs: new Map(
         Object.entries(json.store.encryptedBoundArgs)
       ),
+      decryptedBoundArgs: new Map(),
     }
   }
 }
