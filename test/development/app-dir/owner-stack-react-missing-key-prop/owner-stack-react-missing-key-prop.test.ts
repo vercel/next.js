@@ -6,9 +6,7 @@ import {
 } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled =
-  process.env.TEST_OWNER_STACK !== 'false' ||
-  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 ;(isOwnerStackEnabled ? describe : describe.skip)(
   'app-dir - owner-stack-react-missing-key-prop',
