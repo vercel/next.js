@@ -93,8 +93,11 @@ impl RawVc {
 
     pub fn is_transient(&self) -> bool {
         match self {
-            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
-            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) | RawVc::LocalOutput(task, _) => {
+                task.is_transient()
+            }
+            // TODO track the transient flag in the highest bit of the execution id
+            RawVc::LocalCell(_, _) => todo!(),
         }
     }
 
