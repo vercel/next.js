@@ -22,8 +22,8 @@ use crate::{
     },
     backing_storage::BackingStorage,
     data::{
-        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
-        CachedDataItemValueRef,
+        CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
+        CachedDataItemValueRef, CachedDataItemValueRefMut,
     },
 };
 
@@ -364,28 +364,24 @@ pub trait TaskGuard: Debug {
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
     fn update(
         &mut self,
-        key: &CachedDataItemKey,
+        key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     );
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
     fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue>;
+    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>>;
     fn has_key(&self, key: &CachedDataItemKey) -> bool;
-    fn is_indexed(&self) -> bool;
     fn iter(
         &self,
-        index: CachedDataItemIndex,
-    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
+        ty: CachedDataItemType,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
     fn extract_if<'l, F>(
         &'l mut self,
-        index: CachedDataItemIndex,
+        ty: CachedDataItemType,
         f: F,
     ) -> impl Iterator<Item = CachedDataItem>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
-    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, CachedDataItemValueRef<'b>) -> bool + 'l;
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
 }
 
@@ -511,7 +507,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn update(
         &mut self,
-        key: &CachedDataItemKey,
+        key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
         self.check_access(key.category());
@@ -540,7 +536,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     add_persisting_item = true;
                     backend.persisted_storage_log(key.category()).unwrap().push(
                         *task_id,
-                        key.clone(),
+                        key,
                         Some(old_value),
                         None,
                     );
@@ -549,7 +545,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     add_persisting_item = true;
                     backend.persisted_storage_log(key.category()).unwrap().push(
                         *task_id,
-                        key.clone(),
+                        key,
                         old_value,
                         new.clone(),
                     );
@@ -595,7 +591,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.get(key)
     }
 
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
+    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         self.check_access(key.category());
         self.task.get_mut(key)
     }
@@ -605,49 +601,25 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         self.task.has_key(key)
     }
 
-    fn is_indexed(&self) -> bool {
-        self.task.is_indexed()
-    }
-
     fn iter(
         &self,
-        index: CachedDataItemIndex,
-    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        self.task.iter(Some(index))
+        ty: CachedDataItemType,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        self.task.iter(ty)
     }
 
     fn extract_if<'l, F>(
         &'l mut self,
-        index: CachedDataItemIndex,
+        ty: CachedDataItemType,
         f: F,
     ) -> impl Iterator<Item = CachedDataItem>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
         if !self.backend.should_persist() || self.task_id.is_transient() {
-            return Either::Left(self.task.extract_if(Some(index), f));
+            return Either::Left(self.task.extract_if(ty, f));
         }
-        Either::Right(self.task.extract_if(Some(index), f).inspect(|item| {
-            if item.is_persistent() {
-                let key = item.key();
-                let value = item.value();
-                self.backend
-                    .persisted_storage_log(key.category())
-                    .unwrap()
-                    .push(self.task_id, key, Some(value), None);
-            }
-        }))
-    }
-
-    /// Note this function must only be used on non-indexed storage
-    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, CachedDataItemValueRef<'b>) -> bool + 'l,
-    {
-        if !self.backend.should_persist() || self.task_id.is_transient() {
-            return Either::Left(self.task.extract_if_all(f));
-        }
-        Either::Right(self.task.extract_if_all(f).inspect(|item| {
+        Either::Right(self.task.extract_if(ty, f).inspect(|item| {
             if item.is_persistent() {
                 let key = item.key();
                 let value = item.value();
@@ -665,12 +637,15 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
         let mut count = 0;
         let cell_data = self
-            .iter(CachedDataItemIndex::CellData)
+            .iter(CachedDataItemType::CellData)
             .filter_map(|(key, value)| match (key, value) {
-                (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
+                (
+                    CachedDataItemKey::CellData { cell },
+                    CachedDataItemValueRef::CellData { value },
+                ) => {
                     count += 1;
                     Some(CachedDataItem::CellData {
-                        cell: *cell,
+                        cell,
                         value: value.clone(),
                     })
                 }

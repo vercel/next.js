@@ -1,22 +1,17 @@
 use std::{
     hash::{BuildHasherDefault, Hash},
-    mem::take,
     ops::{Deref, DerefMut},
-    panic,
     thread::available_parallelism,
 };
 
-use auto_hash_map::{map::Entry, AutoMap};
 use dashmap::DashMap;
-use either::Either;
 use rustc_hash::FxHasher;
 use turbo_tasks::{KeyValuePair, TaskId};
 
 use crate::{
-    backend::indexed::Indexed,
     data::{
-        CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue,
-        CachedDataItemValueRef,
+        CachedDataItem, CachedDataItemKey, CachedDataItemStorage, CachedDataItemType,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut,
     },
     utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
@@ -123,15 +118,7 @@ impl PersistanceState {
     }
 }
 
-const INDEX_THRESHOLD: usize = 128;
-
-type IndexedMap =
-    AutoMap<Option<CachedDataItemIndex>, AutoMap<CachedDataItemKey, CachedDataItemValue>>;
-
-enum InnerStorageMap {
-    Plain(AutoMap<CachedDataItemKey, CachedDataItemValue>),
-    Indexed(IndexedMap),
-}
+type InnerStorageMap = Vec<CachedDataItemStorage>;
 
 pub struct InnerStorage {
     map: InnerStorageMap,
@@ -141,7 +128,7 @@ pub struct InnerStorage {
 impl InnerStorage {
     fn new() -> Self {
         Self {
-            map: InnerStorageMap::Plain(AutoMap::new()),
+            map: Default::default(),
             persistance_state: PersistanceState::default(),
         }
     }
@@ -154,185 +141,99 @@ impl InnerStorage {
         &mut self.persistance_state
     }
 
-    fn check_threshold(&mut self) {
-        let InnerStorageMap::Plain(plain_map) = &mut self.map else {
-            return;
-        };
-        if plain_map.len() >= INDEX_THRESHOLD {
-            let mut map: IndexedMap = AutoMap::new();
-            for (key, value) in take(plain_map).into_iter() {
-                let index = key.index();
-                map.entry(index).or_default().insert(key, value);
-            }
-            self.map = InnerStorageMap::Indexed(map);
+    fn get_or_create_map_mut(&mut self, ty: CachedDataItemType) -> &mut CachedDataItemStorage {
+        let i = self.map.iter().position(|m| m.ty() == ty);
+        if let Some(i) = i {
+            &mut self.map[i]
+        } else {
+            self.map.push(CachedDataItemStorage::new(ty));
+            self.map.last_mut().unwrap()
         }
     }
 
-    fn get_or_create_map_mut(
-        &mut self,
-        key: &CachedDataItemKey,
-    ) -> &mut AutoMap<CachedDataItemKey, CachedDataItemValue> {
-        self.check_threshold();
-        match &mut self.map {
-            InnerStorageMap::Plain(map) => map,
-            InnerStorageMap::Indexed(map) => map.entry(key.index()).or_default(),
-        }
+    fn get_map_mut(&mut self, ty: CachedDataItemType) -> Option<&mut CachedDataItemStorage> {
+        self.map.iter_mut().find(|m| m.ty() == ty)
     }
 
-    fn get_map_mut(
-        &mut self,
-        key: &CachedDataItemKey,
-    ) -> Option<&mut AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        self.check_threshold();
-        match &mut self.map {
-            InnerStorageMap::Plain(map) => Some(map),
-            InnerStorageMap::Indexed(map) => map.get_mut(&key.index()),
-        }
-    }
-
-    fn get_map(
-        &self,
-        key: &CachedDataItemKey,
-    ) -> Option<&AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        match &self.map {
-            InnerStorageMap::Plain(map) => Some(map),
-            InnerStorageMap::Indexed(map) => map.get(&key.index()),
-        }
-    }
-
-    fn index_map(
-        &self,
-        index: <CachedDataItemKey as Indexed>::Index,
-    ) -> Option<&AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        match &self.map {
-            InnerStorageMap::Plain(map) => Some(map),
-            InnerStorageMap::Indexed(map) => map.get(&index),
-        }
-    }
-
-    fn index_map_mut(
-        &mut self,
-        index: <CachedDataItemKey as Indexed>::Index,
-    ) -> Option<&mut AutoMap<CachedDataItemKey, CachedDataItemValue>> {
-        match &mut self.map {
-            InnerStorageMap::Plain(map) => Some(map),
-            InnerStorageMap::Indexed(map) => map.get_mut(&index),
-        }
+    fn get_map(&self, ty: CachedDataItemType) -> Option<&CachedDataItemStorage> {
+        self.map.iter().find(|m| m.ty() == ty)
     }
 
     pub fn add(&mut self, item: CachedDataItem) -> bool {
-        let (key, value) = item.into_key_and_value();
-        match self.get_or_create_map_mut(&key).entry(key) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
-        }
+        let ty = item.ty();
+        self.get_or_create_map_mut(ty).add(item)
     }
 
     pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
-        let (key, value) = item.into_key_and_value();
-        self.get_or_create_map_mut(&key).insert(key, value)
+        let ty = item.ty();
+        self.get_or_create_map_mut(ty).insert(item)
     }
 
     pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
-        self.get_map_mut(key).and_then(|m| {
-            if let Some(result) = m.remove(key) {
-                m.shrink_amortized();
-                Some(result)
-            } else {
-                None
-            }
-        })
+        self.get_map_mut(key.ty()).and_then(|m| m.remove(key))
     }
 
     pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
-        self.get_map(key)
-            .and_then(|m| m.get(key))
-            .map(|value| value.as_ref())
+        self.get_map(key.ty()).and_then(|m| m.get(key))
     }
 
-    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
-        self.get_map_mut(key).and_then(|m| m.get_mut(key))
+    pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+        self.get_map_mut(key.ty()).and_then(|m| m.get_mut(key))
     }
 
     pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
-        self.get_map(key)
+        self.get_map(key.ty())
             .map(|m| m.contains_key(key))
             .unwrap_or_default()
     }
 
-    pub fn is_indexed(&self) -> bool {
-        matches!(self.map, InnerStorageMap::Indexed { .. })
-    }
-
     pub fn iter(
         &self,
-        index: <CachedDataItemKey as Indexed>::Index,
-    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        self.index_map(index)
-            .map(|m| m.iter())
-            .into_iter()
-            .flatten()
+        ty: CachedDataItemType,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        self.get_map(ty).map(|m| m.iter()).into_iter().flatten()
     }
 
     pub fn iter_all(
         &self,
-    ) -> impl Iterator<Item = (&CachedDataItemKey, CachedDataItemValueRef<'_>)> {
-        match &self.map {
-            InnerStorageMap::Plain(map) => Either::Left(map.iter()),
-            InnerStorageMap::Indexed(map) => Either::Right(map.iter().flat_map(|(_, m)| m.iter())),
-        }
-        .map(|(key, value)| (key, value.as_ref()))
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        self.map.iter().flat_map(|m| m.iter())
     }
 
     pub fn extract_if<'l, F>(
         &'l mut self,
-        index: <CachedDataItemKey as Indexed>::Index,
+        ty: CachedDataItemType,
         mut f: F,
     ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
-        self.index_map_mut(index)
-            .map(move |m| m.extract_if(move |k, v| f(k, v)))
+        // TODO this could be more efficient when the storage would support extract_if directly.
+        // This requires some macro magic to make it work...
+        self.get_map_mut(ty)
+            .map(move |m| {
+                let items_to_extract = m
+                    .iter()
+                    .filter(|(k, v)| f(*k, *v))
+                    .map(|(key, _)| key)
+                    .collect::<Vec<_>>();
+                items_to_extract.into_iter().map(move |key| {
+                    let value = m.remove(&key).unwrap();
+                    CachedDataItem::from_key_and_value(key, value)
+                })
+            })
             .into_iter()
             .flatten()
-            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
-    }
-
-    /// Note this function must only be used on non-indexed storage
-    pub fn extract_if_all<'l, F>(
-        &'l mut self,
-        mut f: F,
-    ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
-    where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, CachedDataItemValueRef<'b>) -> bool + 'l,
-    {
-        let InnerStorageMap::Plain(map) = &mut self.map else {
-            panic!("Do not use extract_if_all with indexed storage")
-        };
-        map.extract_if(move |k, v| f(k, v.as_ref()))
-            .map(|(key, value)| CachedDataItem::from_key_and_value(key, value))
     }
 
     pub fn update(
         &mut self,
-        key: &CachedDataItemKey,
+        key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        let map = self.get_or_create_map_mut(key);
-        if let Some(value) = map.get_mut(key) {
-            let v = take(value);
-            if let Some(v) = update(Some(v)) {
-                *value = v;
-            } else {
-                map.remove(key);
-                map.shrink_amortized();
-            }
-        } else if let Some(v) = update(None) {
-            map.insert(key.clone(), v);
+        let map = self.get_or_create_map_mut(key.ty());
+        if let Some(v) = update(map.remove(&key)) {
+            map.insert(CachedDataItem::from_key_and_value(key, v));
         }
     }
 }
@@ -416,7 +317,7 @@ macro_rules! get_mut {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key {
+        if let Some($crate::data::CachedDataItemValueRefMut::$key {
             value,
         }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
             let () = $crate::data::allow_mut_access::$key;
@@ -440,7 +341,7 @@ macro_rules! iter_many {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         $task
-            .iter($crate::data::indicies::$key)
+            .iter($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, _)| match key {
                 $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
                     $iter_item
@@ -452,11 +353,11 @@ macro_rules! iter_many {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         $task
-            .iter($crate::data::indicies::$key)
+            .iter($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, value)| match (key, value) {
                 (
                     $crate::data::CachedDataItemKey::$key $input,
-                    $crate::data::CachedDataItemValue::$key { value: $value_pattern }
+                    $crate::data::CachedDataItemValueRef::$key { value: $value_pattern }
                 ) $(if $cond)? => Some($iter_item),
                 _ => None,
             })
@@ -479,7 +380,7 @@ macro_rules! update {
         use $crate::backend::operation::TaskGuard;
         #[allow(unused_mut)]
         let mut update = $update;
-        $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
+        $task.update($crate::data::CachedDataItemKey::$key $input, |old| {
             update(old.and_then(|old| {
                 if let $crate::data::CachedDataItemValue::$key { value } = old {
                     Some(value)

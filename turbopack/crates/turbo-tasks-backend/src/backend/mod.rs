@@ -1,4 +1,3 @@
-pub mod indexed;
 mod operation;
 mod persisted_storage_log;
 mod storage;
@@ -49,7 +48,7 @@ use crate::{
     },
     backing_storage::BackingStorage,
     data::{
-        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemIndex, CachedDataItemKey,
+        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataUpdate, CellRef, CollectibleRef,
         CollectiblesRef, DirtyState, InProgressCellState, InProgressState, OutputValue, RootState,
     },
@@ -459,7 +458,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                         AggregatedDirtyContainer {
                             task
                         } count if count.get(self.session_id) > 0 => {
-                            *task
+                            task
                         }
                     );
                     if is_dirty {
@@ -1001,13 +1000,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Current(TaskId),
                     Outdated(TaskId),
                 }
-                let children = task
-                    .iter(CachedDataItemIndex::Children)
-                    .filter_map(|(key, _)| match *key {
-                        CachedDataItemKey::Child { task } => Some(Child::Current(task)),
-                        CachedDataItemKey::OutdatedChild { task } => Some(Child::Outdated(task)),
-                        _ => None,
-                    })
+                let children = iter_many!(task, Child { task } => Child::Current(task))
+                    .chain(iter_many!(task, OutdatedChild { task } => Child::Outdated(task)))
                     .collect::<Vec<_>>();
                 for child in children {
                     match child {
@@ -1030,18 +1024,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     Current(CollectibleRef, i32),
                     Outdated(CollectibleRef),
                 }
-                let collectibles = task
-                    .iter(CachedDataItemIndex::Collectibles)
-                    .filter_map(|(key, value)| match (key, value) {
-                        (
-                            &CachedDataItemKey::Collectible { collectible },
-                            &CachedDataItemValue::Collectible { value },
-                        ) => Some(Collectible::Current(collectible, value)),
-                        (&CachedDataItemKey::OutdatedCollectible { collectible }, _) => {
-                            Some(Collectible::Outdated(collectible))
-                        }
-                        _ => None,
-                    })
+                let collectibles = iter_many!(task, Collectible { collectible } value => Collectible::Current(collectible, *value))
+                    .chain(iter_many!(task, OutdatedCollectible { collectible } => Collectible::Outdated(collectible)))
                     .collect::<Vec<_>>();
                 for collectible in collectibles {
                     match collectible {
@@ -1068,23 +1052,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     OutdatedCell(CellRef),
                     OutdatedOutput(TaskId),
                 }
-                let dependencies = task
-                    .iter(CachedDataItemIndex::Dependencies)
-                    .filter_map(|(key, _)| match *key {
-                        CachedDataItemKey::CellDependency { target } => {
-                            Some(Dep::CurrentCell(target))
-                        }
-                        CachedDataItemKey::OutputDependency { target } => {
-                            Some(Dep::CurrentOutput(target))
-                        }
-                        CachedDataItemKey::OutdatedCellDependency { target } => {
-                            Some(Dep::OutdatedCell(target))
-                        }
-                        CachedDataItemKey::OutdatedOutputDependency { target } => {
-                            Some(Dep::OutdatedOutput(target))
-                        }
-                        _ => None,
-                    })
+                let dependencies = iter_many!(task, CellDependency { target } => Dep::CurrentCell(target))
+                    .chain(iter_many!(task, OutputDependency { target } => Dep::CurrentOutput(target)))
+                    .chain(iter_many!(task, OutdatedCellDependency { target } => Dep::OutdatedCell(target)))
+                    .chain(iter_many!(task, OutdatedOutputDependency { target } => Dep::OutdatedOutput(target)))
                     .collect::<Vec<_>>();
                 for dep in dependencies {
                     match dep {
@@ -1237,7 +1208,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // handle cell counters: update max index and remove cells that are no longer used
         let mut old_counters: HashMap<_, _> =
-            get_many!(task, CellTypeMaxIndex { cell_type } max_index => (*cell_type, *max_index));
+            get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
         for (&cell_type, &max_index) in cell_counters.iter() {
             if let Some(old_max_index) = old_counters.remove(&cell_type) {
                 if old_max_index != max_index {
@@ -1262,123 +1233,64 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Remove no longer existing cells and notify in progress cells
         // find all outdated data items (removed cells, outdated edges)
-        if task.is_indexed() {
-            removed_data.extend(task.extract_if(
-                CachedDataItemIndex::InProgressCell,
-                |key, value| {
-                    match (key, value) {
-                        (
-                            &CachedDataItemKey::InProgressCell { cell },
-                            CachedDataItemValue::InProgressCell { value },
-                        ) if cell_counters
-                            .get(&cell.type_id)
-                            .is_none_or(|start_index| cell.index >= *start_index) =>
-                        {
-                            value.event.notify(usize::MAX);
-                            true
-                        }
-                        _ => false,
-                    }
-                },
-            ));
-            removed_data.extend(task.extract_if(CachedDataItemIndex::CellData, |key, _| {
-                matches!(key, &CachedDataItemKey::CellData { cell } if cell_counters
-                        .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
-            }));
-            if self.should_track_children() {
-                old_edges.extend(task.iter(CachedDataItemIndex::Children).filter_map(
-                    |(key, _)| match *key {
-                        CachedDataItemKey::OutdatedChild { task } => {
-                            Some(OutdatedEdge::Child(task))
-                        }
-                        _ => None,
-                    },
-                ));
-                old_edges.extend(task.iter(CachedDataItemIndex::Collectibles).filter_map(
-                    |(key, value)| match (key, value) {
-                        (
-                            CachedDataItemKey::OutdatedCollectible { collectible },
-                            CachedDataItemValue::OutdatedCollectible { value },
-                        ) => Some(OutdatedEdge::Collectible(*collectible, *value)),
-                        _ => None,
-                    },
-                ));
-            }
-            if self.should_track_dependencies() {
-                old_edges.extend(task.iter(CachedDataItemIndex::Dependencies).filter_map(
-                    |(key, _): (&CachedDataItemKey, &CachedDataItemValue)| match *key {
-                        CachedDataItemKey::OutdatedCellDependency { target } => {
-                            Some(OutdatedEdge::CellDependency(target))
-                        }
-                        CachedDataItemKey::OutdatedOutputDependency { target } => {
-                            Some(OutdatedEdge::OutputDependency(target))
-                        }
-                        _ => None,
-                    },
-                ));
-                old_edges.extend(task.iter(CachedDataItemIndex::CellDependent).filter_map(
-                    |(key, _)| {
-                        match *key {
-                            CachedDataItemKey::CellDependent { cell, task }
-                                if cell_counters
-                                    .get(&cell.type_id)
-                                    .is_none_or(|start_index| cell.index >= *start_index) =>
-                            {
-                                Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
-                            }
-                            _ => None,
-                        }
-                    },
-                ));
-            }
-        } else {
-            removed_data.extend(task.extract_if_all(|key, value| {
+        removed_data.extend(
+            task.extract_if(CachedDataItemType::InProgressCell, |key, value| {
                 match (key, value) {
                     (
-                        &CachedDataItemKey::InProgressCell { cell },
+                        CachedDataItemKey::InProgressCell { cell },
                         CachedDataItemValueRef::InProgressCell { value },
                     ) if cell_counters
                         .get(&cell.type_id)
                         .is_none_or(|start_index| cell.index >= *start_index) =>
                     {
                         value.event.notify(usize::MAX);
-                        return true;
+                        true
                     }
-                    (&CachedDataItemKey::CellData { cell }, _)
-                        if cell_counters
-                            .get(&cell.type_id)
-                            .is_none_or(|start_index| cell.index >= *start_index) =>
-                    {
-                        return true;
-                    }
-                    (&CachedDataItemKey::OutdatedChild { task }, _) => {
-                        old_edges.push(OutdatedEdge::Child(task));
-                    }
-                    (
-                        &CachedDataItemKey::OutdatedCollectible { collectible },
-                        CachedDataItemValueRef::OutdatedCollectible { value },
-                    ) => old_edges.push(OutdatedEdge::Collectible(collectible, *value)),
-                    (&CachedDataItemKey::OutdatedCellDependency { target }, _) => {
-                        old_edges.push(OutdatedEdge::CellDependency(target));
-                    }
-                    (&CachedDataItemKey::OutdatedOutputDependency { target }, _) => {
-                        old_edges.push(OutdatedEdge::OutputDependency(target));
-                    }
-                    (&CachedDataItemKey::OutdatedCollectiblesDependency { target }, _) => {
-                        old_edges.push(OutdatedEdge::CollectiblesDependency(target));
-                    }
-                    (&CachedDataItemKey::CellDependent { cell, task }, _)
-                        if cell_counters
-                            .get(&cell.type_id)
-                            .is_none_or(|start_index| cell.index >= *start_index) =>
-                    {
-                        old_edges.push(OutdatedEdge::RemovedCellDependent(task, cell.type_id));
-                    }
-                    _ => {}
+                    _ => false,
                 }
-                false
-            }));
-        };
+            }),
+        );
+        removed_data.extend(task.extract_if(CachedDataItemType::CellData, |key, _| {
+            matches!(key, CachedDataItemKey::CellData { cell } if cell_counters
+                        .get(&cell.type_id).is_none_or(|start_index| cell.index >= *start_index))
+        }));
+        if self.should_track_children() {
+            old_edges.extend(task.iter(CachedDataItemType::OutdatedChild).filter_map(
+                |(key, _)| match key {
+                    CachedDataItemKey::OutdatedChild { task } => Some(OutdatedEdge::Child(task)),
+                    _ => None,
+                },
+            ));
+            old_edges.extend(
+                task.iter(CachedDataItemType::OutdatedCollectible)
+                    .filter_map(|(key, value)| match (key, value) {
+                        (
+                            CachedDataItemKey::OutdatedCollectible { collectible },
+                            CachedDataItemValueRef::OutdatedCollectible { value },
+                        ) => Some(OutdatedEdge::Collectible(collectible, *value)),
+                        _ => None,
+                    }),
+            );
+        }
+        if self.should_track_dependencies() {
+            old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
+            old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
+            old_edges.extend(task.iter(CachedDataItemType::CellDependent).filter_map(
+                |(key, _)| {
+                    match key {
+                        CachedDataItemKey::CellDependent { cell, task }
+                            if cell_counters
+                                .get(&cell.type_id)
+                                .is_none_or(|start_index| cell.index >= *start_index) =>
+                        {
+                            Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
+                        }
+                        _ => None,
+                    }
+                },
+            ));
+        }
+
         drop(task);
 
         // Remove outdated edges first, before removing in_progress+dirty flag.
