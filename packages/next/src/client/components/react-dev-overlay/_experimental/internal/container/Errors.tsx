@@ -107,7 +107,6 @@ export function Errors({
   isAppDir,
   errors,
   initialDisplayState,
-  versionInfo,
   hasStaticIndicator,
   debugInfo,
   versionInfo,
