@@ -6,5 +6,11 @@ console.log(pipe('d', 'e', 'f'));
 
 
 it('should import only pipe.js', () => {
-  expect(pipe).toBeDefined();
-});
+  const modules = Object.keys(__turbopack_modules__);
+  expect(modules).toContainEqual(
+    expect.stringMatching(/input\/node_modules\/ramda\/pipe/)
+  );
+  expect(modules).not.toContainEqual(
+    expect.stringMatching(/input\/node_modules\/ramda\/index/)
+  );
+})
