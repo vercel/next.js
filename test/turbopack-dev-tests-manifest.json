@@ -500,11 +500,60 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/components/Errors/error-overlay-layout/error-overlay-layout.test.tsx": {
+    "passed": [
+      "ErrorOverlayLayout Component renders ErrorOverlayLayout with provided props",
+      "ErrorOverlayLayout Component sends feedback when clicking helpful button",
+      "ErrorOverlayLayout Component sends feedback when clicking not helpful button",
+      "ErrorOverlayLayout Component voting buttons have aria-hidden icons"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/helpers/parse-url-from-text.test.ts": {
+    "passed": [
+      "parseUrlFromText should extract a URL from text",
+      "parseUrlFromText should extract multiple URLs from text",
+      "parseUrlFromText should filter URLs using matcherFunc",
+      "parseUrlFromText should handle URLs with paths and query parameters",
+      "parseUrlFromText should handle empty string input",
+      "parseUrlFromText should return empty array when no URLs are found"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/client/components/react-dev-overlay/_experimental/internal/helpers/webpack-module-path.test.ts": {
+    "passed": [
+      "webpack-module-path formatFrameSourceFile should return the original file path",
+      "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
+      "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/client/components/react-dev-overlay/internal/helpers/webpack-module-path.test.ts": {
     "passed": [
       "webpack-module-path formatFrameSourceFile should return the original file path",
       "webpack-module-path isWebpackInternalResource should return false for non-webpack-internal paths",
       "webpack-module-path isWebpackInternalResource should return true for webpack-internal paths"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/client/components/react-dev-overlay/server/get-next-error-feedback-middleware.test.ts": {
+    "passed": [
+      "getNextErrorFeedbackMiddleware calls next() if path does not match",
+      "getNextErrorFeedbackMiddleware records telemetry when feedback is submitted",
+      "getNextErrorFeedbackMiddleware returns 400 if params are missing",
+      "getNextErrorFeedbackMiddleware returns 500 if telemetry recording fails"
     ],
     "failed": [],
     "pending": [],
@@ -888,6 +937,18 @@
       "AwaiterOnce/AwaiterMulti AwaiterMulti calls onError for rejected promises",
       "AwaiterOnce/AwaiterMulti AwaiterOnce awaits promises added by other promises",
       "AwaiterOnce/AwaiterMulti AwaiterOnce calls onError for rejected promises"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "packages/next/src/server/app-render/action-handler.test.ts": {
+    "passed": [
+      "parseHostHeader should return correct host",
+      "parseHostHeader should return correct x-forwarded-host when provided in array",
+      "parseHostHeader should return whichever matches provided origin",
+      "parseHostHeader should return x-forwarded-host over host header"
     ],
     "failed": [],
     "pending": [],
@@ -1330,6 +1391,18 @@
     "flakey": [],
     "runtimeError": false
   },
+  "packages/next/src/server/server-utils.test.ts": {
+    "passed": [
+      "getParamsFromRouteMatches should handle optional params",
+      "getParamsFromRouteMatches should handle rest params",
+      "getParamsFromRouteMatches should return nothing for a non-dynamic route",
+      "getParamsFromRouteMatches should return the params from the route matches"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "packages/next/src/server/web/spec-extension/adapters/headers.test.ts": {
     "passed": [
       "HeadersAdapter case-insensitive should handle different case for header names",
@@ -1661,13 +1734,13 @@
       "ReactRefreshRequire app provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire app provides fresh value for exports.* in parents",
       "ReactRefreshRequire app provides fresh value for module.exports in parents",
+      "ReactRefreshRequire app re-runs accepted modules",
       "ReactRefreshRequire app runs dependencies before dependents",
       "ReactRefreshRequire app stops update propagation after module-level errors"
     ],
     "failed": [],
     "pending": [
-      "ReactRefreshRequire app propagates a module that stops accepting in next version",
-      "ReactRefreshRequire app re-runs accepted modules"
+      "ReactRefreshRequire app propagates a module that stops accepting in next version"
     ],
     "flakey": [],
     "runtimeError": false
@@ -1954,8 +2027,8 @@
       "ReactRefreshLogBox turbo logbox: anchors links in error messages",
       "ReactRefreshLogBox turbo module init error not shown",
       "ReactRefreshLogBox turbo non-Error errors are handled properly",
-      "ReactRefreshLogBox turbo should hide unrelated frames in stack trace with node:internal calls",
-      "ReactRefreshLogBox turbo should show anonymous frames in stack trace",
+      "ReactRefreshLogBox turbo should collapse nodejs internal stack frames from stack trace",
+      "ReactRefreshLogBox turbo should show anonymous frames from stack trace",
       "ReactRefreshLogBox turbo should strip whitespace correctly with newline",
       "ReactRefreshLogBox turbo unterminated JSX"
     ],
@@ -1969,8 +2042,8 @@
       "ReactRefreshLogBox default logbox: anchors links in error messages",
       "ReactRefreshLogBox default module init error not shown",
       "ReactRefreshLogBox default non-Error errors are handled properly",
-      "ReactRefreshLogBox default should hide unrelated frames in stack trace with node:internal calls",
-      "ReactRefreshLogBox default should show anonymous frames in stack trace",
+      "ReactRefreshLogBox default should collapse nodejs internal stack frames from stack trace",
+      "ReactRefreshLogBox default should show anonymous frames from stack trace",
       "ReactRefreshLogBox default should strip whitespace correctly with newline",
       "ReactRefreshLogBox default unterminated JSX",
       "ReactRefreshLogBox turbo internal package errors"
@@ -2164,7 +2237,8 @@
       "app-dir - capture-console-error should capture browser console error in render and dedupe if necessary",
       "app-dir - capture-console-error should capture browser console error in render and dedupe when multi same errors logged",
       "app-dir - capture-console-error should capture server replay error instance from console error",
-      "app-dir - capture-console-error should capture server replay string error from console error"
+      "app-dir - capture-console-error should capture server replay string error from console error",
+      "app-dir - capture-console-error should display the error message in error event when event.error is not present"
     ],
     "failed": [],
     "pending": [],
@@ -2242,6 +2316,16 @@
     "passed": [
       "develop - app-dir - edge errros hmr should recover from build errors when client component error",
       "develop - app-dir - edge errros hmr should recover from build errors when server component error"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/development/app-dir/error-overlay/async-client-component/async-client-component.test.ts": {
+    "passed": [
+      "app-dir - async-client-component app router client component async module",
+      "app-dir - async-client-component app router server component async module"
     ],
     "failed": [],
     "pending": [],
@@ -3574,7 +3658,9 @@
   "test/e2e/app-dir/actions/app-action-progressive-enhancement.test.ts": {
     "passed": [
       "app-dir action progressive enhancement should support actions from client without JS",
-      "app-dir action progressive enhancement should support formData and redirect without JS"
+      "app-dir action progressive enhancement should support formData and redirect without JS",
+      "app-dir action progressive enhancement should support headers and cookies without JS (runtime: edge)",
+      "app-dir action progressive enhancement should support headers and cookies without JS (runtime: node)"
     ],
     "failed": [],
     "pending": [],
@@ -3730,6 +3816,16 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/app-catch-all-optional/app-catch-all-optional.test.ts": {
+    "passed": [
+      "app-catch-all-optional should handle optional catchall",
+      "app-catch-all-optional should handle optional catchall with no params"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/app-client-cache/client-cache.defaults.test.ts": {
     "passed": [
       "app dir client cache semantics (default semantics) should return fresh data every navigation"
@@ -3816,6 +3912,7 @@
       "app dir - css css support server layouts should support external css imports",
       "app dir - css css support server pages should not contain pages css in app dir page",
       "app dir - css css support server pages should support css modules inside server pages",
+      "app dir - css css support server pages should support css modules shared between server pages",
       "app dir - css css support server pages should support global css inside server pages",
       "app dir - css css support should not affect css orders during HMR",
       "app dir - css css support should reload @import styles during HMR",
@@ -3922,6 +4019,15 @@
       "app dir - external dependency should transpile specific external packages with the `transpilePackages` option",
       "app dir - external dependency should use the same async storages if imported directly",
       "app dir - external dependency should use the same export type for packages in both ssr and client"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/app-fetch-deduping-errors/app-fetch-deduping-errors.test.ts": {
+    "passed": [
+      "app-fetch-errors should still successfully render when a fetch request that acquires a cache lock errors"
     ],
     "failed": [],
     "pending": [],
@@ -4694,6 +4800,18 @@
     "passed": [
       "catchall-specificity should match the generic catchall correctly",
       "catchall-specificity should match the specific catchall correctly"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/client-module-with-package-type/index.test.ts": {
+    "passed": [
+      "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: import cjs",
+      "esm-client-module-without-exports \"type\": \"commonjs\" in package.json should render without errors: require cjs",
+      "esm-client-module-without-exports \"type\": \"module\" in package.json should render without errors: import esm",
+      "esm-client-module-without-exports \"type\": \"module\" in package.json should render without errors: require esm"
     ],
     "failed": [],
     "pending": [],
@@ -5992,6 +6110,21 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/metadata-streaming/metadata-streaming.test.ts": {
+    "passed": [
+      "metadata-streaming should load the initial html without slow metadata during navigation",
+      "metadata-streaming should load the page without delayed metadata",
+      "metadata-streaming should not insert metadata twice or inject into body",
+      "metadata-streaming should render the metadata in the browser",
+      "metadata-streaming should send streaming response for headless browser bots",
+      "metadata-streaming should send the blocking response for html limited bots",
+      "metadata-streaming should still load viewport meta tags even if metadata is delayed"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/metadata-suspense/index.test.ts": {
     "passed": [
       "app dir - metadata dynamic routes suspense should render metadata in head even root layout is wrapped with Suspense"
@@ -6130,6 +6263,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/navigation-layout-suspense/navigation-layout-suspense.test.ts": {
+    "passed": [
+      "app dir - navigation with Suspense in nested layout resolves data after client navigation to a nested layout with Suspense"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/navigation-redirect-import/navigation-redirect-import.test.ts": {
     "passed": ["navigation-redirect-import should work using fetch"],
     "failed": [],
@@ -6151,6 +6293,7 @@
       "app dir - navigation hash should scroll to the specified hash",
       "app dir - navigation hash-link-back-to-same-page should scroll to the specified hash",
       "app dir - navigation hash-with-scroll-offset should scroll to the specified hash",
+      "app dir - navigation locale warnings should have no warnings in pages router",
       "app dir - navigation locale warnings should warn about using the `locale` prop with `next/link` in app router",
       "app dir - navigation middleware redirect should change browser location when router.refresh() gets a redirect response",
       "app dir - navigation navigating to a page with async metadata shows a fallback when prefetch completed",
@@ -6192,9 +6335,7 @@
       "app dir - navigation relative hashes and queries should work with both relative hashes and queries",
       "app dir - navigation scroll restoration should restore original scroll position when navigating back"
     ],
-    "failed": [
-      "app dir - navigation locale warnings should have no warnings in pages router"
-    ],
+    "failed": [],
     "pending": [],
     "flakey": [],
     "runtimeError": false
@@ -6588,6 +6729,23 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/non-root-project-monorepo/non-root-project-monorepo.test.ts": {
+    "passed": [
+      "non-root-project-monorepo import.meta.url should work during RSC",
+      "non-root-project-monorepo import.meta.url should work during SSR",
+      "non-root-project-monorepo import.meta.url should work on client-side",
+      "non-root-project-monorepo monorepo-package should work during RSC",
+      "non-root-project-monorepo monorepo-package should work during SSR",
+      "non-root-project-monorepo monorepo-package should work on client-side",
+      "non-root-project-monorepo source-maps should work on RSC",
+      "non-root-project-monorepo source-maps should work on SSR",
+      "non-root-project-monorepo source-maps should work on client-side"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/not-found-default/index.test.ts": {
     "passed": [
       "app dir - not found with default 404 page should be able to navigate to page calling not-found",
@@ -6708,6 +6866,7 @@
       "parallel-route-not-found should handle `notFound()` in generateMetadata on a page that also renders a parallel route",
       "parallel-route-not-found should handle a layout that attempts to render a missing parallel route",
       "parallel-route-not-found should handle multiple missing parallel routes",
+      "parallel-route-not-found should not include any parallel route warnings for a deliberate notFound()",
       "parallel-route-not-found should not log any warnings for a regular not found page",
       "parallel-route-not-found should render the page & slots if all parallel routes are found"
     ],
@@ -7067,6 +7226,17 @@
     "passed": [],
     "failed": [],
     "pending": ["ppr-incremental should skip next dev"],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/app-dir/ppr-missing-root-params/ppr-missing-root-params.test.ts": {
+    "passed": [
+      "ppr-missing-root-params (multiple) should result in a build error",
+      "ppr-missing-root-params (nested) should result in a build error",
+      "ppr-missing-root-params (single) should result in a build error"
+    ],
+    "failed": [],
+    "pending": [],
     "flakey": [],
     "runtimeError": false
   },
@@ -8051,11 +8221,7 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/static-shell-debugging/static-shell-debugging.test.ts": {
-    "passed": [
-      "static-shell-debugging ppr = false, debugging = false should render the full page",
-      "static-shell-debugging ppr = true, debugging = true should only render the static shell",
-      "static-shell-debugging ppr = true, debugging = true should skip hydration to avoid blanking out the page"
-    ],
+    "passed": ["static-shell-debugging should render the full page"],
     "failed": [],
     "pending": [],
     "flakey": [],
@@ -8208,6 +8374,15 @@
     "flakey": [],
     "runtimeError": false
   },
+  "test/e2e/app-dir/use-cache-custom-handler/use-cache-custom-handler.test.ts": {
+    "passed": [
+      "use-cache-custom-handler should use custom cache handler if provided"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
   "test/e2e/app-dir/use-cache-route-handler-only/use-cache-route-handler-only.test.ts": {
     "passed": [
       "use-cache-route-handler-only should cache results in node route handlers"
@@ -8349,13 +8524,6 @@
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
-    "runtimeError": false
-  },
-  "test/e2e/async-modules-app/index.test.ts": {
-    "passed": ["Async modules app router server component async module"],
-    "failed": [],
-    "pending": ["Async modules app router client component async module"],
     "flakey": [],
     "runtimeError": false
   },
@@ -10495,20 +10663,20 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
-    "passed": [],
-    "failed": [],
-    "pending": [
-      "yarn PnP should compile and serve the index page correctly with-eslint"
-    ],
-    "flakey": [],
-    "runtimeError": false
-  },
   "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
       "yarn PnP should compile and serve the index page correctly mdx-pages"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/e2e/yarn-pnp/test/with-eslint.test.ts": {
+    "passed": [],
+    "failed": [],
+    "pending": [
+      "yarn PnP should compile and serve the index page correctly with-eslint"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11257,14 +11425,18 @@
   },
   "test/integration/build-indicator/test/index.test.js": {
     "passed": [
-      "Build Activity Indicator Disabled with next.config.js Does not add the build indicator container",
-      "Build Activity Indicator Enabled Adds the build indicator container",
-      "Build Activity Indicator Enabled Shows build indicator when page is built from modifying",
+      "Build Activity Indicator Disabled with next.config.js - (app) Does not add the build indicator container",
+      "Build Activity Indicator Disabled with next.config.js - (pages) Does not add the build indicator container",
+      "Build Activity Indicator Enabled - (app) Adds the build indicator container",
+      "Build Activity Indicator Enabled - (app) Shows build indicator when page is built from modifying",
+      "Build Activity Indicator Enabled - (pages) Adds the build indicator container",
+      "Build Activity Indicator Enabled - (pages) Shows build indicator when page is built from modifying",
       "Build Activity Indicator should validate buildActivityPosition config"
     ],
     "failed": [],
     "pending": [
-      "Build Activity Indicator Enabled webpack only Shows the build indicator when a page is built during navigation"
+      "Build Activity Indicator Enabled - (app) webpack only Shows the build indicator when a page is built during navigation",
+      "Build Activity Indicator Enabled - (pages) webpack only Shows the build indicator when a page is built during navigation"
     ],
     "flakey": [],
     "runtimeError": false
@@ -11492,6 +11664,8 @@
       "Config Experimental Warning should not show warning with config from object",
       "Config Experimental Warning should not show warning with default config from function",
       "Config Experimental Warning should not show warning with default value",
+      "Config Experimental Warning should show the configured value for numerical features",
+      "Config Experimental Warning should show warning with a symbol indicating that a default `true` value is set to `false`",
       "Config Experimental Warning should show warning with config from function with experimental",
       "Config Experimental Warning should show warning with config from object with experimental",
       "Config Experimental Warning should show warning with config from object with experimental and multiple keys"
@@ -11702,6 +11876,18 @@
       "create-next-app prompts should prompt user for choice if --tailwind is absent",
       "create-next-app prompts should prompt user for choice if directory name is absent",
       "create-next-app prompts should prompt user to confirm reset preferences"
+    ],
+    "failed": [],
+    "pending": [],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/create-next-app/templates/app-api.test.ts": {
+    "passed": [
+      "create-next-app --api (Headless App) should create JavaScript project with --js flag",
+      "create-next-app --api (Headless App) should create TypeScript project with --ts flag",
+      "create-next-app --api (Headless App) should create project inside \"src\" directory with --src-dir flag",
+      "create-next-app --api (Headless App) should enable turbopack dev with --turbopack flag"
     ],
     "failed": [],
     "pending": [],
@@ -16075,6 +16261,9 @@
       "Image Optimizer config checks should error when loader contains invalid value",
       "Image Optimizer config checks should error when localPatterns has invalid prop",
       "Image Optimizer config checks should error when localPatterns length exceeds 25",
+      "Image Optimizer config checks should error when qualities array has a value thats not an integer",
+      "Image Optimizer config checks should error when qualities array is empty",
+      "Image Optimizer config checks should error when qualities length exceeds 20",
       "Image Optimizer config checks should error when remotePatterns has invalid prop",
       "Image Optimizer config checks should error when remotePatterns is missing hostname",
       "Image Optimizer config checks should error when remotePatterns length exceeds 50",
@@ -17405,6 +17594,26 @@
       "Image localPatterns config production mode should block unmatched image top-level",
       "Image localPatterns config production mode should build correct images-manifest.json",
       "Image localPatterns config production mode should load matching images"
+    ],
+    "flakey": [],
+    "runtimeError": false
+  },
+  "test/integration/next-image-new/app-dir-qualities/test/index.test.ts": {
+    "passed": [
+      "Image localPatterns config development mode should fail to load img when quality is 100",
+      "Image localPatterns config development mode should load img when quality 42",
+      "Image localPatterns config development mode should load img when quality 69",
+      "Image localPatterns config development mode should load img when quality 88",
+      "Image localPatterns config development mode should load img when quality is undefined"
+    ],
+    "failed": [],
+    "pending": [
+      "Image localPatterns config production mode should build correct images-manifest.json",
+      "Image localPatterns config production mode should fail to load img when quality is 100",
+      "Image localPatterns config production mode should load img when quality 42",
+      "Image localPatterns config production mode should load img when quality 69",
+      "Image localPatterns config production mode should load img when quality 88",
+      "Image localPatterns config production mode should load img when quality is undefined"
     ],
     "flakey": [],
     "runtimeError": false
