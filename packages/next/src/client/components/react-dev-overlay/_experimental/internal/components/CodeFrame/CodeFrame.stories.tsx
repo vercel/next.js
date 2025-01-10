@@ -16,7 +16,7 @@ type Story = StoryObj<typeof CodeFrame>
 
 const baseStackFrame = {
   file: './app/page.tsx',
-  methodName: 'MyComponent',
+  methodName: 'Home',
   arguments: [],
   lineNumber: 10,
   column: 5,
@@ -25,11 +25,11 @@ const baseStackFrame = {
 export const SimpleCodeFrame: Story = {
   args: {
     stackFrame: baseStackFrame,
-    codeFrame: `   8 | \u001b[31mfunction\u001b[39m \u001b[31mMyComponent\u001b[39m() {
-   9 |   \u001b[31mreturn\u001b[39m (
-> 10 |     <\u001b[31mdiv\u001b[39m>Hello \u001b[31mWorld\u001b[39m</\u001b[31mdiv\u001b[39m>
-     |     ^
-  11 |   )
-  12 | }`,
+    codeFrame: `\u001b[0m \u001b[90m 1 \u001b[39m \u001b[36mexport\u001b[39m \u001b[36mdefault\u001b[39m \u001b[36mfunction\u001b[39m \u001b[33mHome\u001b[39m() {\u001b[0m
+\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 2 \u001b[39m   \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'boom'\u001b[39m)\u001b[0m
+\u001b[0m \u001b[90m   \u001b[39m         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m
+\u001b[0m \u001b[90m 3 \u001b[39m   \u001b[36mreturn\u001b[39m \u001b[33m<\u001b[39m\u001b[33mdiv\u001b[39m\u001b[33m>\u001b[39m\u001b[33mHello\u001b[39m \u001b[33mWorld\u001b[39m\u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mdiv\u001b[39m\u001b[33m>\u001b[39m\u001b[0m
+\u001b[0m \u001b[90m 4 \u001b[39m }\u001b[0m
+\u001b[0m \u001b[90m 5 \u001b[39m\u001b[0m`,
   },
 }

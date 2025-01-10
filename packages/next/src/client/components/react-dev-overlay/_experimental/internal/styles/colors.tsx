@@ -6,6 +6,28 @@ export function Colors() {
     <style>
       {css`
         :host {
+          /* Ansi - Temporary */
+          --color-ansi-selection: var(--color-gray-alpha-300);
+          --color-ansi-bg: var(--color-background-200);
+          --color-ansi-fg: var(--color-gray-1000);
+
+          --color-ansi-white: var(--color-gray-700);
+          --color-ansi-black: var(--color-gray-200);
+          --color-ansi-blue: var(--color-blue-700);
+          --color-ansi-cyan: var(--color-blue-700);
+          --color-ansi-green: var(--color-green-700);
+          --color-ansi-magenta: var(--color-blue-700);
+          --color-ansi-red: var(--color-red-700);
+          --color-ansi-yellow: var(--color-amber-800);
+          --color-ansi-bright-white: var(--color-gray-1000);
+          --color-ansi-bright-black: var(--color-gray-700);
+          --color-ansi-bright-blue: var(--color-blue-800);
+          --color-ansi-bright-cyan: var(--color-blue-800);
+          --color-ansi-bright-green: var(--color-green-800);
+          --color-ansi-bright-magenta: var(--color-blue-800);
+          --color-ansi-bright-red: var(--color-red-800);
+          --color-ansi-bright-yellow: var(--color-amber-900);
+
           /* Background Light */
           --color-background-100: #ffffff;
           --color-background-200: #fafafa;
@@ -198,6 +220,28 @@ export function Colors() {
             --color-turbopack-border-blue: #284f80;
             --color-turbopack-background-red: #250d12;
             --color-turbopack-background-blue: #0a1723;
+
+            /* Ansi Light - Temporary */
+            --color-ansi-selection: rgba(95, 126, 151, 0.48);
+            --color-ansi-bg: #111111;
+            --color-ansi-fg: #cccccc;
+
+            --color-ansi-white: #777777;
+            --color-ansi-black: #141414;
+            --color-ansi-blue: #00aaff;
+            --color-ansi-cyan: #88ddff;
+            --color-ansi-green: #98ec65;
+            --color-ansi-magenta: #aa88ff;
+            --color-ansi-red: #ff5555;
+            --color-ansi-yellow: #ffcc33;
+            --color-ansi-bright-white: #ffffff;
+            --color-ansi-bright-black: #777777;
+            --color-ansi-bright-blue: #33bbff;
+            --color-ansi-bright-cyan: #bbecff;
+            --color-ansi-bright-green: #b6f292;
+            --color-ansi-bright-magenta: #cebbff;
+            --color-ansi-bright-red: #ff8888;
+            --color-ansi-bright-yellow: #ffd966;
           }
         }
       `}
