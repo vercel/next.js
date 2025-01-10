@@ -2,7 +2,7 @@ import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
 import type { OriginalStackFrame } from '../../helpers/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
-import { ExternalSmall } from '../../icons/external-small'
+import { ExternalIcon } from '../../icons/external'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
@@ -51,7 +51,7 @@ export const CallStackFrame: React.FC<{
         className="call-stack-frame-method-name"
       >
         <HotlinkedText text={formattedMethod} />
-        {hasSource && <ExternalSmall />}
+        {hasSource && <ExternalIcon width={16} height={16} />}
       </span>
       <span
         className="call-stack-frame-file-source"

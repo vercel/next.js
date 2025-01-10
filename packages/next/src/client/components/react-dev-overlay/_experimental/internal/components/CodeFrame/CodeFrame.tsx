@@ -8,7 +8,7 @@ import { HotlinkedText } from '../hot-linked-text'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
-import { ExternalSmall } from '../../icons/external-small'
+import { ExternalIcon } from '../../icons/external'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 
@@ -74,7 +74,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
-          <ExternalSmall />
+          <ExternalIcon width={16} height={16} />
         </p>
       </div>
       <pre>
