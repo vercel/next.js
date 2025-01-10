@@ -627,6 +627,8 @@ ${ENDGROUP}`)
   const directorySemas = new Map()
 
   const originalRetries = numRetries
+  let hadFailure = false
+
   await Promise.all(
     tests.map(async (test) => {
       const dirName = path.dirname(test.file)
@@ -701,6 +703,7 @@ ${ENDGROUP}`)
           children.forEach((child) => child.kill())
           cleanUpAndExit(1)
         } else {
+          hadFailure = true
           console.log(
             `CONTINUE_ON_ERROR enabled, continuing tests after ${test.file} failed`
           )
@@ -738,6 +741,10 @@ ${ENDGROUP}`)
       if (dirSema) dirSema.release()
     })
   )
+
+  if (hadFailure) {
+    await cleanUpAndExit(1)
+  }
 
   if (options.timings) {
     const curTimings = {}
