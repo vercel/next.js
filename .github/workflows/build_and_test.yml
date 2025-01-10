@@ -28,7 +28,6 @@ env:
   NEXT_TEST_JOB: 1
   NEXT_RSPACK: 1
   NEXT_TEST_PREFER_OFFLINE: 1
-  NEXT_TEST_CONTINUE_ON_ERROR: 1
 
 jobs:
   optimize-ci:
@@ -406,7 +405,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js -c ${TEST_CONCURRENCY} test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-css/index.test.ts test/e2e/app-dir/dynamic-css/index.test.ts test/e2e/app-dir/app-esm-js/index.test.ts
+      afterBuild: NEXT_TEST_CONTINUE_ON_ERROR=1 NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js -c ${TEST_CONCURRENCY} test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-css/index.test.ts test/e2e/app-dir/dynamic-css/index.test.ts test/e2e/app-dir/app-esm-js/index.test.ts
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
@@ -426,7 +425,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      afterBuild: NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js -c ${TEST_CONCURRENCY} test/production/pages-dir/production/test/index.test.ts test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-css/index.test.ts test/e2e/app-dir/dynamic-css/index.test.ts test/e2e/app-dir/app-esm-js/index.test.ts
+      afterBuild: NEXT_TEST_CONTINUE_ON_ERROR=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js -c ${TEST_CONCURRENCY} test/production/pages-dir/production/test/index.test.ts test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-css/index.test.ts test/e2e/app-dir/dynamic-css/index.test.ts test/e2e/app-dir/app-esm-js/index.test.ts
       stepName: 'test-prod-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
 
