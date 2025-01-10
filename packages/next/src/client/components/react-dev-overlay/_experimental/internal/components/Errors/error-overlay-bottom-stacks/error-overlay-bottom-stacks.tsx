@@ -10,7 +10,7 @@ export function ErrorOverlayBottomStacks({
   activeIdx,
 }: ErrorOverlayBottomStacksProps) {
   return (
-    <div className="error-overlay-bottom-stacks-wrapper dialog-exclude-closing-from-outside-click">
+    <div className="error-overlay-bottom-stacks-wrapper">
       {errorsCount > 1 && (
         <div
           className={`error-overlay-bottom-stack-1 ${

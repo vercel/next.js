@@ -114,10 +114,7 @@ export function ErrorPagination({
   }, [nav, activeIdx, readyErrors.length])
 
   return (
-    <div
-      data-nextjs-dialog-left-right
-      className="dialog-exclude-closing-from-outside-click"
-    >
+    <div data-nextjs-dialog-left-right>
       <nav ref={onNav}>
         <button
           ref={buttonLeft}

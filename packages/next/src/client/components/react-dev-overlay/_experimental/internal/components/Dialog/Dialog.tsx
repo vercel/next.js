@@ -25,17 +25,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     setDialog(node)
   }, [])
   useOnClickOutside(dialog, (e) => {
-    // Since we have UIs that live outside the dialog, but are
-    // treated as part of the dialog (e.g. floating header and bottom stacks),
-    // we need to exclude clicks on these elements from closing the dialog
-    if (
-      (e.target as Element).closest(
-        '.dialog-exclude-closing-from-outside-click'
-      )
-    ) {
-      return
-    }
-
     e.preventDefault()
     return onClose?.()
   })
