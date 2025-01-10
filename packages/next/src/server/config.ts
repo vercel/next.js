@@ -27,6 +27,7 @@ import { hasNextSupport } from '../server/ci-info'
 import { transpileConfig } from '../build/next-config-ts/transpile-config'
 import { dset } from '../shared/lib/dset'
 import { normalizeZodErrors } from '../shared/lib/zod'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 
 export { normalizeConfig } from './config-shared'
 export type { DomainLocale, NextConfig } from './config-shared'
@@ -1004,6 +1005,11 @@ function assignDefaults(
     ]),
   ]
 
+  if (!result.experimental.htmlLimitedBots) {
+    // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
+    result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
+  }
+
   return result
 }
 
@@ -1220,6 +1226,12 @@ export default async function loadConfig(
         )
         userConfig.experimental.useLightningcss = false
       }
+    }
+
+    // serialize the regex config into string
+    if (userConfig.experimental?.htmlLimitedBots instanceof RegExp) {
+      userConfig.experimental.htmlLimitedBots =
+        userConfig.experimental.htmlLimitedBots.source
     }
 
     onLoadUserConfig?.(userConfig)
