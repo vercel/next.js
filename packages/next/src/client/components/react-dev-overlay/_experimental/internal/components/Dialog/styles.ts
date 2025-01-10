@@ -13,7 +13,7 @@ const styles = css`
     border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-md);
     max-height: calc(100% - 56px);
-    overflow-y: hidden;
+    position: relative;
   }
 
   @media (max-height: 812px) {
@@ -48,6 +48,8 @@ const styles = css`
     height: 100%;
     display: flex;
     flex-direction: column;
+    box-shadow: var(--shadow-md);
+    border-radius: var(--rounded-xl);
   }
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;

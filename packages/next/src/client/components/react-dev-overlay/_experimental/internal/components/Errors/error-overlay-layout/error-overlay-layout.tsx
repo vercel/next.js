@@ -101,11 +101,11 @@ export function ErrorOverlayLayout({
             />
           </DialogFooter>
         </DialogContent>
+        <ErrorOverlayBottomStacks
+          errorsCount={readyErrors?.length ?? 0}
+          activeIdx={activeIdx ?? 0}
+        />
       </Dialog>
-      <ErrorOverlayBottomStacks
-        errorsCount={readyErrors?.length ?? 0}
-        activeIdx={activeIdx ?? 0}
-      />
     </Overlay>
   )
 }
