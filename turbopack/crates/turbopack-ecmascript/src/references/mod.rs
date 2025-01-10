@@ -1186,36 +1186,47 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
-                if let JsValue::Module(ModuleValue {
-                    esm_reference_index: Some(esm_reference_index),
-                    ..
-                }) = &obj
-                {
-                    if let Some(&r) = import_references.get(*esm_reference_index) {
-                        if let JsValue::Constant(super::analyzer::ConstantValue::Str(export)) =
-                            &prop
-                        {
-                            let r = r.await?;
-                            let r = EsmAssetReference::new(
-                                *r.origin,
-                                *r.request,
-                                *r.issue_source,
-                                Value::new(r.annotations.clone()),
-                                Some(ModulePart::export(export.as_str().into())),
-                                r.import_externals,
-                            )
-                            .to_resolved()
-                            .await?;
+                // Skip LHS of assignments
+                let is_lhs = matches!(
+                    ast_path.last(),
+                    Some(AstParentKind::SimpleAssignTarget(
+                        SimpleAssignTargetField::Member
+                    ))
+                );
 
-                            analysis.add_local_reference(r);
-                            analysis.add_import_reference(r);
-                            analysis.add_binding(EsmBinding::new(
-                                r,
-                                Some(export.to_string().into()),
-                                ResolvedVc::cell(ast_path.clone()),
-                            ));
-                            done.insert(ast_path.clone());
-                            continue;
+                if !is_lhs {
+                    if let JsValue::Module(ModuleValue {
+                        esm_reference_index: Some(esm_reference_index),
+                        ..
+                    }) = &obj
+                    {
+                        if let Some(&r) = import_references.get(*esm_reference_index) {
+                            if let JsValue::Constant(super::analyzer::ConstantValue::Str(export)) =
+                                &prop
+                            {
+                                let r = r.await?;
+                                let r = EsmAssetReference::new(
+                                    *r.origin,
+                                    *r.request,
+                                    *r.issue_source,
+                                    Value::new(r.annotations.clone()),
+                                    Some(ModulePart::export(export.as_str().into())),
+                                    r.import_externals,
+                                )
+                                .to_resolved()
+                                .await?;
+
+                                analysis.add_local_reference(r);
+                                analysis.add_import_reference(r);
+                                analysis.add_binding(EsmBinding::new(
+                                    r,
+                                    Some(export.to_string().into()),
+                                    ResolvedVc::cell(ast_path.clone()),
+                                ));
+                                done.insert(ast_path.clone());
+
+                                continue;
+                            }
                         }
                     }
                 }
