@@ -126,6 +126,5 @@ export const WithHydrationWarning: Story = {
         },
       },
     ],
-    
   },
 }
