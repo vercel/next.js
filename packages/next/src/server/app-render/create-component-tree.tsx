@@ -399,25 +399,25 @@ async function createComponentTreeInternal({
 
   const notFoundElement = NotFound ? (
     <>
+      <NotFound />
       {metadata}
       {notFoundStyles}
-      <NotFound />
     </>
   ) : undefined
 
   const forbiddenElement = Forbidden ? (
     <>
+      <Forbidden />
       {metadata}
       {forbiddenStyles}
-      <Forbidden />
     </>
   ) : undefined
 
   const unauthorizedElement = Unauthorized ? (
     <>
+      <Unauthorized />
       {metadata}
       {unauthorizedStyles}
-      <Unauthorized />
     </>
   ) : undefined
 
@@ -669,8 +669,13 @@ async function createComponentTreeInternal({
     return [
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
-        {metadata}
         {pageElement}
+        {/*
+         * The order here matters since a parent might call findDOMNode().
+         * findDOMNode() will return the first child if multiple children are rendered.
+         * But React will hoist metadata into <head> which breaks scroll handling.
+         */}
+        {metadata}
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
@@ -805,12 +810,12 @@ async function createComponentTreeInternal({
             notFound={
               NotFound ? (
                 <>
-                  {metadata}
                   {layerAssets}
                   <SegmentComponent params={params}>
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
+                  {metadata}
                 </>
               ) : undefined
             }
