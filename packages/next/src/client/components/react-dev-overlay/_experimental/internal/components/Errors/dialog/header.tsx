@@ -13,7 +13,9 @@ export function ErrorOverlayDialogHeader({
   return (
     <DialogHeader
       className={`nextjs-container-errors-header ${
-        isTurbopack ? 'turbopack' : ''
+        isTurbopack
+          ? 'nextjs-error-overlay-dialog-header-turbopack-background'
+          : ''
       }`}
     >
       {children}
@@ -55,7 +57,7 @@ export const DIALOG_HEADER_STYLES = css`
     right: var(--size-4);
   }
 
-  .nextjs-container-errors-header.turbopack {
+  .nextjs-error-overlay-dialog-header-turbopack-background {
     background-image: linear-gradient(
       10deg,
       var(--color-background-100) 60%,
@@ -65,7 +67,7 @@ export const DIALOG_HEADER_STYLES = css`
   }
 
   @media (prefers-color-scheme: dark) {
-    .nextjs-container-errors-header.turbopack {
+    .nextjs-error-overlay-dialog-header-turbopack-background {
       background-image: linear-gradient(
         10deg,
         var(--color-background-100) 60%,
