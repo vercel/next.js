@@ -2505,9 +2505,11 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
-              RESPONSE_CONFIG_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(config.experimental.streamingMetadata
+                ? [RESPONSE_CONFIG_MANIFEST]
+                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
