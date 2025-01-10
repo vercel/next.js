@@ -39,6 +39,9 @@
                 3,
                 Module(
                     ModuleValue {
+                        esm_reference_index: Some(
+                            2,
+                        ),
                         module: "@upstash/redis",
                         annotations: ImportAnnotations {
                             map: {},
