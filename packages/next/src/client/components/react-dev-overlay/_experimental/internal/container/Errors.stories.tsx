@@ -4,7 +4,6 @@ import { withShadowPortal } from '../storybook/with-shadow-portal'
 import { ACTION_UNHANDLED_ERROR } from '../../../shared'
 
 const meta: Meta<typeof Errors> = {
-  title: 'Errors',
   component: Errors,
   parameters: {
     layout: 'fullscreen',

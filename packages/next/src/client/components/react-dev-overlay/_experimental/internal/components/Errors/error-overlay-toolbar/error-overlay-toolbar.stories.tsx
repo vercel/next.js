@@ -3,7 +3,6 @@ import { ErrorOverlayToolbar } from './error-overlay-toolbar'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayToolbar> = {
-  title: 'ErrorOverlayToolbar',
   component: ErrorOverlayToolbar,
   parameters: {
     layout: 'centered',

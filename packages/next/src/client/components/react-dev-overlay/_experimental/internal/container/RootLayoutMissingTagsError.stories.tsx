@@ -3,7 +3,6 @@ import { RootLayoutMissingTagsError } from './RootLayoutMissingTagsError'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 
 const meta: Meta<typeof RootLayoutMissingTagsError> = {
-  title: 'RootLayoutMissingTagsError',
   component: RootLayoutMissingTagsError,
   parameters: {
     layout: 'fullscreen',

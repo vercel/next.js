@@ -3,7 +3,6 @@ import { DocsLinkButton } from './docs-link-button'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof DocsLinkButton> = {
-  title: 'ErrorOverlayToolbar/DocsLinkButton',
   component: DocsLinkButton,
   parameters: {
     layout: 'centered',
