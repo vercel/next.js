@@ -35,13 +35,14 @@ export const CallStackFrame: React.FC<{
     return null
   }
 
-  const Comp = hasSource ? 'button' : 'div'
-
   return (
-    <Comp
+    <div
       data-nextjs-call-stack-frame
+      data-nextjs-call-stack-frame-ignored={!hasSource}
       onClick={hasSource ? open : undefined}
-      disabled={!hasSource}
+      role="button"
+      tabIndex={0}
+      aria-label={hasSource ? 'Click to open in your editor' : undefined}
       title={hasSource ? 'Click to open in your editor' : undefined}
     >
       <span
@@ -57,7 +58,7 @@ export const CallStackFrame: React.FC<{
       >
         {fileSource}
       </span>
-    </Comp>
+    </div>
   )
 }
 
@@ -81,15 +82,15 @@ function External() {
 }
 
 export const CALL_STACK_FRAME_STYLES = css`
-  div[data-nextjs-call-stack-frame] {
+  [data-nextjs-call-stack-frame-ignored] {
     padding: var(--size-1_5) var(--size-2);
     margin-bottom: var(--size-1);
 
     border-radius: var(--rounded-lg);
   }
 
-  button[data-nextjs-call-stack-frame] {
-    all: unset;
+  [data-nextjs-call-stack-frame] {
+    user-select: text;
     display: block;
     box-sizing: border-box;
     width: 100%;
