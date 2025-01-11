@@ -57,9 +57,6 @@
                     3,
                     Module(
                         ModuleValue {
-                            esm_reference_index: Some(
-                                1,
-                            ),
                             module: "./module.js",
                             annotations: ImportAnnotations {
                                 map: {},
@@ -101,9 +98,6 @@
                     3,
                     Module(
                         ModuleValue {
-                            esm_reference_index: Some(
-                                1,
-                            ),
                             module: "./module.js",
                             annotations: ImportAnnotations {
                                 map: {},

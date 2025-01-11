@@ -5,9 +5,6 @@
             3,
             Module(
                 ModuleValue {
-                    esm_reference_index: Some(
-                        3,
-                    ),
                     module: "x2",
                     annotations: ImportAnnotations {
                         map: {},
@@ -29,9 +26,6 @@
             3,
             Module(
                 ModuleValue {
-                    esm_reference_index: Some(
-                        1,
-                    ),
                     module: "x1",
                     annotations: ImportAnnotations {
                         map: {},
@@ -51,9 +45,6 @@
         "yy",
         Module(
             ModuleValue {
-                esm_reference_index: Some(
-                    6,
-                ),
                 module: "x3",
                 annotations: ImportAnnotations {
                     map: {},
