@@ -58,7 +58,7 @@ export function runCompiler(
     }
     compiler.fsStartTime = Date.now()
     compiler.run((err, stats) => {
-      console.log('compiler.run', err)
+      console.log('compiler.run', compiler.name, err)
 
       const result = runWebpackSpan
         .traceChild('webpack-generate-error-stats')

@@ -100,7 +100,7 @@
   },
   "dependencies": {
     "enhanced-resolve": "5.17.1",
-    "@rspack/core": "npm:@rspack-canary/core@1.1.9-canary-f82d3d6c-20250106144333",
+    "@rspack/core": "npm:@rspack-canary/core@1.1.9-canary-eb5738a8-20250110131843",
     "@rspack/plugin-react-refresh": "1.0.1",
     "@next/env": "15.2.0-canary.4",
     "@swc/counter": "0.1.3",
