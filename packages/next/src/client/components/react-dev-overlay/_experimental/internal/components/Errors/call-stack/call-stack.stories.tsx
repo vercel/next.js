@@ -3,10 +3,12 @@ import { CallStack } from './call-stack'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof CallStack> = {
-  title: 'CallStack',
   component: CallStack,
   parameters: {
     layout: 'fullscreen',
+    backgrounds: {
+      default: 'background-100-dark',
+    },
   },
   decorators: [withShadowPortal],
 }

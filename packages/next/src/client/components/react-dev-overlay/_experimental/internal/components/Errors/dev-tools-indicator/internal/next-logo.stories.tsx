@@ -2,7 +2,6 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
 
 const meta: Meta<typeof NextLogo> = {
-  title: 'NextLogo',
   component: NextLogo,
   parameters: {
     layout: 'centered',

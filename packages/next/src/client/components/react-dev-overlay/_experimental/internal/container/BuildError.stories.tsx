@@ -3,7 +3,6 @@ import { BuildError } from './BuildError'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 
 const meta: Meta<typeof BuildError> = {
-  title: 'BuildError',
   component: BuildError,
   parameters: {
     layout: 'fullscreen',

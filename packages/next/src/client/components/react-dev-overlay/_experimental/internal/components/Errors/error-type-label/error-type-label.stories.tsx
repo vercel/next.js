@@ -3,7 +3,6 @@ import { ErrorTypeLabel } from './error-type-label'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorTypeLabel> = {
-  title: 'ErrorTypeLabel',
   component: ErrorTypeLabel,
   parameters: {
     layout: 'centered',

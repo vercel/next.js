@@ -3,7 +3,6 @@ import { CodeFrame } from './CodeFrame'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof CodeFrame> = {
-  title: 'CodeFrame',
   component: CodeFrame,
   parameters: {
     layout: 'fullscreen',
