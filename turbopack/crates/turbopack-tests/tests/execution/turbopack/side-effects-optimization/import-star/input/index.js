@@ -1,6 +1,7 @@
 import * as R from 'ramda';
 
 console.log((0, R.pipe)('a', 'b', 'c'));
+console.log(R.pipe('a', 'b', 'c'));
 
 
 it('should import only pipe.js', () => {
