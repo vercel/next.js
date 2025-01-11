@@ -13,11 +13,6 @@ pub mod module_options;
 pub mod transition;
 pub(crate) mod unsupported_sass;
 
-use std::{
-    collections::{HashMap, HashSet},
-    mem::swap,
-};
-
 use anyhow::{bail, Result};
 use css::{CssModuleAsset, ModuleCssAsset};
 use ecmascript::{
@@ -841,9 +836,7 @@ impl AssetContext for ModuleAssetContext {
                         }
                         ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                         ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                        ResolveResultItem::Error(e) => {
-                            ModuleResolveResultItem::Error(e.to_resolved().await?)
-                        }
+                        ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
                         ResolveResultItem::Custom(u8) => ModuleResolveResultItem::Custom(u8),
                     })
                 }
@@ -950,76 +943,6 @@ pub async fn emit_asset_into_dir(
         let _ = emit_asset(asset);
     }
     Ok(())
-}
-
-type OutputAssetSet = HashSet<Vc<Box<dyn OutputAsset>>>;
-
-#[turbo_tasks::value(shared, local)]
-struct ReferencesList {
-    referenced_by: HashMap<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>,
-}
-
-#[turbo_tasks::function]
-async fn compute_back_references(
-    aggregated: ResolvedVc<AggregatedGraph>,
-) -> Result<Vc<ReferencesList>> {
-    Ok(match &*aggregated.content().await? {
-        &AggregatedGraphNodeContent::Asset(asset) => {
-            let mut referenced_by = HashMap::new();
-            for &reference in asset.references().await?.iter() {
-                referenced_by.insert(reference, [*asset].into_iter().collect());
-            }
-            ReferencesList { referenced_by }.into()
-        }
-        AggregatedGraphNodeContent::Children(children) => {
-            let mut referenced_by =
-                HashMap::<ResolvedVc<Box<dyn OutputAsset>>, OutputAssetSet>::new();
-            let lists = children
-                .iter()
-                .map(|child| compute_back_references(**child))
-                .collect::<Vec<_>>();
-            for list in lists {
-                for (key, values) in list.await?.referenced_by.iter() {
-                    if let Some(set) = referenced_by.get_mut(key) {
-                        for value in values {
-                            set.insert(*value);
-                        }
-                    } else {
-                        referenced_by.insert(*key, values.clone());
-                    }
-                }
-            }
-            ReferencesList { referenced_by }.into()
-        }
-    })
-}
-
-#[turbo_tasks::function]
-async fn top_references(list: Vc<ReferencesList>) -> Result<Vc<ReferencesList>> {
-    let list = list.await?;
-    const N: usize = 5;
-    let mut top = Vec::<(
-        &ResolvedVc<Box<dyn OutputAsset>>,
-        &HashSet<Vc<Box<dyn OutputAsset>>>,
-    )>::new();
-    for tuple in list.referenced_by.iter() {
-        let mut current = tuple;
-        for item in &mut top {
-            if item.1.len() < tuple.1.len() {
-                swap(item, &mut current);
-            }
-        }
-        if top.len() < N {
-            top.push(current);
-        }
-    }
-    Ok(ReferencesList {
-        referenced_by: top
-            .into_iter()
-            .map(|(asset, set)| (*asset, set.clone()))
-            .collect(),
-    }
-    .into())
 }
 
 /// Replaces the externals in the result with `ExternalModuleAsset` instances.

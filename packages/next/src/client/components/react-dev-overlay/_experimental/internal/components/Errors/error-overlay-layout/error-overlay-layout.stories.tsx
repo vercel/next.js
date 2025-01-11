@@ -3,7 +3,6 @@ import { ErrorOverlayLayout } from './error-overlay-layout'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayLayout> = {
-  title: 'ErrorOverlayLayout',
   component: ErrorOverlayLayout,
   parameters: {
     layout: 'fullscreen',

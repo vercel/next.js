@@ -151,6 +151,19 @@ impl Module for EcmascriptModuleFacadeModule {
         };
         Ok(Vc::cell(references))
     }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
+        let async_module = self.async_module();
+        let references = self.references();
+        let is_self_async = async_module
+            .resolve()
+            .await?
+            .is_self_async(references.resolve().await?)
+            .resolve()
+            .await?;
+        Ok(is_self_async)
+    }
 }
 
 #[turbo_tasks::value_impl]

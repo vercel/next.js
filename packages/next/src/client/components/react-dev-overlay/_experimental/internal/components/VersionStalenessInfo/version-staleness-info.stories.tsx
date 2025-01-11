@@ -3,7 +3,6 @@ import { VersionStalenessInfo } from './VersionStalenessInfo'
 import { withShadowPortal } from '../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof VersionStalenessInfo> = {
-  title: 'VersionStalenessInfo',
   component: VersionStalenessInfo,
   parameters: {
     layout: 'centered',

@@ -355,6 +355,8 @@
           return "SuspenseList";
         case 25:
           return "TracingMarker";
+        case 30:
+          return "ViewTransition";
         case 1:
         case 0:
         case 14:
@@ -1401,6 +1403,8 @@
           return describeNativeComponentFrame(fiber.type.render, !1);
         case 1:
           return describeNativeComponentFrame(fiber.type, !0);
+        case 30:
+          return describeBuiltInComponentFrame("ViewTransition");
         default:
           return "";
       }
@@ -1456,6 +1460,9 @@
             info += describeBuiltInComponentFrame("Suspense");
             break;
           case 19:
+            info += describeBuiltInComponentFrame("SuspenseList");
+            break;
+          case 30:
             info += describeBuiltInComponentFrame("SuspenseList");
             break;
           case 0:
@@ -26872,11 +26879,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-74ea0c73-20250109" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-056073de-20250109" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-74ea0c73-20250109\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-056073de-20250109\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -26913,10 +26920,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.1.0-experimental-74ea0c73-20250109",
+          version: "19.1.0-experimental-056073de-20250109",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.1.0-experimental-74ea0c73-20250109"
+          reconcilerVersion: "19.1.0-experimental-056073de-20250109"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -27226,5 +27233,5 @@
         }
       };
     };
-    exports.version = "19.1.0-experimental-74ea0c73-20250109";
+    exports.version = "19.1.0-experimental-056073de-20250109";
   })();

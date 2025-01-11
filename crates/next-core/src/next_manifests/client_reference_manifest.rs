@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use indoc::formatdoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
@@ -6,8 +6,8 @@ use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
-        availability_info::AvailabilityInfo, ChunkItem, ChunkItemExt, ChunkableModule,
-        ChunkingContext, ModuleId as TurbopackModuleId,
+        availability_info::AvailabilityInfo, ChunkItemExt, ChunkableModule, ChunkingContext,
+        ModuleId as TurbopackModuleId,
     },
     output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
@@ -75,8 +75,8 @@ impl ClientReferenceManifest {
 
                 let server_path = ecmascript_client_reference.server_ident.to_string().await?;
 
-                let client_chunk_item = ecmascript_client_reference
-                    .client_module
+                let client_module = ecmascript_client_reference.client_module;
+                let client_chunk_item = client_module
                     .as_chunk_item(Vc::upcast(client_chunking_context))
                     .to_resolved()
                     .await?;
@@ -107,8 +107,11 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async =
-                            is_item_async(client_availability_info, client_chunk_item).await?;
+                        let is_async = is_item_async(
+                            client_availability_info,
+                            ResolvedVc::upcast(client_module),
+                        )
+                        .await?;
 
                         (chunk_paths, is_async)
                     } else {
@@ -116,19 +119,20 @@ impl ClientReferenceManifest {
                     };
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
-                    let ssr_chunk_item = ecmascript_client_reference
-                        .ssr_module
+                    let ssr_module = ecmascript_client_reference.ssr_module;
+                    let ssr_chunk_item = ssr_module
                         .as_chunk_item(Vc::upcast(ssr_chunking_context))
                         .to_resolved()
                         .await?;
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
-                    let rsc_chunk_item: ResolvedVc<Box<dyn ChunkItem>> =
-                        ResolvedVc::try_downcast_type::<EcmascriptClientReferenceProxyModule>(
-                            parent_module,
-                        )
-                        .await?
-                        .unwrap()
+                    let rsc_module = ResolvedVc::try_downcast_type::<
+                        EcmascriptClientReferenceProxyModule,
+                    >(parent_module)
+                    .await?
+                    .context("Expected EcmascriptClientReferenceProxyModule")?;
+
+                    let rsc_chunk_item = rsc_module
                         .as_chunk_item(Vc::upcast(ssr_chunking_context))
                         .to_resolved()
                         .await?;
@@ -161,7 +165,9 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async = is_item_async(ssr_availability_info, ssr_chunk_item).await?;
+                        let is_async =
+                            is_item_async(ssr_availability_info, ResolvedVc::upcast(ssr_module))
+                                .await?;
 
                         (chunk_paths, is_async)
                     } else {
@@ -188,9 +194,11 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async =
-                            is_item_async(&rsc_app_entry_chunks_availability, rsc_chunk_item)
-                                .await?;
+                        let is_async = is_item_async(
+                            &rsc_app_entry_chunks_availability,
+                            ResolvedVc::upcast(rsc_module),
+                        )
+                        .await?;
 
                         (chunk_paths, is_async)
                     };
@@ -368,13 +376,13 @@ pub fn get_client_reference_module_key(server_path: &str, export_name: &str) -> 
 
 async fn is_item_async(
     availability_info: &AvailabilityInfo,
-    chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    module: ResolvedVc<Box<dyn ChunkableModule>>,
 ) -> Result<bool> {
-    let Some(available_chunk_items) = availability_info.available_chunk_items() else {
+    let Some(available_modules) = availability_info.available_modules() else {
         return Ok(false);
     };
 
-    let Some(info) = available_chunk_items.await?.get(chunk_item).await? else {
+    let Some(info) = &*available_modules.get(*module).await? else {
         return Ok(false);
     };
 

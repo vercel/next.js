@@ -3,7 +3,6 @@ import { ErrorOverlayFloatingHeader } from './error-overlay-floating-header'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayFloatingHeader> = {
-  title: 'ErrorOverlayFloatingHeader',
   component: ErrorOverlayFloatingHeader,
   parameters: {
     layout: 'fullscreen',

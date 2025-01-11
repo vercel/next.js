@@ -64,18 +64,8 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub async fn manifest_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        if let Some(chunk_items) = this.availability_info.available_chunk_items() {
-            if chunk_items
-                .await?
-                .get(
-                    this.inner
-                        .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
-                        .to_resolved()
-                        .await?,
-                )
-                .await?
-                .is_some()
-            {
+        if let Some(chunk_items) = this.availability_info.available_modules() {
+            if chunk_items.get(*this.inner).await?.is_some() {
                 return Ok(Vc::cell(vec![]));
             }
         }
@@ -92,7 +82,7 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.inner.ident();
-        if let Some(available_modules) = self.availability_info.available_chunk_items() {
+        if let Some(available_modules) = self.availability_info.available_modules() {
             ident =
                 ident.with_modifier(Vc::cell(available_modules.hash().await?.to_string().into()));
         }
