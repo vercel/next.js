@@ -471,6 +471,8 @@ export default function ClientComponent({ children }) {
 }
 ```
 
+By default, components in Next.js are Server Components. This means you can theoretically import a _Server Component_ (or a component not explicitly marked as a Client Component) into a Client Component **if it doesn’t use any server-specific constructs**. However, since, "use client" defines a network boundary, any component imported into a [Client Component](/docs/app/building-your-application/rendering/client-components) will be considered part of client bundle.
+
 ### Supported Pattern: Passing Server Components to Client Components as Props
 
 The following pattern is supported. You can pass Server Components as a prop to a Client Component.
