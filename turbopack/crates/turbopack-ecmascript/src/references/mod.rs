@@ -882,8 +882,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .get_mut()
         .extend(effects.into_iter().map(Action::Effect).rev());
 
-    let mut done = FxHashSet::default();
-
     while let Some(action) = queue_stack.get_mut().pop() {
         let effect = match action {
             Action::LeaveScope(func_ident) => {
@@ -1186,54 +1184,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
                 in_try: _,
             } => {
-                // Skip LHS of assignments
-                let is_lhs = matches!(
-                    ast_path.last(),
-                    Some(AstParentKind::SimpleAssignTarget(
-                        SimpleAssignTargetField::Member
-                    ))
-                );
-
-                if !is_lhs {
-                    if let JsValue::Module(ModuleValue {
-                        esm_reference_index: Some(esm_reference_index),
-                        ..
-                    }) = &obj
-                    {
-                        if !eval_context.imports.should_import_all(*esm_reference_index) {
-                            if let Some(&r) = import_references.get(*esm_reference_index) {
-                                if let JsValue::Constant(super::analyzer::ConstantValue::Str(
-                                    export,
-                                )) = &prop
-                                {
-                                    let r = r.await?;
-                                    let r = EsmAssetReference::new(
-                                        *r.origin,
-                                        *r.request,
-                                        *r.issue_source,
-                                        Value::new(r.annotations.clone()),
-                                        Some(ModulePart::export(export.as_str().into())),
-                                        r.import_externals,
-                                    )
-                                    .to_resolved()
-                                    .await?;
-
-                                    analysis.add_local_reference(r);
-                                    analysis.add_import_reference(r);
-                                    analysis.add_binding(EsmBinding::new(
-                                        r,
-                                        Some(export.to_string().into()),
-                                        ResolvedVc::cell(ast_path.clone()),
-                                    ));
-                                    done.insert(ast_path.clone());
-
-                                    continue;
-                                }
-                            }
-                        }
-                    }
-                }
-
                 let obj = analysis_state
                     .link_value(obj, ImportAttributes::empty_ref())
                     .await?;
@@ -1250,13 +1200,6 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span: _,
                 in_try: _,
             } => {
-                if done
-                    .iter()
-                    .any(|done_ast_path| ast_path.starts_with(done_ast_path))
-                {
-                    continue;
-                }
-
                 if let Some(&r) = import_references.get(esm_reference_index) {
                     if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference(
@@ -1265,6 +1208,24 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 .await?,
                         )
                     } else {
+                        let r_ref = r.await?;
+                        let r = if r_ref.export_name.is_none() && export.is_some() {
+                            let export = export.clone().unwrap();
+
+                            EsmAssetReference::new(
+                                *r_ref.origin,
+                                *r_ref.request,
+                                *r_ref.issue_source,
+                                Value::new(r_ref.annotations.clone()),
+                                Some(ModulePart::export(export)),
+                                r_ref.import_externals,
+                            )
+                            .to_resolved()
+                            .await?
+                        } else {
+                            r
+                        };
+
                         analysis.add_local_reference(r);
                         analysis.add_import_reference(r);
                         analysis.add_binding(EsmBinding::new(
