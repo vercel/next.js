@@ -32,7 +32,6 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
-use rustc_hash::FxHashSet;
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -124,7 +123,7 @@ use crate::{
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
         parse_require_context,
         top_level_await::has_top_level_await,
-        ConstantNumber, ConstantString, JsValueUrlKind, ModuleValue, RequireContextValue,
+        ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
     chunk::EcmascriptExports,
     code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},

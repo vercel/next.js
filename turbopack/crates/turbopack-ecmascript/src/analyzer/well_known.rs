@@ -330,7 +330,6 @@ pub fn require(args: Vec<JsValue>) -> JsValue {
             JsValue::Module(ModuleValue {
                 module: s.into(),
                 annotations: ImportAnnotations::default(),
-                esm_reference_index: None,
             })
         } else {
             JsValue::unknown(
@@ -403,7 +402,6 @@ async fn require_context_require(
     Ok(JsValue::Module(ModuleValue {
         module: m.to_string().into(),
         annotations: ImportAnnotations::default(),
-        esm_reference_index: None,
     }))
 }
 

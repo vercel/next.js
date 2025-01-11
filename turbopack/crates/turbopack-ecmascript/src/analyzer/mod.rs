@@ -277,7 +277,6 @@ impl Display for ConstantValue {
 
 #[derive(Debug, Clone, Hash, PartialEq, Eq)]
 pub struct ModuleValue {
-    pub esm_reference_index: Option<usize>,
     pub module: JsWord,
     pub annotations: ImportAnnotations,
 }
@@ -714,7 +713,6 @@ impl Display for JsValue {
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
-                esm_reference_index: _,
             }) => {
                 write!(f, "Module({}, {})", name, annotations)
             }
@@ -1579,7 +1577,6 @@ impl JsValue {
             JsValue::Module(ModuleValue {
                 module: name,
                 annotations,
-                esm_reference_index: _,
             }) => {
                 format!("module<{}, {}>", name, annotations)
             }
@@ -3452,12 +3449,10 @@ impl JsValue {
                 JsValue::Module(ModuleValue {
                     module: l,
                     annotations: la,
-                    esm_reference_index: _,
                 }),
                 JsValue::Module(ModuleValue {
                     module: r,
                     annotations: ra,
-                    esm_reference_index: _,
                 }),
             ) => l == r && la == ra,
             (JsValue::WellKnownObject(l), JsValue::WellKnownObject(r)) => l == r,
@@ -3571,7 +3566,6 @@ impl JsValue {
             JsValue::Module(ModuleValue {
                 module: v,
                 annotations: a,
-                esm_reference_index: _,
             }) => {
                 Hash::hash(v, state);
                 Hash::hash(a, state);
@@ -3882,7 +3876,6 @@ pub mod test_utils {
                 JsValue::Constant(v) => JsValue::Module(ModuleValue {
                     module: v.to_string().into(),
                     annotations: ImportAnnotations::default(),
-                    esm_reference_index: None,
                 }),
                 _ => v.into_unknown(true, "import() non constant"),
             },
