@@ -190,6 +190,7 @@ function ServerRoot(): React.ReactNode {
       actionQueue={actionQueue}
       globalErrorComponentAndStyles={initialRSCPayload.G}
       assetPrefix={initialRSCPayload.p}
+      basePath={initialRSCPayload.a}
     />
   )
 

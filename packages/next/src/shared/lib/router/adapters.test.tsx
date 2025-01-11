@@ -11,6 +11,7 @@ describe('adaptForAppRouterInstance', () => {
     push: jest.fn(),
     replace: jest.fn(),
     prefetch: jest.fn(),
+    basePath: '/base-path',
   } as unknown as NextRouter
 
   const adapter = adaptForAppRouterInstance(router)
@@ -61,5 +62,10 @@ describe('adaptForAppRouterInstance', () => {
   it('should forward a call to `prefetch()`', () => {
     adapter.prefetch('/foo')
     expect(router.prefetch).toHaveBeenCalledWith('/foo')
+  })
+
+  it('should forward the basePath to `basePath`', () => {
+    const basePath = adapter.basePath
+    expect(basePath).toEqual('/base-path')
   })
 })

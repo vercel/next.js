@@ -21,6 +21,11 @@ describe('app dir - basepath', () => {
     expect(html).toContain('<h1>Test Page</h1>')
   })
 
+  it('useRouter should correctly return `basePath`', async () => {
+    const html = await next.render('/base')
+    expect(html).toContain('<p id="base-path">/base</p>')
+  })
+
   it('should support Link with basePath prefixed', async () => {
     const browser = await next.browser('/base')
     expect(

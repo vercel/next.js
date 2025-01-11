@@ -32,6 +32,7 @@ export function adaptForAppRouterInstance(
     prefetch(href) {
       void pagesRouter.prefetch(href)
     },
+    basePath: pagesRouter.basePath,
   }
 }
 
