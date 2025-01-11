@@ -1827,18 +1827,28 @@ impl VisitAstPath for Analyzer<'_> {
                 if let Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) =
                     ast_path.get(ast_path.len() - 2)
                 {
-                    if let Some(prop) = self.eval_context.eval_member_prop(&member.prop) {
-                        if let Some(prop_str) = prop.as_str() {
-                            // a namespace member access like
-                            // `import * as ns from "..."; ns.exportName`
-                            self.add_effect(Effect::ImportedBinding {
-                                esm_reference_index,
-                                export: Some(prop_str.into()),
-                                ast_path: as_parent_path_skip(ast_path, 1),
-                                span: member.span(),
-                                in_try: is_in_try(ast_path),
-                            });
-                            return;
+                    let is_lhs = matches!(
+                        ast_path.get(ast_path.len() - 3),
+                        Some(AstParentNodeRef::SimpleAssignTarget(
+                            _,
+                            SimpleAssignTargetField::Member
+                        ))
+                    );
+
+                    if !is_lhs {
+                        if let Some(prop) = self.eval_context.eval_member_prop(&member.prop) {
+                            if let Some(prop_str) = prop.as_str() {
+                                // a namespace member access like
+                                // `import * as ns from "..."; ns.exportName`
+                                self.add_effect(Effect::ImportedBinding {
+                                    esm_reference_index,
+                                    export: Some(prop_str.into()),
+                                    ast_path: as_parent_path_skip(ast_path, 1),
+                                    span: member.span(),
+                                    in_try: is_in_try(ast_path),
+                                });
+                                return;
+                            }
                         }
                     }
                 }
