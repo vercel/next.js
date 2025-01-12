@@ -20,7 +20,7 @@
   "19": "can't decode empty hex",
   "20": "The provided export path '%s' doesn't match the '%s' page.\\nRead more: https://nextjs.org/docs/messages/export-path-mismatch",
   "21": "Image with src \"%s\" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.",
-  "22": "Invalid revalidate configuration provided: %s < 1",
+  "22": "Invalid revalidate configuration provided: %s < 0",
   "23": "The \"modules.namedExport\" option requires the \"modules.exportLocalsConvention\" option to be \"camelCaseOnly\"",
   "24": "Invalid flags should be run as node detached-flush dev ./path-to/project",
   "25": "NodeModuleLoader is not supported in edge runtime.",
