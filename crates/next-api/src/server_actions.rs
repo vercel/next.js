@@ -166,7 +166,7 @@ async fn build_manifest(
             &key,
             ActionManifestWorkerEntry {
                 module_id: ActionManifestModuleId::String(loader_id.as_str()),
-                is_async: *chunk_item.is_self_async().await?,
+                is_async: *chunk_item.module().is_self_async().await?,
             },
         );
         entry.layer.insert(&key, *layer);

@@ -422,11 +422,9 @@ impl ChunkingContext for BrowserChunkingContext {
                     AvailabilityInfo::Untracked => {
                         ident = ident.with_modifier(Vc::cell("untracked".into()));
                     }
-                    AvailabilityInfo::Complete {
-                        available_chunk_items,
-                    } => {
+                    AvailabilityInfo::Complete { available_modules } => {
                         ident = ident.with_modifier(Vc::cell(
-                            available_chunk_items.hash().await?.to_string().into(),
+                            available_modules.hash().await?.to_string().into(),
                         ));
                     }
                 }

@@ -3,7 +3,6 @@ import { ErrorOverlayBottomStacks } from './error-overlay-bottom-stacks'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayBottomStacks> = {
-  title: 'ErrorOverlayBottomStacks',
   component: ErrorOverlayBottomStacks,
   parameters: {
     layout: 'fullscreen',

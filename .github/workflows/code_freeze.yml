@@ -17,7 +17,7 @@ name: Code Freeze
 
 env:
   NAPI_CLI_VERSION: 2.14.7
-  TURBO_VERSION: 2.1.2
+  TURBO_VERSION: 2.3.3
   NODE_LTS_VERSION: 20
 
 jobs:

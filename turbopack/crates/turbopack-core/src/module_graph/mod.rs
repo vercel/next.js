@@ -6,7 +6,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use petgraph::{
-    graph::{DiGraph, NodeIndex},
+    graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{Dfs, VisitMap, Visitable},
 };
 use serde::{Deserialize, Serialize};
@@ -29,7 +29,7 @@ use crate::{
 #[derive(Clone, Debug)]
 pub struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
 
-#[turbo_tasks::value(cell = "new", eq = "manual", into = "new", local)]
+#[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
     graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
@@ -212,11 +212,18 @@ impl SingleModuleGraph {
     /// target.
     ///
     /// This means that target nodes can be revisited (once per incoming edge).
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `visitor` - Called before visiting the children of a node.
+    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
     pub fn traverse_edges_from_entry<'a>(
         &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
         mut visitor: impl FnMut(
-            (Option<&'a SingleModuleGraphNode>, &'a SingleModuleGraphNode),
+            Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
+            &'a SingleModuleGraphNode,
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
@@ -226,14 +233,24 @@ impl SingleModuleGraph {
         let mut discovered = graph.visit_map();
         let entry_weight = graph.node_weight(entry_node).unwrap();
         entry_weight.emit_issues();
-        visitor((None, entry_weight));
+        visitor(None, entry_weight);
 
         while let Some(node) = stack.pop() {
             let node_weight = graph.node_weight(node).unwrap();
             if discovered.visit(node) {
-                for succ in graph.neighbors(node).collect::<Vec<_>>() {
+                let neighbors = {
+                    let mut neighbors = vec![];
+                    let mut walker = graph.neighbors(node).detach();
+                    while let Some((edge, succ)) = walker.next(graph) {
+                        neighbors.push((edge, succ));
+                    }
+                    neighbors
+                };
+
+                for (edge, succ) in neighbors {
                     let succ_weight = graph.node_weight(succ).unwrap();
-                    let action = visitor((Some(node_weight), succ_weight));
+                    let edge_weight = graph.edge_weight(edge).unwrap();
+                    let action = visitor(Some((node_weight, edge_weight)), succ_weight);
                     if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);
                     }
@@ -251,16 +268,29 @@ impl SingleModuleGraph {
     ///
     /// Target nodes can be revisited (once per incoming edge).
     /// Edges are traversed in normal order, so should correspond to reference order.
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `state` - The state to be passed to the visitors
+    /// * `visit_preorder` - Called before visiting the children of a node.
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    /// * `visit_postorder` - Called after visiting the children of a node. Return
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
     pub fn traverse_edges_from_entry_topological<'a, S>(
         &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
         state: &mut S,
         mut visit_preorder: impl FnMut(
-            (Option<&'a SingleModuleGraphNode>, &'a SingleModuleGraphNode),
+            Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
+            &'a SingleModuleGraphNode,
             &mut S,
         ) -> GraphTraversalAction,
         mut visit_postorder: impl FnMut(
-            (Option<&'a SingleModuleGraphNode>, &'a SingleModuleGraphNode),
+            Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
+            &'a SingleModuleGraphNode,
             &mut S,
         ),
     ) -> Result<()> {
@@ -272,39 +302,47 @@ impl SingleModuleGraph {
             ExpandAndVisit,
         }
 
-        let mut stack: Vec<(ReverseTopologicalPass, Option<NodeIndex>, NodeIndex)> =
-            vec![(ReverseTopologicalPass::ExpandAndVisit, None, entry_node)];
+        #[allow(clippy::type_complexity)] // This is a temporary internal structure
+        let mut stack: Vec<(
+            ReverseTopologicalPass,
+            Option<(NodeIndex, EdgeIndex)>,
+            NodeIndex,
+        )> = vec![(ReverseTopologicalPass::ExpandAndVisit, None, entry_node)];
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
             match pass {
                 ReverseTopologicalPass::Visit => {
                     visit_postorder(
-                        (
-                            parent.map(|parent| graph.node_weight(parent).unwrap()),
-                            graph.node_weight(current).unwrap(),
-                        ),
+                        parent.map(|parent| {
+                            (
+                                graph.node_weight(parent.0).unwrap(),
+                                graph.edge_weight(parent.1).unwrap(),
+                            )
+                        }),
+                        graph.node_weight(current).unwrap(),
                         state,
                     );
                 }
                 ReverseTopologicalPass::ExpandAndVisit => {
                     let action = visit_preorder(
-                        (
-                            parent.map(|parent| graph.node_weight(parent).unwrap()),
-                            graph.node_weight(current).unwrap(),
-                        ),
+                        parent.map(|parent| {
+                            (
+                                graph.node_weight(parent.0).unwrap(),
+                                graph.edge_weight(parent.1).unwrap(),
+                            )
+                        }),
+                        graph.node_weight(current).unwrap(),
                         state,
                     );
                     stack.push((ReverseTopologicalPass::Visit, parent, current));
                     if expanded.insert(current) && action == GraphTraversalAction::Continue {
-                        stack.extend(
-                            graph
-                                .neighbors(current)
-                                // .collect::<Vec<_>>()
-                                // .rev()
-                                .map(|child| {
-                                    (ReverseTopologicalPass::ExpandAndVisit, Some(current), child)
-                                }),
-                        );
+                        stack.extend(iter_neighbors(graph, current).map(|(edge, child)| {
+                            (
+                                ReverseTopologicalPass::ExpandAndVisit,
+                                Some((current, edge)),
+                                child,
+                            )
+                        }));
                     }
                 }
             }
@@ -349,13 +387,18 @@ impl SingleModuleGraphNode {
 }
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
-struct TracedDiGraph<N: TraceRawVcs, E: TraceRawVcs>(DiGraph<N, E>);
-impl<N: TraceRawVcs, E: TraceRawVcs> Default for TracedDiGraph<N, E> {
+struct TracedDiGraph<N, E>(DiGraph<N, E>);
+impl<N, E> Default for TracedDiGraph<N, E> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
-impl<N: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for TracedDiGraph<N, E> {
+
+impl<N, E> TraceRawVcs for TracedDiGraph<N, E>
+where
+    N: TraceRawVcs,
+    E: TraceRawVcs,
+{
     fn trace_raw_vcs(&self, trace_context: &mut TraceRawVcsContext) {
         for node in self.0.node_weights() {
             node.trace_raw_vcs(trace_context);
@@ -365,11 +408,19 @@ impl<N: TraceRawVcs, E: TraceRawVcs> TraceRawVcs for TracedDiGraph<N, E> {
         }
     }
 }
-impl<N: TraceRawVcs, E: TraceRawVcs> Deref for TracedDiGraph<N, E> {
+
+impl<N, E> Deref for TracedDiGraph<N, E> {
     type Target = DiGraph<N, E>;
     fn deref(&self) -> &Self::Target {
         &self.0
     }
+}
+
+unsafe impl<N, E> NonLocalValue for TracedDiGraph<N, E>
+where
+    N: NonLocalValue,
+    E: NonLocalValue,
+{
 }
 
 #[derive(PartialEq, Eq, Debug)]
@@ -532,4 +583,12 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
             }
         }
     }
+}
+
+fn iter_neighbors<N, E>(
+    graph: &DiGraph<N, E>,
+    node: NodeIndex,
+) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
+    let mut walker = graph.neighbors(node).detach();
+    std::iter::from_fn(move || walker.next(graph))
 }

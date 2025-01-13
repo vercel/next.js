@@ -4,7 +4,6 @@ import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 
 const meta: Meta<typeof DevToolsIndicator> = {
-  title: 'DevToolsIndicator',
   component: DevToolsIndicator,
   parameters: {
     layout: 'centered',

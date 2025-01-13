@@ -723,6 +723,7 @@ pub struct ExperimentalConfig {
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
     typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
+    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
@@ -1394,6 +1395,11 @@ impl NextConfig {
     #[turbo_tasks::function]
     pub fn enable_react_owner_stack(&self) -> Vc<bool> {
         Vc::cell(self.experimental.react_owner_stack.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_view_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.view_transition.unwrap_or(false))
     }
 
     #[turbo_tasks::function]

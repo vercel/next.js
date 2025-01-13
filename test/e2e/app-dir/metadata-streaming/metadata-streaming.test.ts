@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, createMultiDomMatcher } from 'next-test-utils'
 
-describe('metadata-streaming', () => {
+describe('app-dir - metadata-streaming', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })

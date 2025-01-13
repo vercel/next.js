@@ -24,15 +24,4 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   )
 }
 
-export const styles = css`
-  .nextjs-container-errors-body footer {
-    margin-top: var(--size-gap);
-  }
-  .nextjs-container-errors-body footer p {
-    margin: 0;
-  }
-
-  .nextjs-container-errors-body small {
-    color: var(--color-font);
-  }
-`
+export const styles = css``

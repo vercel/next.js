@@ -275,6 +275,11 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        self.is_async_module()
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(*self.full_module).await?;
 
