@@ -51,7 +51,7 @@ export function CssReset() {
             'Helvetica Neue', Arial, 'Noto Sans', sans-serif,
             'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
             'Noto Color Emoji';
-          font-size: 16px;
+          font-size: var(--size-4);
           font-weight: 400;
           line-height: 1.5;
           color: var(--color-font);
@@ -76,12 +76,12 @@ export function CssReset() {
         h5,
         h6 {
           margin-top: 0;
-          margin-bottom: 8px;
+          margin-bottom: var(--size-2);
         }
 
         p {
           margin-top: 0;
-          margin-bottom: 16px;
+          margin-bottom: var(--size-4);
         }
 
         abbr[title],
@@ -96,7 +96,7 @@ export function CssReset() {
         }
 
         address {
-          margin-bottom: 16px;
+          margin-bottom: var(--size-4);
           font-style: normal;
           line-height: inherit;
         }
@@ -105,7 +105,7 @@ export function CssReset() {
         ul,
         dl {
           margin-top: 0;
-          margin-bottom: 16px;
+          margin-bottom: var(--size-4);
         }
 
         ol ol,
@@ -120,12 +120,12 @@ export function CssReset() {
         }
 
         dd {
-          margin-bottom: 8px;
+          margin-bottom: var(--size-2);
           margin-left: 0;
         }
 
         blockquote {
-          margin: 0 0 16px;
+          margin: 0 0 var(--size-4);
         }
 
         b,
@@ -178,19 +178,18 @@ export function CssReset() {
         code,
         kbd,
         samp {
-          font-family: SFMono-Regular, Menlo, Monaco, Consolas,
-            'Liberation Mono', 'Courier New', monospace;
+          font-family: var(--font-stack-monospace);
           font-size: 1em;
         }
 
         pre {
           margin-top: 0;
-          margin-bottom: 16px;
+          margin-bottom: var(--size-4);
           overflow: auto;
         }
 
         figure {
-          margin: 0 0 16px;
+          margin: 0 0 var(--size-4);
         }
 
         img {
@@ -208,8 +207,8 @@ export function CssReset() {
         }
 
         caption {
-          padding-top: 12px;
-          padding-bottom: 12px;
+          padding-top: var(--size-3);
+          padding-bottom: var(--size-3);
           color: #6c757d;
           text-align: left;
           caption-side: bottom;
@@ -221,7 +220,7 @@ export function CssReset() {
 
         label {
           display: inline-block;
-          margin-bottom: 8px;
+          margin-bottom: var(--size-2);
         }
 
         button {
@@ -229,7 +228,7 @@ export function CssReset() {
         }
 
         button:focus {
-          outline: 1px dotted;
+          outline: var(--size-px) dotted;
           outline: 5px auto -webkit-focus-ring-color;
         }
 
@@ -310,8 +309,8 @@ export function CssReset() {
           width: 100%;
           max-width: 100%;
           padding: 0;
-          margin-bottom: 8px;
-          font-size: 24px;
+          margin-bottom: var(--size-2);
+          font-size: var(--size-6);
           line-height: inherit;
           color: inherit;
           white-space: normal;
