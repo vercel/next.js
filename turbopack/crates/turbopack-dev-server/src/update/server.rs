@@ -11,17 +11,16 @@ use pin_project_lite::pin_project;
 use tokio::select;
 use tokio_stream::StreamMap;
 use tracing::{instrument, Level};
-use turbo_tasks::{TransientInstance, TurboTasksApi, Vc};
+use turbo_tasks::{NonLocalValue, TransientInstance, TurboTasksApi, Vc};
 use turbo_tasks_fs::json::parse_json_with_source_context;
 use turbopack_core::{error::PrettyPrintError, issue::IssueReporter, version::Update};
 use turbopack_ecmascript_hmr_protocol::{
     ClientMessage, ClientUpdateInstruction, Issue, ResourceIdentifier,
 };
 
-use super::stream::UpdateStream;
 use crate::{
     source::{request::SourceRequest, resolve::resolve_source_request, Body},
-    update::stream::UpdateStreamItem,
+    update::stream::{GetContentFn, UpdateStream, UpdateStreamItem},
     SourceProvider,
 };
 
@@ -32,7 +31,10 @@ pub(crate) struct UpdateServer<P: SourceProvider> {
     issue_reporter: Vc<Box<dyn IssueReporter>>,
 }
 
-impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
+impl<P> UpdateServer<P>
+where
+    P: SourceProvider + NonLocalValue + Clone + Send + Sync,
+{
     /// Create a new update server with the given websocket and content source.
     pub fn new(source_provider: P, issue_reporter: Vc<Box<dyn IssueReporter>>) -> Self {
         Self {
@@ -74,12 +76,20 @@ impl<P: SourceProvider + Clone + Send + Sync> UpdateServer<P> {
                                     )
                                 }
                             };
-                            match UpdateStream::new(resource.to_string().into(), TransientInstance::new(Box::new(get_content))).await {
+                            match UpdateStream::new(
+                                resource.to_string().into(),
+                                // safety: Everything that `get_content` captures in it's closure is
+                                // a `NonLocalValue`.
+                                TransientInstance::new(unsafe { GetContentFn::new(get_content) })
+                            ).await {
                                 Ok(stream) => {
                                     streams.insert(resource, stream);
                                 }
                                 Err(err) => {
-                                    eprintln!("Failed to create update stream for {resource}: {}", PrettyPrintError(&err));
+                                    eprintln!(
+                                        "Failed to create update stream for {resource}: {}",
+                                        PrettyPrintError(&err),
+                                    );
                                     client
                                         .send(ClientUpdateInstruction::not_found(&resource))
                                         .await?;
