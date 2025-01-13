@@ -32,15 +32,6 @@ const sampleComponentStack = [
   },
 ]
 
-export const HtmlTagsMismatch: Story = {
-  args: {
-    componentStackFrames: sampleComponentStack,
-    firstContent: '<p>',
-    secondContent: '<div>',
-    hydrationMismatchType: 'tag',
-  },
-}
-
 export const TextMismatch: Story = {
   args: {
     componentStackFrames: sampleComponentStack,
