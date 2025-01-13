@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('use-cache-metadata-route-handler', () => {
-  const { next, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
   })
 
@@ -41,12 +41,12 @@ describe('use-cache-metadata-route-handler', () => {
 
     const body = await res.text()
 
-    if (isNextStart) {
+    if (isNextDev) {
       expect(body).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
-       <loc>https://acme.com?sentinel=buildtime</loc>
+       <loc>https://acme.com?sentinel=runtime</loc>
        </url>
        </urlset>
        "
@@ -56,7 +56,7 @@ describe('use-cache-metadata-route-handler', () => {
        "<?xml version="1.0" encoding="UTF-8"?>
        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
-       <loc>https://acme.com?sentinel=runtime</loc>
+       <loc>https://acme.com?sentinel=buildtime</loc>
        </url>
        </urlset>
        "
@@ -71,12 +71,12 @@ describe('use-cache-metadata-route-handler', () => {
 
     const body = await res.text()
 
-    if (isNextStart) {
+    if (isNextDev) {
       expect(body).toMatchInlineSnapshot(`
        "<?xml version="1.0" encoding="UTF-8"?>
        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
-       <loc>https://acme.com/1?sentinel=buildtime</loc>
+       <loc>https://acme.com/1?sentinel=runtime</loc>
        </url>
        </urlset>
        "
@@ -86,7 +86,7 @@ describe('use-cache-metadata-route-handler', () => {
        "<?xml version="1.0" encoding="UTF-8"?>
        <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
        <url>
-       <loc>https://acme.com/1?sentinel=runtime</loc>
+       <loc>https://acme.com/1?sentinel=buildtime</loc>
        </url>
        </urlset>
        "
@@ -101,17 +101,17 @@ describe('use-cache-metadata-route-handler', () => {
 
     const body = await res.text()
 
-    if (isNextStart) {
+    if (isNextDev) {
       expect(body).toMatchInlineSnapshot(`
-       "User-Agent: *
-       Allow: /buildtime
-
-       "
-      `)
+        "User-Agent: *
+        Allow: /runtime
+        
+        "
+        `)
     } else {
       expect(body).toMatchInlineSnapshot(`
        "User-Agent: *
-       Allow: /runtime
+       Allow: /buildtime
 
        "
       `)
@@ -125,10 +125,10 @@ describe('use-cache-metadata-route-handler', () => {
 
     const body = await res.json()
 
-    if (isNextStart) {
-      expect(body).toEqual({ name: 'buildtime' })
-    } else {
+    if (isNextDev) {
       expect(body).toEqual({ name: 'runtime' })
+    } else {
+      expect(body).toEqual({ name: 'buildtime' })
     }
   })
 })
