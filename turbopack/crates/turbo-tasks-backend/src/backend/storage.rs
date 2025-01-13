@@ -199,7 +199,7 @@ impl InnerStorage {
         f: impl FnOnce() -> CachedDataItemValue,
     ) -> CachedDataItemValueRefMut<'_> {
         self.get_or_create_map_mut(key.ty())
-            .get_mut_or_insert_with(&key, f)
+            .get_mut_or_insert_with(key, f)
     }
 
     pub fn has_key(&self, key: &CachedDataItemKey) -> bool {
