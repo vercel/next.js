@@ -11,33 +11,22 @@ import { usePagesReactDevOverlay } from './hooks'
 
 export type ErrorType = 'runtime' | 'build'
 
-interface ReactDevOverlayProps {
-  children?: React.ReactNode
-  preventDisplay?: ErrorType[]
-  globalOverlay?: boolean
-}
-
 export default function ReactDevOverlay({
   children,
-  preventDisplay,
-  globalOverlay,
-}: ReactDevOverlayProps) {
+}: {
+  children?: React.ReactNode
+}) {
   const {
     isMounted,
-    displayPrevented,
     hasBuildError,
     hasRuntimeErrors,
     state,
     onComponentError,
-  } = usePagesReactDevOverlay(preventDisplay)
+  } = usePagesReactDevOverlay()
 
   return (
     <>
-      <ErrorBoundary
-        globalOverlay={globalOverlay}
-        isMounted={isMounted}
-        onError={onComponentError}
-      >
+      <ErrorBoundary isMounted={isMounted} onError={onComponentError}>
         {children ?? null}
       </ErrorBoundary>
       {isMounted ? (
@@ -46,7 +35,7 @@ export default function ReactDevOverlay({
           <Base />
           <ComponentStyles />
 
-          {displayPrevented ? null : hasBuildError ? (
+          {hasBuildError ? (
             <BuildError
               message={state.buildError!}
               versionInfo={state.versionInfo}

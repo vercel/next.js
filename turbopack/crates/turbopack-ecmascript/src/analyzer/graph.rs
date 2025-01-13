@@ -10,6 +10,7 @@ use swc_core::{
     ecma::{
         ast::*,
         atoms::js_word,
+        utils::contains_ident_ref,
         visit::{fields::*, *},
     },
 };
@@ -863,6 +864,13 @@ impl Analyzer<'_> {
                         let mut ast_path = ast_path
                             .with_guard(AstParentNodeRef::FnExpr(fn_expr, FnExprField::Ident));
                         self.visit_opt_ident(ident, &mut ast_path);
+
+                        // We cannot analyze recursive IIFE
+                        if let Some(ident) = ident {
+                            if contains_ident_ref(&function.body, &ident.to_id()) {
+                                return false;
+                            }
+                        }
                     }
 
                     {

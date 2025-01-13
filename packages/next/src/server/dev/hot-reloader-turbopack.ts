@@ -631,9 +631,7 @@ export async function createHotReloaderTurbopack(
     getNextErrorFeedbackMiddleware(opts.telemetry),
   ]
 
-  const versionInfoPromise = getVersionInfo(
-    isTestMode || opts.telemetry.isEnabled
-  )
+  const versionInfoPromise = getVersionInfo()
 
   let devtoolsFrontendUrl: string | undefined
   const nodeDebugType = getNodeDebugType()
@@ -727,9 +725,6 @@ export async function createHotReloaderTurbopack(
 
           // Next.js messages
           switch (parsedData.event) {
-            case 'ping':
-              // Ping doesn't need additional handling in Turbopack.
-              break
             case 'span-end': {
               hotReloaderSpan.manualTraceChild(
                 parsedData.spanName,

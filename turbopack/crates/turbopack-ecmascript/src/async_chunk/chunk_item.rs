@@ -32,18 +32,8 @@ impl AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
-        if let Some(chunk_items) = module.availability_info.available_chunk_items() {
-            if chunk_items
-                .get(
-                    module
-                        .inner
-                        .as_chunk_item(*ResolvedVc::upcast(self.chunking_context))
-                        .resolve()
-                        .await?,
-                )
-                .await?
-                .is_some()
-            {
+        if let Some(chunk_items) = module.availability_info.available_modules() {
+            if chunk_items.get(*module.inner).await?.is_some() {
                 return Ok(Vc::cell(vec![]));
             }
         }
@@ -167,7 +157,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
     async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.module.ident();
         if let Some(available_chunk_items) =
-            self.module.await?.availability_info.available_chunk_items()
+            self.module.await?.availability_info.available_modules()
         {
             ident = ident.with_modifier(Vc::cell(
                 available_chunk_items.hash().await?.to_string().into(),

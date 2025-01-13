@@ -145,8 +145,15 @@ export type RouteCacheEntry =
   | FulfilledRouteCacheEntry
   | RejectedRouteCacheEntry
 
+export const enum FetchStrategy {
+  PPR,
+  LoadingBoundary,
+}
+
 type SegmentCacheEntryShared = {
   staleAt: number
+  fetchStrategy: FetchStrategy
+  revalidating: SegmentCacheEntry | null
 
   // LRU-related fields
   key: null | string
@@ -155,8 +162,16 @@ type SegmentCacheEntryShared = {
   size: number
 }
 
+export type EmptySegmentCacheEntry = SegmentCacheEntryShared & {
+  status: EntryStatus.Empty
+  rsc: null
+  loading: null
+  isPartial: true
+  promise: null
+}
+
 export type PendingSegmentCacheEntry = SegmentCacheEntryShared & {
-  status: EntryStatus.Empty | EntryStatus.Pending
+  status: EntryStatus.Pending
   rsc: null
   loading: null
   isPartial: true
@@ -171,7 +186,7 @@ type RejectedSegmentCacheEntry = SegmentCacheEntryShared & {
   promise: null
 }
 
-type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
+export type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
   status: EntryStatus.Fulfilled
   rsc: React.ReactNode | null
   loading: LoadingModuleData | Promise<LoadingModuleData>
@@ -180,9 +195,15 @@ type FulfilledSegmentCacheEntry = SegmentCacheEntryShared & {
 }
 
 export type SegmentCacheEntry =
+  | EmptySegmentCacheEntry
   | PendingSegmentCacheEntry
   | RejectedSegmentCacheEntry
   | FulfilledSegmentCacheEntry
+
+export type NonEmptySegmentCacheEntry = Exclude<
+  SegmentCacheEntry,
+  EmptySegmentCacheEntry
+>
 
 // Route cache entries vary on multiple keys: the href and the Next-Url. Each of
 // these parts needs to be included in the internal cache key. Rather than
@@ -272,8 +293,37 @@ export function readSegmentCacheEntry(
 
       return existingEntry
     } else {
-      // Evict the stale entry from the cache.
-      deleteSegmentFromCache(existingEntry, path)
+      // This is a stale entry.
+      const revalidatingEntry = existingEntry.revalidating
+      if (revalidatingEntry !== null) {
+        // There's a revalidation in progress. Upsert it.
+        const upsertedEntry = upsertSegmentEntry(now, path, revalidatingEntry)
+        if (upsertedEntry !== null && upsertedEntry.staleAt > now) {
+          // We can use the upserted revalidation entry.
+          return upsertedEntry
+        }
+      } else {
+        // Evict the stale entry from the cache.
+        deleteSegmentFromCache(existingEntry, path)
+      }
+    }
+  }
+  return null
+}
+
+function readRevalidatingSegmentCacheEntry(
+  now: number,
+  owner: SegmentCacheEntry
+): SegmentCacheEntry | null {
+  const existingRevalidation = owner.revalidating
+  if (existingRevalidation !== null) {
+    if (existingRevalidation.staleAt > now) {
+      // There's already a revalidation in progress. Or a previous revalidation
+      // failed and it has not yet expired.
+      return existingRevalidation
+    } else {
+      // Clear the stale revalidation from its owner.
+      clearRevalidatingSegmentFromOwner(owner)
     }
   }
   return null
@@ -313,7 +363,7 @@ export function readOrCreateRouteCacheEntry(
     status: EntryStatus.Empty,
     blockedTasks: null,
     tree: null,
-    head: [null, null],
+    head: null,
     isHeadPartial: true,
     // Since this is an empty entry, there's no reason to ever evict it. It will
     // be updated when the data is populated.
@@ -356,11 +406,89 @@ export function readOrCreateSegmentCacheEntry(
     return existingEntry
   }
   // Create a pending entry and add it to the cache.
-  const pendingEntry: PendingSegmentCacheEntry = {
+  const pendingEntry = createDetachedSegmentCacheEntry(route.staleAt)
+  segmentCacheMap.set(path, pendingEntry)
+  // Stash the keypath on the entry so we know how to remove it from the map
+  // if it gets evicted from the LRU.
+  pendingEntry.key = path
+  segmentCacheLru.put(pendingEntry)
+  return pendingEntry
+}
+
+export function readOrCreateRevalidatingSegmentEntry(
+  now: number,
+  prevEntry: SegmentCacheEntry
+): SegmentCacheEntry {
+  const existingRevalidation = readRevalidatingSegmentCacheEntry(now, prevEntry)
+  if (existingRevalidation !== null) {
+    return existingRevalidation
+  }
+  const pendingEntry = createDetachedSegmentCacheEntry(prevEntry.staleAt)
+
+  // Background revalidations are not stored directly in the cache map or LRU;
+  // they're stashed on the entry that they will (potentially) replace.
+  //
+  // Note that we don't actually ever clear this field, except when the entry
+  // expires. When the revalidation finishes, one of two things will happen:
+  //
+  //  1) the revalidation is successful, `prevEntry` is removed from the cache
+  //     and garbage collected (so there's no point clearing any of its fields)
+  //  2) the revalidation fails, and we'll use the `revalidating` field to
+  //     prevent subsequent revalidation attempts, until it expires.
+  prevEntry.revalidating = pendingEntry
+
+  return pendingEntry
+}
+
+export function upsertSegmentEntry(
+  now: number,
+  segmentKeyPath: string,
+  candidateEntry: SegmentCacheEntry
+): SegmentCacheEntry | null {
+  // We have a new entry that has not yet been inserted into the cache. Before
+  // we do so, we need to confirm whether it takes precedence over the existing
+  // entry (if one exists).
+  const existingEntry = readSegmentCacheEntry(now, segmentKeyPath)
+  if (existingEntry !== null) {
+    if (candidateEntry.isPartial && !existingEntry.isPartial) {
+      // Don't replace a full segment with a partial one. A case where this
+      // might happen is if the existing segment was fetched via
+      // <Link prefetch={true}>.
+
+      // We're going to leave the entry on the owner's `revalidating` field
+      // so that it doesn't get revalidated again unnecessarily. Downgrade the
+      // Fulfilled entry to Rejected and null out the data so it can be garbage
+      // collected. We leave `staleAt` intact to prevent subsequent revalidation
+      // attempts only until the entry expires.
+      const rejectedEntry: RejectedSegmentCacheEntry = candidateEntry as any
+      rejectedEntry.status = EntryStatus.Rejected
+      rejectedEntry.loading = null
+      rejectedEntry.rsc = null
+      return null
+    }
+    // Evict the existing entry from the cache.
+    deleteSegmentFromCache(existingEntry, segmentKeyPath)
+  }
+  segmentCacheMap.set(segmentKeyPath, candidateEntry)
+  // Stash the keypath on the entry so we know how to remove it from the map
+  // if it gets evicted from the LRU.
+  candidateEntry.key = segmentKeyPath
+  segmentCacheLru.put(candidateEntry)
+  return candidateEntry
+}
+
+export function createDetachedSegmentCacheEntry(
+  staleAt: number
+): EmptySegmentCacheEntry {
+  const emptyEntry: EmptySegmentCacheEntry = {
     status: EntryStatus.Empty,
+    // Default to assuming the fetch strategy will be PPR. This will be updated
+    // when a fetch is actually initiated.
+    fetchStrategy: FetchStrategy.PPR,
+    revalidating: null,
     rsc: null,
     loading: null,
-    staleAt: route.staleAt,
+    staleAt,
     isPartial: true,
     promise: null,
 
@@ -370,11 +498,16 @@ export function readOrCreateSegmentCacheEntry(
     prev: null,
     size: 0,
   }
-  segmentCacheMap.set(path, pendingEntry)
-  // Stash the keypath on the entry so we know how to remove it from the map
-  // if it gets evicted from the LRU.
-  pendingEntry.key = path
-  segmentCacheLru.put(pendingEntry)
+  return emptyEntry
+}
+
+export function upgradeToPendingSegment(
+  emptyEntry: EmptySegmentCacheEntry,
+  fetchStrategy: FetchStrategy
+): PendingSegmentCacheEntry {
+  const pendingEntry: PendingSegmentCacheEntry = emptyEntry as any
+  pendingEntry.status = EntryStatus.Pending
+  pendingEntry.fetchStrategy = fetchStrategy
   return pendingEntry
 }
 
@@ -391,6 +524,28 @@ function deleteSegmentFromCache(entry: SegmentCacheEntry, key: string): void {
   cancelEntryListeners(entry)
   segmentCacheMap.delete(key)
   segmentCacheLru.delete(entry)
+  clearRevalidatingSegmentFromOwner(entry)
+}
+
+function clearRevalidatingSegmentFromOwner(owner: SegmentCacheEntry): void {
+  // Revalidating segments are not stored in the cache directly; they're
+  // stored as a field on the entry that they will (potentially) replace. So
+  // to dispose of an existing revalidation, we just need to null out the field
+  // on the owner.
+  const revalidatingSegment = owner.revalidating
+  if (revalidatingSegment !== null) {
+    cancelEntryListeners(revalidatingSegment)
+    owner.revalidating = null
+  }
+}
+
+export function resetRevalidatingSegmentEntry(
+  owner: SegmentCacheEntry
+): EmptySegmentCacheEntry {
+  clearRevalidatingSegmentFromOwner(owner)
+  const emptyEntry = createDetachedSegmentCacheEntry(owner.staleAt)
+  owner.revalidating = emptyEntry
+  return emptyEntry
 }
 
 function onRouteLRUEviction(entry: RouteCacheEntry): void {
@@ -461,12 +616,12 @@ function fulfillRouteCacheEntry(
 }
 
 function fulfillSegmentCacheEntry(
-  segmentCacheEntry: PendingSegmentCacheEntry,
+  segmentCacheEntry: EmptySegmentCacheEntry | PendingSegmentCacheEntry,
   rsc: React.ReactNode,
   loading: LoadingModuleData | Promise<LoadingModuleData>,
   staleAt: number,
   isPartial: boolean
-) {
+): FulfilledSegmentCacheEntry {
   const fulfilledEntry: FulfilledSegmentCacheEntry = segmentCacheEntry as any
   fulfilledEntry.status = EntryStatus.Fulfilled
   fulfilledEntry.rsc = rsc
@@ -479,6 +634,7 @@ function fulfillSegmentCacheEntry(
     // Free the promise for garbage collection.
     fulfilledEntry.promise = null
   }
+  return fulfilledEntry
 }
 
 function rejectRouteCacheEntry(
@@ -625,11 +781,11 @@ export function convertRouteTreeToFlightRouterState(
 export async function fetchRouteOnCacheMiss(
   entry: PendingRouteCacheEntry,
   task: PrefetchTask
-): Promise<PrefetchSubtaskResult | null> {
+): Promise<PrefetchSubtaskResult<null> | null> {
   // This function is allowed to use async/await because it contains the actual
-  // fetch that gets issued on a cache miss. Notice though that it does not
-  // return anything; it writes the result to the cache entry directly, then
-  // pings the scheduler to unblock the corresponding prefetch task.
+  // fetch that gets issued on a cache miss. Notice it writes the result to the
+  // cache entry directly, rather than return data that is then written by
+  // the caller.
   const key = task.key
   const href = key.href
   const nextUrl = key.nextUrl
@@ -691,12 +847,13 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
         convertRootTreePrefetchToRouteTree(serverData),
         serverData.head,
         serverData.isHeadPartial,
-        Date.now() + serverData.staleTime,
+        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled
@@ -754,7 +911,7 @@ export async function fetchRouteOnCacheMiss(
     }
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
-    return { closed: closed.promise }
+    return { value: null, closed: closed.promise }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
@@ -769,10 +926,11 @@ export async function fetchSegmentOnCacheMiss(
   routeKey: RouteCacheKey,
   segmentKeyPath: string,
   accessToken: string | null
-): Promise<PrefetchSubtaskResult | null> {
+): Promise<PrefetchSubtaskResult<FulfilledSegmentCacheEntry> | null> {
   // This function is allowed to use async/await because it contains the actual
-  // fetch that gets issued on a cache miss. Notice though that it does not
-  // return anything; it writes the result to the cache entry directly.
+  // fetch that gets issued on a cache miss. Notice it writes the result to the
+  // cache entry directly, rather than return data that is then written by
+  // the caller.
   //
   // Segment fetches are non-blocking so we don't need to ping the scheduler
   // on completion.
@@ -825,19 +983,20 @@ export async function fetchSegmentOnCacheMiss(
       rejectSegmentCacheEntry(segmentCacheEntry, Date.now() + 10 * 1000)
       return null
     }
-    fulfillSegmentCacheEntry(
-      segmentCacheEntry,
-      serverData.rsc,
-      serverData.loading,
-      // TODO: The server does not currently provide per-segment stale time.
-      // So we use the stale time of the route.
-      route.staleAt,
-      serverData.isPartial
-    )
-
-    // Return a promise that resolves when the network connection closes, so
-    // the scheduler can track the number of concurrent network connections.
-    return { closed: closed.promise }
+    return {
+      value: fulfillSegmentCacheEntry(
+        segmentCacheEntry,
+        serverData.rsc,
+        serverData.loading,
+        // TODO: The server does not currently provide per-segment stale time.
+        // So we use the stale time of the route.
+        route.staleAt,
+        serverData.isPartial
+      ),
+      // Return a promise that resolves when the network connection closes, so
+      // the scheduler can track the number of concurrent network connections.
+      closed: closed.promise,
+    }
   } catch (error) {
     // Either the connection itself failed, or something bad happened while
     // decoding the response.
@@ -851,7 +1010,7 @@ export async function fetchSegmentPrefetchesForPPRDisabledRoute(
   route: FulfilledRouteCacheEntry,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
-): Promise<PrefetchSubtaskResult | null> {
+): Promise<PrefetchSubtaskResult<null> | null> {
   const href = task.key.href
   const nextUrl = task.key.nextUrl
   const headers: RequestHeaders = {
@@ -912,7 +1071,7 @@ export async function fetchSegmentPrefetchesForPPRDisabledRoute(
 
     // Return a promise that resolves when the network connection closes, so
     // the scheduler can track the number of concurrent network connections.
-    return { closed: closed.promise }
+    return { value: null, closed: closed.promise }
   } catch (error) {
     rejectSegmentEntriesIfStillPending(spawnedEntries, Date.now() + 10 * 1000)
     return null
@@ -956,17 +1115,19 @@ function writeDynamicTreeResponseIntoCache(
 
   const flightRouterState = flightData.tree
   // TODO: Extract to function
-  const staleTimeHeader = response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
-  const staleTime =
-    staleTimeHeader !== null
-      ? parseInt(staleTimeHeader, 10)
+  const staleTimeHeaderSeconds = response.headers.get(
+    NEXT_ROUTER_STALE_TIME_HEADER
+  )
+  const staleTimeMs =
+    staleTimeHeaderSeconds !== null
+      ? parseInt(staleTimeHeaderSeconds, 10) * 1000
       : STATIC_STALETIME_MS
   fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
     flightData.head,
     flightData.isHeadPartial,
-    now + staleTime,
+    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled
@@ -1031,17 +1192,17 @@ function writeDynamicRenderResponseIntoCache(
           encodeSegment(segment)
         )
       }
-      const staleTimeHeader = response.headers.get(
+      const staleTimeHeaderSeconds = response.headers.get(
         NEXT_ROUTER_STALE_TIME_HEADER
       )
-      const staleTime =
-        staleTimeHeader !== null
-          ? parseInt(staleTimeHeader, 10)
+      const staleTimeMs =
+        staleTimeHeaderSeconds !== null
+          ? parseInt(staleTimeHeaderSeconds, 10) * 1000
           : STATIC_STALETIME_MS
       writeSeedDataIntoCache(
         now,
         route,
-        now + staleTime,
+        now + staleTimeMs,
         seedData,
         segmentKey,
         spawnedEntries
@@ -1094,7 +1255,16 @@ function writeSeedDataIntoCache(
       const newEntry = possiblyNewEntry
       fulfillSegmentCacheEntry(newEntry, rsc, loading, staleAt, isPartial)
     } else {
-      // There was already an entry in the cache. We must not write over it.
+      // There was already an entry in the cache. But we may be able to
+      // replace it with the new one from the server.
+      const newEntry = fulfillSegmentCacheEntry(
+        createDetachedSegmentCacheEntry(staleAt),
+        rsc,
+        loading,
+        staleAt,
+        isPartial
+      )
+      upsertSegmentEntry(now, key, newEntry)
     }
   }
   // Recursively write the child data into the cache.

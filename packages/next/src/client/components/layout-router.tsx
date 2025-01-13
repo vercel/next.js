@@ -215,6 +215,14 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       // Verify if the element is a HTMLElement and if we want to consider it for scroll behavior.
       // If the element is skipped, try to select the next sibling and try again.
       while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
+        if (process.env.NODE_ENV !== 'production') {
+          if (domNode.parentElement?.localName === 'head') {
+            console.error(
+              'Tried to scroll to a head element. This is a bug in Next.js.'
+            )
+          }
+        }
+
         // No siblings found that match the criteria are found, so handle scroll higher up in the tree instead.
         if (domNode.nextElementSibling === null) {
           return
@@ -389,6 +397,9 @@ function InnerLayoutRouter({
 
         return serverResponse
       })
+
+      // Suspend while waiting for lazyData to resolve
+      use(lazyData)
     }
     // Suspend infinitely as `changeByServerResponse` will cause a different part of the tree to be rendered.
     // A falsey `resolvedRsc` indicates missing data -- we should not commit that branch, and we need to wait for the data to arrive.
@@ -549,7 +560,7 @@ export default function OuterLayoutRouter({
       lazyData: null,
       rsc: null,
       prefetchRsc: null,
-      head: [null, null],
+      head: null,
       prefetchHead: null,
       parallelRoutes: new Map(),
       loading: null,

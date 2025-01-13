@@ -1,5 +1,6 @@
 // Needed for swc visit_ macros
 #![allow(non_local_definitions)]
+#![feature(async_closure)]
 #![feature(box_patterns)]
 #![feature(min_specialization)]
 #![feature(iter_intersperse)]
@@ -236,7 +237,7 @@ impl EcmascriptModuleAssetBuilder {
     }
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 pub struct EcmascriptModuleAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
@@ -548,6 +549,15 @@ impl Module for EcmascriptModuleAsset {
         let references = analyze.references.await?.iter().copied().collect();
         Ok(Vc::cell(references))
     }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
+        if let Some(async_module) = *self.get_async_module().await? {
+            Ok(async_module.is_self_async(*self.analyze().await?.references))
+        } else {
+            Ok(Vc::cell(false))
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -643,15 +653,6 @@ impl ChunkItem for ModuleChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.module)
     }
-
-    #[turbo_tasks::function]
-    async fn is_self_async(&self) -> Result<Vc<bool>> {
-        if let Some(async_module) = *self.module.get_async_module().await? {
-            Ok(async_module.is_self_async(*self.module.analyze().await?.references))
-        } else {
-            Ok(Vc::cell(false))
-        }
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -735,11 +736,7 @@ impl EcmascriptModuleContent {
             }
         }
         if let Some(async_module) = *async_module.await? {
-            code_gens.push(async_module.code_generation(
-                chunking_context,
-                async_module_info,
-                references,
-            ));
+            code_gens.push(async_module.code_generation(async_module_info, references));
         }
         for c in code_generation.await?.iter() {
             match c {

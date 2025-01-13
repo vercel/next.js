@@ -21,6 +21,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  // override NextConfigComplete.experimental.htmlLimitedBots to string
+  // because it's not defined in NextConfigComplete.experimental
+  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
+    htmlLimitedBots: string | undefined
+  }
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -496,6 +501,11 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
+   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   */
+  viewTransition?: boolean
+
+  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -567,6 +577,17 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  /**
+   * When enabled will cause async metadata calls to stream rather than block the render.
+   */
+  streamingMetadata?: boolean
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   */
+  htmlLimitedBots?: RegExp
 }
 
 export type ExportPathMap = {
@@ -1178,6 +1199,7 @@ export const defaultConfig: NextConfig = {
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
+    viewTransition: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1191,6 +1213,8 @@ export const defaultConfig: NextConfig = {
     dynamicIO: false,
     inlineCss: false,
     newDevOverlay: false,
+    streamingMetadata: false,
+    htmlLimitedBots: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

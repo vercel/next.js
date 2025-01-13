@@ -80,6 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -214,6 +215,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 
 type Fallback = null | boolean | string
 
@@ -904,12 +906,15 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, false)
+      const { envInfo, experimentalFeatures } = await getStartServerInfo(
+        dir,
+        false
+      )
       logStartInfo({
         networkUrl: null,
         appUrl: null,
         envInfo,
-        expFeatureInfo,
+        experimentalFeatures,
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
@@ -1302,6 +1307,24 @@ export default async function build(
           config.experimental.clientRouterFilterAllowedRate
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
+      }
+
+      if (config.experimental.streamingMetadata) {
+        // Write html limited bots config to response-config-manifest
+        const responseConfigManifestPath = path.join(
+          distDir,
+          RESPONSE_CONFIG_MANIFEST
+        )
+        const responseConfigManifest: {
+          version: number
+          htmlLimitedBots: string
+        } = {
+          version: 0,
+          htmlLimitedBots:
+            config.experimental.htmlLimitedBots ||
+            HTML_LIMITED_BOT_UA_RE_STRING,
+        }
+        await writeManifest(responseConfigManifestPath, responseConfigManifest)
       }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -2484,6 +2507,9 @@ export default async function build(
               PRERENDER_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(config.experimental.streamingMetadata
+                ? [RESPONSE_CONFIG_MANIFEST]
+                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(

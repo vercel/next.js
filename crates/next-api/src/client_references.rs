@@ -10,9 +10,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc,
 };
 use turbopack::css::CssModuleAsset;
-use turbopack_core::module::Module;
-
-use crate::module_graph::SingleModuleGraph;
+use turbopack_core::{module::Module, module_graph::SingleModuleGraph};
 
 #[derive(
     Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,

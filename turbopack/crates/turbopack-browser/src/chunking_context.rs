@@ -390,7 +390,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn chunk_group(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         availability_info: Value<AvailabilityInfo>,
@@ -403,7 +403,7 @@ impl ChunkingContext for BrowserChunkingContext {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                Vc::upcast(self),
+                ResolvedVc::upcast(self),
                 [ResolvedVc::upcast(module)],
                 input_availability_info,
             )
@@ -422,11 +422,9 @@ impl ChunkingContext for BrowserChunkingContext {
                     AvailabilityInfo::Untracked => {
                         ident = ident.with_modifier(Vc::cell("untracked".into()));
                     }
-                    AvailabilityInfo::Complete {
-                        available_chunk_items,
-                    } => {
+                    AvailabilityInfo::Complete { available_modules } => {
                         ident = ident.with_modifier(Vc::cell(
-                            available_chunk_items.hash().await?.to_string().into(),
+                            available_modules.hash().await?.to_string().into(),
                         ));
                     }
                 }
@@ -454,7 +452,7 @@ impl ChunkingContext for BrowserChunkingContext {
 
     #[turbo_tasks::function]
     async fn evaluated_chunk_group(
-        self: Vc<Self>,
+        self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
         availability_info: Value<AvailabilityInfo>,
@@ -476,7 +474,7 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
-            } = make_chunk_group(Vc::upcast(self), entries, availability_info).await?;
+            } = make_chunk_group(ResolvedVc::upcast(self), entries, availability_info).await?;
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()

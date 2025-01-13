@@ -1661,13 +1661,13 @@
       "ReactRefreshRequire app provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire app provides fresh value for exports.* in parents",
       "ReactRefreshRequire app provides fresh value for module.exports in parents",
-      "ReactRefreshRequire app re-runs accepted modules",
       "ReactRefreshRequire app runs dependencies before dependents",
       "ReactRefreshRequire app stops update propagation after module-level errors"
     ],
     "failed": [],
     "pending": [
-      "ReactRefreshRequire app propagates a module that stops accepting in next version"
+      "ReactRefreshRequire app propagates a module that stops accepting in next version",
+      "ReactRefreshRequire app re-runs accepted modules"
     ],
     "flakey": [],
     "runtimeError": false
@@ -10504,11 +10504,11 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
+  "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
-      "yarn PnP should compile and serve the index page correctly with-mdx"
+      "yarn PnP should compile and serve the index page correctly mdx-pages"
     ],
     "flakey": [],
     "runtimeError": false

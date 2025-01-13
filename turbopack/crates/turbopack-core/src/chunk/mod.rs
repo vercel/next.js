@@ -1,5 +1,5 @@
 pub mod availability_info;
-pub mod available_chunk_items;
+pub mod available_modules;
 pub mod chunk_group;
 pub mod chunking;
 pub(crate) mod chunking_context;
@@ -31,7 +31,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::FileSystemPath;
 use turbo_tasks_hash::DeterministicHash;
 
-use self::{availability_info::AvailabilityInfo, available_chunk_items::AvailableChunkItems};
+use self::{availability_info::AvailabilityInfo, available_modules::AvailableModules};
 pub use self::{
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingContext, ChunkingContextExt,
@@ -41,11 +41,7 @@ pub use self::{
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
 };
 use crate::{
-    asset::Asset,
-    environment::ChunkLoading,
-    ident::AssetIdent,
-    module::Module,
-    output::{OutputAsset, OutputAssets},
+    asset::Asset, ident::AssetIdent, module::Module, output::OutputAssets,
     reference::ModuleReference,
 };
 
@@ -209,14 +205,14 @@ pub trait ChunkableModuleReference: ModuleReference + ValueToString {
     }
 }
 
-type AsyncInfo = FxIndexMap<Vc<Box<dyn ChunkItem>>, Vec<Vc<Box<dyn ChunkItem>>>>;
+type AsyncInfo =
+    FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Vec<ResolvedVc<Box<dyn ChunkableModule>>>>;
 
 pub struct ChunkContentResult {
-    pub chunk_items: FxIndexSet<Vc<Box<dyn ChunkItem>>>,
+    pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,
-    pub external_output_assets: Vc<OutputAssets>,
-    pub external_module_references: FxIndexSet<Vc<Box<dyn ModuleReference>>>,
+    pub passthrough_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     /// A map from local module to all children from which the async module
     /// status is inherited
     pub forward_edges_inherit_async: AsyncInfo,
@@ -229,11 +225,18 @@ pub struct ChunkContentResult {
 }
 
 pub async fn chunk_content(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
+    can_split_async: bool,
+    should_trace: bool,
 ) -> Result<ChunkContentResult> {
-    chunk_content_internal_parallel(chunking_context, chunk_entries, availability_info).await
+    chunk_content_internal_parallel(
+        chunk_entries,
+        availability_info,
+        can_split_async,
+        should_trace,
+    )
+    .await
 }
 
 #[derive(
@@ -250,84 +253,82 @@ enum InheritAsyncEdge {
     AvailableAsyncModule,
 }
 
-#[derive(Eq, PartialEq, Clone, Hash, Serialize, Deserialize, TraceRawVcs, Debug)]
+#[derive(Eq, PartialEq, Clone, Hash, Serialize, Deserialize, TraceRawVcs, Debug, NonLocalValue)]
 enum ChunkContentGraphNode {
-    // A chunk item not placed in the current chunk, but whose references we will
+    // A module not placed in the current chunk, but whose references we will
     // follow to find more graph nodes.
-    PassthroughChunkItem {
-        item: Vc<Box<dyn ChunkItem>>,
+    PassthroughModule {
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
     },
-    // Chunk items that are placed into the current chunk group
-    ChunkItem {
-        item: Vc<Box<dyn ChunkItem>>,
+    // Modules that are placed into the current chunk group
+    Module {
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
         ident: ReadRef<RcStr>,
     },
     // Async module that is referenced from the chunk group
     AsyncModule {
-        module: Vc<Box<dyn ChunkableModule>>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
     },
     // Module that is referenced as traced and will be turned into a separate RebasedAsset
     TracedModule {
-        module: Vc<Box<dyn Module>>,
+        module: ResolvedVc<Box<dyn Module>>,
     },
-    ExternalOutputAssets(ResolvedVc<OutputAssets>),
-    // ModuleReferences that are not placed in the current chunk group
-    ExternalModuleReference(ResolvedVc<Box<dyn ModuleReference>>),
-    /// A list of directly referenced chunk items from which `is_async_module`
+    /// A list of directly referenced modules from which `is_async_module`
     /// will be inherited.
     InheritAsyncInfo {
-        item: Vc<Box<dyn ChunkItem>>,
-        references: Vec<(ResolvedVc<Box<dyn ChunkItem>>, InheritAsyncEdge)>,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+        references: Vec<(ResolvedVc<Box<dyn ChunkableModule>>, InheritAsyncEdge)>,
     },
 }
 
 #[derive(Debug, Clone, Copy, TaskInput, PartialEq, Eq, Hash, Serialize, Deserialize)]
 enum ChunkGraphNodeToReferences {
-    PassthroughChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
-    ChunkItem(ResolvedVc<Box<dyn ChunkItem>>),
+    PassthroughModule(ResolvedVc<Box<dyn ChunkableModule>>),
+    Module(ResolvedVc<Box<dyn ChunkableModule>>),
 }
 
-#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TraceRawVcs)]
+#[derive(Debug, Clone, Deserialize, Serialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
 struct ChunkGraphEdge {
     key: Option<ResolvedVc<Box<dyn Module>>>,
     node: ChunkContentGraphNode,
 }
 
 #[derive(Debug, Clone)]
-#[turbo_tasks::value(transparent, local)]
+#[turbo_tasks::value(transparent)]
 struct ChunkGraphEdges(Vec<ChunkGraphEdge>);
 
 #[turbo_tasks::function]
-async fn graph_node_to_referenced_nodes_with_available_chunk_items(
+async fn graph_node_to_referenced_nodes_with_available_modules(
     node: ChunkGraphNodeToReferences,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Vc<AvailableChunkItems>,
+    available_modules: Vc<AvailableModules>,
+    can_split_async: bool,
+    should_trace: bool,
 ) -> Result<Vc<ChunkGraphEdges>> {
-    let edges = graph_node_to_referenced_nodes(node, chunking_context);
+    let edges = graph_node_to_referenced_nodes(node, can_split_async, should_trace);
     let edges_ref = edges.await?;
     for (unchanged, edge) in edges_ref.iter().enumerate() {
-        if let ChunkContentGraphNode::ChunkItem { item, .. } = edge.node {
-            if let Some(info) = *available_chunk_items.get(item).await? {
+        if let ChunkContentGraphNode::Module { module, .. } = edge.node {
+            if let Some(info) = *available_modules.get(*module).await? {
                 let mut new_edges = Vec::with_capacity(edges_ref.len());
                 new_edges.extend(edges_ref[0..unchanged].iter().cloned());
-                let mut available_chunk_item_info = HashMap::new();
-                available_chunk_item_info.insert(item, info);
+                let mut available_module_info = HashMap::new();
+                available_module_info.insert(module, info);
                 for edge in edges_ref[unchanged + 1..].iter() {
                     match edge.node {
-                        ChunkContentGraphNode::ChunkItem { item, .. } => {
-                            if let Some(info) = *available_chunk_items.get(item).await? {
-                                available_chunk_item_info.insert(item, info);
+                        ChunkContentGraphNode::Module { module, .. } => {
+                            if let Some(info) = *available_modules.get(*module).await? {
+                                available_module_info.insert(module, info);
                                 continue;
                             }
                         }
                         ChunkContentGraphNode::InheritAsyncInfo {
-                            item,
+                            module,
                             ref references,
                         } => {
                             let new_references = references
                                 .iter()
                                 .filter_map(|&(r, _)| {
-                                    if let Some(info) = available_chunk_item_info.get(&r) {
+                                    if let Some(info) = available_module_info.get(&r) {
                                         if info.is_async {
                                             Some((r, InheritAsyncEdge::AvailableAsyncModule))
                                         } else {
@@ -341,7 +342,7 @@ async fn graph_node_to_referenced_nodes_with_available_chunk_items(
                             new_edges.push(ChunkGraphEdge {
                                 key: edge.key,
                                 node: ChunkContentGraphNode::InheritAsyncInfo {
-                                    item,
+                                    module,
                                     references: new_references,
                                 },
                             });
@@ -361,36 +362,27 @@ async fn graph_node_to_referenced_nodes_with_available_chunk_items(
 #[turbo_tasks::function]
 async fn graph_node_to_referenced_nodes(
     node: ChunkGraphNodeToReferences,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
+    can_split_async: bool,
+    should_trace: bool,
 ) -> Result<Vc<ChunkGraphEdges>> {
-    let (parent, module_references, output_asset_references) = match &node {
-        ChunkGraphNodeToReferences::PassthroughChunkItem(item) => {
-            (None, item.module().references(), item.references())
-        }
-        ChunkGraphNodeToReferences::ChunkItem(item) => {
-            (Some(*item), item.module().references(), item.references())
-        }
+    let (parent, module_references) = match &node {
+        ChunkGraphNodeToReferences::PassthroughModule(item) => (None, item.references()),
+        ChunkGraphNodeToReferences::Module(item) => (Some(*item), item.references()),
     };
 
     let module_references = module_references.await?;
-    let mut graph_nodes = module_references
+    let graph_nodes = module_references
         .iter()
         .map(|reference| async {
             let reference = *reference;
             let Some(chunkable_module_reference) =
                 ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference).await?
             else {
-                return Ok(vec![ChunkGraphEdge {
-                    key: None,
-                    node: ChunkContentGraphNode::ExternalModuleReference(reference),
-                }]);
+                return Ok(vec![]);
             };
 
             let Some(chunking_type) = &*chunkable_module_reference.chunking_type().await? else {
-                return Ok(vec![ChunkGraphEdge {
-                    key: None,
-                    node: ChunkContentGraphNode::ExternalModuleReference(reference),
-                }]);
+                return Ok(vec![]);
             };
 
             let module_data = reference
@@ -402,11 +394,11 @@ async fn graph_node_to_referenced_nodes(
                 .into_iter()
                 .map(|&module| async move {
                     if matches!(chunking_type, ChunkingType::Traced) {
-                        if *chunking_context.is_tracing_enabled().await? {
+                        if should_trace {
                             return Ok((
                                 Some(ChunkGraphEdge {
                                     key: None,
-                                    node: ChunkContentGraphNode::TracedModule { module: *module },
+                                    node: ChunkContentGraphNode::TracedModule { module },
                                 }),
                                 None,
                             ));
@@ -418,81 +410,46 @@ async fn graph_node_to_referenced_nodes(
                     let Some(chunkable_module) =
                         ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
                     else {
-                        return Ok((
-                            Some(ChunkGraphEdge {
-                                key: None,
-                                node: ChunkContentGraphNode::ExternalModuleReference(reference),
-                            }),
-                            None,
-                        ));
+                        return Ok((None, None));
                     };
 
                     match chunking_type {
-                        ChunkingType::Parallel => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: Some(module),
-                                    node: ChunkContentGraphNode::ChunkItem {
-                                        item: chunk_item,
-                                        ident: module.ident().to_string().await?,
-                                    },
-                                }),
-                                None,
-                            ))
-                        }
-                        ChunkingType::ParallelInheritAsync => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: Some(module),
-                                    node: ChunkContentGraphNode::ChunkItem {
-                                        item: chunk_item,
-                                        ident: module.ident().to_string().await?,
-                                    },
-                                }),
-                                Some((
-                                    chunk_item.to_resolved().await?,
-                                    InheritAsyncEdge::LocalModule,
-                                )),
-                            ))
-                        }
-                        ChunkingType::Passthrough => {
-                            let chunk_item = chunkable_module
-                                .as_chunk_item(chunking_context)
-                                .resolve()
-                                .await?;
-
-                            Ok((
-                                Some(ChunkGraphEdge {
-                                    key: None,
-                                    node: ChunkContentGraphNode::PassthroughChunkItem {
-                                        item: chunk_item,
-                                    },
-                                }),
-                                None,
-                            ))
-                        }
+                        ChunkingType::Parallel => Ok((
+                            Some(ChunkGraphEdge {
+                                key: Some(module),
+                                node: ChunkContentGraphNode::Module {
+                                    module: chunkable_module,
+                                    ident: module.ident().to_string().await?,
+                                },
+                            }),
+                            None,
+                        )),
+                        ChunkingType::ParallelInheritAsync => Ok((
+                            Some(ChunkGraphEdge {
+                                key: Some(module),
+                                node: ChunkContentGraphNode::Module {
+                                    module: chunkable_module,
+                                    ident: module.ident().to_string().await?,
+                                },
+                            }),
+                            Some((chunkable_module, InheritAsyncEdge::LocalModule)),
+                        )),
+                        ChunkingType::Passthrough => Ok((
+                            Some(ChunkGraphEdge {
+                                key: None,
+                                node: ChunkContentGraphNode::PassthroughModule {
+                                    module: chunkable_module,
+                                },
+                            }),
+                            None,
+                        )),
                         ChunkingType::Async => {
-                            let chunk_loading =
-                                chunking_context.environment().chunk_loading().await?;
-                            if matches!(*chunk_loading, ChunkLoading::Edge) {
-                                let chunk_item = chunkable_module
-                                    .as_chunk_item(chunking_context)
-                                    .resolve()
-                                    .await?;
+                            if can_split_async {
                                 Ok((
                                     Some(ChunkGraphEdge {
-                                        key: Some(module),
-                                        node: ChunkContentGraphNode::ChunkItem {
-                                            item: chunk_item,
-                                            ident: module.ident().to_string().await?,
+                                        key: None,
+                                        node: ChunkContentGraphNode::AsyncModule {
+                                            module: chunkable_module,
                                         },
                                     }),
                                     None,
@@ -500,9 +457,10 @@ async fn graph_node_to_referenced_nodes(
                             } else {
                                 Ok((
                                     Some(ChunkGraphEdge {
-                                        key: None,
-                                        node: ChunkContentGraphNode::AsyncModule {
-                                            module: *chunkable_module,
+                                        key: Some(module),
+                                        node: ChunkContentGraphNode::Module {
+                                            module: chunkable_module,
+                                            ident: module.ident().to_string().await?,
                                         },
                                     }),
                                     None,
@@ -537,7 +495,7 @@ async fn graph_node_to_referenced_nodes(
                     graph_nodes.push(ChunkGraphEdge {
                         key: None,
                         node: ChunkContentGraphNode::InheritAsyncInfo {
-                            item: *parent,
+                            module: parent,
                             references: inherit_async_references,
                         },
                     })
@@ -549,20 +507,14 @@ async fn graph_node_to_referenced_nodes(
         .try_flat_join()
         .await?;
 
-    graph_nodes.push(ChunkGraphEdge {
-        key: None,
-        node: ChunkContentGraphNode::ExternalOutputAssets(
-            output_asset_references.to_resolved().await?,
-        ),
-    });
-
     Ok(Vc::cell(graph_nodes))
 }
 
 struct ChunkContentVisit {
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    available_chunk_items: Option<Vc<AvailableChunkItems>>,
-    processed_modules: HashSet<Vc<Box<dyn Module>>>,
+    available_chunk_items: Option<ResolvedVc<AvailableModules>>,
+    processed_modules: HashSet<ResolvedVc<Box<dyn Module>>>,
+    should_trace: bool,
+    can_split_async: bool,
 }
 
 type ChunkItemToGraphNodesEdges = impl Iterator<Item = ChunkGraphEdge>;
@@ -577,7 +529,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
     fn visit(&mut self, edge: ChunkGraphEdge) -> VisitControlFlow<ChunkContentGraphNode, ()> {
         let ChunkGraphEdge { key, node } = edge;
         let Some(module) = key else {
-            if matches!(node, ChunkContentGraphNode::PassthroughChunkItem { .. }) {
+            if matches!(node, ChunkContentGraphNode::PassthroughModule { .. }) {
                 return VisitControlFlow::Continue(node);
             } else {
                 // All other types don't have edges
@@ -585,7 +537,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
             }
         };
 
-        if !self.processed_modules.insert(*module) {
+        if !self.processed_modules.insert(module) {
             return VisitControlFlow::Skip(node);
         }
 
@@ -595,16 +547,17 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
     fn edges(&mut self, node: &ChunkContentGraphNode) -> Self::EdgesFuture {
         let node = node.clone();
 
-        let chunking_context = self.chunking_context;
         let available_chunk_items = self.available_chunk_items;
+        let can_split_async = self.can_split_async;
+        let should_trace = self.should_trace;
 
         async move {
             let node = match node {
-                ChunkContentGraphNode::PassthroughChunkItem { item } => {
-                    ChunkGraphNodeToReferences::PassthroughChunkItem(item.to_resolved().await?)
+                ChunkContentGraphNode::PassthroughModule { module: item } => {
+                    ChunkGraphNodeToReferences::PassthroughModule(item)
                 }
-                ChunkContentGraphNode::ChunkItem { item, .. } => {
-                    ChunkGraphNodeToReferences::ChunkItem(item.to_resolved().await?)
+                ChunkContentGraphNode::Module { module: item, .. } => {
+                    ChunkGraphNodeToReferences::Module(item)
                 }
                 _ => {
                     return Ok(None.into_iter().flatten());
@@ -612,13 +565,14 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
             };
 
             let nodes = if let Some(available_chunk_items) = available_chunk_items {
-                graph_node_to_referenced_nodes_with_available_chunk_items(
+                graph_node_to_referenced_nodes_with_available_modules(
                     node,
-                    chunking_context,
-                    available_chunk_items,
+                    *available_chunk_items,
+                    can_split_async,
+                    should_trace,
                 )
             } else {
-                graph_node_to_referenced_nodes(node, chunking_context)
+                graph_node_to_referenced_nodes(node, can_split_async, should_trace)
             }
             .await?;
             Ok(Some(nodes.into_iter().cloned()).into_iter().flatten())
@@ -626,7 +580,7 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
     }
 
     fn span(&mut self, node: &ChunkContentGraphNode) -> Span {
-        if let ChunkContentGraphNode::ChunkItem { ident, .. } = node {
+        if let ChunkContentGraphNode::Module { ident, .. } = node {
             info_span!("chunking module", name = display(ident))
         } else {
             Span::current()
@@ -635,9 +589,10 @@ impl Visit<ChunkContentGraphNode, ()> for ChunkContentVisit {
 }
 
 async fn chunk_content_internal_parallel(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
     availability_info: AvailabilityInfo,
+    can_split_async: bool,
+    should_trace: bool,
 ) -> Result<ChunkContentResult> {
     let root_edges = chunk_entries
         .into_iter()
@@ -649,8 +604,8 @@ async fn chunk_content_internal_parallel(
             };
             Ok(Some(ChunkGraphEdge {
                 key: Some(entry),
-                node: ChunkContentGraphNode::ChunkItem {
-                    item: chunkable_module.as_chunk_item(chunking_context),
+                node: ChunkContentGraphNode::Module {
+                    module: chunkable_module,
                     ident: chunkable_module.ident().to_string().await?,
                 },
             }))
@@ -659,9 +614,10 @@ async fn chunk_content_internal_parallel(
         .await?;
 
     let visit = ChunkContentVisit {
-        chunking_context,
-        available_chunk_items: availability_info.available_chunk_items(),
+        available_chunk_items: availability_info.available_modules(),
         processed_modules: Default::default(),
+        can_split_async,
+        should_trace,
     };
 
     let GraphTraversalResult::Completed(traversal_result) =
@@ -672,11 +628,9 @@ async fn chunk_content_internal_parallel(
 
     let graph_nodes: Vec<_> = traversal_result?.into_reverse_topological().collect();
 
-    let mut chunk_items = FxIndexSet::default();
+    let mut chunkable_modules = FxIndexSet::default();
     let mut async_modules = FxIndexSet::default();
-    let mut external_module_references = FxIndexSet::default();
-    let mut external_output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> =
-        FxIndexSet::default();
+    let mut passthrough_modules = FxIndexSet::default();
     let mut forward_edges_inherit_async = FxIndexMap::default();
     let mut local_back_edges_inherit_async = FxIndexMap::default();
     let mut available_async_modules_back_edges_inherit_async = FxIndexMap::default();
@@ -684,37 +638,31 @@ async fn chunk_content_internal_parallel(
 
     for graph_node in graph_nodes {
         match graph_node {
-            ChunkContentGraphNode::PassthroughChunkItem { .. } => {}
+            ChunkContentGraphNode::PassthroughModule { module } => {
+                passthrough_modules.insert(module);
+            }
             ChunkContentGraphNode::TracedModule { module } => {
-                let module = module.to_resolved().await?;
                 traced_modules.insert(module);
             }
-            ChunkContentGraphNode::ChunkItem { item, .. } => {
-                chunk_items.insert(*item.to_resolved().await?);
+            ChunkContentGraphNode::Module { module: item, .. } => {
+                chunkable_modules.insert(item);
             }
             ChunkContentGraphNode::AsyncModule { module } => {
-                let module = module.to_resolved().await?;
                 async_modules.insert(module);
             }
-            ChunkContentGraphNode::ExternalModuleReference(reference) => {
-                let reference = reference.resolve().await?;
-                external_module_references.insert(*reference);
-            }
-            ChunkContentGraphNode::ExternalOutputAssets(reference) => {
-                for output_asset in reference.await? {
-                    external_output_assets.insert(*output_asset);
-                }
-            }
-            ChunkContentGraphNode::InheritAsyncInfo { item, references } => {
+            ChunkContentGraphNode::InheritAsyncInfo {
+                module: item,
+                references,
+            } => {
                 for &(reference, ty) in &references {
                     match ty {
                         InheritAsyncEdge::LocalModule => local_back_edges_inherit_async
-                            .entry(*reference)
+                            .entry(reference)
                             .or_insert_with(Vec::new)
                             .push(item),
                         InheritAsyncEdge::AvailableAsyncModule => {
                             available_async_modules_back_edges_inherit_async
-                                .entry(*reference)
+                                .entry(reference)
                                 .or_insert_with(Vec::new)
                                 .push(item)
                         }
@@ -723,17 +671,16 @@ async fn chunk_content_internal_parallel(
                 forward_edges_inherit_async
                     .entry(item)
                     .or_insert_with(Vec::new)
-                    .extend(references.into_iter().map(|(r, _)| *r));
+                    .extend(references.into_iter().map(|(r, _)| r));
             }
         }
     }
 
     Ok(ChunkContentResult {
-        chunk_items,
+        chunkable_modules,
         async_modules,
         traced_modules,
-        external_output_assets: Vc::cell(external_output_assets.into_iter().collect()),
-        external_module_references,
+        passthrough_modules,
         forward_edges_inherit_async,
         local_back_edges_inherit_async,
         available_async_modules_back_edges_inherit_async,
@@ -766,10 +713,6 @@ pub trait ChunkItem {
     fn module(self: Vc<Self>) -> Vc<Box<dyn Module>>;
 
     fn chunking_context(self: Vc<Self>) -> Vc<Box<dyn ChunkingContext>>;
-
-    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
 }
 
 #[turbo_tasks::value_trait]
@@ -803,29 +746,53 @@ pub struct ChunkItems(pub Vec<ResolvedVc<Box<dyn ChunkItem>>>);
 
 #[turbo_tasks::value]
 pub struct AsyncModuleInfo {
-    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn ChunkItem>>>,
+    pub referenced_async_modules: AutoSet<ResolvedVc<Box<dyn ChunkableModule>>>,
 }
 
 #[turbo_tasks::value_impl]
 impl AsyncModuleInfo {
     #[turbo_tasks::function]
-    pub async fn new(referenced_async_modules: Vec<Vc<Box<dyn ChunkItem>>>) -> Result<Vc<Self>> {
-        let resolved_modules = referenced_async_modules
-            .into_iter()
-            .map(|m| m.to_resolved())
-            .try_join()
-            .await?;
-
+    pub async fn new(
+        referenced_async_modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>,
+    ) -> Result<Vc<Self>> {
         Ok(Self {
-            referenced_async_modules: resolved_modules.into_iter().collect(),
+            referenced_async_modules: referenced_async_modules.into_iter().collect(),
         }
         .cell())
     }
 }
 
-pub type ChunkItemWithAsyncModuleInfo = (Vc<Box<dyn ChunkItem>>, Option<Vc<AsyncModuleInfo>>);
+#[derive(
+    Copy,
+    Debug,
+    Clone,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Eq,
+    Hash,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+)]
+pub enum ChunkItemTy {
+    /// The ChunkItem should be included as content in the chunk.
+    Included,
+    /// The ChunkItem should be used to trace references but should not included in the chunk.
+    Passthrough,
+}
 
-#[turbo_tasks::value(transparent, local)]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
+// #[turbo_tasks::value]
+pub struct ChunkItemWithAsyncModuleInfo {
+    pub ty: ChunkItemTy,
+    pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
+}
+
+#[turbo_tasks::value(transparent)]
 pub struct ChunkItemsWithAsyncModuleInfo(Vec<ChunkItemWithAsyncModuleInfo>);
 
 pub trait ChunkItemExt {

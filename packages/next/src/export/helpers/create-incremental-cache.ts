@@ -4,6 +4,8 @@ import { hasNextSupport } from '../../server/ci-info'
 import { nodeFs } from '../../server/lib/node-fs-methods'
 import { interopDefault } from '../../lib/interop-default'
 import { formatDynamicImportPath } from '../../lib/format-dynamic-import-path'
+import { cacheHandlerGlobal } from '../../server/use-cache/constants'
+import DefaultCacheHandler from '../../server/lib/cache-handlers/default'
 
 export async function createIncrementalCache({
   cacheHandler,
@@ -14,6 +16,7 @@ export async function createIncrementalCache({
   dir,
   flushToDisk,
   cacheHandlers,
+  requestHeaders,
 }: {
   dynamicIO: boolean
   cacheHandler?: string
@@ -22,6 +25,7 @@ export async function createIncrementalCache({
   distDir: string
   dir: string
   flushToDisk?: boolean
+  requestHeaders?: Record<string, string | string[] | undefined>
   cacheHandlers?: Record<string, string | undefined>
 }) {
   // Custom cache handler overrides.
@@ -34,8 +38,8 @@ export async function createIncrementalCache({
     )
   }
 
-  if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
-    ;(globalThis as any).__nextCacheHandlers = {}
+  if (!cacheHandlerGlobal.__nextCacheHandlers && cacheHandlers) {
+    cacheHandlerGlobal.__nextCacheHandlers = {}
 
     for (const key of Object.keys(cacheHandlers)) {
       if (cacheHandlers[key]) {
@@ -46,11 +50,15 @@ export async function createIncrementalCache({
         )
       }
     }
+
+    if (!cacheHandlers.default) {
+      cacheHandlerGlobal.__nextCacheHandlers.default = DefaultCacheHandler
+    }
   }
 
   const incrementalCache = new IncrementalCache({
     dev: false,
-    requestHeaders: {},
+    requestHeaders: requestHeaders || {},
     flushToDisk,
     dynamicIO,
     maxMemoryCacheSize: cacheMaxMemorySize,

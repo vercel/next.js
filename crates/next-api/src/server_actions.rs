@@ -30,6 +30,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     module::Module,
+    module_graph::SingleModuleGraph,
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -40,8 +41,6 @@ use turbopack_ecmascript::{
     chunk::EcmascriptChunkPlaceable, parse::ParseResult,
     tree_shake::asset::EcmascriptModulePartAsset, EcmascriptParsable,
 };
-
-use crate::module_graph::SingleModuleGraph;
 
 #[turbo_tasks::value]
 pub(crate) struct ServerActionsManifest {
@@ -167,7 +166,7 @@ async fn build_manifest(
             &key,
             ActionManifestWorkerEntry {
                 module_id: ActionManifestModuleId::String(loader_id.as_str()),
-                is_async: *chunk_item.is_self_async().await?,
+                is_async: *chunk_item.module().is_self_async().await?,
             },
         );
         entry.layer.insert(&key, *layer);

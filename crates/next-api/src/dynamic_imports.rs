@@ -34,10 +34,11 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
+    module_graph::SingleModuleGraph,
     output::OutputAssets,
 };
 
-use crate::module_graph::{DynamicImportEntriesWithImporter, SingleModuleGraph};
+use crate::module_graph::DynamicImportEntriesWithImporter;
 
 pub(crate) enum NextDynamicChunkAvailability<'a> {
     /// In App Router, the client references

@@ -94,10 +94,14 @@ impl ChunkableModule for NextDynamicEntryModule {
 impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let module_reference = Vc::upcast(SingleChunkableModuleReference::new(
-            Vc::upcast(*self.module),
-            dynamic_ref_description(),
-        ));
+        let module_reference = ResolvedVc::upcast(
+            SingleChunkableModuleReference::new(
+                Vc::upcast(*self.module),
+                dynamic_ref_description(),
+            )
+            .to_resolved()
+            .await?,
+        );
 
         let mut exports = BTreeMap::new();
         exports.insert(
@@ -108,7 +112,7 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
                 exports,
-                star_exports: vec![module_reference.to_resolved().await?],
+                star_exports: vec![module_reference],
             }
             .resolved_cell(),
         )

@@ -1,6 +1,6 @@
 import isError from '../../../lib/is-error'
 import { isNextRouterError } from '../is-next-router-error'
-import { handleClientError } from '../react-dev-overlay/internal/helpers/use-error-handler'
+import { handleClientError } from '../errors/use-error-handler'
 
 export const originConsoleError = window.console.error
 

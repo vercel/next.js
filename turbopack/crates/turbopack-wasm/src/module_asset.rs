@@ -136,6 +136,11 @@ impl Module for WebAssemblyModuleAsset {
     fn references(self: Vc<Self>) -> Vc<ModuleReferences> {
         self.loader().references()
     }
+
+    #[turbo_tasks::function]
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(true)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -210,7 +215,7 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<OutputAssets>> {
         let loader_references = self.module.loader().references().await?;
-        references_to_output_assets(loader_references.iter().map(|r| **r).collect::<_>()).await
+        references_to_output_assets(&*loader_references).await
     }
 
     #[turbo_tasks::function]
@@ -228,11 +233,6 @@ impl ChunkItem for ModuleChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         Vc::upcast(*self.module)
-    }
-
-    #[turbo_tasks::function]
-    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(true)
     }
 }
 

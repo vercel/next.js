@@ -14,6 +14,8 @@ export function Base() {
           --size-gap-triple: 24px;
           --size-gap-quad: 32px;
 
+          --size-font-11: 11px;
+          --size-font-smaller: 12px;
           --size-font-small: 14px;
           --size-font: 16px;
           --size-font-big: 20px;
@@ -42,27 +44,6 @@ export function Base() {
           --font-stack-sans: 'Geist', -apple-system, 'Source Sans Pro',
             sans-serif;
 
-          --color-ansi-selection: rgba(95, 126, 151, 0.48);
-          --color-ansi-bg: #111111;
-          --color-ansi-fg: #cccccc;
-
-          --color-ansi-white: #777777;
-          --color-ansi-black: #141414;
-          --color-ansi-blue: #00aaff;
-          --color-ansi-cyan: #88ddff;
-          --color-ansi-green: #98ec65;
-          --color-ansi-magenta: #aa88ff;
-          --color-ansi-red: #ff5555;
-          --color-ansi-yellow: #ffcc33;
-          --color-ansi-bright-white: #ffffff;
-          --color-ansi-bright-black: #777777;
-          --color-ansi-bright-blue: #33bbff;
-          --color-ansi-bright-cyan: #bbecff;
-          --color-ansi-bright-green: #b6f292;
-          --color-ansi-bright-magenta: #cebbff;
-          --color-ansi-bright-red: #ff8888;
-          --color-ansi-bright-yellow: #ffd966;
-
           font-family: var(--font-stack-sans);
 
           /* TODO: Remove replaced ones. */
@@ -86,6 +67,7 @@ export function Base() {
           --rounded-xl: 0.75rem; /* 12px */
           --rounded-2xl: 1rem; /* 16px */
           --rounded-3xl: 1.5rem; /* 24px */
+          --rounded-full: 9999px;
 
           --size-0: 0px;
           --size-px: 1px;
@@ -97,12 +79,22 @@ export function Base() {
           --size-3: 0.75rem; /* 12px */
           --size-3_5: 0.875rem; /* 14px */
           --size-4: 1rem; /* 16px */
+          --size-4_5: 1.125rem; /* 18px */
           --size-5: 1.25rem; /* 20px */
+          --size-5_5: 1.375rem; /* 22px */
           --size-6: 1.5rem; /* 24px */
+          --size-6_5: 1.625rem; /* 26px */
           --size-7: 1.75rem; /* 28px */
+          --size-7_5: 1.875rem; /* 30px */
           --size-8: 2rem; /* 32px */
+          --size-8_5: 2.125rem; /* 34px */
           --size-9: 2.25rem; /* 36px */
+          --size-9_5: 2.375rem; /* 38px */
           --size-10: 2.5rem; /* 40px */
+          --size-10_5: 2.625rem; /* 42px */
+          --size-11: 2.75rem; /* 44px */
+          --size-11_5: 2.875rem; /* 46px */
+          --size-12: 3rem; /* 48px */
         }
 
         @media (prefers-color-scheme: dark) {

@@ -3,7 +3,6 @@ import { ErrorOverlayLayout } from './error-overlay-layout'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorOverlayLayout> = {
-  title: 'ErrorOverlayLayout',
   component: ErrorOverlayLayout,
   parameters: {
     layout: 'fullscreen',
@@ -24,5 +23,12 @@ export const Default: Story = {
       staleness: 'fresh',
     },
     children: "Module not found: Cannot find module './missing-module'",
+  },
+}
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
   },
 }

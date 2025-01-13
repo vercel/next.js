@@ -14,7 +14,7 @@ let app
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
     window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-watcher')
+      let watcherDiv = document.querySelector('#__next-build-indicator')
       watcherDiv = watcherDiv.shadowRoot || watcherDiv
       window.showedBuilder = window.showedBuilder || (
         watcherDiv.querySelector('div').className.indexOf('visible') > -1
@@ -59,7 +59,7 @@ describe('Build Activity Indicator', () => {
     }
   })
 
-  describe('Enabled', () => {
+  describe.each(['pages', 'app'])('Enabled - (%s)', (pagesOrApp) => {
     beforeAll(async () => {
       await fs.remove(nextConfig)
       appPort = await findPort()
@@ -68,14 +68,20 @@ describe('Build Activity Indicator', () => {
     afterAll(() => killApp(app))
 
     it('Adds the build indicator container', async () => {
-      const browser = await webdriver(appPort, '/')
+      const browser = await webdriver(
+        appPort,
+        pagesOrApp === 'pages' ? '/' : '/app'
+      )
       const html = await browser.eval('document.body.innerHTML')
-      expect(html).toMatch(/__next-build-watcher/)
+      expect(html).toMatch(/__next-build-indicator/)
       await browser.close()
     })
     ;(process.env.TURBOPACK ? describe.skip : describe)('webpack only', () => {
       it('Shows the build indicator when a page is built during navigation', async () => {
-        const browser = await webdriver(appPort, '/')
+        const browser = await webdriver(
+          appPort,
+          pagesOrApp === 'pages' ? '/' : '/app'
+        )
         await installCheckVisible(browser)
         await browser.elementByCss('#to-a').click()
         await waitFor(500)
@@ -86,9 +92,15 @@ describe('Build Activity Indicator', () => {
     })
 
     it('Shows build indicator when page is built from modifying', async () => {
-      const browser = await webdriver(appPort, '/b')
+      const browser = await webdriver(
+        appPort,
+        pagesOrApp === 'pages' ? '/b' : '/app/b'
+      )
       await installCheckVisible(browser)
-      const pagePath = join(appDir, 'pages/b.js')
+      const pagePath = join(
+        appDir,
+        pagesOrApp === 'pages' ? 'pages/b.js' : 'app/app/b/page.js'
+      )
       const origContent = await fs.readFile(pagePath, 'utf8')
       const newContent = origContent.replace('b', 'c')
 
@@ -102,26 +114,33 @@ describe('Build Activity Indicator', () => {
     })
   })
 
-  describe('Disabled with next.config.js', () => {
-    beforeAll(async () => {
-      await fs.writeFile(
-        nextConfig,
-        'module.exports = { devIndicators: { buildActivity: false } }',
-        'utf8'
-      )
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await fs.remove(nextConfig)
-    })
+  describe.each(['pages', 'app'])(
+    'Disabled with next.config.js - (%s)',
+    (pagesOrApp) => {
+      beforeAll(async () => {
+        await fs.writeFile(
+          nextConfig,
+          'module.exports = { devIndicators: { buildActivity: false } }',
+          'utf8'
+        )
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
 
-    it('Does not add the build indicator container', async () => {
-      const browser = await webdriver(appPort, '/')
-      const html = await browser.eval('document.body.innerHTML')
-      expect(html).not.toMatch(/__next-build-watcher/)
-      await browser.close()
-    })
-  })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(nextConfig)
+      })
+
+      it('Does not add the build indicator container', async () => {
+        const browser = await webdriver(
+          appPort,
+          pagesOrApp === 'pages' ? '/' : '/app'
+        )
+        const html = await browser.eval('document.body.innerHTML')
+        expect(html).not.toMatch(/__next-build-indicator/)
+        await browser.close()
+      })
+    }
+  )
 })
