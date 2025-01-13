@@ -199,6 +199,10 @@ impl InnerStorage {
             .unwrap_or_default()
     }
 
+    pub fn count(&self, ty: CachedDataItemType) -> usize {
+        self.get_map(ty).map(|m| m.len()).unwrap_or_default()
+    }
+
     pub fn iter(
         &self,
         ty: CachedDataItemType,

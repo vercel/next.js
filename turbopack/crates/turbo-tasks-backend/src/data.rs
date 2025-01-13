@@ -578,6 +578,12 @@ impl CachedDataItemKey {
     }
 
     pub fn category(&self) -> TaskDataCategory {
+        self.ty().category()
+    }
+}
+
+impl CachedDataItemType {
+    pub fn category(&self) -> TaskDataCategory {
         match self {
             Self::Collectible { .. }
             | Self::Child { .. }
