@@ -315,7 +315,6 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     background: var(--color-background-200);
   }
   [data-nextjs-container-errors-pseudo-html] {
-    position: relative;
     border-top: 1px solid var(--color-gray-400);
 
     color: var(--color-syntax-constant);
@@ -324,14 +323,13 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     font-size: var(--size-font-smaller);
     line-height: var(--size-4);
   }
+  /* TODO(jiwon): Style when we have a design */
   [data-nextjs-container-errors-pseudo-html-collapse] {
-    position: absolute;
-    left: 10px;
-    top: 10px;
-    color: inherit;
-    background: none;
-    border: none;
-    padding: 0;
+    all: unset;
+
+    &:focus {
+      outline: none;
+    }
   }
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
     background: var(--color-green-300);
