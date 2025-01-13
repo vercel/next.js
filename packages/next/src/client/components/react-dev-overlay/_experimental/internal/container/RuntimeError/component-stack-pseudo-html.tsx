@@ -98,10 +98,17 @@ export function PseudoHtmlDiff({
                 sign === '+' ? 'add' : 'remove'
               }
             >
-              {sign}
-              {spaces}
-              {trimmedLine}
-              {'\n'}
+              <span
+                className={
+                  isHtmlCollapsed
+                    ? 'error-overlay-hydration-error-collapsed'
+                    : ''
+                }
+              >
+                {spaces}
+                {trimmedLine}
+                {'\n'}
+              </span>
             </div>
           )
         } else if (currentComponentIndex >= 0) {
@@ -336,6 +343,9 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   }
   [data-nextjs-container-errors-pseudo-html--diff='remove'] {
     background: var(--color-red-300);
+  }
+  .error-overlay-hydration-error-collapsed {
+    padding-left: var(--size-4);
   }
   [data-nextjs-container-errors-pseudo-html--tag-error] {
     background: var(--color-red-300);
