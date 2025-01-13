@@ -1862,13 +1862,20 @@ impl AggregationUpdateQueue {
         let _span = trace_span!("check optimize").entered();
 
         let task = ctx.task(task_id, TaskDataCategory::Meta);
-        let children_count = count!(task, Child);
-        if children_count == 0 {
-            return;
-        }
         let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
+        }
+        if is_aggregating_node(aggregation_number.effective) {
+            let follower_count = count!(task, Follower);
+            if follower_count == 0 {
+                return;
+            }
+        } else {
+            let children_count = count!(task, Child);
+            if children_count == 0 {
+                return;
+            }
         }
         let upper_count = get!(task, PersistentUpperCount)
             .copied()
