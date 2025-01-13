@@ -22,7 +22,9 @@ use crate::{
             invalidate::{make_task_dirty, TaskDirtyCause},
             ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, get_many, iter_many, remove, update, update_count, update_ucount_and_get},
+        storage::{
+            count, get, get_many, iter_many, remove, update, update_count, update_ucount_and_get,
+        },
         TaskDataCategory,
     },
     data::{

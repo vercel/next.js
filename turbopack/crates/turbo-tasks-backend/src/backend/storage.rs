@@ -325,6 +325,12 @@ impl DerefMut for StorageWriteGuard<'_> {
     }
 }
 
+macro_rules! count {
+    ($task:ident, $key:ident) => {{
+        $task.count($crate::data::CachedDataItemType::$key)
+    }};
+}
+
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
@@ -520,6 +526,7 @@ macro_rules! remove {
     };
 }
 
+pub(crate) use count;
 pub(crate) use get;
 pub(crate) use get_many;
 pub(crate) use get_mut;
