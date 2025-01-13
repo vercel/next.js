@@ -31,7 +31,7 @@ use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     fxindexmap, trace::TraceRawVcs, Completion, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
-    Value, Vc,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     self, File, FileContent, FileSystem, FileSystemPath, FileSystemPathOption, VirtualFileSystem,
@@ -46,7 +46,7 @@ use turbopack_core::{
     asset::AssetContent,
     chunk::{
         availability_info::AvailabilityInfo, ChunkGroupResult, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        EvaluatableAsset, EvaluatableAssets,
     },
     context::AssetContext,
     file_source::FileSource,
@@ -852,10 +852,8 @@ impl PageEndpoint {
             .module();
 
         let config = parse_config_from_source(ssr_module, NextRuntime::default()).await?;
-        let is_edge = matches!(config.runtime, NextRuntime::Edge);
-
-        let ssr_module = if is_edge {
-            create_page_ssr_entry_module(
+        Ok(if config.runtime == NextRuntime::Edge {
+            let modules = create_page_ssr_entry_module(
                 *this.pathname,
                 reference_type,
                 project_root,
@@ -866,15 +864,28 @@ impl PageEndpoint {
                 config.runtime,
                 this.pages_project.project().next_config(),
             )
+            .await?;
+
+            InternalSsrChunkModule {
+                ssr_module: modules.ssr_module,
+                app_module: modules.app_module,
+                document_module: modules.document_module,
+                runtime: config.runtime,
+            }
         } else {
             let pathname = &**this.pathname.await?;
 
             // `/_app` and `/_document` never get rendered directly so they don't need to be
             // wrapped in the route module.
             if pathname == "/_app" || pathname == "/_document" {
-                ssr_module
+                InternalSsrChunkModule {
+                    ssr_module: ssr_module.to_resolved().await?,
+                    app_module: None,
+                    document_module: None,
+                    runtime: config.runtime,
+                }
             } else {
-                create_page_ssr_entry_module(
+                let modules = create_page_ssr_entry_module(
                     *this.pathname,
                     reference_type,
                     project_root,
@@ -885,12 +896,14 @@ impl PageEndpoint {
                     config.runtime,
                     this.pages_project.project().next_config(),
                 )
+                .await?;
+                InternalSsrChunkModule {
+                    ssr_module: modules.ssr_module,
+                    app_module: modules.app_module,
+                    document_module: modules.document_module,
+                    runtime: config.runtime,
+                }
             }
-        };
-
-        Ok(InternalSsrChunkModule {
-            ssr_module: ssr_module.to_resolved().await?,
-            runtime: config.runtime,
         }
         .cell())
     }
@@ -900,7 +913,7 @@ impl PageEndpoint {
         self: Vc<Self>,
         ty: SsrChunkType,
         node_path: Vc<FileSystemPath>,
-        chunking_context: Vc<NodeJsChunkingContext>,
+        node_chunking_context: Vc<NodeJsChunkingContext>,
         edge_chunking_context: Vc<Box<dyn ChunkingContext>>,
         runtime_entries: Vc<EvaluatableAssets>,
         edge_runtime_entries: Vc<EvaluatableAssets>,
@@ -910,6 +923,8 @@ impl PageEndpoint {
 
             let InternalSsrChunkModule {
                 ssr_module,
+                app_module,
+                document_module,
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
@@ -952,6 +967,40 @@ impl PageEndpoint {
                 DynamicImportedChunks::default().resolved_cell()
             };
 
+            let chunking_context: Vc<Box<dyn ChunkingContext>> = match runtime {
+                NextRuntime::NodeJs => Vc::upcast(node_chunking_context),
+                NextRuntime::Edge => Vc::upcast(edge_chunking_context),
+            };
+
+            let mut current_chunks = OutputAssets::empty();
+            let mut current_availability_info = AvailabilityInfo::Root;
+            for layout in [document_module, app_module].iter().flatten().copied() {
+                let span = tracing::trace_span!(
+                    "layout segment",
+                    name = display(layout.ident().to_string().await?)
+                );
+                async {
+                    let chunk_group = chunking_context
+                        .chunk_group(
+                            layout.ident(),
+                            ChunkGroup::Shared(layout),
+                            module_graph,
+                            Value::new(current_availability_info),
+                        )
+                        .await?;
+
+                    current_chunks = current_chunks
+                        .concatenate(*chunk_group.assets)
+                        .resolve()
+                        .await?;
+                    current_availability_info = chunk_group.availability_info;
+
+                    anyhow::Ok(())
+                }
+                .instrument(span)
+                .await?;
+            }
+
             let ssr_module_evaluatable = ResolvedVc::try_sidecast(ssr_module)
                 .context("could not process page loader entry module")?;
             let is_edge = matches!(runtime, NextRuntime::Edge);
@@ -962,18 +1011,15 @@ impl PageEndpoint {
                     .map(|m| ResolvedVc::upcast(*m))
                     .chain(std::iter::once(ResolvedVc::upcast(ssr_module_evaluatable)));
 
-                let edge_files = edge_chunking_context
-                    .evaluated_chunk_group_assets(
-                        ssr_module.ident(),
-                        ChunkGroup::Entry(evaluatable_assets.collect()),
-                        module_graph,
-                        Value::new(AvailabilityInfo::Root),
-                    )
-                    .to_resolved()
-                    .await?;
+                let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
+                    ssr_module.ident(),
+                    ChunkGroup::Entry(evaluatable_assets.collect()),
+                    module_graph,
+                    Value::new(current_availability_info),
+                );
 
                 Ok(SsrChunk::Edge {
-                    files: edge_files,
+                    files: current_chunks.concatenate(edge_files).to_resolved().await?,
                     dynamic_import_entries,
                 }
                 .cell())
@@ -984,17 +1030,15 @@ impl PageEndpoint {
 
                 let ssr_entry_chunk_path_string: RcStr = format!("pages{asset_path}").into();
                 let ssr_entry_chunk_path = node_path.join(ssr_entry_chunk_path_string);
-                let EntryChunkGroupResult {
-                    asset: ssr_entry_chunk,
-                    ..
-                } = *chunking_context
-                    .entry_chunk_group(
+                let ssr_entry_chunk = node_chunking_context
+                    .entry_chunk_group_asset(
                         ssr_entry_chunk_path,
                         runtime_entries.with_entry(*ssr_module_evaluatable),
                         module_graph,
-                        OutputAssets::empty(),
-                        Value::new(AvailabilityInfo::Root),
+                        current_chunks,
+                        Value::new(current_availability_info),
                     )
+                    .to_resolved()
                     .await?;
 
                 let server_asset_trace_file = if this
@@ -1364,6 +1408,8 @@ impl PageEndpoint {
 #[turbo_tasks::value]
 pub struct InternalSsrChunkModule {
     pub ssr_module: ResolvedVc<Box<dyn Module>>,
+    pub app_module: Option<ResolvedVc<Box<dyn Module>>>,
+    pub document_module: Option<ResolvedVc<Box<dyn Module>>>,
     pub runtime: NextRuntime,
 }
 
