@@ -92,7 +92,7 @@ export function PseudoHtmlDiff({
           const sign = trimmedLine[0]
           trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
           diffHtmlStack.push(
-            <span
+            <div
               key={'comp-diff' + index}
               data-nextjs-container-errors-pseudo-html--diff={
                 sign === '+' ? 'add' : 'remove'
@@ -102,7 +102,7 @@ export function PseudoHtmlDiff({
               {spaces}
               {trimmedLine}
               {'\n'}
-            </span>
+            </div>
           )
         } else if (currentComponentIndex >= 0) {
           const isUserLandComponent = trimmedLine.startsWith(
@@ -112,29 +112,29 @@ export function PseudoHtmlDiff({
           if (isUserLandComponent || trimmedLine === '...') {
             currentComponentIndex--
             componentStacks.push(
-              <span key={'comp-diff' + index}>
+              <div key={'comp-diff' + index}>
                 {spaces}
                 {trimmedLine}
                 {'\n'}
-              </span>
+              </div>
             )
           } else if (!isHtmlCollapsed) {
             componentStacks.push(
-              <span key={'comp-diff' + index}>
+              <div key={'comp-diff' + index}>
                 {spaces}
                 {trimmedLine}
                 {'\n'}
-              </span>
+              </div>
             )
           }
         } else if (!isHtmlCollapsed) {
           // In general, if it's not collapsed, show the whole diff
           componentStacks.push(
-            <span key={'comp-diff' + index}>
+            <div key={'comp-diff' + index}>
               {spaces}
               {trimmedLine}
               {'\n'}
-            </span>
+            </div>
           )
         }
       })
@@ -191,7 +191,7 @@ export function PseudoHtmlDiff({
 
       if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
         const codeLine = (
-          <span>
+          <div>
             {spaces}
             <span
               {...adjProps}
@@ -206,7 +206,7 @@ export function PseudoHtmlDiff({
             >
               {`<${component}>\n`}
             </span>
-          </span>
+          </div>
         )
         lastText = component
 
@@ -256,24 +256,24 @@ export function PseudoHtmlDiff({
         // hydration type is "text", represent [server content, client content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <span data-nextjs-container-errors-pseudo-html--diff="remove">
+            <div data-nextjs-container-errors-pseudo-html--diff="remove">
               {spaces + `"${firstContent}"\n`}
-            </span>
-            <span data-nextjs-container-errors-pseudo-html--diff="add">
+            </div>
+            <div data-nextjs-container-errors-pseudo-html--diff="add">
               {spaces + `"${secondContent}"\n`}
-            </span>
+            </div>
           </Fragment>
         )
       } else if (hydrationMismatchType === 'text-in-tag') {
         // hydration type is "text-in-tag", represent [parent tag, mismatch content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <span data-nextjs-container-errors-pseudo-html--tag-adjacent>
+            <div data-nextjs-container-errors-pseudo-html--tag-adjacent>
               {spaces + `<${secondContent}>\n`}
-            </span>
-            <span data-nextjs-container-errors-pseudo-html--diff="remove">
+            </div>
+            <div data-nextjs-container-errors-pseudo-html--diff="remove">
               {spaces + `  "${firstContent}"\n`}
-            </span>
+            </div>
           </Fragment>
         )
       }
@@ -310,8 +310,19 @@ export function PseudoHtmlDiff({
 }
 
 export const PSEUDO_HTML_DIFF_STYLES = css`
+  .nextjs__container_errors__component-stack {
+    margin: 0;
+    background: var(--color-background-200);
+  }
   [data-nextjs-container-errors-pseudo-html] {
     position: relative;
+    border-top: 1px solid var(--color-gray-400);
+
+    color: var(--color-syntax-constant);
+
+    font-family: var(--font-stack-monospace);
+    font-size: var(--size-font-smaller);
+    line-height: var(--size-4);
   }
   [data-nextjs-container-errors-pseudo-html-collapse] {
     position: absolute;
@@ -323,13 +334,13 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     padding: 0;
   }
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
-    color: var(--color-ansi-green);
+    background: var(--color-green-300);
   }
   [data-nextjs-container-errors-pseudo-html--diff='remove'] {
-    color: var(--color-ansi-red);
+    background: var(--color-red-300);
   }
   [data-nextjs-container-errors-pseudo-html--tag-error] {
-    color: var(--color-ansi-red);
+    background: var(--color-red-300);
     font-weight: bold;
   }
   /* hide but text are still accessible in DOM */

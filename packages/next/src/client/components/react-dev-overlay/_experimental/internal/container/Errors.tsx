@@ -333,12 +333,6 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-  .nextjs__container_errors__component-stack {
-    margin: 0;
-    padding: 12px 32px;
-    color: var(--color-ansi-fg);
-    background: var(--color-ansi-bg);
-  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;
