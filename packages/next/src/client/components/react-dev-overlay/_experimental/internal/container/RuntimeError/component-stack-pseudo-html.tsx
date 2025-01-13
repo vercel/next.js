@@ -384,7 +384,6 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     font-size: var(--size-font-smaller);
     line-height: var(--size-4);
   }
-  /* TODO(jiwon): Style when we have a design */
   [data-nextjs-container-errors-pseudo-html-collapse] {
     all: unset;
     &:focus {
