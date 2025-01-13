@@ -1501,16 +1501,14 @@ impl AggregationUpdateQueue {
                 );
             }
         }
-        if !new_followers_of_upper_uppers.is_empty() {
+        // notify uppers about new follower
+        if !upper_upper_ids_for_new_followers.is_empty() {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new follower").entered();
-            // notify uppers about new follower
-            if !upper_upper_ids_for_new_followers.is_empty() {
-                self.push(AggregationUpdateJob::InnerOfUppersHasNewFollowers {
-                    upper_ids: upper_upper_ids_for_new_followers,
-                    new_follower_ids: new_followers_of_upper_uppers,
-                });
-            }
+            self.push(AggregationUpdateJob::InnerOfUppersHasNewFollowers {
+                upper_ids: upper_upper_ids_for_new_followers,
+                new_follower_ids: new_followers_of_upper_uppers,
+            });
         }
     }
 
@@ -1864,7 +1862,7 @@ mod tests {
     #[test]
     fn test_swap_retain() {
         let mut vec = vec![1, 2, 3, 4, 5];
-        swap_retain(&mut vec, |a| if *a % 2 == 0 { false } else { true });
+        swap_retain(&mut vec, |a| *a % 2 != 0);
         assert_eq!(vec, vec![1, 5, 3]);
     }
 }

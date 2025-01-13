@@ -183,7 +183,6 @@ fn run_big_graph_test(counts: Vec<u32>) -> impl Future<Output = Result<()>> + Se
         "Graph {:?} = {} tasks",
         counts,
         (1..=counts.len())
-            .into_iter()
             .map(|i| counts.iter().take(i).product::<u32>())
             .sum::<u32>()
     );
