@@ -78,8 +78,8 @@ const cases: {
     name: 'middleware rewrite HTML',
     pathname: '/hello/wyatt',
     expected: {
-      'x-nextjs-rewritten-path': '/hello/admin',
-      'x-nextjs-rewritten-query': 'key=value',
+      'x-nextjs-rewritten-path': null,
+      'x-nextjs-rewritten-query': null,
     },
   },
   {
@@ -110,7 +110,7 @@ const cases: {
     name: 'middleware rewrite dynamic HTML',
     pathname: '/hello/bob',
     expected: {
-      'x-nextjs-rewritten-path': '/hello/bobby',
+      'x-nextjs-rewritten-path': null,
       'x-nextjs-rewritten-query': null,
     },
   },
@@ -203,7 +203,7 @@ const cases: {
     name: 'next.config.js rewrites HTML',
     pathname: '/hello/sam',
     expected: {
-      'x-nextjs-rewritten-path': '/hello/samantha',
+      'x-nextjs-rewritten-path': null,
       'x-nextjs-rewritten-query': null,
     },
   },
@@ -234,7 +234,7 @@ const cases: {
     name: 'next.config.js rewrites static HTML',
     pathname: '/hello/other',
     expected: {
-      'x-nextjs-rewritten-path': '/other',
+      'x-nextjs-rewritten-path': null,
       'x-nextjs-rewritten-query': null,
     },
   },
@@ -274,7 +274,7 @@ const cases: {
     pathname: '/hello/john',
     expected: {
       'x-nextjs-rewritten-path': null,
-      'x-nextjs-rewritten-query': 'key=value',
+      'x-nextjs-rewritten-query': null,
     },
   },
   {
@@ -335,8 +335,8 @@ const cases: {
     name: 'next.config.js rewrites with query HTML',
     pathname: '/hello/fred',
     expected: {
-      'x-nextjs-rewritten-path': '/other',
-      'x-nextjs-rewritten-query': 'key=value',
+      'x-nextjs-rewritten-path': null,
+      'x-nextjs-rewritten-query': null,
     },
   },
   {

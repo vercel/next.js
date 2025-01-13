@@ -40,6 +40,7 @@ import {
   NEXT_REWRITTEN_PATH_HEADER,
   NEXT_REWRITTEN_QUERY_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
+  RSC_HEADER,
 } from '../../../client/components/app-router-headers'
 import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
@@ -621,23 +622,26 @@ export function getResolveRoutes(
                 }
               }
 
-              // We set the rewritten path and query headers on the response now
-              // that we know that the it's not an external rewrite.
-              if (
-                parsedDestination.pathname &&
-                parsedUrl.pathname !== parsedDestination.pathname
-              ) {
-                res.setHeader(
-                  NEXT_REWRITTEN_PATH_HEADER,
-                  parsedDestination.pathname
-                )
-              }
-              if (parsedDestination.search) {
-                res.setHeader(
-                  NEXT_REWRITTEN_QUERY_HEADER,
-                  // remove the leading ? from the search
-                  parsedDestination.search.slice(1)
-                )
+              // Set the rewrite headers only if this is a RSC request.
+              if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+                // We set the rewritten path and query headers on the response now
+                // that we know that the it's not an external rewrite.
+                if (
+                  parsedDestination.pathname &&
+                  parsedUrl.pathname !== parsedDestination.pathname
+                ) {
+                  res.setHeader(
+                    NEXT_REWRITTEN_PATH_HEADER,
+                    parsedDestination.pathname
+                  )
+                }
+                if (parsedDestination.search) {
+                  res.setHeader(
+                    NEXT_REWRITTEN_QUERY_HEADER,
+                    // remove the leading ? from the search
+                    parsedDestination.search.slice(1)
+                  )
+                }
               }
 
               // Assign the parsed destination to parsedUrl so that the next
@@ -780,17 +784,20 @@ export function getResolveRoutes(
             }
           }
 
-          // We set the rewritten path and query headers on the response now
-          // that we know that the it's not an external rewrite.
-          if (parsedUrl.pathname !== destinationPathname) {
-            res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
-          }
-          if (destinationSearch) {
-            res.setHeader(
-              NEXT_REWRITTEN_QUERY_HEADER,
-              // remove the leading ? from the search
-              destinationSearch.slice(1)
-            )
+          // Set the rewrite headers only if this is a RSC request.
+          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+            // We set the rewritten path and query headers on the response now
+            // that we know that the it's not an external rewrite.
+            if (parsedUrl.pathname !== destinationPathname) {
+              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
+            }
+            if (destinationSearch) {
+              res.setHeader(
+                NEXT_REWRITTEN_QUERY_HEADER,
+                // remove the leading ? from the search
+                destinationSearch.slice(1)
+              )
+            }
           }
 
           if (config.i18n) {
