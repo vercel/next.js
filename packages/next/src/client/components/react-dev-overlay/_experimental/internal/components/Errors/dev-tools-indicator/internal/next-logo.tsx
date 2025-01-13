@@ -35,43 +35,50 @@ export const NextLogo = ({
       <style>
         {css`
           .path0 {
-            animation: draw0 2s ease-in-out infinite;
+            animation: draw0 1.5s ease-in-out infinite;
+          }
+
+          .path1 {
+            animation: draw1 1.5s ease-out infinite;
+            animation-delay: 0.3s;
           }
 
           .paused {
             stroke-dashoffset: 0;
           }
-
           @keyframes draw0 {
-            0% {
+            0%,
+            25% {
               stroke-dashoffset: -29.6;
             }
+            25%,
             50% {
               stroke-dashoffset: 0;
             }
+            50%,
+            75% {
+              stroke-dashoffset: 0;
+            }
+            75%,
             100% {
               stroke-dashoffset: 29.6;
             }
           }
 
-          .path1 {
-            animation: draw1 2s ease-out infinite;
-            animation-delay: 0.5s;
-          }
-
           @keyframes draw1 {
-            0% {
+            0%,
+            20% {
               stroke-dashoffset: -11.6;
             }
-            25% {
-              stroke-dashoffset: 0;
-            }
+            20%,
             50% {
               stroke-dashoffset: 0;
             }
+            50%,
             75% {
-              stroke-dashoffset: 11.6;
+              stroke-dashoffset: 0;
             }
+            75%,
             100% {
               stroke-dashoffset: 11.6;
             }
@@ -161,7 +168,7 @@ export const NextLogo = ({
               fill={issueCount > 0 ? '#CA2A30' : '#2A2A2A'}
             />
 
-            <g transform="translate(12, 12)">
+            <g transform="translate(13, 12)">
               <path
                 className={isLoading ? 'path0' : 'paused'}
                 d="M13.3 15.2 L2.34 1 V12.6"
