@@ -575,6 +575,13 @@ impl ReducedGraphs {
     }
 }
 
+// This is a performance optimization. This function is a root aggregation function that aggregates
+// over the whole subgraph.
+#[turbo_tasks::function]
+async fn get_global_module_graph(project: ResolvedVc<Project>) -> Vc<SingleModuleGraph> {
+    SingleModuleGraph::new_with_entries(project.get_all_entries())
+}
+
 #[turbo_tasks::function(operation)]
 async fn get_reduced_graphs_for_endpoint_inner_operation(
     project: ResolvedVc<Project>,
@@ -592,7 +599,9 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
             false,
             vec![
                 async move {
-                    SingleModuleGraph::new_with_entries(project.get_all_entries())
+                    get_global_module_graph(*project)
+                        .resolve_strongly_consistent()
+                        .await?
                         .to_resolved()
                         .await
                 }
