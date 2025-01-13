@@ -7,7 +7,7 @@ export const contentType = 'image/png'
 async function fetchPostData() {
   'use cache'
 
-  return { title: 'Test' }
+  return { title: 'Test', created: Date.now() }
 }
 
 export default async function Image() {
@@ -24,9 +24,13 @@ export default async function Image() {
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
+          flexDirection: 'column',
         }}
       >
-        {post.title}
+        <h1>{post.title}</h1>
+        <p style={{ fontSize: 32 }}>
+          {new Date(post.created).toLocaleTimeString()}
+        </p>
       </div>
     ),
     size
