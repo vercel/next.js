@@ -2,6 +2,11 @@ import Anser from 'next/dist/compiled/anser'
 import * as React from 'react'
 import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './EditorLink'
+import { ExternalIcon } from '../../icons/external'
+import { noop as css } from '../../helpers/noop-template'
+import { getFrameSource } from '../../helpers/stack-frame'
+import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import { FileIcon } from '../../icons/FileIcon'
 
 export type TerminalProps = { content: string }
 
@@ -70,16 +75,37 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
     })
   }, [source])
 
+  const open = useOpenInEditor({
+    file: file?.fileName,
+    lineNumber: file?.location?.line,
+    column: file?.location?.column,
+  })
+
+  const stackFrame = {
+    file: file?.fileName ?? null,
+    methodName: '',
+    arguments: [],
+    lineNumber: file?.location?.line ?? null,
+    column: file?.location?.column ?? null,
+  }
+
   return (
     <div data-nextjs-terminal>
-      {file && (
-        <EditorLink
-          isSourceFile
-          key={file.fileName}
-          file={file.fileName}
-          location={file.location}
-        />
-      )}
+      <div className="terminal-header">
+        <p
+          role="link"
+          onClick={open}
+          tabIndex={1}
+          title="Click to open in your editor"
+        >
+          <span>
+            <FileIcon />
+            {getFrameSource(stackFrame)} @{' '}
+            <HotlinkedText text={stackFrame.methodName} />
+          </span>
+          <ExternalIcon width={16} height={16} />
+        </p>
+      </div>
       <pre>
         {decoded.map((entry, index) => (
           <span
@@ -107,3 +133,62 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
     </div>
   )
 }
+
+export const TERMINAL_STYLES = css`
+  [data-nextjs-terminal] {
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 1;
+    flex: 1 0 0;
+
+    background-color: var(--color-background-200);
+    overflow: hidden;
+    color: var(--color-gray-1000);
+    text-overflow: ellipsis;
+    font-family: var(--font-stack-monospace);
+    font-size: 12px;
+    line-height: 16px;
+  }
+
+  .terminal-header {
+    border-top: 1px solid var(--color-gray-400);
+    border-bottom: 1px solid var(--color-gray-400);
+  }
+
+  [data-nextjs-terminal]::selection,
+  [data-nextjs-terminal] *::selection {
+    background-color: var(--color-ansi-selection);
+  }
+
+  [data-nextjs-terminal] * {
+    color: inherit;
+    background-color: transparent;
+    font-family: var(--font-stack-monospace);
+  }
+
+  [data-nextjs-terminal] > * {
+    margin: 0;
+    padding: calc(var(--size-gap) + var(--size-gap-half))
+      calc(var(--size-gap-double) + var(--size-gap-half));
+  }
+
+  [data-nextjs-terminal] > div > p {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    cursor: pointer;
+    margin: 0;
+  }
+  [data-nextjs-terminal] > div > p:hover {
+    text-decoration: underline dotted;
+  }
+  [data-nextjs-terminal] div > pre {
+    overflow: hidden;
+    display: inline-block;
+  }
+
+  [data-nextjs-terminal] svg {
+    color: var(--color-gray-900);
+    margin-right: 6px;
+  }
+`
