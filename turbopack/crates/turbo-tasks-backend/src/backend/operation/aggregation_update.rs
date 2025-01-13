@@ -1915,11 +1915,12 @@ impl AggregationUpdateQueue {
         let upper_count = get!(task, PersistentUpperCount)
             .copied()
             .unwrap_or_default() as usize;
-        if upper_count * follower_count
-            <= max(
-                MAX_UPPERS_FOLLOWER_PRODUCT,
-                aggregation_number.effective as usize,
-            )
+        if upper_count <= 1
+            || upper_count.saturating_sub(1) * follower_count
+                <= max(
+                    MAX_UPPERS_FOLLOWER_PRODUCT,
+                    aggregation_number.effective as usize,
+                )
         {
             // Doesn't need optimization
             return;
@@ -1969,7 +1970,7 @@ impl AggregationUpdateQueue {
                 std::cmp::Ordering::Greater => {
                     // This aggregation number would not conflict
                     // Is it within the limit?
-                    let product = new_follower_count * new_upper_count * 2;
+                    let product = new_follower_count * new_upper_count.saturating_sub(1) * 2;
                     if new_follower_count == 0 || product <= new_aggregation_number as usize {
                         break;
                     } else if product < n as usize {
