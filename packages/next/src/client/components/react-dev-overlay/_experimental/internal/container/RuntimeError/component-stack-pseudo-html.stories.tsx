@@ -55,11 +55,8 @@ export const TextInTagMismatch: Story = {
 export const ReactUnifiedMismatch: Story = {
   args: {
     componentStackFrames: sampleComponentStack,
-    firstContent: '',
-    secondContent: '',
     hydrationMismatchType: 'tag',
-    reactOutputComponentDiff: `
-<Page>
+    reactOutputComponentDiff: `<Page>
   <Layout>
     <div>
 -     <p>Server content</p>
