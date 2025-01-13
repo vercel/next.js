@@ -35,10 +35,10 @@ export type ErrorsProps = {
   isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  isTurbopack: boolean
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
   debugInfo?: DebugInfo
-  isTurbopackEnabled: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -110,7 +110,7 @@ export function Errors({
   hasStaticIndicator,
   debugInfo,
   versionInfo,
-  isTurbopackEnabled,
+  isTurbopack,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -214,7 +214,7 @@ export function Errors({
         fullscreen={fullscreen}
         hide={hide}
         versionInfo={versionInfo}
-        isTurbopackEnabled={isTurbopackEnabled}
+        isTurbopack={isTurbopack}
       />
     )
   }
@@ -272,6 +272,7 @@ export function Errors({
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
       versionInfo={versionInfo}
+      isTurbopack={isTurbopack}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
