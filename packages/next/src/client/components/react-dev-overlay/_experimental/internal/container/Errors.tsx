@@ -378,6 +378,6 @@ export const styles = css`
     margin-bottom: var(--size-3);
   }
   .error-overlay-notes-container {
-    padding: 0 var (--size-4);
+    padding: 0 var(--size-4);
   }
 `
