@@ -92,7 +92,7 @@ export function PseudoHtmlDiff({
           const sign = trimmedLine[0]
           trimmedLine = trimmedLine.slice(1).trim() // trim spaces after sign
           diffHtmlStack.push(
-            <LineDiv
+            <CodeLine
               key={'comp-diff' + index}
               data-nextjs-container-errors-pseudo-html--diff={
                 sign === '+' ? 'add' : 'remove'
@@ -111,7 +111,7 @@ export function PseudoHtmlDiff({
                 {trimmedLine}
                 {'\n'}
               </span>
-            </LineDiv>
+            </CodeLine>
           )
         } else if (currentComponentIndex >= 0) {
           const isUserLandComponent = trimmedLine.startsWith(
@@ -121,29 +121,29 @@ export function PseudoHtmlDiff({
           if (isUserLandComponent || trimmedLine === '...') {
             currentComponentIndex--
             componentStacks.push(
-              <LineDiv key={'comp-diff' + index}>
+              <CodeLine key={'comp-diff' + index}>
                 {spaces}
                 {trimmedLine}
                 {'\n'}
-              </LineDiv>
+              </CodeLine>
             )
           } else if (!isHtmlCollapsed) {
             componentStacks.push(
-              <LineDiv key={'comp-diff' + index}>
+              <CodeLine key={'comp-diff' + index}>
                 {spaces}
                 {trimmedLine}
                 {'\n'}
-              </LineDiv>
+              </CodeLine>
             )
           }
         } else if (!isHtmlCollapsed) {
           // In general, if it's not collapsed, show the whole diff
           componentStacks.push(
-            <LineDiv key={'comp-diff' + index}>
+            <CodeLine key={'comp-diff' + index}>
               {spaces}
               {trimmedLine}
               {'\n'}
-            </LineDiv>
+            </CodeLine>
           )
         }
       })
@@ -200,7 +200,7 @@ export function PseudoHtmlDiff({
 
       if ((isHtmlTagsWarning && isAdjacentTag) || isLastFewFrames) {
         const codeLine = (
-          <LineDiv>
+          <CodeLine>
             {spaces}
             <span
               {...adjProps}
@@ -215,7 +215,7 @@ export function PseudoHtmlDiff({
             >
               {`<${component}>\n`}
             </span>
-          </LineDiv>
+          </CodeLine>
         )
         lastText = component
 
@@ -265,24 +265,24 @@ export function PseudoHtmlDiff({
         // hydration type is "text", represent [server content, client content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <LineDiv data-nextjs-container-errors-pseudo-html--diff="remove">
+            <CodeLine data-nextjs-container-errors-pseudo-html--diff="remove">
               {spaces + `"${firstContent}"\n`}
-            </LineDiv>
-            <LineDiv data-nextjs-container-errors-pseudo-html--diff="add">
+            </CodeLine>
+            <CodeLine data-nextjs-container-errors-pseudo-html--diff="add">
               {spaces + `"${secondContent}"\n`}
-            </LineDiv>
+            </CodeLine>
           </Fragment>
         )
       } else if (hydrationMismatchType === 'text-in-tag') {
         // hydration type is "text-in-tag", represent [parent tag, mismatch content]
         wrappedCodeLine = (
           <Fragment key={nestedHtmlStack.length}>
-            <LineDiv data-nextjs-container-errors-pseudo-html--tag-adjacent>
+            <CodeLine data-nextjs-container-errors-pseudo-html--tag-adjacent>
               {spaces + `<${secondContent}>\n`}
-            </LineDiv>
-            <LineDiv data-nextjs-container-errors-pseudo-html--diff="remove">
+            </CodeLine>
+            <CodeLine data-nextjs-container-errors-pseudo-html--diff="remove">
               {spaces + `  "${firstContent}"\n`}
-            </LineDiv>
+            </CodeLine>
           </Fragment>
         )
       }
@@ -304,7 +304,7 @@ export function PseudoHtmlDiff({
 
   return (
     <div data-nextjs-container-errors-pseudo-html>
-      <LineDiv>
+      <CodeLine>
         <button
           tabIndex={10} // match CallStackFrame
           data-nextjs-container-errors-pseudo-html-collapse
@@ -312,7 +312,7 @@ export function PseudoHtmlDiff({
         >
           <CollapseIcon collapsed={isHtmlCollapsed} />
         </button>
-      </LineDiv>
+      </CodeLine>
       <pre {...props}>
         <code>{htmlComponents}</code>
       </pre>
@@ -320,18 +320,14 @@ export function PseudoHtmlDiff({
   )
 }
 
-function LineDiv({
+function CodeLine({
   children,
   className,
   ...props
 }: { children: React.ReactNode } & React.HTMLAttributes<HTMLDivElement>) {
   return (
     <div
-      className={
-        className
-          ? `error-overlay-hydration-error-line-div ${className}`
-          : 'error-overlay-hydration-error-line-div'
-      }
+      className={`error-overlay-hydration-error-code-line ${className || ''}`}
       {...props}
     >
       {children}
@@ -427,7 +423,7 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     color: var(--color-red-900);
   }
 
-  .error-overlay-hydration-error-line-div {
+  .error-overlay-hydration-error-code-line {
     height: var(--size-5);
     padding: 0 var(--size-4);
   }
