@@ -43,8 +43,8 @@ export const styles = css`
     align-items: center;
 
     width: 100%;
-    position: absolute;
-    transform: translateY(-42px);
+    position: fixed;
+    transform: translateY(calc(-1 * var(--size-10_5)));
 
     outline: none;
 

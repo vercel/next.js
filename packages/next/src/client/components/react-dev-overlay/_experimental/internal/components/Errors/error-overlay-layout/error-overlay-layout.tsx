@@ -71,14 +71,15 @@ export function ErrorOverlayLayout({
   return (
     <Overlay fixed={isBuildError}>
       <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
-        <ErrorOverlayFloatingHeader
-          readyErrors={readyErrors}
-          activeIdx={activeIdx}
-          setActiveIndex={setActiveIndex}
-          versionInfo={versionInfo}
-          isTurbopack={isTurbopack}
-        />
         <DialogContent>
+          <ErrorOverlayFloatingHeader
+            readyErrors={readyErrors}
+            activeIdx={activeIdx}
+            setActiveIndex={setActiveIndex}
+            versionInfo={versionInfo}
+            isTurbopack={isTurbopack}
+          />
+
           <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
             <div
               className="nextjs__container_errors__error_title"
@@ -99,12 +100,12 @@ export function ErrorOverlayLayout({
               footerMessage={footerMessage}
               errorCode={errorCode!}
             />
+            <ErrorOverlayBottomStacks
+              errorsCount={readyErrors?.length ?? 0}
+              activeIdx={activeIdx ?? 0}
+            />
           </DialogFooter>
         </DialogContent>
-        <ErrorOverlayBottomStacks
-          errorsCount={readyErrors?.length ?? 0}
-          activeIdx={activeIdx ?? 0}
-        />
       </ErrorOverlayDialog>
     </Overlay>
   )
