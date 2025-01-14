@@ -8,13 +8,13 @@ export const MODIFIERS = {
 
 type KeyboardShortcutProps = {
   key: string
-  cb: () => void
+  callback: () => void
   modifiers: (typeof MODIFIERS)[keyof typeof MODIFIERS][]
 }
 
 export function useKeyboardShortcut({
   key,
-  cb,
+  callback,
   modifiers,
 }: KeyboardShortcutProps) {
   useEffect(() => {
@@ -34,11 +34,11 @@ export function useKeyboardShortcut({
 
       if (modifiersPressed && e.key.toLowerCase() === key.toLowerCase()) {
         e.preventDefault()
-        cb()
+        callback()
       }
     }
 
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [key, cb, modifiers])
+  }, [key, callback, modifiers])
 }

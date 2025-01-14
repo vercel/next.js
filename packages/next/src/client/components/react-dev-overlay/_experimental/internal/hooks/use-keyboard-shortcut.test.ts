@@ -24,7 +24,7 @@ describe('useKeyboardShortcut', () => {
     const { unmount } = renderHook(() =>
       useKeyboardShortcut({
         key: 'k',
-        cb: callback,
+        callback,
         modifiers: [MODIFIERS.CTRL_CMD],
       })
     )
@@ -44,7 +44,7 @@ describe('useKeyboardShortcut', () => {
     renderHook(() =>
       useKeyboardShortcut({
         key: 'k',
-        cb: callback,
+        callback,
         modifiers: [MODIFIERS.CTRL_CMD],
       })
     )
@@ -65,7 +65,7 @@ describe('useKeyboardShortcut', () => {
     renderHook(() =>
       useKeyboardShortcut({
         key: 'k',
-        cb: callback,
+        callback,
         modifiers: [MODIFIERS.CTRL_CMD, MODIFIERS.SHIFT],
       })
     )
@@ -95,7 +95,7 @@ describe('useKeyboardShortcut', () => {
     renderHook(() =>
       useKeyboardShortcut({
         key: 'k',
-        cb: callback,
+        callback,
         modifiers: [MODIFIERS.CTRL_CMD],
       })
     )
@@ -115,7 +115,7 @@ describe('useKeyboardShortcut', () => {
     renderHook(() =>
       useKeyboardShortcut({
         key: 'k',
-        cb: callback,
+        callback,
         modifiers: [MODIFIERS.CTRL_CMD],
       })
     )
