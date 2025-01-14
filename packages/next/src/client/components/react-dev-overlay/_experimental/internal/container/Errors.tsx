@@ -199,6 +199,18 @@ export function Errors({
     }
   }, [errors.length, minimize])
 
+  useEffect(() => {
+    // Close the error overlay when pressing escape
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setDisplayState('minimized')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
 

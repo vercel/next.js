@@ -55,8 +55,8 @@ const DevToolsPopover = ({
   const buttonRef = useRef<HTMLDivElement>(null)
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
 
-  // Close popover when clicking outside of it or its button
   useEffect(() => {
+    // Close popover when clicking outside of it or its button
     const handleClickOutside = (event: MouseEvent) => {
       if (
         !(popoverRef.current?.getBoundingClientRect()
@@ -77,8 +77,19 @@ const DevToolsPopover = ({
       }
     }
 
+    // Close popover when pressing escape
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsPopoverOpen(false)
+      }
+    }
+
     document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
   }, [])
 
   const togglePopover = () => setIsPopoverOpen((prev) => !prev)
