@@ -163,11 +163,12 @@ const IndicatorRow = ({
   value: React.ReactNode
   onClick?: () => void
 }) => {
+  const Wrapper = onClick ? 'button' : 'div'
   return (
-    <div data-nextjs-dev-tools-row data-clickable={!!onClick} onClick={onClick}>
+    <Wrapper data-nextjs-dev-tools-row onClick={onClick}>
       <span data-nextjs-dev-tools-row-label>{label}</span>
       <span data-nextjs-dev-tools-row-value>{value}</span>
-    </div>
+    </Wrapper>
   )
 }
 
