@@ -889,7 +889,7 @@ struct SingleModuleGraphBuilderEdge {
 const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
 
 struct SingleModuleGraphBuilder<'a> {
-    visited_modules: &'a HashMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    visited_modules: &'a FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
 }
 impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
     type Edge = SingleModuleGraphBuilderEdge;
