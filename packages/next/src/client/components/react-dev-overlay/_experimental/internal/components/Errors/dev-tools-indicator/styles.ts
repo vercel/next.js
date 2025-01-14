@@ -77,10 +77,6 @@ export const styles = css`
     border-radius: var(--rounded-md);
   }
 
-  [data-nextjs-dev-tools-row][data-clickable='true'] {
-    cursor: pointer;
-  }
-
   [data-nextjs-dev-tools-row]:hover {
     background-color: var(--color-gray-100);
   }
