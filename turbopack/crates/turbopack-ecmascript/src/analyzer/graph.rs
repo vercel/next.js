@@ -1845,7 +1845,6 @@ impl VisitAstPath for Analyzer<'_> {
                         ))
                     );
 
-                    //
                     if !is_lhs {
                         if let Some(prop) = self.eval_context.eval_member_prop(&member.prop) {
                             if let Some(prop_str) = prop.as_str() {
