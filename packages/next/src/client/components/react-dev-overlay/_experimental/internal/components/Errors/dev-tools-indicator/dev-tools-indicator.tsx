@@ -84,7 +84,12 @@ const DevToolsPopover = ({
   const togglePopover = () => setIsPopoverOpen((prev) => !prev)
 
   return (
-    <Toast style={{ boxShadow: 'none' }}>
+    <Toast
+      style={{
+        boxShadow: 'none',
+        zIndex: 2147483647,
+      }}
+    >
       <div ref={buttonRef}>
         <NextLogo
           issueCount={issueCount}
