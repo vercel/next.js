@@ -1,7 +1,7 @@
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import { Toast } from '../../Toast'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
@@ -51,28 +51,56 @@ const DevToolsPopover = ({
   semver: string | undefined
   isTurbopack: boolean
 }) => {
-  // TODO: close when clicking outside
-
-  const isDevBuilding = useIsDevBuilding()
-  const isDevRendering = useIsDevRendering()
-
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLDivElement>(null)
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+
+  // Close popover when clicking outside of it or its button
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        !(popoverRef.current?.getBoundingClientRect()
+          ? event.clientX >= popoverRef.current.getBoundingClientRect()!.left &&
+            event.clientX <=
+              popoverRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= popoverRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= popoverRef.current.getBoundingClientRect()!.bottom
+          : false) &&
+        !(buttonRef.current?.getBoundingClientRect()
+          ? event.clientX >= buttonRef.current.getBoundingClientRect()!.left &&
+            event.clientX <= buttonRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= buttonRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= buttonRef.current.getBoundingClientRect()!.bottom
+          : false)
+      ) {
+        setIsPopoverOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const togglePopover = () => setIsPopoverOpen((prev) => !prev)
+
   return (
     <Toast style={{ boxShadow: 'none' }}>
-      <NextLogo
-        issueCount={issueCount}
-        onClick={togglePopover}
-        isDevBuilding={isDevBuilding}
-        isDevRendering={isDevRendering}
-        aria-haspopup="true"
-        aria-expanded={isPopoverOpen}
-        aria-controls="dev-tools-popover"
-        data-nextjs-dev-tools-button
-      />
+      <div ref={buttonRef}>
+        <NextLogo
+          issueCount={issueCount}
+          onClick={togglePopover}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          aria-haspopup="true"
+          aria-expanded={isPopoverOpen}
+          aria-controls="dev-tools-popover"
+          data-nextjs-dev-tools-button
+        />
+      </div>
 
       {isPopoverOpen && (
         <div
+          ref={popoverRef}
           id="dev-tools-popover"
           role="dialog"
           aria-labelledby="dev-tools-title"
