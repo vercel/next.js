@@ -15,7 +15,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::{TraceRawVcs, TraceRawVcsContext},
-    NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
+    FxIndexMap, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -36,13 +36,13 @@ unsafe impl NonLocalValue for GraphNodeIndex {}
 
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
-pub struct VisitedModules(pub HashMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>);
+pub struct VisitedModules(pub FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>);
 
 #[turbo_tasks::value_impl]
 impl VisitedModules {
     #[turbo_tasks::function]
     pub async fn empty() -> Vc<Self> {
-        Vc::cell(HashMap::new())
+        Vc::cell(FxIndexMap::default())
     }
 
     #[turbo_tasks::function]
@@ -68,31 +68,33 @@ impl VisitedModules {
     }
 
     #[turbo_tasks::function]
-    pub async fn concatenate(self: Vc<Self>, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
-        Ok(Vc::cell(
-            self.await?
-                .iter()
-                .map(|(module, idx)| (*module, *idx))
-                .chain(
-                    graph
-                        .await?
-                        .enumerate_nodes()
-                        .flat_map(|(node_idx, module)| match module {
-                            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                                module,
-                                ..
-                            }) => Some((
-                                *module,
-                                GraphNodeIndex {
-                                    graph_idx: 0,
-                                    node_idx,
-                                },
-                            )),
-                            SingleModuleGraphNode::VisitedModule { .. } => None,
-                        }),
-                )
-                .collect(),
-        ))
+    pub async fn concatenate(&self, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
+        let graph = graph.await?;
+        let iter = self.0.iter().map(|(module, idx)| (*module, *idx)).chain(
+            graph
+                .enumerate_nodes()
+                .flat_map(|(node_idx, module)| match module {
+                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                        module, ..
+                    }) => Some((
+                        *module,
+                        GraphNodeIndex {
+                            graph_idx: 0,
+                            node_idx,
+                        },
+                    )),
+                    SingleModuleGraphNode::VisitedModule { .. } => None,
+                }),
+        );
+
+        // `map.extend()` but don't overwrite keys (give higher priority to the earlier maps)
+        let mut map = FxIndexMap::default();
+        map.reserve(iter.size_hint().0);
+        for (k, v) in iter {
+            map.entry(k).or_insert(v);
+        }
+
+        Ok(Vc::cell(map))
     }
 }
 
@@ -119,7 +121,7 @@ impl SingleModuleGraph {
     async fn new_inner(
         root: Option<ResolvedVc<Box<dyn Module>>>,
         entries: &Vec<ResolvedVc<Box<dyn Module>>>,
-        visited_modules: &HashMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+        visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     ) -> Result<Vc<Self>> {
         let mut graph = DiGraph::new();
 
@@ -493,10 +495,25 @@ impl SingleModuleGraph {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 pub struct SingleModuleGraphs {
-    graphs: Vec<ResolvedVc<SingleModuleGraph>>,
+    pub graphs: Vec<ResolvedVc<SingleModuleGraph>>,
+}
+
+#[turbo_tasks::value_impl]
+impl SingleModuleGraphs {
+    #[turbo_tasks::function]
+    pub fn from_graphs(graphs: Vec<ResolvedVc<SingleModuleGraph>>) -> Vc<Self> {
+        Self { graphs }.cell()
+    }
+    #[turbo_tasks::function]
+    pub fn from_single_graph(graph: ResolvedVc<SingleModuleGraph>) -> Vc<Self> {
+        Self {
+            graphs: vec![graph],
+        }
+        .cell()
+    }
 }
 
 // fn get_node(graph: T, node: T) -> SingleModuleGraphModuleNode {

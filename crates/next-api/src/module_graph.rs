@@ -18,7 +18,7 @@ use turbopack_core::{
     context::AssetContext,
     issue::Issue,
     module::Module,
-    module_graph::{GraphTraversalAction, SingleModuleGraph, VisitedModules},
+    module_graph::{GraphTraversalAction, SingleModuleGraph, SingleModuleGraphs, VisitedModules},
 };
 
 use crate::{
@@ -27,10 +27,6 @@ use crate::{
     project::Project,
     server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
 };
-
-#[turbo_tasks::value(transparent)]
-#[derive(Clone, Debug)]
-struct SingleModuleGraphs(pub Vec<ResolvedVc<SingleModuleGraph>>);
 
 /// Implements layout segment optimization to compute a graph "chain" for each layout segment
 #[turbo_tasks::function]
@@ -49,11 +45,9 @@ async fn get_module_graph_for_endpoint(
             *entry,
             server_utils.iter().map(|m| **m).collect(),
             Vc::cell(Default::default()),
-        )
-        .to_resolved()
-        .await?;
+        );
         graphs.push(graph);
-        VisitedModules::from_graph(*graph)
+        VisitedModules::from_graph(graph)
     } else {
         VisitedModules::empty()
     };
@@ -63,24 +57,20 @@ async fn get_module_graph_for_endpoint(
             *entry,
             vec![Vc::upcast(**module)],
             visited_modules,
-        )
-        .to_resolved()
-        .await?;
+        );
         graphs.push(graph);
         let is_layout = module.server_path().file_stem().await?.as_deref() == Some("layout");
         if is_layout {
             // Only propagate the visited_modules of the parent layout(s), not across siblings such
             // as loading.js and page.js.
-            visited_modules = visited_modules.concatenate(*graph);
+            visited_modules = visited_modules.concatenate(graph);
         }
     }
 
-    let graph = SingleModuleGraph::new_with_entries_visited(*entry, vec![*entry], visited_modules)
-        .to_resolved()
-        .await?;
+    let graph = SingleModuleGraph::new_with_entries_visited(*entry, vec![*entry], visited_modules);
     graphs.push(graph);
 
-    Ok(Vc::cell(graphs))
+    Ok(SingleModuleGraphs::from_graphs(graphs))
 }
 
 #[turbo_tasks::value]
@@ -573,32 +563,31 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
     project: ResolvedVc<Project>,
     entry: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<ReducedGraphs>> {
-    let (is_single_page, graphs) = match &*project.next_mode().await? {
+    let (is_single_page, graph) = match &*project.next_mode().await? {
         NextMode::Development => (
             true,
             async move { get_module_graph_for_endpoint(*entry).await }
                 .instrument(tracing::info_span!("module graph for endpoint"))
-                .await?
-                .clone_value(),
+                .await?,
         ),
         NextMode::Build => (
             false,
-            vec![
+            SingleModuleGraphs::from_single_graph(
                 async move {
                     get_global_module_graph(*project)
                         .resolve_strongly_consistent()
-                        .await?
-                        .to_resolved()
                         .await
                 }
                 .instrument(tracing::info_span!("module graph for app"))
                 .await?,
-            ],
+            )
+            .await?,
         ),
     };
 
     let next_dynamic = async {
-        graphs
+        graph
+            .graphs
             .iter()
             .map(|graph| NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved())
             .try_join()
@@ -608,7 +597,8 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
     .await?;
 
     let server_actions = async {
-        graphs
+        graph
+            .graphs
             .iter()
             .map(|graph| {
                 ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
@@ -620,7 +610,8 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
     .await?;
 
     let client_references = async {
-        graphs
+        graph
+            .graphs
             .iter()
             .map(|graph| {
                 ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
