@@ -35,7 +35,7 @@ function closeCompiler(compiler: webpack.Compiler | webpack.MultiCompiler) {
   })
 }
 
-export function runCompiler(
+export async function runCompiler(
   config: webpack.Configuration,
   {
     runWebpackSpan,
@@ -50,6 +50,14 @@ export function runCompiler(
     inputFileSystem?: webpack.Compiler['inputFileSystem'],
   ]
 > {
+  if (process.env.NEXT_RSPACK_OTEL) {
+    console.log('next bin rspack otel')
+    await require('@rspack/core').experiments.globalTrace.register(
+      'trace',
+      'otel',
+      ''
+    )
+  }
   return new Promise((resolve, reject) => {
     const compiler = webpack(config)
     // Ensure we use the previous inputFileSystem
@@ -71,6 +79,9 @@ export function runCompiler(
       })
       webpackCloseSpan
         .traceAsyncFn(() => closeCompiler(compiler))
+        .then(() => {
+          return require('@rspack/core').experiments.globalTrace.cleanup()
+        })
         .then(() => {
           if (err) {
             const reason = err.stack ?? err.toString()
