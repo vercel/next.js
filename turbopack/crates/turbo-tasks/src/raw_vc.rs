@@ -258,6 +258,17 @@ impl RawVc {
             }
         }
     }
+
+    /// For a type that's already resolved, synchronously check if it implements a trait using the
+    /// type information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
+        match self {
+            RawVc::TaskCell(_task_id, cell_id) => {
+                get_value_type(cell_id.type_id).has_trait(&trait_id)
+            }
+            _ => unreachable!("resolved_has_trait must be called with a RawVc::TaskCell"),
+        }
+    }
 }
 
 impl CollectiblesSource for RawVc {
