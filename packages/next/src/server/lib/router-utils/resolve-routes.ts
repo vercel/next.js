@@ -20,7 +20,7 @@ import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
-import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
+import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
@@ -605,48 +605,18 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['x-middleware-rewrite']) {
               const value = middlewareHeaders['x-middleware-rewrite'] as string
-              const destination = relativizeURL(value, initUrl)
+              const destination = getRelativeURL(value, initUrl)
               resHeaders['x-middleware-rewrite'] = destination
 
-              const parsedDestination = url.parse(destination, true)
+              parsedUrl = url.parse(destination, true)
 
-              if (parsedDestination.protocol) {
-                // Assign the parsed destination to parsedUrl so that the next
-                // set of steps can use it.
-                parsedUrl = parsedDestination
-
+              if (parsedUrl.protocol) {
                 return {
-                  parsedUrl: parsedDestination,
+                  parsedUrl,
                   resHeaders,
                   finished: true,
                 }
               }
-
-              // Set the rewrite headers only if this is a RSC request.
-              if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
-                // We set the rewritten path and query headers on the response now
-                // that we know that the it's not an external rewrite.
-                if (
-                  parsedDestination.pathname &&
-                  parsedUrl.pathname !== parsedDestination.pathname
-                ) {
-                  res.setHeader(
-                    NEXT_REWRITTEN_PATH_HEADER,
-                    parsedDestination.pathname
-                  )
-                }
-                if (parsedDestination.search) {
-                  res.setHeader(
-                    NEXT_REWRITTEN_QUERY_HEADER,
-                    // remove the leading ? from the search
-                    parsedDestination.search.slice(1)
-                  )
-                }
-              }
-
-              // Assign the parsed destination to parsedUrl so that the next
-              // set of steps can use it.
-              parsedUrl = parsedDestination
 
               if (config.i18n) {
                 const curLocaleResult = normalizeLocalePath(
@@ -662,7 +632,7 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['location']) {
               const value = middlewareHeaders['location'] as string
-              const rel = relativizeURL(value, initUrl)
+              const rel = getRelativeURL(value, initUrl)
               resHeaders['location'] = rel
               parsedUrl = url.parse(rel, true)
 
