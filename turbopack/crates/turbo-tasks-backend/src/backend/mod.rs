@@ -998,6 +998,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     once_task,
                     done_event,
                     session_dependent: false,
+                    marked_as_completed: false,
                 },
             });
 
@@ -1319,6 +1320,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             once_task: _,
             stale,
             session_dependent,
+            marked_as_completed: _,
         } = in_progress
         else {
             panic!("Task execution completed, but task is not in progress: {task:#?}");
@@ -1669,6 +1671,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
+    fn mark_own_task_as_finished(
+        &self,
+        task: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        let mut task = ctx.task(task, TaskDataCategory::Data);
+        if let Some(InProgressState::InProgress {
+            marked_as_completed,
+            ..
+        }) = get_mut!(task, InProgress)
+        {
+            *marked_as_completed = true;
+            // TODO this should remove the dirty state (also check session_dependent)
+        }
+    }
+
     fn connect_task(
         &self,
         task: TaskId,
@@ -1950,6 +1969,14 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.update_task_cell(task_id, cell, content, turbo_tasks);
+    }
+
+    fn mark_own_task_as_finished(
+        &self,
+        task_id: TaskId,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0.mark_own_task_as_finished(task_id, turbo_tasks);
     }
 
     fn mark_own_task_as_session_dependent(
