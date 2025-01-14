@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { noop as css } from '../../../../../../internal/helpers/noop-template'
 
-interface Props extends React.ComponentProps<'svg'> {
+interface Props extends React.ComponentProps<'button'> {
   issueCount: number
   onClick: () => void
   isDevBuilding: boolean
@@ -31,9 +31,10 @@ export const NextLogo = ({
   }, [isDevBuilding, isDevRendering])
 
   return (
-    <div
+    <button
       onClick={onClick}
       style={{ position: 'relative', cursor: 'pointer', userSelect: 'none' }}
+      {...props}
     >
       <style>
         {css`
@@ -119,7 +120,6 @@ export const NextLogo = ({
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
         style={{ shapeRendering: 'geometricPrecision' }}
-        {...props}
       >
         <g filter="url(#filter0_bdddi_1457_6023)">
           <circle cx="20" cy="20" r="20" fill={'black'} fillOpacity="0.8" />
@@ -375,6 +375,6 @@ export const NextLogo = ({
           </radialGradient>
         </defs>
       </svg>
-    </div>
+    </button>
   )
 }

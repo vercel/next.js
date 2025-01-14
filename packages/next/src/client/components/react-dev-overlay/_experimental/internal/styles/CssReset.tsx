@@ -226,11 +226,21 @@ export function CssReset() {
 
         button {
           border-radius: 0;
+          border: 0;
+          padding: 0;
+          margin: 0;
+          background: none;
+          appearance: none;
+          -webkit-appearance: none;
         }
 
         button:focus {
           outline: 1px dotted;
           outline: 5px auto -webkit-focus-ring-color;
+        }
+
+        button:focus:not(:focus-visible) {
+          outline: none;
         }
 
         input,
