@@ -81,7 +81,7 @@ export const styles = css`
     cursor: pointer;
   }
 
-  [data-nextjs-dev-tools-row][data-clickable='true']:hover {
+  [data-nextjs-dev-tools-row]:hover {
     background-color: var(--color-gray-100);
   }
 
