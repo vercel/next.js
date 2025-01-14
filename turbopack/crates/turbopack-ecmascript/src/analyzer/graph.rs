@@ -329,6 +329,14 @@ impl EvalContext {
         }
     }
 
+    fn eval_member_prop(&self, prop: &MemberProp) -> Option<JsValue> {
+        match prop {
+            MemberProp::Ident(ident) => Some(ident.sym.clone().into()),
+            MemberProp::Computed(ComputedPropName { expr, .. }) => Some(self.eval(expr)),
+            MemberProp::PrivateName(_) => None,
+        }
+    }
+
     fn eval_tpl(&self, e: &Tpl, raw: bool) -> JsValue {
         debug_assert!(e.quasis.len() == e.exprs.len() + 1);
 
@@ -722,6 +730,17 @@ enum EarlyReturn {
 
         early_return_condition_value: bool,
     },
+}
+
+pub fn as_parent_path_skip(
+    ast_path: &AstNodePath<AstParentNodeRef<'_>>,
+    skip: usize,
+) -> Vec<AstParentKind> {
+    ast_path
+        .iter()
+        .take(ast_path.len() - skip)
+        .map(|n| n.kind())
+        .collect()
 }
 
 struct Analyzer<'a> {
@@ -1804,6 +1823,47 @@ impl VisitAstPath for Analyzer<'_> {
         if let Some((esm_reference_index, export)) =
             self.eval_context.imports.get_binding(&ident.to_id())
         {
+            if export.is_none()
+                && !self
+                    .eval_context
+                    .imports
+                    .should_import_all(esm_reference_index)
+            {
+                // export.is_none() checks for a namespace import.
+
+                // Note: This is optimization that can be applied if we don't need to
+                // import all bindings
+                if let Some(AstParentNodeRef::MemberExpr(member, MemberExprField::Obj)) =
+                    ast_path.get(ast_path.len() - 2)
+                {
+                    // Skip if it's on the LHS of assignment
+                    let is_lhs = matches!(
+                        ast_path.get(ast_path.len() - 3),
+                        Some(AstParentNodeRef::SimpleAssignTarget(
+                            _,
+                            SimpleAssignTargetField::Member
+                        ))
+                    );
+
+                    if !is_lhs {
+                        if let Some(prop) = self.eval_context.eval_member_prop(&member.prop) {
+                            if let Some(prop_str) = prop.as_str() {
+                                // a namespace member access like
+                                // `import * as ns from "..."; ns.exportName`
+                                self.add_effect(Effect::ImportedBinding {
+                                    esm_reference_index,
+                                    export: Some(prop_str.into()),
+                                    ast_path: as_parent_path_skip(ast_path, 1),
+                                    span: member.span(),
+                                    in_try: is_in_try(ast_path),
+                                });
+                                return;
+                            }
+                        }
+                    }
+                }
+            }
+
             self.add_effect(Effect::ImportedBinding {
                 esm_reference_index,
                 export,
