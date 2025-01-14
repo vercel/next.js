@@ -291,9 +291,21 @@ async function generateCacheEntryImpl(
 
               // The encoded arguments might contain hanging promises. In this
               // case we don't want to reject with "Error: Connection closed.",
-              // so we intentionally keep the iterable alive. This is the same
-              // halting trick that we do for rendering as well.
-              await new Promise(() => {})
+              // so we intentionally keep the iterable alive. This is similar to
+              // the halting trick that we do while rendering.
+              if (outerWorkUnitStore?.type === 'prerender') {
+                await new Promise<void>((resolve) => {
+                  if (outerWorkUnitStore.renderSignal.aborted) {
+                    resolve()
+                  } else {
+                    outerWorkUnitStore.renderSignal.addEventListener(
+                      'abort',
+                      () => resolve(),
+                      { once: true }
+                    )
+                  }
+                })
+              }
             },
           },
           getServerModuleMap(),
