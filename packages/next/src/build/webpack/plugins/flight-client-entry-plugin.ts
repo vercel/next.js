@@ -45,6 +45,7 @@ import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
 import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import type { MetadataRouteLoaderOptions } from '../loaders/next-metadata-route-loader'
 
 interface Options {
   dev: boolean
@@ -305,7 +306,12 @@ export class FlightClientEntryPlugin {
         ).request
 
         if (entryRequest.endsWith(WEBPACK_RESOURCE_QUERIES.metadataRoute)) {
-          entryRequest = getMetadataRouteResource(entryRequest)
+          const { filePath, isDynamicRouteExtension } =
+            getMetadataRouteResource(entryRequest)
+
+          if (isDynamicRouteExtension === '1') {
+            entryRequest = filePath
+          }
         }
 
         const { clientComponentImports, actionImports, cssImports } =
@@ -1110,14 +1116,15 @@ function getModuleResource(mod: webpack.NormalModule): string {
   }
 
   if (mod.resource === `?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`) {
-    return getMetadataRouteResource(mod.rawRequest)
+    return getMetadataRouteResource(mod.rawRequest).filePath
   }
 
   return modResource
 }
 
-function getMetadataRouteResource(request: string): string {
-  const query = request.split('next-metadata-route-loader?')[1]
+function getMetadataRouteResource(request: string): MetadataRouteLoaderOptions {
+  // e.g. next-metadata-route-loader?filePath=<some-url-encoded-path>&isDynamicRouteExtension=1!?__next_metadata_route__
+  const query = request.split('!')[0].split('next-metadata-route-loader?')[1]
 
-  return parse(query).filePath as string
+  return parse(query) as MetadataRouteLoaderOptions
 }

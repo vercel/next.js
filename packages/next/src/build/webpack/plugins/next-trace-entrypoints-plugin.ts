@@ -19,6 +19,7 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
+import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -115,6 +116,7 @@ export interface BuildTraceContext {
     outputPath: string
     depModArray: string[]
     entryNameMap: Record<string, string>
+    absolutePathByEntryName: Record<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
@@ -241,19 +243,28 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`)
         )
 
-        if (entrypoint.name.startsWith('app/')) {
-          // include the client reference manifest
-          const clientManifestsForEntrypoint = nodePath.join(
-            outputPath,
-            outputPrefix,
-            entrypoint.name.replace(/%5F/g, '_') +
-              '_' +
-              CLIENT_REFERENCE_MANIFEST +
-              '.js'
-          )
+        if (entrypoint.name.startsWith('app/') && this.appDir) {
+          const appDirRelativeEntryPath =
+            this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
+              entrypoint.name
+            ]?.replace(this.appDir, '')
 
-          if (clientManifestsForEntrypoint !== null) {
-            entryFiles.add(clientManifestsForEntrypoint)
+          // Include the client reference manifest in the trace, but not for
+          // static metadata routes, for which we don't generate those.
+          if (
+            appDirRelativeEntryPath &&
+            !isStaticMetadataRoute(appDirRelativeEntryPath)
+          ) {
+            entryFiles.add(
+              nodePath.join(
+                outputPath,
+                outputPrefix,
+                entrypoint.name.replace(/%5F/g, '_') +
+                  '_' +
+                  CLIENT_REFERENCE_MANIFEST +
+                  '.js'
+              )
+            )
           }
         }
 
@@ -315,6 +326,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             const entryNameMap = new Map<string, string>()
             const entryModMap = new Map<string, any>()
             const additionalEntries = new Map<string, Map<string, any>>()
+            const absolutePathByEntryName = new Map<string, string>()
 
             const depModMap = new Map<string, any>()
 
@@ -356,6 +368,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                           ) {
                             entryModMap.set(absolutePath, entryMod)
                             entryNameMap.set(absolutePath, name)
+                            absolutePathByEntryName.set(name, absolutePath)
                           }
                         }
 
@@ -441,6 +454,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
               entryNameMap: Object.fromEntries(entryNameMap),
+              absolutePathByEntryName: Object.fromEntries(
+                absolutePathByEntryName
+              ),
               outputPath: compilation.outputOptions.path!,
             }
 
