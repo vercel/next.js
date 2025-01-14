@@ -42,6 +42,17 @@ const mockError = {
   ],
 }
 
+export const NoErrors: Story = {
+  args: {
+    hasStaticIndicator: false,
+    readyErrors: [],
+    fullscreen: () => console.log('Fullscreen clicked'),
+    hide: () => console.log('Hide clicked'),
+    versionInfo: mockVersionInfo,
+    isTurbopack: false,
+  },
+}
+
 export const SingleError: Story = {
   args: {
     hasStaticIndicator: false,
