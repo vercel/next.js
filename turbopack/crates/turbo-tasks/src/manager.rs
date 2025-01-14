@@ -19,7 +19,7 @@ use auto_hash_map::AutoMap;
 use futures::FutureExt;
 use rustc_hash::FxHasher;
 use serde::{Deserialize, Serialize};
-use tokio::{runtime::Handle, select, task_local};
+use tokio::{runtime::Handle, select, sync::Semaphore, task_local};
 use tokio_util::task::TaskTracker;
 use tracing::{info_span, instrument, trace_span, Instrument, Level, Span};
 use turbo_tasks_malloc::TurboMalloc;
@@ -763,6 +763,8 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let future = async move {
             let mut schedule_again = true;
             while schedule_again {
+                let _permit = PERMITS.acquire().await.unwrap();
+
                 let backend_state = this.backend.new_task_state(task_id);
                 let global_task_state = Arc::new(RwLock::new(CurrentGlobalTaskState::new(
                     task_id,
@@ -2074,3 +2076,5 @@ pub(crate) fn assert_execution_id(execution_id: ExecutionId) {
         );
     })
 }
+
+static PERMITS: Semaphore = Semaphore::const_new(4196);
