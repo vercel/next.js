@@ -1867,4 +1867,20 @@ describe('app-dir action handling', () => {
       })
     })
   })
+
+  describe('request body decoding', () => {
+    it.each(['node', 'edge'])(
+      'should correctly decode multi-byte characters in the request body (%s)',
+      async (runtime) => {
+        const browser = await next.browser(`/decode-req-body/${runtime}`)
+
+        await browser.elementByCss('button').click()
+        const result = await browser.elementByCss('p').text()
+
+        expect(result).toEqual(
+          'Server responded with 100000 あ characters and 0 � characters.'
+        )
+      }
+    )
+  })
 })
