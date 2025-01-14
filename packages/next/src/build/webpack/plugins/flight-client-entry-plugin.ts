@@ -44,7 +44,10 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import {
+  isMetadataRoute,
+  isStaticMetadataRoute,
+} from '../../../lib/metadata/is-metadata-route'
 
 interface Options {
   dev: boolean
@@ -339,10 +342,12 @@ export class FlightClientEntryPlugin {
           ? path.relative(compilation.options.context!, entryRequest)
           : entryRequest
 
+        let bundlePath = normalizePathSep(relativeRequest).replace(/^src\//, '')
         // Replace file suffix as `.js` will be added.
-        let bundlePath = normalizePathSep(
-          relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
-        )
+        // Do not replace the static metadata route file suffix as it is part of the pathname and entry name.
+        if (!isStaticMetadataRoute(bundlePath)) {
+          bundlePath = bundlePath.replace(/\.[^./]+$/, '')
+        }
 
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
