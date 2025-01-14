@@ -31,7 +31,10 @@ export const NextLogo = ({
   }, [isDevBuilding, isDevRendering])
 
   return (
-    <div onClick={onClick} style={{ position: 'relative' }}>
+    <div
+      onClick={onClick}
+      style={{ position: 'relative', cursor: 'pointer', userSelect: 'none' }}
+    >
       <style>
         {css`
           .path0 {
@@ -103,8 +106,6 @@ export const NextLogo = ({
             color: '#FF6369',
             fontSize: '12px',
             fontWeight: 'bold',
-            cursor: 'pointer',
-            userSelect: 'none',
           }}
         >
           {issueCount}
