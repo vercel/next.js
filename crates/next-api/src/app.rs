@@ -11,8 +11,7 @@ use next_core::{
     get_edge_resolve_options_context, get_next_package,
     next_app::{
         get_app_client_references_chunks, get_app_client_shared_chunk_group, get_app_page_entry,
-        get_app_route_entry, include_modules_module::IncludeModulesModule,
-        metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
+        get_app_route_entry, metadata::route::get_app_metadata_route_entry, AppEntry, AppPage,
     },
     next_client::{
         get_client_module_options_context, get_client_resolve_options_context,
@@ -56,7 +55,7 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
         EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
@@ -1539,16 +1538,21 @@ impl AppEndpoint {
                     let client_references = client_references.await?;
                     let span = tracing::trace_span!("server utils");
                     async {
-                        let utils_module = IncludeModulesModule::new(
-                            AssetIdent::from_path(this.app_project.project().project_path())
-                                .with_modifier(server_utils_modifier()),
-                            client_references.server_utils.iter().map(|v| **v).collect(),
-                        );
-
+                        let server_utils = client_references
+                            .server_utils
+                            .iter()
+                            .map(|m| async move {
+                                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
+                                    .await?
+                                    .context("Expected server utils to be chunkable")
+                            })
+                            .try_join()
+                            .await?;
                         let chunk_group = chunking_context
-                            .chunk_group(
-                                utils_module.ident(),
-                                Vc::upcast(utils_module),
+                            .chunk_group_multiple(
+                                AssetIdent::from_path(this.app_project.project().project_path())
+                                    .with_modifier(server_utils_modifier()),
+                                Vc::cell(server_utils),
                                 module_graph,
                                 Value::new(current_availability_info),
                             )

@@ -10,7 +10,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
@@ -293,23 +293,37 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_group(
-        self: ResolvedVc<Self>,
-        _ident: Vc<AssetIdent>,
+    fn chunk_group(
+        self: Vc<Self>,
+        ident: Vc<AssetIdent>,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
         module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<ChunkGroupResult> {
+        self.chunk_group_multiple(
+            ident,
+            Vc::cell(vec![module]),
+            module_graph,
+            availability_info,
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_group_multiple(
+        self: ResolvedVc<Self>,
+        ident: Vc<AssetIdent>,
+        modules: Vc<ChunkableModules>,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
-        let span = tracing::info_span!(
-            "chunking",
-            module = module.ident().to_string().await?.to_string()
-        );
+        let span = tracing::info_span!("chunking", module = ident.to_string().await?.to_string());
         async move {
+            let modules = modules.await?;
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
             } = make_chunk_group(
-                [ResolvedVc::upcast(module)],
+                modules.iter().copied().map(ResolvedVc::upcast),
                 module_graph,
                 ResolvedVc::upcast(self),
                 availability_info.into_value(),
