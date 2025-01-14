@@ -1568,7 +1568,7 @@ impl AggregationUpdateQueue {
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span =
-            trace_span!("process update aggregation numger", base_aggregation_number).entered();
+            trace_span!("check update aggregation number", base_aggregation_number).entered();
 
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         let current = get!(task, AggregationNumber).copied().unwrap_or_default();
@@ -1601,7 +1601,13 @@ impl AggregationUpdateQueue {
             }
         } else {
             #[cfg(feature = "trace_aggregation_update")]
-            let _span = trace_span!("update aggregation numger", aggregation_number).entered();
+            let _span = trace_span!(
+                "update aggregation number",
+                task = ctx.get_task_description(task_id),
+                old,
+                aggregation_number
+            )
+            .entered();
             task.insert(CachedDataItem::AggregationNumber {
                 value: AggregationNumber {
                     base: base_aggregation_number,
@@ -1655,7 +1661,7 @@ impl AggregationUpdateQueue {
     /// upper edges as this amplifies the updates needed when changes to that task occur.
     fn optimize_task(&mut self, ctx: &mut impl ExecuteContext<'_>, task_id: TaskId) {
         #[cfg(feature = "trace_aggregation_update")]
-        let _span = trace_span!("optimize").entered();
+        let _span = trace_span!("check optimize").entered();
 
         let task = ctx.task(task_id, TaskDataCategory::Meta);
         let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
@@ -1750,6 +1756,14 @@ impl AggregationUpdateQueue {
         }
 
         if aggregation_number.effective != new_aggregation_number {
+            #[cfg(feature = "trace_aggregation_update")]
+            let _span = trace_span!(
+                "optimize",
+                upper_count,
+                old_aggregation_number = aggregation_number.effective,
+                new_aggregation_number,
+            )
+            .entered();
             self.push(AggregationUpdateJob::UpdateAggregationNumber {
                 task_id,
                 base_aggregation_number: new_aggregation_number
