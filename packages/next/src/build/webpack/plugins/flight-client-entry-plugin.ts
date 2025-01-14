@@ -344,14 +344,17 @@ export class FlightClientEntryPlugin {
 
         let bundlePath = normalizePathSep(relativeRequest).replace(/^src\//, '')
         // Replace file suffix as `.js` will be added.
-        // Do not replace the static metadata route file suffix as it is part of the pathname and entry name.
-        if (!isStaticMetadataRoute(bundlePath)) {
+
+        // Map the bundle path to the route path to check if it's a metadata route.
+        // Reserve the static metadata route file suffix as it is part of the pathname and entry name.
+        // e.g. app/favicon.ico (bundlePath) -> /favicon.ico (route)
+        const route = bundlePath.replace(/^app/, '')
+        if (!isStaticMetadataRoute(route)) {
           bundlePath = bundlePath.replace(/\.[^./]+$/, '')
         }
-
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
-        if (isMetadataRoute(bundlePath)) {
+        else if (isMetadataRoute(bundlePath)) {
           bundlePath = name
         }
 
