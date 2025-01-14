@@ -10,10 +10,7 @@ import {
 import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
-import type {
-  IncomingRequestLoggingConfig,
-  LoggingConfig,
-} from '../config-shared'
+import type { LoggingConfig } from '../config-shared'
 import { getRequestMeta } from '../request-meta'
 
 export interface RequestLoggingOptions {
@@ -24,42 +21,41 @@ export interface RequestLoggingOptions {
 }
 
 /**
- * Returns true if the incoming request should be logged.
- * @returns True if the incoming request should be logged, false otherwise.
+ * Returns true if the incoming request should be ignored for logging.
  */
-export function shouldLogIncomingRequest(
+export function ignoreLoggingIncomingRequest(
   request: NodeNextRequest,
   loggingConfig: LoggingConfig | undefined
 ): boolean {
   if (typeof loggingConfig?.incomingRequest === 'boolean') {
-    return loggingConfig.incomingRequest
+    // if { incomingRequest: false } we should ignore
+    return !loggingConfig.incomingRequest
   }
 
-  const ignorePattern = (
-    loggingConfig?.incomingRequest as IncomingRequestLoggingConfig
-  )?.ignorePattern
+  const ignore = loggingConfig?.incomingRequest?.ignore
 
-  if (
-    !ignorePattern ||
-    !Array.isArray(ignorePattern) ||
-    ignorePattern.length === 0
-  ) {
-    return true
+  // If ignore is not set, don't ignore anything
+  if (ignore === undefined) {
+    return false
   }
 
-  // This warning should rarely happen due to the type checking
-  if (ignorePattern.some((pattern) => !(pattern instanceof RegExp))) {
-    writeLine(yellow('Warning: Invalid incomingRequest.ignorePattern!'))
-    return true
+  if (typeof ignore === 'boolean') {
+    return ignore
   }
 
-  return !ignorePattern.some((pattern) => pattern.test(request.url))
+  // If single RegExp
+  if (!Array.isArray(ignore)) {
+    return ignore.test(request.url)
+  }
+
+  // If array of RegExp, ignore if any pattern matches
+  return ignore.some((pattern) => pattern.test(request.url))
 }
 
 export function logRequests(options: RequestLoggingOptions): void {
   const { request, response, loggingConfig, requestDurationInMs } = options
 
-  if (shouldLogIncomingRequest(request, loggingConfig)) {
+  if (!ignoreLoggingIncomingRequest(request, loggingConfig)) {
     logIncomingRequest({
       request,
       requestDurationInMs,

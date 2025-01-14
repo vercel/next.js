@@ -1,65 +1,66 @@
-import { shouldLogIncomingRequest } from './log-requests'
+import { ignoreLoggingIncomingRequest } from './log-requests'
 import type { NodeNextRequest } from '../base-http/node'
 import type { LoggingConfig } from '../config-shared'
 
-describe('shouldLogIncomingRequest', () => {
+describe('ignoreLoggingIncomingRequest', () => {
   const createMockRequest = (url: string): NodeNextRequest => {
     return { url } as NodeNextRequest
   }
 
-  it('should return true when logging config is undefined', () => {
-    const req = createMockRequest('/api/test')
-    expect(shouldLogIncomingRequest(req, undefined)).toBe(true)
+  it('should respect boolean config', () => {
+    const req = createMockRequest('/test')
+
+    expect(ignoreLoggingIncomingRequest(req, { incomingRequest: false })).toBe(
+      true
+    )
+    expect(ignoreLoggingIncomingRequest(req, { incomingRequest: true })).toBe(
+      false
+    )
   })
 
-  it('should return true when incomingRequest is true', () => {
-    const req = createMockRequest('/api/test')
-    const config: LoggingConfig = { incomingRequest: true }
-    expect(shouldLogIncomingRequest(req, config)).toBe(true)
+  it('should not ignore when no ignore patterns configured', () => {
+    const req = createMockRequest('/test')
+
+    expect(ignoreLoggingIncomingRequest(req, {})).toBe(false)
+    expect(ignoreLoggingIncomingRequest(req, undefined)).toBe(false)
   })
 
-  it('should return false when incomingRequest is false', () => {
-    const req = createMockRequest('/api/test')
-    const config: LoggingConfig = { incomingRequest: false }
-    expect(shouldLogIncomingRequest(req, config)).toBe(false)
-  })
-
-  it('should return true when ignorePattern is empty', () => {
-    const req = createMockRequest('/api/test')
-    const config: LoggingConfig = {
-      incomingRequest: { ignorePattern: [] },
-    }
-    expect(shouldLogIncomingRequest(req, config)).toBe(true)
-  })
-
-  it('should filter requests matching ignorePattern', () => {
-    const req = createMockRequest('/api/health')
+  it('should handle single RegExp ignore pattern', () => {
     const config: LoggingConfig = {
       incomingRequest: {
-        ignorePattern: [/^\/api\/health/],
+        ignore: /^\/api\//,
       },
     }
-    expect(shouldLogIncomingRequest(req, config)).toBe(false)
+
+    expect(
+      ignoreLoggingIncomingRequest(createMockRequest('/api/test'), config)
+    ).toBe(true)
+    expect(
+      ignoreLoggingIncomingRequest(createMockRequest('/page'), config)
+    ).toBe(false)
   })
 
-  it('should allow requests not matching ignorePattern', () => {
-    const req = createMockRequest('/api/users')
+  it('should handle array of RegExp ignore patterns', () => {
     const config: LoggingConfig = {
       incomingRequest: {
-        ignorePattern: [/^\/api\/health/, /^\/metrics/],
+        ignore: [/^\/api\//, /^\/healthcheck/, /^\/_next\/static\//],
       },
     }
-    expect(shouldLogIncomingRequest(req, config)).toBe(true)
-  })
 
-  it('should return true when ignorePattern contains invalid patterns', () => {
-    const req = createMockRequest('/api/test')
-    const config: LoggingConfig = {
-      incomingRequest: {
-        // @ts-expect-error testing invalid pattern
-        ignorePattern: ['not-a-regex'],
-      },
-    }
-    expect(shouldLogIncomingRequest(req, config)).toBe(true)
+    expect(
+      ignoreLoggingIncomingRequest(createMockRequest('/api/test'), config)
+    ).toBe(true)
+    expect(
+      ignoreLoggingIncomingRequest(createMockRequest('/healthcheck'), config)
+    ).toBe(true)
+    expect(
+      ignoreLoggingIncomingRequest(
+        createMockRequest('/_next/static/test.js'),
+        config
+      )
+    ).toBe(true)
+    expect(
+      ignoreLoggingIncomingRequest(createMockRequest('/page'), config)
+    ).toBe(false)
   })
 })
