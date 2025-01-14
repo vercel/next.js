@@ -136,9 +136,11 @@ impl SingleModuleGraph {
             .await?;
 
         let children_nodes_iter = AdjacencyMap::new()
+            .skip_duplicates()
             .visit(root_edges, SingleModuleGraphBuilder { visited_modules })
             .await
-            .completed()?;
+            .completed()?
+            .into_inner();
 
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         {
