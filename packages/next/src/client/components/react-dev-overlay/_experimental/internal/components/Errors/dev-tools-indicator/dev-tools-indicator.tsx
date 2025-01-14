@@ -169,7 +169,11 @@ function CmdIcon() {
 }
 
 function CtrlIcon() {
-  return <span data-nextjs-dev-tools-icon>ctrl</span>
+  return (
+    <span data-nextjs-dev-tools-icon data-nextjs-dev-tools-ctrl-icon>
+      ctrl
+    </span>
+  )
 }
 
 function DotIcon() {
