@@ -87,10 +87,7 @@ const DevToolsPopover = ({
 
               <IndicatorRow
                 label="Hide Dev Tools"
-                value={
-                  // TODO: replace with cmd+.for mac, ctrl+. for windows & implement hiding + unhiding logic
-                  null
-                }
+                value={<DevToolsShortcutGroup />}
                 onClick={hide}
               />
               <IndicatorRow
@@ -146,4 +143,21 @@ const IssueCount = ({ count }: { count: number }) => {
       </span>
     </span>
   )
+}
+
+function DevToolsShortcutGroup() {
+  return (
+    <span data-nextjs-dev-tools-shortcut-group>
+      <CmdIcon />
+      <DotIcon />
+    </span>
+  )
+}
+
+function CmdIcon() {
+  return <span data-nextjs-dev-tools-icon>⌘</span>
+}
+
+function DotIcon() {
+  return <span data-nextjs-dev-tools-icon>.</span>
 }

@@ -141,4 +141,31 @@ export const styles = css`
     padding: var(--size-1_5);
     background: var(--color-background-100);
   }
+
+  [data-nextjs-dev-tools-shortcut-group] {
+    display: flex;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  [data-nextjs-dev-tools-icon] {
+    display: flex;
+    width: var(--size-5);
+    height: var(--size-5);
+    padding: var(--size-1) var(--size-1_5);
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    gap: var(--size-2);
+    border-radius: var(--rounded-md);
+    border: 1px solid var(--color-gray-alpha-400);
+    background: var(--color-background-100);
+
+    color: var(--color-gray-1000);
+    text-align: center;
+    font-size: var(--size-font-small);
+    font-style: normal;
+    font-weight: 400;
+    line-height: var(--size-4);
+  }
 `
