@@ -64,6 +64,11 @@ on:
         required: false
         type: string
         default: '["self-hosted", "linux", "x64", "metal"]'
+      buildNativeTarget:
+        description: 'Target for build-native step'
+        required: false
+        type: string
+        default: 'x86_64-unknown-linux-gnu'
 
 env:
   NAPI_CLI_VERSION: 2.14.7
@@ -91,6 +96,10 @@ jobs:
     timeout-minutes: ${{ inputs.timeout_minutes }}
     runs-on: ${{ fromJson(inputs.runs_on_labels) }}
 
+    defaults:
+      run:
+        shell: bash -leo pipefail {0}
+
     outputs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
@@ -102,12 +111,8 @@ jobs:
           script: |
             core.setOutput('input_step_key', '${{ inputs.stepName }}'.toLowerCase().replaceAll(/[/.]/g, '-').trim('-'));
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
-          check-latest: true
-
+      - run: fnm use --install-if-missing ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
+      - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - run: corepack enable
       - run: pwd
@@ -145,7 +150,7 @@ jobs:
         with:
           cache-provider: 'turbo'
           save-if: ${{ github.ref_name == 'canary' }}
-          shared-key: ${{ inputs.rustCacheKey }}-x86_64-unknown-linux-gnu-build-${{ hashFiles('.cargo/config.toml') }}
+          shared-key: ${{ inputs.rustCacheKey }}-${{ inputs.buildNativeTarget }}-build-${{ hashFiles('.cargo/config.toml') }}
 
       # clean up any previous artifacts to avoid hitting disk space limits
       - run: git clean -xdf && rm -rf /tmp/next-repo-*; rm -rf /tmp/next-install-* /tmp/yarn-* /tmp/ncc-cache target
@@ -163,7 +168,7 @@ jobs:
       - run: node scripts/normalize-version-bump.js
         name: normalize versions
 
-      - run: turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-unknown-linux-gnu
+      - run: turbo run build-native-release -v --env-mode loose --remote-cache-timeout 90 --summarize -- --target ${{ inputs.buildNativeTarget }}
         if: ${{ inputs.skipNativeBuild != 'yes' }}
 
       - name: Upload next-swc artifact

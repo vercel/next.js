@@ -71,6 +71,17 @@ jobs:
       stepName: 'build-native'
     secrets: inherit
 
+  build-native-windows:
+    name: build-native-windows
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: 'yes'
+      stepName: 'build-native-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+
+    secrets: inherit
+
   build-next:
     name: build-next
     uses: ./.github/workflows/build_reusable.yml
@@ -200,8 +211,6 @@ jobs:
     name: test devlow package
     needs: ['optimize-ci', 'changes']
     if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
-    strategy:
-      fail-fast: false
     uses: ./.github/workflows/build_reusable.yml
     with:
       stepName: 'test-devlow'
@@ -335,6 +344,26 @@ jobs:
 
     secrets: inherit
 
+  test-unit-windows:
+    name: test unit windows
+    needs: ['changes', 'build-native', 'build-native-windows']
+    if: ${{ needs.changes.outputs.docs-only == 'false' }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: ${{ matrix.node }}
+      afterBuild: node run-tests.js -c ${TEST_CONCURRENCY} --type unit
+      stepName: 'test-unit-windows-${{ matrix.node }}'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+
+    secrets: inherit
+
   test-new-tests-dev:
     name: Test new tests for flakes (dev)
     needs: ['optimize-ci', 'changes', 'build-native', 'build-next']
@@ -405,6 +434,67 @@ jobs:
     with:
       afterBuild: NEXT_TEST_MODE=dev NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type development
       stepName: 'test-dev-react-${{ matrix.react }}-${{ matrix.group }}'
+    secrets: inherit
+
+  test-dev-windows:
+    name: test dev windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: NEXT_TEST_MODE=dev node run-tests.js -c ${TEST_CONCURRENCY} test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      stepName: 'test-dev-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
+  test-integration-windows:
+    name: test integration windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      nodeVersion: 18.18.2
+      afterBuild: node run-tests.js -c 4 test/production/pages-dir/production/test/index.test.ts test/integration/css-client-nav/test/index.test.js test/integration/rewrites-has-condition/test/index.test.js test/integration/create-next-app/index.test.ts test/integration/create-next-app/package-manager/pnpm.test.ts
+      stepName: 'test-integration-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
+    secrets: inherit
+
+  test-prod-windows:
+    name: test prod windows
+    needs:
+      [
+        'optimize-ci',
+        'changes',
+        'build-native-windows',
+        'build-native',
+        'build-next',
+      ]
+    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      afterBuild: NEXT_TEST_MODE=start node run-tests.js test/e2e/app-dir/app/index.test.ts test/e2e/app-dir/app-edge/app-edge.test.ts
+      stepName: 'test-prod-windows'
+      runs_on_labels: '["windows","self-hosted","x64"]'
+      buildNativeTarget: 'x86_64-pc-windows-msvc'
     secrets: inherit
 
   test-prod:
@@ -587,6 +677,10 @@ jobs:
         'test-new-tests-deploy',
         'test-turbopack-production',
         'test-turbopack-production-integration',
+        'test-unit-windows',
+        'test-dev-windows',
+        'test-integration-windows',
+        'test-prod-windows',
       ]
 
     if: always()
