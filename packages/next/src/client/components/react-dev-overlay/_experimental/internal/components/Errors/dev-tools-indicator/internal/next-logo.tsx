@@ -117,54 +117,31 @@ export const NextLogo = ({
         viewBox="0 0 40 40"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
+        style={{ shapeRendering: 'geometricPrecision' }}
         {...props}
       >
         <g filter="url(#filter0_bdddi_1457_6023)">
-          <rect
-            x="0"
-            y="0"
-            width="40"
-            height="40"
-            rx="20"
-            fill="#333333"
-            shapeRendering="crispEdges"
-          />
-          <rect
-            x="0"
-            y="0"
-            width="40"
-            height="40"
-            rx="20"
-            fill={issueCount > 0 ? '#E5484D' : 'black'}
-            fillOpacity="0.8"
-            shapeRendering="crispEdges"
-          />
+          <circle cx="20" cy="20" r="20" fill={'black'} fillOpacity="0.8" />
           <g filter="url(#filter1_i_1457_6023)">
-            <rect
-              x="1.5"
-              y="1.5"
-              width="37"
-              height="37"
-              rx="18.5"
+            <circle
+              cx="20"
+              cy="20"
+              r="18.5"
               stroke="url(#paint0_angular_1457_6023)"
               strokeOpacity="0.8"
             />
-            <rect
-              x="1.5"
-              y="1.5"
-              width="37"
-              height="37"
-              rx="18.5"
+            <circle
+              cx="20"
+              cy="20"
+              r="18.5"
               stroke="white"
               strokeOpacity="0.2"
               style={{ mixBlendMode: 'multiply' }}
             />
-            <rect
-              x="2"
-              y="2"
-              width="36"
-              height="36"
-              rx="18"
+            <circle
+              cx="20"
+              cy="20"
+              r="18"
               fill={issueCount > 0 ? '#CA2A30' : '#2A2A2A'}
             />
 
