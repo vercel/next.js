@@ -44,13 +44,13 @@ use crate::{
             ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
         },
         persisted_storage_log::PersistedStorageLog,
-        storage::{get, get_many, get_mut, iter_many, remove, Storage},
+        storage::{get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove, Storage},
     },
     backing_storage::BackingStorage,
     data::{
-        ActiveType, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
+        ActivenessState, AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
         CachedDataItemValue, CachedDataItemValueRef, CachedDataUpdate, CellRef, CollectibleRef,
-        CollectiblesRef, DirtyState, InProgressCellState, InProgressState, OutputValue, RootState,
+        CollectiblesRef, DirtyState, InProgressCellState, InProgressState, OutputValue, RootType,
     },
     utils::{bi_map::BiMap, chunked_vec::ChunkedVec, ptr_eq_arc::PtrEqArc, sharded::Sharded},
 };
@@ -447,7 +447,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .unwrap_or_default()
                 .get(self.session_id);
             if dirty_tasks > 0 || is_dirty {
-                let root = get!(task, AggregateRoot);
+                let root = get!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
                 let root = if let Some(root) = root {
@@ -456,10 +456,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     // If we don't have a root state, add one. This also makes sure all tasks stay
                     // active and this task won't stale. CachedActiveUntilClean
                     // is automatically removed when this task is clean.
-                    task.add_new(CachedDataItem::AggregateRoot {
-                        value: RootState::new(ActiveType::CachedActiveUntilClean, task_id),
-                    });
-                    // A newly added AggregateRoot need to make sure to schedule the tasks
+                    get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id))
+                        .set_active_until_clean();
+                    // A newly added Activeness need to make sure to schedule the tasks
                     task_ids_to_schedule = get_many!(
                         task,
                         AggregatedDirtyContainer {
@@ -471,7 +470,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     if is_dirty {
                         task_ids_to_schedule.push(task_id);
                     }
-                    get!(task, AggregateRoot).unwrap()
+                    get!(task, Activeness).unwrap()
                 };
                 let listener = root.all_clean_event.listen_with_note(move || {
                     format!(
@@ -1373,10 +1372,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             };
             if !aggregated_update.is_zero() {
                 if aggregated_update.get(self.session_id) < 0 {
-                    if let Some(root_state) = get!(task, AggregateRoot) {
+                    if let Some(root_state) = get_mut!(task, Activeness) {
                         root_state.all_clean_event.notify(usize::MAX);
-                        if matches!(root_state.ty, ActiveType::CachedActiveUntilClean) {
-                            task.remove(&CachedDataItemKey::AggregateRoot {});
+                        root_state.unset_active_until_clean();
+                        if root_state.is_empty() {
+                            task.remove(&CachedDataItemKey::Activeness {});
                         }
                     }
                 }
@@ -1700,8 +1700,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
     fn create_transient_task(&self, task_type: TransientTaskType) -> TaskId {
         let task_id = self.transient_task_id_factory.get();
         let root_type = match task_type {
-            TransientTaskType::Root(_) => ActiveType::RootTask,
-            TransientTaskType::Once(_) => ActiveType::OnceTask,
+            TransientTaskType::Root(_) => RootType::RootTask,
+            TransientTaskType::Once(_) => RootType::OnceTask,
         };
         self.transient_tasks.insert(
             task_id,
@@ -1719,13 +1719,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                     effective: u32::MAX,
                 },
             });
-            task.add(CachedDataItem::AggregateRoot {
-                value: RootState::new(root_type, task_id),
+            task.add(CachedDataItem::Activeness {
+                value: ActivenessState::new_root(root_type, task_id),
             });
             task.add(CachedDataItem::new_scheduled(move || match root_type {
-                ActiveType::RootTask => "Root Task".to_string(),
-                ActiveType::OnceTask => "Once Task".to_string(),
-                _ => unreachable!(),
+                RootType::RootTask => "Root Task".to_string(),
+                RootType::OnceTask => "Once Task".to_string(),
             }));
         }
         task_id
@@ -1744,11 +1743,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 dirty_containers.get(self.session_id) > 0
             });
         if is_dirty || has_dirty_containers {
-            if let Some(root_state) = get_mut!(task, AggregateRoot) {
+            if let Some(root_state) = get_mut!(task, Activeness) {
                 // We will finish the task, but it would be removed after the task is done
-                root_state.ty = ActiveType::CachedActiveUntilClean;
+                root_state.unset_root_type();
+                root_state.set_active_until_clean();
             };
-        } else if let Some(root_state) = remove!(task, AggregateRoot) {
+        } else if let Some(root_state) = remove!(task, Activeness) {
             // Technically nobody should be listening to this event, but just in case
             // we notify it anyway
             root_state.all_clean_event.notify(usize::MAX);

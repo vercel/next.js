@@ -5,6 +5,7 @@ use turbo_tasks::{TaskId, ValueTypeId};
 
 use crate::{
     backend::{
+        get,
         operation::{
             aggregation_update::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
@@ -89,6 +90,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
+                                    if get!(task, Activeness).is_some_and(|a| a.active_counter > 0)
+                                    {
+                                        // TODO combine both operations to avoid the clone
+                                        queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                                            task_ids: children.clone(),
+                                        });
+                                    }
                                     queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
                                         upper_ids,
                                         lost_follower_ids: children,
