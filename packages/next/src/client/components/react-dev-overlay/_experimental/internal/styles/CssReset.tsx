@@ -56,6 +56,9 @@ export function CssReset() {
           line-height: 1.5;
           color: var(--color-font);
           text-align: left;
+        }
+
+        :host:not(button) {
           background-color: #fff;
         }
 

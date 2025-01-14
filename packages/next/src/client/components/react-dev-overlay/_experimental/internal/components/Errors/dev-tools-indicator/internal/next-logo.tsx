@@ -121,50 +121,58 @@ export const NextLogo = ({
         xmlns="http://www.w3.org/2000/svg"
         style={{ shapeRendering: 'geometricPrecision' }}
       >
-        <g filter="url(#filter0_bdddi_1457_6023)">
-          <circle cx="20" cy="20" r="20" fill={'black'} fillOpacity="0.8" />
-          <g filter="url(#filter1_i_1457_6023)">
-            <circle
-              cx="20"
-              cy="20"
-              r="18.5"
-              stroke="url(#paint0_angular_1457_6023)"
-              strokeOpacity="0.8"
-            />
-            <circle
-              cx="20"
-              cy="20"
-              r="18.5"
-              stroke="white"
-              strokeOpacity="0.2"
-              style={{ mixBlendMode: 'multiply' }}
-            />
-            <circle
-              cx="20"
-              cy="20"
-              r="18"
-              fill={issueCount > 0 ? '#CA2A30' : '#2A2A2A'}
-            />
+        <defs>
+          <clipPath id="circleClip">
+            <circle cx="20" cy="20" r="20" />
+          </clipPath>
+        </defs>
 
-            <g transform="translate(13, 12)">
-              <path
-                className={isLoading ? 'path0' : 'paused'}
-                d="M13.3 15.2 L2.34 1 V12.6"
-                fill="none"
-                stroke="url(#paint0_linear_1357_10853)"
-                strokeWidth="1.86"
-                mask="url(#mask0)"
-                strokeDasharray="29.6"
-                strokeDashoffset="29.6"
+        <g clipPath="url(#circleClip)">
+          <g filter="url(#filter0_bdddi_1457_6023)">
+            <circle cx="20" cy="20" r="20" fill={'black'} fillOpacity="0.8" />
+            <g filter="url(#filter1_i_1457_6023)">
+              <circle
+                cx="20"
+                cy="20"
+                r="18.5"
+                stroke="url(#paint0_angular_1457_6023)"
+                strokeOpacity="0.8"
               />
-              <path
-                className={isLoading ? 'path1' : 'paused'}
-                d="M11.825 1.5 V13.1"
-                strokeWidth="1.86"
-                stroke="url(#paint1_linear_1357_10853)"
-                strokeDasharray="11.6"
-                strokeDashoffset="11.6"
+              <circle
+                cx="20"
+                cy="20"
+                r="18.5"
+                stroke="white"
+                strokeOpacity="0.2"
+                style={{ mixBlendMode: 'multiply' }}
               />
+              <circle
+                cx="20"
+                cy="20"
+                r="18"
+                fill={issueCount > 0 ? '#CA2A30' : '#2A2A2A'}
+              />
+
+              <g transform="translate(13, 12)">
+                <path
+                  className={isLoading ? 'path0' : 'paused'}
+                  d="M13.3 15.2 L2.34 1 V12.6"
+                  fill="none"
+                  stroke="url(#paint0_linear_1357_10853)"
+                  strokeWidth="1.86"
+                  mask="url(#mask0)"
+                  strokeDasharray="29.6"
+                  strokeDashoffset="29.6"
+                />
+                <path
+                  className={isLoading ? 'path1' : 'paused'}
+                  d="M11.825 1.5 V13.1"
+                  strokeWidth="1.86"
+                  stroke="url(#paint1_linear_1357_10853)"
+                  strokeDasharray="11.6"
+                  strokeDashoffset="11.6"
+                />
+              </g>
             </g>
           </g>
         </g>
@@ -220,10 +228,10 @@ export const NextLogo = ({
 
           <filter
             id="filter0_bdddi_1457_6023"
-            x="-2"
-            y="-2"
-            width="44"
-            height="44"
+            x="0"
+            y="0"
+            width="40"
+            height="40"
             filterUnits="userSpaceOnUse"
             colorInterpolationFilters="sRGB"
           >
