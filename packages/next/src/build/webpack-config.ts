@@ -474,6 +474,45 @@ export default async function getBaseWebpackConfig(
       )
     }
 
+    const useBuiltinSwcLoader = process.env.BUILTIN_SWC_LOADER
+    if (isRspack && useBuiltinSwcLoader) {
+      return {
+        loader: 'builtin:next-swc-loader',
+        options: {
+          isServer: isNodeOrEdgeCompilation,
+          rootDir: dir,
+          pagesDir,
+          appDir,
+          hasReactRefresh: dev && isClient,
+          transpilePackages: finalTranspilePackages,
+          supportedBrowsers,
+          swcCacheDir: path.join(
+            dir,
+            config?.distDir ?? '.next',
+            'cache',
+            'swc'
+          ),
+          serverReferenceHashSalt: encryptionKey,
+
+          // rspack specific options
+          pnp: Boolean(process.versions.pnp),
+          optimizeServerReact: Boolean(config.experimental.optimizeServerReact),
+          modularizeImports: config.modularizeImports,
+          decorators: Boolean(
+            jsConfig?.compilerOptions?.experimentalDecorators
+          ),
+          emitDecoratorMetadata: Boolean(
+            jsConfig?.compilerOptions?.emitDecoratorMetadata
+          ),
+          regeneratorRuntimePath: require.resolve(
+            'next/dist/compiled/regenerator-runtime'
+          ),
+
+          ...extraOptions,
+        },
+      }
+    }
+
     return {
       loader: 'next-swc-loader',
       options: {
