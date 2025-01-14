@@ -138,7 +138,6 @@ export const styles = css`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: var(--size-1_5);
     background: var(--color-background-100);
   }
 `
