@@ -10,7 +10,7 @@ use super::VisitControlFlow;
 pub trait Visit<Node, Abort = !, Impl = ()> {
     type Edge;
     type EdgesIntoIter: IntoIterator<Item = Self::Edge>;
-    type EdgesFuture: Future<Output = Result<Self::EdgesIntoIter>>;
+    type EdgesFuture: Future<Output = Result<Self::EdgesIntoIter>> + Send;
 
     /// Visits an edge to get to the neighbor node. Should return a
     /// [`VisitControlFlow`] that indicates whether to:
@@ -41,7 +41,7 @@ pub struct ImplRef;
 impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, !, ImplRef> for VisitFn
 where
     VisitFn: FnMut(&Node) -> NeighFut,
-    NeighFut: Future<Output = Result<NeighIt>>,
+    NeighFut: Future<Output = Result<NeighIt>> + Send,
     NeighIt: IntoIterator<Item = Node>,
 {
     type Edge = Node;
@@ -63,7 +63,7 @@ impl<Node, VisitFn, NeighFut, NeighIt> Visit<Node, !, ImplValue> for VisitFn
 where
     Node: Clone,
     VisitFn: FnMut(Node) -> NeighFut,
-    NeighFut: Future<Output = Result<NeighIt>>,
+    NeighFut: Future<Output = Result<NeighIt>> + Send,
     NeighIt: IntoIterator<Item = Node>,
 {
     type Edge = Node;

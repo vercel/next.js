@@ -23,9 +23,11 @@ pub trait GraphTraversal: GraphStore + Sized {
         self,
         root_edges: RootEdgesIt,
         visit: VisitImpl,
-    ) -> GraphTraversalFuture<Self, VisitImpl, Abort, Impl, VisitImpl::EdgesFuture>
+    ) -> impl Future<Output = GraphTraversalResult<Result<Self>, Abort>> + Send
     where
-        VisitImpl: Visit<Self::Node, Abort, Impl>,
+        Impl: Send,
+        Abort: Send,
+        VisitImpl: Visit<Self::Node, Abort, Impl> + Send,
         RootEdgesIt: IntoIterator<Item = VisitImpl::Edge>;
 
     fn skip_duplicates(self) -> SkipDuplicates<Self>;
@@ -45,9 +47,11 @@ where
         mut self,
         root_edges: RootEdgesIt,
         mut visit: VisitImpl,
-    ) -> GraphTraversalFuture<Self, VisitImpl, Abort, Impl, VisitImpl::EdgesFuture>
+    ) -> impl Future<Output = GraphTraversalResult<Result<Self>, Abort>> + Send
     where
-        VisitImpl: Visit<Self::Node, Abort, Impl>,
+        Impl: Send,
+        Abort: Send,
+        VisitImpl: Visit<Self::Node, Abort, Impl> + Send,
         RootEdgesIt: IntoIterator<Item = VisitImpl::Edge>,
     {
         let futures = FuturesUnordered::new();
