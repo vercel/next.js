@@ -206,7 +206,7 @@ export function Errors({
   useKeyboardShortcut({
     key: '.',
     modifiers: [MODIFIERS.CTRL_CMD],
-    cb: () => {
+    callback: () => {
       setDisplayState((prev) => (prev === 'hidden' ? 'minimized' : 'hidden'))
     },
   })
