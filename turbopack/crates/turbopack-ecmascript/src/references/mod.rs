@@ -1207,22 +1207,26 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 .await?,
                         )
                     } else {
-                        let r_ref = r.await?;
-                        let r = if r_ref.export_name.is_none() && export.is_some() {
-                            let export = export.clone().unwrap();
-
-                            EsmAssetReference::new(
-                                *r_ref.origin,
-                                *r_ref.request,
-                                *r_ref.issue_source,
-                                Value::new(r_ref.annotations.clone()),
-                                Some(ModulePart::export(export)),
-                                r_ref.import_externals,
-                            )
-                            .to_resolved()
-                            .await?
-                        } else {
-                            r
+                        let r = match options.tree_shaking_mode {
+                            Some(TreeShakingMode::ReexportsOnly) => {
+                                let r_ref = r.await?;
+                                if r_ref.export_name.is_none() && export.is_some() {
+                                    let export = export.clone().unwrap();
+                                    EsmAssetReference::new(
+                                        *r_ref.origin,
+                                        *r_ref.request,
+                                        *r_ref.issue_source,
+                                        Value::new(r_ref.annotations.clone()),
+                                        Some(ModulePart::export(export)),
+                                        r_ref.import_externals,
+                                    )
+                                    .to_resolved()
+                                    .await?
+                                } else {
+                                    r
+                                }
+                            }
+                            _ => r,
                         };
 
                         analysis.add_local_reference(r);
