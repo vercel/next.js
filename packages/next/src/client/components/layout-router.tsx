@@ -217,9 +217,9 @@ class InnerScrollAndFocusHandler extends React.Component<ScrollAndFocusHandlerPr
       while (!(domNode instanceof HTMLElement) || shouldSkipElement(domNode)) {
         if (process.env.NODE_ENV !== 'production') {
           if (domNode.parentElement?.localName === 'head') {
-            console.error(
-              'Tried to scroll to a head element. This is a bug in Next.js.'
-            )
+            // TODO: We enter this state when metadata was rendered as part of the page or via Next.js.
+            // This is always a bug in Next.js and caused by React hoisting metadata.
+            // We need to replace `findDOMNode` in favor of Fragment Refs (when available) so that we can skip over metadata.
           }
         }
 
