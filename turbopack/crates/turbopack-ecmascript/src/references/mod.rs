@@ -1216,7 +1216,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 *r_ref.request,
                                 *r_ref.issue_source,
                                 Value::new(r_ref.annotations.clone()),
-                                r_ref.export_name.map(|_v| ModulePart::export(export)),
+                                Some(ModulePart::export(export)),
                                 r_ref.import_externals,
                             )
                             .to_resolved()
