@@ -26,6 +26,8 @@ import {
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
+import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut'
+import { MODIFIERS } from '../hooks/use-keyboard-shortcut'
 
 export type SupportedErrorEvent = {
   id: number
@@ -199,6 +201,15 @@ export function Errors({
 
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
+
+  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
+  useKeyboardShortcut({
+    key: '.',
+    modifiers: [MODIFIERS.CTRL_CMD],
+    callback: () => {
+      setDisplayState((prev) => (prev === 'hidden' ? 'minimized' : 'hidden'))
+    },
+  })
 
   if (displayState === 'hidden') {
     return null
