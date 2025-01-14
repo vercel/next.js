@@ -9,7 +9,7 @@ If you want to learn more about Elasticsearch, visit the following pages:
 
 ## Deploy your own
 
-Once you have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to the environment variables you'll need, deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-elasticsearch)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-elasticsearch&project-name=with-elasticsearch&repository-name=with-elasticsearch&env=ESS_CLOUD_ID,ESS_CLOUD_USERNAME,ESS_CLOUD_PASSWORD&envDescription=Required%20to%20connect%20the%20app%20with%Elasticsearch)
 
