@@ -205,8 +205,22 @@ export async function decryptActionBoundArgs(
     new ReadableStream({
       start(controller) {
         controller.enqueue(textEncoder.encode(decrypted))
-        // Explicitly don't close the stream here so that hanging promises are
-        // not rejected.
+
+        if (workUnitStore?.type === 'prerender') {
+          // Explicitly don't close the stream here (until prerendering is
+          // complete) so that hanging promises are not rejected.
+          if (workUnitStore.renderSignal.aborted) {
+            controller.close()
+          } else {
+            workUnitStore.renderSignal.addEventListener(
+              'abort',
+              () => controller.close(),
+              { once: true }
+            )
+          }
+        } else {
+          controller.close()
+        }
       },
     }),
     {
