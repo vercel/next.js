@@ -10,7 +10,16 @@ use super::ChunkableModule;
 use crate::module::Module;
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, Copy, Clone, Serialize, Deserialize, ValueDebugFormat, NonLocalValue,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
 )]
 pub struct AvailableModulesInfo {
     pub is_async: bool,
@@ -20,6 +29,7 @@ pub struct AvailableModulesInfo {
 pub struct OptionAvailableModulesInfo(Option<AvailableModulesInfo>);
 
 #[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
 pub struct AvailableModuleInfoMap(
     FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
 );
@@ -97,5 +107,32 @@ impl AvailableModules {
             return Ok(parent.get(*module));
         }
         Ok(Vc::cell(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn into_snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
+        let mut combined = FxIndexMap::default();
+        if let Some(parent) = self.parent {
+            for (module, info) in &parent.into_snapshot().await?.modules {
+                combined.insert(*module, *info);
+            }
+        }
+
+        Ok(AvailableModulesSnapshot { modules: combined }.cell())
+    }
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Debug, Clone)]
+pub struct AvailableModulesSnapshot {
+    modules: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
+}
+
+impl AvailableModulesSnapshot {
+    pub fn get(
+        &self,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Option<&AvailableModulesInfo> {
+        self.modules.get(&module)
     }
 }
