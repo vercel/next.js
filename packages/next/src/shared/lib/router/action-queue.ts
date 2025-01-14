@@ -174,6 +174,8 @@ function dispatchAction(
   }
 }
 
+let globalActionQueue: AppRouterActionQueue | null = null
+
 export function createMutableActionQueue(
   initialState: AppRouterState
 ): AppRouterActionQueue {
@@ -189,5 +191,22 @@ export function createMutableActionQueue(
     last: null,
   }
 
+  if (typeof window !== 'undefined') {
+    // The action queue is lazily created on hydration, but after that point
+    // it doesn't change. So we can store it in a global rather than pass
+    // it around everywhere via props/context.
+    if (globalActionQueue !== null) {
+      throw new Error(
+        'Internal Next.js Error: createMutableActionQueue was called more ' +
+          'than once'
+      )
+    }
+    globalActionQueue = actionQueue
+  }
+
   return actionQueue
+}
+
+export function getCurrentAppRouterState(): AppRouterState | null {
+  return globalActionQueue !== null ? globalActionQueue.state : null
 }
