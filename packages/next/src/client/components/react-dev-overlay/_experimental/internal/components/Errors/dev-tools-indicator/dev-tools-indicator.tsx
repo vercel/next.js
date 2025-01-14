@@ -3,6 +3,8 @@ import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import { Toast } from '../../Toast'
 import React, { useState } from 'react'
 import { NextLogo } from './internal/next-logo'
+import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
+import { useIsDevRendering } from './internal/dev-render-indicator'
 
 // TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
@@ -51,6 +53,9 @@ const DevToolsPopover = ({
 }) => {
   // TODO: close when clicking outside
 
+  const isDevBuilding = useIsDevBuilding()
+  const isDevRendering = useIsDevRendering()
+
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
   const togglePopover = () => setIsPopoverOpen((prev) => !prev)
   return (
@@ -58,6 +63,8 @@ const DevToolsPopover = ({
       <NextLogo
         issueCount={issueCount}
         onClick={togglePopover}
+        isDevBuilding={isDevBuilding}
+        isDevRendering={isDevRendering}
         aria-haspopup="true"
         aria-expanded={isPopoverOpen}
         aria-controls="dev-tools-popover"
