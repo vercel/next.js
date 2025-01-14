@@ -4,11 +4,16 @@ import { Terminal } from '../components/Terminal'
 import { noop as css } from '../helpers/noop-template'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
 
-export type BuildErrorProps = { message: string; versionInfo?: VersionInfo }
+export type BuildErrorProps = {
+  message: string
+  isTurbopack: boolean
+  versionInfo?: VersionInfo
+}
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
   versionInfo,
+  isTurbopack,
 }) {
   const noop = React.useCallback(() => {}, [])
   return (
@@ -18,6 +23,7 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
       onClose={noop}
       versionInfo={versionInfo}
       footerMessage="This error occurred during the build process and can only be dismissed by fixing the error."
+      isTurbopack={isTurbopack}
     >
       <Terminal content={message} />
     </ErrorOverlayLayout>

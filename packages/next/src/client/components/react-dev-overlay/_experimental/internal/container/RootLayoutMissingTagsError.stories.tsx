@@ -32,3 +32,10 @@ export const SingleTag: Story = {
     },
   },
 }
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
+  },
+}
