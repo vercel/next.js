@@ -66,6 +66,20 @@ pub trait Endpoint {
     fn root_modules(self: Vc<Self>) -> Vc<Modules>;
 }
 
+#[turbo_tasks::function(operation)]
+pub fn endpoint_write_to_disk_operation(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Vc<WrittenEndpoint> {
+    endpoint.write_to_disk()
+}
+
+#[turbo_tasks::function(operation)]
+pub fn endpoint_server_changed_operation(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
+) -> Vc<Completion> {
+    endpoint.server_changed()
+}
+
 #[turbo_tasks::value(shared)]
 #[derive(Debug, Clone)]
 pub enum WrittenEndpoint {
