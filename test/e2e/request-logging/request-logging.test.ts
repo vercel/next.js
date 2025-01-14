@@ -1,13 +1,30 @@
-import { createNext, FileRef, NextInstance } from 'e2e-utils'
-
-import { fetchViaHTTP } from 'next-test-utils'
 import path from 'path'
+
+import { createNext, FileRef, NextInstance } from 'e2e-utils'
+import { fetchViaHTTP } from 'next-test-utils'
+
+async function waitForLogPattern(
+  output: () => string,
+  pattern: string,
+  timeout = 200
+) {
+  const start = performance.now()
+  while (performance.now() - start < timeout) {
+    if (output().includes(pattern)) {
+      return true
+    }
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  return false
+}
 
 describe('Request Logging', () => {
   let next: NextInstance
 
   beforeAll(async () => {
     next = await createNext({
+      // start in dev mode because request logging is only available in dev mode
+      startCommand: 'pnpm next dev',
       files: {
         'pages/index.js': new FileRef(
           path.join(__dirname, 'app/pages/index.js')
@@ -25,42 +42,34 @@ describe('Request Logging', () => {
   afterAll(() => next.destroy())
 
   it('should not log requests matching ignore pattern', async () => {
-    const logs: string[] = []
-    next.on('stdout', (log) => {
-      if (log.includes('GET ')) {
-        logs.push(log)
-      }
-    })
-
     // Make requests that should be ignored based on config
-    await fetchViaHTTP(next.url, '/api/hello')
-    await fetchViaHTTP(next.url, '/healthcheck')
-    await fetchViaHTTP(next.url, '/_next/static/test.js')
+    const output = next.getCliOutputFromHere()
+    let response = await fetchViaHTTP(next.appPort, '/api/hello')
+    expect(response.status).toBe(200)
+
+    response = await fetchViaHTTP(next.appPort, '/healthcheck')
+    expect(response.status).toBe(404)
+
+    response = await fetchViaHTTP(next.appPort, '/_next/static/test.js')
+    expect(response.status).toBe(404)
 
     // Make a request that should be logged
-    await fetchViaHTTP(next.url, '/')
+    response = await fetchViaHTTP(next.appPort, '/')
+    expect(response.status).toBe(200)
 
-    // Wait for logs to be collected
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Wait for GET / to be logged
+    await waitForLogPattern(output, 'GET /', 1000)
 
-    // Verify API and healthcheck requests were not logged
-    expect(logs.filter((l) => l.includes('GET /api/hello'))).toHaveLength(0)
-    expect(logs.filter((l) => l.includes('GET /healthcheck'))).toHaveLength(0)
-    expect(logs.filter((l) => l.includes('GET /_next/static'))).toHaveLength(0)
-
-    // Verify normal page request was logged
-    expect(logs.filter((l) => l.includes('GET /'))).toHaveLength(1)
+    expect(output()).not.toContain('GET /api/hello')
+    expect(output()).not.toContain('GET /healthcheck')
+    expect(output()).not.toContain('GET /_next/static/test.js')
+    expect(output()).toContain('GET /')
   })
 
   it('should handle disabled request logging', async () => {
-    const logs: string[] = []
-    next.on('stdout', (log) => {
-      if (log.includes('GET ')) {
-        logs.push(log)
-      }
-    })
-
     // Update config to disable logging
+    const output = next.getCliOutputFromHere()
+
     await next.patchFile(
       'next.config.js',
       `
@@ -72,14 +81,20 @@ describe('Request Logging', () => {
       `
     )
 
-    // Make requests
-    await fetchViaHTTP(next.url, '/')
-    await fetchViaHTTP(next.url, '/api/hello')
+    await waitForLogPattern(output, 'Ready', 1000)
 
-    // Wait for logs to be collected
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Make requests
+    let response = await fetchViaHTTP(next.appPort, '/')
+    expect(response.status).toBe(200)
+
+    response = await fetchViaHTTP(next.appPort, '/api/hello')
+    expect(response.status).toBe(200)
+
+    // Wait for GET / to be logged
+    await waitForLogPattern(output, 'GET /', 1000)
 
     // Verify no requests were logged
-    expect(logs).toHaveLength(0)
+    expect(output()).not.toContain('GET /')
+    expect(output()).not.toContain('GET /api/hello')
   })
 })

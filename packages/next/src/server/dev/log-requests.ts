@@ -27,20 +27,22 @@ export function ignoreLoggingIncomingRequest(
   request: NodeNextRequest,
   loggingConfig: LoggingConfig | undefined
 ): boolean {
-  if (typeof loggingConfig?.incomingRequest === 'boolean') {
-    // if { incomingRequest: false } we should ignore
+  if (
+    loggingConfig === undefined ||
+    loggingConfig.incomingRequest === undefined
+  ) {
+    return false
+  }
+
+  if (typeof loggingConfig.incomingRequest === 'boolean') {
     return !loggingConfig.incomingRequest
   }
 
   const ignore = loggingConfig?.incomingRequest?.ignore
 
   // If ignore is not set, don't ignore anything
-  if (ignore === undefined) {
+  if (!ignore) {
     return false
-  }
-
-  if (typeof ignore === 'boolean') {
-    return ignore
   }
 
   // If single RegExp
