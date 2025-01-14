@@ -29,10 +29,11 @@ describe('useKeyboardShortcut', () => {
       })
     )
 
-    expect(addEventListenerSpy).toHaveBeenCalledWith(
-      'keydown',
-      expect.any(Function)
-    )
+    // When used `expect.any(Function)`, received:
+    // error TS21228: [ban-function-calls] Constructing functions from strings can lead to XSS.
+    const eventListener = addEventListenerSpy.mock.calls[0][1]
+    expect(typeof eventListener).toBe('function')
+    expect(addEventListenerSpy).toHaveBeenCalledWith('keydown', eventListener)
 
     unmount()
     expect(removeEventListenerSpy).toHaveBeenCalled()
