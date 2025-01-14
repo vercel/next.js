@@ -315,7 +315,6 @@ async function generateCacheEntryImpl(
     // just the general timeout of 60 seconds.
     timer = setTimeout(() => {
       controller.abort(timeoutError)
-      // TODO: change back to 50 seconds
     }, 50000)
   }
 
