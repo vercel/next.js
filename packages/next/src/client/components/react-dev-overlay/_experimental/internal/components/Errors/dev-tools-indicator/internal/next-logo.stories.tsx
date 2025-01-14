@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
+import { withShadowPortal } from '../../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof NextLogo> = {
   component: NextLogo,
@@ -9,6 +10,7 @@ const meta: Meta<typeof NextLogo> = {
   args: {
     onClick: () => alert('Clicked!'),
   },
+  decorators: [withShadowPortal],
 }
 
 export default meta
