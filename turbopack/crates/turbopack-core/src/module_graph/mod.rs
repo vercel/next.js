@@ -925,8 +925,7 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             SingleModuleGraphBuilderNode::VisitedModule { .. }
             | SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
         };
-        // TODO make `Self::EdgesFuture + 'this` somehow
-        let visited_modules = self.visited_modules.clone();
+        let visited_modules = self.visited_modules;
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
