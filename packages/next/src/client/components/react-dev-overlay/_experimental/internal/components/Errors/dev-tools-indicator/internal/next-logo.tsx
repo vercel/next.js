@@ -33,7 +33,15 @@ export const NextLogo = ({
   return (
     <button
       onClick={onClick}
-      style={{ position: 'relative', cursor: 'pointer', userSelect: 'none' }}
+      style={{
+        position: 'relative',
+        cursor: 'pointer',
+        userSelect: 'none',
+        backdropFilter: 'blur(48px)',
+        boxShadow:
+          '0px 24px 32px -8px #0000001A, 0px 8px 16px -4px #0000001A, 0px 1px 1px 0px #00000026',
+        borderRadius: '50%',
+      }}
       {...props}
     >
       <style>
