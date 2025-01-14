@@ -162,6 +162,11 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                                 storage.is_none()
                             }
                         },
+                        len: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                if storage.is_some() { 1 } else { 0 }
+                            }
+                        },
                         iter: quote! {
                             #storage_name::#variant_name { storage } => {
                                 #iter_name::#variant_name(storage.iter())
@@ -232,6 +237,11 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                         is_empty: quote! {
                             #storage_name::#variant_name { storage } => {
                                 storage.is_empty()
+                            }
+                        },
+                        len: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.len()
                             }
                         },
                         iter: quote! {
@@ -307,6 +317,11 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                                 storage.is_empty()
                             }
                         },
+                        len: quote! {
+                            #storage_name::#variant_name { storage } => {
+                                storage.len()
+                            }
+                        },
                         iter: quote! {
                             #storage_name::#variant_name { storage } => {
                                 #iter_name::#variant_name(storage.iter())
@@ -344,6 +359,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
         .iter()
         .map(|decl| &decl.is_empty)
         .collect::<Vec<_>>();
+    let storage_len = storage.iter().map(|decl| &decl.len).collect::<Vec<_>>();
     let storage_iter = storage.iter().map(|decl| &decl.iter).collect::<Vec<_>>();
     let storage_iterator = storage
         .iter()
@@ -590,6 +606,14 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            pub fn len(&self) -> usize {
+                match self {
+                    #(
+                        #storage_len
+                    )*
+                }
+            }
+
             pub fn iter(&self) -> #iter_name {
                 match self {
                     #(
@@ -764,6 +788,7 @@ struct StorageDecl {
     get_mut: proc_macro2::TokenStream,
     shrink_to_fit: proc_macro2::TokenStream,
     is_empty: proc_macro2::TokenStream,
+    len: proc_macro2::TokenStream,
     iter: proc_macro2::TokenStream,
 
     iterator: proc_macro2::TokenStream,

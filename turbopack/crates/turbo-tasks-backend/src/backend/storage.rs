@@ -199,6 +199,10 @@ impl InnerStorage {
             .unwrap_or_default()
     }
 
+    pub fn count(&self, ty: CachedDataItemType) -> usize {
+        self.get_map(ty).map(|m| m.len()).unwrap_or_default()
+    }
+
     pub fn iter(
         &self,
         ty: CachedDataItemType,
@@ -319,6 +323,12 @@ impl DerefMut for StorageWriteGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
+}
+
+macro_rules! count {
+    ($task:ident, $key:ident) => {{
+        $task.count($crate::data::CachedDataItemType::$key)
+    }};
 }
 
 macro_rules! get {
@@ -516,6 +526,7 @@ macro_rules! remove {
     };
 }
 
+pub(crate) use count;
 pub(crate) use get;
 pub(crate) use get_many;
 pub(crate) use get_mut;
