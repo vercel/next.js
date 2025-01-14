@@ -4,30 +4,97 @@ use std::{
     ops::Deref,
 };
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
-    visit::{Dfs, VisitMap, Visitable},
+    visit::{Dfs, EdgeRef, VisitMap, Visitable},
 };
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
-    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow, VisitedNodes},
+    graph::{AdjacencyMap, GraphTraversal, Visit, VisitControlFlow},
     trace::{TraceRawVcs, TraceRawVcsContext},
     NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
     chunk::ChunkingType,
-    issue::{Issue, IssueExt},
+    issue::Issue,
     module::{Module, Modules},
     reference::primary_chunkable_referenced_modules,
 };
 
+#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+pub struct GraphNodeIndex {
+    #[turbo_tasks(trace_ignore)]
+    graph_idx: usize,
+    #[turbo_tasks(trace_ignore)]
+    node_idx: NodeIndex,
+}
+unsafe impl NonLocalValue for GraphNodeIndex {}
+
 #[turbo_tasks::value(transparent)]
 #[derive(Clone, Debug)]
-pub struct ModuleSet(pub HashSet<ResolvedVc<Box<dyn Module>>>);
+pub struct VisitedModules(pub HashMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>);
+
+#[turbo_tasks::value_impl]
+impl VisitedModules {
+    #[turbo_tasks::function]
+    pub async fn empty() -> Vc<Self> {
+        Vc::cell(HashMap::new())
+    }
+
+    #[turbo_tasks::function]
+    pub async fn from_graph(graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
+        Ok(Vc::cell(
+            graph
+                .await?
+                .enumerate_nodes()
+                .flat_map(|(node_idx, module)| match module {
+                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                        module, ..
+                    }) => Some((
+                        *module,
+                        GraphNodeIndex {
+                            graph_idx: 0,
+                            node_idx,
+                        },
+                    )),
+                    SingleModuleGraphNode::VisitedModule { .. } => None,
+                })
+                .collect(),
+        ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn concatenate(self: Vc<Self>, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
+        Ok(Vc::cell(
+            self.await?
+                .iter()
+                .map(|(module, idx)| (*module, *idx))
+                .chain(
+                    graph
+                        .await?
+                        .enumerate_nodes()
+                        .flat_map(|(node_idx, module)| match module {
+                            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                                module,
+                                ..
+                            }) => Some((
+                                *module,
+                                GraphNodeIndex {
+                                    graph_idx: 0,
+                                    node_idx,
+                                },
+                            )),
+                            SingleModuleGraphNode::VisitedModule { .. } => None,
+                        }),
+                )
+                .collect(),
+        ))
+    }
+}
 
 #[turbo_tasks::value(cell = "new", eq = "manual", into = "new")]
 #[derive(Clone, Default)]
@@ -52,7 +119,7 @@ impl SingleModuleGraph {
     async fn new_inner(
         root: Option<ResolvedVc<Box<dyn Module>>>,
         entries: &Vec<ResolvedVc<Box<dyn Module>>>,
-        visited_modules: &HashSet<ResolvedVc<Box<dyn Module>>>,
+        visited_modules: &HashMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     ) -> Result<Vc<Self>> {
         let mut graph = DiGraph::new();
 
@@ -67,19 +134,9 @@ impl SingleModuleGraph {
             .await?;
 
         let children_nodes_iter = AdjacencyMap::new()
-            .skip_duplicates_with_visited_nodes(VisitedNodes(
-                visited_modules
-                    .iter()
-                    .map(|&module| SingleModuleGraphBuilderNode::new_module(module))
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .collect(),
-            ))
-            .visit(root_edges, SingleModuleGraphBuilder {})
+            .visit(root_edges, SingleModuleGraphBuilder { visited_modules })
             .await
-            .completed()?
-            .into_inner();
+            .completed()?;
 
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
         {
@@ -94,7 +151,8 @@ impl SingleModuleGraph {
                         chunking_type,
                         ..
                     } => (*modules.get(&source).unwrap(), chunking_type),
-                    SingleModuleGraphBuilderNode::Issues { .. } => unreachable!(),
+                    SingleModuleGraphBuilderNode::VisitedModule { .. }
+                    | SingleModuleGraphBuilderNode::Issues { .. } => unreachable!(),
                 });
 
                 match current {
@@ -107,11 +165,27 @@ impl SingleModuleGraph {
                         let current_idx = if let Some(current_idx) = modules.get(&module) {
                             *current_idx
                         } else {
-                            let idx = graph.add_node(SingleModuleGraphNode {
-                                module,
-                                issues: Default::default(),
-                                layer,
-                            });
+                            let idx = graph.add_node(SingleModuleGraphNode::Module(
+                                SingleModuleGraphModuleNode {
+                                    module,
+                                    issues: Default::default(),
+                                    layer,
+                                },
+                            ));
+                            modules.insert(module, idx);
+                            idx
+                        };
+                        // Add the edge
+                        if let Some((parent_idx, chunking_type)) = parent_edge {
+                            graph.add_edge(parent_idx, current_idx, chunking_type);
+                        }
+                    }
+                    SingleModuleGraphBuilderNode::VisitedModule { module, idx } => {
+                        // Find the current node, if it was already added
+                        let current_idx = if let Some(current_idx) = modules.get(&module) {
+                            *current_idx
+                        } else {
+                            let idx = graph.add_node(SingleModuleGraphNode::VisitedModule { idx });
                             modules.insert(module, idx);
                             idx
                         };
@@ -126,11 +200,15 @@ impl SingleModuleGraph {
                     }
                     SingleModuleGraphBuilderNode::Issues(new_issues) => {
                         let (parent_idx, _) = parent_edge.unwrap();
-                        graph
-                            .node_weight_mut(parent_idx)
-                            .unwrap()
-                            .issues
-                            .extend(new_issues);
+                        let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                            issues,
+                            ..
+                        }) = graph.node_weight_mut(parent_idx).unwrap()
+                        else {
+                            bail!("Expected Module node");
+                        };
+
+                        issues.extend(new_issues);
                     }
                 }
             }
@@ -138,12 +216,13 @@ impl SingleModuleGraph {
 
         let root_idx = if let Some(root) = root {
             if !modules.contains_key(&root) {
-                let root_idx = graph.add_node(SingleModuleGraphNode {
-                    module: root,
-                    issues: Default::default(),
-                    layer: None,
-                    // ident: root.ident().to_string().await?,
-                });
+                let root_idx =
+                    graph.add_node(SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                        module: root,
+                        issues: Default::default(),
+                        layer: None,
+                        // ident: root.ident().to_string().await?,
+                    }));
                 for entry in entries {
                     graph.add_edge(
                         root_idx,
@@ -195,14 +274,16 @@ impl SingleModuleGraph {
     pub fn traverse_from_entry<'a>(
         &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
-        mut visitor: impl FnMut(&'a SingleModuleGraphNode),
+        mut visitor: impl FnMut(&'a SingleModuleGraphModuleNode),
     ) -> Result<()> {
         let entry_node = self.get_entry(entry)?;
 
         let mut dfs = Dfs::new(&*self.graph, entry_node);
         while let Some(nx) = dfs.next(&*self.graph) {
-            let weight = self.graph.node_weight(nx).unwrap();
-            weight.emit_issues();
+            let SingleModuleGraphNode::Module(weight) = self.graph.node_weight(nx).unwrap() else {
+                return Ok(());
+            };
+            // weight.emit_issues();
             visitor(weight);
         }
         Ok(())
@@ -222,8 +303,8 @@ impl SingleModuleGraph {
         &'a self,
         entry: ResolvedVc<Box<dyn Module>>,
         mut visitor: impl FnMut(
-            Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
-            &'a SingleModuleGraphNode,
+            Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
+            &'a SingleModuleGraphModuleNode,
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
@@ -231,12 +312,18 @@ impl SingleModuleGraph {
 
         let mut stack = vec![entry_node];
         let mut discovered = graph.visit_map();
-        let entry_weight = graph.node_weight(entry_node).unwrap();
-        entry_weight.emit_issues();
+        // entry_weight.emit_issues();
+        let SingleModuleGraphNode::Module(entry_weight) = graph.node_weight(entry_node).unwrap()
+        else {
+            return Ok(());
+        };
         visitor(None, entry_weight);
 
         while let Some(node) = stack.pop() {
-            let node_weight = graph.node_weight(node).unwrap();
+            let SingleModuleGraphNode::Module(node_weight) = graph.node_weight(node).unwrap()
+            else {
+                continue;
+            };
             if discovered.visit(node) {
                 let neighbors = {
                     let mut neighbors = vec![];
@@ -248,9 +335,62 @@ impl SingleModuleGraph {
                 };
 
                 for (edge, succ) in neighbors {
-                    let succ_weight = graph.node_weight(succ).unwrap();
+                    let SingleModuleGraphNode::Module(succ_weight) =
+                        graph.node_weight(succ).unwrap()
+                    else {
+                        continue;
+                    };
                     let edge_weight = graph.edge_weight(edge).unwrap();
                     let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                    if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
+                        stack.push(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Traverses all edges exactly once and calls the visitor with the edge source and
+    /// target.
+    ///
+    /// This means that target nodes can be revisited (once per incoming edge).
+    pub fn traverse_edges<'a>(
+        &'a self,
+        mut visitor: impl FnMut(
+            (
+                Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
+                &'a SingleModuleGraphModuleNode,
+            ),
+        ) -> GraphTraversalAction,
+    ) -> Result<()> {
+        let graph = &self.graph;
+        let mut stack = self.entries.values().copied().collect::<Vec<_>>();
+        let mut discovered = graph.visit_map();
+        for entry_node in self.entries.values() {
+            let SingleModuleGraphNode::Module(entry_node) = graph.node_weight(*entry_node).unwrap()
+            else {
+                continue;
+            };
+            visitor((None, entry_node));
+        }
+
+        while let Some(node) = stack.pop() {
+            if discovered.visit(node) {
+                let SingleModuleGraphNode::Module(node_weight) = graph.node_weight(node).unwrap()
+                else {
+                    continue;
+                };
+                for edge in graph.edges(node).collect::<Vec<_>>() {
+                    let edge_weight = edge.weight();
+                    let succ = edge.target();
+                    let SingleModuleGraphNode::Module(succ_weight) =
+                        graph.node_weight(succ).unwrap()
+                    else {
+                        continue;
+                    };
+                    let action = visitor((Some((node_weight, edge_weight)), succ_weight));
                     if !discovered.is_visited(&succ) && action == GraphTraversalAction::Continue {
                         stack.push(succ);
                     }
@@ -284,13 +424,13 @@ impl SingleModuleGraph {
         entry: ResolvedVc<Box<dyn Module>>,
         state: &mut S,
         mut visit_preorder: impl FnMut(
-            Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
-            &'a SingleModuleGraphNode,
+            Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
+            &'a SingleModuleGraphModuleNode,
             &mut S,
         ) -> GraphTraversalAction,
         mut visit_postorder: impl FnMut(
-            Option<(&'a SingleModuleGraphNode, &'a ChunkingType)>,
-            &'a SingleModuleGraphNode,
+            Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
+            &'a SingleModuleGraphModuleNode,
             &mut S,
         ),
     ) -> Result<()> {
@@ -310,37 +450,253 @@ impl SingleModuleGraph {
         )> = vec![(ReverseTopologicalPass::ExpandAndVisit, None, entry_node)];
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
+            let parent_arg = parent.map(|parent| {
+                (
+                    match graph.node_weight(parent.0).unwrap() {
+                        SingleModuleGraphNode::Module(node) => node,
+                        SingleModuleGraphNode::VisitedModule { .. } => {
+                            unreachable!()
+                        }
+                    },
+                    graph.edge_weight(parent.1).unwrap(),
+                )
+            });
             match pass {
                 ReverseTopologicalPass::Visit => {
-                    visit_postorder(
-                        parent.map(|parent| {
-                            (
-                                graph.node_weight(parent.0).unwrap(),
-                                graph.edge_weight(parent.1).unwrap(),
-                            )
-                        }),
-                        graph.node_weight(current).unwrap(),
-                        state,
-                    );
+                    if let SingleModuleGraphNode::Module(current_node) =
+                        graph.node_weight(current).unwrap()
+                    {
+                        visit_postorder(parent_arg, current_node, state);
+                    }
                 }
                 ReverseTopologicalPass::ExpandAndVisit => {
-                    let action = visit_preorder(
-                        parent.map(|parent| {
-                            (
-                                graph.node_weight(parent.0).unwrap(),
-                                graph.edge_weight(parent.1).unwrap(),
-                            )
-                        }),
-                        graph.node_weight(current).unwrap(),
-                        state,
-                    );
+                    if let SingleModuleGraphNode::Module(current_node) =
+                        graph.node_weight(current).unwrap()
+                    {
+                        let action = visit_preorder(parent_arg, current_node, state);
+                        stack.push((ReverseTopologicalPass::Visit, parent, current));
+                        if expanded.insert(current) && action == GraphTraversalAction::Continue {
+                            stack.extend(iter_neighbors(graph, current).map(|(edge, child)| {
+                                (
+                                    ReverseTopologicalPass::ExpandAndVisit,
+                                    Some((current, edge)),
+                                    child,
+                                )
+                            }));
+                        }
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+}
+
+#[turbo_tasks::value]
+#[derive(Clone, Default)]
+pub struct SingleModuleGraphs {
+    graphs: Vec<ResolvedVc<SingleModuleGraph>>,
+}
+
+// fn get_node(graph: T, node: T) -> SingleModuleGraphModuleNode {
+macro_rules! get_node {
+    ($graphs:expr, $node:expr) => {{
+        let node_idx = $node;
+        match $graphs[node_idx.graph_idx]
+            .graph
+            .node_weight(node_idx.node_idx)
+            .unwrap()
+        {
+            SingleModuleGraphNode::Module(node) => node,
+            SingleModuleGraphNode::VisitedModule { idx } => {
+                let SingleModuleGraphNode::Module(node) = $graphs[idx.graph_idx]
+                    .graph
+                    .node_weight(idx.node_idx)
+                    .unwrap()
+                else {
+                    panic!("expected Module node");
+                };
+                node
+            }
+        }
+    }};
+}
+macro_rules! get_module_node {
+    ($graphs:expr, $node:expr) => {{
+        match $node {
+            SingleModuleGraphNode::Module(node) => node,
+            SingleModuleGraphNode::VisitedModule { idx } => {
+                let SingleModuleGraphNode::Module(node) = $graphs[idx.graph_idx]
+                    .graph
+                    .node_weight(idx.node_idx)
+                    .unwrap()
+                else {
+                    panic!("expected Module node");
+                };
+                node
+            }
+        }
+    }};
+}
+
+impl SingleModuleGraphs {
+    async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
+        self.graphs.iter().try_join().await
+    }
+
+    /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
+    /// target.
+    ///
+    /// This means that target nodes can be revisited (once per incoming edge).
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `visitor` - Called before visiting the children of a node.
+    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    pub async fn traverse_edges_from_entry(
+        &self,
+        entry: ResolvedVc<Box<dyn Module>>,
+        mut visitor: impl FnMut(
+            Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+            &'_ SingleModuleGraphModuleNode,
+        ) -> GraphTraversalAction,
+    ) -> Result<()> {
+        let graphs = self.get_graphs().await?;
+        let top_graph = self.graphs.last().unwrap().await?;
+        let entry = top_graph.get_entry(entry)?;
+
+        visitor(
+            None,
+            get_module_node!(graphs, top_graph.graph.node_weight(entry).unwrap()),
+        );
+
+        let mut stack = vec![GraphNodeIndex {
+            graph_idx: self.graphs.len() - 1,
+            node_idx: entry,
+        }];
+        let mut visited = HashSet::new();
+        while let Some(node) = stack.pop() {
+            let graph = &graphs[node.graph_idx].graph;
+            let node_weight = get_node!(graphs, node);
+            if visited.insert(node) {
+                let neighbors = iter_neighbors(graph, node.node_idx);
+
+                for (edge, succ) in neighbors {
+                    let succ = GraphNodeIndex {
+                        graph_idx: node.graph_idx,
+                        node_idx: succ,
+                    };
+                    let succ_weight = get_node!(graphs, succ);
+                    let edge_weight = graph.edge_weight(edge).unwrap();
+                    let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                    if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
+                        stack.push(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
+    }
+
+    /// Traverses all reachable edges in topological order. The preorder visitor can be used to
+    /// forward state down the graph, and to skip subgraphs
+    ///
+    /// Use this to collect modules in evaluation order.
+    ///
+    /// Target nodes can be revisited (once per incoming edge).
+    /// Edges are traversed in normal order, so should correspond to reference order.
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `state` - The state to be passed to the visitors
+    /// * `visit_preorder` - Called before visiting the children of a node.
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    /// * `visit_postorder` - Called after visiting the children of a node. Return
+    ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    pub async fn traverse_edges_from_entry_topological<S>(
+        &self,
+        entry: ResolvedVc<Box<dyn Module>>,
+        state: &mut S,
+        mut visit_preorder: impl FnMut(
+            Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+            &'_ SingleModuleGraphModuleNode,
+            &mut S,
+        ) -> GraphTraversalAction,
+        mut visit_postorder: impl FnMut(
+            Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+            &'_ SingleModuleGraphModuleNode,
+            &mut S,
+        ),
+    ) -> Result<()> {
+        let graphs = self.get_graphs().await?;
+        let top_graph = self.graphs.last().unwrap().await?;
+        let entry = top_graph.get_entry(entry)?;
+
+        enum ReverseTopologicalPass {
+            Visit,
+            ExpandAndVisit,
+        }
+
+        #[allow(clippy::type_complexity)] // This is a temporary internal structure
+        let mut stack: Vec<(
+            ReverseTopologicalPass,
+            Option<(GraphNodeIndex, EdgeIndex)>,
+            GraphNodeIndex,
+        )> = vec![(
+            ReverseTopologicalPass::ExpandAndVisit,
+            None,
+            GraphNodeIndex {
+                graph_idx: self.graphs.len() - 1,
+                node_idx: entry,
+            },
+        )];
+        let mut expanded = HashSet::new();
+        while let Some((pass, parent, current)) = stack.pop() {
+            let parent_arg = parent.map(|(parent_node, parent_edge)| {
+                let graph = &graphs[parent_node.graph_idx].graph;
+                (
+                    get_node!(graphs, parent_node),
+                    graphs[parent_node.graph_idx]
+                        .graph
+                        .edge_weight(parent_edge)
+                        .unwrap(),
+                )
+            });
+            let current_node = get_node!(graphs, current);
+            match pass {
+                ReverseTopologicalPass::Visit => {
+                    visit_postorder(parent_arg, current_node, state);
+                }
+                ReverseTopologicalPass::ExpandAndVisit => {
+                    let action = visit_preorder(parent_arg, current_node, state);
                     stack.push((ReverseTopologicalPass::Visit, parent, current));
                     if expanded.insert(current) && action == GraphTraversalAction::Continue {
-                        stack.extend(iter_neighbors(graph, current).map(|(edge, child)| {
+                        let graph = &graphs[current.graph_idx].graph;
+                        let (neighbors, child_graph_idx) =
+                            match graph.node_weight(current.node_idx).unwrap() {
+                                SingleModuleGraphNode::Module(_) => {
+                                    (iter_neighbors(graph, current.node_idx), current.graph_idx)
+                                }
+                                SingleModuleGraphNode::VisitedModule { idx } => (
+                                    // We switch graphs
+                                    iter_neighbors(&graphs[idx.graph_idx].graph, idx.node_idx),
+                                    idx.graph_idx,
+                                ),
+                            };
+                        stack.extend(neighbors.map(|(edge, child)| {
                             (
                                 ReverseTopologicalPass::ExpandAndVisit,
                                 Some((current, edge)),
-                                child,
+                                GraphNodeIndex {
+                                    graph_idx: child_graph_idx,
+                                    node_idx: child,
+                                },
                             )
                         }));
                     }
@@ -365,25 +721,45 @@ impl SingleModuleGraph {
         root: ResolvedVc<Box<dyn Module>>,
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
-        visited_modules: Vc<ModuleSet>,
+        visited_modules: Vc<VisitedModules>,
     ) -> Result<Vc<Self>> {
         SingleModuleGraph::new_inner(Some(root), &entries, &*visited_modules.await?).await
     }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct SingleModuleGraphNode {
+pub struct SingleModuleGraphModuleNode {
     pub module: ResolvedVc<Box<dyn Module>>,
-    issues: Vec<ResolvedVc<Box<dyn Issue>>>,
     pub layer: Option<ReadRef<RcStr>>,
+    pub issues: Vec<ResolvedVc<Box<dyn Issue>>>,
+}
+
+#[derive(Clone, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub enum SingleModuleGraphNode {
+    Module(SingleModuleGraphModuleNode),
+    VisitedModule { idx: GraphNodeIndex },
 }
 
 impl SingleModuleGraphNode {
-    fn emit_issues(&self) {
-        for issue in &self.issues {
-            issue.emit();
+    pub fn module(&self) -> Option<ResolvedVc<Box<dyn Module>>> {
+        match self {
+            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode { module, .. }) => {
+                Some(*module)
+            }
+            SingleModuleGraphNode::VisitedModule { .. } => None,
         }
     }
+
+    // fn emit_issues(&self) {
+    //     match self {
+    //         SingleModuleGraphNode::Module { issues, .. } => {
+    //             for issue in issues {
+    //                 issue.emit();
+    //             }
+    //         }
+    //         SingleModuleGraphNode::VisitedModule { .. } => todo!(),
+    //     }
+    // }
 }
 
 #[derive(Clone, Debug, ValueDebugFormat, Serialize, Deserialize)]
@@ -443,10 +819,16 @@ enum SingleModuleGraphBuilderNode {
         target: ResolvedVc<Box<dyn Module>>,
         target_ident: ReadRef<RcStr>,
     },
+    /// A regular module
     Module {
         module: ResolvedVc<Box<dyn Module>>,
         layer: Option<ReadRef<RcStr>>,
         ident: ReadRef<RcStr>,
+    },
+    /// A reference to a module that is already listed in visited_modules
+    VisitedModule {
+        module: ResolvedVc<Box<dyn Module>>,
+        idx: GraphNodeIndex,
     },
     /// Issues to be added to the parent Module node
     #[allow(dead_code)]
@@ -478,9 +860,11 @@ impl SingleModuleGraphBuilderNode {
             target_ident: target.ident().to_string().await?,
         })
     }
+    fn new_visited_module(module: ResolvedVc<Box<dyn Module>>, idx: GraphNodeIndex) -> Self {
+        Self::VisitedModule { module, idx }
+    }
 }
 struct SingleModuleGraphBuilderEdge {
-    // ty: Option<ChunkingType>,
     to: SingleModuleGraphBuilderNode,
 }
 
@@ -488,8 +872,10 @@ struct SingleModuleGraphBuilderEdge {
 /// intermediate SingleModuleGraphBuilderNode::ChunkableReference nodes.
 const COMMON_CHUNKING_TYPE: ChunkingType = ChunkingType::ParallelInheritAsync;
 
-struct SingleModuleGraphBuilder {}
-impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
+struct SingleModuleGraphBuilder<'a> {
+    visited_modules: &'a HashMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+}
+impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
     type Edge = SingleModuleGraphBuilderEdge;
     type EdgesIntoIter = Vec<Self::Edge>;
     type EdgesFuture = impl Future<Output = Result<Self::EdgesIntoIter>>;
@@ -500,6 +886,9 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
             | SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
                 VisitControlFlow::Continue(edge.to)
             }
+            // Module was already visited previously
+            SingleModuleGraphBuilderNode::VisitedModule { .. } => VisitControlFlow::Skip(edge.to),
+            // Issues doen't have any children
             SingleModuleGraphBuilderNode::Issues(_) => VisitControlFlow::Skip(edge.to),
         }
     }
@@ -511,8 +900,12 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
             SingleModuleGraphBuilderNode::ChunkableReference { target, .. } => {
                 (None, Some(*target))
             }
-            SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
+            // These are always skipped in `visit()`
+            SingleModuleGraphBuilderNode::VisitedModule { .. }
+            | SingleModuleGraphBuilderNode::Issues(_) => unreachable!(),
         };
+        // TODO make `Self::EdgesFuture + 'this` somehow
+        let visited_modules = self.visited_modules.clone();
         async move {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
@@ -535,17 +928,16 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
                             }
                         })
                         .flatten()
-                        .map(|(ty, target)| async move {
-                            Ok(SingleModuleGraphBuilderEdge {
-                                to: if ty == COMMON_CHUNKING_TYPE {
-                                    SingleModuleGraphBuilderNode::new_module(target).await?
-                                } else {
-                                    SingleModuleGraphBuilderNode::new_chunkable_ref(
-                                        module, target, ty,
-                                    )
+                        .map(async |(ty, target)| {
+                            let to = if let Some(idx) = visited_modules.get(&target) {
+                                SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
+                            } else if ty == COMMON_CHUNKING_TYPE {
+                                SingleModuleGraphBuilderNode::new_module(target).await?
+                            } else {
+                                SingleModuleGraphBuilderNode::new_chunkable_ref(module, target, ty)
                                     .await?
-                                },
-                            })
+                            };
+                            Ok(SingleModuleGraphBuilderEdge { to })
                         })
                         .try_join()
                         .await?
@@ -580,6 +972,9 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder {
                     source = display(source_ident),
                     target = display(target_ident)
                 )
+            }
+            SingleModuleGraphBuilderNode::VisitedModule { .. } => {
+                tracing::info_span!("visited module")
             }
         }
     }

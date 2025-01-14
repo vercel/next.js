@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    collections::{HashMap, HashSet},
-};
+use std::{borrow::Cow, collections::HashMap};
 
 use anyhow::Result;
 use next_core::{
@@ -21,7 +18,7 @@ use turbopack_core::{
     context::AssetContext,
     issue::Issue,
     module::Module,
-    module_graph::{GraphTraversalAction, SingleModuleGraph},
+    module_graph::{GraphTraversalAction, SingleModuleGraph, VisitedModules},
 };
 
 use crate::{
@@ -56,21 +53,16 @@ async fn get_module_graph_for_endpoint(
         .to_resolved()
         .await?;
         graphs.push(graph);
-        graph
-            .await?
-            .iter_nodes()
-            .map(|n| n.module)
-            .collect::<HashSet<_>>()
+        VisitedModules::from_graph(*graph)
     } else {
-        HashSet::new()
+        VisitedModules::empty()
     };
 
-    // ast-grep-ignore: to-resolved-in-loop
     for module in server_component_entries.iter() {
         let graph = SingleModuleGraph::new_with_entries_visited(
             *entry,
             vec![Vc::upcast(**module)],
-            Vc::cell(visited_modules.clone()),
+            visited_modules,
         )
         .to_resolved()
         .await?;
@@ -79,19 +71,13 @@ async fn get_module_graph_for_endpoint(
         if is_layout {
             // Only propagate the visited_modules of the parent layout(s), not across siblings such
             // as loading.js and page.js.
-            visited_modules.extend(graph.await?.iter_nodes().map(|n| n.module));
+            visited_modules = visited_modules.concatenate(*graph);
         }
     }
 
-    // Any previous iteration above would have added the entry node, but not actually visited it.
-    visited_modules.remove(&entry);
-    let graph = SingleModuleGraph::new_with_entries_visited(
-        *entry,
-        vec![*entry],
-        Vc::cell(visited_modules.clone()),
-    )
-    .to_resolved()
-    .await?;
+    let graph = SingleModuleGraph::new_with_entries_visited(*entry, vec![*entry], visited_modules)
+        .to_resolved()
+        .await?;
     graphs.push(graph);
 
     Ok(Vc::cell(graphs))
