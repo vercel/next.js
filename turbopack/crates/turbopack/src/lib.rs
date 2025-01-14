@@ -904,6 +904,14 @@ pub fn emit_with_completion(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<File
     let _ = emit_assets_aggregated(asset, output_dir);
 }
 
+#[turbo_tasks::function(operation)]
+pub fn emit_with_completion_operation(
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    output_dir: ResolvedVc<FileSystemPath>,
+) -> Vc<()> {
+    emit_with_completion(*asset, *output_dir)
+}
+
 #[turbo_tasks::function]
 fn emit_assets_aggregated(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<FileSystemPath>) {
     let aggregated = aggregate(asset);
