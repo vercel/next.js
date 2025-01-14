@@ -659,7 +659,6 @@ impl SingleModuleGraphs {
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = parent.map(|(parent_node, parent_edge)| {
-                let graph = &graphs[parent_node.graph_idx].graph;
                 (
                     get_node!(graphs, parent_node),
                     graphs[parent_node.graph_idx]

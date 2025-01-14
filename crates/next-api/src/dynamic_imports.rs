@@ -121,7 +121,10 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
         .await?
         .iter_nodes()
         .map(|node| async move {
-            let SingleModuleGraphNode::Module { module, layer, .. } = node else {
+            let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                module, layer, ..
+            }) = node
+            else {
                 return Ok(None);
             };
 

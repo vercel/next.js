@@ -30,7 +30,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     module::Module,
-    module_graph::{SingleModuleGraph, SingleModuleGraphNode},
+    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -399,7 +399,12 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
-                let SingleModuleGraphNode::Module { module, layer, .. } = node else {
+                let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                    module,
+                    layer,
+                    ..
+                }) = node
+                else {
                     return Ok(None);
                 };
 
