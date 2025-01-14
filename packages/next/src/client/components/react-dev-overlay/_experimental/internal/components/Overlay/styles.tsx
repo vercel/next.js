@@ -3,7 +3,7 @@ import { noop as css } from '../../helpers/noop-template'
 const styles = css`
   [data-nextjs-dialog-overlay] {
     position: fixed;
-    top: var(--size-8_5);
+    top: 0;
     right: 0;
     bottom: 0;
     left: 0;
