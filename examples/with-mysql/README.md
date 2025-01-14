@@ -32,9 +32,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-mysql nextjs-mysql
-# or
+```
+
+```bash
 yarn create next-app --example with-mysql nextjs-mysql
-# or
+```
+
+```bash
 pnpm create next-app --example with-mysql nextjs-mysql
 ```
 

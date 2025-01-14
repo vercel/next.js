@@ -28,9 +28,13 @@ To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/can
 
 ```bash
 npx create-next-app --example with-sentry nextjs-sentry-example
-# or
+```
+
+```bash
 yarn create next-app --example with-sentry nextjs-sentry-example
-# or
+```
+
+```bash
 pnpm create next-app --example with-sentry nextjs-sentry-example
 ```
 

@@ -51,9 +51,13 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
    ```bash
    npx create-next-app --example cms-makeswift cms-makeswift-app
-   # or
+   ```
+
+   ```bash
    yarn create next-app --example cms-makeswift cms-makeswift-app
-   # or
+   ```
+
+   ```bash
    pnpm create next-app --example cms-makeswift cms-makeswift-app
    ```
 
