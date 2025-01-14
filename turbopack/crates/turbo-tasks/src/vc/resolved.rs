@@ -220,7 +220,7 @@ where
         Ok(Self::try_sidecast_sync(this))
     }
 
-    /// Attempts to sidecast the given `Vc<Box<dyn T>>` to a `Vc<Box<dyn K>>`.
+    /// Attempts to sidecast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<Box<dyn K>>`.
     ///
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
