@@ -34,7 +34,7 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
-    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode},
+    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAssets,
 };
 
@@ -121,15 +121,12 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
         .await?
         .iter_nodes()
         .map(|node| async move {
-            let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                module, layer, ..
-            }) = node
-            else {
-                return Ok(None);
-            };
+            let SingleModuleGraphModuleNode { module, layer, .. } = node;
 
-            let layer = layer.as_ref();
-            if layer.is_some_and(|layer| &**layer == "app-client" || &**layer == "client") {
+            if layer
+                .as_ref()
+                .is_some_and(|layer| &**layer == "app-client" || &**layer == "client")
+            {
                 if let Some(dynamic_entry_module) =
                     ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module).await?
                 {

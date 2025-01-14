@@ -30,7 +30,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     module::Module,
-    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode},
+    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -399,14 +399,7 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
-                let SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                    module,
-                    layer,
-                    ..
-                }) = node
-                else {
-                    return Ok(None);
-                };
+                let SingleModuleGraphModuleNode { module, layer, .. } = node;
 
                 // TODO: compare module contexts instead?
                 let layer = match &layer {
