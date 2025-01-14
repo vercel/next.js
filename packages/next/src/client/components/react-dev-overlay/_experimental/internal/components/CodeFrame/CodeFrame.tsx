@@ -9,7 +9,7 @@ import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
 import { ExternalIcon } from '../../icons/external'
-import { FileIcon } from '../../icons/FileIcon'
+import { FileIcon } from '../../icons/file'
 
 export type CodeFrameProps = { stackFrame: StackFrame; codeFrame: string }
 

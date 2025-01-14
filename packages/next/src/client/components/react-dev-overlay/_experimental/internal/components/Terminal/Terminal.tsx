@@ -6,7 +6,7 @@ import { ExternalIcon } from '../../icons/external'
 import { noop as css } from '../../helpers/noop-template'
 import { getFrameSource } from '../../helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
-import { FileIcon } from '../../icons/FileIcon'
+import { FileIcon } from '../../icons/file'
 
 export type TerminalProps = { content: string }
 

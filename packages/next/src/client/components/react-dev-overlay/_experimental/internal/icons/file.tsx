@@ -1,4 +1,3 @@
-// TODO: Add more Icons (react, next, etc.)
 export function FileIcon(props: React.SVGProps<SVGSVGElement>) {
   return (
     <svg
