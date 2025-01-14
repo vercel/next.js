@@ -1,5 +1,6 @@
 import type { Meta, StoryObj } from '@storybook/react'
 import { NextLogo } from './next-logo'
+import { withShadowPortal } from '../../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof NextLogo> = {
   component: NextLogo,
@@ -7,8 +8,9 @@ const meta: Meta<typeof NextLogo> = {
     layout: 'centered',
   },
   args: {
-    onClick: () => alert('Clicked!'),
+    onClick: () => console.log('Clicked!'),
   },
+  decorators: [withShadowPortal],
 }
 
 export default meta
@@ -65,6 +67,14 @@ export const BuildingWithError: Story = {
 export const Rendering: Story = {
   args: {
     issueCount: 0,
+    isDevBuilding: false,
+    isDevRendering: true,
+  },
+}
+
+export const RenderingWithError: Story = {
+  args: {
+    issueCount: 1,
     isDevBuilding: false,
     isDevRendering: true,
   },
