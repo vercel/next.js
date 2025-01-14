@@ -11,7 +11,7 @@ const title = "View this video created with Mux + Next.js";
 export const generateMetadata = async (props: { params: Promise<Params> }) => {
   const params = await props.params;
 
-  return ({
+  return {
     title,
     description: undefined,
     openGraph: {
@@ -34,8 +34,8 @@ export const generateMetadata = async (props: { params: Promise<Params> }) => {
           height: 600,
         },
       ],
-    }
-  });
+    },
+  };
 };
 
 const Code = ({ children }: { children: React.ReactNode }) => (
@@ -51,9 +51,7 @@ export const runtime = "edge";
 export default async function Page(props: { params: Promise<Params> }) {
   const params = await props.params;
 
-  const {
-    playbackId
-  } = params;
+  const { playbackId } = params;
 
   return (
     <>
