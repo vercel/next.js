@@ -71,3 +71,11 @@ export const Rendering: Story = {
     isDevRendering: true,
   },
 }
+
+export const RenderingWithError: Story = {
+  args: {
+    issueCount: 1,
+    isDevBuilding: false,
+    isDevRendering: true,
+  },
+}
