@@ -2,10 +2,12 @@ use std::io::Write;
 
 use anyhow::{bail, Result};
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Upcast, ValueToString, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, ValueToString, Vc,
+};
 use turbo_tasks_fs::{rope::Rope, FileSystemPath};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkingContext},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ChunkingContext},
     code_builder::{fileify_source_map, Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
@@ -209,6 +211,15 @@ pub struct EcmascriptChunkItemOptions {
     /// `__turbopack_wasm__` to load WebAssembly.
     pub wasm: bool,
     pub placeholder_for_future_extensions: (),
+}
+
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
+pub struct EcmascriptChunkItemWithAsyncInfo {
+    pub ty: ChunkItemTy,
+    pub chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+    pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 
 #[turbo_tasks::value_trait]

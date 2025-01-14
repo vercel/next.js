@@ -4,7 +4,6 @@ import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import { useState } from 'react'
 
 const meta: Meta<typeof ErrorOverlayPagination> = {
-  title: 'ErrorOverlayPagination',
   component: ErrorOverlayPagination,
   parameters: {
     layout: 'centered',

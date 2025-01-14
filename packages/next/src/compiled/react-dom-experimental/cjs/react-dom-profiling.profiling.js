@@ -276,6 +276,8 @@ function getComponentNameFromFiber(fiber) {
       return "SuspenseList";
     case 25:
       return "TracingMarker";
+    case 30:
+      return "ViewTransition";
     case 1:
     case 0:
     case 14:
@@ -1055,6 +1057,8 @@ function describeFiber(fiber) {
       return describeNativeComponentFrame(fiber.type.render, !1);
     case 1:
       return describeNativeComponentFrame(fiber.type, !0);
+    case 30:
+      return describeBuiltInComponentFrame("ViewTransition");
     default:
       return "";
   }
@@ -17571,14 +17575,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1922 = React.version;
 if (
-  "19.1.0-experimental-74ea0c73-20250109" !==
+  "19.1.0-experimental-056073de-20250109" !==
   isomorphicReactPackageVersion$jscomp$inline_1922
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1922,
-      "19.1.0-experimental-74ea0c73-20250109"
+      "19.1.0-experimental-056073de-20250109"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -17600,10 +17604,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2436 = {
   bundleType: 0,
-  version: "19.1.0-experimental-74ea0c73-20250109",
+  version: "19.1.0-experimental-056073de-20250109",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-experimental-74ea0c73-20250109"
+  reconcilerVersion: "19.1.0-experimental-056073de-20250109"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2437 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -17870,7 +17874,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-experimental-74ea0c73-20250109";
+exports.version = "19.1.0-experimental-056073de-20250109";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

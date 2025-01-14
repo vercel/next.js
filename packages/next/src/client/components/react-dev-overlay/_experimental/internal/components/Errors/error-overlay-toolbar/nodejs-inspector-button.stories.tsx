@@ -3,7 +3,6 @@ import { NodejsInspectorButton } from './nodejs-inspector-button'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof NodejsInspectorButton> = {
-  title: 'ErrorOverlayToolbar/NodejsInspectorButton',
   component: NodejsInspectorButton,
   parameters: {
     layout: 'centered',

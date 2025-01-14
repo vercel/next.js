@@ -631,9 +631,7 @@ export async function createHotReloaderTurbopack(
     getNextErrorFeedbackMiddleware(opts.telemetry),
   ]
 
-  const versionInfoPromise = getVersionInfo(
-    isTestMode || opts.telemetry.isEnabled
-  )
+  const versionInfoPromise = getVersionInfo()
 
   let devtoolsFrontendUrl: string | undefined
   const nodeDebugType = getNodeDebugType()

@@ -52,6 +52,17 @@ impl Module for EcmascriptModuleLocalsModule {
         let result = self.module.analyze().await?;
         Ok(*result.local_references)
     }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(&self) -> Result<Vc<bool>> {
+        let analyze = self.module.analyze().await?;
+        if let Some(async_module) = *analyze.async_module.await? {
+            let is_self_async = async_module.is_self_async(*analyze.local_references);
+            Ok(is_self_async)
+        } else {
+            Ok(Vc::cell(false))
+        }
+    }
 }
 
 #[turbo_tasks::value_impl]
