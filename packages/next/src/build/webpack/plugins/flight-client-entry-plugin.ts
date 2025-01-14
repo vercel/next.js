@@ -354,7 +354,7 @@ export class FlightClientEntryPlugin {
         }
         // For metadata routes, the entry name can be used as the bundle path,
         // as it has been normalized already.
-        else if (isMetadataRoute(bundlePath)) {
+        if (isMetadataRoute(bundlePath)) {
           bundlePath = name
         }
 
