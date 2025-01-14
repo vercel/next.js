@@ -146,9 +146,19 @@ const IssueCount = ({ count }: { count: number }) => {
 }
 
 function DevToolsShortcutGroup() {
+  const isMac =
+    // Feature detect for `navigator.userAgentData` which is experimental:
+    // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
+    'userAgentData' in navigator
+      ? (navigator.userAgentData as any).platform === 'macOS'
+      : // This is the least-bad option to detect the modifier key when using `navigator.platform`:
+        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
+        navigator.platform.indexOf('Mac') === 0 ||
+        navigator.platform === 'iPhone'
+
   return (
     <span data-nextjs-dev-tools-shortcut-group>
-      <CmdIcon />
+      {isMac ? <CmdIcon /> : <CtrlIcon />}
       <DotIcon />
     </span>
   )
@@ -156,6 +166,10 @@ function DevToolsShortcutGroup() {
 
 function CmdIcon() {
   return <span data-nextjs-dev-tools-icon>⌘</span>
+}
+
+function CtrlIcon() {
+  return <span data-nextjs-dev-tools-icon>ctrl</span>
 }
 
 function DotIcon() {
