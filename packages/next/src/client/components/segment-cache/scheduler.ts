@@ -131,8 +131,21 @@ const enum PrefetchTaskExitStatus {
 /**
  * The priority of the prefetch task. Higher numbers are higher priority.
  */
-const enum PrefetchPriority {
+export const enum PrefetchPriority {
+  /**
+   * Assigned to any visible link that was hovered/touched at some point. This
+   * is not removed on mouse exit, because a link that was momentarily
+   * hovered is more likely to to be interacted with than one that was not.
+   */
+  Intent = 2,
+  /**
+   * The default priority for prefetch tasks.
+   */
   Default = 1,
+  /**
+   * Assigned to tasks when they spawn non-blocking background work, like
+   * revalidating a partially cached entry to see if more data is available.
+   */
   Background = 0,
 }
 
@@ -169,13 +182,14 @@ let didScheduleMicrotask = false
 export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
-  includeDynamicData: boolean
+  includeDynamicData: boolean,
+  priority: PrefetchPriority
 ): PrefetchTask {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
-    priority: PrefetchPriority.Default,
+    priority,
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
@@ -206,19 +220,25 @@ export function cancelPrefetchTask(task: PrefetchTask): void {
   heapDelete(taskHeap, task)
 }
 
-export function bumpPrefetchTask(task: PrefetchTask): void {
+export function bumpPrefetchTask(
+  task: PrefetchTask,
+  priority: PrefetchPriority
+): void {
   // Bump the prefetch task to the top of the queue, as if it were a fresh
   // task. This is essentially the same as canceling the task and scheduling
   // a new one, except it reuses the original object.
   //
-  // The primary use case is to increase the relative priority of a Link-
-  // initated prefetch on hover.
+  // The primary use case is to increase the priority of a Link-initated
+  // prefetch on hover.
 
   // Un-cancel the task, in case it was previously canceled.
   task.isCanceled = false
 
-  // Assign a new sort ID. Higher sort IDs are higher priority.
+  // Assign a new sort ID to move it ahead of all other tasks at the same
+  // priority level. (Higher sort IDs are processed first.)
   task.sortId = sortIdCounter++
+  task.priority = priority
+
   if (task._heapIndex !== -1) {
     // The task is already in the queue.
     heapResift(taskHeap, task)
