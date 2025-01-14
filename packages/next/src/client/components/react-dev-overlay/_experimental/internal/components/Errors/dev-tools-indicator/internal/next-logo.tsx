@@ -16,6 +16,7 @@ export const NextLogo = ({
   ...props
 }: Props) => {
   const [isLoading, setIsLoading] = useState(false)
+  const [isPressed, setIsPressed] = useState(false)
 
   // Only shows the loading state after a 200ms delay when building or rendering,
   // to avoid flashing the loading state for quick updates
@@ -41,7 +42,12 @@ export const NextLogo = ({
         boxShadow:
           '0px 24px 32px -8px #0000001A, 0px 8px 16px -4px #0000001A, 0px 1px 1px 0px #00000026',
         borderRadius: '50%',
+        transition: 'transform 0.1s ease',
+        transform: isPressed ? 'scale(0.95)' : 'scale(1)',
       }}
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
+      onMouseLeave={() => setIsPressed(false)}
       {...props}
     >
       <style>

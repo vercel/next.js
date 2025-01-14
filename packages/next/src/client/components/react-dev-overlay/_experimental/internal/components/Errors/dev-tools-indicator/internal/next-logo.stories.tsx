@@ -8,7 +8,7 @@ const meta: Meta<typeof NextLogo> = {
     layout: 'centered',
   },
   args: {
-    onClick: () => alert('Clicked!'),
+    onClick: () => console.log('Clicked!'),
   },
   decorators: [withShadowPortal],
 }
