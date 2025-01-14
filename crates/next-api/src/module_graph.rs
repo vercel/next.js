@@ -18,7 +18,7 @@ use turbopack_core::{
     context::AssetContext,
     issue::Issue,
     module::Module,
-    module_graph::{GraphTraversalAction, SingleModuleGraph, SingleModuleGraphs, VisitedModules},
+    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph, VisitedModules},
 };
 
 use crate::{
@@ -32,7 +32,7 @@ use crate::{
 #[turbo_tasks::function]
 async fn get_module_graph_for_endpoint(
     entry: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vc<SingleModuleGraphs>> {
+) -> Result<Vc<ModuleGraph>> {
     let ServerEntries {
         server_utils,
         server_component_entries,
@@ -70,7 +70,7 @@ async fn get_module_graph_for_endpoint(
     let graph = SingleModuleGraph::new_with_entries_visited(*entry, vec![*entry], visited_modules);
     graphs.push(graph);
 
-    Ok(SingleModuleGraphs::from_graphs(graphs))
+    Ok(ModuleGraph::from_graphs(graphs))
 }
 
 #[turbo_tasks::value]
@@ -572,7 +572,7 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
         ),
         NextMode::Build => (
             false,
-            SingleModuleGraphs::from_single_graph(
+            ModuleGraph::from_single_graph(
                 async move {
                     get_global_module_graph(*project)
                         .resolve_strongly_consistent()

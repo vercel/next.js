@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{hash_map::Entry, HashMap, HashSet},
     future::Future,
     ops::Deref,
 };
@@ -105,12 +105,12 @@ pub struct SingleModuleGraph {
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
     //
-    // HashMaps have nondeterministic order, but this map is only used for lookups (in `get_entry`)
-    // and not iteration.
+    // HashMaps have nondeterministic order, but this map is only used for lookups (in
+    // `get_module`) and not iteration.
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
-    entries: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
+    modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 }
 
 impl SingleModuleGraph {
@@ -142,7 +142,7 @@ impl SingleModuleGraph {
             .completed()?
             .into_inner();
 
-        let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex<u32>> = HashMap::new();
+        let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> = HashMap::new();
         {
             let _span = tracing::info_span!("build module graph").entered();
             for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
@@ -218,8 +218,8 @@ impl SingleModuleGraph {
             }
         }
 
-        let root_idx = if let Some(root) = root {
-            if !modules.contains_key(&root) {
+        if let Some(root) = root {
+            if let Entry::Vacant(e) = modules.entry(root) {
                 let root_idx =
                     graph.add_node(SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
                         module: root,
@@ -227,6 +227,7 @@ impl SingleModuleGraph {
                         layer: None,
                         // ident: root.ident().to_string().await?,
                     }));
+                e.insert(root_idx);
                 for entry in entries {
                     graph.add_edge(
                         root_idx,
@@ -234,27 +235,18 @@ impl SingleModuleGraph {
                         ChunkingType::Parallel,
                     );
                 }
-                Some((root, root_idx))
-            } else {
-                None
             }
-        } else {
-            None
         };
 
         Ok(SingleModuleGraph {
             graph: TracedDiGraph(graph),
-            entries: entries
-                .iter()
-                .map(|e| (*e, *modules.get(e).unwrap()))
-                .chain(root_idx.into_iter())
-                .collect(),
+            modules,
         }
         .cell())
     }
 
-    fn get_entry(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
-        self.entries
+    fn get_module(&self, module: ResolvedVc<Box<dyn Module>>) -> Result<NodeIndex> {
+        self.modules
             .get(&module)
             .copied()
             .context("Couldn't find entry module in graph")
@@ -283,7 +275,7 @@ impl SingleModuleGraph {
         entry: ResolvedVc<Box<dyn Module>>,
         mut visitor: impl FnMut(&'a SingleModuleGraphModuleNode),
     ) -> Result<()> {
-        let entry_node = self.get_entry(entry)?;
+        let entry_node = self.get_module(entry)?;
 
         let mut dfs = Dfs::new(&*self.graph, entry_node);
         while let Some(nx) = dfs.next(&*self.graph) {
@@ -315,7 +307,7 @@ impl SingleModuleGraph {
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
-        let entry_node = self.get_entry(entry)?;
+        let entry_node = self.get_module(entry)?;
 
         let mut stack = vec![entry_node];
         let mut discovered = graph.visit_map();
@@ -373,9 +365,9 @@ impl SingleModuleGraph {
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
-        let mut stack = self.entries.values().copied().collect::<Vec<_>>();
+        let mut stack = self.modules.values().copied().collect::<Vec<_>>();
         let mut discovered = graph.visit_map();
-        for entry_node in self.entries.values() {
+        for entry_node in self.modules.values() {
             let SingleModuleGraphNode::Module(entry_node) = graph.node_weight(*entry_node).unwrap()
             else {
                 continue;
@@ -442,7 +434,7 @@ impl SingleModuleGraph {
         ),
     ) -> Result<()> {
         let graph = &self.graph;
-        let entry_node = self.get_entry(entry)?;
+        let entry_node = self.get_module(entry)?;
 
         enum ReverseTopologicalPass {
             Visit,
@@ -502,12 +494,12 @@ impl SingleModuleGraph {
 
 #[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
-pub struct SingleModuleGraphs {
+pub struct ModuleGraph {
     pub graphs: Vec<ResolvedVc<SingleModuleGraph>>,
 }
 
 #[turbo_tasks::value_impl]
-impl SingleModuleGraphs {
+impl ModuleGraph {
     #[turbo_tasks::function]
     pub fn from_graphs(graphs: Vec<ResolvedVc<SingleModuleGraph>>) -> Vc<Self> {
         Self { graphs }.cell()
@@ -562,7 +554,7 @@ macro_rules! get_module_node {
     }};
 }
 
-impl SingleModuleGraphs {
+impl ModuleGraph {
     async fn get_graphs(&self) -> Result<Vec<ReadRef<SingleModuleGraph>>> {
         self.graphs.iter().try_join().await
     }
@@ -587,7 +579,7 @@ impl SingleModuleGraphs {
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
         let top_graph = self.graphs.last().unwrap().await?;
-        let entry = top_graph.get_entry(entry)?;
+        let entry = top_graph.get_module(entry)?;
 
         visitor(
             None,
@@ -658,7 +650,7 @@ impl SingleModuleGraphs {
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
         let top_graph = self.graphs.last().unwrap().await?;
-        let entry = top_graph.get_entry(entry)?;
+        let entry = top_graph.get_module(entry)?;
 
         enum ReverseTopologicalPass {
             Visit,
