@@ -710,7 +710,7 @@ export async function handleAction({
             }
           }
 
-          let actionData = ''
+          let actionDataChunks = []
 
           const reader = req.body.getReader()
           while (true) {
@@ -719,8 +719,10 @@ export async function handleAction({
               break
             }
 
-            actionData += new TextDecoder().decode(value)
+            actionDataChunks.push(value)
           }
+
+          let actionData = Buffer.concat(actionDataChunks).toString('utf-8')
 
           if (isURLEncodedAction) {
             const formData = formDataFromSearchQueryString(actionData)
