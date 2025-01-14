@@ -140,7 +140,7 @@ const IndicatorRow = ({
 
 const IssueCount = ({ count }: { count: number }) => {
   return (
-    <span data-nextjs-dev-tools-issue-count>
+    <span data-nextjs-dev-tools-issue-count data-has-issues={count > 0}>
       <span data-nextjs-dev-tools-issue-text data-has-issues={count > 0}>
         {count}
       </span>
