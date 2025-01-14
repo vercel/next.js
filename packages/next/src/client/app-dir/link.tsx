@@ -15,6 +15,7 @@ import { warnOnce } from '../../shared/lib/utils/warn-once'
 import {
   type PrefetchTask,
   schedulePrefetchTask as scheduleSegmentPrefetchTask,
+  cancelPrefetchTask,
   bumpPrefetchTask,
 } from '../components/segment-cache/scheduler'
 import { getCurrentAppRouterState } from '../../shared/lib/router/action-queue'
@@ -201,8 +202,7 @@ export function unmountLinkInstance(element: HTMLAnchorElement | SVGAElement) {
     links.delete(element)
     const prefetchTask = instance.prefetchTask
     if (prefetchTask !== null) {
-      // TODO: In the Segment Cache implementation, cancel the prefetch task
-      // when the link is unmounted.
+      cancelPrefetchTask(prefetchTask)
     }
   }
   if (observer !== null) {
@@ -255,8 +255,15 @@ function rescheduleLinkPrefetch(instance: LinkInstance) {
   const existingPrefetchTask = instance.prefetchTask
 
   if (!instance.isVisible) {
-    // TODO: In the Segment Cache implementation, cancel the prefetch task when
-    // the link leaves the viewport.
+    // Cancel any in-progress prefetch task. (If it already finished then this
+    // is a no-op.)
+    if (existingPrefetchTask !== null) {
+      cancelPrefetchTask(existingPrefetchTask)
+    }
+    // We don't need to reset the prefetchTask to null upon cancellation; an
+    // old task object can be rescheduled with bumpPrefetchTask. This is a
+    // micro-optimization but also makes the code simpler (don't need to
+    // worry about whether an old task object is stale).
     return
   }
 

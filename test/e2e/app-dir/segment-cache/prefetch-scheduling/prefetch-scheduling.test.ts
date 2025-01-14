@@ -58,4 +58,95 @@ describe('segment cache prefetch scheduling', () => {
       ]
     )
   })
+
+  it(
+    'cancels a viewport-initiated prefetch if the link leaves the viewport ' +
+      'before it finishes',
+    async () => {
+      let act: ReturnType<typeof createRouterAct>
+      const browser = await next.browser('/cancellation', {
+        beforePageLoad(p: Playwright.Page) {
+          act = createRouterAct(p)
+        },
+      })
+
+      const checkbox = await browser.elementByCss('input[type="checkbox"]')
+
+      await act(
+        async () => {
+          // Reveal the links to start prefetching, but block the responses from
+          // reaching the client. Because the router limits the number of
+          // concurrent prefetches, not all the links will start prefetching —
+          // some of them will remain in the queue, waiting for additional
+          // network bandwidth. This test demonstrates that those prefetches
+          // will be canceled on viewport exit, too.
+          await act(async () => {
+            await checkbox.click()
+          }, 'block')
+
+          // Before the prefetch finishes, click the checkbox again to hide
+          // the link.
+          await checkbox.click()
+        },
+        // When the outer `act` scope finishes, the route tree prefetch will
+        // continue. Normally when the router is done prefetching the route
+        // tree, it will proceed to prefetching the segments. However, since
+        // the link is no longer visible, it should stop prefetching.
+        //
+        // Assert that no additional network requests are initiated in this
+        // outer scope. If this fails, it suggests that the prefetches were not
+        // canceled when the links left the viewport.
+        'no-requests'
+      )
+    }
+  )
+
+  it("reschedules a link's prefetch when it re-enters the viewport", async () => {
+    let act: ReturnType<typeof createRouterAct>
+    const browser = await next.browser('/cancellation', {
+      beforePageLoad(p: Playwright.Page) {
+        act = createRouterAct(p)
+      },
+    })
+
+    const checkbox = await browser.elementByCss('input[type="checkbox"]')
+
+    await act(
+      async () => {
+        // Reveal the links to start prefetching, but block the responses from
+        // reaching the client. Because the router limits the number of
+        // concurrent prefetches, not all the links will start prefetching —
+        // some of them will remain in the queue, waiting for additional
+        // network bandwidth. This test demonstrates that those prefetches
+        // will be canceled on viewport exit, too.
+        await act(async () => {
+          await checkbox.click()
+        }, 'block')
+
+        // Before the prefetch finishes, click the checkbox again to hide
+        // the link.
+        await checkbox.click()
+      },
+      // When the outer `act` scope finishes, the route tree prefetch will
+      // continue. Normally when the router is done prefetching the route
+      // tree, it will proceed to prefetching the segments. However, since
+      // the link is no longer visible, it should stop prefetching.
+      //
+      // Assert that no additional network requests are initiated in this
+      // outer scope. If this fails, it suggests that the prefetches were not
+      // canceled when the links left the viewport.
+      'no-requests'
+    )
+
+    // Now we'll reveal the links again to verify that the prefetch tasks are
+    // rescheduled, after having been canceled.
+    await act(
+      async () => {
+        await checkbox.click()
+      },
+      // Don't need to assert on all the prefetch responses. I picked an
+      // arbitrary one.
+      { includes: 'Content of page 5' }
+    )
+  })
 })
