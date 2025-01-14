@@ -28,7 +28,7 @@ export function useKeyboardShortcut({
           case MODIFIERS.SHIFT:
             return e.shiftKey
           default:
-            throw new Error(`Invalid modifier: ${modifier}`)
+            return false
         }
       })
 
