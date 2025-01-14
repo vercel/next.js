@@ -34,7 +34,7 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
-    module_graph::{SingleModuleGraph, SingleModuleGraphNode},
+    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode, SingleModuleGraphNode},
     output::OutputAssets,
 };
 
