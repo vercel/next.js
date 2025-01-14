@@ -228,6 +228,15 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface IncomingRequestLoggingConfig {
+  /**
+   * A regular expression to match incoming requests that should not be logged.
+   * You can specify multiple patterns to match incoming requests that should not be logged.
+   * @default []
+   */
+  ignorePattern?: RegExp[] | RegExp
+}
+
 export interface LoggingConfig {
   fetches?: {
     fullUrl?: boolean
@@ -237,6 +246,13 @@ export interface LoggingConfig {
      */
     hmrRefreshes?: boolean
   }
+
+  /**
+   * If set to false, incoming request logging is disabled.
+   * You can specify a pattern to match incoming requests that should not be logged.
+   * @default true
+   */
+  incomingRequest?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {

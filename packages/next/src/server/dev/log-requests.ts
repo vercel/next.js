@@ -10,7 +10,10 @@ import {
 import { stripNextRscUnionQuery } from '../../lib/url'
 import type { FetchMetric } from '../base-http'
 import type { NodeNextRequest, NodeNextResponse } from '../base-http/node'
-import type { LoggingConfig } from '../config-shared'
+import type {
+  IncomingRequestLoggingConfig,
+  LoggingConfig,
+} from '../config-shared'
 import { getRequestMeta } from '../request-meta'
 
 export interface RequestLoggingOptions {
@@ -20,14 +23,49 @@ export interface RequestLoggingOptions {
   readonly requestDurationInMs: number
 }
 
+/**
+ * Returns true if the incoming request should be logged.
+ * @returns True if the incoming request should be logged, false otherwise.
+ */
+export function shouldLogIncomingRequest(
+  request: NodeNextRequest,
+  loggingConfig: LoggingConfig | undefined
+): boolean {
+  if (typeof loggingConfig?.incomingRequest === 'boolean') {
+    return loggingConfig.incomingRequest
+  }
+
+  const ignorePattern = (
+    loggingConfig?.incomingRequest as IncomingRequestLoggingConfig
+  )?.ignorePattern
+
+  if (
+    !ignorePattern ||
+    !Array.isArray(ignorePattern) ||
+    ignorePattern.length === 0
+  ) {
+    return true
+  }
+
+  // This warning should rarely happen due to the type checking
+  if (ignorePattern.some((pattern) => !(pattern instanceof RegExp))) {
+    writeLine(yellow('Warning: Invalid incomingRequest.ignorePattern!'))
+    return true
+  }
+
+  return !ignorePattern.some((pattern) => pattern.test(request.url))
+}
+
 export function logRequests(options: RequestLoggingOptions): void {
   const { request, response, loggingConfig, requestDurationInMs } = options
 
-  logIncomingRequest({
-    request,
-    requestDurationInMs,
-    statusCode: response.statusCode,
-  })
+  if (shouldLogIncomingRequest(request, loggingConfig)) {
+    logIncomingRequest({
+      request,
+      requestDurationInMs,
+      statusCode: response.statusCode,
+    })
+  }
 
   if (request.fetchMetrics) {
     for (const fetchMetric of request.fetchMetrics) {
