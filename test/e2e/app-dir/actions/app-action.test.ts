@@ -888,11 +888,13 @@ describe('app-dir action handling', () => {
     async (runtime) => {
       let redirectResponseCode
       const browser = await next.browser(`/delayed-action/${runtime}`, {
-        beforePageLoad(page) {
+        beforePageLoad(page: Page) {
           page.on('response', async (res: Response) => {
-            const headers = await res.allHeaders()
-            if (headers['x-action-redirect']) {
-              redirectResponseCode = res.status()
+            if (!page.isClosed()) {
+              const headers = await res.allHeaders()
+              if (headers['x-action-redirect']) {
+                redirectResponseCode = res.status()
+              }
             }
           })
         },
