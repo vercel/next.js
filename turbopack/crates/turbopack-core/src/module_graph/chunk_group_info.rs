@@ -24,7 +24,7 @@ use crate::{
 };
 
 #[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat)]
-struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
+pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
 unsafe impl NonLocalValue for RoaringBitmapWrapper {}
 
 // RoaringBitmap doesn't impl Eq, not sure why: https://github.com/RoaringBitmap/roaring-rs/issues/302
@@ -104,26 +104,28 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     let entries = &graph.graphs.last().unwrap().await?.entries;
 
-    graph.traverse_edges_from_entry(entries, |parent, node| {
-        if let Some((parent, _)) = parent {
-            let parent_depth = *module_depth.get(&parent.module).unwrap();
-            let entry = module_depth.entry(node.module);
-            match entry {
-                Entry::Occupied(mut e) => {
-                    if (parent_depth + 1) < *e.get() {
+    graph
+        .traverse_edges_from_entry(entries, |parent, node| {
+            if let Some((parent, _)) = parent {
+                let parent_depth = *module_depth.get(&parent.module).unwrap();
+                let entry = module_depth.entry(node.module);
+                match entry {
+                    Entry::Occupied(mut e) => {
+                        if (parent_depth + 1) < *e.get() {
+                            e.insert(parent_depth + 1);
+                        }
+                    }
+                    Entry::Vacant(e) => {
                         e.insert(parent_depth + 1);
                     }
-                }
-                Entry::Vacant(e) => {
-                    e.insert(parent_depth + 1);
-                }
+                };
+            } else {
+                module_depth.insert(node.module, 0);
             };
-        } else {
-            module_depth.insert(node.module, 0);
-        };
 
-        GraphTraversalAction::Continue
-    });
+            GraphTraversalAction::Continue
+        })
+        .await?;
 
     // ----
 
@@ -192,10 +194,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     });
 
                     // Assign chunk group to the target node (the entry of the chunk group)
-                    module_chunk_groups
-                        .entry(node.module.clone())
-                        .or_default()
-                        .append(chunk_group_ids);
+                    let bitset = module_chunk_groups.entry(node.module).or_default();
+                    bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
                     GraphTraversalAction::Continue
                 } else if let Some((parent, _)) = parent_info {
                     // Only inherit chunk groups from parent
@@ -203,7 +203,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     // TODO don't clone here, but both are stored in module_chunk_groups
                     let parent_chunk_groups =
                         module_chunk_groups.get(&parent.module).unwrap().clone();
-                    match module_chunk_groups.entry(node.module.clone()) {
+                    match module_chunk_groups.entry(node.module) {
                         Entry::Occupied(mut e) => {
                             // Merge with parent, and continue traversal if modified
                             let current_chunk_groups = e.get_mut();
@@ -271,7 +271,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         let graphs = graph.graphs.iter().try_join().await?;
         let mut queue = entries
-            .into_iter()
+            .iter()
             .map(|e| {
                 NodeWithPriority(
                     *module_depth.get(e).unwrap(),

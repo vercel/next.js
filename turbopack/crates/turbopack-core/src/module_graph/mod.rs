@@ -24,7 +24,8 @@ use crate::{
     module::{Module, Modules},
     reference::primary_chunkable_referenced_modules,
 };
-mod chunk_group_info;
+
+pub mod chunk_group_info;
 
 #[derive(
     Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,

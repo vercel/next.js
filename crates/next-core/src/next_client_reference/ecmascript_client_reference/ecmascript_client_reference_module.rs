@@ -215,7 +215,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*client_module),
                     ChunkGroupType::Evaluated,
-                    "client".into(),
+                    Some("client".into()),
                     ecmascript_client_reference_client_ref_modifier(),
                 )
                 .to_resolved()
@@ -225,7 +225,7 @@ impl Module for EcmascriptClientReferenceModule {
                 EcmascriptClientReference::new(
                     *ResolvedVc::upcast(*ssr_module),
                     ChunkGroupType::Entry,
-                    "ssr".into(),
+                    Some("ssr".into()),
                     ecmascript_client_reference_ssr_ref_modifier(),
                 )
                 .to_resolved()
@@ -346,7 +346,7 @@ impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
 pub(crate) struct EcmascriptClientReference {
     module: ResolvedVc<Box<dyn Module>>,
     ty: ChunkGroupType,
-    merge_tag: RcStr,
+    merge_tag: Option<RcStr>,
     description: ResolvedVc<RcStr>,
 }
 
@@ -356,7 +356,7 @@ impl EcmascriptClientReference {
     pub fn new(
         module: ResolvedVc<Box<dyn Module>>,
         ty: ChunkGroupType,
-        merge_tag: RcStr,
+        merge_tag: Option<RcStr>,
         description: ResolvedVc<RcStr>,
     ) -> Vc<Self> {
         Self::cell(EcmascriptClientReference {
@@ -374,7 +374,7 @@ impl ChunkableModuleReference for EcmascriptClientReference {
     fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: self.ty,
-            merge_tag: Some(self.merge_tag),
+            merge_tag: self.merge_tag.clone(),
             // TODO use proper values here
             _chunking_context: None,
         }))
