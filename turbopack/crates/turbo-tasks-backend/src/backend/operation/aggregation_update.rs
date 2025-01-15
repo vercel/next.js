@@ -203,6 +203,14 @@ impl AggregatedDataUpdate {
             for collectible in collectibles {
                 collectibles_update.push((collectible, 1));
             }
+            collectibles_update.extend(iter_many!(
+                task,
+                Collectible {
+                    collectible
+                } count => {
+                    (collectible, *count)
+                }
+            ));
         }
         if let Some(dirty) = get!(task, Dirty) {
             dirty_container_count.update_with_dirty_state(dirty);
