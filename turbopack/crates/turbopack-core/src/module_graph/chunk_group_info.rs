@@ -5,6 +5,7 @@ use std::{
 };
 
 use anyhow::Result;
+use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
@@ -131,13 +132,17 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
              node: &'_ SingleModuleGraphModuleNode|
              -> GraphTraversalAction {
-                let chunk_group = if let Some((parent, chunking_type)) = parent_info {
+                let chunk_groups = if let Some((parent, chunking_type)) = parent_info {
                     match chunking_type {
                         ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => None,
-                        ChunkingType::Async => Some(ChunkGroup::Async(node.module)),
+                        ChunkingType::Async => Some(Either::Left(std::iter::once(
+                            ChunkGroup::Async(node.module),
+                        ))),
                         ChunkingType::Isolated {
                             merge_tag: None, ..
-                        } => Some(ChunkGroup::Isolated(node.module)),
+                        } => Some(Either::Left(std::iter::once(ChunkGroup::Isolated(
+                            node.module,
+                        )))),
                         ChunkingType::Isolated {
                             merge_tag: Some(merge_tag),
                             ..
@@ -151,39 +156,46 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                         .get(&ChunkGroupId(id))
                                         .unwrap()
                                         .hashed()
-                                });
+                                })
+                                // Collect solely to not borrow chunk_groups_from_id multiple times
+                                // in the iterators
+                                .collect::<Vec<_>>();
 
-                            Some(ChunkGroup::IsolatedMerged(
-                                parent_chunk_groups,
-                                merge_tag.clone(),
+                            Some(Either::Right(
+                                parent_chunk_groups
+                                    .into_iter()
+                                    .map(|p| ChunkGroup::IsolatedMerged(p, merge_tag.clone())),
                             ))
                         }
                         ChunkingType::Passthrough | ChunkingType::Traced => unreachable!(),
-                        _ => None,
                     }
                 } else {
-                    // entry
-                    Some(ChunkGroup::Entry(node.module))
+                    Some(Either::Left(std::iter::once(ChunkGroup::Entry(
+                        node.module,
+                    ))))
                 };
 
-                if let Some(chunk_group) = chunk_group {
+                if let Some(chunk_groups) = chunk_groups {
                     // Start of a new chunk group, don't inherit anything from parent
-                    let chunk_group_id =
+                    let chunk_group_ids = chunk_groups.map(|chunk_group| {
                         if let Some(chunk_group_id) = chunk_groups_to_id.get(&chunk_group) {
-                            *chunk_group_id
+                            chunk_group_id.0
                         } else {
-                            let chunk_group_id = ChunkGroupId(next_chunk_group_id);
+                            let chunk_group_id = next_chunk_group_id;
                             next_chunk_group_id += 1;
-                            chunk_groups_to_id.insert(chunk_group.clone(), chunk_group_id);
-                            chunk_groups_from_id.insert(chunk_group_id, chunk_group.clone());
+                            chunk_groups_to_id
+                                .insert(chunk_group.clone(), ChunkGroupId(chunk_group_id));
+                            chunk_groups_from_id
+                                .insert(ChunkGroupId(chunk_group_id), chunk_group.clone());
                             chunk_group_id
-                        };
+                        }
+                    });
 
                     // Assign chunk group to the target node (the entry of the chunk group)
                     module_chunk_groups
                         .entry(node.module.clone())
                         .or_default()
-                        .insert(chunk_group_id.0);
+                        .append(chunk_group_ids);
                     GraphTraversalAction::Continue
                 } else if let Some((parent, _)) = parent_info {
                     // Only inherit chunk groups from parent
