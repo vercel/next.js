@@ -1,0 +1,9 @@
+{
+  "version": 3,
+  "sources": [],
+  "sections": [
+    {"offset": {"line": 7, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/server_actions/input/stub.js"],"sourcesContent":["export function cache() {}\nexport function decryptActionBoundArgs() {}\nexport function encryptActionBoundArgs() {}\nexport function registerServerReference() {}\n"],"names":[],"mappings":";;;;;;AAAO,SAAS,SAAS;AAClB,SAAS,0BAA0B;AACnC,SAAS,0BAA0B;AACnC,SAAS,2BAA2B"}},
+    {"offset": {"line": 17, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}},
+    {"offset": {"line": 23, "column": 0}, "map": {"version":3,"sources":["turbopack://[project]/turbopack/crates/turbopack-tests/tests/snapshot/swc_transforms/server_actions/input/index.js"],"sourcesContent":["'use cache'\n\nexport async function foo() {}\n"],"names":[],"mappings":";;;;;;;;mTAEO,uCAAqB,GAArB,eAAe,OAAO;;;;;IAAP,MAAf"}},
+    {"offset": {"line": 37, "column": 0}, "map": {"version":3,"sources":[],"names":[],"mappings":"A"}}]
+}

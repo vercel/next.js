@@ -50,6 +50,9 @@ pub use next_edge::context::{
     get_edge_compile_time_info, get_edge_resolve_options_context,
 };
 pub use next_import_map::get_next_package;
+pub use next_shared::transforms::server_actions::{
+    get_server_actions_transform_rule, ActionsTransform,
+};
 pub use page_loader::{create_page_loader_entry_module, PageLoaderAsset};
 pub use util::{get_asset_path_from_pathname, pathname_for_path, PathType};
 

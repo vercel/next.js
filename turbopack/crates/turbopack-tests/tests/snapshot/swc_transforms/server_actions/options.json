@@ -1,0 +1,4 @@
+{
+    "environment": "NodeJs",
+    "enableServerActionTransforms": true
+}

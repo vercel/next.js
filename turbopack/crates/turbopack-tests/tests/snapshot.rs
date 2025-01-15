@@ -11,6 +11,8 @@ use std::{
 
 use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
+use next_core::{get_server_actions_transform_rule, ActionsTransform};
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
@@ -51,6 +53,7 @@ use turbopack_core::{
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
+    resolve::options::{ImportMap, ImportMapping},
     source::Source,
 };
 use turbopack_ecmascript_plugins::transform::{
@@ -76,6 +79,7 @@ fn register() {
     turbopack_ecmascript_plugins::register();
     turbopack_ecmascript_runtime::register();
     turbopack_resolve::register();
+    next_core::register();
     include!(concat!(env!("OUT_DIR"), "/register_test_snapshot.rs"));
 }
 
@@ -96,6 +100,8 @@ struct SnapshotOptions {
     environment: SnapshotEnvironment,
     #[serde(default)]
     tree_shaking_mode: Option<TreeShakingMode>,
+    #[serde(default)]
+    enable_server_action_transforms: bool,
 }
 
 #[derive(Debug, Deserialize, Default)]
@@ -122,6 +128,7 @@ impl Default for SnapshotOptions {
             runtime_type: default_runtime_type(),
             environment: Default::default(),
             tree_shaking_mode: Default::default(),
+            enable_server_action_transforms: false,
         }
     }
 }
@@ -267,7 +274,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         RuleCondition::ResourcePathEndsWith(".tsx".into()),
     ]);
 
-    let module_rules = ModuleRule::new(
+    let mut module_rules = vec![ModuleRule::new(
         conditions,
         vec![ModuleRuleEffect::ExtendEcmascriptTransforms {
             prepend: ResolvedVc::cell(vec![
@@ -281,7 +288,30 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             ]),
             append: ResolvedVc::cell(vec![]),
         }],
-    );
+    )];
+
+    let mut import_map = ImportMap::empty();
+
+    if options.enable_server_action_transforms {
+        module_rules.push(get_server_actions_transform_rule(
+            ActionsTransform::Server,
+            ResolvedVc::cell(RcStr::from("")),
+            false,
+            true,
+            ResolvedVc::cell(FxHashSet::from_iter([])),
+        ));
+
+        let stub_import_mapping = ImportMapping::PrimaryAlternative(
+            "./stub".into(),
+            Some(entry_asset.parent().to_resolved().await?),
+        )
+        .resolved_cell();
+
+        import_map.insert_exact_alias("private-next-rsc-cache-wrapper", stub_import_mapping);
+        import_map.insert_exact_alias("private-next-rsc-server-reference", stub_import_mapping);
+        import_map.insert_exact_alias("private-next-rsc-action-encryption", stub_import_mapping);
+    }
+
     let asset_context: Vc<Box<dyn AssetContext>> = Vc::upcast(ModuleAssetContext::new(
         Default::default(),
         compile_time_info,
@@ -308,7 +338,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                 }
                 .resolved_cell(),
             )],
-            module_rules: vec![module_rules],
+            module_rules,
             tree_shaking_mode: options.tree_shaking_mode,
             ..Default::default()
         }
@@ -318,6 +348,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
             enable_react: true,
             enable_node_modules: Some(project_root),
             custom_conditions: vec!["development".into()],
+            import_map: Some(import_map.resolved_cell()),
             rules: vec![(
                 ContextCondition::InDirectory("node_modules".into()),
                 ResolveOptionsContext {

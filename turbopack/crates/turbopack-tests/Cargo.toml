@@ -13,6 +13,8 @@ publish = false
 workspace = true
 
 [dependencies]
+next-core = { workspace = true }
+rustc-hash = { workspace = true }
 turbopack = { workspace = true }
 
 [dev-dependencies]
