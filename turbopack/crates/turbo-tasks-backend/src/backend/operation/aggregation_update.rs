@@ -1894,7 +1894,7 @@ impl AggregationUpdateQueue {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("check optimize").entered();
 
-        let task = ctx.task(task_id, TaskDataCategory::Meta);
+        let task = ctx.task(task_id, TaskDataCategory::All);
         let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
