@@ -95,10 +95,9 @@ export function ErrorOverlayLayout({
           <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
 
           <DialogFooter>
-            {/* TODO: errorCode should not be undefined whatsoever */}
             <ErrorOverlayFooter
               footerMessage={footerMessage}
-              errorCode={errorCode!}
+              errorCode={errorCode}
             />
             <ErrorOverlayBottomStacks
               errorsCount={readyErrors?.length ?? 0}

@@ -34,7 +34,7 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
-    module_graph::SingleModuleGraph,
+    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAssets,
 };
 
@@ -121,14 +121,17 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
         .await?
         .iter_nodes()
         .map(|node| async move {
-            let module = node.module;
-            let layer = node.layer.as_ref();
-            if layer.is_some_and(|layer| &**layer == "app-client" || &**layer == "client") {
+            let SingleModuleGraphModuleNode { module, layer, .. } = node;
+
+            if layer
+                .as_ref()
+                .is_some_and(|layer| &**layer == "app-client" || &**layer == "client")
+            {
                 if let Some(dynamic_entry_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module).await?
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module).await?
                 {
                     return Ok(Some((
-                        module,
+                        *module,
                         DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
                     )));
                 }
@@ -136,10 +139,10 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module).await?
             {
                 return Ok(Some((
-                    module,
+                    *module,
                     DynamicImportEntriesMapType::ClientReference(client_reference_module),
                 )));
             }

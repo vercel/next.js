@@ -71,8 +71,8 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
 export const styles = css`
   .error-feedback {
     display: flex;
-    align-items: center;
     gap: var(--size-gap);
+    white-space: nowrap;
   }
 
   .error-feedback-thanks {
