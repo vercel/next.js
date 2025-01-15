@@ -754,14 +754,20 @@ impl PageEndpoint {
                 bail!("expected an evaluateable asset");
             };
 
-            let client_chunking_context = this.pages_project.project().client_chunking_context();
+            let project = this.pages_project.project();
+            let client_chunking_context = project.client_chunking_context();
+
+            let evaluatable_assets = this
+                .pages_project
+                .client_runtime_entries()
+                .with_entry(client_main_module)
+                .with_entry(client_module);
+            let module_graph = project.module_graph_for_entries(evaluatable_assets);
 
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
-                this.pages_project
-                    .client_runtime_entries()
-                    .with_entry(client_main_module)
-                    .with_entry(client_module),
+                evaluatable_assets,
+                module_graph,
                 Value::new(AvailabilityInfo::Root),
             );
 
@@ -880,6 +886,9 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
+            let project = this.pages_project.project();
+            let module_graph = project.module_graph(*ssr_module);
+
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 // The SSR and Client Graphs are not connected in Pages Router.
                 // We are only interested in get_next_dynamic_imports_for_endpoint at the
@@ -900,8 +909,8 @@ impl PageEndpoint {
                 let client_availability_info = self.client_chunks().await?.availability_info;
 
                 let reduced_graphs = get_reduced_graphs_for_endpoint(
-                    this.pages_project.project(),
-                    self.client_module(),
+                    module_graph,
+                    *project.per_page_module_graph().await?,
                 );
                 let next_dynamic_imports = reduced_graphs
                     .get_next_dynamic_imports_for_endpoint(self.client_module())
@@ -917,7 +926,8 @@ impl PageEndpoint {
             )) = next_dynamic_imports
             {
                 collect_next_dynamic_chunks(
-                    Vc::upcast(this.pages_project.project().client_chunking_context()),
+                    module_graph,
+                    Vc::upcast(project.client_chunking_context()),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
                 )
@@ -938,6 +948,7 @@ impl PageEndpoint {
                     .evaluated_chunk_group_assets(
                         ssr_module.ident(),
                         Vc::cell(evaluatable_assets),
+                        module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
                     .to_resolved()
@@ -963,6 +974,7 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         *ssr_module,
                         runtime_entries,
+                        module_graph,
                         OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
                     )
@@ -980,7 +992,7 @@ impl PageEndpoint {
 
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
                         NftJsonAsset::new(
-                            this.pages_project.project(),
+                            project,
                             *ssr_entry_chunk,
                             loadable_manifest_output
                                 .await?
@@ -1014,14 +1026,15 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn ssr_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
+        let project = this.pages_project.project();
         Ok(self.internal_ssr_chunk(
             SsrChunkType::Page,
             this.pages_project
                 .project()
                 .node_root()
                 .join("server".into()),
-            this.pages_project.project().server_chunking_context(true),
-            this.pages_project.project().edge_chunking_context(true),
+            project.server_chunking_context(true),
+            project.edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))

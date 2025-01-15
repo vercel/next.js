@@ -74,6 +74,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::{Module, OptionModule},
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     reference_type::InnerAssets,
     resolve::{
@@ -270,6 +271,7 @@ pub trait EcmascriptAnalyzable {
 
     async fn module_content(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>>;
@@ -379,6 +381,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
@@ -392,6 +395,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             *parsed,
             self.ident(),
             module_type_result.module_type,
+            module_graph,
             chunking_context,
             *analyze.references,
             *analyze.code_generation,
@@ -573,10 +577,12 @@ impl ChunkableModule for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {
             module: self,
+            module_graph,
             chunking_context,
         }))
     }
@@ -627,6 +633,7 @@ impl ResolveOrigin for EcmascriptModuleAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ResolvedVc<EcmascriptModuleAsset>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -684,9 +691,11 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             .module_options(async_module_info);
 
         // TODO check if we need to pass async_module_info at all
-        let content = this
-            .module
-            .module_content(*this.chunking_context, async_module_info);
+        let content = this.module.module_content(
+            *this.module_graph,
+            *this.chunking_context,
+            async_module_info,
+        );
 
         Ok(EcmascriptChunkItemContent::new(
             content,
@@ -714,6 +723,7 @@ impl EcmascriptModuleContent {
         parsed: ResolvedVc<ParseResult>,
         ident: ResolvedVc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
@@ -728,11 +738,15 @@ impl EcmascriptModuleContent {
             if let Some(code_gen) =
                 ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context, async_module_info));
+                code_gens.push(code_gen.code_generation(
+                    module_graph,
+                    chunking_context,
+                    async_module_info,
+                ));
             } else if let Some(code_gen) =
                 ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
             {
-                code_gens.push(code_gen.code_generation(chunking_context));
+                code_gens.push(code_gen.code_generation(module_graph, chunking_context));
             }
         }
         if let Some(async_module) = *async_module.await? {
@@ -741,15 +755,19 @@ impl EcmascriptModuleContent {
         for c in code_generation.await?.iter() {
             match c {
                 CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(chunking_context));
+                    code_gens.push(c.code_generation(module_graph, chunking_context));
                 }
                 CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    code_gens.push(c.code_generation(chunking_context, async_module_info));
+                    code_gens.push(c.code_generation(
+                        module_graph,
+                        chunking_context,
+                        async_module_info,
+                    ));
                 }
             }
         }
         if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gens.push(exports.code_generation(chunking_context));
+            code_gens.push(exports.code_generation(module_graph, chunking_context));
         }
 
         // need to keep that around to allow references into that

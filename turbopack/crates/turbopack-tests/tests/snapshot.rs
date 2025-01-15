@@ -48,6 +48,7 @@ use turbopack_core::{
     free_var_references,
     issue::{Issue, IssueDescriptionExt},
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference_type::{EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -385,13 +386,24 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     let chunks = if let Some(ecmascript) =
         Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
     {
+        let evaluatable_assets = runtime_entries
+            .unwrap_or_else(EvaluatableAssets::empty)
+            .with_entry(Vc::upcast(ecmascript));
+        let all_modules = Vc::cell(
+            evaluatable_assets
+                .await?
+                .iter()
+                .copied()
+                .map(ResolvedVc::upcast)
+                .collect(),
+        );
+        let module_graph = ModuleGraph::from_modules(all_modules);
         // TODO: Load runtime entries from snapshots
         match options.runtime {
             Runtime::Browser => chunking_context.evaluated_chunk_group_assets(
                 entry_module.ident(),
-                runtime_entries
-                    .unwrap_or_else(EvaluatableAssets::empty)
-                    .with_entry(Vc::upcast(ecmascript)),
+                evaluatable_assets,
+                module_graph,
                 Value::new(AvailabilityInfo::Root),
             ),
             Runtime::NodeJs => {
@@ -414,9 +426,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                                 )
                                 .with_extension("entry.js".into()),
                             entry_module,
-                            runtime_entries
-                                .unwrap_or_else(EvaluatableAssets::empty)
-                                .with_entry(Vc::upcast(ecmascript)),
+                            evaluatable_assets,
+                            module_graph,
                             OutputAssets::empty(),
                             Value::new(AvailabilityInfo::Root),
                         )
@@ -428,7 +439,8 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
     } else if let Some(chunkable) =
         Vc::try_resolve_downcast::<Box<dyn ChunkableModule>>(entry_module).await?
     {
-        chunking_context.root_chunk_group_assets(chunkable)
+        let module_graph = ModuleGraph::from_module(Vc::upcast(chunkable));
+        chunking_context.root_chunk_group_assets(chunkable, module_graph)
     } else {
         // TODO convert into a serve-able asset
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")

@@ -520,12 +520,23 @@ impl ModuleGraph {
     pub fn from_graphs(graphs: Vec<ResolvedVc<SingleModuleGraph>>) -> Vc<Self> {
         Self { graphs }.cell()
     }
+
     #[turbo_tasks::function]
     pub fn from_single_graph(graph: ResolvedVc<SingleModuleGraph>) -> Vc<Self> {
         Self {
             graphs: vec![graph],
         }
         .cell()
+    }
+
+    #[turbo_tasks::function]
+    pub fn from_module(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(Vc::cell(vec![module])))
+    }
+
+    #[turbo_tasks::function]
+    pub fn from_modules(modules: Vc<Modules>) -> Vc<Self> {
+        Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
     }
 }
 

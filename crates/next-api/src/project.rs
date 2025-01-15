@@ -40,7 +40,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        ChunkingContext,
+        ChunkingContext, EvaluatableAssets,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -48,6 +48,7 @@ use turbopack_core::{
     file_source::FileSource,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::{Module, Modules},
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionSourceMap,
@@ -687,6 +688,11 @@ impl Project {
     }
 
     #[turbo_tasks::function]
+    pub(super) async fn per_page_module_graph(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(*self.mode.await? == NextMode::Development))
+    }
+
+    #[turbo_tasks::function]
     pub(super) fn js_config(&self) -> Vc<JsConfig> {
         *self.js_config
     }
@@ -801,6 +807,56 @@ impl Project {
         }
 
         Ok(Vc::cell(modules))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_graph(
+        self: Vc<Self>,
+        entry: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleGraph>> {
+        Ok(if *self.per_page_module_graph().await? {
+            ModuleGraph::from_module(*entry)
+        } else {
+            self.whole_app_module_graph()
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn module_graph_for_entries(
+        self: Vc<Self>,
+        evaluatable_assets: Vc<EvaluatableAssets>,
+    ) -> Result<Vc<ModuleGraph>> {
+        Ok(if *self.per_page_module_graph().await? {
+            let entries = Vc::cell(
+                evaluatable_assets
+                    .await?
+                    .iter()
+                    .copied()
+                    .map(ResolvedVc::upcast)
+                    .collect(),
+            );
+            ModuleGraph::from_modules(entries)
+        } else {
+            self.whole_app_module_graph()
+        })
+    }
+
+    #[turbo_tasks::function]
+    pub async fn whole_app_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+        async move {
+            self.whole_app_module_graph_inner()
+                .resolve_strongly_consistent()
+                .await
+        }
+        .instrument(tracing::info_span!("module graph for app"))
+        .await
+    }
+
+    // This is a performance optimization. This function is a root aggregation function that
+    // aggregates over the whole subgraph.
+    #[turbo_tasks::function]
+    fn whole_app_module_graph_inner(self: Vc<Self>) -> Vc<ModuleGraph> {
+        ModuleGraph::from_modules(self.get_all_entries())
     }
 
     #[turbo_tasks::function]

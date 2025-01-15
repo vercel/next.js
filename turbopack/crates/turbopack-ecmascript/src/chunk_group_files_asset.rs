@@ -14,6 +14,7 @@ use turbopack_core::{
         IntrospectableChildren,
     },
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference::{ModuleReference, ModuleReferences, SingleModuleReference},
 };
@@ -103,11 +104,13 @@ impl ChunkableModule for ChunkGroupFilesAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         let this = self.await?;
         Ok(Vc::upcast(
             ChunkGroupFilesChunkItem {
+                module_graph,
                 chunking_context,
                 client_root: this.client_root,
                 inner: self,
@@ -128,6 +131,7 @@ impl EcmascriptChunkPlaceable for ChunkGroupFilesAsset {
 #[turbo_tasks::value]
 struct ChunkGroupFilesChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     client_root: ResolvedVc<FileSystemPath>,
     inner: ResolvedVc<ChunkGroupFilesAsset>,
 }
@@ -148,12 +152,13 @@ impl ChunkGroupFilesChunkItem {
                     .copied()
                     .unwrap_or_else(EvaluatableAssets::empty)
                     .with_entry(*ecma),
+                *self.module_graph,
                 Value::new(AvailabilityInfo::Root),
             )
         } else {
             inner
                 .chunking_context
-                .root_chunk_group_assets(*ResolvedVc::upcast(inner.module))
+                .root_chunk_group_assets(*ResolvedVc::upcast(inner.module), *self.module_graph)
         };
         Ok(chunks)
     }

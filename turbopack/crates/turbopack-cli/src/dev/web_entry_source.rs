@@ -1,6 +1,6 @@
 use anyhow::{anyhow, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, Vc};
 use turbo_tasks_env::ProcessEnv;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
@@ -9,6 +9,8 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     environment::Environment,
     file_source::FileSource,
+    module::Module,
+    module_graph::ModuleGraph,
     reference_type::{EntryReferenceSubType, ReferenceType},
     resolve::{
         origin::{PlainResolveOrigin, ResolveOriginExt},
@@ -133,12 +135,25 @@ pub async fn create_web_entry_source(
                 .first()
                 .copied())
         })
-        .try_join()
+        .try_flat_join()
         .await?;
+
+    let all_modules = Vc::cell(
+        entries
+            .iter()
+            .copied()
+            .chain(
+                runtime_entries
+                    .await?
+                    .iter()
+                    .map(|&entry| ResolvedVc::upcast(entry)),
+            )
+            .collect::<Vec<ResolvedVc<Box<dyn Module>>>>(),
+    );
+    let module_graph = ModuleGraph::from_modules(all_modules).to_resolved().await?;
 
     let entries: Vec<_> = entries
         .into_iter()
-        .flatten()
         .map(|module| async move {
             if let (Some(chunkable_module), Some(entry)) = (
                 ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?,
@@ -146,6 +161,7 @@ pub async fn create_web_entry_source(
             ) {
                 Ok(DevHtmlEntry {
                     chunkable_module,
+                    module_graph,
                     chunking_context,
                     runtime_entries: Some(runtime_entries.with_entry(*entry).to_resolved().await?),
                 })
@@ -156,6 +172,7 @@ pub async fn create_web_entry_source(
                 // add an ecmascript chunk with the runtime code
                 Ok(DevHtmlEntry {
                     chunkable_module,
+                    module_graph,
                     chunking_context,
                     runtime_entries: None,
                 })

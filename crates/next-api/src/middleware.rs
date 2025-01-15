@@ -109,11 +109,15 @@ impl MiddlewareEndpoint {
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable.to_resolved().await?);
 
+        let evaluatable_assets = Vc::cell(evaluatable_assets);
+        let module_graph = self.project.module_graph_for_entries(evaluatable_assets);
+
         let edge_chunking_context = self.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
-            Vc::cell(evaluatable_assets),
+            evaluatable_assets,
+            module_graph,
             Value::new(AvailabilityInfo::Root),
         );
 
