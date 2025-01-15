@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -10,7 +10,16 @@ use super::ChunkableModule;
 use crate::module::Module;
 
 #[derive(
-    PartialEq, Eq, TraceRawVcs, Copy, Clone, Serialize, Deserialize, ValueDebugFormat, NonLocalValue,
+    Debug,
+    PartialEq,
+    Eq,
+    TraceRawVcs,
+    Copy,
+    Clone,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
 )]
 pub struct AvailableModulesInfo {
     pub is_async: bool,
@@ -20,6 +29,7 @@ pub struct AvailableModulesInfo {
 pub struct OptionAvailableModulesInfo(Option<AvailableModulesInfo>);
 
 #[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
 pub struct AvailableModuleInfoMap(
     FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
 );
@@ -97,5 +107,39 @@ impl AvailableModules {
             return Ok(parent.get(*module));
         }
         Ok(Vc::cell(None))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
+        let modules = self.modules.await?;
+        let parent = if let Some(parent) = self.parent {
+            Some(parent.snapshot().await?)
+        } else {
+            None
+        };
+
+        Ok(AvailableModulesSnapshot { parent, modules }.cell())
+    }
+}
+
+#[turbo_tasks::value(serialization = "none")]
+#[derive(Debug, Clone)]
+pub struct AvailableModulesSnapshot {
+    parent: Option<ReadRef<AvailableModulesSnapshot>>,
+    modules: ReadRef<AvailableModuleInfoMap>,
+}
+
+impl AvailableModulesSnapshot {
+    pub fn get(
+        &self,
+        module: ResolvedVc<Box<dyn ChunkableModule>>,
+    ) -> Option<AvailableModulesInfo> {
+        if let Some(&info) = self.modules.get(&module) {
+            return Some(info);
+        };
+        if let Some(parent) = &self.parent {
+            return parent.get(module);
+        }
+        None
     }
 }

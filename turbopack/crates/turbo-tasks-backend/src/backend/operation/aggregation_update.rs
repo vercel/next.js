@@ -1,5 +1,5 @@
 use std::{
-    cmp::{max, Ordering, Reverse},
+    cmp::{max, Ordering},
     collections::{hash_map::Entry as HashMapEntry, VecDeque},
     hash::Hash,
     num::NonZeroU32,
@@ -23,7 +23,9 @@ use crate::{
             invalidate::{make_task_dirty, TaskDirtyCause},
             ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, get_many, iter_many, remove, update, update_count, update_ucount_and_get},
+        storage::{
+            count, get, get_many, iter_many, remove, update, update_count, update_ucount_and_get,
+        },
         TaskDataCategory,
     },
     data::{
@@ -35,7 +37,7 @@ use crate::{
 
 pub const LEAF_NUMBER: u32 = 16;
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
-const MAX_UPPERS_FOR_LEAF: u32 = 3;
+const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
@@ -927,6 +929,10 @@ impl AggregationUpdateQueue {
                     #[cfg(feature = "trace_aggregation_update")]
                     let _span = trace_span!("make inner").entered();
 
+                    if count!(upper, Follower).is_power_of_two() {
+                        self.push_optimize_task(upper_id);
+                    }
+
                     let upper_ids = get_uppers(&upper);
 
                     // Add the same amount of upper edges
@@ -1002,6 +1008,10 @@ impl AggregationUpdateQueue {
 
                     // Add the same amount of follower edges
                     if update_count!(upper, Follower { task: task_id }, count) {
+                        // May optimize the task
+                        if count!(upper, Follower).is_power_of_two() {
+                            self.push_optimize_task(upper_id);
+                        }
                         // update active count
                         if get!(task, Activeness).is_some_and(|a| a.active_counter > 0) {
                             self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
@@ -1186,6 +1196,11 @@ impl AggregationUpdateQueue {
                 },
                 -1
             ) {
+                // May optimize the task
+                if count!(upper, Follower).is_power_of_two() {
+                    self.push_optimize_task(upper_id);
+                }
+
                 let has_active_count =
                     get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
                 let upper_ids = get_uppers(&upper);
@@ -1280,6 +1295,11 @@ impl AggregationUpdateQueue {
                 },
                 -1
             ) {
+                // May optimize the task
+                if count!(upper, Follower).is_power_of_two() {
+                    self.push_optimize_task(upper_id);
+                }
+
                 let upper_ids = get_uppers(&upper);
                 let has_active_count =
                     get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
@@ -1334,6 +1354,11 @@ impl AggregationUpdateQueue {
                     },
                     1
                 ) {
+                    // May optimize the task
+                    if count!(upper, Follower).is_power_of_two() {
+                        self.push_optimize_task(upper_id);
+                    }
+
                     // update active count
                     if get!(upper, Activeness).is_some_and(|a| a.active_counter > 0) {
                         tasks_for_which_increment_active_count.push(new_follower_id);
@@ -1484,6 +1509,11 @@ impl AggregationUpdateQueue {
                         }
                         // It's a follower of the upper node
                         if update_count!(upper, Follower { task: *follower_id }, 1) {
+                            // May optimize the task
+                            if count!(upper, Follower).is_power_of_two() {
+                                self.push_optimize_task(upper_id);
+                            }
+
                             new_followers_of_upper_uppers.push(*follower_id);
                         }
                         if upper_aggregation_number == *follower_aggregation_number {
@@ -1641,6 +1671,11 @@ impl AggregationUpdateQueue {
                 },
                 1
             ) {
+                // May optimize the task
+                if count!(upper, Follower).is_power_of_two() {
+                    self.push_optimize_task(upper_id);
+                }
+
                 let has_active_count =
                     get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
                 let upper_ids = get_uppers(&upper);
@@ -1860,107 +1895,96 @@ impl AggregationUpdateQueue {
         let _span = trace_span!("check optimize").entered();
 
         let task = ctx.task(task_id, TaskDataCategory::Meta);
-        let children_count = get!(task, ChildrenCount).copied().unwrap_or_default();
-        if children_count == 0 {
-            return;
-        }
         let aggregation_number = get!(task, AggregationNumber).copied().unwrap_or_default();
         if is_root_node(aggregation_number.effective) {
             return;
         }
+        let follower_count = if is_aggregating_node(aggregation_number.effective) {
+            let follower_count = count!(task, Follower);
+            if follower_count == 0 {
+                return;
+            }
+            follower_count
+        } else {
+            let children_count = count!(task, Child);
+            if children_count == 0 {
+                return;
+            }
+            children_count
+        };
         let upper_count = get!(task, PersistentUpperCount)
             .copied()
-            .unwrap_or_default();
-        if !is_aggregating_node(aggregation_number.effective) {
-            if upper_count > MAX_UPPERS_FOR_LEAF {
-                #[cfg(feature = "trace_aggregation_update")]
-                let _span = trace_span!(
-                    "optimize leaf",
-                    old_aggregation_number = aggregation_number.effective,
-                    upper_count
+            .unwrap_or_default() as usize;
+        if upper_count <= 1
+            || upper_count.saturating_sub(1) * follower_count
+                <= max(
+                    MAX_UPPERS_FOLLOWER_PRODUCT,
+                    aggregation_number.effective as usize,
                 )
-                .entered();
-                self.push(AggregationUpdateJob::UpdateAggregationNumber {
-                    task_id,
-                    base_aggregation_number: LEAF_NUMBER,
-                    distance: None,
-                });
-            }
-            return;
-        }
-        if upper_count <= aggregation_number.effective {
+        {
             // Doesn't need optimization
             return;
         }
         let uppers = get_uppers(&task);
+        let follower = get_followers_with_aggregation_number(&task, aggregation_number.effective);
         drop(task);
 
         let mut root_uppers = 0;
 
-        let mut uppers_aggregation_numbers = uppers
+        #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+        enum Type {
+            Upper,
+            Follower,
+        }
+        let mut aggregation_numbers = uppers
             .iter()
-            .filter_map(|upper_id| {
-                if upper_id.is_transient() {
+            .map(|&id| (id, Type::Upper))
+            .chain(follower.iter().map(|&id| (id, Type::Follower)))
+            .filter_map(|(task_id, ty)| {
+                if task_id.is_transient() {
                     return None;
                 }
-                let upper = ctx.task(*upper_id, TaskDataCategory::Meta);
-                let n = get_aggregation_number(&upper);
+                let task = ctx.task(task_id, TaskDataCategory::Meta);
+                let n = get_aggregation_number(&task);
                 if is_root_node(n) {
                     root_uppers += 1;
                     None
                 } else {
-                    Some(Reverse(n))
+                    Some((n, ty))
                 }
             })
             .collect::<Vec<_>>();
-        uppers_aggregation_numbers.sort_unstable();
+        aggregation_numbers.sort_unstable();
 
-        // This is the aggregation number where work is minimal
-        let min_work_aggregation_number = if let Some(upper) = uppers_aggregation_numbers.first() {
-            upper.0 + 1
-        } else {
+        let Some((mut new_aggregation_number, _)) = aggregation_numbers.first().copied() else {
             return;
         };
-        let minimal_work = root_uppers;
+        let mut new_upper_count = upper_count;
+        let mut new_follower_count = follower_count;
 
-        let mut new_aggregation_number = max(
-            min_work_aggregation_number,
-            minimal_work.try_into().unwrap_or(u32::MAX),
-        );
-
-        let mut i = 0;
-        loop {
-            // A smaller aggregation number will conflict
-            let mut next_aggregation_number = new_aggregation_number - 1;
-
-            // Find a possible smaller aggregation number to is valid
-            while let Some(n) = uppers_aggregation_numbers.get(i) {
-                match n.0.cmp(&next_aggregation_number) {
-                    std::cmp::Ordering::Less => {
-                        i += 1;
+        // Find a new free spot for the aggregation number that doesn't conflict with any other
+        for (n, ty) in aggregation_numbers {
+            match n.cmp(&new_aggregation_number) {
+                std::cmp::Ordering::Less => {}
+                std::cmp::Ordering::Equal => new_aggregation_number += 1,
+                std::cmp::Ordering::Greater => {
+                    // This aggregation number would not conflict
+                    // Is it within the limit?
+                    let product = new_follower_count * new_upper_count.saturating_sub(1) * 2;
+                    if new_follower_count == 0 || product <= new_aggregation_number as usize {
+                        break;
+                    } else if product < n as usize {
+                        new_aggregation_number = product as u32;
+                        break;
+                    } else {
+                        new_aggregation_number = n + 1;
                     }
-                    std::cmp::Ordering::Equal => {
-                        next_aggregation_number -= 1;
-                        i += 1;
-                    }
-                    std::cmp::Ordering::Greater => break,
                 }
             }
-
-            // Compute the work for that case
-            let work = root_uppers + i;
-            if work > next_aggregation_number as usize {
-                break;
+            match ty {
+                Type::Follower => new_follower_count -= 1,
+                Type::Upper => new_upper_count -= 1,
             }
-
-            // Find the smallest number in that range
-            let min_aggregation_number = if let Some(upper) = uppers_aggregation_numbers.get(i) {
-                upper.0 + 1
-            } else {
-                aggregation_number.effective
-            };
-            new_aggregation_number =
-                max(min_aggregation_number, work.try_into().unwrap_or(u32::MAX));
         }
 
         if aggregation_number.effective != new_aggregation_number {
@@ -1970,6 +1994,10 @@ impl AggregationUpdateQueue {
                 upper_count,
                 old_aggregation_number = aggregation_number.effective,
                 new_aggregation_number,
+                upper_count,
+                new_upper_count,
+                follower_count,
+                new_follower_count,
             )
             .entered();
             self.push(AggregationUpdateJob::UpdateAggregationNumber {
@@ -1978,6 +2006,8 @@ impl AggregationUpdateQueue {
                     .saturating_sub(aggregation_number.distance),
                 distance: None,
             });
+            // We want to make sure to optimize again after this change has been applied
+            self.push_optimize_task(task_id);
         }
     }
 }
