@@ -166,15 +166,28 @@ macro_rules! task_inputs_impl {
     }
 }
 
-// Helper function for `task_fn_impl!()` to reduce the amount of code inside the macro, and to give
-// the compiler more chances to dedupe monomorphized code across small functions with less typevars
 #[cfg(debug_assertions)]
-fn get_debug_downcast_error_msg<T: MagicAny>(arg: &dyn MagicAny) -> String {
+#[inline(never)]
+fn get_debug_downcast_error_msg(expected: &str, actual: &dyn MagicAny) -> String {
     format!(
-        "Invalid argument type, expected {} got {}",
-        std::any::type_name::<T>(),
-        (*arg).magic_type_name()
+        "Invalid argument type, expected {expected} got {}",
+        (*actual).magic_type_name()
     )
+}
+
+/// Downcast, and clone all the arguments in the singular `arg` tuple.
+///
+/// This helper function for `task_fn_impl!()` reduces the amount of code inside the macro, and
+/// gives the compiler more chances to dedupe monomorphized code across small functions with less
+/// typevars.
+fn get_args<T: MagicAny + Clone>(arg: &dyn MagicAny) -> Result<T> {
+    let value = arg.downcast_ref::<T>().cloned();
+    #[cfg(debug_assertions)]
+    return anyhow::Context::with_context(value, || {
+        get_debug_downcast_error_msg(std::any::type_name::<T>(), arg)
+    });
+    #[cfg(not(debug_assertions))]
+    return anyhow::Context::context(value, "Invalid argument type");
 }
 
 // Helper function for `task_fn_impl!()`
@@ -187,26 +200,7 @@ async fn output_try_into_non_local_raw_vc(output: impl TaskOutput) -> Result<Raw
 }
 
 macro_rules! task_fn_impl {
-    ( $async_fn_trait:ident $get_args_fn:ident $arg_len:literal $( $arg:ident )* ) => {
-        /// Downcast, unpack, and clone all the arguments in the singular `arg` tuple.
-        //
-        // This helper is generic over the arguments, but not the function, potentially allowing two
-        // functions with the same argument types to potentially share monomorphized code.
-        #[allow(non_snake_case)]
-        fn $get_args_fn<$($arg: TaskInput + 'static,)*>(arg: &dyn MagicAny) -> Result<($($arg,)*)> {
-            match arg.downcast_ref::<($($arg,)*)>() {
-                Some(($($arg,)*)) => Ok(($($arg.clone(),)*)),
-                None => {
-                    #[cfg(debug_assertions)]
-                    let context_str = get_debug_downcast_error_msg::<($($arg,)*)>(arg);
-                    #[cfg(not(debug_assertions))]
-                    let context_str = "Invalid argument type";
-
-                    anyhow::bail!(context_str);
-                }
-            }
-        }
-
+    ( $async_fn_trait:ident $arg_len:literal $( $arg:ident )* ) => {
         impl<F, Output, $($arg,)*> TaskFnInputFunction<FunctionMode, ($($arg,)*)> for F
         where
             $($arg: TaskInput + 'static,)*
@@ -216,7 +210,7 @@ macro_rules! task_fn_impl {
             #[allow(non_snake_case)]
             fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let ($($arg,)*) = $get_args_fn::<$($arg,)*>(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let output = (task_fn)($($arg,)*);
                     output_try_into_non_local_raw_vc(output).await
@@ -234,7 +228,7 @@ macro_rules! task_fn_impl {
             #[allow(non_snake_case)]
             fn functor(&self, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
-                let ($($arg,)*) = $get_args_fn::<$($arg,)*>(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let output = (task_fn)($($arg,)*).await;
                     output_try_into_non_local_raw_vc(output).await
@@ -253,7 +247,7 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-                let ($($arg,)*) = $get_args_fn::<$($arg,)*>(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
@@ -274,7 +268,7 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-                let ($($arg,)*) = $get_args_fn::<$($arg,)*>(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let output = (task_fn)(recv, $($arg,)*);
                     output_try_into_non_local_raw_vc(output).await
@@ -307,7 +301,7 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-                let ($($arg,)*) = $get_args_fn::<$($arg,)*>(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let recv = recv.await?;
                     let recv = <Recv::Read as VcRead<Recv>>::target_to_value_ref(&*recv);
@@ -327,7 +321,7 @@ macro_rules! task_fn_impl {
             fn functor(&self, this: RawVc, arg: &dyn MagicAny) -> Result<NativeTaskFuture> {
                 let task_fn = self.clone();
                 let recv = Vc::<Recv>::from(this);
-                let ($($arg,)*) = $get_args_fn::<$($arg,)*>(arg)?;
+                let ($($arg,)*) = get_args::<($($arg,)*)>(arg)?;
                 Ok(Box::pin(async move {
                     let output = (task_fn)(recv, $($arg,)*).await;
                     output_try_into_non_local_raw_vc(output).await
@@ -337,19 +331,19 @@ macro_rules! task_fn_impl {
     };
 }
 
-task_fn_impl! { AsyncFn0 get_args_0 0 }
-task_fn_impl! { AsyncFn1 get_args_1 1 A1 }
-task_fn_impl! { AsyncFn2 get_args_2 2 A1 A2 }
-task_fn_impl! { AsyncFn3 get_args_3 3 A1 A2 A3 }
-task_fn_impl! { AsyncFn4 get_args_4 4 A1 A2 A3 A4 }
-task_fn_impl! { AsyncFn5 get_args_5 5 A1 A2 A3 A4 A5 }
-task_fn_impl! { AsyncFn6 get_args_6 6 A1 A2 A3 A4 A5 A6 }
-task_fn_impl! { AsyncFn7 get_args_7 7 A1 A2 A3 A4 A5 A6 A7 }
-task_fn_impl! { AsyncFn8 get_args_8 8 A1 A2 A3 A4 A5 A6 A7 A8 }
-task_fn_impl! { AsyncFn9 get_args_9 9 A1 A2 A3 A4 A5 A6 A7 A8 A9 }
-task_fn_impl! { AsyncFn10 get_args_10 10 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 }
-task_fn_impl! { AsyncFn11 get_args_11 11 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 }
-task_fn_impl! { AsyncFn12 get_args_12 12 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 }
+task_fn_impl! { AsyncFn0 0 }
+task_fn_impl! { AsyncFn1 1 A1 }
+task_fn_impl! { AsyncFn2 2 A1 A2 }
+task_fn_impl! { AsyncFn3 3 A1 A2 A3 }
+task_fn_impl! { AsyncFn4 4 A1 A2 A3 A4 }
+task_fn_impl! { AsyncFn5 5 A1 A2 A3 A4 A5 }
+task_fn_impl! { AsyncFn6 6 A1 A2 A3 A4 A5 A6 }
+task_fn_impl! { AsyncFn7 7 A1 A2 A3 A4 A5 A6 A7 }
+task_fn_impl! { AsyncFn8 8 A1 A2 A3 A4 A5 A6 A7 A8 }
+task_fn_impl! { AsyncFn9 9 A1 A2 A3 A4 A5 A6 A7 A8 A9 }
+task_fn_impl! { AsyncFn10 10 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 }
+task_fn_impl! { AsyncFn11 11 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 }
+task_fn_impl! { AsyncFn12 12 A1 A2 A3 A4 A5 A6 A7 A8 A9 A10 A11 A12 }
 
 // There needs to be one more implementation than task_fn_impl to account for
 // the receiver.
