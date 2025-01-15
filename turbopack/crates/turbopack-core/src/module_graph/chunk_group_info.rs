@@ -11,7 +11,8 @@ use roaring::RoaringBitmap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc,
+    TryJoinIterExt, ValueToString, Vc,
 };
 
 use crate::{
@@ -66,14 +67,15 @@ pub struct ChunkGroupInfo(HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrap
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ChunkGroup {
     /// e.g. a page
-    Entry(ResolvedVc<Box<dyn Module>>),
+    Entry(ReadRef<RcStr>),
     /// a module that has an incoming async edge
-    Async(ResolvedVc<Box<dyn Module>>),
+    Async(ReadRef<RcStr>),
     /// a module with a incoming non-merged isolated edge
-    Isolated(ResolvedVc<Box<dyn Module>>),
+    Isolated(ReadRef<RcStr>),
     /// a module with a incoming merging isolated edge
     IsolatedMerged(
-        /* parent: */ ChunkGroupHash,
+        /* parent: */ Box<ChunkGroup>,
+        // /* parent: */ ChunkGroupHash,
         /* merge_tag: */ RcStr,
     ),
 }
@@ -131,19 +133,19 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     {
         let mut visitor =
-            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
-             node: &'_ SingleModuleGraphModuleNode|
-             -> GraphTraversalAction {
+            async |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+                   node: &'_ SingleModuleGraphModuleNode|
+                   -> Result<GraphTraversalAction> {
                 let chunk_groups = if let Some((parent, chunking_type)) = parent_info {
                     match chunking_type {
                         ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => None,
                         ChunkingType::Async => Some(Either::Left(std::iter::once(
-                            ChunkGroup::Async(node.module),
+                            ChunkGroup::Async(node.module.ident().to_string().await?),
                         ))),
                         ChunkingType::Isolated {
                             merge_tag: None, ..
                         } => Some(Either::Left(std::iter::once(ChunkGroup::Isolated(
-                            node.module,
+                            node.module.ident().to_string().await?,
                         )))),
                         ChunkingType::Isolated {
                             merge_tag: Some(merge_tag),
@@ -154,30 +156,34 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 .unwrap()
                                 .iter()
                                 .map(|id| {
-                                    chunk_groups_from_id
-                                        .get(&ChunkGroupId(id))
-                                        .unwrap()
-                                        .hashed()
+                                    chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap().clone()
+                                    // .hashed()
                                 })
                                 // Collect solely to not borrow chunk_groups_from_id multiple times
                                 // in the iterators
                                 .collect::<Vec<_>>();
 
-                            Some(Either::Right(
-                                parent_chunk_groups
-                                    .into_iter()
-                                    .map(|p| ChunkGroup::IsolatedMerged(p, merge_tag.clone())),
-                            ))
+                            Some(Either::Right(parent_chunk_groups.into_iter().map(|p| {
+                                ChunkGroup::IsolatedMerged(Box::new(p), merge_tag.clone())
+                            })))
                         }
                         ChunkingType::Passthrough | ChunkingType::Traced => unreachable!(),
                     }
                 } else {
                     Some(Either::Left(std::iter::once(ChunkGroup::Entry(
-                        node.module,
+                        node.module.ident().to_string().await?,
                     ))))
                 };
 
-                if let Some(chunk_groups) = chunk_groups {
+                Ok(if let Some(chunk_groups) = chunk_groups {
+                    // let chunk_groups = chunk_groups.collect::<Vec<_>>();
+                    // println!(
+                    //     "{:?} chunk_groups: {:?}",
+                    //     node.module.ident().to_string().await?,
+                    //     chunk_groups
+                    // );
+                    // let chunk_groups = chunk_groups.into_iter();
+
                     // Start of a new chunk group, don't inherit anything from parent
                     let chunk_group_ids = chunk_groups.map(|chunk_group| {
                         if let Some(chunk_group_id) = chunk_groups_to_id.get(&chunk_group) {
@@ -196,6 +202,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     // Assign chunk group to the target node (the entry of the chunk group)
                     let bitset = module_chunk_groups.entry(node.module).or_default();
                     bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
+
+                    println!(
+                        "{:?} chunk_groups: {:?}",
+                        node.module.ident().to_string().await?,
+                        bitset
+                            .iter()
+                            .map(|id| chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap())
+                            .collect::<Vec<_>>()
+                    );
+
                     GraphTraversalAction::Continue
                 } else if let Some((parent, _)) = parent_info {
                     // Only inherit chunk groups from parent
@@ -221,7 +237,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     }
                 } else {
                     GraphTraversalAction::Continue
-                }
+                })
             };
 
         macro_rules! get_node {
@@ -280,7 +296,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             })
             .collect::<BinaryHeap<_>>();
         for entry_node in &queue {
-            visitor(None, get_node!(graphs, entry_node.1));
+            visitor(None, get_node!(graphs, entry_node.1)).await?;
         }
         while let Some(NodeWithPriority(_, node)) = queue.pop() {
             let graph = &graphs[node.graph_idx].graph;
@@ -294,7 +310,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 };
                 let succ_weight = get_node!(graphs, succ);
                 let edge_weight = graph.edge_weight(edge).unwrap();
-                let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                let action = visitor(Some((node_weight, edge_weight)), succ_weight).await?;
                 if action == GraphTraversalAction::Continue {
                     queue.push(NodeWithPriority(
                         *module_depth.get(&succ_weight.module).unwrap(),

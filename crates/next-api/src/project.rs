@@ -29,7 +29,8 @@ use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
     trace::TraceRawVcs,
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
-    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
+    ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, TryJoinIterExt,
+    Value, ValueToString, Vc,
 };
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
@@ -1569,6 +1570,37 @@ async fn whole_app_module_graph_operation(
 
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
+
+    {
+        let mut x = base
+            .chunk_group_info()
+            .await?
+            .iter()
+            .map(|(m, group)| async move {
+                Ok((
+                    m.ident().to_string().await?,
+                    group.iter().collect::<Vec<_>>(),
+                ))
+            })
+            .try_join()
+            .await?;
+        x.sort_by(|a, b| a.0.cmp(&b.0));
+        println!("chunk_group_info");
+        for (m, group) in &x {
+            if m.contains(std::env::var("FILTER").unwrap_or_default().as_str()) {
+                println!("{}: {:?}", m, group);
+            }
+        }
+
+        let mut map: FxIndexMap<Vec<u32>, Vec<ReadRef<RcStr>>> = FxIndexMap::default();
+        for (v, k) in x.into_iter() {
+            map.entry(k).or_default().push(v);
+        }
+        println!("----");
+        for (m, group) in map {
+            println!("{:?}: {:?}", m, group);
+        }
+    }
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
         additional_entries.await?.into_iter().map(|m| **m).collect(),
