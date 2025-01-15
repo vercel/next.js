@@ -1005,7 +1005,7 @@ export interface NextConfig extends Record<string, any> {
   /**
    * Logging configuration. Set to `false` to disable logging.
    */
-  logging?: LoggingConfig
+  logging?: LoggingConfig | false
 
   /**
    * period (in seconds) where the server allow to serve stale cache
