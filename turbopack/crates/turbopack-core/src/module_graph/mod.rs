@@ -70,26 +70,23 @@ impl VisitedModules {
     #[turbo_tasks::function]
     pub async fn concatenate(&self, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
         let graph = graph.await?;
-        let iter = self.0.iter().map(|(module, idx)| (*module, *idx)).chain(
-            graph
-                .enumerate_nodes()
-                .flat_map(|(node_idx, module)| match module {
-                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                        module, ..
-                    }) => Some((
-                        *module,
-                        GraphNodeIndex {
-                            graph_idx: 0,
-                            node_idx,
-                        },
-                    )),
-                    SingleModuleGraphNode::VisitedModule { .. } => None,
-                }),
-        );
+        let extended = graph.enumerate_nodes();
+        let size_hint = extended.size_hint().0 / 2;
+        let iter = extended.flat_map(|(node_idx, module)| match module {
+            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode { module, .. }) => Some((
+                *module,
+                GraphNodeIndex {
+                    graph_idx: 0,
+                    node_idx,
+                },
+            )),
+            SingleModuleGraphNode::VisitedModule { .. } => None,
+        });
 
-        // `map.extend()` but don't overwrite keys (give higher priority to the earlier maps)
-        let mut map = FxIndexMap::default();
-        map.reserve(iter.size_hint().0);
+        // `map.extend()` but don't overwrite keys (give higher priority to the
+        // earlier maps)
+        let mut map = self.0.clone();
+        map.reserve(size_hint);
         for (k, v) in iter {
             map.entry(k).or_insert(v);
         }
