@@ -244,6 +244,36 @@ impl RawVc {
         }
     }
 
+    /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
+    /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    pub(crate) async fn to_non_local(self) -> Result<RawVc> {
+        let tt = turbo_tasks();
+        let mut current = self;
+        let mut notified = false;
+        let mut lazily_notify = || {
+            if !notified {
+                tt.notify_scheduled_tasks();
+                notified = true;
+            }
+        };
+        loop {
+            match current {
+                RawVc::LocalOutput(task_id, local_cell_id) => {
+                    lazily_notify();
+                    current =
+                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
+                            .await?;
+                }
+                RawVc::LocalCell(execution_id, local_cell_id) => {
+                    let shared_reference = read_local_cell(execution_id, local_cell_id);
+                    let value_type = get_value_type(shared_reference.0);
+                    return Ok((value_type.raw_cell)(shared_reference));
+                }
+                non_local => return Ok(non_local),
+            }
+        }
+    }
+
     pub(crate) fn connect(&self) {
         let tt = turbo_tasks();
         tt.connect_task(self.get_task_id());
