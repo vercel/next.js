@@ -27,9 +27,25 @@ function resolveSWCOptions(
 }
 
 async function lazilyGetTSConfig(cwd: string) {
-  let tsConfig: { compilerOptions: CompilerOptions }
+  let tsConfig: {
+    compilerOptions?: CompilerOptions
+    extends?: string | string[]
+  } = {}
+
   try {
     tsConfig = parseJsonFile(join(cwd, 'tsconfig.json'))
+
+    while (
+      !('compilerOptions' in tsConfig) &&
+      'extends' in tsConfig &&
+      tsConfig.extends
+    ) {
+      for (const extend of [tsConfig.extends].flat()) {
+        tsConfig = parseJsonFile(require.resolve(extend, { paths: [cwd] }))
+      }
+    }
+
+    tsConfig.compilerOptions ??= {}
   } catch (error) {
     // ignore if tsconfig.json does not exist
     if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
@@ -38,7 +54,7 @@ async function lazilyGetTSConfig(cwd: string) {
     tsConfig = { compilerOptions: {} }
   }
 
-  return tsConfig
+  return tsConfig as { compilerOptions: CompilerOptions }
 }
 
 export async function transpileConfig({
