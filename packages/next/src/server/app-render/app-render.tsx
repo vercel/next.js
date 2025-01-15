@@ -532,7 +532,7 @@ async function generateDynamicRSCPayload(
 
   // Otherwise, it's a regular RSC response.
   return {
-    b: ctx.sharedContext.buildId,
+    b: workStore.isStaticGeneration ? '' : ctx.sharedContext.buildId,
     f: flightData,
     S: workStore.isStaticGeneration,
   }
@@ -843,7 +843,7 @@ async function getRSCPayload(
   return {
     // See the comment above the `Preloads` component (below) for why this is part of the payload
     P: <Preloads preloadCallbacks={preloadCallbacks} />,
-    b: ctx.sharedContext.buildId,
+    b: workStore.isStaticGeneration ? '' : ctx.sharedContext.buildId,
     p: ctx.assetPrefix,
     c: prepareInitialCanonicalUrl(url),
     i: !!couldBeIntercepted,
