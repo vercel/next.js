@@ -3,8 +3,10 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, OperationVc, ResolvedVc, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, CollectiblesSource, NonLocalValue, OperationVc,
+    ResolvedVc, Vc,
 };
+use turbopack_core::diagnostics::Diagnostic;
 
 use crate::{
     entrypoints::Entrypoints,
@@ -29,11 +31,33 @@ pub struct EntrypointsOperation {
     pub pages_error_endpoint: OperationVc<Box<dyn Endpoint>>,
 }
 
+/// HACK: Wraps an `OperationVc<Entrypoints>` inside of a second `OperationVc`.
+///
+/// When `CollectiblesSource::take_collectibles` happens, it in-place *mutates* the `OperationVc`,
+/// which isn't what we want in `entrypoints_without_diagnostics_operation`. Instead we want a *new*
+/// `OperationVc` without diagnostics. This creates that new `OperationVc` to be mutated.
+#[turbo_tasks::function(operation)]
+fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints> {
+    entrypoints.connect()
+}
+
+/// Removes diagnostics from the top-level `entrypoints` operation so that they're not duplicated
+/// across many different individual.
+#[turbo_tasks::function(operation)]
+fn entrypoints_without_diagnostics_operation(
+    entrypoints: OperationVc<Entrypoints>,
+) -> Vc<Entrypoints> {
+    let entrypoints = entrypoints_wrapper(entrypoints);
+    let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
+    entrypoints.connect()
+}
+
 #[turbo_tasks::value_impl]
 impl EntrypointsOperation {
     #[turbo_tasks::function(operation)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
         let e = entrypoints.connect().await?;
+        let entrypoints = entrypoints_without_diagnostics_operation(entrypoints);
         Ok(Self {
             routes: e
                 .routes
