@@ -8,6 +8,7 @@ use anyhow::Result;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
 };
@@ -21,7 +22,7 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, PartialEq, TraceRawVcs, ValueDebugFormat)]
+#[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat)]
 struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
 unsafe impl NonLocalValue for RoaringBitmapWrapper {}
 
@@ -70,7 +71,10 @@ enum ChunkGroup {
     /// a module with a incoming non-merged isolated edge
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with a incoming merging isolated edge
-    IsolatedMerged(ChunkGroupHash, /* hash(merge_tag): */ usize),
+    IsolatedMerged(
+        /* parent: */ ChunkGroupHash,
+        /* merge_tag: */ RcStr,
+    ),
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -99,31 +103,26 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
     let entries = &graph.graphs.last().unwrap().await?.entries;
 
-    graph.traverse_edges_from_entries_topological(
-        entries,
-        &mut (),
-        |parent, node, _| {
-            if let Some((parent, _)) = parent {
-                let parent_depth = *module_depth.get(&parent.module).unwrap();
-                let entry = module_depth.entry(node.module);
-                match entry {
-                    Entry::Occupied(mut e) => {
-                        if (parent_depth + 1) < *e.get() {
-                            e.insert(parent_depth + 1);
-                        }
-                    }
-                    Entry::Vacant(e) => {
+    graph.traverse_edges_from_entry(entries, |parent, node| {
+        if let Some((parent, _)) = parent {
+            let parent_depth = *module_depth.get(&parent.module).unwrap();
+            let entry = module_depth.entry(node.module);
+            match entry {
+                Entry::Occupied(mut e) => {
+                    if (parent_depth + 1) < *e.get() {
                         e.insert(parent_depth + 1);
                     }
-                };
-            } else {
-                module_depth.insert(node.module, 0);
+                }
+                Entry::Vacant(e) => {
+                    e.insert(parent_depth + 1);
+                }
             };
+        } else {
+            module_depth.insert(node.module, 0);
+        };
 
-            GraphTraversalAction::Continue
-        },
-        |parent, node, _| {},
-    );
+        GraphTraversalAction::Continue
+    });
 
     // ----
 
@@ -131,7 +130,87 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut visitor =
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
              node: &'_ SingleModuleGraphModuleNode|
-             -> GraphTraversalAction { false };
+             -> GraphTraversalAction {
+                let chunk_group = if let Some((parent, chunking_type)) = parent_info {
+                    match chunking_type {
+                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => None,
+                        ChunkingType::Async => Some(ChunkGroup::Async(node.module)),
+                        ChunkingType::Isolated {
+                            merge_tag: None, ..
+                        } => Some(ChunkGroup::Isolated(node.module)),
+                        ChunkingType::Isolated {
+                            merge_tag: Some(merge_tag),
+                            ..
+                        } => {
+                            let parent_chunk_groups = module_chunk_groups
+                                .get(&parent.module)
+                                .unwrap()
+                                .iter()
+                                .map(|id| {
+                                    chunk_groups_from_id
+                                        .get(&ChunkGroupId(id))
+                                        .unwrap()
+                                        .hashed()
+                                });
+
+                            Some(ChunkGroup::IsolatedMerged(
+                                parent_chunk_groups,
+                                merge_tag.clone(),
+                            ))
+                        }
+                        ChunkingType::Passthrough | ChunkingType::Traced => unreachable!(),
+                        _ => None,
+                    }
+                } else {
+                    // entry
+                    Some(ChunkGroup::Entry(node.module))
+                };
+
+                if let Some(chunk_group) = chunk_group {
+                    // Start of a new chunk group, don't inherit anything from parent
+                    let chunk_group_id =
+                        if let Some(chunk_group_id) = chunk_groups_to_id.get(&chunk_group) {
+                            *chunk_group_id
+                        } else {
+                            let chunk_group_id = ChunkGroupId(next_chunk_group_id);
+                            next_chunk_group_id += 1;
+                            chunk_groups_to_id.insert(chunk_group.clone(), chunk_group_id);
+                            chunk_groups_from_id.insert(chunk_group_id, chunk_group.clone());
+                            chunk_group_id
+                        };
+
+                    // Assign chunk group to the target node (the entry of the chunk group)
+                    module_chunk_groups
+                        .entry(node.module.clone())
+                        .or_default()
+                        .insert(chunk_group_id.0);
+                    GraphTraversalAction::Continue
+                } else if let Some((parent, _)) = parent_info {
+                    // Only inherit chunk groups from parent
+
+                    // TODO don't clone here, but both are stored in module_chunk_groups
+                    let parent_chunk_groups =
+                        module_chunk_groups.get(&parent.module).unwrap().clone();
+                    match module_chunk_groups.entry(node.module.clone()) {
+                        Entry::Occupied(mut e) => {
+                            // Merge with parent, and continue traversal if modified
+                            let current_chunk_groups = e.get_mut();
+                            if parent_chunk_groups != *current_chunk_groups {
+                                current_chunk_groups.0 |= parent_chunk_groups.0;
+                                GraphTraversalAction::Continue
+                            } else {
+                                GraphTraversalAction::Skip
+                            }
+                        }
+                        Entry::Vacant(e) => {
+                            e.insert(parent_chunk_groups);
+                            GraphTraversalAction::Continue
+                        }
+                    }
+                } else {
+                    GraphTraversalAction::Continue
+                }
+            };
 
         macro_rules! get_node {
             ($graphs:expr, $node:expr) => {{
@@ -184,10 +263,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             .map(|e| {
                 NodeWithPriority(
                     *module_depth.get(e).unwrap(),
-                    GraphNodeIndex {
-                        graph_idx: graphs.len() - 1,
-                        node_idx: ModuleGraph::get_entry(&graphs, e).unwrap(),
-                    },
+                    ModuleGraph::get_entry(&graphs, e).unwrap(),
                 )
             })
             .collect::<BinaryHeap<_>>();
