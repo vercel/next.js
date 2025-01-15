@@ -54,6 +54,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
+    module_graph::ModuleGraph,
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -735,33 +736,49 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn client_evaluatable_assets(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
+        let this = self.await?;
+
+        let client_module = self.client_module();
+        let client_main_module = this.pages_project.client_main_module();
+
+        let Some(client_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
+        else {
+            bail!("expected an evaluateable asset");
+        };
+
+        let Some(client_main_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
+        else {
+            bail!("expected an evaluateable asset");
+        };
+
+        let evaluatable_assets = this
+            .pages_project
+            .client_runtime_entries()
+            .with_entry(client_main_module)
+            .with_entry(client_module);
+        Ok(evaluatable_assets)
+    }
+
+    #[turbo_tasks::function]
+    async fn client_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+        let this = self.await?;
+        let project = this.pages_project.project();
+        let evaluatable_assets = self.client_evaluatable_assets();
+        Ok(project.module_graph_for_entries(evaluatable_assets))
+    }
+
+    #[turbo_tasks::function]
     async fn client_chunks(self: Vc<Self>) -> Result<Vc<ChunkGroupResult>> {
         async move {
             let this = self.await?;
 
-            let client_module = self.client_module();
-            let client_main_module = this.pages_project.client_main_module();
-
-            let Some(client_module) =
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
-            else {
-                bail!("expected an evaluateable asset");
-            };
-
-            let Some(client_main_module) =
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
-            else {
-                bail!("expected an evaluateable asset");
-            };
-
             let project = this.pages_project.project();
             let client_chunking_context = project.client_chunking_context();
 
-            let evaluatable_assets = this
-                .pages_project
-                .client_runtime_entries()
-                .with_entry(client_main_module)
-                .with_entry(client_module);
+            let evaluatable_assets = self.client_evaluatable_assets();
             let module_graph = project.module_graph_for_entries(evaluatable_assets);
 
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
@@ -908,8 +925,10 @@ impl PageEndpoint {
 
                 let client_availability_info = self.client_chunks().await?.availability_info;
 
+                let client_module_graph = self.client_module_graph();
+
                 let reduced_graphs = get_reduced_graphs_for_endpoint(
-                    module_graph,
+                    client_module_graph,
                     *project.per_page_module_graph().await?,
                 );
                 let next_dynamic_imports = reduced_graphs
