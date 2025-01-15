@@ -26,6 +26,7 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
+import { handleClientError } from './components/errors/use-error-handler'
 
 /// <reference types="react-dom/experimental" />
 
@@ -267,6 +268,19 @@ export function hydrate() {
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
+
+    const ssrErrorTemplateTag = document.querySelector(
+      'template[data-next-error-message]'
+    )
+    if (ssrErrorTemplateTag) {
+      const message: string = ssrErrorTemplateTag.getAttribute(
+        'data-next-error-message'
+      )!
+      const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
+      const error = new Error(message)
+      error.stack = stack || ''
+      handleClientError(error, [])
+    }
   } else {
     React.startTransition(() => {
       ReactDOMClient.hydrateRoot(appElement, reactEl, {
