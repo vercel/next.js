@@ -561,11 +561,16 @@ impl ModuleGraph {
     fn get_entry(
         graphs: &[ReadRef<SingleModuleGraph>],
         entry: &ResolvedVc<Box<dyn Module>>,
-    ) -> Result<NodeIndex> {
+    ) -> Result<GraphNodeIndex> {
         graphs
             .iter()
-            .find_map(|graph| graph.modules.get(entry))
-            .copied()
+            .enumerate()
+            .find_map(|(graph_idx, graph)| {
+                graph.modules.get(entry).map(|node_idx| GraphNodeIndex {
+                    graph_idx,
+                    node_idx: *node_idx,
+                })
+            })
             .context("Couldn't find entry module in graph")
     }
 
@@ -588,15 +593,10 @@ impl ModuleGraph {
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
-        let entries = entries
-            .into_iter()
-            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap());
 
         let mut stack = entries
-            .map(|e| GraphNodeIndex {
-                graph_idx: self.graphs.len() - 1,
-                node_idx: e,
-            })
+            .into_iter()
+            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap())
             .collect::<Vec<_>>();
         let mut visited = HashSet::new();
         for entry_node in &stack {
@@ -660,9 +660,6 @@ impl ModuleGraph {
         ),
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
-        let entries = entries
-            .into_iter()
-            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap());
 
         enum ReverseTopologicalPass {
             Visit,
@@ -674,14 +671,12 @@ impl ModuleGraph {
             Option<(GraphNodeIndex, EdgeIndex)>,
             GraphNodeIndex,
         )> = entries
+            .into_iter()
             .map(|e| {
                 (
                     ReverseTopologicalPass::ExpandAndVisit,
                     None,
-                    GraphNodeIndex {
-                        graph_idx: self.graphs.len() - 1,
-                        node_idx: e,
-                    },
+                    ModuleGraph::get_entry(&graphs, e).unwrap(),
                 )
             })
             .collect();
