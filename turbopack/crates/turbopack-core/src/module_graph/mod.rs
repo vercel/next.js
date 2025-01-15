@@ -10,6 +10,7 @@ use petgraph::{
     visit::{Dfs, EdgeRef, VisitMap, Visitable},
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -22,6 +23,7 @@ use crate::{
     chunk::ChunkingType,
     issue::Issue,
     module::{Module, Modules},
+    module_graph::chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
     reference::primary_chunkable_referenced_modules,
 };
 
@@ -541,6 +543,13 @@ impl ModuleGraph {
     #[turbo_tasks::function]
     pub fn from_modules(modules: Vc<Modules>) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
+        compute_chunk_group_info(self)
+            .instrument(tracing::info_span!("compute_chunk_group_info"))
+            .await
     }
 }
 
