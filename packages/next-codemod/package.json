@@ -8,7 +8,7 @@
     "directory": "packages/next-codemod"
   },
   "dependencies": {
-    "cheerio": "1.0.0-rc.9",
+    "cheerio": "1.0.0",
     "commander": "12.1.0",
     "execa": "4.0.3",
     "find-up": "4.1.0",
