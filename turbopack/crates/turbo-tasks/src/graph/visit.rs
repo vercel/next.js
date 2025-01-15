@@ -19,8 +19,13 @@ pub trait Visit<Node, Abort = !, Impl = ()> {
     /// * abort the traversal entirely.
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<Node, Abort>;
 
-    /// Returns a future that resolves to the outgoing edges of the given
-    /// `node`.
+    /// Returns a future that resolves to the outgoing edges of the given `node`.
+    ///
+    /// Lifetimes:
+    /// - The returned future's lifetime cannot depend on the reference to self because there are
+    ///   multiple `edges` futures created and awaited concurrently.
+    /// - The returned future's lifetime cannot depend on `node` because `GraphStore::insert`
+    ///   returns a node reference that's only valid for the lifetime of its `&mut self` reference.
     fn edges(&mut self, node: &Node) -> Self::EdgesFuture;
 
     /// Returns a [Span] for the given `node`, under which all edges are
