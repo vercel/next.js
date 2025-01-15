@@ -183,7 +183,7 @@ pub enum ChunkingType {
     // TODO implement
     Isolated {
         _ty: ChunkGroupType,
-        _merge_tag: Option<RcStr>,
+        merge_tag: Option<RcStr>,
         _chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
     },
     /// Module not placed in chunk group, but its references are still followed and placed into the

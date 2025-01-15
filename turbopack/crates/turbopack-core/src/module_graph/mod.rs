@@ -24,6 +24,7 @@ use crate::{
     module::{Module, Modules},
     reference::primary_chunkable_referenced_modules,
 };
+mod chunk_group_info;
 
 #[derive(Debug, Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs)]
 pub struct GraphNodeIndex {

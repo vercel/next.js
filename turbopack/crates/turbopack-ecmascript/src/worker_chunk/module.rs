@@ -104,7 +104,7 @@ impl ChunkableModuleReference for WorkerModuleReference {
     fn chunking_type(self: Vc<Self>) -> Vc<ChunkingTypeOption> {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: ChunkGroupType::Evaluated,
-            _merge_tag: None,
+            merge_tag: None,
             _chunking_context: None,
         }))
     }
