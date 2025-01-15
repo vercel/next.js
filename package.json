@@ -132,7 +132,7 @@
     "alex": "9.1.0",
     "amphtml-validator": "1.0.38",
     "async-sema": "3.0.1",
-    "babel-plugin-react-compiler": "0.0.0-experimental-c23de8d-20240515",
+    "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
     "browserslist": "4.22.2",
     "buffer": "5.6.0",
     "cheerio": "0.22.0",
