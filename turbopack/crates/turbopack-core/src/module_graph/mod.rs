@@ -626,7 +626,7 @@ impl ModuleGraph {
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub async fn traverse_edges_from_entry_topological<'a, S>(
+    pub async fn traverse_edges_from_entries_topological<'a, S>(
         &self,
         entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
