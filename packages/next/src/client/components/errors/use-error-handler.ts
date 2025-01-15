@@ -68,6 +68,9 @@ export function useErrorHandler(
         rejectionHandlers.indexOf(handleOnUnhandledRejection),
         1
       )
+
+      errorQueue.splice(0, errorQueue.length)
+      rejectionQueue.splice(0, rejectionQueue.length)
     }
   }, [handleOnUnhandledError, handleOnUnhandledRejection])
 }
