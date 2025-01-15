@@ -1,13 +1,109 @@
-interface Props extends React.ComponentProps<'svg'> {
+import { useEffect, useState } from 'react'
+import { noop as css } from '../../../../../../internal/helpers/noop-template'
+
+interface Props extends React.ComponentProps<'button'> {
   issueCount: number
   onClick: () => void
+  isDevBuilding: boolean
+  isDevRendering: boolean
 }
 
-export const NextLogo = ({ issueCount, onClick, ...props }: Props) => {
-  // TODO: animate it based on build status..
-  // TODO: add red dot when there are errors + change color of the logo
+export const NextLogo = ({
+  issueCount,
+  onClick,
+  isDevBuilding,
+  isDevRendering,
+  ...props
+}: Props) => {
+  const [isLoading, setIsLoading] = useState(false)
+  const [isPressed, setIsPressed] = useState(false)
+
+  // Only shows the loading state after a 200ms delay when building or rendering,
+  // to avoid flashing the loading state for quick updates
+  useEffect(() => {
+    if (isDevBuilding || isDevRendering) {
+      const timeout = setTimeout(() => {
+        setIsLoading(true)
+      }, 200)
+      return () => clearTimeout(timeout)
+    } else {
+      setIsLoading(false)
+    }
+  }, [isDevBuilding, isDevRendering])
+
   return (
-    <div onClick={onClick} style={{ position: 'relative' }}>
+    <button
+      onClick={onClick}
+      style={{
+        position: 'relative',
+        cursor: 'pointer',
+        userSelect: 'none',
+        backdropFilter: 'blur(48px)',
+        boxShadow:
+          '0px 24px 32px -8px #0000001A, 0px 8px 16px -4px #0000001A, 0px 1px 1px 0px #00000026',
+        borderRadius: '50%',
+        transition: 'transform 0.1s ease',
+        transform: isPressed ? 'scale(0.95)' : 'scale(1)',
+      }}
+      onMouseDown={() => setIsPressed(true)}
+      onMouseUp={() => setIsPressed(false)}
+      onMouseLeave={() => setIsPressed(false)}
+      {...props}
+    >
+      <style>
+        {css`
+          .path0 {
+            animation: draw0 1.5s ease-in-out infinite;
+          }
+
+          .path1 {
+            animation: draw1 1.5s ease-out infinite;
+            animation-delay: 0.3s;
+          }
+
+          .paused {
+            stroke-dashoffset: 0;
+          }
+          @keyframes draw0 {
+            0%,
+            25% {
+              stroke-dashoffset: -29.6;
+            }
+            25%,
+            50% {
+              stroke-dashoffset: 0;
+            }
+            50%,
+            75% {
+              stroke-dashoffset: 0;
+            }
+            75%,
+            100% {
+              stroke-dashoffset: 29.6;
+            }
+          }
+
+          @keyframes draw1 {
+            0%,
+            20% {
+              stroke-dashoffset: -11.6;
+            }
+            20%,
+            50% {
+              stroke-dashoffset: 0;
+            }
+            50%,
+            75% {
+              stroke-dashoffset: 0;
+            }
+            75%,
+            100% {
+              stroke-dashoffset: 11.6;
+            }
+          }
+        `}
+      </style>
+
       {/* Add issue count circle if issues exist */}
       {issueCount > 0 ? (
         <div
@@ -17,16 +113,14 @@ export const NextLogo = ({ issueCount, onClick, ...props }: Props) => {
             right: '-5px',
             width: '20px',
             height: '20px',
-            background: '#551A1E',
+            background: 'var(--color-red-300)',
             borderRadius: '50%',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#FF6369',
+            color: 'var(--color-red-900)',
             fontSize: '12px',
             fontWeight: 'bold',
-            cursor: 'pointer',
-            userSelect: 'none',
           }}
         >
           {issueCount}
@@ -39,86 +133,119 @@ export const NextLogo = ({ issueCount, onClick, ...props }: Props) => {
         viewBox="0 0 40 40"
         fill="none"
         xmlns="http://www.w3.org/2000/svg"
-        {...props}
+        style={{ shapeRendering: 'geometricPrecision' }}
       >
-        <g filter="url(#filter0_bdddi_1457_6023)">
-          <rect
-            x="0"
-            y="0"
-            width="40"
-            height="40"
-            rx="20"
-            fill="#333333"
-            shapeRendering="crispEdges"
-          />
-          <rect
-            x="0"
-            y="0"
-            width="40"
-            height="40"
-            rx="20"
-            fill={issueCount > 0 ? '#E5484D' : 'black'}
-            fillOpacity="0.8"
-            shapeRendering="crispEdges"
-          />
-          <g filter="url(#filter1_i_1457_6023)">
-            <rect
-              x="1.5"
-              y="1.5"
-              width="37"
-              height="37"
-              rx="18.5"
-              stroke="url(#paint0_angular_1457_6023)"
-              strokeOpacity="0.8"
-            />
-            <rect
-              x="1.5"
-              y="1.5"
-              width="37"
-              height="37"
-              rx="18.5"
-              stroke="white"
-              strokeOpacity="0.2"
-              style={{ mixBlendMode: 'multiply' }}
-            />
-            <rect
-              x="2"
-              y="2"
-              width="36"
-              height="36"
-              rx="18"
-              fill={issueCount > 0 ? '#CA2A30' : '#551A1E'}
-            />
-            <path
-              d="
-            M30.2854 31.6696
-            L16.3951 13.7771
-            H13.7779
-            V26.2163
-            H15.8717
-            V16.4359
-            L28.6419 32.9356
-            C29.2182 32.5499 29.7672 32.1267 30.2854 31.6696
-          "
-              fill="url(#paint1_linear_1457_6023)"
-            />
-            <rect
-              x="24.3213"
-              y="13.7771"
-              width="2.0741"
-              height="12.4444"
-              fill="url(#paint2_linear_1457_6023)"
-            />
+        <defs>
+          <clipPath id="circleClip">
+            <circle cx="20" cy="20" r="20" />
+          </clipPath>
+        </defs>
+
+        <g clipPath="url(#circleClip)">
+          <g filter="url(#filter0_bdddi_1457_6023)">
+            <circle cx="20" cy="20" r="20" fill={'black'} fillOpacity="0.8" />
+            <g filter="url(#filter1_i_1457_6023)">
+              <circle
+                cx="20"
+                cy="20"
+                r="18.5"
+                stroke="url(#paint0_angular_1457_6023)"
+                strokeOpacity="0.8"
+              />
+              <circle
+                cx="20"
+                cy="20"
+                r="18.5"
+                stroke="white"
+                strokeOpacity="0.2"
+                style={{ mixBlendMode: 'multiply' }}
+              />
+              <circle
+                cx="20"
+                cy="20"
+                r="18"
+                fill={issueCount > 0 ? '#CA2A30' : '#2A2A2A'}
+              />
+
+              <g transform="translate(13, 12)">
+                <path
+                  className={isLoading ? 'path0' : 'paused'}
+                  d="M13.3 15.2 L2.34 1 V12.6"
+                  fill="none"
+                  stroke="url(#paint0_linear_1357_10853)"
+                  strokeWidth="1.86"
+                  mask="url(#mask0)"
+                  strokeDasharray="29.6"
+                  strokeDashoffset="29.6"
+                />
+                <path
+                  className={isLoading ? 'path1' : 'paused'}
+                  d="M11.825 1.5 V13.1"
+                  strokeWidth="1.86"
+                  stroke="url(#paint1_linear_1357_10853)"
+                  strokeDasharray="11.6"
+                  strokeDashoffset="11.6"
+                />
+              </g>
+            </g>
           </g>
         </g>
 
         <defs>
+          <linearGradient
+            id="paint0_linear_1357_10853"
+            x1="9.95555"
+            y1="11.1226"
+            x2="15.4778"
+            y2="17.9671"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop
+              stopColor={isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'}
+            />
+            <stop
+              offset="0.604072"
+              stopColor={isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'}
+              stopOpacity="0"
+            />
+            <stop
+              offset="1"
+              stopColor={isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'}
+              stopOpacity="0"
+            />
+          </linearGradient>
+          <linearGradient
+            id="paint1_linear_1357_10853"
+            x1="11.8222"
+            y1="1.40039"
+            x2="11.791"
+            y2="9.62542"
+            gradientUnits="userSpaceOnUse"
+          >
+            <stop
+              stopColor={isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'}
+            />
+            <stop
+              offset="1"
+              stopColor={isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'}
+              stopOpacity="0"
+            />
+          </linearGradient>
+          <mask id="mask0">
+            <rect
+              width="100%"
+              height="100%"
+              fill={isDevBuilding ? 'rgba(255,255,255,0.7)' : 'white'}
+            />
+            <rect width="5" height="1.5" fill="black" />
+          </mask>
+
           <filter
             id="filter0_bdddi_1457_6023"
-            x="-2"
-            y="-2"
-            width="44"
-            height="44"
+            x="0"
+            y="0"
+            width="40"
+            height="40"
             filterUnits="userSpaceOnUse"
             colorInterpolationFilters="sRGB"
           >
@@ -268,33 +395,8 @@ export const NextLogo = ({ issueCount, onClick, ...props }: Props) => {
             <stop offset="0.0914784" stopColor="white" stopOpacity="0.463159" />
             <stop offset="0.405428" stopColor="white" stopOpacity="0.4" />
           </radialGradient>
-
-          <linearGradient
-            id="paint1_linear_1457_6023"
-            x1="16.6174"
-            y1="24.5796"
-            x2="22.7532"
-            y2="32.1846"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stopColor="white" />
-            <stop offset="0.604072" stopColor="white" stopOpacity="0" />
-            <stop offset="1" stopColor="white" stopOpacity="0" />
-          </linearGradient>
-
-          <linearGradient
-            id="paint2_linear_1457_6023"
-            x1="25.3583"
-            y1="13.7771"
-            x2="25.3235"
-            y2="22.9160"
-            gradientUnits="userSpaceOnUse"
-          >
-            <stop stopColor="white" />
-            <stop offset="1" stopColor="white" stopOpacity="0" />
-          </linearGradient>
         </defs>
       </svg>
-    </div>
+    </button>
   )
 }

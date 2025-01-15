@@ -74,7 +74,14 @@ export const Default: Story = {
     },
     initialDisplayState: 'fullscreen',
     hasStaticIndicator: true,
-    isTurbopackEnabled: true,
+    isTurbopack: true,
+  },
+}
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
   },
 }
 

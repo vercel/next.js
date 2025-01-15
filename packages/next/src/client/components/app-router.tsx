@@ -279,11 +279,12 @@ function Router({
         ? // Unlike the old implementation, the Segment Cache doesn't store its
           // data in the router reducer state; it writes into a global mutable
           // cache. So we don't need to dispatch an action.
-          (href) =>
+          (href, options) =>
             prefetchWithSegmentCache(
               href,
               actionQueue.state.nextUrl,
-              actionQueue.state.tree
+              actionQueue.state.tree,
+              options?.kind === PrefetchKind.FULL
             )
         : (href, options) => {
             // Use the old prefetch implementation.

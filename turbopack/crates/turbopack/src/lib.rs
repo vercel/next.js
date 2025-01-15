@@ -432,7 +432,7 @@ impl ModuleAssetContext {
     #[turbo_tasks::function]
     async fn process_with_transition_rules(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
@@ -443,9 +443,9 @@ impl ModuleAssetContext {
                 .get_by_rules(source, &reference_type)
                 .await?
             {
-                transition.process(source, self, reference_type)
+                transition.process(*source, self, reference_type)
             } else {
-                self.process_default(source, reference_type)
+                self.process_default(*source, reference_type)
             },
         )
     }
@@ -530,7 +530,7 @@ async fn process_default_internal(
         if processed_rules.contains(&i) {
             continue;
         }
-        if rule.matches(*source, &path_ref, &reference_type).await? {
+        if rule.matches(source, &path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
                     ModuleRuleEffect::SourceTransforms(transforms) => {
@@ -542,7 +542,7 @@ async fn process_default_internal(
                                 .await?
                                 .transitions
                                 .await?
-                                .get_by_rules(*current_source, &reference_type)
+                                .get_by_rules(current_source, &reference_type)
                                 .await?
                             {
                                 return Ok(transition.process(
@@ -902,6 +902,14 @@ impl AssetContext for ModuleAssetContext {
 #[turbo_tasks::function]
 pub fn emit_with_completion(asset: Vc<Box<dyn OutputAsset>>, output_dir: Vc<FileSystemPath>) {
     let _ = emit_assets_aggregated(asset, output_dir);
+}
+
+#[turbo_tasks::function(operation)]
+pub fn emit_with_completion_operation(
+    asset: ResolvedVc<Box<dyn OutputAsset>>,
+    output_dir: ResolvedVc<FileSystemPath>,
+) -> Vc<()> {
+    emit_with_completion(*asset, *output_dir)
 }
 
 #[turbo_tasks::function]

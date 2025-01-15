@@ -41,7 +41,7 @@ const cacheHeader = {
   revalidate: 'public, max-age=0, must-revalidate',
 }
 
-type MetadataRouteLoaderOptions = {
+export type MetadataRouteLoaderOptions = {
   // Using separate argument to avoid json being parsed and hit error
   // x-ref: https://github.com/vercel/next.js/pull/62615
   filePath: string

@@ -98,10 +98,19 @@ export function PseudoHtmlDiff({
                 sign === '+' ? 'add' : 'remove'
               }
             >
-              {sign}
-              {spaces}
-              {trimmedLine}
-              {'\n'}
+              {sign === '+' ? <PlusIcon /> : <MinusIcon />}
+              <span
+                className={
+                  isHtmlCollapsed
+                    ? 'error-overlay-hydration-error-collapsed'
+                    : ''
+                }
+              >
+                {/* Slice 2 spaces for the icon */}
+                {spaces.slice(2)}
+                {trimmedLine}
+                {'\n'}
+              </span>
             </span>
           )
         } else if (currentComponentIndex >= 0) {
@@ -295,13 +304,15 @@ export function PseudoHtmlDiff({
 
   return (
     <div data-nextjs-container-errors-pseudo-html>
-      <button
-        tabIndex={10} // match CallStackFrame
-        data-nextjs-container-errors-pseudo-html-collapse
-        onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
-      >
-        <CollapseIcon collapsed={isHtmlCollapsed} />
-      </button>
+      <span>
+        <button
+          tabIndex={10} // match CallStackFrame
+          data-nextjs-container-errors-pseudo-html-collapse
+          onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
+        >
+          <CollapseIcon collapsed={isHtmlCollapsed} />
+        </button>
+      </span>
       <pre {...props}>
         <code>{htmlComponents}</code>
       </pre>
@@ -309,27 +320,69 @@ export function PseudoHtmlDiff({
   )
 }
 
+function PlusIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="error-overlay-hydration-error-diff-plus-icon"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M7.25 8.75V12H8.75V8.75H12V7.25H8.75V4H7.25V7.25H4V8.75H7.25Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
+function MinusIcon() {
+  return (
+    <svg
+      width="16"
+      height="16"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="error-overlay-hydration-error-diff-minus-icon"
+    >
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M12 8.75H4V7.25H12V8.75Z"
+        fill="currentColor"
+      />
+    </svg>
+  )
+}
+
 export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html] {
-    position: relative;
+    border-top: 1px solid var(--color-gray-400);
+    background: var(--color-background-200);
+    color: var(--color-syntax-constant);
+    font-family: var(--font-stack-monospace);
+    font-size: var(--size-font-smaller);
+    line-height: var(--size-4);
   }
   [data-nextjs-container-errors-pseudo-html-collapse] {
-    position: absolute;
-    left: 10px;
-    top: 10px;
-    color: inherit;
-    background: none;
-    border: none;
-    padding: 0;
+    all: unset;
+    &:focus {
+      outline: none;
+    }
   }
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
-    color: var(--color-ansi-green);
+    background: var(--color-green-300);
   }
   [data-nextjs-container-errors-pseudo-html--diff='remove'] {
-    color: var(--color-ansi-red);
+    background: var(--color-red-300);
   }
   [data-nextjs-container-errors-pseudo-html--tag-error] {
-    color: var(--color-ansi-red);
+    background: var(--color-red-300);
     font-weight: bold;
   }
   /* hide but text are still accessible in DOM */
@@ -339,5 +392,27 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   }
   [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
     color: var(--color-accents-1);
+  }
+
+  [data-nextjs-container-errors-pseudo-html] > span {
+    display: block;
+    height: var(--size-5);
+  }
+  [data-nextjs-container-errors-pseudo-html] > pre > code > span {
+    display: block;
+    height: var(--size-5);
+  }
+
+  .nextjs__container_errors__component-stack {
+    margin: 0;
+  }
+  .error-overlay-hydration-error-collapsed {
+    padding-left: var(--size-4);
+  }
+  .error-overlay-hydration-error-diff-plus-icon {
+    color: var(--color-green-900);
+  }
+  .error-overlay-hydration-error-diff-minus-icon {
+    color: var(--color-red-900);
   }
 `

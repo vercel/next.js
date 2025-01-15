@@ -38,10 +38,8 @@ export const styles = css`
     flex-direction: column;
     width: 100%;
     outline: none;
-    position: absolute;
-    bottom: -10px;
     z-index: -1;
-
+    position: fixed;
     @media (min-width: 576px) {
       max-width: 540px;
     }
@@ -57,26 +55,24 @@ export const styles = css`
 
   .error-overlay-bottom-stack-1,
   .error-overlay-bottom-stack-2 {
-    padding: 12px;
+    padding: var(--size-3);
     align-self: center;
     border: 1px solid var(--color-gray-400);
     border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-md);
     background: var(--color-background-200);
     animation: stack-slide-down 0.3s ease-out forwards;
-    transform-origin: top center;
-    position: relative;
   }
 
   .error-overlay-bottom-stack-1 {
-    width: calc(100% - 24px);
+    width: calc(100% - var(--size-6));
+    margin-top: calc(-1 * var(--size-3));
   }
 
   .error-overlay-bottom-stack-2 {
+    width: calc(100% - var(--size-12));
+    margin-top: calc(-1 * var(--size-3_5));
     z-index: -2;
-    position: absolute;
-    top: 10px;
-    width: calc(100% - 48px);
   }
 
   @keyframes stack-slide-down {

@@ -26,6 +26,8 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
     onComponentError,
   } = usePagesReactDevOverlay()
 
+  const isTurbopack = !!process.env.TURBOPACK
+
   return (
     <>
       <ErrorBoundary isMounted={isMounted} onError={onComponentError}>
@@ -41,6 +43,7 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
           <BuildError
             message={state.buildError!}
             versionInfo={state.versionInfo}
+            isTurbopack={isTurbopack}
           />
         ) : hasRuntimeErrors ? (
           <Errors
@@ -48,7 +51,7 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
             errors={state.errors}
             versionInfo={state.versionInfo}
             initialDisplayState={'fullscreen'}
-            isTurbopackEnabled={!!process.env.TURBOPACK}
+            isTurbopack={isTurbopack}
           />
         ) : (
           <Errors
@@ -56,7 +59,7 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
             errors={state.errors}
             versionInfo={state.versionInfo}
             initialDisplayState={'minimized'}
-            isTurbopackEnabled={!!process.env.TURBOPACK}
+            isTurbopack={isTurbopack}
           />
         )}
       </ShadowPortal>

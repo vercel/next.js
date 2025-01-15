@@ -888,9 +888,9 @@ describe('app-dir action handling', () => {
     async (runtime) => {
       let redirectResponseCode
       const browser = await next.browser(`/delayed-action/${runtime}`, {
-        beforePageLoad(page) {
+        beforePageLoad(page: Page) {
           page.on('response', async (res: Response) => {
-            const headers = await res.allHeaders()
+            const headers = await res.allHeaders().catch(() => ({}))
             if (headers['x-action-redirect']) {
               redirectResponseCode = res.status()
             }
@@ -1866,5 +1866,21 @@ describe('app-dir action handling', () => {
         expect(newNumber).toBe(firstNumber)
       })
     })
+  })
+
+  describe('request body decoding', () => {
+    it.each(['node', 'edge'])(
+      'should correctly decode multi-byte characters in the request body (%s)',
+      async (runtime) => {
+        const browser = await next.browser(`/decode-req-body/${runtime}`)
+
+        await browser.elementByCss('button').click()
+        const result = await browser.elementByCss('p').text()
+
+        expect(result).toEqual(
+          'Server responded with 100000 あ characters and 0 � characters.'
+        )
+      }
+    )
   })
 })

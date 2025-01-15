@@ -41,4 +41,17 @@ export const Default: Story = {
       staleness: 'stale-major',
     },
   },
+  parameters: {
+    docs: {
+      story: { inline: true },
+    },
+  },
+  decorators: [
+    (Story) => (
+      // Offset the translateY applied to the floating header.
+      <div style={{ paddingTop: 'var(--size-10_5)' }}>
+        <Story />
+      </div>
+    ),
+  ],
 }

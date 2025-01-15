@@ -9,9 +9,8 @@ const styles = css`
     max-height: calc(100% - 56px);
     margin-right: auto;
     margin-left: auto;
-
-    z-index: 50;
     outline: none;
+    overflow-y: hidden;
   }
 
   @media (max-height: 812px) {

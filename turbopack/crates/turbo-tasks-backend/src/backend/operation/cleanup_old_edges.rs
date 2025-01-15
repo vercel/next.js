@@ -5,6 +5,7 @@ use turbo_tasks::{TaskId, ValueTypeId};
 
 use crate::{
     backend::{
+        get,
         operation::{
             aggregation_update::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
@@ -13,7 +14,7 @@ use crate::{
             invalidate::{make_task_dirty, TaskDirtyCause},
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
-        storage::{update_count, update_ucount_and_get},
+        storage::update_count,
         TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
@@ -82,8 +83,6 @@ impl Operation for CleanupOldEdgesOperation {
                                 for &child_id in children.iter() {
                                     task.remove(&CachedDataItemKey::Child { task: child_id });
                                 }
-                                let remove_children_count = u32::try_from(children.len()).unwrap();
-                                update_ucount_and_get!(task, ChildrenCount, -remove_children_count);
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,
@@ -91,6 +90,13 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
+                                    if get!(task, Activeness).is_some_and(|a| a.active_counter > 0)
+                                    {
+                                        // TODO combine both operations to avoid the clone
+                                        queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                                            task_ids: children.clone(),
+                                        });
+                                    }
                                     queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
                                         upper_ids,
                                         lost_follower_ids: children,

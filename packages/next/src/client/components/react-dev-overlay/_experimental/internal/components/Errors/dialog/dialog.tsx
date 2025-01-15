@@ -31,7 +31,6 @@ export const DIALOG_STYLES = css`
     border: 1px solid var(--color-gray-400);
     border-radius: var(--rounded-xl);
     box-shadow: var(--shadow-md);
-    position: relative;
   }
 
   .nextjs-error-overlay-dialog-turbopack-background {

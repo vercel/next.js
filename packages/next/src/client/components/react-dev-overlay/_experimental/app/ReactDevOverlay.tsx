@@ -43,6 +43,8 @@ export default class ReactDevOverlay extends React.PureComponent<
     const hasStaticIndicator = state.staticIndicator
     const debugInfo = state.debugInfo
 
+    const isTurbopack = !!process.env.TURBOPACK
+
     return (
       <>
         {isReactError ? (
@@ -61,15 +63,17 @@ export default class ReactDevOverlay extends React.PureComponent<
           {state.rootLayoutMissingTags?.length ? (
             <RootLayoutMissingTagsError
               missingTags={state.rootLayoutMissingTags}
+              isTurbopack={isTurbopack}
             />
           ) : hasBuildError ? (
             <BuildError
               message={state.buildError!}
               versionInfo={state.versionInfo}
+              isTurbopack={isTurbopack}
             />
           ) : (
             <Errors
-              isTurbopackEnabled={!!process.env.TURBOPACK}
+              isTurbopack={isTurbopack}
               isAppDir={true}
               initialDisplayState={isReactError ? 'fullscreen' : 'minimized'}
               errors={state.errors}

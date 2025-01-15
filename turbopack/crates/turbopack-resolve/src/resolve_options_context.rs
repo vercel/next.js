@@ -11,7 +11,7 @@ use turbopack_core::{
     },
 };
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Default, Clone)]
 pub struct ResolveOptionsContext {
     #[serde(default)]
