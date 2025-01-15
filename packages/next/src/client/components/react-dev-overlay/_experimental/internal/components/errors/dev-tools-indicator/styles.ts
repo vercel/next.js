@@ -23,7 +23,7 @@ export const styles = css`
     border: 1px solid var(--color-gray-alpha-400);
     background-clip: padding-box;
     box-shadow: var(--shadow-menu);
-    border-radius: var(--rounded-lg);
+    border-radius: var(--rounded-xl);
     position: absolute;
     bottom: calc(100% + var(--size-gap));
     left: 0;
@@ -77,6 +77,7 @@ export const styles = css`
     width: 248px;
     height: 36px;
     border-radius: var(--rounded-md);
+    cursor: pointer;
   }
 
   [data-nextjs-dev-tools-row]:hover {
@@ -94,7 +95,6 @@ export const styles = css`
 
   [data-nextjs-dev-tools-row-value] {
     font-family: var(--font-stack-sans);
-    font-style: normal;
     font-weight: 400;
     font-size: var(--size-font-small);
     line-height: var(--size-5);
@@ -116,7 +116,6 @@ export const styles = css`
 
   [data-nextjs-dev-tools-issue-text] {
     font-family: var(--font-stack-sans);
-    font-style: normal;
     font-weight: 500;
     font-size: 11px;
     line-height: var(--size-4);
@@ -156,13 +155,11 @@ export const styles = css`
     display: flex;
     width: var(--size-5);
     height: var(--size-5);
-    padding: var(--size-1) var(--size-1_5);
     justify-content: center;
     align-items: center;
     border-radius: var(--rounded-md);
-    border: 1px solid var(--color-gray-alpha-400);
+    border: 1px solid var(--color-gray-400);
     background: var(--color-background-100);
-
     color: var(--color-gray-1000);
     text-align: center;
     font-size: var(--size-font-smaller);
