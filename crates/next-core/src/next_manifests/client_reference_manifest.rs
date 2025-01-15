@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
@@ -20,10 +20,7 @@ use super::{ClientReferenceManifest, CssResource, ManifestNode, ManifestNodeEntr
 use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
-    next_client_reference::{
-        ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
-        ClientReferenceGraphResult, ClientReferenceType,
-    },
+    next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::NextConfig,
     util::NextRuntime,
 };
@@ -89,16 +86,14 @@ impl ClientReferenceManifest {
             let app_client_reference_ty = app_client_reference.ty();
 
             // An client component need to be emitted into the client reference manifest
-            if let ClientReferenceType::EcmascriptClientReference {
-                parent_module,
-                module: ecmascript_client_reference,
-            } = app_client_reference_ty
+            if let ClientReferenceType::EcmascriptClientReference(client_reference_module) =
+                app_client_reference_ty
             {
-                let ecmascript_client_reference = ecmascript_client_reference.await?;
+                let client_reference_module_ref = client_reference_module.await?;
 
-                let server_path = ecmascript_client_reference.server_ident.to_string().await?;
+                let server_path = client_reference_module_ref.server_ident.to_string().await?;
 
-                let client_module = ecmascript_client_reference.client_module;
+                let client_module = client_reference_module_ref.client_module;
                 let client_chunk_item = client_module
                     .as_chunk_item(module_graph, Vc::upcast(client_chunking_context))
                     .to_resolved()
@@ -142,20 +137,14 @@ impl ClientReferenceManifest {
                     };
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
-                    let ssr_module = ecmascript_client_reference.ssr_module;
+                    let ssr_module = client_reference_module_ref.ssr_module;
                     let ssr_chunk_item = ssr_module
                         .as_chunk_item(module_graph, Vc::upcast(ssr_chunking_context))
                         .to_resolved()
                         .await?;
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
-                    let rsc_module = ResolvedVc::try_downcast_type::<
-                        EcmascriptClientReferenceProxyModule,
-                    >(parent_module)
-                    .await?
-                    .context("Expected EcmascriptClientReferenceProxyModule")?;
-
-                    let rsc_chunk_item = rsc_module
+                    let rsc_chunk_item = client_reference_module
                         .as_chunk_item(module_graph, Vc::upcast(ssr_chunking_context))
                         .to_resolved()
                         .await?;
@@ -188,9 +177,11 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async =
-                            is_item_async(ssr_availability_info, ResolvedVc::upcast(ssr_module))
-                                .await?;
+                        let is_async = is_item_async(
+                            ssr_availability_info,
+                            ResolvedVc::upcast(client_reference_module),
+                        )
+                        .await?;
 
                         (chunk_paths, is_async)
                     } else {
@@ -219,7 +210,7 @@ impl ClientReferenceManifest {
 
                         let is_async = is_item_async(
                             &rsc_app_entry_chunks_availability,
-                            ResolvedVc::upcast(rsc_module),
+                            ResolvedVc::upcast(client_reference_module),
                         )
                         .await?;
 
