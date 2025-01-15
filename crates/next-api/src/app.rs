@@ -726,6 +726,7 @@ impl AppProject {
     #[turbo_tasks::function]
     pub async fn app_module_graph(
         &self,
+        endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<Vc<ModuleGraph>> {
         if *self.project.per_page_module_graph().await? {
@@ -768,6 +769,15 @@ impl AppProject {
                 let graph =
                     SingleModuleGraph::new_with_entries_visited(vec![*rsc_entry], visited_modules);
                 graphs.push(graph);
+                visited_modules = visited_modules.concatenate(graph);
+
+                let additional_entries =
+                    endpoint.additional_root_modules(ModuleGraph::from_graphs(graphs.clone()));
+                let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+                    additional_entries.await?.into_iter().map(|m| **m).collect(),
+                    visited_modules,
+                );
+                graphs.push(additional_module_graph);
 
                 Ok(ModuleGraph::from_graphs(graphs))
             }
@@ -999,7 +1009,7 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
-        let module_graph = this.app_project.app_module_graph(*rsc_entry);
+        let module_graph = this.app_project.app_module_graph(self, *rsc_entry);
 
         let client_chunking_context = project.client_chunking_context();
 
