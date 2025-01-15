@@ -47,40 +47,30 @@ export const NextLogo = ({
       <style>
         {css`
           [data-next-logo] {
-            position: relative;
-            cursor: pointer;
-            user-select: none;
+            --color-outer-border: var(--color-gray-1000);
+            width: 36px;
+            height: 36px;
             display: flex;
             align-items: center;
             justify-content: center;
-            background: #2a2a2a;
+            position: relative;
+            background: rgba(0, 0, 0, 0.8);
             box-shadow:
-              0 0 0 1px var(--color-gray-1000),
-              0px 1px 1px 0px rgba(0, 0, 0, 0.15),
-              0px 8px 16px -4px rgba(0, 0, 0, 0.1),
-              0px 24px 32px -8px rgba(0, 0, 0, 0.1),
-              4px 4px 4px 0px rgba(255, 255, 255, 0.2) inset;
-            width: 40px;
-            height: 40px;
+              0 0 0 1px var(--color-outer-border),
+              0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+            backdrop-filter: blur(48px);
             border-radius: 50%;
+            user-select: none;
+            cursor: pointer;
             transition: transform 0.1s ease;
 
             &[data-error='true'] {
               background: var(--color-red-900);
-              box-shadow:
-                0 0 0 1px var(--color-gray-1000),
-                0px 1px 1px 0px rgba(0, 0, 0, 0.15),
-                0px 8px 16px -4px rgba(0, 0, 0, 0.1),
-                0px 24px 32px -8px rgba(0, 0, 0, 0.1);
-            }
+              border: 1px solid var(--color-red-700);
 
-            &:after {
-              content: '';
-              width: calc(100% - 1px);
-              height: calc(100% - 1px);
-              border-radius: inherit;
-              position: absolute;
-              border: 1px solid rgba(255, 255, 255, 0.2);
+              @media (prefers-color-scheme: dark) {
+                box-shadow: none;
+              }
             }
           }
 
@@ -154,6 +144,7 @@ export const NextLogo = ({
             color: 'var(--color-red-900)',
             fontSize: '12px',
             fontWeight: 500,
+            zIndex: 2,
           }}
         >
           {issueCount}
@@ -226,48 +217,3 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
     </svg>
   )
 }
-
-;<svg
-  width="18"
-  height="20"
-  viewBox="0 0 18 20"
-  fill="none"
-  xmlns="http://www.w3.org/2000/svg"
->
-  <path
-    d="M17.2569 18.5026L4.75556 2.39941H2.40015V13.5947H4.28448V4.79242L15.7778 19.642C16.2964 19.2949 16.7905 18.914 17.2569 18.5026Z"
-    stroke="url(#paint0_linear_2156_6933)"
-  />
-  <rect
-    x="11.8892"
-    y="2.39941"
-    width="1.86667"
-    height="11.2"
-    stroke="url(#paint1_linear_2156_6933)"
-  />
-  <defs>
-    <linearGradient
-      id="paint0_linear_2156_6933"
-      x1="10.9557"
-      y1="12.1216"
-      x2="16.4779"
-      y2="18.9661"
-      gradientUnits="userSpaceOnUse"
-    >
-      <stop stopColor="white" />
-      <stop offset="0.604072" stopOpacity="0" stopColor="white" />
-      <stop offset="1" stopColor="white" stopOpacity="0" />
-    </linearGradient>
-    <linearGradient
-      id="paint1_linear_2156_6933"
-      x1="12.8225"
-      y1="2.39941"
-      x2="12.7912"
-      y2="10.6244"
-      gradientUnits="userSpaceOnUse"
-    >
-      <stop stopColor="white" />
-      <stop offset="1" stopColor="white" stopOpacity="0" />
-    </linearGradient>
-  </defs>
-</svg>
