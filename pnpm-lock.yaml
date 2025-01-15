@@ -583,8 +583,8 @@ importers:
         specifier: 3.0.0
         version: 3.0.0
       ws:
-        specifier: 8.2.3
-        version: 8.2.3
+        specifier: 8.18.0
+        version: 8.18.0
       yargs:
         specifier: 16.2.0
         version: 16.2.0
@@ -1141,8 +1141,8 @@ importers:
         specifier: npm:@types/webpack-sources@0.1.5
         version: '@types/webpack-sources@0.1.5'
       '@types/ws':
-        specifier: 8.2.0
-        version: 8.2.0
+        specifier: 8.5.13
+        version: 8.5.13
       '@vercel/ncc':
         specifier: 0.34.0
         version: 0.34.0
@@ -1519,8 +1519,8 @@ importers:
         specifier: npm:webpack-sources@3.2.3
         version: webpack-sources@3.2.3(patch_hash=jbynf5dc46ambamq3wuyho6hkq)
       ws:
-        specifier: 8.2.3
-        version: 8.2.3
+        specifier: 8.18.0
+        version: 8.18.0
       zod:
         specifier: 3.22.3
         version: 3.22.3
@@ -5712,8 +5712,8 @@ packages:
   '@types/wrap-ansi@3.0.0':
     resolution: {integrity: sha512-ltIpx+kM7g/MLRZfkbL7EsCEjfzCcScLpkg37eXEtx5kmrAKBkTJwd1GIAjDSL8wTpM6Hzn5YO4pSb91BEwu1g==}
 
-  '@types/ws@8.2.0':
-    resolution: {integrity: sha512-cyeefcUCgJlEk+hk2h3N+MqKKsPViQgF5boi9TTHSK+PoR9KWBb/C5ccPcDyAqgsbAYHTwulch725DV84+pSpg==}
+  '@types/ws@8.5.13':
+    resolution: {integrity: sha512-osM/gWBTPKgHV8XkTunnegTRIsvF6owmf5w+JtAfOw472dptdm0dlGv4xCt6GwQRcC2XVOvvRE/0bAoQcL2QkA==}
 
   '@types/yargs-parser@21.0.0':
     resolution: {integrity: sha512-iO9ZQHkZxHn4mSakYV0vFHAVDyEOIJQrV2uZ06HxEPcx+mt8swXoZHIbaaJ2crJYFfErySgktuTZ3BeLz+XmFA==}
@@ -15914,24 +15914,12 @@ packages:
       utf-8-validate:
         optional: true
 
-  ws@8.14.2:
-    resolution: {integrity: sha512-wEBG1ftX4jcglPxgFCMJmZ2PLtSbJ2Peg6TmpJFTbe9GZYOQCDPdMYu/Tm0/bGZkw8paZnJY45J4K2PZrLYq8g==}
+  ws@8.18.0:
+    resolution: {integrity: sha512-8VbfWfHLbbwu3+N6OKsOMpBdT4kXPDDB9cJk2bJ6mh9ucxdlnNvH1e+roYkKmN9Nxw2yjz7VzeO9oOz2zJ04Pw==}
     engines: {node: '>=10.0.0'}
     peerDependencies:
       bufferutil: ^4.0.1
       utf-8-validate: '>=5.0.2'
-    peerDependenciesMeta:
-      bufferutil:
-        optional: true
-      utf-8-validate:
-        optional: true
-
-  ws@8.2.3:
-    resolution: {integrity: sha512-wBuoj1BDpC6ZQ1B7DWQBYVLphPWkm8i9Y0/3YdHjHKHiohOJ1ws+3OccDWtH+PoC9DZD5WOTrJvNbWvjS6JWaA==}
-    engines: {node: '>=10.0.0'}
-    peerDependencies:
-      bufferutil: ^4.0.1
-      utf-8-validate: ^5.0.2
     peerDependenciesMeta:
       bufferutil:
         optional: true
@@ -20347,7 +20335,7 @@ snapshots:
       recast: 0.23.9
       semver: 7.6.3
       util: 0.12.5
-      ws: 8.2.3
+      ws: 8.18.0
     optionalDependencies:
       prettier: 3.3.3
     transitivePeerDependencies:
@@ -21151,7 +21139,7 @@ snapshots:
 
   '@types/wrap-ansi@3.0.0': {}
 
-  '@types/ws@8.2.0':
+  '@types/ws@8.5.13':
     dependencies:
       '@types/node': 20.17.6
 
@@ -27368,7 +27356,7 @@ snapshots:
       whatwg-encoding: 2.0.0
       whatwg-mimetype: 3.0.0
       whatwg-url: 11.0.0
-      ws: 8.14.2
+      ws: 8.18.0
       xml-name-validator: 4.0.0
     transitivePeerDependencies:
       - bufferutil
@@ -33992,9 +33980,7 @@ snapshots:
 
   ws@7.5.3: {}
 
-  ws@8.14.2: {}
-
-  ws@8.2.3: {}
+  ws@8.18.0: {}
 
   xdg-basedir@3.0.0: {}
 
