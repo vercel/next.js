@@ -26,6 +26,8 @@ import {
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
+import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut'
+import { MODIFIERS } from '../hooks/use-keyboard-shortcut'
 
 export type SupportedErrorEvent = {
   id: number
@@ -35,10 +37,10 @@ export type ErrorsProps = {
   isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  isTurbopack: boolean
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
   debugInfo?: DebugInfo
-  isTurbopackEnabled: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -110,7 +112,7 @@ export function Errors({
   hasStaticIndicator,
   debugInfo,
   versionInfo,
-  isTurbopackEnabled,
+  isTurbopack,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -197,8 +199,29 @@ export function Errors({
     }
   }, [errors.length, minimize])
 
+  useEffect(() => {
+    // Close the error overlay when pressing escape
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setDisplayState('minimized')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
+
+  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
+  useKeyboardShortcut({
+    key: '.',
+    modifiers: [MODIFIERS.CTRL_CMD],
+    callback: () => {
+      setDisplayState((prev) => (prev === 'hidden' ? 'minimized' : 'hidden'))
+    },
+  })
 
   if (displayState === 'hidden') {
     return null
@@ -214,7 +237,7 @@ export function Errors({
         fullscreen={fullscreen}
         hide={hide}
         versionInfo={versionInfo}
-        isTurbopackEnabled={isTurbopackEnabled}
+        isTurbopack={isTurbopack}
       />
     )
   }
@@ -272,6 +295,7 @@ export function Errors({
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
       versionInfo={versionInfo}
+      isTurbopack={isTurbopack}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -333,12 +357,6 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-  .nextjs__container_errors__component-stack {
-    margin: 0;
-    padding: 12px 32px;
-    color: var(--color-ansi-fg);
-    background: var(--color-ansi-bg);
-  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;
@@ -384,6 +402,6 @@ export const styles = css`
     margin-bottom: var(--size-3);
   }
   .error-overlay-notes-container {
-    padding: 0 var (--size-4);
+    padding: 0 var(--size-4);
   }
 `

@@ -9,3 +9,12 @@ export async function middleware(req) {
 
   return NextResponse.next()
 }
+
+/**
+ * @type {import('next/server').MiddlewareConfig}
+ */
+export const config = {
+  // Ensure that middleware doesn't interfere with the request body parsing for
+  // this test fixture.
+  matcher: ['/((?!decode-req-body).*)'],
+}

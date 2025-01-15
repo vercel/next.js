@@ -31,3 +31,10 @@ Expected identError: Failed to resolve import "./missing-module"`,
     },
   },
 }
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
+  },
+}

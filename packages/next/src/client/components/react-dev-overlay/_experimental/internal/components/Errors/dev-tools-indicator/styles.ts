@@ -77,11 +77,7 @@ export const styles = css`
     border-radius: var(--rounded-md);
   }
 
-  [data-nextjs-dev-tools-row][data-clickable='true'] {
-    cursor: pointer;
-  }
-
-  [data-nextjs-dev-tools-row][data-clickable='true']:hover {
+  [data-nextjs-dev-tools-row]:hover {
     background-color: var(--color-gray-100);
   }
 
@@ -113,7 +109,6 @@ export const styles = css`
     gap: var(--size-1);
     width: var(--size-5);
     height: var(--size-5);
-    background: var(--color-gray-300);
     border-radius: var(--rounded-full);
   }
 
@@ -124,6 +119,14 @@ export const styles = css`
     font-size: 11px;
     line-height: var(--size-4);
     text-align: center;
+  }
+
+  [data-nextjs-dev-tools-issue-count][data-has-issues='true'] {
+    background: var(--color-red-300);
+  }
+
+  [data-nextjs-dev-tools-issue-count][data-has-issues='false'] {
+    background: var(--color-gray-300);
   }
 
   [data-nextjs-dev-tools-issue-text][data-has-issues='true'] {
@@ -138,7 +141,35 @@ export const styles = css`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: var(--size-1_5);
     background: var(--color-background-100);
+  }
+
+  [data-nextjs-dev-tools-shortcut-group] {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-1);
+  }
+
+  [data-nextjs-dev-tools-icon] {
+    display: flex;
+    min-width: var(--size-5);
+    height: var(--size-5);
+    padding: var(--size-1) var(--size-1_5);
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--rounded-md);
+    border: 1px solid var(--color-gray-alpha-400);
+    background: var(--color-background-100);
+
+    color: var(--color-gray-1000);
+    text-align: center;
+    font-size: var(--size-font-smaller);
+    font-style: normal;
+    font-weight: 400;
+    line-height: var(--size-4);
+  }
+
+  [data-nextjs-dev-tools-ctrl-icon] {
+    width: 100%;
   }
 `

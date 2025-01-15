@@ -358,6 +358,7 @@ exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
+  __proto__: null,
   c: function (size) {
     return ReactSharedInternals.H.useMemoCache(size);
   }
@@ -540,4 +541,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-canary-cabd8a0e-20250113";
+exports.version = "19.1.0-canary-f0edf41e-20250115";

@@ -66,7 +66,7 @@ export function ErrorOverlayLayout({
   activeIdx,
   setActiveIndex,
   footerMessage,
-  isTurbopack = !!process.env.TURBOPACK,
+  isTurbopack,
 }: ErrorOverlayLayoutProps) {
   return (
     <Overlay fixed={isBuildError}>

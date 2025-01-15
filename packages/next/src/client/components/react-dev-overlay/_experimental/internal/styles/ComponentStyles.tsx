@@ -5,7 +5,7 @@ import { styles as bottomStacks } from '../components/Errors/error-overlay-botto
 import { styles as pagination } from '../components/Errors/error-overlay-pagination/error-overlay-pagination'
 import { styles as overlay } from '../components/Overlay/styles'
 import { styles as footer } from '../components/Errors/error-overlay-footer/error-overlay-footer'
-import { styles as terminal } from '../components/Terminal/styles'
+import { TERMINAL_STYLES } from '../components/Terminal/Terminal'
 import { styles as toast } from '../components/Toast'
 import { styles as versionStaleness } from '../components/VersionStalenessInfo/VersionStalenessInfo'
 import { styles as buildErrorStyles } from '../container/BuildError'
@@ -15,6 +15,7 @@ import { COPY_BUTTON_STYLES } from '../components/copy-button'
 import { CALL_STACK_FRAME_STYLES } from '../components/call-stack-frame/call-stack-frame'
 import { styles as devToolsIndicator } from '../components/Errors/dev-tools-indicator/styles'
 import { noop as css } from '../helpers/noop-template'
+import { EDITOR_LINK_STYLES } from '../components/Terminal/EditorLink'
 
 export function ComponentStyles() {
   return (
@@ -30,7 +31,8 @@ export function ComponentStyles() {
         ${bottomStacks}
         ${pagination}
         ${CODE_FRAME_STYLES}
-        ${terminal}
+        ${TERMINAL_STYLES}
+        ${EDITOR_LINK_STYLES}
         ${buildErrorStyles}
         ${containerErrorStyles}
         ${containerRuntimeErrorStyles}
