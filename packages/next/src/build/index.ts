@@ -2675,6 +2675,10 @@ export default async function build(
 
       const features: EventBuildFeatureUsage[] = [
         {
+          featureName: 'experimental/dynamicIO',
+          invocationCount: config.experimental.dynamicIO ? 1 : 0,
+        },
+        {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
         },
