@@ -30,7 +30,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     module::Module,
-    module_graph::SingleModuleGraph,
+    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -399,8 +399,10 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
         .iter_nodes()
         .map(|node| {
             async move {
+                let SingleModuleGraphModuleNode { module, layer, .. } = node;
+
                 // TODO: compare module contexts instead?
-                let layer = match &node.layer {
+                let layer = match &layer {
                     Some(layer) if &**layer == "app-rsc" || &**layer == "app-edge-rsc" => {
                         ActionLayer::Rsc
                     }
@@ -410,9 +412,9 @@ pub async fn map_server_actions(graph: Vc<SingleModuleGraph>) -> Result<Vc<AllMo
                 };
                 // TODO the old implementation did parse_actions(to_rsc_context(module))
                 // is that really necessary?
-                Ok(parse_actions(*node.module)
+                Ok(parse_actions(**module)
                     .await?
-                    .map(|action_map| (node.module, (layer, action_map))))
+                    .map(|action_map| (*module, (layer, action_map))))
             }
         })
         .try_flat_join()
