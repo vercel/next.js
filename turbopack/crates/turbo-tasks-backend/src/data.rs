@@ -365,9 +365,6 @@ pub enum CachedDataItem {
         task: TaskId,
         value: (),
     },
-    ChildrenCount {
-        value: u32,
-    },
 
     // Cells
     CellData {
@@ -497,7 +494,6 @@ impl CachedDataItem {
             }
             CachedDataItem::Dirty { .. } => true,
             CachedDataItem::Child { task, .. } => !task.is_transient(),
-            CachedDataItem::ChildrenCount { .. } => true,
             CachedDataItem::CellData { .. } => true,
             CachedDataItem::CellTypeMaxIndex { .. } => true,
             CachedDataItem::OutputDependency { target, .. } => !target.is_transient(),
@@ -553,7 +549,6 @@ impl CachedDataItem {
         match self {
             Self::Collectible { .. }
             | Self::Child { .. }
-            | Self::ChildrenCount { .. }
             | Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }
@@ -595,7 +590,6 @@ impl CachedDataItemKey {
             }
             CachedDataItemKey::Dirty { .. } => true,
             CachedDataItemKey::Child { task, .. } => !task.is_transient(),
-            CachedDataItemKey::ChildrenCount {} => true,
             CachedDataItemKey::CellData { .. } => true,
             CachedDataItemKey::CellTypeMaxIndex { .. } => true,
             CachedDataItemKey::OutputDependency { target, .. } => !target.is_transient(),
@@ -639,7 +633,6 @@ impl CachedDataItemType {
         match self {
             Self::Collectible { .. }
             | Self::Child { .. }
-            | Self::ChildrenCount { .. }
             | Self::CellData { .. }
             | Self::CellTypeMaxIndex { .. }
             | Self::OutputDependency { .. }

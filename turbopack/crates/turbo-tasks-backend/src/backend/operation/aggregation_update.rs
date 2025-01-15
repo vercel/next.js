@@ -23,7 +23,9 @@ use crate::{
             invalidate::{make_task_dirty, TaskDirtyCause},
             ExecuteContext, Operation, TaskGuard,
         },
-        storage::{get, get_many, iter_many, remove, update, update_count, update_ucount_and_get},
+        storage::{
+            count, get, get_many, iter_many, remove, update, update_count, update_ucount_and_get,
+        },
         TaskDataCategory,
     },
     data::{
@@ -1860,7 +1862,7 @@ impl AggregationUpdateQueue {
         let _span = trace_span!("check optimize").entered();
 
         let task = ctx.task(task_id, TaskDataCategory::Meta);
-        let children_count = get!(task, ChildrenCount).copied().unwrap_or_default();
+        let children_count = count!(task, Child);
         if children_count == 0 {
             return;
         }
