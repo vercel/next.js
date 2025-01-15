@@ -250,7 +250,7 @@
     "crypto-browserify": "3.12.0",
     "css.escape": "1.5.1",
     "cssnano-preset-default": "7.0.6",
-    "data-uri-to-buffer": "3.0.1",
+    "data-uri-to-buffer": "6.0.2",
     "debug": "4.1.1",
     "devalue": "2.0.1",
     "domain-browser": "4.19.0",
