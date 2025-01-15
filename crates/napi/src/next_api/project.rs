@@ -296,10 +296,18 @@ pub async fn project_new(
 ) -> napi::Result<External<ProjectInstance>> {
     register();
 
-    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+    let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
+        .ok()
+        .filter(|v| !v.is_empty());
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
+    if cfg!(feature = "tokio-console") && trace.is_none() {
+        // ensure `trace` is set to *something* so that the `tokio-console` feature works, otherwise
+        // you just get empty output from `tokio-console`, which can be confusing.
+        trace = Some("overview".to_owned());
+    }
+
+    if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -318,6 +326,12 @@ pub async fn project_new(
         }
 
         let subscriber = Registry::default();
+
+        if cfg!(feature = "tokio-console") {
+            trace = format!("{trace},tokio=trace,runtime=trace");
+        }
+        #[cfg(feature = "tokio-console")]
+        let subscriber = subscriber.with(console_subscriber::spawn());
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
