@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('use-cache-metadata-route-handler', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -132,7 +132,7 @@ describe('use-cache-metadata-route-handler', () => {
     }
   })
 
-  if (isNextStart) {
+  if (isNextStart && !isTurbopack) {
     it('should include the client reference manifest in the route.js.nft.json files of dynamic metadata routes', async () => {
       for (const filename of [
         'icon',
