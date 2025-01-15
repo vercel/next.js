@@ -100,6 +100,10 @@ impl NextDynamicGraph {
             }
 
             let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
+                if !graph.entries.contains(&entry) {
+                    // the graph doesn't contain the entry, e.g. for the additional module graph
+                    return Ok(Vc::cell(vec![]));
+                }
                 &[entry]
             } else {
                 &graph.entries
@@ -201,6 +205,11 @@ impl ServerActionsGraph {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
 
+                if !graph.entries.contains(&entry) {
+                    // the graph doesn't contain the entry, e.g. for the additional module graph
+                    return Ok(Vc::cell(Default::default()));
+                }
+
                 let mut result = HashMap::new();
                 graph.traverse_from_entry(entry, |node| {
                     if let Some(node_data) = data.get(&node.module) {
@@ -282,6 +291,10 @@ impl ClientReferencesGraph {
             let graph = &*self.graph.await?;
 
             let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
+                if !graph.entries.contains(&entry) {
+                    // the graph doesn't contain the entry, e.g. for the additional module graph
+                    return Ok(ClientReferenceGraphResult::default().cell());
+                }
                 &[entry]
             } else {
                 &graph.entries
