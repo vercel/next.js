@@ -1,7 +1,9 @@
 use anyhow::Result;
 use swc_core::quote;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack_core::{chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue};
+use turbopack_core::{
+    chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue, module_graph::ModuleGraph,
+};
 
 use super::AstPath;
 use crate::{
@@ -31,7 +33,8 @@ impl CodeGenerateable for ConstantValue {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let value = self.value.clone();
         let path = &self.path.await?;

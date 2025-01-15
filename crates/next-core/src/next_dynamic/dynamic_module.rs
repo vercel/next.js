@@ -9,6 +9,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReferences, SingleChunkableModuleReference},
 };
 use turbopack_ecmascript::{
@@ -78,11 +79,13 @@ impl ChunkableModule for NextDynamicEntryModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             NextDynamicEntryChunkItem {
                 chunking_context,
+                module_graph,
                 inner: self,
             }
             .cell(),
@@ -123,6 +126,7 @@ impl EcmascriptChunkPlaceable for NextDynamicEntryModule {
 #[turbo_tasks::value]
 struct NextDynamicEntryChunkItem {
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     inner: ResolvedVc<NextDynamicEntryModule>,
 }
 
@@ -139,7 +143,7 @@ impl EcmascriptChunkItem for NextDynamicEntryChunkItem {
 
         let module_id = inner
             .module
-            .as_chunk_item(Vc::upcast(*self.chunking_context))
+            .as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context))
             .id()
             .await?;
         Ok(EcmascriptChunkItemContent {

@@ -30,7 +30,7 @@ use turbopack_core::{
     context::AssetContext,
     file_source::FileSource,
     module::Module,
-    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode},
+    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAsset,
     reference_type::{EcmaScriptModulesReferenceSubType, ReferenceType},
     resolve::ModulePart,
@@ -63,6 +63,7 @@ pub(crate) async fn create_server_actions_manifest(
     page_name: RcStr,
     runtime: NextRuntime,
     rsc_asset_context: Vc<Box<dyn AssetContext>>,
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<ServerActionsManifest>> {
     let loader =
@@ -73,7 +74,7 @@ pub(crate) async fn create_server_actions_manifest(
         .to_resolved()
         .await?;
 
-    let chunk_item = loader.as_chunk_item(Vc::upcast(chunking_context));
+    let chunk_item = loader.as_chunk_item(module_graph, Vc::upcast(chunking_context));
     let manifest = build_manifest(node_root, page_name, runtime, actions, chunk_item).await?;
     Ok(ServerActionsManifest {
         loader: evaluable,

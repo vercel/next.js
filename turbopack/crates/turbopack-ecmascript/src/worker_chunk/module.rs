@@ -9,6 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
@@ -70,12 +71,14 @@ impl ChunkableModule for WorkerLoaderModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             WorkerLoaderChunkItem {
-                chunking_context,
                 module: self,
+                module_graph,
+                chunking_context,
             }
             .cell(),
         )

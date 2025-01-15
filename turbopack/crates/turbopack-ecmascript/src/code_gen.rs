@@ -6,7 +6,10 @@ use swc_core::ecma::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
-use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
+use turbopack_core::{
+    chunk::{AsyncModuleInfo, ChunkingContext},
+    module_graph::ModuleGraph,
+};
 
 /// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
@@ -94,6 +97,7 @@ pub trait VisitorFactory: Send + Sync {
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<CodeGeneration>;
 }
@@ -102,6 +106,7 @@ pub trait CodeGenerateable {
 pub trait CodeGenerateableWithAsyncModuleInfo {
     fn code_generation(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<CodeGeneration>;

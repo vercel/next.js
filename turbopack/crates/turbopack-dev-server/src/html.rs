@@ -15,6 +15,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
@@ -24,6 +25,7 @@ use turbopack_core::{
 )]
 pub struct DevHtmlEntry {
     pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 }
@@ -139,6 +141,7 @@ impl DevHtmlAsset {
                 let &DevHtmlEntry {
                     chunkable_module,
                     chunking_context,
+                    module_graph,
                     runtime_entries,
                 } = entry;
 
@@ -156,10 +159,14 @@ impl DevHtmlAsset {
                     chunking_context.evaluated_chunk_group_assets(
                         chunkable_module.ident(),
                         *runtime_entries,
+                        *module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
                 } else {
-                    chunking_context.root_chunk_group_assets(*ResolvedVc::upcast(chunkable_module))
+                    chunking_context.root_chunk_group_assets(
+                        *ResolvedVc::upcast(chunkable_module),
+                        *module_graph,
+                    )
                 };
 
                 assets.await

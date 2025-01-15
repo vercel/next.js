@@ -24,6 +24,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::IssueSource,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
     source::Source,
@@ -290,9 +291,12 @@ impl CodeGenerateable for RequireContextAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let chunk_item = self.inner.as_chunk_item(Vc::upcast(chunking_context));
+        let chunk_item = self
+            .inner
+            .as_chunk_item(module_graph, Vc::upcast(chunking_context));
         let module_id = chunk_item.id().await?.clone_value();
 
         let mut visitors = Vec::new();
@@ -392,11 +396,13 @@ impl ChunkableModule for RequireContextAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         let this = self.await?;
         Ok(Vc::upcast(
             RequireContextChunkItem {
+                module_graph,
                 chunking_context,
                 inner: self,
 
@@ -418,6 +424,7 @@ impl EcmascriptChunkPlaceable for RequireContextAsset {
 
 #[turbo_tasks::value]
 pub struct RequireContextChunkItem {
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     inner: ResolvedVc<RequireContextAsset>,
 
@@ -445,6 +452,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
             let pm = PatternMapping::resolve_request(
                 *entry.request,
                 *self.origin,
+                *self.module_graph,
                 *ResolvedVc::upcast(self.chunking_context),
                 *entry.result,
                 Value::new(ResolveType::ChunkItem),

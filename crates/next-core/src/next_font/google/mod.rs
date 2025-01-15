@@ -19,6 +19,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     issue::{IssueExt, IssueSeverity},
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMapResult, ImportMappingReplacement, ReplacedImportMapping},
@@ -694,12 +695,14 @@ async fn get_mock_stylesheet(
         .module();
 
     let root = mock_fs.root();
+    let module_graph = ModuleGraph::from_module(mocked_response_asset);
     let val = evaluate(
         mocked_response_asset,
         root,
         *env,
         AssetIdent::from_path(loader_path),
         asset_context,
+        module_graph,
         *chunking_context,
         None,
         vec![],

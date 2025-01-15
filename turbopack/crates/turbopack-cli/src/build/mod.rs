@@ -25,6 +25,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{handle_issues, IssueReporter, IssueSeverity},
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference::all_assets_from_entries,
     reference_type::{EntryReferenceSubType, ReferenceType},
@@ -307,6 +308,8 @@ async fn build_internal(
         .try_join()
         .await?;
 
+    let module_graph = ModuleGraph::from_modules(Vc::cell(entries.clone()));
+
     let entry_chunk_groups = entries
         .into_iter()
         .map(|entry_module| async move {
@@ -333,6 +336,7 @@ async fn build_internal(
                                             .with_extension("entry.js".into()),
                                     ),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                    module_graph,
                                     Value::new(AvailabilityInfo::Root),
                                 )
                                 .await?
@@ -355,6 +359,7 @@ async fn build_internal(
                                         .with_extension("entry.js".into()),
                                     *ResolvedVc::upcast(ecmascript),
                                     EvaluatableAssets::one(*ResolvedVc::upcast(ecmascript)),
+                                    module_graph,
                                     OutputAssets::empty(),
                                     Value::new(AvailabilityInfo::Root),
                                 )
