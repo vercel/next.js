@@ -26,7 +26,9 @@ use crate::{
 };
 mod chunk_group_info;
 
-#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+#[derive(
+    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
+)]
 pub struct GraphNodeIndex {
     #[turbo_tasks(trace_ignore)]
     graph_idx: usize,

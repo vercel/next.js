@@ -1,18 +1,24 @@
 use std::{
-    collections::{hash_map::Entry, HashMap},
+    collections::{hash_map::Entry, BinaryHeap, HashMap},
     hash::{DefaultHasher, Hash, Hasher},
     ops::{Deref, DerefMut},
 };
 
 use anyhow::Result;
+use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
 use serde::{Deserialize, Deserializer, Serialize, Serializer};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryJoinIterExt, Vc,
+};
 
 use crate::{
     chunk::ChunkingType,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph},
+    module_graph::{
+        GraphNodeIndex, GraphTraversalAction, ModuleGraph, SingleModuleGraphModuleNode,
+        SingleModuleGraphNode,
+    },
 };
 
 #[derive(Clone, Debug, PartialEq, TraceRawVcs, ValueDebugFormat)]
@@ -114,58 +120,102 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 module_depth.insert(node.module, 0);
             };
 
-            let chunk_group = if let Some((parent, chunking_type)) = parent {
-                match chunking_type {
-                    ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => None,
-                    ChunkingType::Async => Some(ChunkGroup::Async(node.module)),
-                    ChunkingType::Isolated {
-                        merge_tag: None, ..
-                    } => Some(ChunkGroup::Isolated(node.module)),
-                    // ChunkingType::Isolated {
-                    //     merge_tag: Some(merge_tag),
-                    //     ..
-                    // } => {
-                    //     let parent_chunk_groups = module_chunk_groups
-                    //         .get(&parent.module)
-                    //         .unwrap()
-                    //         .iter()
-                    //         .map(|id| {
-                    //             chunk_groups_from_id
-                    //                 .get(&ChunkGroupId(id))
-                    //                 .unwrap()
-                    //                 .hashed()
-                    //         });
-
-                    //     Some(ChunkGroup::IsolatedMerged(parent_hash, merge_tag.clone()))
-                    // }
-                    ChunkingType::Passthrough => None,
-                    ChunkingType::Traced => unreachable!(),
-                    _ => None,
-                }
-            } else {
-                // entry
-                Some(ChunkGroup::Entry(node.module))
-            };
-
-            if let Some(chunk_group) = chunk_group {
-                let chunk_group_id = ChunkGroupId(next_chunk_group_id);
-                next_chunk_group_id += 1;
-                chunk_groups_to_id.insert(chunk_group.clone(), chunk_group_id);
-                chunk_groups_from_id.insert(chunk_group_id, chunk_group.clone());
-
-                // assign chunk group to the target node (the entry of the chunk group)
-                module_chunk_groups.insert(
-                    node.module.clone(),
-                    RoaringBitmapWrapper(
-                        RoaringBitmap::from_sorted_iter(std::iter::once(chunk_group_id.0)).unwrap(),
-                    ),
-                );
-            }
-
             GraphTraversalAction::Continue
         },
         |parent, node, _| {},
     );
+
+    // ----
+
+    {
+        let mut visitor =
+            |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+             node: &'_ SingleModuleGraphModuleNode|
+             -> GraphTraversalAction { false };
+
+        macro_rules! get_node {
+            ($graphs:expr, $node:expr) => {{
+                let node_idx = $node;
+                match $graphs[node_idx.graph_idx]
+                    .graph
+                    .node_weight(node_idx.node_idx)
+                    .unwrap()
+                {
+                    SingleModuleGraphNode::Module(node) => node,
+                    SingleModuleGraphNode::VisitedModule { idx } => {
+                        let SingleModuleGraphNode::Module(node) = $graphs[idx.graph_idx]
+                            .graph
+                            .node_weight(idx.node_idx)
+                            .unwrap()
+                        else {
+                            panic!("expected Module node");
+                        };
+                        node
+                    }
+                }
+            }};
+        }
+        fn iter_neighbors<N, E>(
+            graph: &DiGraph<N, E>,
+            node: NodeIndex,
+        ) -> impl Iterator<Item = (EdgeIndex, NodeIndex)> + '_ {
+            let mut walker = graph.neighbors(node).detach();
+            std::iter::from_fn(move || walker.next(graph))
+        }
+
+        #[derive(Debug, Clone, PartialEq, Eq)]
+        struct NodeWithPriority(usize, GraphNodeIndex);
+        impl PartialOrd for NodeWithPriority {
+            fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+                Some(self.cmp(other))
+            }
+        }
+        impl Ord for NodeWithPriority {
+            fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+                // reverse for a min heap
+                // include GraphNodeIndex for total and deterministic ordering
+                self.0.cmp(&other.0).reverse().then(other.1.cmp(&self.1))
+            }
+        }
+
+        let graphs = graph.graphs.iter().try_join().await?;
+        let mut queue = entries
+            .into_iter()
+            .map(|e| {
+                NodeWithPriority(
+                    *module_depth.get(e).unwrap(),
+                    GraphNodeIndex {
+                        graph_idx: graphs.len() - 1,
+                        node_idx: ModuleGraph::get_entry(&graphs, e).unwrap(),
+                    },
+                )
+            })
+            .collect::<BinaryHeap<_>>();
+        for entry_node in &queue {
+            visitor(None, get_node!(graphs, entry_node.1));
+        }
+        while let Some(NodeWithPriority(_, node)) = queue.pop() {
+            let graph = &graphs[node.graph_idx].graph;
+            let node_weight = get_node!(graphs, node);
+            let neighbors = iter_neighbors(graph, node.node_idx);
+
+            for (edge, succ) in neighbors {
+                let succ = GraphNodeIndex {
+                    graph_idx: node.graph_idx,
+                    node_idx: succ,
+                };
+                let succ_weight = get_node!(graphs, succ);
+                let edge_weight = graph.edge_weight(edge).unwrap();
+                let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                if action == GraphTraversalAction::Continue {
+                    queue.push(NodeWithPriority(
+                        *module_depth.get(&succ_weight.module).unwrap(),
+                        succ,
+                    ));
+                }
+            }
+        }
+    }
 
     Ok(Vc::cell(module_chunk_groups))
 }
