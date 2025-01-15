@@ -249,12 +249,13 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               entrypoint.name
             ]?.replace(this.appDir, '')
 
+          const entryIsStaticMetadataRoute =
+            appDirRelativeEntryPath &&
+            isStaticMetadataRoute(appDirRelativeEntryPath)
+
           // Include the client reference manifest in the trace, but not for
           // static metadata routes, for which we don't generate those.
-          if (
-            appDirRelativeEntryPath &&
-            !isStaticMetadataRoute(appDirRelativeEntryPath)
-          ) {
+          if (!entryIsStaticMetadataRoute) {
             entryFiles.add(
               nodePath.join(
                 outputPath,
