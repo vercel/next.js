@@ -2,6 +2,7 @@ packages:
   - 'packages/*'
   - 'bench/*'
   - 'crates/*/js'
+  - 'docs'
   - 'turbopack/crates/*/js'
   - 'turbopack/crates/turbopack-tests/tests/execution'
   - 'turbopack/packages/*'

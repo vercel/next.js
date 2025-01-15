@@ -42,7 +42,9 @@ Since JavaScript modules can be shared between both Server and Client Components
 
 For example, take the following data-fetching function:
 
-```ts filename="lib/data.ts" switcher
+<Tabs items={["lib/data.ts", "lib/data.js"]}>
+
+```ts tab
 export async function getData() {
   const res = await fetch('https://external-service.com/data', {
     headers: {
@@ -54,7 +56,7 @@ export async function getData() {
 }
 ```
 
-```js filename="lib/data.js" switcher
+```js tab
 export async function getData() {
   const res = await fetch('https://external-service.com/data', {
     headers: {
@@ -65,6 +67,8 @@ export async function getData() {
   return res.json()
 }
 ```
+
+</Tabs>
 
 At first glance, it appears that `getData` works on both the server and the client. However, this function contains an `API_KEY`, written with the intention that it would only ever be executed on the server.
 
