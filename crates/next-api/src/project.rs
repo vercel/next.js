@@ -46,7 +46,10 @@ use turbopack_core::{
     context::AssetContext,
     diagnostics::DiagnosticExt,
     file_source::FileSource,
-    issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
+    issue::{
+        Issue, IssueDescriptionExt, IssueExt, IssueSeverity, IssueStage, OptionStyledString,
+        StyledString,
+    },
     module::{Module, Modules},
     module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
@@ -842,21 +845,16 @@ impl Project {
     }
 
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+    pub async fn whole_app_module_graph(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraph>> {
         async move {
-            self.whole_app_module_graph_inner()
-                .resolve_strongly_consistent()
-                .await
+            let operation = whole_app_module_graph_operation(self);
+            let module_graph = operation.connect();
+            let _ = module_graph.resolve_strongly_consistent().await?;
+            let _ = operation.take_issues_with_path().await?;
+            Ok(module_graph)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
-    }
-
-    // This is a performance optimization. This function is a root aggregation function that
-    // aggregates over the whole subgraph.
-    #[turbo_tasks::function]
-    fn whole_app_module_graph_inner(self: Vc<Self>) -> Vc<ModuleGraph> {
-        ModuleGraph::from_modules(self.get_all_entries())
     }
 
     #[turbo_tasks::function]
@@ -1537,6 +1535,13 @@ impl Project {
             },
         }
     }
+}
+
+// This is a performance optimization. This function is a root aggregation function that
+// aggregates over the whole subgraph.
+#[turbo_tasks::function(operation)]
+fn whole_app_module_graph_operation(project: ResolvedVc<Project>) -> Vc<ModuleGraph> {
+    ModuleGraph::from_modules(project.get_all_entries())
 }
 
 #[turbo_tasks::function]
