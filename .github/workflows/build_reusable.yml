@@ -106,6 +106,25 @@ jobs:
       input_step_key: ${{ steps.var.outputs.input_step_key }}
 
     steps:
+      - name: Check if fnm is installed
+        id: check-fnm
+        run: |
+          if [ -x "$(command -v fnm)" ]; then
+            echo "fnm found."
+            echo "found=true" >> $GITHUB_OUTPUT
+          else
+            echo "fnm not found."
+            echo "found=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Install fnm
+        if: steps.check-fnm.outputs.found != 'true'
+        run: |
+          curl -fsSL https://fnm.vercel.app/install | bash
+          export PATH="/home/runner/.local/share/fnm:$PATH"
+          echo "/home/runner/.local/share/fnm" >> $GITHUB_PATH
+          fnm env --json | jq -r 'to_entries|map("\(.key)=\(.value|tostring)")|.[]' | xargs -I {} echo "{}" >> $GITHUB_ENV
+
       - name: Normalize input step names into path key
         uses: actions/github-script@v7
         id: var

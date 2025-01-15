@@ -26,6 +26,8 @@ import {
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
+import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut'
+import { MODIFIERS } from '../hooks/use-keyboard-shortcut'
 
 export type SupportedErrorEvent = {
   id: number
@@ -197,8 +199,29 @@ export function Errors({
     }
   }, [errors.length, minimize])
 
+  useEffect(() => {
+    // Close the error overlay when pressing escape
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setDisplayState('minimized')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
+
+  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
+  useKeyboardShortcut({
+    key: '.',
+    modifiers: [MODIFIERS.CTRL_CMD],
+    callback: () => {
+      setDisplayState((prev) => (prev === 'hidden' ? 'minimized' : 'hidden'))
+    },
+  })
 
   if (displayState === 'hidden') {
     return null

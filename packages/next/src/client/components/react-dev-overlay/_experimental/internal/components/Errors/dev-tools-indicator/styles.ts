@@ -77,10 +77,6 @@ export const styles = css`
     border-radius: var(--rounded-md);
   }
 
-  [data-nextjs-dev-tools-row][data-clickable='true'] {
-    cursor: pointer;
-  }
-
   [data-nextjs-dev-tools-row]:hover {
     background-color: var(--color-gray-100);
   }
@@ -146,5 +142,34 @@ export const styles = css`
     flex-direction: column;
     align-items: flex-start;
     background: var(--color-background-100);
+  }
+
+  [data-nextjs-dev-tools-shortcut-group] {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--size-1);
+  }
+
+  [data-nextjs-dev-tools-icon] {
+    display: flex;
+    min-width: var(--size-5);
+    height: var(--size-5);
+    padding: var(--size-1) var(--size-1_5);
+    justify-content: center;
+    align-items: center;
+    border-radius: var(--rounded-md);
+    border: 1px solid var(--color-gray-alpha-400);
+    background: var(--color-background-100);
+
+    color: var(--color-gray-1000);
+    text-align: center;
+    font-size: var(--size-font-smaller);
+    font-style: normal;
+    font-weight: 400;
+    line-height: var(--size-4);
+  }
+
+  [data-nextjs-dev-tools-ctrl-icon] {
+    width: 100%;
   }
 `

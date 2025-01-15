@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 
 describe('use-cache-metadata-route-handler', () => {
-  const { next, isNextDev, isNextStart } = nextTestSetup({
+  const { next, isNextDev, isNextStart, isTurbopack } = nextTestSetup({
     files: __dirname,
   })
 
@@ -131,4 +131,31 @@ describe('use-cache-metadata-route-handler', () => {
       expect(body).toEqual({ name: 'buildtime' })
     }
   })
+
+  if (isNextStart && !isTurbopack) {
+    it('should include the client reference manifest in the route.js.nft.json files of dynamic metadata routes', async () => {
+      for (const filename of [
+        'icon',
+        'manifest.webmanifest',
+        'opengraph-image',
+        'products/sitemap/[__metadata_id__]',
+        'robots.txt',
+        'sitemap.xml',
+      ]) {
+        const { files } = await next.readJSON(
+          `/.next/server/app/${filename}/route.js.nft.json`
+        )
+
+        expect(files).toInclude('route_client-reference-manifest.js')
+      }
+    })
+
+    it('should not include the client reference manifest in the route.js.nft.json files of static metadata routes', async () => {
+      const { files } = await next.readJSON(
+        '/.next/server/app/favicon.ico/route.js.nft.json'
+      )
+
+      expect(files).not.toInclude('route_client-reference-manifest.js')
+    })
+  }
 })
