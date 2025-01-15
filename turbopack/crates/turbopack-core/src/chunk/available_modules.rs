@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ReadRef, ResolvedVc,
     TryFlatJoinIterExt, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_hash::Xxh3Hash64Hasher;
@@ -110,29 +110,36 @@ impl AvailableModules {
     }
 
     #[turbo_tasks::function]
-    pub async fn into_snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
-        let mut combined = FxIndexMap::default();
-        if let Some(parent) = self.parent {
-            for (module, info) in &parent.into_snapshot().await?.modules {
-                combined.insert(*module, *info);
-            }
-        }
+    pub async fn snapshot(&self) -> Result<Vc<AvailableModulesSnapshot>> {
+        let modules = self.modules.await?;
+        let parent = if let Some(parent) = self.parent {
+            Some(parent.snapshot().await?)
+        } else {
+            None
+        };
 
-        Ok(AvailableModulesSnapshot { modules: combined }.cell())
+        Ok(AvailableModulesSnapshot { parent, modules }.cell())
     }
 }
 
 #[turbo_tasks::value(serialization = "none")]
 #[derive(Debug, Clone)]
 pub struct AvailableModulesSnapshot {
-    modules: FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, AvailableModulesInfo>,
+    parent: Option<ReadRef<AvailableModulesSnapshot>>,
+    modules: ReadRef<AvailableModuleInfoMap>,
 }
 
 impl AvailableModulesSnapshot {
     pub fn get(
         &self,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
-    ) -> Option<&AvailableModulesInfo> {
-        self.modules.get(&module)
+    ) -> Option<AvailableModulesInfo> {
+        if let Some(&info) = self.modules.get(&module) {
+            return Some(info);
+        };
+        if let Some(parent) = &self.parent {
+            return parent.get(module);
+        }
+        None
     }
 }
