@@ -14,6 +14,7 @@ export const styles = css`
   }
 
   [data-nextjs-dev-tools-popover] {
+    -webkit-font-smoothing: antialiased;
     display: flex;
     flex-direction: column;
     align-items: flex-start;
@@ -153,7 +154,7 @@ export const styles = css`
 
   [data-nextjs-dev-tools-icon] {
     display: flex;
-    min-width: var(--size-5);
+    width: var(--size-5);
     height: var(--size-5);
     padding: var(--size-1) var(--size-1_5);
     justify-content: center;
