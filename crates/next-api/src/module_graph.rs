@@ -40,16 +40,16 @@ async fn get_module_graph_for_endpoint(
 
     let mut graphs = vec![];
 
-    let mut visited_modules = if !server_utils.is_empty() {
+    let mut visited_modules = VisitedModules::empty();
+
+    if !server_utils.is_empty() {
         let graph = SingleModuleGraph::new_with_entries_visited(
             server_utils.iter().map(|m| **m).collect(),
-            Vc::cell(Default::default()),
+            visited_modules,
         );
         graphs.push(graph);
-        VisitedModules::from_graph(graph)
-    } else {
-        VisitedModules::empty()
-    };
+        visited_modules = VisitedModules::from_graph(graph)
+    }
 
     for module in server_component_entries.iter() {
         let graph = SingleModuleGraph::new_with_entries_visited(

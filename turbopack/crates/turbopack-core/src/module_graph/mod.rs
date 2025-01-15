@@ -34,21 +34,28 @@ pub struct GraphNodeIndex {
 }
 unsafe impl NonLocalValue for GraphNodeIndex {}
 
-#[turbo_tasks::value(transparent)]
+#[turbo_tasks::value]
 #[derive(Clone, Debug)]
-pub struct VisitedModules(pub FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>);
+pub struct VisitedModules {
+    pub modules: FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
+    next_graph_idx: usize,
+}
 
 #[turbo_tasks::value_impl]
 impl VisitedModules {
     #[turbo_tasks::function]
     pub async fn empty() -> Vc<Self> {
-        Vc::cell(FxIndexMap::default())
+        Self {
+            modules: Default::default(),
+            next_graph_idx: 0,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]
     pub async fn from_graph(graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
-        Ok(Vc::cell(
-            graph
+        Ok(Self {
+            modules: graph
                 .await?
                 .enumerate_nodes()
                 .flat_map(|(node_idx, module)| match module {
@@ -64,31 +71,38 @@ impl VisitedModules {
                     SingleModuleGraphNode::VisitedModule { .. } => None,
                 })
                 .collect(),
-        ))
+            next_graph_idx: 0,
+        }
+        .cell())
     }
 
     #[turbo_tasks::function]
     pub async fn concatenate(&self, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
         let graph = graph.await?;
-        let iter = self.0.iter().map(|(module, idx)| (*module, *idx)).chain(
-            graph
-                .enumerate_nodes()
-                .flat_map(|(node_idx, module)| match module {
-                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                        module, ..
-                    }) => Some((
-                        *module,
-                        GraphNodeIndex {
-                            graph_idx: 0,
-                            node_idx,
-                        },
-                    )),
-                    SingleModuleGraphNode::VisitedModule { .. } => None,
-                }),
-        );
+        let iter = self
+            .modules
+            .iter()
+            .map(|(module, idx)| (*module, *idx))
+            .chain(
+                graph
+                    .enumerate_nodes()
+                    .flat_map(|(node_idx, module)| match module {
+                        SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                            module,
+                            ..
+                        }) => Some((
+                            *module,
+                            GraphNodeIndex {
+                                graph_idx: self.next_graph_idx,
+                                node_idx,
+                            },
+                        )),
+                        SingleModuleGraphNode::VisitedModule { .. } => None,
+                    }),
+            );
 
         let mut map = FxIndexMap::with_capacity_and_hasher(
-            self.0.len() + graph.number_of_modules,
+            self.modules.len() + graph.number_of_modules,
             Default::default(),
         );
         for (k, v) in iter {
@@ -96,7 +110,11 @@ impl VisitedModules {
         }
         map.shrink_to_fit();
 
-        Ok(Vc::cell(map))
+        Ok(Self {
+            modules: map,
+            next_graph_idx: self.next_graph_idx + 1,
+        }
+        .cell())
     }
 }
 
@@ -731,7 +749,7 @@ impl SingleModuleGraph {
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: Vc<VisitedModules>,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(&entries, &*visited_modules.await?).await
+        SingleModuleGraph::new_inner(&entries, &visited_modules.await?.modules).await
     }
 }
 
