@@ -42,7 +42,6 @@ async fn get_module_graph_for_endpoint(
 
     let mut visited_modules = if !server_utils.is_empty() {
         let graph = SingleModuleGraph::new_with_entries_visited(
-            *entry,
             server_utils.iter().map(|m| **m).collect(),
             Vc::cell(Default::default()),
         );
@@ -54,7 +53,6 @@ async fn get_module_graph_for_endpoint(
 
     for module in server_component_entries.iter() {
         let graph = SingleModuleGraph::new_with_entries_visited(
-            *entry,
             vec![Vc::upcast(**module)],
             visited_modules,
         );
@@ -67,7 +65,7 @@ async fn get_module_graph_for_endpoint(
         }
     }
 
-    let graph = SingleModuleGraph::new_with_entries_visited(*entry, vec![*entry], visited_modules);
+    let graph = SingleModuleGraph::new_with_entries_visited(vec![*entry], visited_modules);
     graphs.push(graph);
 
     Ok(ModuleGraph::from_graphs(graphs))
@@ -146,11 +144,17 @@ impl NextDynamicGraph {
                 InClientReference(ClientReferenceType),
             }
 
+            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
+                &[entry]
+            } else {
+                &graph.entries
+            };
+
             let mut result = vec![];
 
             // module -> the client reference entry (if any)
             let mut state_map = HashMap::new();
-            graph.traverse_edges_from_entry(entry, |parent_info, node| {
+            graph.traverse_edges_from_entries(entries, |parent_info, node| {
                 let module = node.module;
                 let Some((parent_node, _)) = parent_info else {
                     state_map.insert(module, VisitState::Entry);
@@ -328,14 +332,20 @@ impl ClientReferencesGraph {
             let data = &*self.data.await?;
             let graph = &*self.graph.await?;
 
+            let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
+                &[entry]
+            } else {
+                &graph.entries
+            };
+
             let mut client_references = FxIndexSet::default();
             // Make sure None (for the various internal next/dist/esm/client/components/*) is
             // listed first
             let mut client_references_by_server_component =
                 FxIndexMap::from_iter([(None, Vec::new())]);
 
-            graph.traverse_edges_from_entry_topological(
-                entry,
+            graph.traverse_edges_from_entries_topological(
+                entries,
                 // state_map is `module -> Option< the current so parent server component >`
                 &mut HashMap::new(),
                 |parent_info, node, state_map| {

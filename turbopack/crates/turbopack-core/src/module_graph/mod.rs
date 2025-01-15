@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{HashMap, HashSet},
     future::Future,
     ops::Deref,
 };
@@ -106,7 +106,7 @@ pub struct SingleModuleGraph {
     graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
 
     /// The number of modules in the graph (excluding VisitedModule nodes)
-    number_of_modules: usize,
+    pub number_of_modules: usize,
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
     //
@@ -117,16 +117,14 @@ pub struct SingleModuleGraph {
     #[turbo_tasks(trace_ignore)]
     modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
     #[turbo_tasks(trace_ignore)]
-    entries: Vec<ResolvedVc<Box<dyn Module>>>,
+    pub entries: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl SingleModuleGraph {
     /// Walks the graph starting from the given entries and collects all reachable nodes, skipping
     /// nodes listed in `visited_modules`
     /// The resulting graph's outgoing edges are in reverse order.
-    /// If passed, `root` is connected to the entries and include in `self.entries`.
     async fn new_inner(
-        root: Option<ResolvedVc<Box<dyn Module>>>,
         entries: &Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     ) -> Result<Vc<Self>> {
@@ -227,31 +225,11 @@ impl SingleModuleGraph {
             }
         }
 
-        if let Some(root) = root {
-            if let Entry::Vacant(e) = modules.entry(root) {
-                let root_idx =
-                    graph.add_node(SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
-                        module: root,
-                        issues: Default::default(),
-                        layer: None,
-                        // ident: root.ident().to_string().await?,
-                    }));
-                e.insert(root_idx);
-                for entry in entries {
-                    graph.add_edge(
-                        root_idx,
-                        *modules.get(entry).unwrap(),
-                        ChunkingType::Parallel,
-                    );
-                }
-            }
-        };
-
         Ok(SingleModuleGraph {
             graph: TracedDiGraph(graph),
             number_of_modules,
             modules,
-            entries: entries.iter().copied().chain(root.into_iter()).collect(),
+            entries: entries.clone(),
         }
         .cell())
     }
@@ -309,25 +287,28 @@ impl SingleModuleGraph {
     ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub fn traverse_edges_from_entry<'a>(
+    pub fn traverse_edges_from_entries<'a>(
         &'a self,
-        entry: ResolvedVc<Box<dyn Module>>,
+        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
         mut visitor: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
             &'a SingleModuleGraphModuleNode,
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
-        let entry_node = self.get_module(entry)?;
+        let entries = entries.into_iter().map(|e| self.get_module(*e).unwrap());
 
-        let mut stack = vec![entry_node];
+        let mut stack = entries.collect::<Vec<_>>();
         let mut discovered = graph.visit_map();
         // entry_weight.emit_issues();
-        let SingleModuleGraphNode::Module(entry_weight) = graph.node_weight(entry_node).unwrap()
-        else {
-            return Ok(());
-        };
-        visitor(None, entry_weight);
+        for entry_node in &stack {
+            let SingleModuleGraphNode::Module(entry_weight) =
+                graph.node_weight(*entry_node).unwrap()
+            else {
+                continue;
+            };
+            visitor(None, entry_weight);
+        }
 
         while let Some(node) = stack.pop() {
             let SingleModuleGraphNode::Module(node_weight) = graph.node_weight(node).unwrap()
@@ -433,9 +414,9 @@ impl SingleModuleGraph {
     ///    - Receives: (originating &SingleModuleGraphNode, edge &ChunkingType), target
     ///      &SingleModuleGraphNode, state &S
     ///    - Can return [GraphTraversalAction]s to control the traversal
-    pub fn traverse_edges_from_entry_topological<'a, S>(
+    pub fn traverse_edges_from_entries_topological<'a, S>(
         &'a self,
-        entry: ResolvedVc<Box<dyn Module>>,
+        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
         state: &mut S,
         mut visit_preorder: impl FnMut(
             Option<(&'a SingleModuleGraphModuleNode, &'a ChunkingType)>,
@@ -449,7 +430,7 @@ impl SingleModuleGraph {
         ),
     ) -> Result<()> {
         let graph = &self.graph;
-        let entry_node = self.get_module(entry)?;
+        let entries = entries.into_iter().map(|e| self.get_module(*e).unwrap());
 
         enum ReverseTopologicalPass {
             Visit,
@@ -461,7 +442,9 @@ impl SingleModuleGraph {
             ReverseTopologicalPass,
             Option<(NodeIndex, EdgeIndex)>,
             NodeIndex,
-        )> = vec![(ReverseTopologicalPass::ExpandAndVisit, None, entry_node)];
+        )> = entries
+            .map(|e| (ReverseTopologicalPass::ExpandAndVisit, None, e))
+            .collect();
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = parent.map(|parent| {
@@ -742,18 +725,16 @@ impl ModuleGraph {
 impl SingleModuleGraph {
     #[turbo_tasks::function]
     pub async fn new_with_entries(entries: Vc<Modules>) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(None, &*entries.await?, &Default::default()).await
+        SingleModuleGraph::new_inner(&*entries.await?, &Default::default()).await
     }
 
-    /// `root` is connected to the entries and include in `self.entries`.
     #[turbo_tasks::function]
     pub async fn new_with_entries_visited(
-        root: ResolvedVc<Box<dyn Module>>,
         // This must not be a Vc<Vec<_>> to ensure layout segment optimization hits the cache
         entries: Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: Vc<VisitedModules>,
     ) -> Result<Vc<Self>> {
-        SingleModuleGraph::new_inner(Some(root), &entries, &*visited_modules.await?).await
+        SingleModuleGraph::new_inner(&entries, &*visited_modules.await?).await
     }
 }
 
