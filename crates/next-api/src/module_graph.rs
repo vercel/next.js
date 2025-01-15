@@ -350,11 +350,6 @@ impl ClientReferencesGraph {
                 &mut HashMap::new(),
                 |parent_info, node, state_map| {
                     let module = node.module;
-                    let Some((parent_node, _)) = parent_info else {
-                        state_map.insert(module, None);
-                        return GraphTraversalAction::Continue;
-                    };
-                    let module = node.module;
                     let module_type = data.get(&module);
 
                     let current_server_component = if let Some(
@@ -362,8 +357,11 @@ impl ClientReferencesGraph {
                     ) = module_type
                     {
                         Some(*module)
-                    } else {
+                    } else if let Some((parent_node, _)) = parent_info {
                         *state_map.get(&parent_node.module).unwrap()
+                    } else {
+                        // a root node
+                        None
                     };
 
                     state_map.insert(module, current_server_component);
