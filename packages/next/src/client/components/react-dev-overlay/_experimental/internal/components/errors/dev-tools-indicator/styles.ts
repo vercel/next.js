@@ -20,7 +20,8 @@ export const styles = css`
     padding: 0px;
     background: var(--color-background-100);
     border: 1px solid var(--color-gray-alpha-400);
-    box-shadow: var(--shadow-sm), var(--shadow-lg);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-menu);
     border-radius: var(--rounded-lg);
     position: absolute;
     bottom: calc(100% + var(--size-gap));
