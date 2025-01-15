@@ -544,7 +544,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
         &self,
         future: impl Future<Output = Result<T>> + Send + 'static,
     ) -> Result<T> {
-        let _permit = PERMITS.acquire().await.unwrap();
         let (tx, rx) = tokio::sync::oneshot::channel();
         let task_id = self.spawn_once_task(async move {
             let result = future.await?;
@@ -1104,7 +1103,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
                     }
                     let this2 = this.clone();
                     if !this.stopped.load(Ordering::Acquire) {
-                        let _permit = PERMITS.acquire().await.unwrap();
                         func(this).await;
                     }
                     if this2
@@ -1133,7 +1131,6 @@ impl<B: Backend + 'static> TurboTasks<B> {
             TURBO_TASKS
                 .scope(this.clone(), async move {
                     if !this.stopped.load(Ordering::Acquire) {
-                        let _permit = PERMITS.acquire().await.unwrap();
                         func(this.clone()).await;
                     }
                     this.finish_foreground_job();
@@ -1761,7 +1758,7 @@ pub fn emit<T: VcValueTrait + ?Sized>(collectible: ResolvedVc<T>) {
 }
 
 pub async fn spawn_blocking<T: Send + 'static>(func: impl FnOnce() -> T + Send + 'static) -> T {
-    let _permit = PERMITS.acquire().await.unwrap();
+    // let _permit = PERMITS.acquire().await.unwrap();
     let turbo_tasks = turbo_tasks();
     let span = Span::current();
     let (result, duration, alloc_info) = tokio::task::spawn_blocking(|| {
@@ -2081,4 +2078,4 @@ pub(crate) fn assert_execution_id(execution_id: ExecutionId) {
     })
 }
 
-static PERMITS: Semaphore = Semaphore::const_new(20480);
+static PERMITS: Semaphore = Semaphore::const_new(2048 * 16);
