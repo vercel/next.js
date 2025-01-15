@@ -3,7 +3,7 @@ use indoc::formatdoc;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
-use turbo_tasks_fs::{util::uri_from_file_relative, File, FileSystemPath};
+use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
@@ -123,10 +123,10 @@ impl ClientReferenceManifest {
                         let chunk_paths = client_chunks_paths
                             .iter()
                             .filter_map(|chunk_path| client_relative_path.get_path_to(chunk_path))
+                            .map(ToString::to_string)
                             // It's possible that a chunk also emits CSS files, that will
                             // be handled separatedly.
                             .filter(|path| path.ends_with(".js"))
-                            .map(uri_from_file_relative)
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 

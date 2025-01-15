@@ -147,7 +147,7 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
 
     Ok(format!(
         "file://{}",
-        &uri_from_file_relative(&sys_to_unix(
+        &sys_to_unix(
             &root_fs
                 .to_sys_path(match path {
                     Some(path) => root.join(path.into()),
@@ -155,13 +155,10 @@ pub async fn uri_from_file(root: Vc<FileSystemPath>, path: Option<&str>) -> Resu
                 })
                 .await?
                 .to_string_lossy()
-        ))
-    ))
-}
-
-pub fn uri_from_file_relative(path: &str) -> String {
-    path.split("/")
-        .map(|p| urlencoding::encode(p))
+        )
+        .split('/')
+        .map(|s| urlencoding::encode(s))
         .collect::<Vec<_>>()
         .join("/")
+    ))
 }
