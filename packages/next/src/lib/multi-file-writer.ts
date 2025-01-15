@@ -53,8 +53,14 @@ export class MultiFileWriter {
       }
     }
 
+    const promise = this.fs.mkdir(directory)
+
+    // Attach a catch handler so that it doesn't throw an unhandled promise
+    // rejection warning.
+    promise.catch(() => {})
+
     // Otherwise, create a new task for this directory.
-    const task: Task = [directory, this.fs.mkdir(directory), []]
+    const task: Task = [directory, promise, []]
     this.tasks.push(task)
 
     return task
@@ -74,8 +80,14 @@ export class MultiFileWriter {
     // Find or create a task for the directory that contains the file.
     const task = this.findOrCreateTask(path.dirname(filePath))
 
+    const promise = task[1].then(() => this.fs.writeFile(filePath, data))
+
+    // Attach a catch handler so that it doesn't throw an unhandled promise
+    // rejection warning.
+    promise.catch(() => {})
+
     // Add the file write to the task AFTER the directory promise has resolved.
-    task[2].push(task[1].then(() => this.fs.writeFile(filePath, data)))
+    task[2].push(promise)
   }
 
   /**
