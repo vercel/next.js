@@ -70,26 +70,31 @@ impl VisitedModules {
     #[turbo_tasks::function]
     pub async fn concatenate(&self, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
         let graph = graph.await?;
-        let extended = graph.enumerate_nodes();
-        let size_hint = extended.size_hint().0 / 2;
-        let iter = extended.flat_map(|(node_idx, module)| match module {
-            SingleModuleGraphNode::Module(SingleModuleGraphModuleNode { module, .. }) => Some((
-                *module,
-                GraphNodeIndex {
-                    graph_idx: 0,
-                    node_idx,
-                },
-            )),
-            SingleModuleGraphNode::VisitedModule { .. } => None,
-        });
+        let iter = self.0.iter().map(|(module, idx)| (*module, *idx)).chain(
+            graph
+                .enumerate_nodes()
+                .flat_map(|(node_idx, module)| match module {
+                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                        module, ..
+                    }) => Some((
+                        *module,
+                        GraphNodeIndex {
+                            graph_idx: 0,
+                            node_idx,
+                        },
+                    )),
+                    SingleModuleGraphNode::VisitedModule { .. } => None,
+                }),
+        );
 
-        // `map.extend()` but don't overwrite keys (give higher priority to the
-        // earlier maps)
-        let mut map = self.0.clone();
-        map.reserve(size_hint);
+        let mut map = FxIndexMap::with_capacity_and_hasher(
+            self.0.len() + graph.number_of_modules,
+            Default::default(),
+        );
         for (k, v) in iter {
             map.entry(k).or_insert(v);
         }
+        map.shrink_to_fit();
 
         Ok(Vc::cell(map))
     }
@@ -99,6 +104,9 @@ impl VisitedModules {
 #[derive(Clone, Default)]
 pub struct SingleModuleGraph {
     graph: TracedDiGraph<SingleModuleGraphNode, ChunkingType>,
+
+    /// The number of modules in the graph (excluding VisitedModule nodes)
+    number_of_modules: usize,
     // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
     // ever be involved in a swap_remove operation
     //
@@ -141,6 +149,7 @@ impl SingleModuleGraph {
             .completed()?
             .into_inner();
 
+        let mut number_of_modules = 0;
         let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> = HashMap::new();
         {
             let _span = tracing::info_span!("build module graph").entered();
@@ -175,6 +184,7 @@ impl SingleModuleGraph {
                                     layer,
                                 },
                             ));
+                            number_of_modules += 1;
                             modules.insert(module, idx);
                             idx
                         };
@@ -239,6 +249,7 @@ impl SingleModuleGraph {
 
         Ok(SingleModuleGraph {
             graph: TracedDiGraph(graph),
+            number_of_modules,
             modules,
             entries: entries.iter().copied().chain(root.into_iter()).collect(),
         }
