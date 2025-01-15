@@ -74,7 +74,7 @@ use crate::{
     dynamic_imports::{collect_next_dynamic_chunks, NextDynamicChunkAvailability},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::get_reduced_graphs_for_endpoint,
+    module_graph::{get_reduced_graphs_for_endpoint, ReducedGraphs},
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -82,7 +82,7 @@ use crate::{
     },
     project::Project,
     route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
-    server_actions::create_server_actions_manifest,
+    server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1760,8 +1760,42 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let rsc_entry = self.app_endpoint_entry().await?.rsc_entry;
-        Ok(Vc::cell(vec![rsc_entry]))
+        Ok(Vc::cell(vec![self.app_endpoint_entry().await?.rsc_entry]))
+    }
+
+    #[turbo_tasks::function]
+    async fn additional_root_modules(
+        self: Vc<Self>,
+        graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<Modules>> {
+        let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        let rsc_entry = app_entry.rsc_entry;
+        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+
+        let actions = ReducedGraphs::new(graph, false).get_server_actions_for_endpoint(
+            *rsc_entry,
+            match runtime {
+                NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+            },
+        );
+
+        let server_actions_loader = ResolvedVc::upcast(
+            build_server_actions_loader(
+                this.app_project.project().project_path(),
+                app_entry.original_name.clone(),
+                actions,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+            )
+            .to_resolved()
+            .await?,
+        );
+
+        Ok(Vc::cell(vec![server_actions_loader]))
     }
 }
 

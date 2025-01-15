@@ -29,6 +29,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAsset},
     context::AssetContext,
     file_source::FileSource,
+    ident::AssetIdent,
     module::Module,
     module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAsset,
@@ -83,6 +84,11 @@ pub(crate) async fn create_server_actions_manifest(
     .cell())
 }
 
+#[turbo_tasks::function]
+fn server_actions_loader_modifier() -> Vc<RcStr> {
+    Vc::cell("server actions loader".into())
+}
+
 /// Builds the "action loader" entry point, which reexports every found action
 /// behind a lazy dynamic import.
 ///
@@ -90,7 +96,7 @@ pub(crate) async fn create_server_actions_manifest(
 /// file's name and the action name). This hash matches the id sent to the
 /// client and present inside the paired manifest.
 #[turbo_tasks::function]
-async fn build_server_actions_loader(
+pub(crate) async fn build_server_actions_loader(
     project_path: Vc<FileSystemPath>,
     page_name: RcStr,
     actions: Vc<AllActions>,
@@ -115,10 +121,12 @@ async fn build_server_actions_loader(
         )?;
     }
 
-    let output_path =
-        project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
+    let path = project_path.join(format!(".next-internal/server/app{page_name}/actions.js").into());
     let file = File::from(contents.build());
-    let source = VirtualSource::new(output_path, AssetContent::file(file.into()));
+    let source = VirtualSource::new_with_ident(
+        AssetIdent::from_path(path).with_modifier(server_actions_loader_modifier()),
+        AssetContent::file(file.into()),
+    );
     let import_map = import_map.into_iter().map(|(k, v)| (v, k)).collect();
     let module = asset_context
         .process(
