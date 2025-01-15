@@ -19,7 +19,6 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -243,18 +242,15 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
         )
 
         if (entrypoint.name.startsWith('app/')) {
-          // Include the client reference manifest for pages and route handlers,
-          // excluding metadata route handlers.
-          const clientManifestsForEntrypoint = isMetadataRoute(entrypoint.name)
-            ? null
-            : nodePath.join(
-                outputPath,
-                outputPrefix,
-                entrypoint.name.replace(/%5F/g, '_') +
-                  '_' +
-                  CLIENT_REFERENCE_MANIFEST +
-                  '.js'
-              )
+          // include the client reference manifest
+          const clientManifestsForEntrypoint = nodePath.join(
+            outputPath,
+            outputPrefix,
+            entrypoint.name.replace(/%5F/g, '_') +
+              '_' +
+              CLIENT_REFERENCE_MANIFEST +
+              '.js'
+          )
 
           if (clientManifestsForEntrypoint !== null) {
             entryFiles.add(clientManifestsForEntrypoint)

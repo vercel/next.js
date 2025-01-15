@@ -26,7 +26,6 @@ import {
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { ModuleInfo } from './flight-client-entry-plugin'
 
 interface Options {
@@ -562,9 +561,9 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
-      // We also need to create manifests for route handler entrypoints
-      // (excluding metadata route handlers) to enable `'use cache'`.
-      if (/\/route$/.test(entryName) && !isMetadataRoute(entryName)) {
+      // We also need to create manifests for route handler entrypoints to
+      // enable `'use cache'`.
+      if (/\/route$/.test(entryName)) {
         manifestEntryFiles.push(entryName)
       }
 

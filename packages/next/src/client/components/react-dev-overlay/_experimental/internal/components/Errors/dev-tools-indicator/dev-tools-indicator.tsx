@@ -1,8 +1,10 @@
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import { Toast } from '../../Toast'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NextLogo } from './internal/next-logo'
+import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
+import { useIsDevRendering } from './internal/dev-render-indicator'
 
 // TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
@@ -13,14 +15,14 @@ export function DevToolsIndicator({
   readyErrors,
   fullscreen,
   hide,
-  isTurbopackEnabled,
+  isTurbopack,
 }: {
   versionInfo: VersionInfo | undefined
   readyErrors: ReadyRuntimeError[]
   fullscreen: () => void
   hide: () => void
   hasStaticIndicator?: boolean
-  isTurbopackEnabled: boolean
+  isTurbopack: boolean
 }) {
   return (
     <DevToolsPopover
@@ -29,7 +31,7 @@ export function DevToolsIndicator({
       issueCount={readyErrors.length}
       isStaticRoute={hasStaticIndicator === true}
       hide={hide}
-      isTurbopackEnabled={isTurbopackEnabled}
+      isTurbopack={isTurbopack}
     />
   )
 }
@@ -40,32 +42,70 @@ const DevToolsPopover = ({
   isStaticRoute,
   hide,
   semver,
-  isTurbopackEnabled,
+  isTurbopack,
 }: {
   onIssuesClick: () => void
   issueCount: number
   isStaticRoute: boolean
   hide: () => void
   semver: string | undefined
-  isTurbopackEnabled: boolean
+  isTurbopack: boolean
 }) => {
-  // TODO: close when clicking outside
-
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLDivElement>(null)
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+
+  // Close popover when clicking outside of it or its button
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        !(popoverRef.current?.getBoundingClientRect()
+          ? event.clientX >= popoverRef.current.getBoundingClientRect()!.left &&
+            event.clientX <=
+              popoverRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= popoverRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= popoverRef.current.getBoundingClientRect()!.bottom
+          : false) &&
+        !(buttonRef.current?.getBoundingClientRect()
+          ? event.clientX >= buttonRef.current.getBoundingClientRect()!.left &&
+            event.clientX <= buttonRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= buttonRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= buttonRef.current.getBoundingClientRect()!.bottom
+          : false)
+      ) {
+        setIsPopoverOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const togglePopover = () => setIsPopoverOpen((prev) => !prev)
+
   return (
-    <Toast style={{ boxShadow: 'none' }}>
-      <NextLogo
-        issueCount={issueCount}
-        onClick={togglePopover}
-        aria-haspopup="true"
-        aria-expanded={isPopoverOpen}
-        aria-controls="dev-tools-popover"
-        data-nextjs-dev-tools-button
-      />
+    <Toast
+      style={{
+        boxShadow: 'none',
+        zIndex: 2147483647,
+      }}
+    >
+      <div ref={buttonRef}>
+        <NextLogo
+          issueCount={issueCount}
+          onClick={togglePopover}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          aria-haspopup="true"
+          aria-expanded={isPopoverOpen}
+          aria-controls="dev-tools-popover"
+          data-nextjs-dev-tools-button
+        />
+      </div>
 
       {isPopoverOpen && (
         <div
+          ref={popoverRef}
           id="dev-tools-popover"
           role="dialog"
           aria-labelledby="dev-tools-title"
@@ -104,7 +144,7 @@ const DevToolsPopover = ({
               ) : null}
 
               <p data-nextjs-dev-tools-version>
-                Turbopack {isTurbopackEnabled ? 'enabled' : 'not enabled'}
+                Turbopack {isTurbopack ? 'enabled' : 'not enabled'}
               </p>
             </div>
           </div>
@@ -133,7 +173,7 @@ const IndicatorRow = ({
 
 const IssueCount = ({ count }: { count: number }) => {
   return (
-    <span data-nextjs-dev-tools-issue-count>
+    <span data-nextjs-dev-tools-issue-count data-has-issues={count > 0}>
       <span data-nextjs-dev-tools-issue-text data-has-issues={count > 0}>
         {count}
       </span>

@@ -47,15 +47,11 @@ describe('segment cache (basic tests)', () => {
           `"<div><div data-streaming-text-static="Static in nav">Static in nav</div><div data-streaming-text-dynamic="Dynamic in nav">Dynamic in nav</div></div>"`
         )
       },
-      // When the outer act scope exits, the blocked prefetches are allowed
-      // to continue.
-      // TODO: As an optimization, in the case where a fully static page is
-      // returned during a dynamic response, we should populate the prefetch
-      // cache with the static data. Then we wouldn't have to prefetch it again
-      // here, because it would already be cached. Only works for fully static
-      // pages because in a partial response we don't know which parts are
-      // static versus dynamic.
-      { includes: 'Static in nav' }
+      // Although the blocked prefetches are allowed to continue when we exit
+      // the outer `act` scope, they were canceled when we navigated to the new
+      // page. So there should be no additional requests in the outer
+      // `act` scope.
+      'no-requests'
     )
   })
 

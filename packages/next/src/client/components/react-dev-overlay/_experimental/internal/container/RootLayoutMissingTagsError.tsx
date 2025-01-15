@@ -5,11 +5,13 @@ import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/er
 
 type RootLayoutMissingTagsErrorProps = {
   missingTags: string[]
+  isTurbopack: boolean
   versionInfo?: VersionInfo
 }
 
 export function RootLayoutMissingTagsError({
   missingTags,
+  isTurbopack,
   versionInfo,
 }: RootLayoutMissingTagsErrorProps) {
   const noop = useCallback(() => {}, [])
@@ -27,6 +29,7 @@ export function RootLayoutMissingTagsError({
       }
       onClose={noop}
       versionInfo={versionInfo}
+      isTurbopack={isTurbopack}
     />
   )
 }

@@ -35,10 +35,10 @@ export type ErrorsProps = {
   isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  isTurbopack: boolean
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
   debugInfo?: DebugInfo
-  isTurbopackEnabled: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -110,7 +110,7 @@ export function Errors({
   hasStaticIndicator,
   debugInfo,
   versionInfo,
-  isTurbopackEnabled,
+  isTurbopack,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -214,7 +214,7 @@ export function Errors({
         fullscreen={fullscreen}
         hide={hide}
         versionInfo={versionInfo}
-        isTurbopackEnabled={isTurbopackEnabled}
+        isTurbopack={isTurbopack}
       />
     )
   }
@@ -272,6 +272,7 @@ export function Errors({
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
       versionInfo={versionInfo}
+      isTurbopack={isTurbopack}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -333,12 +334,6 @@ export const styles = css`
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
   }
-  .nextjs__container_errors__component-stack {
-    margin: 0;
-    padding: 12px 32px;
-    color: var(--color-ansi-fg);
-    background: var(--color-ansi-bg);
-  }
   .nextjs-toast-errors-parent {
     cursor: pointer;
     transition: transform 0.2s ease;
@@ -384,6 +379,6 @@ export const styles = css`
     margin-bottom: var(--size-3);
   }
   .error-overlay-notes-container {
-    padding: 0 var (--size-4);
+    padding: 0 var(--size-4);
   }
 `

@@ -6,19 +6,13 @@ This is an example showing how to use [Sentry](https://sentry.io) to catch and r
 - `next.config.js` automatically injects Sentry into your app using `withSentryConfig`
 - `_error.js` (which is rendered by Next.js when handling certain types of exceptions) is overridden so those exceptions can be passed along to Sentry
 
-## Preview
-
-Preview the example live on [StackBlitz](http://stackblitz.com/):
-
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-sentry)
-
 ## Deploy your own
 
 It only takes a few steps to create and deploy your own version of this example app. Before you begin, make sure you have [linked your Vercel account to GitHub](https://vercel.com/docs/teams-and-accounts#existing-login-connection), and [set up a project in Sentry](https://docs.sentry.io/product/sentry-basics/guides/integrate-frontend/create-new-project/).
 
 ### Option 1: Deploy directly to Vercel
 
-You can deploy a copy of this project directly to [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example).
+You can deploy a copy of this project directly to [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-sentry).
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-sentry&project-name=nextjs-sentry-example&repository-name=nextjs-sentry-example&integration-ids=oac_5lUsiANun1DEzgLg0NZx5Es3)
 
@@ -34,9 +28,13 @@ To begin, execute [`create-next-app`](https://github.com/vercel/next.js/tree/can
 
 ```bash
 npx create-next-app --example with-sentry nextjs-sentry-example
-# or
+```
+
+```bash
 yarn create next-app --example with-sentry nextjs-sentry-example
-# or
+```
+
+```bash
 pnpm create next-app --example with-sentry nextjs-sentry-example
 ```
 

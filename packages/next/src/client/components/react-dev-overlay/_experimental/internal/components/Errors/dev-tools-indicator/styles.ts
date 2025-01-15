@@ -81,7 +81,7 @@ export const styles = css`
     cursor: pointer;
   }
 
-  [data-nextjs-dev-tools-row][data-clickable='true']:hover {
+  [data-nextjs-dev-tools-row]:hover {
     background-color: var(--color-gray-100);
   }
 
@@ -113,7 +113,6 @@ export const styles = css`
     gap: var(--size-1);
     width: var(--size-5);
     height: var(--size-5);
-    background: var(--color-gray-300);
     border-radius: var(--rounded-full);
   }
 
@@ -124,6 +123,14 @@ export const styles = css`
     font-size: 11px;
     line-height: var(--size-4);
     text-align: center;
+  }
+
+  [data-nextjs-dev-tools-issue-count][data-has-issues='true'] {
+    background: var(--color-red-300);
+  }
+
+  [data-nextjs-dev-tools-issue-count][data-has-issues='false'] {
+    background: var(--color-gray-300);
   }
 
   [data-nextjs-dev-tools-issue-text][data-has-issues='true'] {
@@ -138,7 +145,6 @@ export const styles = css`
     display: flex;
     flex-direction: column;
     align-items: flex-start;
-    padding: var(--size-1_5);
     background: var(--color-background-100);
   }
 `

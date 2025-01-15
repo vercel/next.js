@@ -4,7 +4,7 @@ import type {
 } from '../loaders/next-flight-client-entry-loader'
 
 import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { stringify } from 'querystring'
+import { parse, stringify } from 'querystring'
 import path from 'path'
 import { sources } from 'next/dist/compiled/webpack/webpack'
 import {
@@ -13,7 +13,10 @@ import {
   EntryTypes,
   getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
-import { WEBPACK_LAYERS } from '../../../lib/constants'
+import {
+  WEBPACK_LAYERS,
+  WEBPACK_RESOURCE_QUERIES,
+} from '../../../lib/constants'
 import {
   APP_CLIENT_INTERNALS,
   BARREL_OPTIMIZATION_PREFIX,
@@ -41,6 +44,7 @@ import { PAGE_TYPES } from '../../../lib/page-types'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getAssumedSourceType } from '../loaders/next-flight-loader'
 import { isAppRouteRoute } from '../../../lib/is-app-route-route'
+import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 interface Options {
   dev: boolean
@@ -296,9 +300,13 @@ export class FlightClientEntryPlugin {
         compilation.moduleGraph
       )) {
         // Entry can be any user defined entry files such as layout, page, error, loading, etc.
-        const entryRequest = (
+        let entryRequest = (
           connection.dependency as unknown as webpack.NormalModule
         ).request
+
+        if (entryRequest.endsWith(WEBPACK_RESOURCE_QUERIES.metadataRoute)) {
+          entryRequest = getMetadataRouteResource(entryRequest)
+        }
 
         const { clientComponentImports, actionImports, cssImports } =
           this.collectComponentInfoFromServerEntryDependency({
@@ -332,9 +340,15 @@ export class FlightClientEntryPlugin {
           : entryRequest
 
         // Replace file suffix as `.js` will be added.
-        const bundlePath = normalizePathSep(
+        let bundlePath = normalizePathSep(
           relativeRequest.replace(/\.[^.\\/]+$/, '').replace(/^src[\\/]/, '')
         )
+
+        // For metadata routes, the entry name can be used as the bundle path,
+        // as it has been normalized already.
+        if (isMetadataRoute(bundlePath)) {
+          bundlePath = name
+        }
 
         Object.assign(mergedCSSimports, cssImports)
         clientEntriesToInject.push({
@@ -1111,5 +1125,16 @@ function getModuleResource(mod: webpack.NormalModule): string {
   if (mod.matchResource?.startsWith(BARREL_OPTIMIZATION_PREFIX)) {
     modResource = mod.matchResource + ':' + modResource
   }
+
+  if (mod.resource === `?${WEBPACK_RESOURCE_QUERIES.metadataRoute}`) {
+    return getMetadataRouteResource(mod.rawRequest)
+  }
+
   return modResource
+}
+
+function getMetadataRouteResource(request: string): string {
+  const query = request.split('next-metadata-route-loader?')[1]
+
+  return parse(query).filePath as string
 }
