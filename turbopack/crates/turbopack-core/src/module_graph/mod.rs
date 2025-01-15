@@ -111,6 +111,8 @@ pub struct SingleModuleGraph {
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
     modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
+    #[turbo_tasks(trace_ignore)]
+    entries: Vec<ResolvedVc<Box<dyn Module>>>,
 }
 
 impl SingleModuleGraph {
@@ -241,6 +243,7 @@ impl SingleModuleGraph {
         Ok(SingleModuleGraph {
             graph: TracedDiGraph(graph),
             modules,
+            entries: entries.iter().copied().chain(root.into_iter()).collect(),
         }
         .cell())
     }
@@ -365,9 +368,13 @@ impl SingleModuleGraph {
         ) -> GraphTraversalAction,
     ) -> Result<()> {
         let graph = &self.graph;
-        let mut stack = self.modules.values().copied().collect::<Vec<_>>();
+        let mut stack: Vec<NodeIndex> = self
+            .entries
+            .iter()
+            .map(|e| *self.modules.get(e).unwrap())
+            .collect();
         let mut discovered = graph.visit_map();
-        for entry_node in self.modules.values() {
+        for entry_node in &stack {
             let SingleModuleGraphNode::Module(entry_node) = graph.node_weight(*entry_node).unwrap()
             else {
                 continue;
@@ -649,14 +656,16 @@ impl ModuleGraph {
         ),
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
-        let top_graph = self.graphs.last().unwrap().await?;
-        let entry = top_graph.get_module(entry)?;
+        let entry = graphs
+            .iter()
+            .find_map(|graph| graph.modules.get(&entry))
+            .copied()
+            .context("Couldn't find entry module in graph")?;
 
         enum ReverseTopologicalPass {
             Visit,
             ExpandAndVisit,
         }
-
         #[allow(clippy::type_complexity)] // This is a temporary internal structure
         let mut stack: Vec<(
             ReverseTopologicalPass,
