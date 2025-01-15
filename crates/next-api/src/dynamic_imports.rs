@@ -34,7 +34,7 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
-    module_graph::{SingleModuleGraph, SingleModuleGraphModuleNode},
+    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAssets,
 };
 
@@ -48,6 +48,7 @@ pub(crate) enum NextDynamicChunkAvailability<'a> {
 }
 
 pub(crate) async fn collect_next_dynamic_chunks(
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: ReadRef<DynamicImportEntriesWithImporter>,
     chunking_availability: NextDynamicChunkAvailability<'_>,
@@ -73,12 +74,15 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 }
             };
 
-            let async_loader =
-                chunking_context.async_loader_chunk_item(*module, Value::new(availability_info));
+            let async_loader = chunking_context.async_loader_chunk_item(
+                *module,
+                module_graph,
+                Value::new(availability_info),
+            );
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
-                .as_chunk_item(Vc::upcast(chunking_context))
+                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                 .id()
                 .to_resolved()
                 .await?;

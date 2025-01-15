@@ -41,8 +41,8 @@ pub use self::{
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
 };
 use crate::{
-    asset::Asset, ident::AssetIdent, module::Module, output::OutputAssets,
-    reference::ModuleReference,
+    asset::Asset, ident::AssetIdent, module::Module, module_graph::ModuleGraph,
+    output::OutputAssets, reference::ModuleReference,
 };
 
 /// A module id, which can be a number or string
@@ -89,6 +89,7 @@ pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 pub trait ChunkableModule: Module + Asset {
     fn as_chunk_item(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>>;
 }

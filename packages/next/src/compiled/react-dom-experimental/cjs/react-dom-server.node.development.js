@@ -4067,6 +4067,9 @@
           index
         );
     }
+    function unsupportedRefresh() {
+      throw Error("Cache cannot be refreshed during server rendering.");
+    }
     function noop$1() {}
     function disabledLog() {}
     function disableLogs() {
@@ -8088,11 +8091,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-f0edf41e-20250115" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-b158439a-20250115" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-f0edf41e-20250115\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-b158439a-20250115\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -9612,6 +9615,9 @@
             data[i] = REACT_MEMO_CACHE_SENTINEL;
           return data;
         },
+        useCacheRefresh: function () {
+          return unsupportedRefresh;
+        },
         useEffectEvent: function () {
           return throwOnUseEffectEventCall;
         }
@@ -9859,5 +9865,5 @@
         }
       };
     };
-    exports.version = "19.1.0-experimental-f0edf41e-20250115";
+    exports.version = "19.1.0-experimental-b158439a-20250115";
   })();

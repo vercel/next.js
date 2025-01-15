@@ -2,7 +2,6 @@ use std::{borrow::Cow, collections::HashMap};
 
 use anyhow::Result;
 use next_core::{
-    mode::NextMode,
     next_client_reference::{
         find_server_entries, ClientReference, ClientReferenceGraphResult, ClientReferenceType,
         ServerEntries, VisitedClientReferenceGraphNodes,
@@ -18,58 +17,14 @@ use turbopack_core::{
     context::AssetContext,
     issue::Issue,
     module::Module,
-    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph, VisitedModules},
+    module_graph::{GraphTraversalAction, ModuleGraph, SingleModuleGraph},
 };
 
 use crate::{
     client_references::{map_client_references, ClientReferenceMapType, ClientReferencesSet},
     dynamic_imports::{map_next_dynamic, DynamicImportEntries, DynamicImportEntriesMapType},
-    project::Project,
     server_actions::{map_server_actions, to_rsc_context, AllActions, AllModuleActions},
 };
-
-/// Implements layout segment optimization to compute a graph "chain" for each layout segment
-#[turbo_tasks::function]
-async fn get_module_graph_for_endpoint(
-    entry: ResolvedVc<Box<dyn Module>>,
-) -> Result<Vc<ModuleGraph>> {
-    let ServerEntries {
-        server_utils,
-        server_component_entries,
-    } = &*find_server_entries(*entry).await?;
-
-    let mut graphs = vec![];
-
-    let mut visited_modules = VisitedModules::empty();
-
-    if !server_utils.is_empty() {
-        let graph = SingleModuleGraph::new_with_entries_visited(
-            server_utils.iter().map(|m| **m).collect(),
-            visited_modules,
-        );
-        graphs.push(graph);
-        visited_modules = VisitedModules::from_graph(graph)
-    }
-
-    for module in server_component_entries.iter() {
-        let graph = SingleModuleGraph::new_with_entries_visited(
-            vec![Vc::upcast(**module)],
-            visited_modules,
-        );
-        graphs.push(graph);
-        let is_layout = module.server_path().file_stem().await?.as_deref() == Some("layout");
-        if is_layout {
-            // Only propagate the visited_modules of the parent layout(s), not across siblings such
-            // as loading.js and page.js.
-            visited_modules = visited_modules.concatenate(graph);
-        }
-    }
-
-    let graph = SingleModuleGraph::new_with_entries_visited(vec![*entry], visited_modules);
-    graphs.push(graph);
-
-    Ok(ModuleGraph::from_graphs(graphs))
-}
 
 #[turbo_tasks::value]
 pub struct NextDynamicGraph {
@@ -559,42 +514,14 @@ impl ReducedGraphs {
     }
 }
 
-// This is a performance optimization. This function is a root aggregation function that aggregates
-// over the whole subgraph.
-#[turbo_tasks::function]
-async fn get_global_module_graph(project: ResolvedVc<Project>) -> Vc<SingleModuleGraph> {
-    SingleModuleGraph::new_with_entries(project.get_all_entries())
-}
-
 #[turbo_tasks::function(operation)]
 async fn get_reduced_graphs_for_endpoint_inner_operation(
-    project: ResolvedVc<Project>,
-    entry: ResolvedVc<Box<dyn Module>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    is_single_page: bool,
 ) -> Result<Vc<ReducedGraphs>> {
-    let (is_single_page, graph) = match &*project.next_mode().await? {
-        NextMode::Development => (
-            true,
-            async move { get_module_graph_for_endpoint(*entry).await }
-                .instrument(tracing::info_span!("module graph for endpoint"))
-                .await?,
-        ),
-        NextMode::Build => (
-            false,
-            ModuleGraph::from_single_graph(
-                async move {
-                    get_global_module_graph(*project)
-                        .resolve_strongly_consistent()
-                        .await
-                }
-                .instrument(tracing::info_span!("module graph for app"))
-                .await?,
-            )
-            .await?,
-        ),
-    };
-
+    let module_graph = module_graph.await?;
     let next_dynamic = async {
-        graph
+        module_graph
             .graphs
             .iter()
             .map(|graph| NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved())
@@ -605,7 +532,7 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
     .await?;
 
     let server_actions = async {
-        graph
+        module_graph
             .graphs
             .iter()
             .map(|graph| {
@@ -618,7 +545,7 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
     .await?;
 
     let client_references = async {
-        graph
+        module_graph
             .graphs
             .iter()
             .map(|graph| {
@@ -643,14 +570,14 @@ async fn get_reduced_graphs_for_endpoint_inner_operation(
 /// references, etc).
 #[turbo_tasks::function]
 pub async fn get_reduced_graphs_for_endpoint(
-    project: ResolvedVc<Project>,
-    entry: ResolvedVc<Box<dyn Module>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    is_single_page: bool,
 ) -> Result<Vc<ReducedGraphs>> {
     // TODO get rid of this function once everything inside of
     // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
-    let result_op = get_reduced_graphs_for_endpoint_inner_operation(project, entry);
+    let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
     let result_vc = result_op.connect();
-    if project.next_mode().await?.is_production() {
+    if !is_single_page {
         result_vc.strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
     }

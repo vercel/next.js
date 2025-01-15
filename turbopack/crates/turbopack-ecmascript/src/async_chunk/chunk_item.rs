@@ -9,6 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssets,
 };
 
@@ -24,6 +25,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct AsyncLoaderChunkItem {
     pub module: ResolvedVc<AsyncLoaderModule>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -39,6 +41,7 @@ impl AsyncLoaderChunkItem {
         }
         Ok(self.chunking_context.chunk_group_assets(
             *ResolvedVc::upcast(module.inner),
+            *self.module_graph,
             Value::new(module.availability_info),
         ))
     }
@@ -70,7 +73,10 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         {
             Some(
                 placeable
-                    .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
+                    .as_chunk_item(
+                        *this.module_graph,
+                        *ResolvedVc::upcast(this.chunking_context),
+                    )
                     .id()
                     .await?,
             )

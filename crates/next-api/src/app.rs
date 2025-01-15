@@ -18,13 +18,17 @@ use next_core::{
         get_client_module_options_context, get_client_resolve_options_context,
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
-    next_client_reference::{ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition},
+    next_client_reference::{
+        find_server_entries, ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition,
+        ServerEntries,
+    },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
     next_edge::route_regex::get_named_middleware_regex,
     next_manifests::{
-        AppBuildManifest, AppPathsManifest, BuildManifest, ClientReferenceManifest,
-        EdgeFunctionDefinition, MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
+        client_reference_manifest::ClientReferenceManifestOptions, AppBuildManifest,
+        AppPathsManifest, BuildManifest, ClientReferenceManifest, EdgeFunctionDefinition,
+        MiddlewareMatcher, MiddlewaresManifestV2, PagesManifest, Regions,
     },
     next_server::{
         get_server_module_options_context, get_server_resolve_options_context,
@@ -58,6 +62,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
+    module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -718,6 +723,61 @@ impl AppProject {
 
         Ok(*client_main_module)
     }
+
+    #[turbo_tasks::function]
+    pub async fn app_module_graph(
+        &self,
+        rsc_entry: ResolvedVc<Box<dyn Module>>,
+    ) -> Result<Vc<ModuleGraph>> {
+        if *self.project.per_page_module_graph().await? {
+            // Implements layout segment optimization to compute a graph "chain" for each layout
+            // segment
+            async move {
+                let ServerEntries {
+                    server_utils,
+                    server_component_entries,
+                } = &*find_server_entries(*rsc_entry).await?;
+
+                let mut graphs = vec![];
+
+                let mut visited_modules = VisitedModules::empty();
+
+                if !server_utils.is_empty() {
+                    let graph = SingleModuleGraph::new_with_entries_visited(
+                        server_utils.iter().map(|m| **m).collect(),
+                        visited_modules,
+                    );
+                    graphs.push(graph);
+                    visited_modules = VisitedModules::from_graph(graph)
+                }
+
+                for module in server_component_entries.iter() {
+                    let graph = SingleModuleGraph::new_with_entries_visited(
+                        vec![Vc::upcast(**module)],
+                        visited_modules,
+                    );
+                    graphs.push(graph);
+                    let is_layout =
+                        module.server_path().file_stem().await?.as_deref() == Some("layout");
+                    if is_layout {
+                        // Only propagate the visited_modules of the parent layout(s), not across
+                        // siblings such as loading.js and page.js.
+                        visited_modules = visited_modules.concatenate(graph);
+                    }
+                }
+
+                let graph =
+                    SingleModuleGraph::new_with_entries_visited(vec![*rsc_entry], visited_modules);
+                graphs.push(graph);
+
+                Ok(ModuleGraph::from_graphs(graphs))
+            }
+            .instrument(tracing::info_span!("module graph for endpoint"))
+            .await
+        } else {
+            Ok(self.project.whole_app_module_graph())
+        }
+    }
 }
 
 #[turbo_tasks::function]
@@ -912,6 +972,7 @@ impl AppEndpoint {
     #[turbo_tasks::function]
     async fn output(self: Vc<Self>) -> Result<Vc<AppEndpointOutput>> {
         let this = self.await?;
+        let project = this.app_project.project();
 
         let app_entry = self.app_endpoint_entry().await?;
 
@@ -925,9 +986,9 @@ impl AppEndpoint {
             AppEndpointType::Metadata { .. } => (false, false, true),
         };
 
-        let node_root = this.app_project.project().node_root();
+        let node_root = project.node_root();
 
-        let client_relative_path = this.app_project.project().client_relative_path();
+        let client_relative_path = project.client_relative_path();
 
         let server_path = node_root.join("server".into());
 
@@ -939,14 +1000,13 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
+        let module_graph = this.app_project.app_module_graph(*rsc_entry);
 
-        let client_chunking_context = this.app_project.project().client_chunking_context();
+        let client_chunking_context = project.client_chunking_context();
 
         let ssr_chunking_context = if process_ssr {
             Some(match runtime {
-                NextRuntime::NodeJs => {
-                    Vc::upcast(this.app_project.project().server_chunking_context(true))
-                }
+                NextRuntime::NodeJs => Vc::upcast(project.server_chunking_context(true)),
                 NextRuntime::Edge => this
                     .app_project
                     .project()
@@ -957,9 +1017,10 @@ impl AppEndpoint {
         };
 
         let client_shared_chunk_group = get_app_client_shared_chunk_group(
-            AssetIdent::from_path(this.app_project.project().project_path())
+            AssetIdent::from_path(project.project_path())
                 .with_modifier(client_shared_chunks_modifier()),
             this.app_project.client_runtime_entries(),
+            module_graph,
             client_chunking_context,
         )
         .await?;
@@ -976,7 +1037,7 @@ impl AppEndpoint {
         let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
         let reduced_graphs =
-            get_reduced_graphs_for_endpoint(this.app_project.project(), *rsc_entry);
+            get_reduced_graphs_for_endpoint(module_graph, *project.per_page_module_graph().await?);
         let next_dynamic_imports = reduced_graphs
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
@@ -985,6 +1046,7 @@ impl AppEndpoint {
 
         let client_references_chunks = get_app_client_references_chunks(
             client_references,
+            module_graph,
             client_chunking_context,
             Value::new(client_shared_availability_info),
             ssr_chunking_context,
@@ -1044,7 +1106,7 @@ impl AppEndpoint {
 
         // polyfill-nomodule.js is a pre-compiled asset distributed as part of next,
         // load it as a RawModule.
-        let next_package = get_next_package(this.app_project.project().project_path());
+        let next_package = get_next_package(project.project_path());
         let polyfill_source =
             FileSource::new(next_package.join("dist/build/polyfills/polyfill-nomodule.js".into()));
         let polyfill_output_path =
@@ -1114,8 +1176,6 @@ impl AppEndpoint {
             }
         }
 
-        let reduced_graphs =
-            get_reduced_graphs_for_endpoint(this.app_project.project(), *rsc_entry);
         let actions = reduced_graphs.get_server_actions_for_endpoint(
             *rsc_entry,
             match runtime {
@@ -1126,7 +1186,7 @@ impl AppEndpoint {
 
         let server_action_manifest = create_server_actions_manifest(
             actions,
-            this.app_project.project().project_path(),
+            project.project_path(),
             node_root,
             app_entry.original_name.clone(),
             runtime,
@@ -1134,6 +1194,7 @@ impl AppEndpoint {
                 NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
                 NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
             },
+            module_graph,
             this.app_project
                 .project()
                 .runtime_chunking_context(process_client_assets, runtime),
@@ -1149,6 +1210,7 @@ impl AppEndpoint {
                 *server_action_manifest_loader,
                 server_path,
                 process_client_assets,
+                module_graph,
             )
             .await?;
         let app_entry_chunks_ref = app_entry_chunks.await?;
@@ -1162,22 +1224,24 @@ impl AppEndpoint {
         let mut client_reference_manifest = None;
 
         if emit_manifests {
-            let entry_manifest = ClientReferenceManifest::build_output(
-                node_root,
-                client_relative_path,
-                app_entry.original_name.clone(),
-                client_references,
-                client_references_chunks,
-                **app_entry_chunks,
-                Value::new(*app_entry_chunks_availability),
-                client_chunking_context,
-                ssr_chunking_context,
-                this.app_project.project().next_config(),
-                runtime,
-                this.app_project.project().next_mode(),
-            )
-            .to_resolved()
-            .await?;
+            let entry_manifest =
+                ClientReferenceManifest::build_output(ClientReferenceManifestOptions {
+                    node_root,
+                    client_relative_path,
+                    entry_name: app_entry.original_name.clone(),
+                    client_references,
+                    client_references_chunks,
+                    rsc_app_entry_chunks: **app_entry_chunks,
+                    rsc_app_entry_chunks_availability: Value::new(*app_entry_chunks_availability),
+                    module_graph,
+                    client_chunking_context,
+                    ssr_chunking_context,
+                    next_config: project.next_config(),
+                    runtime,
+                    mode: project.next_mode(),
+                })
+                .to_resolved()
+                .await?;
             server_assets.insert(entry_manifest);
             if runtime == NextRuntime::Edge {
                 middleware_assets.push(entry_manifest);
@@ -1185,7 +1249,7 @@ impl AppEndpoint {
             client_reference_manifest = Some(entry_manifest);
 
             let next_font_manifest_output = create_font_manifest(
-                this.app_project.project().client_root(),
+                project.client_root(),
                 node_root,
                 this.app_project.app_dir(),
                 &app_entry.original_name,
@@ -1233,6 +1297,7 @@ impl AppEndpoint {
 
                 if emit_manifests {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
+                        module_graph,
                         Vc::upcast(client_chunking_context),
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -1280,7 +1345,7 @@ impl AppEndpoint {
                             .clone()
                             .map(Regions::Multiple),
                         matchers: vec![matchers],
-                        env: this.app_project.project().edge_env().await?.clone_value(),
+                        env: project.edge_env().await?.clone_value(),
                     };
                     let middleware_manifest_v2 = MiddlewaresManifestV2 {
                         sorted_middleware: vec![app_entry.original_name.clone()],
@@ -1347,6 +1412,7 @@ impl AppEndpoint {
 
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
+                        module_graph,
                         Vc::upcast(client_chunking_context),
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -1384,7 +1450,7 @@ impl AppEndpoint {
                 {
                     server_assets.insert(ResolvedVc::upcast(
                         NftJsonAsset::new(
-                            this.app_project.project(),
+                            project,
                             *rsc_chunk,
                             client_reference_manifest
                                 .iter()
@@ -1419,15 +1485,14 @@ impl AppEndpoint {
         server_action_manifest_loader: ResolvedVc<Box<dyn EvaluatableAsset>>,
         server_path: Vc<FileSystemPath>,
         process_client_assets: bool,
+        module_graph: Vc<ModuleGraph>,
     ) -> Result<Vc<OutputAssetsWithAvailability>> {
         let this = self.await?;
+        let project = this.app_project.project();
         let app_entry = self.app_endpoint_entry().await?;
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
-        let chunking_context = this
-            .app_project
-            .project()
-            .runtime_chunking_context(process_client_assets, runtime);
+        let chunking_context = project.runtime_chunking_context(process_client_assets, runtime);
 
         Ok(match runtime {
             NextRuntime::Edge => {
@@ -1449,6 +1514,7 @@ impl AppEndpoint {
                             .evaluated_chunk_group_assets(
                                 app_entry.rsc_entry.ident(),
                                 Vc::cell(evaluatable_assets.clone()),
+                                module_graph,
                                 Value::new(AvailabilityInfo::Root),
                             )
                             .to_resolved()
@@ -1483,6 +1549,7 @@ impl AppEndpoint {
                             .chunk_group(
                                 utils_module.ident(),
                                 Vc::upcast(utils_module),
+                                module_graph,
                                 Value::new(current_availability_info),
                             )
                             .await?;
@@ -1517,6 +1584,7 @@ impl AppEndpoint {
                                 .chunk_group(
                                     server_component.ident(),
                                     *ResolvedVc::upcast(server_component),
+                                    module_graph,
                                     Value::new(current_availability_info),
                                 )
                                 .await?;
@@ -1544,6 +1612,7 @@ impl AppEndpoint {
                             ),
                             *app_entry.rsc_entry,
                             Vc::cell(evaluatable_assets),
+                            module_graph,
                             current_chunks,
                             Value::new(current_availability_info),
                         )

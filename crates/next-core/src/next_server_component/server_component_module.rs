@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::{Module, Modules},
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
 };
 use turbopack_ecmascript::{
@@ -98,10 +99,12 @@ impl ChunkableModule for NextServerComponentModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             NextServerComponentChunkItem {
+                module_graph,
                 chunking_context,
                 inner: self,
             }
@@ -139,6 +142,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
 
 #[turbo_tasks::value]
 struct NextServerComponentChunkItem {
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     inner: ResolvedVc<NextServerComponentModule>,
 }
@@ -156,7 +160,7 @@ impl EcmascriptChunkItem for NextServerComponentChunkItem {
 
         let module_id = inner
             .module
-            .as_chunk_item(Vc::upcast(*self.chunking_context))
+            .as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context))
             .id()
             .await?;
         Ok(EcmascriptChunkItemContent {

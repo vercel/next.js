@@ -109,6 +109,8 @@ impl InstrumentationEndpoint {
 
         let module = self.core_modules().await?.edge_entry_module;
 
+        let module_graph = this.project.module_graph(*module);
+
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
@@ -137,6 +139,7 @@ impl InstrumentationEndpoint {
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
             Vc::cell(evaluatable_assets),
+            module_graph,
             Value::new(AvailabilityInfo::Root),
         );
 
@@ -150,6 +153,7 @@ impl InstrumentationEndpoint {
         let chunking_context = this.project.server_chunking_context(false);
 
         let userland_module = self.core_modules().await?.userland_module;
+        let module_graph = this.project.module_graph(*userland_module);
 
         let Some(module) = ResolvedVc::try_downcast(userland_module).await? else {
             bail!("Entry module must be evaluatable");
@@ -170,6 +174,7 @@ impl InstrumentationEndpoint {
                     this.project.next_mode(),
                 )
                 .resolve_entries(*this.asset_context),
+                module_graph,
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
             )

@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkableModuleReference, ChunkingContext},
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, WorkerReferenceSubType},
     resolve::{origin::ResolveOrigin, parse::Request, url_resolve, ModuleResolveResult},
@@ -119,6 +120,7 @@ impl CodeGenerateable for WorkerAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let Some(loader) = self.worker_loader_module().await? else {

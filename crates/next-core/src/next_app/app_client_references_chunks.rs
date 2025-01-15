@@ -7,6 +7,7 @@ use turbo_tasks::{
 use turbopack_core::{
     chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
     module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssets,
 };
 
@@ -45,6 +46,7 @@ pub struct ClientReferencesChunks {
 #[turbo_tasks::function]
 pub async fn get_app_client_references_chunks(
     app_client_references: Vc<ClientReferenceGraphResult>,
+    module_graph: Vc<ModuleGraph>,
     client_chunking_context: Vc<Box<dyn ChunkingContext>>,
     client_availability_info: Value<AvailabilityInfo>,
     ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
@@ -70,9 +72,12 @@ pub async fn get_app_client_references_chunks(
                                     ecmascript_client_reference.await?;
 
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(*ResolvedVc::upcast(
-                                        ecmascript_client_reference_ref.client_module,
-                                    ))
+                                    .root_chunk_group(
+                                        *ResolvedVc::upcast(
+                                            ecmascript_client_reference_ref.client_module,
+                                        ),
+                                        module_graph,
+                                    )
                                     .await?;
 
                                 (
@@ -82,9 +87,12 @@ pub async fn get_app_client_references_chunks(
                                     ),
                                     if let Some(ssr_chunking_context) = ssr_chunking_context {
                                         let ssr_chunk_group = ssr_chunking_context
-                                            .root_chunk_group(*ResolvedVc::upcast(
-                                                ecmascript_client_reference_ref.ssr_module,
-                                            ))
+                                            .root_chunk_group(
+                                                *ResolvedVc::upcast(
+                                                    ecmascript_client_reference_ref.ssr_module,
+                                                ),
+                                                module_graph,
+                                            )
                                             .await?;
 
                                         Some((
@@ -98,7 +106,7 @@ pub async fn get_app_client_references_chunks(
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(*ResolvedVc::upcast(css_module))
+                                    .root_chunk_group(*ResolvedVc::upcast(css_module), module_graph)
                                     .await?;
 
                                 (
@@ -209,6 +217,7 @@ pub async fn get_app_client_references_chunks(
                         ssr_chunking_context.chunk_group(
                             ssr_entry_module.ident(),
                             Vc::upcast(ssr_entry_module),
+                            module_graph,
                             Value::new(current_ssr_availability_info),
                         )
                     })
@@ -249,6 +258,7 @@ pub async fn get_app_client_references_chunks(
                     Some(client_chunking_context.chunk_group(
                         client_entry_module.ident(),
                         Vc::upcast(client_entry_module),
+                        module_graph,
                         Value::new(current_client_availability_info),
                     ))
                 } else {
