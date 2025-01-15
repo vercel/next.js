@@ -199,10 +199,7 @@ impl ServerActionsGraph {
     ) -> Result<Vc<AllActions>> {
         let span = tracing::info_span!("collect server actions for endpoint");
         async move {
-            let data: &HashMap<
-                ResolvedVc<Box<dyn Module>>,
-                (ActionLayer, ResolvedVc<crate::server_actions::ActionMap>),
-            > = &*self.data.await?;
+            let data = &*self.data.await?;
             let data = if self.is_single_page {
                 // The graph contains the page (= `entry`) only, no need to filter.
                 Cow::Borrowed(data)
