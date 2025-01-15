@@ -3,10 +3,10 @@ use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, CollectiblesSource, NonLocalValue, OperationVc,
-    ResolvedVc, Vc,
+    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, NonLocalValue,
+    OperationVc, ResolvedVc, Vc,
 };
-use turbopack_core::diagnostics::Diagnostic;
+use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
 
 use crate::{
     entrypoints::Entrypoints,
@@ -41,15 +41,17 @@ fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints>
     entrypoints.connect()
 }
 
-/// Removes diagnostics from the top-level `entrypoints` operation so that they're not duplicated
-/// across many different individual.
+/// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
+/// they're not duplicated across many different individual entrypoints or routes.
 #[turbo_tasks::function(operation)]
-fn entrypoints_without_diagnostics_operation(
+async fn entrypoints_without_collectibles_operation(
     entrypoints: OperationVc<Entrypoints>,
-) -> Vc<Entrypoints> {
+) -> Result<Vc<Entrypoints>> {
     let entrypoints = entrypoints_wrapper(entrypoints);
     let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
-    entrypoints.connect()
+    let _ = entrypoints.take_issues_with_path().await?;
+    let _ = get_effects(entrypoints).await?;
+    Ok(entrypoints.connect())
 }
 
 #[turbo_tasks::value_impl]
@@ -57,7 +59,7 @@ impl EntrypointsOperation {
     #[turbo_tasks::function(operation)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
         let e = entrypoints.connect().await?;
-        let entrypoints = entrypoints_without_diagnostics_operation(entrypoints);
+        let entrypoints = entrypoints_without_collectibles_operation(entrypoints);
         Ok(Self {
             routes: e
                 .routes
