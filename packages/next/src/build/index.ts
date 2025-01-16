@@ -430,7 +430,9 @@ export type RoutesManifest = {
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getNamedRouteRegex(page, true)
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
@@ -3221,7 +3223,9 @@ export default async function build(
                     : undefined,
                   experimentalBypassFor: bypassFor,
                   routeRegex: normalizeRouteRegex(
-                    getNamedRouteRegex(route.pathname, false).re.source
+                    getNamedRouteRegex(route.pathname, {
+                      prefixRouteKeys: false,
+                    }).re.source
                   ),
                   dataRoute,
                   fallback,
@@ -3235,22 +3239,21 @@ export default async function build(
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          dataRoute.replace(/\.rsc$/, ''),
-                          false
-                        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                        getNamedRouteRegex(dataRoute, {
+                          prefixRouteKeys: false,
+                          includeExtraParts: true,
+                          excludeOptionalTrailingSlash: true,
+                        }).re.source
                       ),
                   prefetchDataRoute,
                   prefetchDataRouteRegex: !prefetchDataRoute
                     ? undefined
                     : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
+                        getNamedRouteRegex(prefetchDataRoute, {
+                          prefixRouteKeys: false,
+                          includeExtraParts: true,
+                          excludeOptionalTrailingSlash: true,
+                        }).re.source
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
@@ -3648,7 +3651,9 @@ export default async function build(
 
           prerenderManifest.dynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
-              getNamedRouteRegex(tbdRoute, false).re.source
+              getNamedRouteRegex(tbdRoute, {
+                prefixRouteKeys: false,
+              }).re.source
             ),
             experimentalPPR: undefined,
             renderingMode: undefined,
@@ -3662,10 +3667,11 @@ export default async function build(
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
-              getNamedRouteRegex(
-                dataRoute.replace(/\.json$/, ''),
-                false
-              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
+              getNamedRouteRegex(dataRoute, {
+                prefixRouteKeys: true,
+                includeExtraParts: true,
+                excludeOptionalTrailingSlash: true,
+              }).re.source
             ),
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,

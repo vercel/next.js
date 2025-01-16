@@ -7,7 +7,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_i",
                         ),
                     ),
@@ -102,7 +102,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_i_f",
                         ),
                     ),
@@ -151,7 +151,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_i",
                         ),
                     ),
@@ -246,7 +246,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_i_f",
                         ),
                     ),
@@ -341,7 +341,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_r_t",
                         ),
                     ),
@@ -436,7 +436,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "w_r_f",
                         ),
                     ),
@@ -531,7 +531,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_r_t",
                         ),
                     ),
@@ -626,7 +626,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "t_r_f",
                         ),
                     ),
@@ -724,7 +724,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "exported_t_r",
                         ),
                     ),

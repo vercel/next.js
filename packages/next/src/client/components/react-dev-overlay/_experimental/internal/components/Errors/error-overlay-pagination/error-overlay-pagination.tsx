@@ -116,47 +116,45 @@ export function ErrorOverlayPagination({
   }, [nav, activeIdx, readyErrors.length])
 
   return (
-    <>
-      {readyErrors.length > 0 && (
-        <nav
-          className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
-          ref={onNav}
-        >
-          <button
-            ref={buttonLeft}
-            type="button"
-            disabled={activeIdx === 0}
-            aria-disabled={activeIdx === 0}
-            onClick={handlePrevious}
-            className="error-overlay-pagination-button"
-          >
-            <LeftArrow
-              title="previous"
-              className="error-overlay-pagination-button-icon"
-            />
-          </button>
-          <div className="error-overlay-pagination-count">
-            <span>{activeIdx + 1}/</span>
-            <span data-nextjs-dialog-header-total-count>
-              {readyErrors.length}
-            </span>
-          </div>
-          <button
-            ref={buttonRight}
-            type="button"
-            disabled={activeIdx === readyErrors.length - 1}
-            aria-disabled={activeIdx === readyErrors.length - 1}
-            onClick={handleNext}
-            className="error-overlay-pagination-button"
-          >
-            <RightArrow
-              title="next"
-              className="error-overlay-pagination-button-icon"
-            />
-          </button>
-        </nav>
-      )}
-    </>
+    <nav
+      className="error-overlay-pagination dialog-exclude-closing-from-outside-click"
+      ref={onNav}
+    >
+      <button
+        ref={buttonLeft}
+        type="button"
+        disabled={activeIdx === 0}
+        aria-disabled={activeIdx === 0}
+        onClick={handlePrevious}
+        className="error-overlay-pagination-button"
+      >
+        <LeftArrow
+          title="previous"
+          className="error-overlay-pagination-button-icon"
+        />
+      </button>
+      <div className="error-overlay-pagination-count">
+        <span>{activeIdx + 1}/</span>
+        <span data-nextjs-dialog-header-total-count>
+          {/* Display 1 out of 1 if there are no errors (e.g. for build errors). */}
+          {readyErrors.length || 1}
+        </span>
+      </div>
+      <button
+        ref={buttonRight}
+        type="button"
+        // If no errors or the last error is active, disable the button.
+        disabled={activeIdx >= readyErrors.length - 1}
+        aria-disabled={activeIdx >= readyErrors.length - 1}
+        onClick={handleNext}
+        className="error-overlay-pagination-button"
+      >
+        <RightArrow
+          title="next"
+          className="error-overlay-pagination-button-icon"
+        />
+      </button>
+    </nav>
   )
 }
 

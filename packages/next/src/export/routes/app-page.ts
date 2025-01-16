@@ -180,7 +180,6 @@ export async function exportAppPage(
       throw new Error(`Invariant: failed to get page data for ${path}`)
     }
 
-    let segmentPaths
     if (flightData) {
       // If PPR is enabled, we want to emit a prefetch rsc file for the page
       // instead of the standard rsc. This is because the standard rsc will
@@ -195,33 +194,34 @@ export async function exportAppPage(
           htmlFilepath.replace(/\.html$/, RSC_PREFETCH_SUFFIX),
           flightData
         )
-
-        if (segmentData) {
-          // Emit the per-segment prefetch data. We emit them as separate files
-          // so that the cache handler has the option to treat each as a
-          // separate entry.
-          segmentPaths = []
-          const segmentsDir = htmlFilepath.replace(
-            /\.html$/,
-            RSC_SEGMENTS_DIR_SUFFIX
-          )
-
-          for (const [segmentPath, buffer] of segmentData) {
-            segmentPaths.push(segmentPath)
-            const segmentDataFilePath =
-              segmentPath === '/'
-                ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-
-            fileWriter.append(segmentDataFilePath, buffer)
-          }
-        }
       } else {
         // Writing the RSC payload to a file if we don't have PPR enabled.
         fileWriter.append(
           htmlFilepath.replace(/\.html$/, RSC_SUFFIX),
           flightData
         )
+      }
+    }
+
+    let segmentPaths
+    if (segmentData) {
+      // Emit the per-segment prefetch data. We emit them as separate files
+      // so that the cache handler has the option to treat each as a
+      // separate entry.
+      segmentPaths = []
+      const segmentsDir = htmlFilepath.replace(
+        /\.html$/,
+        RSC_SEGMENTS_DIR_SUFFIX
+      )
+
+      for (const [segmentPath, buffer] of segmentData) {
+        segmentPaths.push(segmentPath)
+        const segmentDataFilePath =
+          segmentPath === '/'
+            ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
+            : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+
+        fileWriter.append(segmentDataFilePath, buffer)
       }
     }
 

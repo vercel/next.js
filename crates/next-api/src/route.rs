@@ -4,7 +4,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, Completion, FxIndexMap, ResolvedVc, Vc,
 };
-use turbopack_core::module::Modules;
+use turbopack_core::{module::Modules, module_graph::ModuleGraph};
 
 use crate::paths::ServerPath;
 
@@ -63,8 +63,17 @@ pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
     fn client_changed(self: Vc<Self>) -> Vc<Completion>;
+    /// The entry modules for the modules graph.
     fn root_modules(self: Vc<Self>) -> Vc<Modules>;
+    /// Additional entry modules for the module graph.
+    /// This may read the module graph and return additional modules.
+    fn additional_root_modules(self: Vc<Self>, _graph: Vc<ModuleGraph>) -> Vc<Modules> {
+        Modules::empty()
+    }
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct Endpoints(Vec<ResolvedVc<Box<dyn Endpoint>>>);
 
 #[turbo_tasks::function(operation)]
 pub fn endpoint_write_to_disk_operation(

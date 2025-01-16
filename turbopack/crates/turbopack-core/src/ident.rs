@@ -1,6 +1,8 @@
 use std::fmt::Write;
 
 use anyhow::Result;
+use once_cell::sync::Lazy;
+use regex::Regex;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::FileSystemPath;
@@ -346,7 +348,8 @@ impl AssetIdent {
 }
 
 fn clean_separators(s: &str) -> String {
-    s.replace('/', "_")
+    static SEPARATOR_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r"[/#?]").unwrap());
+    SEPARATOR_REGEX.replace_all(s, "_").to_string()
 }
 
 fn clean_additional_extensions(s: &str) -> String {
