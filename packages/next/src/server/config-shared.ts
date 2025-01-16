@@ -230,10 +230,10 @@ export interface ReactCompilerOptions {
 
 export interface IncomingRequestLoggingConfig {
   /**
-   * A regular expression to match incoming requests that should not be logged.
+   * A regular expression array to match incoming requests that should not be logged.
    * You can specify multiple patterns to match incoming requests that should not be logged.
    */
-  ignore?: RegExp[] | RegExp
+  ignore?: RegExp[]
 }
 
 export interface LoggingConfig {

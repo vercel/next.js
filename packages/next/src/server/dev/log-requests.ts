@@ -40,11 +40,6 @@ export function ignoreLoggingIncomingRequest(
     return false
   }
 
-  // If single RegExp
-  if (!Array.isArray(ignore)) {
-    return ignore.test(request.url)
-  }
-
   // If array of RegExp, ignore if any pattern matches
   return ignore.some((pattern) => pattern.test(request.url))
 }

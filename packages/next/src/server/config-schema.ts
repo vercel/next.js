@@ -563,10 +563,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             .union([
               z.boolean(),
               z.object({
-                ignore: z.union([
-                  z.instanceof(RegExp),
-                  z.array(z.instanceof(RegExp)),
-                ]),
+                ignore: z.array(z.instanceof(RegExp)),
               }),
             ])
             .optional(),
