@@ -176,6 +176,11 @@ impl EcmascriptClientReferenceModule {
 }
 
 #[turbo_tasks::function]
+fn client_reference_modifier() -> Vc<RcStr> {
+    Vc::cell("client reference/proxy".into())
+}
+
+#[turbo_tasks::function]
 fn ecmascript_client_reference_client_ref_modifier() -> Vc<RcStr> {
     Vc::cell("ecmascript client reference to client".into())
 }
@@ -189,7 +194,7 @@ fn ecmascript_client_reference_ssr_ref_modifier() -> Vc<RcStr> {
 impl Module for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn ident(&self) -> Vc<AssetIdent> {
-        self.server_ident.with_modifier(client_proxy_modifier())
+        self.server_ident.with_modifier(client_reference_modifier())
     }
 
     #[turbo_tasks::function]
@@ -234,7 +239,7 @@ impl Module for EcmascriptClientReferenceModule {
 impl Asset for EcmascriptClientReferenceModule {
     #[turbo_tasks::function]
     fn content(&self) -> Result<Vc<AssetContent>> {
-        bail!("proxy module asset has no content")
+        bail!("client reference module asset has no content")
     }
 }
 
@@ -256,9 +261,9 @@ impl ChunkableModule for EcmascriptClientReferenceModule {
             .await?;
 
         Ok(Vc::upcast(
-            ProxyModuleChunkItem {
-                client_proxy_asset: self,
-                inner_proxy_module_chunk_item: ecmascript_item,
+            EcmascriptClientReferenceProxyChunkItem {
+                inner_module: self,
+                inner_chunk_item: ecmascript_item,
                 chunking_context,
             }
             .cell(),
@@ -279,15 +284,10 @@ impl EcmascriptChunkPlaceable for EcmascriptClientReferenceModule {
 /// the chunk item would not be the same as the asset ident of the
 /// [`Vc<EcmascriptClientReferenceModule>`].
 #[turbo_tasks::value]
-struct ProxyModuleChunkItem {
-    client_proxy_asset: ResolvedVc<EcmascriptClientReferenceModule>,
-    inner_proxy_module_chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
+struct EcmascriptClientReferenceProxyChunkItem {
+    inner_module: ResolvedVc<EcmascriptClientReferenceModule>,
+    inner_chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
-}
-
-#[turbo_tasks::function]
-fn client_proxy_modifier() -> Vc<RcStr> {
-    Vc::cell("client proxy".into())
 }
 
 #[turbo_tasks::function]
@@ -296,10 +296,10 @@ fn client_reference_description() -> Vc<RcStr> {
 }
 
 #[turbo_tasks::value_impl]
-impl ChunkItem for ProxyModuleChunkItem {
+impl ChunkItem for EcmascriptClientReferenceProxyChunkItem {
     #[turbo_tasks::function]
     fn asset_ident(&self) -> Vc<AssetIdent> {
-        self.client_proxy_asset.ident()
+        self.inner_module.ident()
     }
 
     #[turbo_tasks::function]
@@ -314,15 +314,15 @@ impl ChunkItem for ProxyModuleChunkItem {
 
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
-        Vc::upcast(*self.client_proxy_asset)
+        Vc::upcast(*self.inner_module)
     }
 }
 
 #[turbo_tasks::value_impl]
-impl EcmascriptChunkItem for ProxyModuleChunkItem {
+impl EcmascriptChunkItem for EcmascriptClientReferenceProxyChunkItem {
     #[turbo_tasks::function]
     fn content(&self) -> Vc<EcmascriptChunkItemContent> {
-        self.inner_proxy_module_chunk_item.content()
+        self.inner_chunk_item.content()
     }
 
     #[turbo_tasks::function]
@@ -330,13 +330,13 @@ impl EcmascriptChunkItem for ProxyModuleChunkItem {
         &self,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptChunkItemContent> {
-        self.inner_proxy_module_chunk_item
+        self.inner_chunk_item
             .content_with_async_module_info(async_module_info)
     }
 
     #[turbo_tasks::function]
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
-        EcmascriptChunkItem::chunking_context(*self.inner_proxy_module_chunk_item)
+        EcmascriptChunkItem::chunking_context(*self.inner_chunk_item)
     }
 }
 
