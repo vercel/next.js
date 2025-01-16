@@ -8,6 +8,9 @@ use crate::{
     module_graph::{GraphTraversalAction, ModuleGraph},
 };
 
+type ModuleToChunkableMap =
+    FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>;
+
 #[turbo_tasks::value(serialization = "none", cell = "new", eq = "manual")]
 pub struct ChunkGraph {
     graph: ResolvedVc<ModuleGraph>,
@@ -30,8 +33,7 @@ impl ChunkGraph {
         should_trace: bool,
     ) -> Result<ChunkGroupContent> {
         struct TraverseState {
-            unsorted_chunkable_modules:
-                FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
+            unsorted_chunkable_modules: ModuleToChunkableMap,
             result: ChunkGroupContent,
         }
 
