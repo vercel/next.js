@@ -16,7 +16,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "Hello World",
                         ),
                     ),
