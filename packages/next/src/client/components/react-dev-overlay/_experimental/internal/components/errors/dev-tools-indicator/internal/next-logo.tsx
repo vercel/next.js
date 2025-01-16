@@ -13,10 +13,8 @@ export const NextLogo = ({
   onClick,
   isDevBuilding,
   isDevRendering,
-  ...props
 }: Props) => {
   const [isLoading, setIsLoading] = useState(false)
-  const [isPressed, setIsPressed] = useState(false)
 
   // Only shows the loading state after a 200ms delay when building or rendering,
   // to avoid flashing the loading state for quick updates
@@ -32,22 +30,12 @@ export const NextLogo = ({
   }, [isDevBuilding, isDevRendering])
 
   return (
-    <button
-      onClick={onClick}
-      data-next-logo
-      data-error={issueCount > 0}
-      style={{
-        transform: isPressed ? 'scale(0.95)' : 'scale(1)',
-      }}
-      onMouseDown={() => setIsPressed(true)}
-      onMouseUp={() => setIsPressed(false)}
-      onMouseLeave={() => setIsPressed(false)}
-      {...props}
-    >
+    <button onClick={onClick} data-next-logo data-error={issueCount > 0}>
       <style>
         {css`
           [data-next-logo] {
             --color-outer-border: var(--color-gray-1000);
+            --color-inner-border: hsla(0, 0%, 100%, 0.14);
             width: 36px;
             height: 36px;
             display: flex;
@@ -57,21 +45,44 @@ export const NextLogo = ({
             background: rgba(0, 0, 0, 0.8);
             box-shadow:
               0 0 0 1px var(--color-outer-border),
+              inset 0 0 0 1px var(--color-inner-border),
               0px 16px 32px -8px rgba(0, 0, 0, 0.24);
             backdrop-filter: blur(48px);
             border-radius: 50%;
             user-select: none;
             cursor: pointer;
-            transition: transform 0.1s ease;
+            scale: 1;
+            transition: scale 150ms ease;
+
+            &:active {
+              scale: 0.95;
+            }
 
             &[data-error='true'] {
-              background: var(--color-red-900);
-              border: 1px solid var(--color-red-700);
+              background: #ca2a30;
+              --color-inner-border: #e5484d;
 
-              @media (prefers-color-scheme: dark) {
-                box-shadow: none;
+              &:after {
+                opacity: 0;
+              }
+
+              [data-issue-badge] {
+                display: block !important;
               }
             }
+          }
+
+          [data-issue-badge] {
+            top: 0;
+            right: 0;
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background: white;
+            border-radius: 50%;
+            box-shadow: 0 0 0 1px #171717;
+            display: none;
+            z-index: 2;
           }
 
           .path0 {
@@ -126,31 +137,8 @@ export const NextLogo = ({
           }
         `}
       </style>
-
-      {/* Add issue count circle if issues exist */}
-      {issueCount > 0 ? (
-        <div
-          style={{
-            position: 'absolute',
-            top: '-5px',
-            right: '-5px',
-            width: '20px',
-            height: '20px',
-            background: 'var(--color-red-300)',
-            borderRadius: '50%',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            color: 'var(--color-red-900)',
-            fontSize: '12px',
-            fontWeight: 500,
-            zIndex: 2,
-          }}
-        >
-          {issueCount}
-        </div>
-      ) : null}
-      <NextMark isDevBuilding={isDevBuilding} isLoading={isLoading} />
+      <NextMark isLoading={isLoading} />
+      <div data-issue-badge />
     </button>
   )
 }
@@ -162,7 +150,7 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
       height="40"
       viewBox="0 0 40 40"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      style={{ scale: 1.2, translate: '0 1px' }}
     >
       <g transform="translate(13, 12)">
         <path
