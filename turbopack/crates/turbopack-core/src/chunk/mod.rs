@@ -180,11 +180,10 @@ pub enum ChunkingType {
     Async,
     /// Create a new chunk group in a separate context, merging references with the same tag into a
     /// single chunk group. It does not inherit the available modules from the parent.
-    // TODO implement
+    // TODO this is currently skipped in chunking
     Isolated {
         _ty: ChunkGroupType,
-        _merge_tag: Option<RcStr>,
-        _chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
+        merge_tag: Option<RcStr>,
     },
     /// Module not placed in chunk group, but its references are still followed and placed into the
     /// chunk group.

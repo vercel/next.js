@@ -943,9 +943,9 @@ checksum = "5ce89b21cab1437276d2650d57e971f9d548a2d9037cc231abdc0562b97498ce"
 
 [[package]]
 name = "bytemuck"
-version = "1.18.0"
+version = "1.21.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "94bbb0ad554ad961ddc5da507a12a29b14e4ae5bda06b19f575a3e6079d2e2ae"
+checksum = "ef657dfab802224e671f5818e9a4935f9b1957ed18e58292690cc39e7a4092a3"
 
 [[package]]
 name = "byteorder"
@@ -6016,6 +6016,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "roaring"
+version = "0.10.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a652edd001c53df0b3f96a36a8dc93fce6866988efc16808235653c6bcac8bf2"
+dependencies = [
+ "bytemuck",
+ "byteorder",
+ "serde",
+]
+
+[[package]]
 name = "rstest"
 version = "0.16.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -9493,6 +9504,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "browserslist-rs",
+ "either",
  "futures",
  "indexmap 2.5.0",
  "lazy_static",
@@ -9501,6 +9513,7 @@ dependencies = [
  "petgraph",
  "ref-cast",
  "regex",
+ "roaring",
  "rstest",
  "serde",
  "serde_bytes",
