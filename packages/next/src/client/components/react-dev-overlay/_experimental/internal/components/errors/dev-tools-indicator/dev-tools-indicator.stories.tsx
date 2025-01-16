@@ -2,6 +2,7 @@ import type { Meta, StoryObj } from '@storybook/react'
 import { DevToolsIndicator } from './dev-tools-indicator'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
+import type { OverlayState } from '../../../../../shared'
 
 const meta: Meta<typeof DevToolsIndicator> = {
   component: DevToolsIndicator,
@@ -42,65 +43,51 @@ const mockVersionInfo: VersionInfo = {
   staleness: 'stale-major',
 }
 
-// Mock error for stories
-const mockError = {
-  id: 1,
-  runtime: true as const,
-  error: new Error('Test error'),
-  frames: [
-    {
-      error: true,
-      reason: null,
-      external: false,
-      ignored: false,
-      sourceStackFrame: {
-        file: 'test.js',
-        methodName: '<unknown>',
-        arguments: [],
-        lineNumber: 1,
-        column: 1,
-      },
-    },
-  ],
+const state: OverlayState = {
+  nextId: 1,
+  buildError: null,
+  errors: [],
+  refreshState: { type: 'idle' },
+  rootLayoutMissingTags: [],
+  versionInfo: mockVersionInfo,
+  notFound: false,
+  staticIndicator: false,
+  debugInfo: { devtoolsFrontendUrl: undefined },
 }
 
 export const NoErrors: Story = {
   args: {
-    hasStaticIndicator: false,
-    readyErrors: [],
-    fullscreen: () => console.log('Fullscreen clicked'),
-    hide: () => console.log('Hide clicked'),
-    versionInfo: mockVersionInfo,
-    isTurbopack: false,
+    readyErrorsLength: 0,
+    state,
+    setIsErrorOverlayOpen: () => {},
   },
 }
 
 export const SingleError: Story = {
   args: {
-    hasStaticIndicator: false,
-    readyErrors: [mockError],
-    fullscreen: () => console.log('Fullscreen clicked'),
-    hide: () => console.log('Hide clicked'),
-    versionInfo: mockVersionInfo,
+    readyErrorsLength: 1,
+    state,
+    setIsErrorOverlayOpen: () => {},
   },
 }
 
 export const MultipleErrors: Story = {
   args: {
-    hasStaticIndicator: false,
-    readyErrors: [mockError, { ...mockError, id: 2 }, { ...mockError, id: 3 }],
-    fullscreen: () => console.log('Fullscreen clicked'),
-    hide: () => console.log('Hide clicked'),
-    versionInfo: mockVersionInfo,
+    readyErrorsLength: 3,
+    state,
+    setIsErrorOverlayOpen: () => {},
   },
 }
 
 export const WithStaticIndicator: Story = {
   args: {
-    hasStaticIndicator: true,
-    readyErrors: [mockError],
-    fullscreen: () => console.log('Fullscreen clicked'),
-    hide: () => console.log('Hide clicked'),
-    versionInfo: mockVersionInfo,
+    readyErrorsLength: 3,
+    state: {
+      ...state,
+      staticIndicator: true,
+    },
+    setIsErrorOverlayOpen: () => {
+      console.log('setIsErrorOverlayOpen called')
+    },
   },
 }
