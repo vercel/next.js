@@ -165,7 +165,9 @@ export default class NextWebServer extends BaseServer<
       pathname = normalizedPage
 
       if (isDynamicRoute(pathname)) {
-        const routeRegex = getNamedRouteRegex(pathname, false)
+        const routeRegex = getNamedRouteRegex(pathname, {
+          prefixRouteKeys: false,
+        })
         const dynamicRouteMatcher = getRouteMatcher(routeRegex)
         const defaultRouteMatches = dynamicRouteMatcher(
           pathname
