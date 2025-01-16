@@ -1216,7 +1216,9 @@ export const defaultConfig: NextConfig = {
     streamingMetadata: false,
     htmlLimitedBots: undefined,
   },
-  bundlePagesRouterDependencies: false,
+  // TODO: investigate this being default, currently this avoids
+  // esm resolving issues in handle-externals
+  bundlePagesRouterDependencies: Boolean(process.env.NEXT_RSPACK),
 }
 
 export async function normalizeConfig(phase: string, config: any) {
