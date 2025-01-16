@@ -99,7 +99,6 @@ impl Eq for ConstantNumber {}
 
 #[derive(Debug, Clone)]
 pub enum ConstantString {
-    Word(JsWord),
     Atom(Atom),
     RcStr(RcStr),
 }
@@ -107,7 +106,6 @@ pub enum ConstantString {
 impl ConstantString {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Word(s) => s,
             Self::Atom(s) => s,
             Self::RcStr(s) => s,
         }
@@ -146,7 +144,7 @@ impl From<Atom> for ConstantString {
 
 impl From<&'static str> for ConstantString {
     fn from(v: &'static str) -> Self {
-        ConstantString::Word(v.into())
+        ConstantString::Atom(v.into())
     }
 }
 
@@ -236,14 +234,14 @@ impl From<bool> for ConstantValue {
 
 impl From<&'_ str> for ConstantValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into()))
+        ConstantValue::Str(ConstantString::Atom(v.into()))
     }
 }
 
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Word(v.value)),
+            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -511,7 +509,7 @@ pub enum JsValue {
 
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into())).into()
+        ConstantValue::Str(ConstantString::Atom(v.into())).into()
     }
 }
 
