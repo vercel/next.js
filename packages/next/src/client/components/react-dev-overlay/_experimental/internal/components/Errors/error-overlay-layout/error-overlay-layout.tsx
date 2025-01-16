@@ -5,7 +5,6 @@ import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
 import { DialogContent, DialogFooter } from '../../Dialog'
-import { Overlay } from '../../Overlay'
 import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
@@ -33,6 +32,7 @@ import {
 } from '../dialog/header'
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { CALL_STACK_STYLES } from '../call-stack/call-stack'
+import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -69,7 +69,7 @@ export function ErrorOverlayLayout({
   isTurbopack,
 }: ErrorOverlayLayoutProps) {
   return (
-    <Overlay fixed={isBuildError}>
+    <ErrorOverlayOverlay fixed={isBuildError}>
       <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
         <DialogContent>
           <ErrorOverlayFloatingHeader
@@ -106,11 +106,12 @@ export function ErrorOverlayLayout({
           </DialogFooter>
         </DialogContent>
       </ErrorOverlayDialog>
-    </Overlay>
+    </ErrorOverlayOverlay>
   )
 }
 
 export const styles = css`
+  ${OVERLAY_STYLES}
   ${DIALOG_STYLES}
   ${DIALOG_HEADER_STYLES}
   ${DIALOG_BODY_STYLES}
