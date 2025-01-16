@@ -81,7 +81,6 @@ body:
         - 'Not sure'
         - 'create-next-app'
         - 'Developer Experience'
-        - 'Documentation'
         - 'dynamicIO'
         - 'Lazy Loading'
         - 'Font (next/font)'
