@@ -1334,7 +1334,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     span: Span,
     func: JsValue,
     this: JsValue,
-    args: Vec<EffectArg>,
+    args: Box<[EffectArg]>,
     state: &AnalysisState<'_>,
     add_effects: &G,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
