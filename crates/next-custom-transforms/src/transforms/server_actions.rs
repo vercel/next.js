@@ -716,7 +716,7 @@ impl<C: Comments> ServerActions<C> {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Var,
                     decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
+                        span: arrow.span,
                         name: Pat::Ident(cache_ident.clone().into()),
                         init: Some(wrap_cache_expr(
                             Box::new(Expr::Fn(FnExpr {
@@ -854,7 +854,7 @@ impl<C: Comments> ServerActions<C> {
                     span: DUMMY_SP,
                     kind: VarDeclKind::Var,
                     decls: vec![VarDeclarator {
-                        span: DUMMY_SP,
+                        span: function.span,
                         name: Pat::Ident(cache_ident.clone().into()),
                         init: Some(wrap_cache_expr(
                             Box::new(Expr::Fn(FnExpr {
