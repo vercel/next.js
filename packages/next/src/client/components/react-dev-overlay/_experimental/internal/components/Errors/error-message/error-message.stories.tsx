@@ -3,7 +3,6 @@ import { ErrorMessage } from './error-message'
 import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 
 const meta: Meta<typeof ErrorMessage> = {
-  title: 'ErrorMessage',
   component: ErrorMessage,
   parameters: {
     layout: 'fullscreen',

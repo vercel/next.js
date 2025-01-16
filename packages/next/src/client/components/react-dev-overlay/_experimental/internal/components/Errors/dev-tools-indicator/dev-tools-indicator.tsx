@@ -1,8 +1,10 @@
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import { Toast } from '../../Toast'
-import React, { useState } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { NextLogo } from './internal/next-logo'
+import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
+import { useIsDevRendering } from './internal/dev-render-indicator'
 
 // TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
@@ -13,14 +15,14 @@ export function DevToolsIndicator({
   readyErrors,
   fullscreen,
   hide,
-  isTurbopackEnabled,
+  isTurbopack,
 }: {
   versionInfo: VersionInfo | undefined
   readyErrors: ReadyRuntimeError[]
   fullscreen: () => void
   hide: () => void
   hasStaticIndicator?: boolean
-  isTurbopackEnabled: boolean
+  isTurbopack: boolean
 }) {
   return (
     <DevToolsPopover
@@ -29,7 +31,7 @@ export function DevToolsIndicator({
       issueCount={readyErrors.length}
       isStaticRoute={hasStaticIndicator === true}
       hide={hide}
-      isTurbopackEnabled={isTurbopackEnabled}
+      isTurbopack={isTurbopack}
     />
   )
 }
@@ -40,32 +42,81 @@ const DevToolsPopover = ({
   isStaticRoute,
   hide,
   semver,
-  isTurbopackEnabled,
+  isTurbopack,
 }: {
   onIssuesClick: () => void
   issueCount: number
   isStaticRoute: boolean
   hide: () => void
   semver: string | undefined
-  isTurbopackEnabled: boolean
+  isTurbopack: boolean
 }) => {
-  // TODO: close when clicking outside
-
+  const popoverRef = useRef<HTMLDivElement>(null)
+  const buttonRef = useRef<HTMLDivElement>(null)
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+
+  useEffect(() => {
+    // Close popover when clicking outside of it or its button
+    const handleClickOutside = (event: MouseEvent) => {
+      if (
+        !(popoverRef.current?.getBoundingClientRect()
+          ? event.clientX >= popoverRef.current.getBoundingClientRect()!.left &&
+            event.clientX <=
+              popoverRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= popoverRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= popoverRef.current.getBoundingClientRect()!.bottom
+          : false) &&
+        !(buttonRef.current?.getBoundingClientRect()
+          ? event.clientX >= buttonRef.current.getBoundingClientRect()!.left &&
+            event.clientX <= buttonRef.current.getBoundingClientRect()!.right &&
+            event.clientY >= buttonRef.current.getBoundingClientRect()!.top &&
+            event.clientY <= buttonRef.current.getBoundingClientRect()!.bottom
+          : false)
+      ) {
+        setIsPopoverOpen(false)
+      }
+    }
+
+    // Close popover when pressing escape
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        setIsPopoverOpen(false)
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    document.addEventListener('keydown', handleKeyDown)
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside)
+      document.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
+
   const togglePopover = () => setIsPopoverOpen((prev) => !prev)
+
   return (
-    <Toast style={{ boxShadow: 'none' }}>
-      <NextLogo
-        issueCount={issueCount}
-        onClick={togglePopover}
-        aria-haspopup="true"
-        aria-expanded={isPopoverOpen}
-        aria-controls="dev-tools-popover"
-        data-nextjs-dev-tools-button
-      />
+    <Toast
+      style={{
+        boxShadow: 'none',
+        zIndex: 2147483647,
+      }}
+    >
+      <div ref={buttonRef}>
+        <NextLogo
+          issueCount={issueCount}
+          onClick={togglePopover}
+          isDevBuilding={useIsDevBuilding()}
+          isDevRendering={useIsDevRendering()}
+          aria-haspopup="true"
+          aria-expanded={isPopoverOpen}
+          aria-controls="dev-tools-popover"
+          data-nextjs-dev-tools-button
+        />
+      </div>
 
       {isPopoverOpen && (
         <div
+          ref={popoverRef}
           id="dev-tools-popover"
           role="dialog"
           aria-labelledby="dev-tools-title"
@@ -80,10 +131,7 @@ const DevToolsPopover = ({
 
               <IndicatorRow
                 label="Hide Dev Tools"
-                value={
-                  // TODO: replace with cmd+.for mac, ctrl+. for windows & implement hiding + unhiding logic
-                  null
-                }
+                value={<DevToolsShortcutGroup />}
                 onClick={hide}
               />
               <IndicatorRow
@@ -104,7 +152,7 @@ const DevToolsPopover = ({
               ) : null}
 
               <p data-nextjs-dev-tools-version>
-                Turbopack {isTurbopackEnabled ? 'enabled' : 'not enabled'}
+                Turbopack {isTurbopack ? 'enabled' : 'not enabled'}
               </p>
             </div>
           </div>
@@ -123,20 +171,56 @@ const IndicatorRow = ({
   value: React.ReactNode
   onClick?: () => void
 }) => {
+  const Wrapper = onClick ? 'button' : 'div'
   return (
-    <div data-nextjs-dev-tools-row data-clickable={!!onClick} onClick={onClick}>
+    <Wrapper data-nextjs-dev-tools-row onClick={onClick}>
       <span data-nextjs-dev-tools-row-label>{label}</span>
       <span data-nextjs-dev-tools-row-value>{value}</span>
-    </div>
+    </Wrapper>
   )
 }
 
 const IssueCount = ({ count }: { count: number }) => {
   return (
-    <span data-nextjs-dev-tools-issue-count>
+    <span data-nextjs-dev-tools-issue-count data-has-issues={count > 0}>
       <span data-nextjs-dev-tools-issue-text data-has-issues={count > 0}>
         {count}
       </span>
     </span>
   )
+}
+
+function DevToolsShortcutGroup() {
+  const isMac =
+    // Feature detect for `navigator.userAgentData` which is experimental:
+    // https://developer.mozilla.org/en-US/docs/Web/API/NavigatorUAData/platform
+    'userAgentData' in navigator
+      ? (navigator.userAgentData as any).platform === 'macOS'
+      : // This is the least-bad option to detect the modifier key when using `navigator.platform`:
+        // https://developer.mozilla.org/en-US/docs/Web/API/Navigator/platform#examples
+        navigator.platform.indexOf('Mac') === 0 ||
+        navigator.platform === 'iPhone'
+
+  return (
+    <span data-nextjs-dev-tools-shortcut-group>
+      {isMac ? <CmdIcon /> : <CtrlIcon />}
+      <DotIcon />
+    </span>
+  )
+}
+
+function CmdIcon() {
+  return <span data-nextjs-dev-tools-icon>⌘</span>
+}
+
+function CtrlIcon() {
+  return (
+    <span data-nextjs-dev-tools-icon data-nextjs-dev-tools-ctrl-icon>
+      ctrl
+    </span>
+  )
+}
+
+function DotIcon() {
+  return <span data-nextjs-dev-tools-icon>.</span>
 }

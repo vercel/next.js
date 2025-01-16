@@ -10,6 +10,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssets,
 };
 
@@ -44,6 +45,7 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value]
 pub struct ManifestLoaderChunkItem {
     manifest: ResolvedVc<ManifestAsyncModule>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -52,10 +54,12 @@ impl ManifestLoaderChunkItem {
     #[turbo_tasks::function]
     pub fn new(
         manifest: ResolvedVc<ManifestAsyncModule>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Self> {
         Self::cell(ManifestLoaderChunkItem {
             manifest,
+            module_graph,
             chunking_context,
         })
     }
@@ -147,7 +151,10 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // exports a promise for all of the necessary chunk loads.
         let item_id = &*this
             .manifest
-            .as_chunk_item(*ResolvedVc::upcast(manifest.chunking_context))
+            .as_chunk_item(
+                *this.module_graph,
+                *ResolvedVc::upcast(manifest.chunking_context),
+            )
             .id()
             .await?;
 
@@ -158,7 +165,10 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
                 .await?
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
-            .as_chunk_item(*ResolvedVc::upcast(manifest.chunking_context))
+            .as_chunk_item(
+                *this.module_graph,
+                *ResolvedVc::upcast(manifest.chunking_context),
+            )
             .id()
             .await?;
 

@@ -28,6 +28,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -88,6 +89,7 @@ struct EmittedEvaluatePoolAssets {
 async fn emit_evaluate_pool_assets_operation(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
@@ -156,6 +158,7 @@ async fn emit_evaluate_pool_assets_operation(
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint,
         entry_module,
+        *module_graph,
         OutputAssets::empty(),
         runtime_entries,
     );
@@ -176,12 +179,14 @@ async fn emit_evaluate_pool_assets_operation(
 async fn emit_evaluate_pool_assets_with_effects(
     module_asset: ResolvedVc<Box<dyn Module>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
 ) -> Result<Vc<EmittedEvaluatePoolAssets>> {
     let operation = emit_evaluate_pool_assets_operation(
         module_asset,
         asset_context,
+        module_graph,
         chunking_context,
         runtime_entries,
     );
@@ -204,6 +209,7 @@ pub async fn get_evaluate_pool(
     cwd: Vc<FileSystemPath>,
     env: Vc<Box<dyn ProcessEnv>>,
     asset_context: Vc<Box<dyn AssetContext>>,
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<Vc<EvaluatableAssets>>,
     additional_invalidation: Vc<Completion>,
@@ -217,6 +223,7 @@ pub async fn get_evaluate_pool(
     } = *emit_evaluate_pool_assets_with_effects(
         module_asset,
         asset_context,
+        module_graph,
         chunking_context,
         runtime_entries,
     )
@@ -381,6 +388,7 @@ pub fn evaluate(
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: ResolvedVc<AssetIdent>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
     args: Vec<ResolvedVc<JsonValue>>,
@@ -393,6 +401,7 @@ pub fn evaluate(
         env,
         context_ident_for_issue,
         asset_context,
+        module_graph,
         chunking_context,
         runtime_entries,
         args,
@@ -562,6 +571,7 @@ struct BasicEvaluateContext {
     env: ResolvedVc<Box<dyn ProcessEnv>>,
     context_ident_for_issue: ResolvedVc<AssetIdent>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
     args: Vec<ResolvedVc<JsonValue>>,
@@ -586,6 +596,7 @@ impl EvaluateContext for BasicEvaluateContext {
             *self.cwd,
             *self.env,
             *self.asset_context,
+            *self.module_graph,
             *self.chunking_context,
             self.runtime_entries.map(|r| *r),
             *self.additional_invalidation,

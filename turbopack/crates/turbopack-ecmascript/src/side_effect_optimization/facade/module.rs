@@ -8,6 +8,7 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
 };
@@ -150,6 +151,19 @@ impl Module for EcmascriptModuleFacadeModule {
             }
         };
         Ok(Vc::cell(references))
+    }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
+        let async_module = self.async_module();
+        let references = self.references();
+        let is_self_async = async_module
+            .resolve()
+            .await?
+            .is_self_async(references.resolve().await?)
+            .resolve()
+            .await?;
+        Ok(is_self_async)
     }
 }
 
@@ -321,11 +335,13 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),

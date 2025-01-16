@@ -11,7 +11,8 @@ use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
+    Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
@@ -1300,14 +1301,24 @@ impl ValueToString for Pattern {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, TraceRawVcs, Serialize, Deserialize, ValueDebugFormat)]
+#[derive(
+    Debug,
+    PartialEq,
+    Eq,
+    Clone,
+    TraceRawVcs,
+    Serialize,
+    Deserialize,
+    ValueDebugFormat,
+    NonLocalValue,
+)]
 pub enum PatternMatch {
-    File(RcStr, Vc<FileSystemPath>),
-    Directory(RcStr, Vc<FileSystemPath>),
+    File(RcStr, ResolvedVc<FileSystemPath>),
+    Directory(RcStr, ResolvedVc<FileSystemPath>),
 }
 
 impl PatternMatch {
-    pub fn path(&self) -> Vc<FileSystemPath> {
+    pub fn path(&self) -> ResolvedVc<FileSystemPath> {
         match *self {
             PatternMatch::File(_, path) | PatternMatch::Directory(_, path) => path,
         }
@@ -1322,7 +1333,7 @@ impl PatternMatch {
 
 // TODO this isn't super efficient
 // avoid storing a large list of matches
-#[turbo_tasks::value(transparent, local)]
+#[turbo_tasks::value(transparent)]
 pub struct PatternMatches(Vec<PatternMatch>);
 
 /// Find all files or directories that match the provided `pattern` with the
@@ -1356,12 +1367,12 @@ pub async fn read_matches(
             for (index, (str, until_end)) in constants.into_iter().enumerate() {
                 if until_end {
                     if handled.insert(str) {
-                        if let Some(fs_path) = &*if force_in_lookup_dir {
+                        let fs_path = *if force_in_lookup_dir {
                             lookup_dir.try_join_inside(str.into()).await?
                         } else {
                             lookup_dir.try_join(str.into()).await?
-                        } {
-                            let fs_path = fs_path.resolve().await?;
+                        };
+                        if let Some(fs_path) = fs_path {
                             // This explicit deref of `context` is necessary
                             #[allow(clippy::explicit_auto_deref)]
                             let should_match = !force_in_lookup_dir
@@ -1453,7 +1464,10 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
+                        PatternMatch::Directory(
+                            prefix.clone().into(),
+                            lookup_dir.parent().to_resolved().await?,
+                        ),
                     ));
                 }
 
@@ -1462,7 +1476,10 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(prefix.clone().into(), lookup_dir.parent()),
+                        PatternMatch::Directory(
+                            prefix.clone().into(),
+                            lookup_dir.parent().to_resolved().await?,
+                        ),
                     ));
                 }
                 if let Some(pos) = pat.could_match_position(&prefix) {
@@ -1481,14 +1498,14 @@ pub async fn read_matches(
                 if let Some(pos) = pat.match_position(&prefix) {
                     results.push((
                         pos,
-                        PatternMatch::Directory(prefix.clone().into(), *lookup_dir),
+                        PatternMatch::Directory(prefix.clone().into(), lookup_dir),
                     ));
                 }
                 prefix.pop();
             }
             if prefix.is_empty() {
                 if let Some(pos) = pat.match_position("./") {
-                    results.push((pos, PatternMatch::Directory("./".into(), *lookup_dir)));
+                    results.push((pos, PatternMatch::Directory("./".into(), lookup_dir)));
                 }
                 if let Some(pos) = pat.could_match_position("./") {
                     nested.push((pos, read_matches(*lookup_dir, "./".into(), false, pattern)));
@@ -1525,7 +1542,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::File(prefix.clone().into(), **path),
+                                        PatternMatch::File(prefix.clone().into(), *path),
                                     ));
                                 }
                                 prefix.truncate(len)
@@ -1540,7 +1557,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), **path),
+                                        PatternMatch::Directory(prefix.clone().into(), *path),
                                     ));
                                 }
                                 prefix.push('/');
@@ -1548,7 +1565,7 @@ pub async fn read_matches(
                                 if let Some(pos) = pat.match_position(&prefix) {
                                     results.push((
                                         pos,
-                                        PatternMatch::Directory(prefix.clone().into(), **path),
+                                        PatternMatch::Directory(prefix.clone().into(), *path),
                                     ));
                                 }
                                 if let Some(pos) = pat.could_match_position(&prefix) {
@@ -1575,16 +1592,13 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    **fs_path,
+                                                    *fs_path,
                                                 ),
                                             ));
                                         } else {
                                             results.push((
                                                 pos,
-                                                PatternMatch::File(
-                                                    prefix.clone().into(),
-                                                    **fs_path,
-                                                ),
+                                                PatternMatch::File(prefix.clone().into(), *fs_path),
                                             ));
                                         }
                                     }
@@ -1599,7 +1613,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    **fs_path,
+                                                    *fs_path,
                                                 ),
                                             ));
                                         }
@@ -1614,7 +1628,7 @@ pub async fn read_matches(
                                                 pos,
                                                 PatternMatch::Directory(
                                                     prefix.clone().into(),
-                                                    **fs_path,
+                                                    *fs_path,
                                                 ),
                                             ));
                                         }

@@ -3,11 +3,11 @@ use std::{fs, path::PathBuf};
 use criterion::{Bencher, BenchmarkId, Criterion};
 use regex::Regex;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{apply_effects, ReadConsistency, TurboTasks, Value, Vc};
+use turbo_tasks::{apply_effects, ReadConsistency, ResolvedVc, TurboTasks, Value, Vc};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, NullFileSystem};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion,
+    emit_with_completion_operation,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext},
     register, ModuleAssetContext,
 };
@@ -80,7 +80,7 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
 
                 let input_dir = input.parent().parent();
                 let output_fs: Vc<NullFileSystem> = NullFileSystem.into();
-                let output_dir = output_fs.root();
+                let output_dir = output_fs.root().to_resolved().await?;
 
                 let source = FileSource::new(input);
                 let compile_time_info = CompileTimeInfo::builder(
@@ -115,11 +115,14 @@ fn bench_emit(b: &mut Bencher, bench_input: &BenchInput) {
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, output_dir);
+                let rebased = RebasedAsset::new(Vc::upcast(module), input_dir, *output_dir)
+                    .to_resolved()
+                    .await?;
 
-                let emit = emit_with_completion(Vc::upcast(rebased), output_dir);
-                emit.strongly_consistent().await?;
-                apply_effects(emit).await?;
+                let emit_op =
+                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                emit_op.connect().strongly_consistent().await?;
+                apply_effects(emit_op).await?;
 
                 Ok::<Vc<()>, _>(Default::default())
             });

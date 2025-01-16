@@ -511,7 +511,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         let id = self.backend.create_transient_task(
             TransientTaskType::Root(Box::new(move || {
                 let functor = functor.clone();
-                Box::pin(async move { Ok(functor().await?.node) })
+                Box::pin(async move {
+                    let raw_vc = functor().await?.node;
+                    raw_vc.to_non_local().await
+                })
             })),
             self,
         );
@@ -533,7 +536,10 @@ impl<B: Backend + 'static> TurboTasks<B> {
         Fut: Future<Output = Result<Vc<T>>> + Send + 'static,
     {
         let id = self.backend.create_transient_task(
-            TransientTaskType::Once(Box::pin(async move { Ok(future.await?.node) })),
+            TransientTaskType::Once(Box::pin(async move {
+                let raw_vc = future.await?.node;
+                raw_vc.to_non_local().await
+            })),
             self,
         );
         self.schedule(id);

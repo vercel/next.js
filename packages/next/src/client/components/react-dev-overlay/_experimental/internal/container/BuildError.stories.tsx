@@ -3,7 +3,6 @@ import { BuildError } from './BuildError'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 
 const meta: Meta<typeof BuildError> = {
-  title: 'BuildError',
   component: BuildError,
   parameters: {
     layout: 'fullscreen',
@@ -30,5 +29,12 @@ Expected identError: Failed to resolve import "./missing-module"`,
       installed: '15.0.0',
       staleness: 'fresh',
     },
+  },
+}
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
   },
 }

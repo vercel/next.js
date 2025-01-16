@@ -40,9 +40,10 @@ export default class ReactDevOverlay extends React.PureComponent<
     const { isReactError } = this.state
 
     const hasBuildError = state.buildError != null
-    const hasRuntimeErrors = Boolean(state.errors.length)
     const hasStaticIndicator = state.staticIndicator
     const debugInfo = state.debugInfo
+
+    const isTurbopack = !!process.env.TURBOPACK
 
     return (
       <>
@@ -62,28 +63,24 @@ export default class ReactDevOverlay extends React.PureComponent<
           {state.rootLayoutMissingTags?.length ? (
             <RootLayoutMissingTagsError
               missingTags={state.rootLayoutMissingTags}
+              isTurbopack={isTurbopack}
             />
           ) : hasBuildError ? (
             <BuildError
               message={state.buildError!}
               versionInfo={state.versionInfo}
+              isTurbopack={isTurbopack}
             />
           ) : (
-            <>
-              {hasRuntimeErrors ? (
-                <Errors
-                  isTurbopackEnabled={!!process.env.TURBOPACK}
-                  isAppDir={true}
-                  initialDisplayState={
-                    isReactError ? 'fullscreen' : 'minimized'
-                  }
-                  errors={state.errors}
-                  versionInfo={state.versionInfo}
-                  hasStaticIndicator={hasStaticIndicator}
-                  debugInfo={debugInfo}
-                />
-              ) : null}
-            </>
+            <Errors
+              isTurbopack={isTurbopack}
+              isAppDir={true}
+              initialDisplayState={isReactError ? 'fullscreen' : 'minimized'}
+              errors={state.errors}
+              versionInfo={state.versionInfo}
+              hasStaticIndicator={hasStaticIndicator}
+              debugInfo={debugInfo}
+            />
           )}
         </ShadowPortal>
       </>

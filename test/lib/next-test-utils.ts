@@ -1553,8 +1553,9 @@ export async function assertNoConsoleErrors(browser: BrowserInterface) {
       log.source === 'warning' ||
       (log.source === 'error' &&
         // These are expected when we visit 404 pages.
-        log.message !==
-          'Failed to load resource: the server responded with a status of 404 (Not Found)')
+        !log.message.startsWith(
+          'Failed to load resource: the server responded with a status of 404'
+        ))
     )
   })
 

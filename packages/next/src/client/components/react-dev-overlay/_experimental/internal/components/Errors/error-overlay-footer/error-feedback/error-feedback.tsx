@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react'
 import { ThumbsUp } from '../../../../icons/thumbs/thumbs-up'
 import { ThumbsDown } from '../../../../icons/thumbs/thumbs-down'
+import { noop as css } from '../../../../helpers/noop-template'
 
 interface ErrorFeedbackProps {
   errorCode: string
@@ -66,3 +67,56 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
     </>
   )
 }
+
+export const styles = css`
+  .error-feedback {
+    display: flex;
+    gap: var(--size-gap);
+    white-space: nowrap;
+  }
+
+  .error-feedback-thanks {
+    height: 1.5rem; /* 24px */
+    display: flex;
+    align-items: center;
+    padding-right: 4px; /* To match the 4px inner padding of the thumbs up and down icons */
+  }
+
+  .feedback-button {
+    background: none;
+    border: none;
+    border-radius: var(--rounded-md);
+    padding: var(--size-gap-half);
+    width: 1.5rem; /* 24px */
+    height: 1.5rem; /* 24px */
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+    }
+
+    &:hover {
+      background: var(--color-gray-alpha-100);
+    }
+
+    &:active {
+      background: var(--color-gray-alpha-200);
+    }
+  }
+
+  .feedback-button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
+  }
+
+  .feedback-button.voted {
+    background: var(--color-gray-alpha-200);
+  }
+
+  .thumbs-up-icon,
+  .thumbs-down-icon {
+    color: var(--color-gray-900);
+  }
+`

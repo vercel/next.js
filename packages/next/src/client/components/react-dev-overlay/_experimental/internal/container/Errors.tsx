@@ -26,6 +26,8 @@ import {
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { DevToolsIndicator } from '../components/Errors/dev-tools-indicator/dev-tools-indicator'
 import { ErrorOverlayLayout } from '../components/Errors/error-overlay-layout/error-overlay-layout'
+import { useKeyboardShortcut } from '../hooks/use-keyboard-shortcut'
+import { MODIFIERS } from '../hooks/use-keyboard-shortcut'
 
 export type SupportedErrorEvent = {
   id: number
@@ -35,10 +37,10 @@ export type ErrorsProps = {
   isAppDir: boolean
   errors: SupportedErrorEvent[]
   initialDisplayState: DisplayState
+  isTurbopack: boolean
   versionInfo?: VersionInfo
   hasStaticIndicator?: boolean
   debugInfo?: DebugInfo
-  isTurbopackEnabled: boolean
 }
 
 type ReadyErrorEvent = ReadyRuntimeError
@@ -110,7 +112,7 @@ export function Errors({
   hasStaticIndicator,
   debugInfo,
   versionInfo,
-  isTurbopackEnabled,
+  isTurbopack,
 }: ErrorsProps) {
   const [lookups, setLookups] = useState(
     {} as { [eventId: string]: ReadyErrorEvent }
@@ -197,8 +199,29 @@ export function Errors({
     }
   }, [errors.length, minimize])
 
+  useEffect(() => {
+    // Close the error overlay when pressing escape
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === 'Escape') {
+        setDisplayState('minimized')
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   const hide = useCallback(() => setDisplayState('hidden'), [])
   const fullscreen = useCallback(() => setDisplayState('fullscreen'), [])
+
+  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
+  useKeyboardShortcut({
+    key: '.',
+    modifiers: [MODIFIERS.CTRL_CMD],
+    callback: () => {
+      setDisplayState((prev) => (prev === 'hidden' ? 'minimized' : 'hidden'))
+    },
+  })
 
   if (displayState === 'hidden') {
     return null
@@ -214,7 +237,7 @@ export function Errors({
         fullscreen={fullscreen}
         hide={hide}
         versionInfo={versionInfo}
-        isTurbopackEnabled={isTurbopackEnabled}
+        isTurbopack={isTurbopack}
       />
     )
   }
@@ -271,6 +294,8 @@ export function Errors({
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
+      versionInfo={versionInfo}
+      isTurbopack={isTurbopack}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -314,24 +339,6 @@ export const styles = css`
   .nextjs-error-with-static {
     bottom: calc(var(--size-gap-double) * 4.5);
   }
-  .nextjs-container-errors-header {
-    position: relative;
-  }
-  .nextjs-container-errors-header > h1 {
-    font-size: var(--size-font-big);
-    line-height: var(--size-font-bigger);
-    font-weight: bold;
-    margin: calc(var(--size-gap-double) * 1.5) 0;
-    color: var(--color-title-h1);
-  }
-  .nextjs-container-errors-header small {
-    font-size: var(--size-font-small);
-    color: var(--color-accents-1);
-    margin-left: var(--size-gap-double);
-  }
-  .nextjs-container-errors-header small > span {
-    font-family: var(--font-stack-monospace);
-  }
   p.nextjs__container_errors__link {
     color: var(--color-text-color-red-1);
     font-weight: 600;
@@ -342,14 +349,6 @@ export const styles = css`
     font-weight: 600;
     font-size: 15px;
   }
-  .nextjs-container-errors-header > div > small {
-    margin: 0;
-    margin-top: var(--size-gap-half);
-  }
-  .nextjs-container-errors-header > p > a {
-    color: inherit;
-    font-weight: bold;
-  }
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
   }
@@ -357,12 +356,6 @@ export const styles = css`
     color: var(--color-title-color);
     margin-bottom: var(--size-gap);
     font-size: var(--size-font-big);
-  }
-  .nextjs__container_errors__component-stack {
-    margin: 0;
-    padding: 12px 32px;
-    color: var(--color-ansi-fg);
-    background: var(--color-ansi-bg);
   }
   .nextjs-toast-errors-parent {
     cursor: pointer;
@@ -391,12 +384,6 @@ export const styles = css`
   .nextjs-toast-hide-button:hover {
     opacity: 1;
   }
-  .nextjs-container-errors-header
-    > .nextjs-container-build-error-version-status {
-    position: absolute;
-    top: var(--size-4);
-    right: var(--size-4);
-  }
   .nextjs__container_errors_inspect_copy_button {
     cursor: pointer;
     background: none;
@@ -412,9 +399,9 @@ export const styles = css`
     display: flex;
     align-items: center;
     justify-content: space-between;
+    margin-bottom: var(--size-3);
   }
   .error-overlay-notes-container {
-    padding: var(--size-4);
-    padding-top: 0;
+    padding: 0 var(--size-4);
   }
 `

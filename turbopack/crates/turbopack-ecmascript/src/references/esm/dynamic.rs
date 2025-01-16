@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
     issue::IssueSource,
+    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::EcmaScriptModulesReferenceSubType,
     resolve::{
@@ -111,11 +112,13 @@ impl CodeGenerateable for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             *self.request,
             *self.origin,
+            module_graph,
             Vc::upcast(chunking_context),
             esm_resolve(
                 self.get_origin().resolve().await?,

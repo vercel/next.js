@@ -7,7 +7,6 @@ import type {
   ModuleGraph,
 } from 'webpack'
 import type { ModuleGraphConnection } from 'webpack'
-import { isMetadataRoute } from '../../lib/metadata/is-metadata-route'
 
 export function traverseModules(
   compilation: Compilation,
@@ -48,11 +47,7 @@ export function forEachEntryModule(
 ) {
   for (const [name, entry] of compilation.entries.entries()) {
     // Skip for entries under pages/
-    if (
-      name.startsWith('pages/') ||
-      // Skip for metadata route handlers
-      (name.startsWith('app/') && isMetadataRoute(name))
-    ) {
+    if (name.startsWith('pages/')) {
       continue
     }
 

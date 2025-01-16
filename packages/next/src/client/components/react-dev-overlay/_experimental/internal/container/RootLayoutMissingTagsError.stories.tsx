@@ -3,7 +3,6 @@ import { RootLayoutMissingTagsError } from './RootLayoutMissingTagsError'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 
 const meta: Meta<typeof RootLayoutMissingTagsError> = {
-  title: 'RootLayoutMissingTagsError',
   component: RootLayoutMissingTagsError,
   parameters: {
     layout: 'fullscreen',
@@ -31,5 +30,12 @@ export const SingleTag: Story = {
       installed: '15.0.0',
       staleness: 'fresh',
     },
+  },
+}
+
+export const Turbopack: Story = {
+  args: {
+    ...Default.args,
+    isTurbopack: true,
   },
 }

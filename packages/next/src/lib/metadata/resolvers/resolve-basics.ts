@@ -263,3 +263,17 @@ export const resolveFacebook: FieldResolver<'facebook'> = (facebook) => {
     admins: resolveAsArrayOrUndefined(facebook.admins),
   }
 }
+
+export const resolvePagination: FieldResolverExtraArgs<
+  'pagination',
+  [ResolvedMetadata['metadataBase'], MetadataContext]
+> = (pagination, metadataBase, context) => {
+  return {
+    previous: pagination?.previous
+      ? resolveAlternateUrl(pagination.previous, metadataBase, context)
+      : null,
+    next: pagination?.next
+      ? resolveAlternateUrl(pagination.next, metadataBase, context)
+      : null,
+  }
+}

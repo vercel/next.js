@@ -36,7 +36,7 @@ use turbo_tasks::{
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath};
 use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
-    emit_with_completion,
+    emit_with_completion_operation,
     module_options::{CssOptionsContext, EcmascriptOptionsContext, ModuleOptionsContext},
     register, ModuleAssetContext,
 };
@@ -420,7 +420,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let original_output = exec_node(package_root, input);
 
                 let output_fs = DiskFileSystem::new("output".into(), directory.clone(), vec![]);
-                let output_dir = output_fs.root();
+                let output_dir = output_fs.root().to_resolved().await?;
 
                 let source = FileSource::new(input);
                 let module_asset_context = ModuleAssetContext::new(
@@ -457,7 +457,7 @@ fn node_file_trace<B: Backend + 'static>(
                 let module = module_asset_context
                     .process(Vc::upcast(source), Value::new(ReferenceType::Undefined))
                     .module();
-                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, output_dir)
+                let rebased = RebasedAsset::new(Vc::upcast(module), *input_dir, *output_dir)
                     .to_resolved()
                     .await?;
 
@@ -466,9 +466,10 @@ fn node_file_trace<B: Backend + 'static>(
 
                 print_graph(ResolvedVc::upcast(rebased)).await?;
 
-                let emit = emit_with_completion(*ResolvedVc::upcast(rebased), output_dir);
-                emit.strongly_consistent().await?;
-                apply_effects(emit).await?;
+                let emit_op =
+                    emit_with_completion_operation(ResolvedVc::upcast(rebased), output_dir);
+                emit_op.connect().strongly_consistent().await?;
+                apply_effects(emit_op).await?;
 
                 #[cfg(not(feature = "bench_against_node_nft"))]
                 {

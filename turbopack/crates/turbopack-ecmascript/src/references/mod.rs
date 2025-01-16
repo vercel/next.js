@@ -32,6 +32,7 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -126,7 +127,9 @@ use crate::{
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
     chunk::EcmascriptExports,
-    code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
+    code_gen::{
+        CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, UnresolvedCodeGen,
+    },
     magic_identifier,
     parse::parse,
     references::{
@@ -167,7 +170,9 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     local_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
     reexport_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
     evaluation_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
-    code_gens: Vec<CodeGen>,
+    // Many of these `code_gens` are accumulated inside of a synchronous SWC visitor, so we don't
+    // resolve them until `build()`.
+    code_gens: Vec<UnresolvedCodeGen>,
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
@@ -235,18 +240,18 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         C: Upcast<Box<dyn CodeGenerateable>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateable(Vc::upcast(code_gen)));
+            .push(UnresolvedCodeGen::CodeGenerateable(Vc::upcast(code_gen)));
     }
 
     /// Adds a codegen to the analysis result.
     #[allow(dead_code)]
-    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: ResolvedVc<C>)
+    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(
-                ResolvedVc::upcast(code_gen),
+            .push(UnresolvedCodeGen::CodeGenerateableWithAsyncModuleInfo(
+                Vc::upcast(code_gen),
             ));
     }
 
@@ -274,8 +279,7 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Builds the final analysis result. Resolves internal Vcs for performance
-    /// in using them.
+    /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
         mut self,
         track_reexport_references: bool,
@@ -301,14 +305,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .into_iter()
             .flatten()
             .collect();
-        for c in self.code_gens.iter_mut() {
-            match c {
-                CodeGen::CodeGenerateable(c) => {
-                    *c = c.resolve().await?;
-                }
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(..) => {}
-            }
-        }
 
         let source_map = if let Some(source_map) = self.source_map {
             source_map
@@ -321,7 +317,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 local_references: ResolvedVc::cell(local_references),
                 reexport_references: ResolvedVc::cell(reexport_references),
                 evaluation_references: ResolvedVc::cell(evaluation_references),
-                code_generation: ResolvedVc::cell(self.code_gens),
+                code_generation: ResolvedVc::cell(
+                    self.code_gens
+                        .iter()
+                        .map(UnresolvedCodeGen::to_resolved)
+                        .try_join()
+                        .await?,
+                ),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
                 successful: self.successful,
@@ -345,7 +347,7 @@ struct AnalysisState<'a> {
     var_graph: &'a VarGraph,
     /// This is the current state of known values of function
     /// arguments.
-    fun_args_values: Mutex<HashMap<u32, Vec<JsValue>>>,
+    fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -859,7 +861,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         origin,
         compile_time_info,
         var_graph: &var_graph,
-        fun_args_values: Mutex::new(HashMap::<u32, Vec<JsValue>>::new()),
+        fun_args_values: Mutex::new(FxHashMap::<u32, Vec<JsValue>>::default()),
         first_import_meta: true,
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
@@ -1207,6 +1209,28 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 .await?,
                         )
                     } else {
+                        let r = match options.tree_shaking_mode {
+                            Some(TreeShakingMode::ReexportsOnly) => {
+                                let r_ref = r.await?;
+                                if r_ref.export_name.is_none() && export.is_some() {
+                                    let export = export.clone().unwrap();
+                                    EsmAssetReference::new(
+                                        *r_ref.origin,
+                                        *r_ref.request,
+                                        *r_ref.issue_source,
+                                        Value::new(r_ref.annotations.clone()),
+                                        Some(ModulePart::export(export)),
+                                        r_ref.import_externals,
+                                    )
+                                    .to_resolved()
+                                    .await?
+                                } else {
+                                    r
+                                }
+                            }
+                            _ => r,
+                        };
+
                         analysis.add_local_reference(r);
                         analysis.add_import_reference(r);
                         analysis.add_binding(EsmBinding::new(
@@ -2976,7 +3000,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast NamedExport,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
         // We create mutable exports for fake ESMs generated by module splitting
         let is_fake_esm = export
             .with
@@ -3032,6 +3055,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
 
+        let path = Vc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3357,7 +3381,7 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
                 {
                     // Is `-e` one of the arguments passed to the program?
                     if items.iter().any(|e| {
-                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Word(arg))) =
+                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Atom(arg))) =
                             e
                         {
                             arg == "-e"

@@ -60,14 +60,7 @@ At this point, you're good to `npm run dev` or `yarn dev` or `pnpm dev`. However
 
 You can deploy this app to the cloud with [Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) ([Documentation](https://nextjs.org/docs/deployment)).
 
-To deploy on Vercel, you need to set the environment variables using [Vercel CLI](https://vercel.com/download) ([Documentation](https://vercel.com/docs/cli#commands/secrets)).
-
-Install the [Vercel CLI](https://vercel.com/download), log in to your account from the CLI, and run the following commands to add the environment variables. Replace the values with the corresponding strings in `.env.local`:
-
-```bash
-vercel secrets add next_example_mux_token_id <MUX_TOKEN_ID>
-vercel secrets add next_example_mux_token_secret <MUX_TOKEN_SECRET>
-```
+To deploy on Vercel, you need to set the `MUX_TOKEN_ID` and `MUX_TOKEN_SECRET` environment variables using either the [Vercel Dashboard](https://vercel.com/docs/projects/environment-variables/managing-environment-variables?utm_source=github&utm_medium=readme&utm_campaign=next-example) or the [Vercel CLI](https://vercel.com/docs/cli/env?utm_source=github&utm_medium=readme&utm_campaign=next-example)
 
 Then push the project to GitHub/GitLab/Bitbucket and [import to Vercel](https://vercel.com/new?utm_source=github&utm_medium=readme&utm_campaign=next-example) to deploy.
 

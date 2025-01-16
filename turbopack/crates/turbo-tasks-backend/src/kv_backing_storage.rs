@@ -812,7 +812,8 @@ struct SerializeLikeCachedDataItem<'l>(&'l CachedDataItemKey, &'l CachedDataItem
 
 impl Serialize for SerializeLikeCachedDataItem<'_> {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        let item = CachedDataItem::from_key_and_value(self.0.clone(), self.1.clone());
+        // TODO add CachedDataItemRef to avoid cloning
+        let item = CachedDataItem::from_key_and_value(*self.0, self.1.clone());
         item.serialize(serializer)
     }
 }

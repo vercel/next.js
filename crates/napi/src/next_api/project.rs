@@ -296,10 +296,18 @@ pub async fn project_new(
 ) -> napi::Result<External<ProjectInstance>> {
     register();
 
-    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
+    let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
+        .ok()
+        .filter(|v| !v.is_empty());
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
+    if cfg!(feature = "tokio-console") && trace.is_none() {
+        // ensure `trace` is set to *something* so that the `tokio-console` feature works, otherwise
+        // you just get empty output from `tokio-console`, which can be confusing.
+        trace = Some("overview".to_owned());
+    }
+
+    if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -318,6 +326,12 @@ pub async fn project_new(
         }
 
         let subscriber = Registry::default();
+
+        if cfg!(feature = "tokio-console") {
+            trace = format!("{trace},tokio=trace,runtime=trace");
+        }
+        #[cfg(feature = "tokio-console")]
+        let subscriber = subscriber.with(console_subscriber::spawn());
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
@@ -632,10 +646,13 @@ struct EntrypointsWithIssues {
 
 #[turbo_tasks::function]
 async fn get_entrypoints_with_issues(
-    container: Vc<ProjectContainer>,
+    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
-    let entrypoints_operation = container.entrypoints();
-    let entrypoints = entrypoints_operation.strongly_consistent().await?;
+    let entrypoints_operation = project_container_entrypoints_operation(container);
+    let entrypoints = entrypoints_operation
+        .connect()
+        .strongly_consistent()
+        .await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
     let effects = Arc::new(get_effects(entrypoints_operation).await?);
@@ -646,6 +663,13 @@ async fn get_entrypoints_with_issues(
         effects,
     }
     .cell())
+}
+
+#[turbo_tasks::function(operation)]
+fn project_container_entrypoints_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<Entrypoints> {
+    container.entrypoints()
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -731,12 +755,12 @@ struct HmrUpdateWithIssues {
 
 #[turbo_tasks::function]
 async fn hmr_update(
-    project: Vc<Project>,
+    project: ResolvedVc<Project>,
     identifier: RcStr,
-    state: Vc<VersionState>,
+    state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_operation = project.hmr_update(identifier, state);
-    let update = update_operation.strongly_consistent().await?;
+    let update_operation = project_hmr_update_operation(project, identifier, state);
+    let update = update_operation.connect().strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
     let effects = Arc::new(get_effects(update_operation).await?);
@@ -747,6 +771,15 @@ async fn hmr_update(
         effects,
     }
     .cell())
+}
+
+#[turbo_tasks::function(operation)]
+async fn project_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    identifier: RcStr,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.hmr_update(identifier, *state)
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -849,10 +882,13 @@ struct HmrIdentifiersWithIssues {
 
 #[turbo_tasks::function]
 async fn get_hmr_identifiers_with_issues(
-    container: Vc<ProjectContainer>,
+    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_operation = container.hmr_identifiers();
-    let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+    let hmr_identifiers_operation = project_container_hmr_identifiers_operation(container);
+    let hmr_identifiers = hmr_identifiers_operation
+        .connect()
+        .strongly_consistent()
+        .await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
     let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
@@ -863,6 +899,13 @@ async fn get_hmr_identifiers_with_issues(
         effects,
     }
     .cell())
+}
+
+#[turbo_tasks::function(operation)]
+fn project_container_hmr_identifiers_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<Vec<RcStr>> {
+    container.hmr_identifiers()
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

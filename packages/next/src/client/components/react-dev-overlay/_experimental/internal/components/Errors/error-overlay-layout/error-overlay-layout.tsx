@@ -4,20 +4,12 @@ import type { VersionInfo } from '../../../../../../../../server/dev/parse-versi
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
-import {
-  Dialog,
-  DialogHeader,
-  DialogBody,
-  DialogContent,
-  DialogFooter,
-} from '../../Dialog'
+import { DialogContent, DialogFooter } from '../../Dialog'
 import { Overlay } from '../../Overlay'
-import { ErrorPagination } from '../ErrorPagination/ErrorPagination'
 import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
-import { VersionStalenessInfo } from '../../VersionStalenessInfo'
 import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import { noop as css } from '../../../helpers/noop-template'
@@ -29,6 +21,18 @@ import {
   ErrorTypeLabel,
   styles as errorTypeLabelStyles,
 } from '../error-type-label/error-type-label'
+import {
+  ErrorOverlayFloatingHeader,
+  styles as floatingHeaderStyles,
+} from '../error-overlay-floating-header/error-overlay-floating-header'
+
+import { ErrorOverlayDialog, DIALOG_STYLES } from '../dialog/dialog'
+import {
+  ErrorOverlayDialogHeader,
+  DIALOG_HEADER_STYLES,
+} from '../dialog/header'
+import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
+import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -45,6 +49,7 @@ type ErrorOverlayLayoutProps = {
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   footerMessage?: string
+  isTurbopack?: boolean
 }
 
 export function ErrorOverlayLayout({
@@ -61,23 +66,21 @@ export function ErrorOverlayLayout({
   activeIdx,
   setActiveIndex,
   footerMessage,
+  isTurbopack,
 }: ErrorOverlayLayoutProps) {
   return (
     <Overlay fixed={isBuildError}>
-      <Dialog
-        type="error"
-        aria-labelledby="nextjs__container_errors_label"
-        aria-describedby="nextjs__container_errors_desc"
-        onClose={onClose}
-      >
+      <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
         <DialogContent>
-          <DialogHeader className="nextjs-container-errors-header">
-            {/* TODO: better passing data instead of nullish coalescing */}
-            <ErrorPagination
-              readyErrors={readyErrors ?? []}
-              activeIdx={activeIdx ?? 0}
-              onActiveIndexChange={setActiveIndex ?? (() => {})}
-            />
+          <ErrorOverlayFloatingHeader
+            readyErrors={readyErrors}
+            activeIdx={activeIdx}
+            setActiveIndex={setActiveIndex}
+            versionInfo={versionInfo}
+            isTurbopack={isTurbopack}
+          />
+
+          <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
             <div
               className="nextjs__container_errors__error_title"
               // allow assertion in tests before error rating is implemented
@@ -86,31 +89,35 @@ export function ErrorOverlayLayout({
               <ErrorTypeLabel errorType={errorType} />
               <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
             </div>
-            <VersionStalenessInfo versionInfo={versionInfo} />
             <ErrorMessage errorMessage={errorMessage} />
-          </DialogHeader>
-          <DialogBody className="nextjs-container-errors-body">
-            {children}
-          </DialogBody>
+          </ErrorOverlayDialogHeader>
+
+          <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+
           <DialogFooter>
-            {/* TODO: errorCode should not be undefined whatsoever */}
             <ErrorOverlayFooter
               footerMessage={footerMessage}
-              errorCode={errorCode!}
+              errorCode={errorCode}
+            />
+            <ErrorOverlayBottomStacks
+              errorsCount={readyErrors?.length ?? 0}
+              activeIdx={activeIdx ?? 0}
             />
           </DialogFooter>
         </DialogContent>
-      </Dialog>
-      <ErrorOverlayBottomStacks
-        errorsCount={readyErrors?.length ?? 0}
-        activeIdx={activeIdx ?? 0}
-      />
+      </ErrorOverlayDialog>
     </Overlay>
   )
 }
 
 export const styles = css`
+  ${DIALOG_STYLES}
+  ${DIALOG_HEADER_STYLES}
+  ${DIALOG_BODY_STYLES}
+
+  ${floatingHeaderStyles}
   ${errorTypeLabelStyles}
   ${errorMessageStyles}
   ${toolbarStyles}
+  ${CALL_STACK_STYLES}
 `

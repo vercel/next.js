@@ -1,7 +1,10 @@
 use anyhow::Result;
 use mime_guess::mime::TEXT_HTML_UTF_8;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, Value, Vc};
+use turbo_tasks::{
+    trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc, TaskInput, TryJoinIterExt, Value, Vc,
+};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbo_tasks_hash::{encode_hex, Xxh3Hash64Hasher};
 use turbopack_core::{
@@ -12,22 +15,25 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     version::{Version, VersionedContent},
 };
 
-// TODO(WEB-945) This should become a struct once we have a
-// `turbo_tasks::input` attribute macro/`Input` derive macro.
-type DevHtmlEntry = (
-    ResolvedVc<Box<dyn ChunkableModule>>,
-    Vc<Box<dyn ChunkingContext>>,
-    Option<Vc<EvaluatableAssets>>,
-);
+#[derive(
+    Clone, Debug, Deserialize, Eq, Hash, NonLocalValue, PartialEq, Serialize, TaskInput, TraceRawVcs,
+)]
+pub struct DevHtmlEntry {
+    pub chunkable_module: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
+    pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
+    pub runtime_entries: Option<ResolvedVc<EvaluatableAssets>>,
+}
 
 /// The HTML entry point of the dev server.
 ///
 /// Generates an HTML page that includes the ES and CSS chunks.
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct DevHtmlAsset {
     path: ResolvedVc<FileSystemPath>,
@@ -132,23 +138,35 @@ impl DevHtmlAsset {
             .entries
             .iter()
             .map(|entry| async move {
-                let &(chunkable_module, chunking_context, runtime_entries) = entry;
+                let &DevHtmlEntry {
+                    chunkable_module,
+                    chunking_context,
+                    module_graph,
+                    runtime_entries,
+                } = entry;
 
                 let assets = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries = if let Some(evaluatable) =
                         ResolvedVc::try_downcast(chunkable_module).await?
                     {
-                        runtime_entries.with_entry(*evaluatable)
+                        runtime_entries
+                            .with_entry(*evaluatable)
+                            .to_resolved()
+                            .await?
                     } else {
                         runtime_entries
                     };
                     chunking_context.evaluated_chunk_group_assets(
                         chunkable_module.ident(),
-                        runtime_entries,
+                        *runtime_entries,
+                        *module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
                 } else {
-                    chunking_context.root_chunk_group_assets(*ResolvedVc::upcast(chunkable_module))
+                    chunking_context.root_chunk_group_assets(
+                        *ResolvedVc::upcast(chunkable_module),
+                        *module_graph,
+                    )
                 };
 
                 assets.await

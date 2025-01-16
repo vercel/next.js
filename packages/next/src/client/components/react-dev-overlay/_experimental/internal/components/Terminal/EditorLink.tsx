@@ -1,5 +1,5 @@
-import React from 'react'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
+import { noop as css } from '../../helpers/noop-template'
 
 type EditorLinkProps = {
   file: string
@@ -48,3 +48,27 @@ export function EditorLink({ file, isSourceFile, location }: EditorLinkProps) {
     </div>
   )
 }
+
+export const EDITOR_LINK_STYLES = css`
+  [data-with-open-in-editor-link] svg {
+    width: auto;
+    height: var(--size-font-small);
+    margin-left: var(--size-gap);
+  }
+  [data-with-open-in-editor-link] {
+    cursor: pointer;
+  }
+  [data-with-open-in-editor-link]:hover {
+    text-decoration: underline dotted;
+  }
+  [data-with-open-in-editor-link-import-trace] {
+    margin-left: var(--size-gap-double);
+  }
+  [data-with-open-in-editor-link-source-file] {
+    border-bottom: 1px solid var(--color-ansi-bright-black);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    line-break: anywhere;
+  }
+`

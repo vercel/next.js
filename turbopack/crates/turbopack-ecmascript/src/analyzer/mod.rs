@@ -99,7 +99,6 @@ impl Eq for ConstantNumber {}
 
 #[derive(Debug, Clone)]
 pub enum ConstantString {
-    Word(JsWord),
     Atom(Atom),
     RcStr(RcStr),
 }
@@ -107,7 +106,6 @@ pub enum ConstantString {
 impl ConstantString {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Word(s) => s,
             Self::Atom(s) => s,
             Self::RcStr(s) => s,
         }
@@ -146,7 +144,7 @@ impl From<Atom> for ConstantString {
 
 impl From<&'static str> for ConstantString {
     fn from(v: &'static str) -> Self {
-        ConstantString::Word(v.into())
+        ConstantString::Atom(v.into())
     }
 }
 
@@ -171,7 +169,7 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(BigInt),
+    BigInt(Box<BigInt>),
     Regex(Atom, Atom),
 }
 
@@ -236,14 +234,14 @@ impl From<bool> for ConstantValue {
 
 impl From<&'_ str> for ConstantValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into()))
+        ConstantValue::Str(ConstantString::Atom(v.into()))
     }
 }
 
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Word(v.value)),
+            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -253,7 +251,7 @@ impl From<Lit> for ConstantValue {
             }
             Lit::Null(_) => ConstantValue::Null,
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
-            Lit::BigInt(v) => ConstantValue::BigInt(*v.value),
+            Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
         }
@@ -511,7 +509,7 @@ pub enum JsValue {
 
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into())).into()
+        ConstantValue::Str(ConstantString::Atom(v.into())).into()
     }
 }
 
@@ -523,6 +521,12 @@ impl From<Atom> for JsValue {
 
 impl From<BigInt> for JsValue {
     fn from(v: BigInt) -> Self {
+        Self::from(Box::new(v))
+    }
+}
+
+impl From<Box<BigInt>> for JsValue {
+    fn from(v: Box<BigInt>) -> Self {
         ConstantValue::BigInt(v).into()
     }
 }
@@ -863,43 +867,43 @@ impl JsValue {
         )
     }
 
-    pub fn iterated(iterable: JsValue) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), Box::new(iterable))
+    pub fn iterated(iterable: Box<JsValue>) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), iterable)
     }
 
-    pub fn equal(a: JsValue, b: JsValue) -> Self {
+    pub fn equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::Equal,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::NotEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictNotEqual,
-            Box::new(b),
+            b,
         )
     }
 

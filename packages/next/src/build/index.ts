@@ -80,6 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -162,6 +163,8 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -214,6 +217,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 
 type Fallback = null | boolean | string
 
@@ -401,6 +405,10 @@ export type RoutesManifest = {
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
+  }
+  rewriteHeaders: {
+    pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
+    queryHeader: typeof NEXT_REWRITTEN_QUERY_HEADER
   }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
@@ -1259,6 +1267,10 @@ export default async function build(
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
             },
+            rewriteHeaders: {
+              pathHeader: NEXT_REWRITTEN_PATH_HEADER,
+              queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
+            },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
               ? {
@@ -1305,6 +1317,24 @@ export default async function build(
           config.experimental.clientRouterFilterAllowedRate
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
+      }
+
+      if (config.experimental.streamingMetadata) {
+        // Write html limited bots config to response-config-manifest
+        const responseConfigManifestPath = path.join(
+          distDir,
+          RESPONSE_CONFIG_MANIFEST
+        )
+        const responseConfigManifest: {
+          version: number
+          htmlLimitedBots: string
+        } = {
+          version: 0,
+          htmlLimitedBots:
+            config.experimental.htmlLimitedBots ||
+            HTML_LIMITED_BOT_UA_RE_STRING,
+        }
+        await writeManifest(responseConfigManifestPath, responseConfigManifest)
       }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -2487,6 +2517,9 @@ export default async function build(
               PRERENDER_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(config.experimental.streamingMetadata
+                ? [RESPONSE_CONFIG_MANIFEST]
+                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
@@ -2641,6 +2674,10 @@ export default async function build(
       }
 
       const features: EventBuildFeatureUsage[] = [
+        {
+          featureName: 'experimental/dynamicIO',
+          invocationCount: config.experimental.dynamicIO ? 1 : 0,
+        },
         {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,

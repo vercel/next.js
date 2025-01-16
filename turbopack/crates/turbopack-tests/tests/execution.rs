@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
-    NonLocalValue, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
+    NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
@@ -35,6 +35,7 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     issue::{Issue, IssueDescriptionExt},
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapping},
@@ -170,27 +171,28 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
 
     let tt = TurboTasks::new(MemoryBackend::default());
     tt.run_once(async move {
-        let emit = run_inner(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
-        let result = emit.strongly_consistent().await?;
-        apply_effects(emit).await?;
+        let emit_op =
+            run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
+        let result = emit_op.connect().strongly_consistent().await?;
+        apply_effects(emit_op).await?;
 
         Ok(result.clone_value())
     })
     .await
 }
 
-#[turbo_tasks::function]
-async fn run_inner(
+#[turbo_tasks::function(operation)]
+async fn run_inner_operation(
     resource: RcStr,
     snapshot_mode: Value<IssueSnapshotMode>,
 ) -> Result<Vc<JsResult>> {
-    let prepared_test = prepare_test(resource);
-    let run_result = run_test(prepared_test);
+    let prepared_test = prepare_test(resource).to_resolved().await?;
+    let run_result_op = run_test_operation(prepared_test);
     if *snapshot_mode == IssueSnapshotMode::Snapshots {
-        snapshot_issues(prepared_test, run_result).await?;
+        snapshot_issues(*prepared_test, run_result_op).await?;
     }
 
-    Ok(*run_result.await?.js_result)
+    Ok(*run_result_op.connect().await?.js_result)
 }
 
 #[derive(
@@ -264,8 +266,8 @@ async fn prepare_test(resource: RcStr) -> Result<Vc<PreparedTest>> {
     .cell())
 }
 
-#[turbo_tasks::function]
-async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> {
+#[turbo_tasks::function(operation)]
+async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<Vc<RunTestResult>> {
     let PreparedTest {
         path,
         project_path,
@@ -407,12 +409,15 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
         )
         .module();
 
+    let module_graph = ModuleGraph::from_module(jest_entry_asset);
+
     let res = evaluate(
         jest_entry_asset,
         *path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
+        module_graph,
         Vc::upcast(chunking_context),
         None,
         vec![],
@@ -451,10 +456,10 @@ async fn run_test(prepared_test: Vc<PreparedTest>) -> Result<Vc<RunTestResult>> 
 #[turbo_tasks::function]
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
-    run_result: Vc<RunTestResult>,
+    run_result: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
     let PreparedTest { path, .. } = *prepared_test.await?;
-    let _ = run_result.resolve_strongly_consistent().await;
+    let _ = run_result.connect().resolve_strongly_consistent().await;
 
     let captured_issues = run_result.peek_issues_with_path().await?;
 

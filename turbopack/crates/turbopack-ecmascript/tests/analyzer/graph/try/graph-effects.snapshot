@@ -59,7 +59,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "packages/not-found",
                         ),
                     ),
@@ -169,7 +169,7 @@
             Value(
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "packages/found",
                         ),
                     ),

@@ -18,7 +18,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "/collection",
                                 ),
                             ),
@@ -47,7 +47,7 @@
                         ),
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "/connection",
                                 ),
                             ),
@@ -78,7 +78,7 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./drivers/node-mongodb-native",
                         ),
                     ),

@@ -4,12 +4,33 @@ import { withShadowPortal } from '../../../storybook/with-shadow-portal'
 import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 
 const meta: Meta<typeof DevToolsIndicator> = {
-  title: 'DevToolsIndicator',
   component: DevToolsIndicator,
   parameters: {
     layout: 'centered',
   },
-  decorators: [withShadowPortal],
+  decorators: [
+    withShadowPortal,
+    // Test for high z-index
+    (Story) => (
+      <div
+        style={{
+          position: 'fixed',
+          top: 0,
+          left: 0,
+          width: '100%',
+          height: '100%',
+          zIndex: 9999,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          background:
+            'linear-gradient(135deg, rgba(230,240,255,0.8) 0%, rgba(200,220,255,0.6) 100%)',
+        }}
+      >
+        <Story />
+      </div>
+    ),
+  ],
 }
 
 export default meta
@@ -41,6 +62,17 @@ const mockError = {
       },
     },
   ],
+}
+
+export const NoErrors: Story = {
+  args: {
+    hasStaticIndicator: false,
+    readyErrors: [],
+    fullscreen: () => console.log('Fullscreen clicked'),
+    hide: () => console.log('Hide clicked'),
+    versionInfo: mockVersionInfo,
+    isTurbopack: false,
+  },
 }
 
 export const SingleError: Story = {

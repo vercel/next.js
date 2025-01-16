@@ -147,6 +147,7 @@ export type RouteCacheEntry =
 
 export const enum FetchStrategy {
   PPR,
+  Full,
   LoadingBoundary,
 }
 
@@ -847,12 +848,13 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
         convertRootTreePrefetchToRouteTree(serverData),
         serverData.head,
         serverData.isHeadPartial,
-        Date.now() + serverData.staleTime,
+        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled
@@ -1004,9 +1006,10 @@ export async function fetchSegmentOnCacheMiss(
   }
 }
 
-export async function fetchSegmentPrefetchesForPPRDisabledRoute(
+export async function fetchSegmentPrefetchesUsingDynamicRequest(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
+  fetchStrategy: FetchStrategy,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
@@ -1014,13 +1017,19 @@ export async function fetchSegmentPrefetchesForPPRDisabledRoute(
   const nextUrl = task.key.nextUrl
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
     [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
       JSON.stringify(dynamicRequestTree)
     ),
   }
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
+  }
+  // Only set the prefetch header if we're not doing a "full" prefetch. We
+  // omit the prefetch header from a full prefetch because it's essentially
+  // just a navigation request that happens ahead of time — it should include
+  // all the same data in the response.
+  if (fetchStrategy !== FetchStrategy.Full) {
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
   try {
     const response = await fetchPrefetchResponse(href, headers)
@@ -1114,17 +1123,19 @@ function writeDynamicTreeResponseIntoCache(
 
   const flightRouterState = flightData.tree
   // TODO: Extract to function
-  const staleTimeHeader = response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
-  const staleTime =
-    staleTimeHeader !== null
-      ? parseInt(staleTimeHeader, 10)
+  const staleTimeHeaderSeconds = response.headers.get(
+    NEXT_ROUTER_STALE_TIME_HEADER
+  )
+  const staleTimeMs =
+    staleTimeHeaderSeconds !== null
+      ? parseInt(staleTimeHeaderSeconds, 10) * 1000
       : STATIC_STALETIME_MS
   fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
     flightData.head,
     flightData.isHeadPartial,
-    now + staleTime,
+    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled
@@ -1189,17 +1200,17 @@ function writeDynamicRenderResponseIntoCache(
           encodeSegment(segment)
         )
       }
-      const staleTimeHeader = response.headers.get(
+      const staleTimeHeaderSeconds = response.headers.get(
         NEXT_ROUTER_STALE_TIME_HEADER
       )
-      const staleTime =
-        staleTimeHeader !== null
-          ? parseInt(staleTimeHeader, 10)
+      const staleTimeMs =
+        staleTimeHeaderSeconds !== null
+          ? parseInt(staleTimeHeaderSeconds, 10) * 1000
           : STATIC_STALETIME_MS
       writeSeedDataIntoCache(
         now,
         route,
-        now + staleTime,
+        now + staleTimeMs,
         seedData,
         segmentKey,
         spawnedEntries
