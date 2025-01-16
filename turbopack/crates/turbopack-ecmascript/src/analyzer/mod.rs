@@ -170,7 +170,7 @@ pub enum ConstantValue {
     False,
     Null,
     BigInt(Box<BigInt>),
-    Regex(Atom, Atom),
+    Regex(Box<(Atom, Atom)>),
 }
 
 impl ConstantValue {
@@ -252,7 +252,7 @@ impl From<Lit> for ConstantValue {
             Lit::Null(_) => ConstantValue::Null,
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
             Lit::BigInt(v) => ConstantValue::BigInt(v.value),
-            Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
+            Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
         }
     }
@@ -268,7 +268,7 @@ impl Display for ConstantValue {
             ConstantValue::Null => write!(f, "null"),
             ConstantValue::Num(ConstantNumber(n)) => write!(f, "{n}"),
             ConstantValue::BigInt(n) => write!(f, "{n}"),
-            ConstantValue::Regex(exp, flags) => write!(f, "/{exp}/{flags}"),
+            ConstantValue::Regex(regex) => write!(f, "/{}/{}", regex.0, regex.1),
         }
     }
 }
@@ -3732,7 +3732,7 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     };
 
     let filter = if let Some(filter) = args.get(2) {
-        if let JsValue::Constant(ConstantValue::Regex(pattern, flags)) = filter {
+        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
             regex_from_js(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");
