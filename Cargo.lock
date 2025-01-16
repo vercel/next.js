@@ -2965,7 +2965,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.4.9",
+ "socket2 0.5.8",
  "tokio",
  "tower-service",
  "tracing",
@@ -7155,9 +7155,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "10.2.4"
+version = "10.2.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ec28c0882615a9af1cc7173aa466a8760455104b76a209d1b7e1ccba4f8b05cc"
+checksum = "437683084ba049e2e1663453029d579da67ba156ae59b1e2168445d64a2e2806"
 dependencies = [
  "binding_macros",
  "swc",
