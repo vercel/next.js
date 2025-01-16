@@ -83,6 +83,15 @@ impl VisitedModules {
     }
 
     #[turbo_tasks::function]
+    pub async fn with_incremented_index(&self) -> Result<Vc<Self>> {
+        Ok(Self {
+            modules: self.modules.clone(),
+            next_graph_idx: self.next_graph_idx + 1,
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
     pub async fn concatenate(&self, graph: Vc<SingleModuleGraph>) -> Result<Vc<Self>> {
         let graph = graph.await?;
         let iter = self

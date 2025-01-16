@@ -767,12 +767,17 @@ impl AppProject {
                         graphs.push(graph);
                         let is_layout =
                             module.server_path().file_stem().await?.as_deref() == Some("layout");
-                        if is_layout {
+                        visited_modules = if is_layout {
                             // Only propagate the visited_modules of the parent layout(s), not
                             // across siblings such as loading.js and
                             // page.js.
-                            visited_modules = visited_modules.concatenate(graph);
-                        }
+                            visited_modules.concatenate(graph)
+                        } else {
+                            // Prevents graph index from getting out of sync.
+                            // TODO We should remove VisitedModule entirely in favor of lookups in
+                            // SingleModuleGraph
+                            visited_modules.with_incremented_index()
+                        };
                     }
                 }
 
