@@ -7,7 +7,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Va
 
 use super::{
     availability_info::AvailabilityInfo, available_modules::AvailableModulesInfo,
-    chunk_graph::ChunkGraph, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkContentResult,
+    chunk_graph::ChunkGraph, chunking::make_chunks, AsyncModuleInfo, Chunk, ChunkGroupContent,
     ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
 };
 use crate::{
@@ -34,7 +34,7 @@ pub async fn make_chunk_group(
     let should_trace = *chunking_context.is_tracing_enabled().await?;
     let chunk_graph = &*ChunkGraph::new(module_graph).to_resolved().await?.await?;
 
-    let ChunkContentResult {
+    let ChunkGroupContent {
         chunkable_modules,
         async_modules,
         traced_modules,

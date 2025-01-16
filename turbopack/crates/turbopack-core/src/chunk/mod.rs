@@ -211,7 +211,7 @@ type AsyncInfo =
     FxIndexMap<ResolvedVc<Box<dyn ChunkableModule>>, Vec<ResolvedVc<Box<dyn ChunkableModule>>>>;
 
 #[derive(Default)]
-pub struct ChunkContentResult {
+pub struct ChunkGroupContent {
     pub chunkable_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_modules: FxIndexSet<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub traced_modules: FxIndexSet<ResolvedVc<Box<dyn Module>>>,

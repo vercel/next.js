@@ -2,7 +2,7 @@ use anyhow::{Context, Result};
 use swc_core::alloc::collections::FxHashMap;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 
-use super::{availability_info, ChunkContentResult, ChunkableModule, ChunkingType};
+use super::{availability_info, ChunkGroupContent, ChunkableModule, ChunkingType};
 use crate::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
@@ -28,16 +28,16 @@ impl ChunkGraph {
         availability_info: availability_info::AvailabilityInfo,
         can_split_async: bool,
         should_trace: bool,
-    ) -> Result<ChunkContentResult> {
+    ) -> Result<ChunkGroupContent> {
         struct TraverseState {
             unsorted_chunkable_modules:
                 FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
-            result: ChunkContentResult,
+            result: ChunkGroupContent,
         }
 
         let mut state = TraverseState {
             unsorted_chunkable_modules: FxHashMap::default(),
-            result: ChunkContentResult {
+            result: ChunkGroupContent {
                 chunkable_modules: FxIndexSet::default(),
                 async_modules: FxIndexSet::default(),
                 traced_modules: FxIndexSet::default(),
