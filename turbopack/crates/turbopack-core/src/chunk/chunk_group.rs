@@ -325,6 +325,13 @@ pub async fn chunk_group_content(
                  unsorted_chunkable_modules,
                  result,
              }| {
+                if let Some((_, ChunkingType::Traced)) = parent_info {
+                    if should_trace {
+                        result.traced_modules.insert(node.module);
+                    }
+                    return Ok(GraphTraversalAction::Skip);
+                }
+
                 let Some(chunkable_module) =
                     ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(node.module)
                 else {
@@ -398,12 +405,13 @@ pub async fn chunk_group_content(
                         }
                     }
                     ChunkingType::Traced => {
-                        if should_trace {
-                            result.traced_modules.insert(node.module);
-                        }
+                        // handled above before the sidecast
+                        unreachable!();
+                    }
+                    ChunkingType::Isolated { .. } => {
+                        // TODO currently not implemented
                         GraphTraversalAction::Skip
                     }
-                    ChunkingType::Isolated { .. } => GraphTraversalAction::Skip,
                 })
             },
             |_,
