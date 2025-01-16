@@ -79,13 +79,13 @@ impl ChunkGraph {
                                 result
                                     .forward_edges_inherit_async
                                     .entry(parent_module)
-                                    .or_insert_with(|| vec![])
+                                    .or_default()
                                     .push(chunkable_module);
 
                                 result
                                     .available_async_modules_back_edges_inherit_async
                                     .entry(chunkable_module)
-                                    .or_insert_with(|| vec![])
+                                    .or_default()
                                     .push(parent_module);
                             }
                             return Ok(GraphTraversalAction::Continue);
@@ -106,12 +106,12 @@ impl ChunkGraph {
                             result
                                 .local_back_edges_inherit_async
                                 .entry(chunkable_module)
-                                .or_insert_with(|| vec![])
+                                .or_default()
                                 .push(parent_module);
                             result
                                 .forward_edges_inherit_async
                                 .entry(parent_module)
-                                .or_insert_with(|| vec![])
+                                .or_default()
                                 .push(chunkable_module);
 
                             GraphTraversalAction::Continue
