@@ -32,6 +32,7 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -346,7 +347,7 @@ struct AnalysisState<'a> {
     var_graph: &'a VarGraph,
     /// This is the current state of known values of function
     /// arguments.
-    fun_args_values: Mutex<HashMap<u32, Vec<JsValue>>>,
+    fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -860,7 +861,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         origin,
         compile_time_info,
         var_graph: &var_graph,
-        fun_args_values: Mutex::new(HashMap::<u32, Vec<JsValue>>::new()),
+        fun_args_values: Mutex::new(FxHashMap::<u32, Vec<JsValue>>::default()),
         first_import_meta: true,
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
