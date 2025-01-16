@@ -30,9 +30,7 @@ export const styles = css`
     z-index: 1000;
     overflow: hidden;
     opacity: 0;
-    scale: 0.98;
-    transform-origin: bottom left;
-    transition: all var(--animate-out-duration-ms)
+    transition: opacity var(--animate-out-duration-ms)
       var(--animate-out-timing-function);
 
     &[data-rendered='true'] {
