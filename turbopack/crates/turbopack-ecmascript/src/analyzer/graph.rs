@@ -1928,19 +1928,19 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
             expr.cons.visit_with_ast_path(self, &mut ast_path);
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         let r#else = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
             expr.alt.visit_with_ast_path(self, &mut ast_path);
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         self.effects = prev_effects;
 
@@ -1971,10 +1971,10 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons));
             stmt.cons.visit_with_ast_path(self, &mut ast_path);
             then_returning = self.end_early_return_block();
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         let mut else_returning = false;
         let r#else = stmt.alt.as_ref().map(|alt| {
@@ -1982,10 +1982,10 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt));
             alt.visit_with_ast_path(self, &mut ast_path);
             else_returning = self.end_early_return_block();
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         });
         self.early_return_stack = prev_early_return_stack;
         self.effects = prev_effects;
@@ -2121,7 +2121,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         if n.op == UnaryOp::TypeOf {
-            let arg_value = self.eval_context.eval(&n.arg);
+            let arg_value = Box::new(self.eval_context.eval(&n.arg));
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
                 ast_path: as_parent_path(ast_path),
@@ -2140,8 +2140,8 @@ impl Analyzer<'_> {
         ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         condition_ast_kind: AstParentKind,
         span: Span,
-        then: Option<EffectsBlock>,
-        r#else: Option<EffectsBlock>,
+        then: Option<Box<EffectsBlock>>,
+        r#else: Option<Box<EffectsBlock>>,
         early_return_when_true: bool,
         early_return_when_false: bool,
     ) {
@@ -2149,7 +2149,7 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let condition = self.eval_context.eval(test);
+        let condition = Box::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             if let Some(mut then) = then {
                 self.effects.append(&mut then.effects);
