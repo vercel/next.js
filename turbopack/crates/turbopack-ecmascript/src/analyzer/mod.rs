@@ -171,7 +171,7 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(BigInt),
+    BigInt(Box<BigInt>),
     Regex(Atom, Atom),
 }
 
@@ -253,7 +253,7 @@ impl From<Lit> for ConstantValue {
             }
             Lit::Null(_) => ConstantValue::Null,
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
-            Lit::BigInt(v) => ConstantValue::BigInt(*v.value),
+            Lit::BigInt(v) => ConstantValue::BigInt(v.value),
             Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
         }
@@ -523,6 +523,12 @@ impl From<Atom> for JsValue {
 
 impl From<BigInt> for JsValue {
     fn from(v: BigInt) -> Self {
+        Self::from(Box::new(v))
+    }
+}
+
+impl From<Box<BigInt>> for JsValue {
+    fn from(v: Box<BigInt>) -> Self {
         ConstantValue::BigInt(v).into()
     }
 }
