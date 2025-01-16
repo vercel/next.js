@@ -8,7 +8,7 @@ use anyhow::Result;
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
-use serde::{Deserialize, Deserializer, Serialize, Serializer};
+use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -24,7 +24,9 @@ use crate::{
     },
 };
 
-#[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat)]
+#[derive(
+    Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
+)]
 pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
 
 impl RoaringBitmapWrapper {
@@ -37,7 +39,9 @@ impl RoaringBitmapWrapper {
 }
 unsafe impl NonLocalValue for RoaringBitmapWrapper {}
 
-// RoaringBitmap doesn't impl Eq, not sure why: https://github.com/RoaringBitmap/roaring-rs/issues/302
+// RoaringBitmap doesn't impl Eq: https://github.com/RoaringBitmap/roaring-rs/issues/302
+// PartialEq can only return true if both bitmaps have the same internal representation, but two
+// bitmaps with the same content should always have the same internal representation
 impl Eq for RoaringBitmapWrapper {}
 
 impl Deref for RoaringBitmapWrapper {
@@ -49,24 +53,6 @@ impl Deref for RoaringBitmapWrapper {
 impl DerefMut for RoaringBitmapWrapper {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.0
-    }
-}
-
-impl Serialize for RoaringBitmapWrapper {
-    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
-        use serde::ser::Error;
-        let mut bytes = vec![];
-        self.0.serialize_into(&mut bytes).map_err(Error::custom)?;
-        serializer.serialize_bytes(bytes.as_slice())
-    }
-}
-
-impl<'de> Deserialize<'de> for RoaringBitmapWrapper {
-    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
-        use serde::de::Error;
-        let bytes = <&[u8]>::deserialize(deserializer)?;
-        let map = RoaringBitmap::deserialize_unchecked_from(bytes).map_err(Error::custom)?;
-        Ok(RoaringBitmapWrapper(map))
     }
 }
 
