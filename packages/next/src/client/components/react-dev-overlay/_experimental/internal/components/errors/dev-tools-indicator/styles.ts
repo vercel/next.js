@@ -29,6 +29,16 @@ export const styles = css`
     left: 0;
     z-index: 1000;
     overflow: hidden;
+    opacity: 0;
+    scale: 0.98;
+    transform-origin: bottom left;
+    transition: all var(--animate-out-duration-ms)
+      var(--animate-out-timing-function);
+
+    &[data-rendered='true'] {
+      opacity: 1;
+      scale: 1;
+    }
   }
 
   [data-nextjs-dev-tools-content] {

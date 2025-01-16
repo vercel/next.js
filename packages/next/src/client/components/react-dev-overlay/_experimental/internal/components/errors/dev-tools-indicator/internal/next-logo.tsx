@@ -13,6 +13,7 @@ export const NextLogo = ({
   onClick,
   isDevBuilding,
   isDevRendering,
+  ...props
 }: Props) => {
   const [isLoading, setIsLoading] = useState(false)
 
@@ -30,7 +31,12 @@ export const NextLogo = ({
   }, [isDevBuilding, isDevRendering])
 
   return (
-    <button onClick={onClick} data-next-logo data-error={issueCount > 0}>
+    <button
+      onClick={onClick}
+      data-next-logo
+      data-error={issueCount > 0}
+      {...props}
+    >
       <style>
         {css`
           [data-next-logo] {
