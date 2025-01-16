@@ -230,6 +230,16 @@ function Root({ children }: React.PropsWithChildren<{}>) {
     }, [])
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    const ssrError = devQueueSsrError()
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      if (ssrError) {
+        handleClientError(ssrError, [])
+      }
+    }, [ssrError])
+  }
+
   return children
 }
 
@@ -268,19 +278,6 @@ export function hydrate() {
     }
 
     ReactDOMClient.createRoot(appElement, reactRootOptions).render(element)
-
-    const ssrErrorTemplateTag = document.querySelector(
-      'template[data-next-error-message]'
-    )
-    if (ssrErrorTemplateTag) {
-      const message: string = ssrErrorTemplateTag.getAttribute(
-        'data-next-error-message'
-      )!
-      const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
-      const error = new Error(message)
-      error.stack = stack || ''
-      handleClientError(error, [])
-    }
   } else {
     React.startTransition(() => {
       ReactDOMClient.hydrateRoot(appElement, reactEl, {
@@ -295,5 +292,20 @@ export function hydrate() {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()
+  }
+}
+
+function devQueueSsrError(): Error | undefined {
+  const ssrErrorTemplateTag = document.querySelector(
+    'template[data-next-error-message]'
+  )
+  if (ssrErrorTemplateTag) {
+    const message: string = ssrErrorTemplateTag.getAttribute(
+      'data-next-error-message'
+    )!
+    const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
+    const error = new Error(message)
+    error.stack = stack || ''
+    return error
   }
 }
