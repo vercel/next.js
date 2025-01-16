@@ -3,7 +3,9 @@ import { parseParameter } from './route-regex'
 
 describe('getNamedRouteRegex', () => {
   it('should handle interception markers adjacent to dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]', true)
+    const regex = getNamedRouteRegex('/photos/(.)[author]/[id]', {
+      prefixRouteKeys: true,
+    })
 
     expect(regex.routeKeys).toEqual({
       nxtIauthor: 'nxtIauthor',
@@ -26,19 +28,28 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should match named routes correctly when interception markers are adjacent to dynamic segments', () => {
-    let regex = getNamedRouteRegex('/(.)[author]/[id]', true)
+    let regex = getNamedRouteRegex('/(.)[author]/[id]', {
+      prefixRouteKeys: true,
+    })
     let namedRegexp = new RegExp(regex.namedRegex)
     expect(namedRegexp.test('/[author]/[id]')).toBe(false)
     expect(namedRegexp.test('/(.)[author]/[id]')).toBe(true)
 
-    regex = getNamedRouteRegex('/(..)(..)[author]/[id]', true)
+    regex = getNamedRouteRegex('/(..)(..)[author]/[id]', {
+      prefixRouteKeys: true,
+    })
+    expect(regex.namedRegex).toMatchInlineSnapshot(
+      `"^/\\(\\.\\.\\)\\(\\.\\.\\)(?<nxtIauthor>[^/]+?)/(?<nxtPid>[^/]+?)(?:/)?$"`
+    )
     namedRegexp = new RegExp(regex.namedRegex)
     expect(namedRegexp.test('/[author]/[id]')).toBe(false)
     expect(namedRegexp.test('/(..)(..)[author]/[id]')).toBe(true)
   })
 
   it('should handle multi-level interception markers', () => {
-    const regex = getNamedRouteRegex('/photos/(..)(..)[author]/[id]', true)
+    const regex = getNamedRouteRegex('/photos/(..)(..)[author]/[id]', {
+      prefixRouteKeys: true,
+    })
 
     expect(regex.routeKeys).toEqual({
       nxtIauthor: 'nxtIauthor',
@@ -60,8 +71,30 @@ describe('getNamedRouteRegex', () => {
     expect(regex.re.test('/photos/(..)(..)next/123')).toBe(true)
   })
 
+  it('should not remove extra parts beside the param segments', () => {
+    const { re, namedRegex, routeKeys } = getNamedRouteRegex(
+      '/[locale]/about.segments/[...segmentPath].segment.rsc',
+      {
+        prefixRouteKeys: true,
+        includeExtraParts: true,
+      }
+    )
+    expect(routeKeys).toEqual({
+      nxtPlocale: 'nxtPlocale',
+      nxtPsegmentPath: 'nxtPsegmentPath',
+    })
+    expect(namedRegex).toMatchInlineSnapshot(
+      `"^/(?<nxtPlocale>[^/]+?)/about\\.segments/(?<nxtPsegmentPath>.+?)\\.segment\\.rsc(?:/)?$"`
+    )
+    expect(re.source).toMatchInlineSnapshot(
+      `"^\\/([^/]+?)\\/about\\.segments\\/(.+?)\\.segment\\.rsc(?:\\/)?$"`
+    )
+  })
+
   it('should handle interception markers not adjacent to dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/(.)author/[id]', true)
+    const regex = getNamedRouteRegex('/photos/(.)author/[id]', {
+      prefixRouteKeys: true,
+    })
 
     expect(regex.routeKeys).toEqual({
       nxtPid: 'nxtPid',
@@ -79,7 +112,9 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should handle optional dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/[[id]]', true)
+    const regex = getNamedRouteRegex('/photos/[[id]]', {
+      prefixRouteKeys: true,
+    })
 
     expect(regex.routeKeys).toEqual({
       nxtPid: 'nxtPid',
@@ -93,7 +128,9 @@ describe('getNamedRouteRegex', () => {
   })
 
   it('should handle optional catch-all dynamic path segments', () => {
-    const regex = getNamedRouteRegex('/photos/[[...id]]', true)
+    const regex = getNamedRouteRegex('/photos/[[...id]]', {
+      prefixRouteKeys: true,
+    })
 
     expect(regex.routeKeys).toEqual({
       nxtPid: 'nxtPid',
