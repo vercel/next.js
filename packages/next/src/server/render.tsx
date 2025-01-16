@@ -103,7 +103,7 @@ import { ReflectAdapter } from './web/spec-extension/adapters/reflect'
 import { formatRevalidate } from './lib/revalidate'
 import { getErrorSource } from '../shared/lib/error-source'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
-import type { ReactDevOverlayType } from '../client/components/react-dev-overlay/pages/ReactDevOverlay'
+import type { ReactDevOverlayType } from '../client/components/react-dev-overlay/pages/react-dev-overlay'
 
 let tryGetPreviewData: typeof import('./api-utils/node/try-get-preview-data').tryGetPreviewData
 let warn: typeof import('../build/output/log').warn

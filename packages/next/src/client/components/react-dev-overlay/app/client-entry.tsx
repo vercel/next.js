@@ -1,5 +1,5 @@
 import React from 'react'
-import ReactDevOverlay from './ReactDevOverlay'
+import ReactDevOverlay from './react-dev-overlay'
 import { getSocketUrl } from '../internal/helpers/get-socket-url'
 import { INITIAL_OVERLAY_STATE } from '../shared'
 import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../../../server/dev/hot-reloader-types'
