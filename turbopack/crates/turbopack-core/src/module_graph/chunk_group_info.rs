@@ -203,14 +203,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     let bitset = module_chunk_groups.entry(node.module).or_default();
                     bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
 
-                    println!(
-                        "{:?} chunk_groups: {:?}",
-                        node.module.ident().to_string().await?,
-                        bitset
-                            .iter()
-                            .map(|id| chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap())
-                            .collect::<Vec<_>>()
-                    );
+                    // println!(
+                    //     "{:?} chunk_groups: {:?}",
+                    //     node.module.ident().to_string().await?,
+                    //     bitset
+                    //         .iter()
+                    //         .map(|id| chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap())
+                    //         .collect::<Vec<_>>()
+                    // );
 
                     GraphTraversalAction::Continue
                 } else if let Some((parent, _)) = parent_info {
@@ -286,6 +286,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         }
 
         let graphs = graph.graphs.iter().try_join().await?;
+
+        let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
+        let mut visit_count = 0usize;
+
         let mut queue = entries
             .iter()
             .map(|e| {
@@ -298,9 +302,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         for entry_node in &queue {
             visitor(None, get_node!(graphs, entry_node.1)).await?;
         }
-        while let Some(NodeWithPriority(_, node)) = queue.pop() {
+        while let Some(NodeWithPriority(priority, node)) = queue.pop() {
             let graph = &graphs[node.graph_idx].graph;
             let node_weight = get_node!(graphs, node);
+            println!(
+                "traverse {} {}",
+                priority,
+                node_weight.module.ident().to_string().await?
+            );
             let neighbors = iter_neighbors(graph, node.node_idx);
 
             for (edge, succ) in neighbors {
@@ -311,6 +320,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let succ_weight = get_node!(graphs, succ);
                 let edge_weight = graph.edge_weight(edge).unwrap();
                 let action = visitor(Some((node_weight, edge_weight)), succ_weight).await?;
+                visit_count += 1;
                 if action == GraphTraversalAction::Continue {
                     queue.push(NodeWithPriority(
                         *module_depth.get(&succ_weight.module).unwrap(),
@@ -319,6 +329,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 }
             }
         }
+
+        println!(
+            "module_count: {}, visit_count: {}",
+            module_count, visit_count
+        );
     }
 
     Ok(Vc::cell(module_chunk_groups))
