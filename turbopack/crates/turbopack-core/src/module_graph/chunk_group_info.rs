@@ -130,7 +130,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     {
         let mut visitor =
             async |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
-                   node: &'_ SingleModuleGraphModuleNode|
+                   node: &'_ SingleModuleGraphModuleNode,
+                   module_chunk_groups: &mut HashMap<
+                ResolvedVc<Box<dyn Module>>,
+                RoaringBitmapWrapper,
+            >|
                    -> Result<GraphTraversalAction> {
                 enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroup>> {
                     Inherit(ResolvedVc<Box<dyn Module>>),
@@ -282,7 +286,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         }
 
         #[derive(Debug, Clone, PartialEq, Eq)]
-        struct NodeWithPriority(usize, GraphNodeIndex);
+        struct NodeWithPriority {
+            depth: usize,
+            chunk_group_len: u64,
+            node: GraphNodeIndex,
+        }
         impl PartialOrd for NodeWithPriority {
             fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
                 Some(self.cmp(other))
@@ -290,9 +298,18 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         }
         impl Ord for NodeWithPriority {
             fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-                // reverse for a min heap
-                // include GraphNodeIndex for total and deterministic ordering
-                self.0.cmp(&other.0).reverse().then(other.1.cmp(&self.1))
+                // BinaryHeap prioritizes high values
+
+                // Smaller depth has higher priority
+                let depth_order = self.depth.cmp(&other.depth).reverse();
+                // Smaller group length has higher priority
+                let chunk_group_len_order =
+                    self.chunk_group_len.cmp(&other.chunk_group_len).reverse();
+
+                depth_order
+                    .then(chunk_group_len_order)
+                    // include GraphNodeIndex for total and deterministic ordering
+                    .then(other.node.cmp(&self.node))
             }
         }
 
@@ -305,23 +322,33 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut queue_set = HashSet::new();
         let mut queue = entries
             .iter()
-            .map(|e| {
-                NodeWithPriority(
-                    *module_depth.get(e).unwrap(),
-                    ModuleGraph::get_entry(&graphs, e).unwrap(),
-                )
+            .map(|e| NodeWithPriority {
+                depth: *module_depth.get(e).unwrap(),
+                chunk_group_len: 0,
+                node: ModuleGraph::get_entry(&graphs, e).unwrap(),
             })
             .collect::<BinaryHeap<_>>();
         for entry_node in &queue {
-            visitor(None, get_node!(graphs, entry_node.1)).await?;
+            visitor(
+                None,
+                get_node!(graphs, entry_node.node),
+                &mut module_chunk_groups,
+            )
+            .await?;
         }
-        while let Some(NodeWithPriority(priority, node)) = queue.pop() {
+        while let Some(NodeWithPriority {
+            depth,
+            chunk_group_len,
+            node,
+        }) = queue.pop()
+        {
             queue_set.remove(&node);
             let graph = &graphs[node.graph_idx].graph;
             let node_weight = get_node!(graphs, node);
             println!(
-                "traverse {} {}",
-                priority,
+                "traverse {} {} {}",
+                depth,
+                chunk_group_len,
                 node_weight.module.ident().to_string().await?
             );
             let neighbors = iter_neighbors(graph, node.node_idx);
@@ -338,13 +365,22 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 };
                 let succ_weight = get_node!(graphs, succ);
                 let edge_weight = graph.edge_weight(edge).unwrap();
-                let action = visitor(Some((node_weight, edge_weight)), succ_weight).await?;
+                let action = visitor(
+                    Some((node_weight, edge_weight)),
+                    succ_weight,
+                    &mut module_chunk_groups,
+                )
+                .await?;
 
                 if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
-                    queue.push(NodeWithPriority(
-                        *module_depth.get(&succ_weight.module).unwrap(),
-                        succ,
-                    ));
+                    queue.push(NodeWithPriority {
+                        depth: *module_depth.get(&succ_weight.module).unwrap(),
+                        chunk_group_len: module_chunk_groups
+                            .get(&succ_weight.module)
+                            .unwrap()
+                            .len(),
+                        node: succ,
+                    });
                 }
             }
         }
