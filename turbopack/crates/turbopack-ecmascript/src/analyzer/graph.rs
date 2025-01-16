@@ -1876,7 +1876,7 @@ impl VisitAstPath for Analyzer<'_> {
             })
         } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
             self.add_effect(Effect::FreeVar {
-                var: JsValue::FreeVar(ident.sym.clone()),
+                var: Box::new(JsValue::FreeVar(ident.sym.clone())),
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
@@ -2218,7 +2218,7 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
-        let condition = self.eval_context.eval(test);
+        let condition = Box::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {
