@@ -363,7 +363,7 @@ impl AnalysisState<'_> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
-            value.clone(),
+            value,
             &early_value_visitor,
             &|value| {
                 value_visitor(
@@ -916,7 +916,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let condition_has_side_effects = condition.has_side_effects();
 
                 let condition = analysis_state
-                    .link_value(condition, ImportAttributes::empty_ref())
+                    .link_value(*condition, ImportAttributes::empty_ref())
                     .await?;
 
                 macro_rules! inactive {
@@ -1069,7 +1069,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(func, eval_context.imports.get_attributes(span))
+                    .link_value(*func, eval_context.imports.get_attributes(span))
                     .await?;
 
                 handle_call(
@@ -1101,10 +1101,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                 }
                 let mut obj = analysis_state
-                    .link_value(obj, ImportAttributes::empty_ref())
+                    .link_value(*obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportAttributes::empty_ref())
+                    .link_value(*prop, ImportAttributes::empty_ref())
                     .await?;
 
                 if !new {
@@ -1171,11 +1171,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 // FreeVar("require") might be turbopackIgnore-d
                 if !analysis_state
-                    .link_value(var.clone(), eval_context.imports.get_attributes(span))
+                    .link_value(*var.clone(), eval_context.imports.get_attributes(span))
                     .await?
                     .is_unknown()
                 {
-                    handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                    handle_free_var(&ast_path, *var, span, &analysis_state, &mut analysis).await?;
                 }
             }
             Effect::Member {
@@ -1186,10 +1186,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 in_try: _,
             } => {
                 let obj = analysis_state
-                    .link_value(obj, ImportAttributes::empty_ref())
+                    .link_value(*obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportAttributes::empty_ref())
+                    .link_value(*prop, ImportAttributes::empty_ref())
                     .await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
@@ -1247,7 +1247,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
             } => {
                 let arg = analysis_state
-                    .link_value(arg, ImportAttributes::empty_ref())
+                    .link_value(*arg, ImportAttributes::empty_ref())
                     .await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }

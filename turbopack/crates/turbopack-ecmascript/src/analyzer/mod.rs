@@ -4178,7 +4178,7 @@ mod tests {
                                 condition, kind, ..
                             } => {
                                 let condition =
-                                    resolve(&var_graph, condition, ImportAttributes::empty_ref())
+                                    resolve(&var_graph, *condition, ImportAttributes::empty_ref())
                                         .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
@@ -4228,7 +4228,7 @@ mod tests {
                             } => {
                                 let func = resolve(
                                     &var_graph,
-                                    func,
+                                    *func,
                                     eval_context.imports.get_attributes(span),
                                 )
                                 .await;
@@ -4243,11 +4243,11 @@ mod tests {
                                 ));
                             }
                             Effect::FreeVar { var, .. } => {
-                                resolved.push((format!("{parent} -> {i} free var"), var));
+                                resolved.push((format!("{parent} -> {i} free var"), *var));
                             }
                             Effect::TypeOf { arg, .. } => {
                                 let arg =
-                                    resolve(&var_graph, arg, ImportAttributes::empty_ref()).await;
+                                    resolve(&var_graph, *arg, ImportAttributes::empty_ref()).await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
                                     JsValue::type_of(Box::new(arg)),
@@ -4257,9 +4257,9 @@ mod tests {
                                 obj, prop, args, ..
                             } => {
                                 let obj =
-                                    resolve(&var_graph, obj, ImportAttributes::empty_ref()).await;
+                                    resolve(&var_graph, *obj, ImportAttributes::empty_ref()).await;
                                 let prop =
-                                    resolve(&var_graph, prop, ImportAttributes::empty_ref()).await;
+                                    resolve(&var_graph, *prop, ImportAttributes::empty_ref()).await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
