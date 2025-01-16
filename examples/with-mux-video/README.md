@@ -31,7 +31,7 @@ If you deployed with the native Mux integration, you're all set! However, if you
 
 The easiest way to get started with Mux is through the native integration in the [Vercel Marketplace](https://vercel.com/marketplace/mux). Vercel Marketplace users will get $20 of usage/month for $0. [Learn more](https://vercel.com/marketplace/mux).
 
-You can also get started by creating an account directly in [Mux](https://www.mux.com/?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app). 
+You can also get started by creating an account directly in [Mux](https://www.mux.com/?utm_source=create-next-app&utm_medium=with-mux-video&utm_campaign=create-next-app).
 
 ### Step 2. Create a Next app with this example
 
