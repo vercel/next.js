@@ -150,9 +150,9 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
       height="40"
       viewBox="0 0 40 40"
       fill="none"
-      style={{ scale: 1.2, translate: '0 1px' }}
+      style={{ scale: 1.2 }}
     >
-      <g transform="translate(13, 12)">
+      <g transform="translate(12.5, 13)">
         <path
           className={isLoading ? 'path0' : 'paused'}
           d="M13.3 15.2 L2.34 1 V12.6"
@@ -172,7 +172,6 @@ function NextMark({ isLoading }: { isLoading?: boolean }) {
           strokeDashoffset="11.6"
         />
       </g>
-
       <defs>
         <linearGradient
           id="paint0_linear_1357_10853"
