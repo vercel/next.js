@@ -74,7 +74,7 @@ use crate::{
     dynamic_imports::{collect_next_dynamic_chunks, NextDynamicChunkAvailability},
     font::create_font_manifest,
     loadable_manifest::create_react_loadable_manifest,
-    module_graph::{get_reduced_graphs_for_endpoint, ReducedGraphs},
+    module_graph::get_reduced_graphs_for_endpoint,
     nft_json::NftJsonAsset,
     paths::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
@@ -1797,7 +1797,11 @@ impl Endpoint for AppEndpoint {
         let rsc_entry = app_entry.rsc_entry;
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
-        let actions = ReducedGraphs::new(graph, false).get_server_actions_for_endpoint(
+        let actions = get_reduced_graphs_for_endpoint(
+            graph,
+            *this.app_project.project().per_page_module_graph().await?,
+        )
+        .get_server_actions_for_endpoint(
             *rsc_entry,
             match runtime {
                 NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
