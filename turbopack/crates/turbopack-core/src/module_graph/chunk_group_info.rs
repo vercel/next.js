@@ -26,6 +26,12 @@ use crate::{
 
 #[derive(Clone, Debug, Default, PartialEq, TraceRawVcs, ValueDebugFormat)]
 pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
+
+impl RoaringBitmapWrapper {
+    pub fn is_proper_superset(&self, other: &Self) -> bool {
+        !self.is_subset(other)
+    }
+}
 unsafe impl NonLocalValue for RoaringBitmapWrapper {}
 
 // RoaringBitmap doesn't impl Eq, not sure why: https://github.com/RoaringBitmap/roaring-rs/issues/302
@@ -211,9 +217,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         module_chunk_groups.get(&parent.module).unwrap().clone();
                     match module_chunk_groups.entry(node.module) {
                         Entry::Occupied(mut e) => {
-                            // Merge with parent, and continue traversal if modified
+                            // Add bits from parent, and continue traversal if changed
                             let current_chunk_groups = e.get_mut();
-                            if parent_chunk_groups != *current_chunk_groups {
+                            if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
                                 current_chunk_groups.0 |= parent_chunk_groups.0;
                                 GraphTraversalAction::Continue
                             } else {
