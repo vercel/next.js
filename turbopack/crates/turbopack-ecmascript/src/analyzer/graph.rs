@@ -1131,7 +1131,7 @@ impl Analyzer<'_> {
                 self.add_effect(Effect::Call {
                     func: Box::new(JsValue::FreeVar(js_word!("import"))),
                     args,
-                    ast_path: as_parent_path(ast_path),
+                    ast_path: as_parent_path(ast_path).into_boxed_slice(),
                     span,
                     in_try: is_in_try(ast_path),
                     new,
@@ -1154,7 +1154,7 @@ impl Analyzer<'_> {
                         obj: obj_value,
                         prop: prop_value,
                         args,
-                        ast_path: as_parent_path(ast_path),
+                        ast_path: as_parent_path(ast_path).into_boxed_slice(),
                         span,
                         in_try: is_in_try(ast_path),
                         new,
@@ -1164,7 +1164,7 @@ impl Analyzer<'_> {
                     self.add_effect(Effect::Call {
                         func: fn_value,
                         args,
-                        ast_path: as_parent_path(ast_path),
+                        ast_path: as_parent_path(ast_path).into_boxed_slice(),
                         span,
                         in_try: is_in_try(ast_path),
                         new,
@@ -1178,7 +1178,7 @@ impl Analyzer<'_> {
                         .eval(&Expr::Call(n.as_call().unwrap().clone())),
                 ),
                 args,
-                ast_path: as_parent_path(ast_path),
+                ast_path: as_parent_path(ast_path).into_boxed_slice(),
                 span,
                 in_try: is_in_try(ast_path),
                 new,
@@ -1205,7 +1205,7 @@ impl Analyzer<'_> {
         self.add_effect(Effect::Member {
             obj: obj_value,
             prop: prop_value,
-            ast_path: as_parent_path(ast_path),
+            ast_path: as_parent_path(ast_path).into_boxed_slice(),
             span: member_expr.span(),
             in_try: is_in_try(ast_path),
         });
@@ -1232,7 +1232,9 @@ impl Analyzer<'_> {
                     start_ast_path,
                 } => {
                     self.effects = prev_effects;
-                    self.effects.push(Effect::Unreachable { start_ast_path });
+                    self.effects.push(Effect::Unreachable {
+                        start_ast_path: start_ast_path.into_boxed_slice(),
+                    });
                     always_returns = true;
                 }
                 EarlyReturn::Conditional {
@@ -1858,7 +1860,7 @@ impl VisitAstPath for Analyzer<'_> {
                                 self.add_effect(Effect::ImportedBinding {
                                     esm_reference_index,
                                     export: Some(prop_str.into()),
-                                    ast_path: as_parent_path_skip(ast_path, 1),
+                                    ast_path: as_parent_path_skip(ast_path, 1).into_boxed_slice(),
                                     span: member.span(),
                                     in_try: is_in_try(ast_path),
                                 });
@@ -1872,14 +1874,14 @@ impl VisitAstPath for Analyzer<'_> {
             self.add_effect(Effect::ImportedBinding {
                 esm_reference_index,
                 export,
-                ast_path: as_parent_path(ast_path),
+                ast_path: as_parent_path(ast_path).into_boxed_slice(),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
             })
         } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
             self.add_effect(Effect::FreeVar {
                 var: Box::new(JsValue::FreeVar(ident.sym.clone())),
-                ast_path: as_parent_path(ast_path),
+                ast_path: as_parent_path(ast_path).into_boxed_slice(),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
             })
@@ -1896,7 +1898,7 @@ impl VisitAstPath for Analyzer<'_> {
             // an effect.
             self.add_effect(Effect::ImportMeta {
                 span: expr.span,
-                ast_path: as_parent_path(ast_path),
+                ast_path: as_parent_path(ast_path).into_boxed_slice(),
                 in_try: is_in_try(ast_path),
             })
         }
@@ -2126,7 +2128,7 @@ impl VisitAstPath for Analyzer<'_> {
             let arg_value = Box::new(self.eval_context.eval(&n.arg));
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
-                ast_path: as_parent_path(ast_path),
+                ast_path: as_parent_path(ast_path).into_boxed_slice(),
                 span: n.span(),
             });
         }
