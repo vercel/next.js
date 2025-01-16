@@ -119,10 +119,11 @@ impl ChunkGraph {
                         ChunkingType::Async => {
                             if can_split_async {
                                 result.async_modules.insert(chunkable_module);
+                                GraphTraversalAction::Skip
                             } else {
                                 result.chunkable_modules.insert(chunkable_module);
+                                GraphTraversalAction::Continue
                             }
-                            GraphTraversalAction::Skip
                         }
                         ChunkingType::Traced => {
                             if should_trace {
