@@ -132,19 +132,27 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             async |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
                    node: &'_ SingleModuleGraphModuleNode|
                    -> Result<GraphTraversalAction> {
+                enum ChunkGroupInheritance<It: Iterator<Item = ChunkGroup>> {
+                    Inherit(ResolvedVc<Box<dyn Module>>),
+                    ChunkGroup(It),
+                }
                 let chunk_groups = if let Some((parent, chunking_type)) = parent_info {
                     match chunking_type {
                         ChunkingType::Parallel
                         | ChunkingType::ParallelInheritAsync
-                        | ChunkingType::Passthrough => None,
-                        ChunkingType::Async => Some(Either::Left(std::iter::once(
-                            ChunkGroup::Async(node.module.ident().to_string().await?),
-                        ))),
+                        | ChunkingType::Passthrough => {
+                            ChunkGroupInheritance::Inherit(parent.module)
+                        }
+                        ChunkingType::Async => {
+                            ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                                ChunkGroup::Async(node.module.ident().to_string().await?),
+                            )))
+                        }
                         ChunkingType::Isolated {
                             merge_tag: None, ..
-                        } => Some(Either::Left(std::iter::once(ChunkGroup::Isolated(
-                            node.module.ident().to_string().await?,
-                        )))),
+                        } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                            ChunkGroup::Isolated(node.module.ident().to_string().await?),
+                        ))),
                         ChunkingType::Isolated {
                             merge_tag: Some(merge_tag),
                             ..
@@ -161,80 +169,85 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 // in the iterators
                                 .collect::<Vec<_>>();
 
-                            Some(Either::Right(parent_chunk_groups.into_iter().map(|p| {
-                                ChunkGroup::IsolatedMerged(Box::new(p), merge_tag.clone())
-                            })))
+                            ChunkGroupInheritance::ChunkGroup(Either::Right(
+                                parent_chunk_groups.into_iter().map(|p| {
+                                    ChunkGroup::IsolatedMerged(Box::new(p), merge_tag.clone())
+                                }),
+                            ))
                         }
                         ChunkingType::Traced => unreachable!(),
                     }
                 } else {
-                    Some(Either::Left(std::iter::once(ChunkGroup::Entry(
-                        node.module.ident().to_string().await?,
-                    ))))
+                    ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                        ChunkGroup::Entry(node.module.ident().to_string().await?),
+                    )))
                 };
 
-                Ok(if let Some(chunk_groups) = chunk_groups {
-                    // let chunk_groups = chunk_groups.collect::<Vec<_>>();
-                    // println!(
-                    //     "{:?} chunk_groups: {:?}",
-                    //     node.module.ident().to_string().await?,
-                    //     chunk_groups
-                    // );
-                    // let chunk_groups = chunk_groups.into_iter();
+                Ok(match chunk_groups {
+                    ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
+                        // let chunk_groups = chunk_groups.collect::<Vec<_>>();
+                        // println!(
+                        //     "{:?} chunk_groups: {:?}",
+                        //     node.module.ident().to_string().await?,
+                        //     chunk_groups
+                        // );
+                        // let chunk_groups = chunk_groups.into_iter();
 
-                    // Start of a new chunk group, don't inherit anything from parent
-                    let chunk_group_ids = chunk_groups.map(|chunk_group| match chunk_groups_to_id
-                        .entry(chunk_group)
-                    {
-                        Entry::Occupied(e) => e.get().0,
-                        Entry::Vacant(e) => {
-                            let chunk_group_id = next_chunk_group_id;
-                            next_chunk_group_id += 1;
-                            chunk_groups_from_id
-                                .insert(ChunkGroupId(chunk_group_id), e.key().clone());
-                            e.insert(ChunkGroupId(chunk_group_id));
-                            chunk_group_id
-                        }
-                    });
+                        // Start of a new chunk group, don't inherit anything from parent
+                        let chunk_group_ids = chunk_groups.map(|chunk_group| {
+                            match chunk_groups_to_id.entry(chunk_group) {
+                                Entry::Occupied(e) => e.get().0,
+                                Entry::Vacant(e) => {
+                                    let chunk_group_id = next_chunk_group_id;
+                                    next_chunk_group_id += 1;
+                                    chunk_groups_from_id
+                                        .insert(ChunkGroupId(chunk_group_id), e.key().clone());
+                                    e.insert(ChunkGroupId(chunk_group_id));
+                                    chunk_group_id
+                                }
+                            }
+                        });
 
-                    // Assign chunk group to the target node (the entry of the chunk group)
-                    let bitset = module_chunk_groups.entry(node.module).or_default();
-                    bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
+                        // Assign chunk group to the target node (the entry of the chunk group)
+                        let bitset = module_chunk_groups.entry(node.module).or_default();
+                        bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
 
-                    // println!(
-                    //     "{:?} chunk_groups: {:?}",
-                    //     node.module.ident().to_string().await?,
-                    //     bitset
-                    //         .iter()
-                    //         .map(|id| chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap())
-                    //         .collect::<Vec<_>>()
-                    // );
+                        // println!(
+                        //     "{:?} chunk_groups: {:?}",
+                        //     node.module.ident().to_string().await?,
+                        //     bitset
+                        //         .iter()
+                        //         .map(|id| chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap())
+                        //         .collect::<Vec<_>>()
+                        // );
 
-                    GraphTraversalAction::Continue
-                } else if let Some((parent, _)) = parent_info {
-                    // Only inherit chunk groups from parent
+                        GraphTraversalAction::Continue
+                    }
+                    ChunkGroupInheritance::Inherit(parent) => {
+                        // Only inherit chunk groups from parent
 
-                    // TODO don't clone here, but both are stored in module_chunk_groups
-                    let parent_chunk_groups =
-                        module_chunk_groups.get(&parent.module).unwrap().clone();
-                    match module_chunk_groups.entry(node.module) {
-                        Entry::Occupied(mut e) => {
-                            // Add bits from parent, and continue traversal if changed
-                            let current_chunk_groups = e.get_mut();
-                            if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
-                                current_chunk_groups.0 |= parent_chunk_groups.0;
+                        // TODO don't clone here, but both parent and current are stored in
+                        // module_chunk_groups
+                        let parent_chunk_groups = module_chunk_groups.get(&parent).unwrap().clone();
+
+                        match module_chunk_groups.entry(node.module) {
+                            Entry::Occupied(mut e) => {
+                                let current_chunk_groups = e.get_mut();
+                                if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
+                                    // Add bits from parent, and continue traversal because changed
+                                    current_chunk_groups.0 |= parent_chunk_groups.0;
+                                    GraphTraversalAction::Continue
+                                } else {
+                                    // Skip, fixpoint reached
+                                    GraphTraversalAction::Skip
+                                }
+                            }
+                            Entry::Vacant(e) => {
+                                e.insert(parent_chunk_groups);
                                 GraphTraversalAction::Continue
-                            } else {
-                                GraphTraversalAction::Skip
                             }
                         }
-                        Entry::Vacant(e) => {
-                            e.insert(parent_chunk_groups);
-                            GraphTraversalAction::Continue
-                        }
                     }
-                } else {
-                    GraphTraversalAction::Continue
                 })
             };
 
