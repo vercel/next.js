@@ -28,6 +28,9 @@ use crate::{
 pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
 
 impl RoaringBitmapWrapper {
+    /// Whether `self` contains bits that are not in `other`
+    ///
+    /// The existing `is_superset` method also returns true for equal sets
     pub fn is_proper_superset(&self, other: &Self) -> bool {
         !self.is_subset(other)
     }
