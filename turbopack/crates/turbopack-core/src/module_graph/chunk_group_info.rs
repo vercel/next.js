@@ -27,7 +27,7 @@ use crate::{
 #[derive(
     Clone, Debug, Default, PartialEq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat,
 )]
-pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] pub RoaringBitmap);
+pub struct RoaringBitmapWrapper(#[turbo_tasks(trace_ignore)] RoaringBitmap);
 
 impl RoaringBitmapWrapper {
     /// Whether `self` contains bits that are not in `other`
@@ -35,6 +35,10 @@ impl RoaringBitmapWrapper {
     /// The existing `is_superset` method also returns true for equal sets
     pub fn is_proper_superset(&self, other: &Self) -> bool {
         !self.is_subset(other)
+    }
+
+    pub fn into_inner(self) -> RoaringBitmap {
+        self.0
     }
 }
 unsafe impl NonLocalValue for RoaringBitmapWrapper {}
@@ -239,13 +243,20 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             }
                         });
 
-                        let chunk_groups = RoaringBitmap::from_iter(chunk_group_ids);
+                        let chunk_groups =
+                            RoaringBitmapWrapper(RoaringBitmap::from_iter(chunk_group_ids));
 
                         // Assign chunk group to the target node (the entry of the chunk group)
                         let bitset = module_chunk_groups.get_mut(&node.module).unwrap();
-                        bitset.0 |= chunk_groups;
+                        if chunk_groups.is_proper_superset(bitset) {
+                            // Add bits from parent, and continue traversal because changed
+                            **bitset |= chunk_groups.into_inner();
 
-                        GraphTraversalAction::Continue
+                            GraphTraversalAction::Continue
+                        } else {
+                            // Unchanged, no need to forward to children
+                            GraphTraversalAction::Skip
+                        }
                     }
                     ChunkGroupInheritance::Inherit(parent) => {
                         // Inherit chunk groups from parent, merge parent chunk groups into current
@@ -268,7 +279,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 GraphTraversalAction::Continue
                             } else if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
                                 // Add bits from parent, and continue traversal because changed
-                                current_chunk_groups.0 |= &parent_chunk_groups.0;
+                                **current_chunk_groups |= &**parent_chunk_groups;
                                 GraphTraversalAction::Continue
                             } else {
                                 // Unchanged, no need to forward to children
