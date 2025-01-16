@@ -19,7 +19,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./a",
                         ),
                     ),
@@ -44,7 +44,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./test",
                         ),
                     ),
