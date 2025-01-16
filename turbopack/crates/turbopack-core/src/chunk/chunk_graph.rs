@@ -1,4 +1,5 @@
 use anyhow::{Context, Result};
+use swc_core::alloc::collections::FxHashMap;
 use turbo_tasks::{FxIndexMap, FxIndexSet, ResolvedVc, Vc};
 
 use super::{availability_info, ChunkContentResult, ChunkableModule, ChunkingType};
@@ -29,10 +30,13 @@ impl ChunkGraph {
         should_trace: bool,
     ) -> Result<ChunkContentResult> {
         struct TraverseState {
+            unsorted_chunkable_modules:
+                FxHashMap<ResolvedVc<Box<dyn Module>>, ResolvedVc<Box<dyn ChunkableModule>>>,
             result: ChunkContentResult,
         }
 
         let mut state = TraverseState {
+            unsorted_chunkable_modules: FxHashMap::default(),
             result: ChunkContentResult {
                 chunkable_modules: FxIndexSet::default(),
                 async_modules: FxIndexSet::default(),
@@ -54,16 +58,20 @@ impl ChunkGraph {
             .traverse_edges_from_entries_topological(
                 chunk_group_entries,
                 &mut state,
-                |parent_info, node, TraverseState { result }| {
-                    let chunkable_module =
-                        ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(node.module);
-
-                    let Some(chunkable_module) = chunkable_module else {
+                |parent_info,
+                 node,
+                 TraverseState {
+                     unsorted_chunkable_modules,
+                     result,
+                 }| {
+                    let Some(chunkable_module) =
+                        ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(node.module)
+                    else {
                         return Ok(GraphTraversalAction::Skip);
                     };
 
                     let Some((parent_node, edge)) = parent_info else {
-                        result.chunkable_modules.insert(chunkable_module);
+                        unsorted_chunkable_modules.insert(node.module, chunkable_module);
                         return Ok(GraphTraversalAction::Continue);
                     };
 
@@ -72,25 +80,9 @@ impl ChunkGraph {
                     )
                     .context("Expected parent module to be chunkable")?;
 
-                    if let Some(available_modules) = &available_modules {
-                        let info = available_modules.get(chunkable_module);
-                        if let Some(info) = info {
-                            if info.is_async {
-                                result
-                                    .forward_edges_inherit_async
-                                    .entry(parent_module)
-                                    .or_default()
-                                    .push(chunkable_module);
-
-                                result
-                                    .available_async_modules_back_edges_inherit_async
-                                    .entry(chunkable_module)
-                                    .or_default()
-                                    .push(parent_module);
-                            }
-                            return Ok(GraphTraversalAction::Continue);
-                        }
-                    }
+                    let available_info = available_modules
+                        .as_ref()
+                        .and_then(|available_modules| available_modules.get(parent_module));
 
                     Ok(match edge {
                         ChunkingType::Passthrough => {
@@ -98,30 +90,46 @@ impl ChunkGraph {
                             GraphTraversalAction::Continue
                         }
                         ChunkingType::Parallel => {
-                            result.chunkable_modules.insert(chunkable_module);
-                            GraphTraversalAction::Continue
+                            if available_info.is_some() {
+                                GraphTraversalAction::Skip
+                            } else {
+                                unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                                GraphTraversalAction::Continue
+                            }
                         }
                         ChunkingType::ParallelInheritAsync => {
-                            result.chunkable_modules.insert(chunkable_module);
-                            result
-                                .local_back_edges_inherit_async
-                                .entry(chunkable_module)
-                                .or_default()
-                                .push(parent_module);
                             result
                                 .forward_edges_inherit_async
                                 .entry(parent_module)
                                 .or_default()
                                 .push(chunkable_module);
-
-                            GraphTraversalAction::Continue
+                            if let Some(info) = available_info {
+                                if info.is_async {
+                                    result
+                                        .available_async_modules_back_edges_inherit_async
+                                        .entry(chunkable_module)
+                                        .or_default()
+                                        .push(parent_module);
+                                }
+                                GraphTraversalAction::Skip
+                            } else {
+                                result
+                                    .local_back_edges_inherit_async
+                                    .entry(chunkable_module)
+                                    .or_default()
+                                    .push(parent_module);
+                                unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                                GraphTraversalAction::Continue
+                            }
                         }
                         ChunkingType::Async => {
                             if can_split_async {
                                 result.async_modules.insert(chunkable_module);
                                 GraphTraversalAction::Skip
+                            } else if available_info.is_some() {
+                                GraphTraversalAction::Skip
                             } else {
-                                result.chunkable_modules.insert(chunkable_module);
+                                unsorted_chunkable_modules.insert(node.module, chunkable_module);
                                 GraphTraversalAction::Continue
                             }
                         }
@@ -134,7 +142,19 @@ impl ChunkGraph {
                         ChunkingType::Isolated { .. } => GraphTraversalAction::Skip,
                     })
                 },
-                |_, _, _| (),
+                |_,
+                 node,
+                 TraverseState {
+                     unsorted_chunkable_modules,
+                     result,
+                 }| {
+                    // Insert modules in topological order
+                    if let Some(chunkable_module) =
+                        unsorted_chunkable_modules.get(&node.module).copied()
+                    {
+                        result.chunkable_modules.insert(chunkable_module);
+                    }
+                },
             )
             .await?;
 
