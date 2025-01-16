@@ -67,6 +67,22 @@ pub struct EntryChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub struct EcmascriptChunkingConfig {
+    // TODO
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+pub struct CssChunkingConfig {
+    // TODO
+}
+
+#[turbo_tasks::value(shared)]
+pub struct ChunkingConfig {
+    pub ecmascript: Option<EcmascriptChunkingConfig>,
+    pub css: Option<CssChunkingConfig>,
+}
+
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -105,6 +121,18 @@ pub trait ChunkingContext {
     ) -> Vc<FileSystemPath>;
 
     fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
+        Vc::cell(false)
+    }
+
+    fn chunking_config(self: Vc<Self>) -> Vc<ChunkingConfig> {
+        ChunkingConfig {
+            ecmascript: None,
+            css: None,
+        }
+        .cell()
+    }
+
+    fn is_smart_chunk_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 

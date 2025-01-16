@@ -1,153 +1,12 @@
-use std::{
-    borrow::Cow,
-    mem::{replace, take},
-};
+use std::{borrow::Cow, mem::take};
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
 use regex::Regex;
 use tracing::Level;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::FxIndexMap;
 
-use super::{
-    AsyncModuleInfo, Chunk, ChunkItem, ChunkItemTy, ChunkItemWithAsyncModuleInfo,
-    ChunkItemsWithAsyncModuleInfo, ChunkType, ChunkingContext, Chunks,
-};
-use crate::output::OutputAssets;
-
-#[turbo_tasks::value]
-struct ChunkItemInfo {
-    ty: ResolvedVc<Box<dyn ChunkType>>,
-    name: ResolvedVc<RcStr>,
-    size: usize,
-}
-
-#[turbo_tasks::function]
-async fn chunk_item_info(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_item: Vc<Box<dyn ChunkItem>>,
-    async_info: Option<Vc<AsyncModuleInfo>>,
-) -> Result<Vc<ChunkItemInfo>> {
-    let asset_ident = chunk_item.asset_ident().to_string();
-    let ty = chunk_item.ty().to_resolved().await?;
-    let chunk_item_size = ty.chunk_item_size(chunking_context, chunk_item, async_info);
-    Ok(ChunkItemInfo {
-        ty,
-        size: *chunk_item_size.await?,
-        name: asset_ident.to_resolved().await?,
-    }
-    .cell())
-}
-
-/// Creates chunks based on heuristics for the passed `chunk_items`. Also
-/// attaches `referenced_output_assets` to the first chunk.
-#[turbo_tasks::function]
-pub async fn make_chunks(
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
-    key_prefix: RcStr,
-    mut referenced_output_assets: Vc<OutputAssets>,
-) -> Result<Vc<Chunks>> {
-    let chunk_items = chunk_items.await?;
-    let chunk_items = chunk_items
-        .iter()
-        .map(|c| async move {
-            let chunk_item_info = chunk_item_info(
-                chunking_context,
-                *c.chunk_item,
-                c.async_info.map(|info| *info),
-            )
-            .await?;
-            Ok((c, chunk_item_info))
-        })
-        .try_join()
-        .await?;
-
-    let mut map = FxIndexMap::<_, Vec<_>>::default();
-    for (c, chunk_item_info) in chunk_items {
-        map.entry(chunk_item_info.ty)
-            .or_default()
-            .push((c, chunk_item_info));
-    }
-
-    let mut chunks = Vec::new();
-    for (ty, chunk_items) in map {
-        let ty_name = ty.to_string().await?;
-
-        let chunk_items = chunk_items
-            .into_iter()
-            .map(
-                async |(
-                    ChunkItemWithAsyncModuleInfo {
-                        ty,
-                        chunk_item,
-                        async_info,
-                    },
-                    chunk_item_info,
-                )| {
-                    Ok(ChunkItemWithInfo {
-                        ty: *ty,
-                        chunk_item: *chunk_item,
-                        async_info: *async_info,
-                        size: chunk_item_info.size,
-                        asset_ident: chunk_item_info.name.await?,
-                    })
-                },
-            )
-            .try_join()
-            .await?;
-
-        let mut split_context = SplitContext {
-            ty,
-            chunking_context,
-            chunks: &mut chunks,
-            referenced_output_assets: &mut referenced_output_assets,
-            empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
-        };
-
-        if !*ty.must_keep_item_order().await? {
-            app_vendors_split(
-                chunk_items,
-                format!("{key_prefix}{ty_name}"),
-                &mut split_context,
-            )
-            .await?;
-        } else {
-            make_chunk(
-                chunk_items,
-                &mut format!("{key_prefix}{ty_name}"),
-                &mut split_context,
-            )
-            .await?;
-        }
-    }
-
-    // Resolve all chunks before returning
-    let resolved_chunks = chunks
-        .into_iter()
-        .map(|chunk| chunk.to_resolved())
-        .try_join()
-        .await?;
-
-    Ok(Vc::cell(resolved_chunks))
-}
-
-struct ChunkItemWithInfo {
-    ty: ChunkItemTy,
-    chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
-    async_info: Option<ResolvedVc<AsyncModuleInfo>>,
-    size: usize,
-    asset_ident: ReadRef<RcStr>,
-}
-
-struct SplitContext<'a> {
-    ty: ResolvedVc<Box<dyn ChunkType>>,
-    chunking_context: Vc<Box<dyn ChunkingContext>>,
-    chunks: &'a mut Vec<Vc<Box<dyn Chunk>>>,
-    referenced_output_assets: &'a mut Vc<OutputAssets>,
-    empty_referenced_output_assets: Vc<OutputAssets>,
-}
+use crate::chunk::chunking::{make_chunk, ChunkItemWithInfo, SplitContext};
 
 /// Handle chunk items based on their total size. If the total size is too
 /// small, they will be pushed into `remaining`, if possible. If the total size
@@ -172,44 +31,10 @@ async fn handle_split_group(
     })
 }
 
-/// Creates a chunk with the given `chunk_items. `key` should be unique.
-#[tracing::instrument(level = Level::TRACE, skip_all, fields(key = display(key)))]
-async fn make_chunk(
-    chunk_items: Vec<ChunkItemWithInfo>,
-    key: &mut String,
-    split_context: &mut SplitContext<'_>,
-) -> Result<()> {
-    split_context.chunks.push(
-        split_context.ty.chunk(
-            split_context.chunking_context,
-            chunk_items
-                .into_iter()
-                .map(
-                    |ChunkItemWithInfo {
-                         ty,
-                         chunk_item,
-                         async_info,
-                         ..
-                     }| ChunkItemWithAsyncModuleInfo {
-                        ty,
-                        chunk_item,
-                        async_info,
-                    },
-                )
-                .collect(),
-            replace(
-                split_context.referenced_output_assets,
-                split_context.empty_referenced_output_assets,
-            ),
-        ),
-    );
-    Ok(())
-}
-
 /// Split chunk items into app code and vendor code. Continues splitting with
 /// [package_name_split] if necessary.
 #[tracing::instrument(level = Level::TRACE, skip_all, fields(name = display(&name)))]
-async fn app_vendors_split(
+pub async fn app_vendors_split(
     chunk_items: Vec<ChunkItemWithInfo>,
     mut name: String,
     split_context: &mut SplitContext<'_>,

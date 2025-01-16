@@ -8,8 +8,9 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingContext,
-        EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
+        ChunkingContext, EcmascriptChunkingConfig, EntryChunkGroupResult, EvaluatableAssets,
+        MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -98,6 +99,14 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
+    pub fn ecmascript_chunking_config(
+        mut self,
+        ecmascript_chunking_config: EcmascriptChunkingConfig,
+    ) -> Self {
+        self.chunking_context.ecmascript_chunking_config = Some(ecmascript_chunking_config);
+        self
+    }
+
     pub fn build(self) -> Vc<BrowserChunkingContext> {
         BrowserChunkingContext::new(Value::new(self.chunking_context))
     }
@@ -151,6 +160,8 @@ pub struct BrowserChunkingContext {
     manifest_chunks: bool,
     /// The module id strategy to use
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
+    /// The chunking config for ecmascript
+    ecmascript_chunking_config: Option<EcmascriptChunkingConfig>,
 }
 
 impl BrowserChunkingContext {
@@ -185,6 +196,7 @@ impl BrowserChunkingContext {
                 minify_type: MinifyType::NoMinify,
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
+                ecmascript_chunking_config: None,
             },
         }
     }
@@ -380,6 +392,15 @@ impl ChunkingContext for BrowserChunkingContext {
     #[turbo_tasks::function]
     fn is_hot_module_replacement_enabled(&self) -> Vc<bool> {
         Vc::cell(self.enable_hot_module_replacement)
+    }
+
+    #[turbo_tasks::function]
+    fn chunking_config(&self) -> Vc<ChunkingConfig> {
+        ChunkingConfig {
+            ecmascript: self.ecmascript_chunking_config.clone(),
+            css: None,
+        }
+        .cell()
     }
 
     #[turbo_tasks::function]

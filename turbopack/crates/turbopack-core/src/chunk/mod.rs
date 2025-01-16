@@ -24,8 +24,8 @@ use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, MinifyType,
+        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingContext, ChunkingContextExt,
+        CssChunkingConfig, EcmascriptChunkingConfig, EntryChunkGroupResult, MinifyType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},

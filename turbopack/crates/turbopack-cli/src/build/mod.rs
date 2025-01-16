@@ -18,8 +18,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAsset, EvaluatableAssets,
-        MinifyType,
+        availability_info::AvailabilityInfo, ChunkingContext, EcmascriptChunkingConfig,
+        EvaluatableAsset, EvaluatableAssets, MinifyType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -208,8 +208,8 @@ async fn build_internal(
     };
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
-        Target::Browser => Vc::upcast(
-            BrowserChunkingContext::builder(
+        Target::Browser => {
+            let mut builder = BrowserChunkingContext::builder(
                 project_path,
                 build_output_root,
                 ResolvedVc::cell(build_output_root_to_root_path),
@@ -229,9 +229,17 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
-            .minify_type(minify_type)
-            .build(),
-        ),
+            .minify_type(minify_type);
+
+            match *node_env.await? {
+                NodeEnv::Development => {}
+                NodeEnv::Production => {
+                    builder = builder.ecmascript_chunking_config(EcmascriptChunkingConfig {})
+                }
+            }
+
+            Vc::upcast(builder.build())
+        }
         Target::Node => Vc::upcast(
             NodeJsChunkingContext::builder(
                 project_path,
