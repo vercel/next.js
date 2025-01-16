@@ -134,7 +134,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                    -> Result<GraphTraversalAction> {
                 let chunk_groups = if let Some((parent, chunking_type)) = parent_info {
                     match chunking_type {
-                        ChunkingType::Parallel | ChunkingType::ParallelInheritAsync => None,
+                        ChunkingType::Parallel
+                        | ChunkingType::ParallelInheritAsync
+                        | ChunkingType::Passthrough => None,
                         ChunkingType::Async => Some(Either::Left(std::iter::once(
                             ChunkGroup::Async(node.module.ident().to_string().await?),
                         ))),
@@ -163,7 +165,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                 ChunkGroup::IsolatedMerged(Box::new(p), merge_tag.clone())
                             })))
                         }
-                        ChunkingType::Passthrough | ChunkingType::Traced => unreachable!(),
+                        ChunkingType::Traced => unreachable!(),
                     }
                 } else {
                     Some(Either::Left(std::iter::once(ChunkGroup::Entry(
