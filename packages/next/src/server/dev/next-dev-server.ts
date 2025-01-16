@@ -69,7 +69,7 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
-import type { ReactDevOverlayType } from '../../client/components/react-dev-overlay/pages/ReactDevOverlay'
+import type { ReactDevOverlayType } from '../../client/components/react-dev-overlay/pages/react-dev-overlay'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: ReactDevOverlayType
