@@ -176,6 +176,7 @@ import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
+import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -450,10 +451,12 @@ export default abstract class Server<
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
+    readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
+  private readonly isAppSegmentPrefetchEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -529,6 +532,10 @@ export default abstract class Server<
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
+    this.isAppSegmentPrefetchEnabled =
+      this.enabledDirectories.app &&
+      this.nextConfig.experimental.clientSegmentCache === true
+
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
@@ -540,6 +547,10 @@ export default abstract class Server<
       prefetchRSC:
         this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
+          : undefined,
+      segmentPrefetchRSC:
+        this.isAppSegmentPrefetchEnabled && this.minimalMode
+          ? new SegmentPrefixRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
@@ -637,7 +648,26 @@ export default abstract class Server<
   ) => {
     if (!parsedUrl.pathname) return false
 
-    if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
+    if (this.normalizers.segmentPrefetchRSC?.match(parsedUrl.pathname)) {
+      const result = this.normalizers.segmentPrefetchRSC.extract(
+        parsedUrl.pathname
+      )
+      if (!result) return false
+
+      const { originalPathname, segmentPath } = result
+
+      parsedUrl.pathname = originalPathname
+
+      // Mark the request as a router prefetch request.
+      req.headers[RSC_HEADER.toLowerCase()] = '1'
+      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
+        segmentPath
+
+      addRequestMeta(req, 'isRSCRequest', true)
+      addRequestMeta(req, 'isPrefetchRSCRequest', true)
+      addRequestMeta(req, 'isSegmentPrefetchRSCRequest', true)
+    } else if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
         parsedUrl.pathname,
         true
@@ -1085,6 +1115,26 @@ export default abstract class Server<
             const postponed = Buffer.concat(body).toString('utf8')
 
             addRequestMeta(req, 'postponed', postponed)
+          } else if (
+            getRequestMeta(req, 'isSegmentPrefetchRSCRequest') &&
+            req.headers['x-now-route-matches']
+          ) {
+            // FIXME: use something similar to this to get the param for the segment path
+            // const utils = getUtils({
+            //   pageIsDynamic: true,
+            //   page: matchedPath,
+            //   basePath: this.nextConfig.basePath,
+            //   rewrites: this.getRoutesManifest()?.rewrites || {
+            //     beforeFiles: [],
+            //     afterFiles: [],
+            //     fallback: [],
+            //   },
+            //   caseSensitive: !!this.nextConfig.experimental.caseSensitiveRoutes,
+            // })
+            // const routeMatches = utils.getParamsFromRouteMatches(
+            //   req.headers['x-now-route-matches'] as string
+            // )
+            // console.log('x-debug-4', JSON.stringify({ routeMatches }))
           }
 
           matchedPath = this.normalize(matchedPath)
@@ -1523,6 +1573,12 @@ export default abstract class Server<
 
     if (this.normalizers.data) {
       normalizers.push(this.normalizers.data)
+    }
+
+    // We have to put the segment prefetch normalizer before the RSC normalizer
+    // because the RSC normalizer will match the prefetch RSC routes too.
+    if (this.normalizers.segmentPrefetchRSC) {
+      normalizers.push(this.normalizers.segmentPrefetchRSC)
     }
 
     // We have to put the prefetch normalizer before the RSC normalizer

@@ -16,6 +16,8 @@ describe('SharedRevalidateTimings', () => {
           experimentalPPR: undefined,
           renderingMode: RenderingMode.STATIC,
           allowHeader: [],
+          prefetchSegmentDataRoute: null,
+          prefetchSegmentDataRouteRegex: null,
         },
         '/route2': {
           initialRevalidateSeconds: 20,
@@ -23,6 +25,8 @@ describe('SharedRevalidateTimings', () => {
           srcRoute: null,
           prefetchDataRoute: null,
           experimentalPPR: undefined,
+          prefetchSegmentDataRoute: null,
+          prefetchSegmentDataRouteRegex: null,
           renderingMode: RenderingMode.STATIC,
           allowHeader: [],
         },

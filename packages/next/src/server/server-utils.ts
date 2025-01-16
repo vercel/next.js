@@ -170,6 +170,57 @@ export function normalizeDynamicRouteParams(
   }
 }
 
+function getParamsFromRouteMatches(
+  routeMatchesHeader: string,
+  routeRegex: ReturnType<typeof getNamedRouteRegex>
+) {
+  const { groups, routeKeys } = routeRegex
+
+  const matcher = getRouteMatcher({
+    re: {
+      // Simulate a RegExp match from the \`req.url\` input
+      exec: (str: string) => {
+        // Normalize all the prefixed query params.
+        const obj: Record<string, string> = Object.fromEntries(
+          new URLSearchParams(str)
+        )
+        for (const [key, value] of Object.entries(obj)) {
+          const normalizedKey = normalizeNextQueryParam(key)
+          if (!normalizedKey) continue
+
+          obj[normalizedKey] = value
+          delete obj[key]
+        }
+
+        // Use all the named route keys.
+        const result = {} as RegExpExecArray
+        for (const keyName of Object.keys(routeKeys)) {
+          const paramName = routeKeys[keyName]
+
+          // If this param name is not a valid parameter name, then skip it.
+          if (!paramName) continue
+
+          const group = groups[paramName]
+          const value = obj[keyName]
+
+          // When we're missing a required param, we can't match the route.
+          if (!group.optional && !value) return null
+
+          result[group.pos] = value
+        }
+
+        return result
+      },
+    },
+    groups,
+  })
+
+  const routeMatches = matcher(routeMatchesHeader)
+  if (!routeMatches) return null
+
+  return routeMatches
+}
+
 export function getUtils({
   page,
   i18n,
@@ -317,64 +368,15 @@ export function getUtils({
     return rewriteParams
   }
 
-  function getParamsFromRouteMatches(routeMatchesHeader: string) {
-    // If we don't have a default route regex, we can't get params from route
-    // matches
-    if (!defaultRouteRegex) return null
-
-    const { groups, routeKeys } = defaultRouteRegex
-
-    const matcher = getRouteMatcher({
-      re: {
-        // Simulate a RegExp match from the \`req.url\` input
-        exec: (str: string) => {
-          // Normalize all the prefixed query params.
-          const obj: Record<string, string> = Object.fromEntries(
-            new URLSearchParams(str)
-          )
-          for (const [key, value] of Object.entries(obj)) {
-            const normalizedKey = normalizeNextQueryParam(key)
-            if (!normalizedKey) continue
-
-            obj[normalizedKey] = value
-            delete obj[key]
-          }
-
-          // Use all the named route keys.
-          const result = {} as RegExpExecArray
-          for (const keyName of Object.keys(routeKeys)) {
-            const paramName = routeKeys[keyName]
-
-            // If this param name is not a valid parameter name, then skip it.
-            if (!paramName) continue
-
-            const group = groups[paramName]
-            const value = obj[keyName]
-
-            // When we're missing a required param, we can't match the route.
-            if (!group.optional && !value) return null
-
-            result[group.pos] = value
-          }
-
-          return result
-        },
-      },
-      groups,
-    })
-
-    const routeMatches = matcher(routeMatchesHeader)
-    if (!routeMatches) return null
-
-    return routeMatches
-  }
-
   return {
     handleRewrites,
     defaultRouteRegex,
     dynamicRouteMatcher,
     defaultRouteMatches,
-    getParamsFromRouteMatches,
+    getParamsFromRouteMatches: (routeMatchesHeader: string) =>
+      defaultRouteRegex
+        ? getParamsFromRouteMatches(routeMatchesHeader, defaultRouteRegex)
+        : null,
     normalizeDynamicRouteParams: (
       params: ParsedUrlQuery,
       ignoreOptional?: boolean

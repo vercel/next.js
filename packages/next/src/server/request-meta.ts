@@ -75,6 +75,11 @@ export interface RequestMeta {
   serverComponentsHmrCache?: ServerComponentsHmrCache
 
   /**
+   * True when the request is for the prefetch segment flight data.
+   */
+  isSegmentPrefetchRSCRequest?: true
+
+  /**
    * True when the request is for the prefetch flight data.
    */
   isPrefetchRSCRequest?: true

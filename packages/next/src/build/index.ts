@@ -34,6 +34,8 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -217,6 +219,8 @@ import {
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
+import { isAppPageRoute } from '../lib/is-app-page-route'
+import { buildPrefetchSegmentDataRoute } from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 type Fallback = null | boolean | string
 
@@ -238,6 +242,18 @@ export interface SsgRoute {
    * The revalidation configuration for this route.
    */
   initialRevalidateSeconds: Revalidate
+
+  /**
+   * The prefetch data route associated with this page. If not defined, this
+   * page does not support segment prefetching.
+   */
+  prefetchSegmentDataRoute: string | null | undefined
+
+  /**
+   * The regex associated with the prefetch segment data route. If not defined,
+   * this page does not support segment prefetching.
+   */
+  prefetchSegmentDataRouteRegex: string | null | undefined
 
   /**
    * The prefetch data route associated with this page. If not defined, this
@@ -274,6 +290,18 @@ export interface DynamicSsgRoute {
   dataRouteRegex: string | null
   experimentalBypassFor?: RouteHas[]
   fallback: Fallback
+
+  /**
+   * The prefetch data route associated with this page. If not defined, this
+   * page does not support segment prefetching.
+   */
+  prefetchSegmentDataRoute: string | null | undefined
+
+  /**
+   * The regex associated with the prefetch segment data route. If not defined,
+   * this page does not support segment prefetching.
+   */
+  prefetchSegmentDataRouteRegex: string | null | undefined
 
   /**
    * When defined, it describes the revalidation configuration for the fallback
@@ -362,11 +390,18 @@ export type ManifestRoute = ManifestBuiltRoute & {
   routeKeys?: { [key: string]: string }
 }
 
-export type ManifestDataRoute = {
+type ManifestDataRoute = {
   page: string
   routeKeys?: { [key: string]: string }
   dataRouteRegex: string
   namedDataRouteRegex?: string
+}
+
+export type ManifestPrefetchSegmentDataRoute = {
+  page: string
+  route: string
+  routeKeys: { [key: string]: string }
+  namedRegex: string
 }
 
 export type RoutesManifest = {
@@ -385,6 +420,7 @@ export type RoutesManifest = {
   staticRoutes: Array<ManifestRoute>
   dynamicRoutes: Array<ManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
+  prefetchSegmentDataRoutes: Array<ManifestPrefetchSegmentDataRoute>
   i18n?: {
     domains?: ReadonlyArray<{
       http?: true
@@ -404,6 +440,9 @@ export type RoutesManifest = {
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
+    prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
+    prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
+    prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1224,6 +1263,8 @@ export default async function build(
         config.experimental.authInterrupts
       )
       const isAppPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
+      const isAppClientSegmentCacheEnabled =
+        config.experimental.clientSegmentCache === true
 
       const routesManifestPath = path.join(distDir, ROUTES_MANIFEST)
       const routesManifest: RoutesManifest = nextBuildSpan
@@ -1256,6 +1297,7 @@ export default async function build(
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
+            prefetchSegmentDataRoutes: [],
             i18n: config.i18n || undefined,
             rsc: {
               header: RSC_HEADER,
@@ -1267,6 +1309,9 @@ export default async function build(
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
+              prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+              prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
+              prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2620,8 +2665,19 @@ export default async function build(
         ]).map((page) => {
           return buildDataRoute(page, buildId)
         })
+      }
 
-        // await writeManifest(routesManifestPath, routesManifest)
+      if (isAppClientSegmentCacheEnabled) {
+        const routes = Array.from(staticPaths.keys())
+          // Get all app page routes that are present in the static paths.
+          .filter(isAppPageRoute)
+          // Only get the dynamic routes.
+          .filter(isDynamicRoute)
+          .map(normalizeAppPath)
+
+        routesManifest.prefetchSegmentDataRoutes = getSortedRoutes(routes).map(
+          buildPrefetchSegmentDataRoute
+        )
       }
 
       // We need to write the manifest with rewrites before build
@@ -3118,6 +3174,14 @@ export default async function build(
                   )
                 }
 
+                let prefetchSegmentDataRoute: string | null | undefined
+                let prefetchSegmentDataRouteRegex: string | undefined
+                if (!isAppRouteHandler && isAppClientSegmentCacheEnabled) {
+                  const result = buildPrefetchSegmentDataRoute(route.pathname)
+                  prefetchSegmentDataRoute = result.route
+                  prefetchSegmentDataRouteRegex = result.namedRegex
+                }
+
                 const meta = collectMeta(metadata)
 
                 prerenderManifest.routes[route.pathname] = {
@@ -3134,6 +3198,8 @@ export default async function build(
                   srcRoute: page,
                   dataRoute,
                   prefetchDataRoute,
+                  prefetchSegmentDataRoute,
+                  prefetchSegmentDataRouteRegex,
                   allowHeader: ALLOWED_HEADERS,
                 }
               } else {
@@ -3182,6 +3248,14 @@ export default async function build(
                   )
                 }
 
+                let prefetchSegmentDataRoute: string | undefined
+                let prefetchSegmentDataRouteRegex: string | undefined
+                if (!isAppRouteHandler && isAppClientSegmentCacheEnabled) {
+                  const result = buildPrefetchSegmentDataRoute(route.pathname)
+                  prefetchSegmentDataRoute = result.route
+                  prefetchSegmentDataRouteRegex = result.namedRegex
+                }
+
                 pageInfos.set(route.pathname, {
                   ...(pageInfos.get(route.pathname) as PageInfo),
                   isDynamicAppRoute: true,
@@ -3227,6 +3301,8 @@ export default async function build(
                     }).re.source
                   ),
                   dataRoute,
+                  prefetchSegmentDataRoute,
+                  prefetchSegmentDataRouteRegex,
                   fallback,
                   fallbackRevalidate,
                   fallbackStatus: meta.status,
@@ -3480,6 +3556,8 @@ export default async function build(
                       experimentalPPR: undefined,
                       renderingMode: undefined,
                       srcRoute: null,
+                      prefetchSegmentDataRoute: undefined,
+                      prefetchSegmentDataRouteRegex: undefined,
                       dataRoute: path.posix.join(
                         '/_next/data',
                         buildId,
@@ -3496,6 +3574,8 @@ export default async function build(
                     experimentalPPR: undefined,
                     renderingMode: undefined,
                     srcRoute: null,
+                    prefetchSegmentDataRoute: undefined,
+                    prefetchSegmentDataRouteRegex: undefined,
                     dataRoute: path.posix.join(
                       '/_next/data',
                       buildId,
@@ -3566,6 +3646,8 @@ export default async function build(
                     initialRevalidateSeconds,
                     experimentalPPR: undefined,
                     renderingMode: undefined,
+                    prefetchSegmentDataRoute: undefined,
+                    prefetchSegmentDataRouteRegex: undefined,
                     srcRoute: page,
                     dataRoute: path.posix.join(
                       '/_next/data',
@@ -3665,6 +3747,8 @@ export default async function build(
             fallbackRevalidate: undefined,
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
+            prefetchSegmentDataRoute: undefined,
+            prefetchSegmentDataRouteRegex: undefined,
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(dataRoute, {
                 prefixRouteKeys: true,
