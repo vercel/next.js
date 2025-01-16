@@ -27,7 +27,7 @@ use turbopack_ecmascript::{
 
 use super::server_component_reference::NextServerComponentModuleReference;
 use crate::next_app::app_client_references_chunks::{
-    client_modules_modifier, client_modules_ssr_modifier,
+    client_modules_modifier, ssr_modules_modifier,
 };
 
 #[turbo_tasks::function]
@@ -73,7 +73,7 @@ impl Module for NextServerComponentModule {
     async fn additional_layers_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         let base_ident = self.ident();
         let ssr_entry_module = ResolvedVc::upcast(
-            IncludeIdentModule::new(base_ident.with_modifier(client_modules_ssr_modifier()))
+            IncludeIdentModule::new(base_ident.with_modifier(ssr_modules_modifier()))
                 .to_resolved()
                 .await?,
         );

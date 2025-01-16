@@ -275,7 +275,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 ///
 /// It is used to include a module's ident in the module graph before the module
 /// itself is resolved, as is the case with NextServerComponentModule's
-/// "client modules" and "client modules ssr".
+/// "client modules" and "ssr modules".
 #[turbo_tasks::value]
 pub struct IncludeIdentModule {
     ident: ResolvedVc<AssetIdent>,
