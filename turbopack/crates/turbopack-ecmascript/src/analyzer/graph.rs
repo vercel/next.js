@@ -1,9 +1,9 @@
 use std::{
-    collections::HashMap,
     iter,
     mem::{replace, take},
 };
 
+use rustc_hash::FxHashMap;
 use swc_core::{
     atoms::Atom,
     common::{comments::Comments, pass::AstNodePath, Mark, Span, Spanned, SyntaxContext, GLOBALS},
@@ -242,9 +242,9 @@ impl Effect {
 
 #[derive(Debug)]
 pub struct VarGraph {
-    pub values: HashMap<Id, JsValue>,
+    pub values: FxHashMap<Id, JsValue>,
     /// Map FreeVar names to their Id to facilitate lookups into [values]
-    pub free_var_ids: HashMap<Atom, Id>,
+    pub free_var_ids: FxHashMap<Atom, Id>,
 
     pub effects: Vec<Effect>,
 }
