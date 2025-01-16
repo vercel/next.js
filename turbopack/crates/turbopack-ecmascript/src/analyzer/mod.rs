@@ -864,42 +864,42 @@ impl JsValue {
     }
 
     pub fn iterated(iterable: Box<JsValue>) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), Box::new(iterable))
+        Self::Iterated(1 + iterable.total_nodes(), iterable)
     }
 
     pub fn equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::Equal,
-            Box::new(b),
+            b,
         )
     }
 
     pub fn not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::NotEqual,
-            Box::new(b),
+            b,
         )
     }
 
     pub fn strict_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictEqual,
-            Box::new(b),
+            b,
         )
     }
 
     pub fn strict_not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictNotEqual,
-            Box::new(b),
+            b,
         )
     }
 
@@ -2707,7 +2707,7 @@ impl JsValue {
         F: 'a + FnMut(JsValue) -> R + Send,
     {
         fn visit_async_until_settled_box<'a, F, R, E>(
-            value: Box<JsValue>,
+            value: JsValue,
             visitor: &'a mut F,
         ) -> PinnedAsyncUntilSettledBox<'a, E>
         where
@@ -2745,10 +2745,7 @@ impl JsValue {
         R: 'a + Future<Output = Result<(Self, bool), E>>,
         F: 'a + FnMut(JsValue) -> R,
     {
-        fn visit_async_box<'a, F, R, E>(
-            value: Box<JsValue>,
-            visitor: &'a mut F,
-        ) -> PinnedAsyncBox<'a, E>
+        fn visit_async_box<'a, F, R, E>(value: JsValue, visitor: &'a mut F) -> PinnedAsyncBox<'a, E>
         where
             R: 'a + Future<Output = Result<(JsValue, bool), E>>,
             F: 'a + FnMut(JsValue) -> R,
@@ -3857,7 +3854,7 @@ pub mod test_utils {
         utils::module_value_to_well_known_object,
     };
 
-    pub async fn early_visitor(mut v: Box<JsValue>) -> Result<(JsValue, bool)> {
+    pub async fn early_visitor(mut v: JsValue) -> Result<(JsValue, bool)> {
         let m = early_replace_builtin(&mut v);
         Ok((v, m))
     }
@@ -3865,7 +3862,7 @@ pub mod test_utils {
     /// Visitor that replaces well known functions and objects with their
     /// corresponding values. Returns the new value and whether it was modified.
     pub async fn visitor(
-        v: Box<JsValue>,
+        v: JsValue,
         compile_time_info: Vc<CompileTimeInfo>,
         attributes: &ImportAttributes,
     ) -> Result<(JsValue, bool)> {
@@ -4315,11 +4312,7 @@ mod tests {
         .unwrap();
     }
 
-    async fn resolve(
-        var_graph: &VarGraph,
-        val: Box<JsValue>,
-        attributes: &ImportAttributes,
-    ) -> JsValue {
+    async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
         turbo_tasks_testing::VcStorage::with(async {
             let compile_time_info = CompileTimeInfo::builder(
                 Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
