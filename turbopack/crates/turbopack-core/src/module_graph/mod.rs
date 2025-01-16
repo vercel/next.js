@@ -759,7 +759,7 @@ impl ModuleGraph {
             Option<(GraphNodeIndex, EdgeIndex)>,
             GraphNodeIndex,
         )> = Vec::with_capacity(entries.len());
-        for entry in entries {
+        for entry in entries.into_iter().rev() {
             stack.push((
                 ReverseTopologicalPass::ExpandAndVisit,
                 None,
