@@ -35,7 +35,6 @@ use turbopack_core::{
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     file_source::FileSource,
     issue::{Issue, IssueDescriptionExt},
-    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ImportMap, ImportMapping},
@@ -409,15 +408,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
         )
         .module();
 
-    let module_graph = ModuleGraph::from_module(jest_entry_asset);
-
     let res = evaluate(
         jest_entry_asset,
         *path,
         Vc::upcast(CommandLineProcessEnv::new()),
         test_source.ident(),
         asset_context,
-        module_graph,
         Vc::upcast(chunking_context),
         None,
         vec![],
