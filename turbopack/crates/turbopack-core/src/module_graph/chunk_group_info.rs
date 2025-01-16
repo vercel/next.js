@@ -175,16 +175,16 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     // let chunk_groups = chunk_groups.into_iter();
 
                     // Start of a new chunk group, don't inherit anything from parent
-                    let chunk_group_ids = chunk_groups.map(|chunk_group| {
-                        if let Some(chunk_group_id) = chunk_groups_to_id.get(&chunk_group) {
-                            chunk_group_id.0
-                        } else {
+                    let chunk_group_ids = chunk_groups.map(|chunk_group| match chunk_groups_to_id
+                        .entry(chunk_group)
+                    {
+                        Entry::Occupied(e) => e.get().0,
+                        Entry::Vacant(e) => {
                             let chunk_group_id = next_chunk_group_id;
                             next_chunk_group_id += 1;
-                            chunk_groups_to_id
-                                .insert(chunk_group.clone(), ChunkGroupId(chunk_group_id));
                             chunk_groups_from_id
-                                .insert(ChunkGroupId(chunk_group_id), chunk_group.clone());
+                                .insert(ChunkGroupId(chunk_group_id), e.key().clone());
+                            e.insert(ChunkGroupId(chunk_group_id));
                             chunk_group_id
                         }
                     });
