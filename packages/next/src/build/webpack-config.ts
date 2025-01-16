@@ -1115,6 +1115,19 @@ export default async function getBaseWebpackConfig(
           isEdgeServer ||
           (isNodeServer && config.experimental.serverMinification)),
       minimizer: [
+        ...(process.env.NEXT_RSPACK
+          ? [
+              // @ts-expect-error
+              new webpack.SwcJsMinimizerRspackPlugin({
+                // JS minimizer configuration
+              }),
+              // @ts-expect-error
+              new webpack.LightningCssMinimizerRspackPlugin({
+                // CSS minimizer configuration
+              }),
+            ]
+          : []),
+
         // Minify JavaScript
         (compiler: webpack.Compiler) => {
           // use built-in minimizer for rspack

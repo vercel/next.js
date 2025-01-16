@@ -395,6 +395,14 @@ export async function collectBuildTraces({
         const { entryNameFilesMap } = buildTraceContext?.chunksTrace || {}
 
         const cachedLookupIgnoreRoutes = new Map<string, boolean>()
+        let chunks: string[] = []
+
+        // we aren't getting all chunks in the trace-entrypoint plugin
+        // with rspack currently so for now just add them manually for
+        // all trace files
+        if (process.env.NEXT_RSPAC) {
+          chunks = await fs.readdir(path.join(distDir, 'server', 'chunks'))
+        }
 
         await Promise.all(
           [
@@ -461,6 +469,19 @@ export async function collectBuildTraces({
 
             for (const file of existingTrace.files || []) {
               curTracedFiles.add(file)
+            }
+
+            if (process.env.NEXT_RSPACK) {
+              for (const file of chunks) {
+                curTracedFiles.add(
+                  path
+                    .relative(
+                      traceOutputDir,
+                      path.join(distDir, 'server/chunks', file)
+                    )
+                    .replace(/\\/g, '/')
+                )
+              }
             }
 
             await fs.writeFile(
