@@ -122,10 +122,7 @@ impl NextDynamicGraph {
                 let parent_client_reference =
                     if let Some(DynamicImportEntriesMapType::ClientReference(module)) = module_type
                     {
-                        Some(ClientReferenceType::EcmascriptClientReference {
-                            parent_module,
-                            module: *module,
-                        })
+                        Some(ClientReferenceType::EcmascriptClientReference(*module))
                     } else if let VisitState::InClientReference(ty) = parent_state {
                         Some(ty)
                     } else {
@@ -143,10 +140,7 @@ impl NextDynamicGraph {
                         state_map.insert(
                             module,
                             VisitState::InClientReference(
-                                ClientReferenceType::EcmascriptClientReference {
-                                    parent_module,
-                                    module: *client_reference,
-                                },
+                                ClientReferenceType::EcmascriptClientReference(*client_reference),
                             ),
                         );
                         GraphTraversalAction::Continue
@@ -344,10 +338,7 @@ impl ClientReferencesGraph {
                         }) => {
                             let client_reference: ClientReference = ClientReference {
                                 server_component: parent_server_component,
-                                ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module,
-                                    module: *module_ref,
-                                },
+                                ty: ClientReferenceType::EcmascriptClientReference(*module_ref),
                             };
                             client_references.insert(client_reference);
                             client_references_by_server_component
