@@ -80,9 +80,9 @@ use crate::{
         all_paths_in_root, all_server_paths, get_asset_paths_from_root, get_js_paths_from_root,
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
-    project::Project,
+    project::{ModuleGraphs, Project},
     route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
-    server_actions::create_server_actions_manifest,
+    server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
 
@@ -724,10 +724,11 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    pub async fn app_module_graph(
+    pub async fn app_module_graphs(
         &self,
+        endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
-    ) -> Result<Vc<ModuleGraph>> {
+    ) -> Result<Vc<ModuleGraphs>> {
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -768,13 +769,27 @@ impl AppProject {
                 let graph =
                     SingleModuleGraph::new_with_entries_visited(vec![*rsc_entry], visited_modules);
                 graphs.push(graph);
+                visited_modules = visited_modules.concatenate(graph);
 
-                Ok(ModuleGraph::from_graphs(graphs))
+                let base = ModuleGraph::from_graphs(graphs.clone());
+                let additional_entries = endpoint.additional_root_modules(base);
+                let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
+                    additional_entries.await?.into_iter().map(|m| **m).collect(),
+                    visited_modules,
+                );
+                graphs.push(additional_module_graph);
+
+                let full = ModuleGraph::from_graphs(graphs);
+                Ok(ModuleGraphs {
+                    base: base.to_resolved().await?,
+                    full: full.to_resolved().await?,
+                }
+                .cell())
             }
             .instrument(tracing::info_span!("module graph for endpoint"))
             .await
         } else {
-            Ok(self.project.whole_app_module_graph())
+            Ok(self.project.whole_app_module_graphs())
         }
     }
 }
@@ -999,7 +1014,7 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
-        let module_graph = this.app_project.app_module_graph(*rsc_entry);
+        let module_graphs = this.app_project.app_module_graphs(self, *rsc_entry).await?;
 
         let client_chunking_context = project.client_chunking_context();
 
@@ -1019,7 +1034,7 @@ impl AppEndpoint {
             AssetIdent::from_path(project.project_path())
                 .with_modifier(client_shared_chunks_modifier()),
             this.app_project.client_runtime_entries(),
-            module_graph,
+            *module_graphs.full,
             client_chunking_context,
         )
         .await?;
@@ -1035,8 +1050,10 @@ impl AppEndpoint {
         }
         let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
-        let reduced_graphs =
-            get_reduced_graphs_for_endpoint(module_graph, *project.per_page_module_graph().await?);
+        let reduced_graphs = get_reduced_graphs_for_endpoint(
+            *module_graphs.base,
+            *project.per_page_module_graph().await?,
+        );
         let next_dynamic_imports = reduced_graphs
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
@@ -1045,7 +1062,7 @@ impl AppEndpoint {
 
         let client_references_chunks = get_app_client_references_chunks(
             client_references,
-            module_graph,
+            *module_graphs.full,
             client_chunking_context,
             Value::new(client_shared_availability_info),
             ssr_chunking_context,
@@ -1193,7 +1210,7 @@ impl AppEndpoint {
                 NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
                 NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
             },
-            module_graph,
+            *module_graphs.full,
             this.app_project
                 .project()
                 .runtime_chunking_context(process_client_assets, runtime),
@@ -1209,7 +1226,7 @@ impl AppEndpoint {
                 *server_action_manifest_loader,
                 server_path,
                 process_client_assets,
-                module_graph,
+                *module_graphs.full,
             )
             .await?;
         let app_entry_chunks_ref = app_entry_chunks.await?;
@@ -1232,7 +1249,7 @@ impl AppEndpoint {
                     client_references_chunks,
                     rsc_app_entry_chunks: **app_entry_chunks,
                     rsc_app_entry_chunks_availability: Value::new(*app_entry_chunks_availability),
-                    module_graph,
+                    module_graph: *module_graphs.full,
                     client_chunking_context,
                     ssr_chunking_context,
                     next_config: project.next_config(),
@@ -1296,7 +1313,7 @@ impl AppEndpoint {
 
                 if emit_manifests {
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        module_graph,
+                        *module_graphs.full,
                         Vc::upcast(client_chunking_context),
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -1411,7 +1428,7 @@ impl AppEndpoint {
 
                     // create react-loadable-manifest for next/dynamic
                     let dynamic_import_entries = collect_next_dynamic_chunks(
-                        module_graph,
+                        *module_graphs.full,
                         Vc::upcast(client_chunking_context),
                         next_dynamic_imports,
                         NextDynamicChunkAvailability::ClientReferences(
@@ -1760,8 +1777,46 @@ impl Endpoint for AppEndpoint {
 
     #[turbo_tasks::function]
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let rsc_entry = self.app_endpoint_entry().await?.rsc_entry;
-        Ok(Vc::cell(vec![rsc_entry]))
+        Ok(Vc::cell(vec![self.app_endpoint_entry().await?.rsc_entry]))
+    }
+
+    #[turbo_tasks::function]
+    async fn additional_root_modules(
+        self: Vc<Self>,
+        graph: Vc<ModuleGraph>,
+    ) -> Result<Vc<Modules>> {
+        let this = self.await?;
+        let app_entry = self.app_endpoint_entry().await?;
+        let rsc_entry = app_entry.rsc_entry;
+        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
+
+        let actions = get_reduced_graphs_for_endpoint(
+            graph,
+            *this.app_project.project().per_page_module_graph().await?,
+        )
+        .get_server_actions_for_endpoint(
+            *rsc_entry,
+            match runtime {
+                NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+            },
+        );
+
+        let server_actions_loader = ResolvedVc::upcast(
+            build_server_actions_loader(
+                this.app_project.project().project_path(),
+                app_entry.original_name.clone(),
+                actions,
+                match runtime {
+                    NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
+                    NextRuntime::NodeJs => Vc::upcast(this.app_project.rsc_module_context()),
+                },
+            )
+            .to_resolved()
+            .await?,
+        );
+
+        Ok(Vc::cell(vec![server_actions_loader]))
     }
 }
 
