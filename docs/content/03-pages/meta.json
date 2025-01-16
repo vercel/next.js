@@ -1,6 +1,13 @@
 {
   "title": "Pages Router",
-  "icon": "StickyNote",
+  "icon": "BookOpen",
   "description": "Features available at /pages",
-  "root": true
+  "root": true,
+  "pages": [
+    "index",
+    "---Building Your Application---",
+    "...01-building-your-application",
+    "---Others---",
+    "..."
+  ]
 }

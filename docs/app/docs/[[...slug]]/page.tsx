@@ -21,14 +21,26 @@ export default async function Page(props: {
   const page = source.getPage(params.slug)
   if (!page) notFound()
 
-  const { body: MDX, toc } = await page.data.load()
+  let content
+
+  if (page.data.source) {
+    const sourcePage = source.getPage(page.data.source.split('/'))
+
+    if (!sourcePage)
+      throw new Error(
+        `unresolved source in frontmatter of ${page.file.path}: ${page.data.source}`
+      )
+    content = await sourcePage.data.load()
+  } else {
+    content = await page.data.load()
+  }
 
   return (
-    <DocsPage toc={toc} full={page.data.full}>
+    <DocsPage toc={content.toc} full={page.data.full}>
       <DocsTitle>{page.data.title}</DocsTitle>
       <DocsDescription>{page.data.description}</DocsDescription>
       <DocsBody>
-        <MDX
+        <content.body
           components={{
             ...defaultMdxComponents,
             blockquote: Callout,
@@ -36,8 +48,14 @@ export default async function Page(props: {
             Tab,
             Check,
             Cross: X,
-            PagesOnly: ({ children }) => <Fragment>{children}</Fragment>,
-            AppOnly: ({ children }) => <Fragment>{children}</Fragment>,
+            PagesOnly: ({ children }) =>
+              page.file.dirname.startsWith('pages') ? (
+                <Fragment>{children}</Fragment>
+              ) : null,
+            AppOnly: ({ children }) =>
+              page.file.dirname.startsWith('app') ? (
+                <Fragment>{children}</Fragment>
+              ) : null,
             Image: (props: {
               srcDark: string
               srcLight: string
@@ -48,14 +66,23 @@ export default async function Page(props: {
             }) => (
               <picture>
                 <source
-                  srcSet={props.srcDark}
+                  srcSet={
+                    process.env.NODE_ENV === 'development'
+                      ? `https://nextjs.org${props.srcDark}`
+                      : props.srcDark
+                  }
                   media="(prefers-color-scheme: dark)"
                 />
                 <Image
-                  src={props.srcLight}
+                  src={
+                    process.env.NODE_ENV === 'development'
+                      ? `https://nextjs.org${props.srcLight}`
+                      : props.srcLight
+                  }
                   alt="My image"
                   width={props.width as any}
                   height={props.height as any}
+                  className="rounded-lg"
                 />
               </picture>
             ),

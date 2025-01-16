@@ -746,6 +746,9 @@ importers:
       react-dom:
         specifier: 19.0.0-rc-206df66e-20240912
         version: 19.0.0-rc-206df66e-20240912(react@19.0.0-rc-206df66e-20240912)
+      zod:
+        specifier: 3.24.1
+        version: 3.24.1
     devDependencies:
       '@types/mdx':
         specifier: ^2.0.13
@@ -16402,9 +16405,6 @@ packages:
   zod@3.22.3:
     resolution: {integrity: sha512-EjIevzuJRiRPbVH4mGc8nApb/lVLKVpmUhAaR5R5doKGfAnGJ6Gr3CViAVjP+4FWSxCsybeWQdcgCtbX+7oZug==}
 
-  zod@3.23.8:
-    resolution: {integrity: sha512-XBx9AXhXktjUqnepgTiE5flcKIYWi/rme0Eaj+5Y0lftuGBq+jyRu/md4WnuxqgP1ubdpNCsYEYPxrzVHD8d6g==}
-
   zod@3.24.1:
     resolution: {integrity: sha512-muH7gBL9sI1nciMZV67X5fTKKBLtwpZ5VBp1vsOQzj1MhrBZ4wlVCm3gedKZWLp0Oyel8sIGfeiz54Su+OVT+A==}
 
@@ -22365,8 +22365,8 @@ snapshots:
       chalk: 4.1.2
       invariant: 2.2.4
       pretty-format: 24.9.0
-      zod: 3.23.8
-      zod-validation-error: 2.1.0(zod@3.23.8)
+      zod: 3.24.1
+      zod-validation-error: 2.1.0(zod@3.24.1)
 
   babel-plugin-react-compiler@19.0.0-beta-e552027-20250112:
     dependencies:
@@ -34835,13 +34835,11 @@ snapshots:
 
   yoga-wasm-web@0.3.3: {}
 
-  zod-validation-error@2.1.0(zod@3.23.8):
+  zod-validation-error@2.1.0(zod@3.24.1):
     dependencies:
-      zod: 3.23.8
+      zod: 3.24.1
 
   zod@3.22.3: {}
-
-  zod@3.23.8: {}
 
   zod@3.24.1: {}
 

@@ -15,7 +15,8 @@
     "lucide-react": "^0.383.0",
     "next": "15.1.4",
     "react": "^19.0.0",
-    "react-dom": "^19.0.0"
+    "react-dom": "^19.0.0",
+    "zod": "3.24.1"
   },
   "devDependencies": {
     "@types/mdx": "^2.0.13",

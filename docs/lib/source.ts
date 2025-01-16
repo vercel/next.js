@@ -14,4 +14,26 @@ export const source = loader({
 
     if (icon in icons) return createElement(icons[icon as keyof typeof icons])
   },
+  slugs(info) {
+    const regex = /^\d\d-(.+)$/
+
+    const segments = info.flattenedPath
+      .split('/')
+      .filter((seg) => !(seg.startsWith('(') && seg.endsWith(')')))
+      .map((seg) => {
+        const res = regex.exec(seg)
+
+        if (res) {
+          return res[1]
+        }
+
+        return seg
+      })
+
+    if (segments.at(-1) === 'index') {
+      segments.pop()
+    }
+
+    return segments
+  },
 })
