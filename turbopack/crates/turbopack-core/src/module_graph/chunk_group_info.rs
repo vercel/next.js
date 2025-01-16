@@ -326,6 +326,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             );
             let neighbors = iter_neighbors(graph, node.node_idx);
 
+            visit_count += 1;
+            *visit_count_map
+                .entry(node_weight.module.ident().to_string().await?)
+                .or_insert(0usize) += 1;
+
             for (edge, succ) in neighbors {
                 let succ = GraphNodeIndex {
                     graph_idx: node.graph_idx,
@@ -334,13 +339,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let succ_weight = get_node!(graphs, succ);
                 let edge_weight = graph.edge_weight(edge).unwrap();
                 let action = visitor(Some((node_weight, edge_weight)), succ_weight).await?;
-                visit_count += 1;
-                *visit_count_map
-                    .entry((
-                        node_weight.module.ident().to_string().await?,
-                        succ_weight.module.ident().to_string().await?,
-                    ))
-                    .or_insert(0usize) += 1;
+
                 if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
                     queue.push(NodeWithPriority(
                         *module_depth.get(&succ_weight.module).unwrap(),
