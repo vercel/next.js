@@ -582,20 +582,22 @@ impl ModuleGraph {
         self.graphs.iter().try_join().await
     }
 
-    fn get_entry(
+    async fn get_entry(
         graphs: &[ReadRef<SingleModuleGraph>],
         entry: ResolvedVc<Box<dyn Module>>,
     ) -> Result<GraphNodeIndex> {
-        graphs
-            .iter()
-            .enumerate()
-            .find_map(|(graph_idx, graph)| {
-                graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
-                    graph_idx,
-                    node_idx: *node_idx,
-                })
+        let Some(idx) = graphs.iter().enumerate().find_map(|(graph_idx, graph)| {
+            graph.modules.get(&entry).map(|node_idx| GraphNodeIndex {
+                graph_idx,
+                node_idx: *node_idx,
             })
-            .context("Couldn't find entry module in graph")
+        }) else {
+            bail!(
+                "Couldn't find entry module {} in module graph",
+                entry.ident().to_string().await?
+            );
+        };
+        Ok(idx)
     }
 
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
@@ -618,10 +620,11 @@ impl ModuleGraph {
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
 
-        let mut queue = entries
-            .into_iter()
-            .map(|e| ModuleGraph::get_entry(&graphs, *e).unwrap())
-            .collect::<VecDeque<_>>();
+        let entries = entries.into_iter();
+        let mut queue = VecDeque::with_capacity(entries.size_hint().0);
+        for e in entries {
+            queue.push_back(ModuleGraph::get_entry(&graphs, *e).await?);
+        }
         let mut visited = HashSet::new();
         for entry_node in &queue {
             visitor(None, get_node!(graphs, entry_node));
@@ -670,10 +673,11 @@ impl ModuleGraph {
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
 
-        let mut stack = entries
-            .into_iter()
-            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap())
-            .collect::<Vec<_>>();
+        let entries = entries.into_iter();
+        let mut stack = Vec::with_capacity(entries.size_hint().0);
+        for entry in entries {
+            stack.push(ModuleGraph::get_entry(&graphs, entry).await?);
+        }
         let mut visited = HashSet::new();
         for entry_node in &stack {
             visitor(None, get_node!(graphs, entry_node));
@@ -748,16 +752,14 @@ impl ModuleGraph {
             ReverseTopologicalPass,
             Option<(GraphNodeIndex, EdgeIndex)>,
             GraphNodeIndex,
-        )> = entries
-            .into_iter()
-            .map(|e| {
-                anyhow::Ok((
-                    ReverseTopologicalPass::ExpandAndVisit,
-                    None,
-                    ModuleGraph::get_entry(&graphs, e)?,
-                ))
-            })
-            .collect::<Result<Vec<_>>>()?;
+        )> = Vec::with_capacity(entries.len());
+        for entry in entries {
+            stack.push((
+                ReverseTopologicalPass::ExpandAndVisit,
+                None,
+                ModuleGraph::get_entry(&graphs, entry).await?,
+            ));
+        }
         let mut expanded = HashSet::new();
         while let Some((pass, parent, current)) = stack.pop() {
             let parent_arg = parent.map(|(parent_node, parent_edge)| {

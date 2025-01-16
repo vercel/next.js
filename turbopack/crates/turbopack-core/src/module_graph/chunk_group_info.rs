@@ -294,14 +294,14 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         {
             let mut queue_set = HashSet::new();
-            let mut queue = entries
-                .iter()
-                .map(|e| NodeWithPriority {
+            let mut queue = BinaryHeap::with_capacity(entries.len());
+            for e in entries {
+                queue.push(NodeWithPriority {
                     depth: *module_depth.get(e).unwrap(),
                     chunk_group_len: 0,
-                    node: ModuleGraph::get_entry(&graphs, *e).unwrap(),
-                })
-                .collect::<BinaryHeap<_>>();
+                    node: ModuleGraph::get_entry(&graphs, *e).await?,
+                });
+            }
             for entry_node in &queue {
                 visitor(
                     None,
