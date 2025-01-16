@@ -1,12 +1,13 @@
 use std::hash::BuildHasherDefault;
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Result};
 use rustc_hash::FxHasher;
 use turbo_prehash::BuildHasherExt;
-use turbo_tasks::{FxIndexMap, ResolvedVc, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 
 use crate::{
     chunk::chunking::{make_chunk, ChunkItemWithInfo, SplitContext},
+    module::Module,
     module_graph::ModuleGraph,
 };
 
@@ -22,11 +23,15 @@ pub async fn make_production_chunks(
     for chunk_item in chunk_items {
         let ChunkItemWithInfo { module, .. } = chunk_item;
         let chunk_groups = if let Some(module) = module {
-            Some(
-                chunk_group_info
-                    .get(&ResolvedVc::upcast(module))
-                    .context("Module has not chunk group info")?,
-            )
+            match chunk_group_info.get(&ResolvedVc::upcast(module)) {
+                Some(chunk_group) => Some(chunk_group),
+                None => {
+                    bail!(
+                        "Module {:?} has no chunk group info",
+                        module.ident().to_string().await?,
+                    );
+                }
+            }
         } else {
             None
         };
