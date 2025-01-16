@@ -142,8 +142,8 @@ pub enum Effect {
     /// A function call or a new call of a function.
     Call {
         func: Box<JsValue>,
-        args: Vec<EffectArg>,
-        ast_path: Vec<AstParentKind>,
+        args: Box<[EffectArg]>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
         in_try: bool,
         new: bool,
@@ -152,8 +152,8 @@ pub enum Effect {
     MemberCall {
         obj: Box<JsValue>,
         prop: Box<JsValue>,
-        args: Vec<EffectArg>,
-        ast_path: Vec<AstParentKind>,
+        args: Box<[EffectArg]>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
         in_try: bool,
         new: bool,
@@ -162,7 +162,7 @@ pub enum Effect {
     Member {
         obj: Box<JsValue>,
         prop: Box<JsValue>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
         in_try: bool,
     },
@@ -170,32 +170,34 @@ pub enum Effect {
     ImportedBinding {
         esm_reference_index: usize,
         export: Option<RcStr>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
         in_try: bool,
     },
     /// A reference to a free var access.
     FreeVar {
         var: Box<JsValue>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
         in_try: bool,
     },
     /// A typeof expression
     TypeOf {
         arg: Box<JsValue>,
-        ast_path: Vec<AstParentKind>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
     },
     // TODO ImportMeta should be replaced with Member
     /// A reference to `import.meta`.
     ImportMeta {
-        ast_path: Vec<AstParentKind>,
+        ast_path: Box<[AstParentKind]>,
         span: Span,
         in_try: bool,
     },
     /// Unreachable code, e.g. after a `return` statement.
-    Unreachable { start_ast_path: Vec<AstParentKind> },
+    Unreachable {
+        start_ast_path: Box<[AstParentKind]>,
+    },
 }
 
 impl Effect {
