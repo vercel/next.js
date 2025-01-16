@@ -50,7 +50,7 @@ impl ChunkGraph {
 
         let graph = self.graph.await?;
         let available_modules = match availability_info.available_modules() {
-            Some(available_modules) => Some((*available_modules.snapshot().await?).clone()),
+            Some(available_modules) => Some(available_modules.snapshot().await?),
             None => None,
         };
 
@@ -70,19 +70,23 @@ impl ChunkGraph {
                         return Ok(GraphTraversalAction::Skip);
                     };
 
+                    let available_info = available_modules
+                        .as_ref()
+                        .and_then(|available_modules| available_modules.get(chunkable_module));
+
                     let Some((parent_node, edge)) = parent_info else {
-                        unsorted_chunkable_modules.insert(node.module, chunkable_module);
-                        return Ok(GraphTraversalAction::Continue);
+                        return Ok(if available_info.is_some() {
+                            GraphTraversalAction::Skip
+                        } else {
+                            unsorted_chunkable_modules.insert(node.module, chunkable_module);
+                            GraphTraversalAction::Continue
+                        });
                     };
 
                     let parent_module = ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(
                         parent_node.module,
                     )
                     .context("Expected parent module to be chunkable")?;
-
-                    let available_info = available_modules
-                        .as_ref()
-                        .and_then(|available_modules| available_modules.get(parent_module));
 
                     Ok(match edge {
                         ChunkingType::Passthrough => {
