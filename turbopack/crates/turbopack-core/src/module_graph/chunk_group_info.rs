@@ -285,6 +285,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
         let mut visit_count = 0usize;
+        let mut visit_count_map = HashMap::new();
 
         let mut queue_set = HashSet::new();
         let mut queue = entries
@@ -319,6 +320,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let edge_weight = graph.edge_weight(edge).unwrap();
                 let action = visitor(Some((node_weight, edge_weight)), succ_weight).await?;
                 visit_count += 1;
+                *visit_count_map
+                    .entry((
+                        node_weight.module.ident().to_string().await?,
+                        succ_weight.module.ident().to_string().await?,
+                    ))
+                    .or_insert(0usize) += 1;
                 if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
                     queue.push(NodeWithPriority(
                         *module_depth.get(&succ_weight.module).unwrap(),
@@ -332,6 +339,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             "module_count: {}, visit_count: {}",
             module_count, visit_count
         );
+        let mut visit_count_map = visit_count_map
+            .into_iter()
+            .filter(|v| v.1 > 1)
+            .collect::<Vec<_>>();
+        visit_count_map.sort_by_key(|v| v.1);
+        println!("module_count_map: {:#?}", visit_count_map);
     }
 
     Ok(Vc::cell(module_chunk_groups))
