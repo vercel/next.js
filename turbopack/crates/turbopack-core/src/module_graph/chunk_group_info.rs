@@ -1,6 +1,6 @@
 use std::{
     collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
-    hash::{DefaultHasher, Hash, Hasher},
+    hash::Hash,
     ops::{Deref, DerefMut},
 };
 
@@ -69,20 +69,9 @@ enum ChunkGroup {
     Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with a incoming merging isolated edge
     IsolatedMerged {
-        parent: ChunkGroupHash,
+        parent: ChunkGroupId,
         merge_tag: RcStr,
     },
-}
-
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-struct ChunkGroupHash(u64);
-
-impl ChunkGroup {
-    fn hashed(&self) -> ChunkGroupHash {
-        let mut hasher = DefaultHasher::new();
-        self.hash(&mut hasher);
-        ChunkGroupHash(hasher.finish())
-    }
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -198,55 +187,40 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     Inherit(ResolvedVc<Box<dyn Module>>),
                     ChunkGroup(It),
                 }
-                let chunk_groups = if let Some((parent, chunking_type)) = parent_info {
-                    match chunking_type {
-                        ChunkingType::Parallel
-                        | ChunkingType::ParallelInheritAsync
-                        | ChunkingType::Passthrough => {
-                            ChunkGroupInheritance::Inherit(parent.module)
-                        }
-                        ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
-                            std::iter::once(ChunkGroup::Async(node.module)),
-                        )),
-                        ChunkingType::Isolated {
-                            merge_tag: None, ..
-                        } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                            ChunkGroup::Isolated(node.module),
-                        ))),
-                        ChunkingType::Isolated {
-                            merge_tag: Some(merge_tag),
-                            ..
-                        } => {
-                            let parent_chunk_groups = module_chunk_groups
-                                .get(&parent.module)
-                                .unwrap()
-                                .iter()
-                                .map(|id| {
-                                    chunk_groups_from_id
-                                        .get(&ChunkGroupId(id))
-                                        .unwrap()
-                                        .hashed()
-                                })
-                                // Collect solely to not borrow chunk_groups_from_id multiple
-                                // times in the iterators
-                                .collect::<Vec<_>>();
-
-                            ChunkGroupInheritance::ChunkGroup(Either::Right(
-                                parent_chunk_groups.into_iter().map(|parent| {
-                                    ChunkGroup::IsolatedMerged {
-                                        parent,
+                let chunk_groups =
+                    if let Some((parent, chunking_type)) = parent_info {
+                        match chunking_type {
+                            ChunkingType::Parallel
+                            | ChunkingType::ParallelInheritAsync
+                            | ChunkingType::Passthrough => {
+                                ChunkGroupInheritance::Inherit(parent.module)
+                            }
+                            ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
+                                std::iter::once(ChunkGroup::Async(node.module)),
+                            )),
+                            ChunkingType::Isolated {
+                                merge_tag: None, ..
+                            } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                                ChunkGroup::Isolated(node.module),
+                            ))),
+                            ChunkingType::Isolated {
+                                merge_tag: Some(merge_tag),
+                                ..
+                            } => ChunkGroupInheritance::ChunkGroup(Either::Right(
+                                module_chunk_groups.get(&parent.module).unwrap().iter().map(
+                                    |parent| ChunkGroup::IsolatedMerged {
+                                        parent: ChunkGroupId(parent),
                                         merge_tag: merge_tag.clone(),
-                                    }
-                                }),
-                            ))
+                                    },
+                                ),
+                            )),
+                            ChunkingType::Traced => unreachable!(),
                         }
-                        ChunkingType::Traced => unreachable!(),
-                    }
-                } else {
-                    ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                        ChunkGroup::Entry(node.module),
-                    )))
-                };
+                    } else {
+                        ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
+                            ChunkGroup::Entry(node.module),
+                        )))
+                    };
 
                 Ok(match chunk_groups {
                     ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
@@ -265,9 +239,11 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             }
                         });
 
+                        let chunk_groups = RoaringBitmap::from_iter(chunk_group_ids);
+
                         // Assign chunk group to the target node (the entry of the chunk group)
                         let bitset = module_chunk_groups.get_mut(&node.module).unwrap();
-                        bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
+                        bitset.0 |= chunk_groups;
 
                         GraphTraversalAction::Continue
                     }
