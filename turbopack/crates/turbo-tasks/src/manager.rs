@@ -1487,16 +1487,12 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         // consistency is currently irrelevant
         _consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
-        CURRENT_GLOBAL_TASK_STATE.with(|gts| loop {
+        CURRENT_GLOBAL_TASK_STATE.with(|gts| {
             let gts_read = gts.read().unwrap();
             gts_read.assert_task_id(parent_task_id);
             match gts_read.get_local_task(local_task_id) {
-                LocalTask::Scheduled { done_event } => {
-                    return Ok(Err(done_event.listen()));
-                }
-                LocalTask::Done { output } => {
-                    return Ok(Ok(output.as_read_result()?));
-                }
+                LocalTask::Scheduled { done_event } => Ok(Err(done_event.listen())),
+                LocalTask::Done { output } => Ok(Ok(output.as_read_result()?)),
             }
         })
     }
