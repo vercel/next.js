@@ -1572,48 +1572,7 @@ async fn whole_app_module_graph_operation(
     let base = ModuleGraph::from_single_graph(base_single_module_graph);
     let additional_entries = project.get_all_additional_entries(base);
 
-    {
-        let base = base.to_resolved().await?;
-        let start = std::time::Instant::now();
-        let x = base.chunk_group_info().await?;
-        println!(
-            "computing chunk group info took {}",
-            FormatDuration(start.elapsed())
-        );
-        println!(
-            "sum of bitmap lengths {}",
-            x.iter().map(|(_, group)| { group.len() }).sum::<u64>()
-        );
-
-        let mut x = x
-            .iter()
-            .map(|(m, group)| async move {
-                Ok((
-                    m.ident().to_string().await?,
-                    group.iter().collect::<Vec<_>>(),
-                ))
-            })
-            .try_join()
-            .await?;
-
-        // x.sort_by(|a, b| a.0.cmp(&b.0));
-        // println!("chunk_group_info");
-        // for (m, group) in &x {
-        //     if m.contains(std::env::var("FILTER").unwrap_or_default().as_str()) {
-        //         println!("{}: {:?}", m, group);
-        //     }
-        // }
-
-        let mut map: FxIndexMap<Vec<u32>, Vec<ReadRef<RcStr>>> = FxIndexMap::default();
-        for (v, k) in x.into_iter() {
-            map.entry(k).or_default().push(v);
-        }
-        println!("number of group combinations: {}", map.len());
-        // println!("----");
-        // for (m, group) in map {
-        //     println!("{:?}: {:?}", m, group);
-        // }
-    }
+    base.chunk_group_info().await?;
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
         additional_entries.await?.into_iter().map(|m| **m).collect(),

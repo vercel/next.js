@@ -73,18 +73,17 @@ pub struct ChunkGroupInfo(HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrap
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ChunkGroup {
-    /// e.g. a page
-    Entry(ReadRef<RcStr>),
+    /// e.g. A page
+    Entry(ResolvedVc<Box<dyn Module>>),
     /// a module that has an incoming async edge
-    Async(ReadRef<RcStr>),
+    Async(ResolvedVc<Box<dyn Module>>),
     /// a module with a incoming non-merged isolated edge
-    Isolated(ReadRef<RcStr>),
+    Isolated(ResolvedVc<Box<dyn Module>>),
     /// a module with a incoming merging isolated edge
-    IsolatedMerged(
-        /* parent: */ Box<ChunkGroup>,
-        // /* parent: */ ChunkGroupHash,
-        /* merge_tag: */ RcStr,
-    ),
+    IsolatedMerged {
+        parent: ChunkGroupHash,
+        merge_tag: RcStr,
+    },
 }
 
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -160,15 +159,13 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             | ChunkingType::Passthrough => {
                                 ChunkGroupInheritance::Inherit(parent.module)
                             }
-                            ChunkingType::Async => {
-                                ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                    ChunkGroup::Async(node.module.ident().to_string().await?),
-                                )))
-                            }
+                            ChunkingType::Async => ChunkGroupInheritance::ChunkGroup(Either::Left(
+                                std::iter::once(ChunkGroup::Async(node.module)),
+                            )),
                             ChunkingType::Isolated {
                                 merge_tag: None, ..
                             } => ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                                ChunkGroup::Isolated(node.module.ident().to_string().await?),
+                                ChunkGroup::Isolated(node.module),
                             ))),
                             ChunkingType::Isolated {
                                 merge_tag: Some(merge_tag),
@@ -179,16 +176,21 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                                     .unwrap()
                                     .iter()
                                     .map(|id| {
-                                        chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap().clone()
-                                        // .hashed()
+                                        chunk_groups_from_id
+                                            .get(&ChunkGroupId(id))
+                                            .unwrap()
+                                            .hashed()
                                     })
                                     // Collect solely to not borrow chunk_groups_from_id multiple
                                     // times in the iterators
                                     .collect::<Vec<_>>();
 
                                 ChunkGroupInheritance::ChunkGroup(Either::Right(
-                                    parent_chunk_groups.into_iter().map(|p| {
-                                        ChunkGroup::IsolatedMerged(Box::new(p), merge_tag.clone())
+                                    parent_chunk_groups.into_iter().map(|parent| {
+                                        ChunkGroup::IsolatedMerged {
+                                            parent,
+                                            merge_tag: merge_tag.clone(),
+                                        }
                                     }),
                                 ))
                             }
@@ -196,20 +198,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         }
                     } else {
                         ChunkGroupInheritance::ChunkGroup(Either::Left(std::iter::once(
-                            ChunkGroup::Entry(node.module.ident().to_string().await?),
+                            ChunkGroup::Entry(node.module),
                         )))
                     };
 
                     Ok(match chunk_groups {
                         ChunkGroupInheritance::ChunkGroup(chunk_groups) => {
-                            // let chunk_groups = chunk_groups.collect::<Vec<_>>();
-                            // println!(
-                            //     "{:?} chunk_groups: {:?}",
-                            //     node.module.ident().to_string().await?,
-                            //     chunk_groups
-                            // );
-                            // let chunk_groups = chunk_groups.into_iter();
-
                             // Start of a new chunk group, don't inherit anything from parent
                             let chunk_group_ids = chunk_groups.map(|chunk_group| {
                                 match chunk_groups_to_id.entry(chunk_group) {
@@ -228,16 +222,6 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                             // Assign chunk group to the target node (the entry of the chunk group)
                             let bitset = module_chunk_groups.entry(node.module).or_default();
                             bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
-
-                            // println!(
-                            //     "{:?} chunk_groups: {:?}",
-                            //     node.module.ident().to_string().await?,
-                            //     bitset
-                            //         .iter()
-                            //         .map(|id|
-                            // chunk_groups_from_id.get(&ChunkGroupId(id)).unwrap())
-                            //         .collect::<Vec<_>>()
-                            // );
 
                             GraphTraversalAction::Continue
                         }
@@ -331,7 +315,6 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             }
 
             let mut visit_count = 0usize;
-            // let mut visit_count_map = HashMap::new();
 
             let mut queue_set = HashSet::new();
             let mut queue = entries
@@ -354,18 +337,9 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 queue_set.remove(&node);
                 let graph = &graphs[node.graph_idx].graph;
                 let node_weight = get_node!(graphs, node);
-                // println!(
-                //     "traverse {} {} {}",
-                //     depth,
-                //     chunk_group_len,
-                //     node_weight.module.ident().to_string().await?
-                // );
                 let neighbors = iter_neighbors(graph, node.node_idx);
 
                 visit_count += 1;
-                // *visit_count_map
-                //     .entry(node_weight.module.ident().to_string().await?)
-                //     .or_insert(0usize) += 1;
 
                 for (edge, succ) in neighbors {
                     let succ = GraphNodeIndex {
@@ -396,13 +370,6 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
             span.record("visit_count", visit_count);
             span.record("chunk_group_count", next_chunk_group_id);
-
-            // let mut visit_count_map = visit_count_map
-            //     .into_iter()
-            //     .filter(|v| v.1 > 1)
-            //     .collect::<Vec<_>>();
-            // visit_count_map.sort_by_key(|v| v.1);
-            // println!("module_count_map: {:#?}", visit_count_map);
         }
 
         Ok(Vc::cell(module_chunk_groups))
@@ -410,8 +377,3 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     .instrument(span_outer)
     .await
 }
-
-// #[turbo_tasks::function]
-// pub fn chunking_graph(&self) -> Vc<ChunkGroupInfo> {
-//     ChunkGroupInfo
-// }
