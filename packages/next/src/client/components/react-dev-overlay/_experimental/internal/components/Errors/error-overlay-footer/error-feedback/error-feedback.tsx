@@ -7,13 +7,18 @@ interface ErrorFeedbackProps {
   errorCode: string
 }
 export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
-  const [voted, setVoted] = useState<boolean | null>(null)
-  const hasVoted = voted !== null
+  const [votedMap, setVotedMap] = useState<Record<string, boolean>>({})
+  const voted = votedMap[errorCode]
+  const hasVoted = voted !== undefined
 
   const handleFeedback = useCallback(
     async (wasHelpful: boolean) => {
       // Optimistically set feedback state without loading/error states to keep implementation simple
-      setVoted(wasHelpful)
+      setVotedMap((prev) => ({
+        ...prev,
+        [errorCode]: wasHelpful,
+      }))
+
       try {
         const response = await fetch(
           `${process.env.__NEXT_ROUTER_BASEPATH || ''}/__nextjs_error_feedback?${new URLSearchParams(
@@ -36,35 +41,33 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
   )
 
   return (
-    <>
-      <div className="error-feedback" role="region" aria-label="Error feedback">
-        {hasVoted ? (
-          <p className="error-feedback-thanks" role="status" aria-live="polite">
-            Thanks for your feedback!
-          </p>
-        ) : (
-          <>
-            <p>Was this helpful?</p>
-            <button
-              aria-label="Mark as helpful"
-              onClick={() => handleFeedback(true)}
-              className={`feedback-button ${voted === true ? 'voted' : ''}`}
-              type="button"
-            >
-              <ThumbsUp aria-hidden="true" />
-            </button>
-            <button
-              aria-label="Mark as not helpful"
-              onClick={() => handleFeedback(false)}
-              className={`feedback-button ${voted === false ? 'voted' : ''}`}
-              type="button"
-            >
-              <ThumbsDown aria-hidden="true" />
-            </button>
-          </>
-        )}
-      </div>
-    </>
+    <div className="error-feedback" role="region" aria-label="Error feedback">
+      {hasVoted ? (
+        <p className="error-feedback-thanks" role="status" aria-live="polite">
+          Thanks for your feedback!
+        </p>
+      ) : (
+        <>
+          <p>Was this helpful?</p>
+          <button
+            aria-label="Mark as helpful"
+            onClick={() => handleFeedback(true)}
+            className={`feedback-button ${voted === true ? 'voted' : ''}`}
+            type="button"
+          >
+            <ThumbsUp aria-hidden="true" />
+          </button>
+          <button
+            aria-label="Mark as not helpful"
+            onClick={() => handleFeedback(false)}
+            className={`feedback-button ${voted === false ? 'voted' : ''}`}
+            type="button"
+          >
+            <ThumbsDown aria-hidden="true" />
+          </button>
+        </>
+      )}
+    </div>
   )
 }
 

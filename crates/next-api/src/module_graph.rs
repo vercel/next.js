@@ -100,6 +100,10 @@ impl NextDynamicGraph {
             }
 
             let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
+                if !graph.entries.contains(&entry) {
+                    // the graph doesn't contain the entry, e.g. for the additional module graph
+                    return Ok(Vc::cell(vec![]));
+                }
                 &[entry]
             } else {
                 &graph.entries
@@ -122,10 +126,7 @@ impl NextDynamicGraph {
                 let parent_client_reference =
                     if let Some(DynamicImportEntriesMapType::ClientReference(module)) = module_type
                     {
-                        Some(ClientReferenceType::EcmascriptClientReference {
-                            parent_module,
-                            module: *module,
-                        })
+                        Some(ClientReferenceType::EcmascriptClientReference(*module))
                     } else if let VisitState::InClientReference(ty) = parent_state {
                         Some(ty)
                     } else {
@@ -143,10 +144,7 @@ impl NextDynamicGraph {
                         state_map.insert(
                             module,
                             VisitState::InClientReference(
-                                ClientReferenceType::EcmascriptClientReference {
-                                    parent_module,
-                                    module: *client_reference,
-                                },
+                                ClientReferenceType::EcmascriptClientReference(*client_reference),
                             ),
                         );
                         GraphTraversalAction::Continue
@@ -206,6 +204,11 @@ impl ServerActionsGraph {
             } else {
                 // The graph contains the whole app, traverse and collect all reachable imports.
                 let graph = &*self.graph.await?;
+
+                if !graph.entries.contains(&entry) {
+                    // the graph doesn't contain the entry, e.g. for the additional module graph
+                    return Ok(Vc::cell(Default::default()));
+                }
 
                 let mut result = HashMap::new();
                 graph.traverse_from_entry(entry, |node| {
@@ -288,6 +291,10 @@ impl ClientReferencesGraph {
             let graph = &*self.graph.await?;
 
             let entries: &[ResolvedVc<Box<dyn Module>>] = if !self.is_single_page {
+                if !graph.entries.contains(&entry) {
+                    // the graph doesn't contain the entry, e.g. for the additional module graph
+                    return Ok(ClientReferenceGraphResult::default().cell());
+                }
                 &[entry]
             } else {
                 &graph.entries
@@ -344,10 +351,7 @@ impl ClientReferencesGraph {
                         }) => {
                             let client_reference: ClientReference = ClientReference {
                                 server_component: parent_server_component,
-                                ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module,
-                                    module: *module_ref,
-                                },
+                                ty: ClientReferenceType::EcmascriptClientReference(*module_ref),
                             };
                             client_references.insert(client_reference);
                             client_references_by_server_component
@@ -398,6 +402,53 @@ pub struct ReducedGraphs {
 
 #[turbo_tasks::value_impl]
 impl ReducedGraphs {
+    #[turbo_tasks::function]
+    pub async fn new(graphs: Vc<ModuleGraph>, is_single_page: bool) -> Result<Vc<Self>> {
+        let graphs = &graphs.await?.graphs;
+        let next_dynamic = async {
+            graphs
+                .iter()
+                .map(|graph| {
+                    NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating next/dynamic graphs"));
+
+        let server_actions = async {
+            graphs
+                .iter()
+                .map(|graph| {
+                    ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating server actions graphs"));
+
+        let client_references = async {
+            graphs
+                .iter()
+                .map(|graph| {
+                    ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
+                })
+                .try_join()
+                .await
+        }
+        .instrument(tracing::info_span!("generating client references graphs"));
+
+        let (next_dynamic, server_actions, client_references) =
+            futures::join!(next_dynamic, server_actions, client_references);
+
+        Ok(Self {
+            next_dynamic: next_dynamic?,
+            server_actions: server_actions?,
+            client_references: client_references?,
+        }
+        .cell())
+    }
+
     /// Returns the next/dynamic-ally imported (client) modules (from RSC and SSR modules) for the
     /// given endpoint.
     #[turbo_tasks::function]
@@ -518,51 +569,8 @@ impl ReducedGraphs {
 async fn get_reduced_graphs_for_endpoint_inner_operation(
     module_graph: ResolvedVc<ModuleGraph>,
     is_single_page: bool,
-) -> Result<Vc<ReducedGraphs>> {
-    let module_graph = module_graph.await?;
-    let next_dynamic = async {
-        module_graph
-            .graphs
-            .iter()
-            .map(|graph| NextDynamicGraph::new_with_entries(**graph, is_single_page).to_resolved())
-            .try_join()
-            .await
-    }
-    .instrument(tracing::info_span!("generating next/dynamic graphs"))
-    .await?;
-
-    let server_actions = async {
-        module_graph
-            .graphs
-            .iter()
-            .map(|graph| {
-                ServerActionsGraph::new_with_entries(**graph, is_single_page).to_resolved()
-            })
-            .try_join()
-            .await
-    }
-    .instrument(tracing::info_span!("generating server actions graphs"))
-    .await?;
-
-    let client_references = async {
-        module_graph
-            .graphs
-            .iter()
-            .map(|graph| {
-                ClientReferencesGraph::new_with_entries(**graph, is_single_page).to_resolved()
-            })
-            .try_join()
-            .await
-    }
-    .instrument(tracing::info_span!("generating client references graphs"))
-    .await?;
-
-    Ok(ReducedGraphs {
-        next_dynamic,
-        server_actions,
-        client_references,
-    }
-    .cell())
+) -> Vc<ReducedGraphs> {
+    ReducedGraphs::new(*module_graph, is_single_page)
 }
 
 /// Generates a [ReducedGraph] for the given project and endpoint containing information that is

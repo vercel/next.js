@@ -1,10 +1,11 @@
 use std::{
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::{hash_map::Entry, HashSet},
     future::Future,
     mem::take,
 };
 
 use anyhow::Result;
+use rustc_hash::FxHashMap;
 use swc_core::ecma::ast::Id;
 
 use super::{graph::VarGraph, JsValue};
@@ -14,7 +15,7 @@ pub async fn link<'a, B, RB, F, RF>(
     mut val: JsValue,
     early_visitor: &B,
     visitor: &F,
-    fun_args_values: HashMap<u32, Vec<JsValue>>,
+    fun_args_values: FxHashMap<u32, Vec<JsValue>>,
 ) -> Result<JsValue>
 where
     RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,
@@ -36,7 +37,7 @@ pub(crate) async fn link_internal_iterative<'a, B, RB, F, RF>(
     val: JsValue,
     early_visitor: &'a B,
     visitor: &'a F,
-    mut fun_args_values: HashMap<u32, Vec<JsValue>>,
+    mut fun_args_values: FxHashMap<u32, Vec<JsValue>>,
 ) -> Result<JsValue>
 where
     RB: 'a + Future<Output = Result<(JsValue, bool)>> + Send,

@@ -370,7 +370,7 @@
             StrictEqual,
             Constant(
                 Str(
-                    Word(
+                    Atom(
                         "true",
                     ),
                 ),
@@ -660,7 +660,7 @@
                                 StrictEqual,
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "true",
                                         ),
                                     ),
@@ -688,7 +688,7 @@
                                     StrictEqual,
                                     Constant(
                                         Str(
-                                            Word(
+                                            Atom(
                                                 "true",
                                             ),
                                         ),
@@ -696,14 +696,14 @@
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "true",
                                         ),
                                     ),
                                 ),
                                 Constant(
                                     Str(
-                                        Word(
+                                        Atom(
                                             "false",
                                         ),
                                     ),
@@ -831,7 +831,7 @@
                             ),
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "false",
                                     ),
                                 ),

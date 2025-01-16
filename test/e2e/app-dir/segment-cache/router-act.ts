@@ -9,7 +9,8 @@ type Batch = {
 
 type PendingRSCRequest = {
   route: Playwright.Route
-  cached: { body: string; headers: Record<string, string> } | null
+  result: Promise<{ body: string; headers: Record<string, string> }>
+  didProcess: boolean
 }
 
 let currentBatch: Batch | null = null
@@ -120,29 +121,48 @@ export function createRouterAct(
       const pendingRequests = batch.pendingRequests
       const pendingRequestChecks = batch.pendingRequestChecks
 
-      // Because reading the headers is an async operation, we collect these
-      // promises so we can await them at the end of the `act` scope to see
-      // whether any additional requests were initiated.
-      const checkIfRouterRequest = request
-        .headerValue('rsc')
-        .then((isRouterRequest) => {
-          if (isRouterRequest) {
-            // This request was initiated by the Next.js Router. Intercept it and
-            // add it to the current batch.
-            pendingRequests.add({
-              route,
-              cached: null,
-            })
-            if (onDidIssueFirstRequest !== null) {
-              onDidIssueFirstRequest()
-              onDidIssueFirstRequest = null
-            }
-            return
+      // Because determining whether we need to intercept the request is an
+      // async operation, we collect these promises so we can await them at the
+      // end of the `act` scope to see whether any additional requests
+      // were initiated.
+      // NOTE: The default check doesn't actually need to be async, but since
+      // this logic is subtle, to preserve the ability to add an async
+      // check later, I'm treating it as if it could possibly be async.
+      const checkIfRouterRequest = (async () => {
+        const headers = request.headers()
+
+        // The default check includes navigations, prefetches, and actions.
+        const isRouterRequest =
+          headers['rsc'] !== undefined || // Matches navigations and prefetches
+          headers['next-action'] !== undefined // Matches Server Actions
+
+        if (isRouterRequest) {
+          // This request was initiated by the Next.js Router. Intercept it and
+          // add it to the current batch.
+          pendingRequests.add({
+            route,
+            // `act` controls the timing of when responses reach the client,
+            // but it should not affect the timing of when requests reach the
+            // server; we pass the request to the server the immediately.
+            result: new Promise(async (resolve) => {
+              const originalResponse = await page.request.fetch(request)
+              resolve({
+                body: await originalResponse.text(),
+                headers: originalResponse.headers(),
+              })
+            }),
+            didProcess: false,
+          })
+          if (onDidIssueFirstRequest !== null) {
+            onDidIssueFirstRequest()
+            onDidIssueFirstRequest = null
           }
-          // This is some other request not related to the Next.js Router. Allow
-          // it to continue as normal.
-          route.continue()
-        })
+          return
+        }
+        // This is some other request not related to the Next.js Router. Allow
+        // it to continue as normal.
+        route.continue()
+      })()
 
       pendingRequestChecks.add(checkIfRouterRequest)
       await checkIfRouterRequest
@@ -228,22 +248,15 @@ export function createRouterAct(
           const request = route.request()
 
           let shouldBlock = false
-          let fulfilled
-          if (item.cached !== null) {
+          const fulfilled = await item.result
+          if (item.didProcess) {
             // This response was already processed by an inner `act` call.
-            fulfilled = item.cached
           } else {
+            item.didProcess = true
             if (expectedResponses === null) {
               error.message = 'Expected no network requests to be initiated.'
               throw error
             }
-            const originalResponse = await page.request.fetch(request)
-            fulfilled = {
-              body: await originalResponse.text(),
-              headers: originalResponse.headers(),
-            }
-            item.cached = fulfilled
-
             if (expectedResponses !== null) {
               let alreadyMatchedByThisResponse: string | null = null
               for (const expectedResponse of expectedResponses) {

@@ -13,7 +13,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
-use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
+use crate::next_client_reference::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
@@ -125,7 +125,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         );
 
         Ok(ProcessResult::Module(ResolvedVc::upcast(
-            EcmascriptClientReferenceProxyModule::new(
+            EcmascriptClientReferenceModule::new(
                 ident,
                 Vc::upcast(server_context),
                 *client_module,

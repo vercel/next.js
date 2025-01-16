@@ -8227,11 +8227,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-b158439a-20250115" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-5b51a2b9-20250116" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-b158439a-20250115\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     var React = require("next/dist/compiled/react-experimental"),
@@ -10015,5 +10015,5 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-    exports.version = "19.1.0-experimental-b158439a-20250115";
+    exports.version = "19.1.0-experimental-5b51a2b9-20250116";
   })();
