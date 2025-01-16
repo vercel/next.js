@@ -863,43 +863,43 @@ impl JsValue {
         )
     }
 
-    pub fn iterated(iterable: JsValue) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), Box::new(iterable))
+    pub fn iterated(iterable: Box<JsValue>) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), iterable)
     }
 
-    pub fn equal(a: JsValue, b: JsValue) -> Self {
+    pub fn equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::Equal,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::NotEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictNotEqual,
-            Box::new(b),
+            b,
         )
     }
 

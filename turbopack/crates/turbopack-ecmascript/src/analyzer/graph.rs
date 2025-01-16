@@ -457,28 +457,28 @@ impl EvalContext {
                 left,
                 right,
                 ..
-            }) => JsValue::equal(self.eval(left), self.eval(right)),
+            }) => JsValue::equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!="),
                 left,
                 right,
                 ..
-            }) => JsValue::not_equal(self.eval(left), self.eval(right)),
+            }) => JsValue::not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("==="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_equal(self.eval(left), self.eval(right)),
+            }) => JsValue::strict_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             Expr::Bin(BinExpr {
                 op: op!("!=="),
                 left,
                 right,
                 ..
-            }) => JsValue::strict_not_equal(self.eval(left), self.eval(right)),
+            }) => JsValue::strict_not_equal(Box::new(self.eval(left)), Box::new(self.eval(right))),
 
             &Expr::Cond(CondExpr {
                 box ref cons,
@@ -1670,7 +1670,7 @@ impl VisitAstPath for Analyzer<'_> {
         {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::ForOfStmt(n, ForOfStmtField::Left));
-            self.current_value = Some(JsValue::iterated(array));
+            self.current_value = Some(JsValue::iterated(Box::new(array)));
             self.visit_for_head(&n.left, &mut ast_path);
         }
 
