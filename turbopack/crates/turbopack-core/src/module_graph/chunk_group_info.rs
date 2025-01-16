@@ -176,7 +176,12 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         // First, compute the depth for each module in the graph
         let mut module_depth: HashMap<ResolvedVc<Box<dyn Module>>, usize> = HashMap::new();
-        let entries = &graph.graphs.last().unwrap().await?.entries;
+        // use all entries from all graphs
+        let entries = graphs
+            .iter()
+            .flat_map(|g| g.entries.iter().copied())
+            .collect::<Vec<_>>();
+        let entries = &entries;
         graph
             .traverse_edges_from_entries_bfs(entries, |parent, node| {
                 if let Some((parent, _)) = parent {
