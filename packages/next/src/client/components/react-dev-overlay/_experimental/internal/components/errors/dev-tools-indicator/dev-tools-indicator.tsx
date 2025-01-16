@@ -60,7 +60,9 @@ const DevToolsPopover = ({
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
 
   const { mounted, rendered } = useDelayedRender(isPopoverOpen, {
+    // Intentionally no fade in, makes the UI feel more immediate
     enterDelay: 0,
+    // Graceful fade out to confirm that the UI did not break
     exitDelay: ANIMATE_OUT_DURATION_MS,
   })
 
