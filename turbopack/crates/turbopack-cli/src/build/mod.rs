@@ -18,8 +18,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, EcmascriptChunkingConfig,
-        EvaluatableAsset, EvaluatableAssets, MinifyType,
+        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
+        EvaluatableAssets, MinifyType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -234,7 +234,7 @@ async fn build_internal(
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.ecmascript_chunking_config(EcmascriptChunkingConfig {})
+                    builder = builder.ecmascript_chunking_config(ChunkingConfig {})
                 }
             }
 

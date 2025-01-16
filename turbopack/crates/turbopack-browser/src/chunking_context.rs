@@ -1,4 +1,5 @@
 use anyhow::{bail, Context, Result};
+use rustc_hash::FxHashMap;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
@@ -9,8 +10,8 @@ use turbopack_core::{
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
-        ChunkingContext, EcmascriptChunkingConfig, EntryChunkGroupResult, EvaluatableAssets,
-        MinifyType, ModuleId,
+        ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
+        ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -20,7 +21,7 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::{
     async_chunk::module::AsyncLoaderModule,
-    chunk::EcmascriptChunk,
+    chunk::{EcmascriptChunk, EcmascriptChunkType},
     manifest::{chunk_asset::ManifestAsyncModule, loader_item::ManifestLoaderChunkItem},
 };
 use turbopack_ecmascript_runtime::RuntimeType;
@@ -101,7 +102,7 @@ impl BrowserChunkingContextBuilder {
 
     pub fn ecmascript_chunking_config(
         mut self,
-        ecmascript_chunking_config: EcmascriptChunkingConfig,
+        ecmascript_chunking_config: ChunkingConfig,
     ) -> Self {
         self.chunking_context.ecmascript_chunking_config = Some(ecmascript_chunking_config);
         self
@@ -161,7 +162,7 @@ pub struct BrowserChunkingContext {
     /// The module id strategy to use
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     /// The chunking config for ecmascript
-    ecmascript_chunking_config: Option<EcmascriptChunkingConfig>,
+    ecmascript_chunking_config: Option<ChunkingConfig>,
 }
 
 impl BrowserChunkingContext {
@@ -395,12 +396,15 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    fn chunking_config(&self) -> Vc<ChunkingConfig> {
-        ChunkingConfig {
-            ecmascript: self.ecmascript_chunking_config.clone(),
-            css: None,
+    async fn chunking_configs(&self) -> Result<Vc<ChunkingConfigs>> {
+        let mut map = FxHashMap::default();
+        if let Some(ecmascript) = &self.ecmascript_chunking_config {
+            map.insert(
+                ResolvedVc::upcast(Vc::<EcmascriptChunkType>::default().to_resolved().await?),
+                ecmascript.clone(),
+            );
         }
-        .cell()
+        Ok(Vc::cell(map))
     }
 
     #[turbo_tasks::function]

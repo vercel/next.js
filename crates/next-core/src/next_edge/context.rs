@@ -6,10 +6,7 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::{
-        module_id_strategies::ModuleIdStrategy, ChunkingContext, EcmascriptChunkingConfig,
-        MinifyType,
-    },
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -236,7 +233,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.ecmascript_chunking_config(EcmascriptChunkingConfig {})
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {})
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -277,7 +274,7 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.ecmascript_chunking_config(EcmascriptChunkingConfig {})
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {})
     }
 
     Ok(Vc::upcast(builder.build()))

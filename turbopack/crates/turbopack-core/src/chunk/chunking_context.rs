@@ -1,4 +1,5 @@
 use anyhow::Result;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc};
@@ -7,7 +8,7 @@ use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
-    chunk::{ChunkItem, ChunkableModules, ModuleId},
+    chunk::{ChunkItem, ChunkType, ChunkableModules, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -68,20 +69,12 @@ pub struct EntryChunkGroupResult {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct EcmascriptChunkingConfig {
-    // TODO
-}
-
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct CssChunkingConfig {
-    // TODO
-}
-
-#[turbo_tasks::value(shared)]
 pub struct ChunkingConfig {
-    pub ecmascript: Option<EcmascriptChunkingConfig>,
-    pub css: Option<CssChunkingConfig>,
+    // TODO
 }
+
+#[turbo_tasks::value(transparent)]
+pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
 
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
@@ -124,12 +117,8 @@ pub trait ChunkingContext {
         Vc::cell(false)
     }
 
-    fn chunking_config(self: Vc<Self>) -> Vc<ChunkingConfig> {
-        ChunkingConfig {
-            ecmascript: None,
-            css: None,
-        }
-        .cell()
+    fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs> {
+        Vc::cell(Default::default())
     }
 
     fn is_smart_chunk_enabled(self: Vc<Self>) -> Vc<bool> {

@@ -14,9 +14,10 @@ use super::{
 };
 use crate::{
     chunk::{
-        chunking::dev::app_vendors_split, ChunkingConfig, CssChunkingConfig,
-        EcmascriptChunkingConfig,
+        chunking::{dev::app_vendors_split, production::make_production_chunks},
+        ChunkableModule,
     },
+    module_graph::ModuleGraph,
     output::OutputAssets,
 };
 
@@ -48,12 +49,13 @@ async fn chunk_item_info(
 /// attaches `referenced_output_assets` to the first chunk.
 #[turbo_tasks::function]
 pub async fn make_chunks(
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     chunk_items: Vc<ChunkItemsWithAsyncModuleInfo>,
     key_prefix: RcStr,
     mut referenced_output_assets: Vc<OutputAssets>,
 ) -> Result<Vc<Chunks>> {
-    let ChunkingConfig { ecmascript, css } = &*chunking_context.chunking_config().await?;
+    let chunking_configs = &*chunking_context.chunking_configs().await?;
 
     let chunk_items = chunk_items.await?;
     let chunk_items = chunk_items
@@ -88,6 +90,7 @@ pub async fn make_chunks(
                     ChunkItemWithAsyncModuleInfo {
                         ty,
                         chunk_item,
+                        module,
                         async_info,
                     },
                     chunk_item_info,
@@ -95,6 +98,7 @@ pub async fn make_chunks(
                     Ok(ChunkItemWithInfo {
                         ty: *ty,
                         chunk_item: *chunk_item,
+                        module: *module,
                         async_info: *async_info,
                         size: chunk_item_info.size,
                         asset_ident: chunk_item_info.name.await?,
@@ -104,20 +108,6 @@ pub async fn make_chunks(
             .try_join()
             .await?;
 
-        match ty_name.as_str() {
-            "ecmascript" => {
-                if let Some(EcmascriptChunkingConfig {}) = ecmascript {
-                    // TODO Production chunking
-                }
-            }
-            "css" => {
-                if let Some(CssChunkingConfig {}) = css {
-                    // TODO Production chunking
-                }
-            }
-            _ => {}
-        }
-
         let mut split_context = SplitContext {
             ty,
             chunking_context,
@@ -125,6 +115,12 @@ pub async fn make_chunks(
             referenced_output_assets: &mut referenced_output_assets,
             empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
         };
+
+        if let Some(_chunking_config) = chunking_configs.get(&ty) {
+            // Production chunking
+            make_production_chunks(chunk_items, module_graph, split_context).await?;
+            continue;
+        }
 
         if !*ty.must_keep_item_order().await? {
             app_vendors_split(
@@ -156,6 +152,7 @@ pub async fn make_chunks(
 struct ChunkItemWithInfo {
     ty: ChunkItemTy,
     chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
+    module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     async_info: Option<ResolvedVc<AsyncModuleInfo>>,
     size: usize,
     asset_ident: ReadRef<RcStr>,
@@ -185,11 +182,13 @@ async fn make_chunk(
                     |ChunkItemWithInfo {
                          ty,
                          chunk_item,
+                         module,
                          async_info,
                          ..
                      }| ChunkItemWithAsyncModuleInfo {
                         ty,
                         chunk_item,
+                        module,
                         async_info,
                     },
                 )

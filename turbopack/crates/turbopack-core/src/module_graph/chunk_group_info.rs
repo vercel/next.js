@@ -59,6 +59,21 @@ impl DerefMut for RoaringBitmapWrapper {
         &mut self.0
     }
 }
+impl Hash for RoaringBitmapWrapper {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        struct HasherWriter<'a, H: std::hash::Hasher>(&'a mut H);
+        impl<'a, H: std::hash::Hasher> std::io::Write for HasherWriter<'a, H> {
+            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+                self.0.write(buf);
+                Ok(buf.len())
+            }
+            fn flush(&mut self) -> std::io::Result<()> {
+                Ok(())
+            }
+        }
+        self.0.serialize_into(HasherWriter(state)).unwrap();
+    }
+}
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkGroupInfo(HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
