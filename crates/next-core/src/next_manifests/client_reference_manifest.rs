@@ -177,11 +177,9 @@ impl ClientReferenceManifest {
                             .map(RcStr::from)
                             .collect::<Vec<_>>();
 
-                        let is_async = is_item_async(
-                            ssr_availability_info,
-                            ResolvedVc::upcast(client_reference_module),
-                        )
-                        .await?;
+                        let is_async =
+                            is_item_async(ssr_availability_info, ResolvedVc::upcast(ssr_module))
+                                .await?;
 
                         (chunk_paths, is_async)
                     } else {
