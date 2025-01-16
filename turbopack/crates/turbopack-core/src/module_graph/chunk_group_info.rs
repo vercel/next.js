@@ -189,6 +189,8 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                     module_depth.insert(node.module, 0);
                 };
 
+                module_chunk_groups.insert(node.module, RoaringBitmapWrapper::default());
+
                 GraphTraversalAction::Continue
             })
             .await?;
@@ -275,34 +277,37 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                         });
 
                         // Assign chunk group to the target node (the entry of the chunk group)
-                        let bitset = module_chunk_groups.entry(node.module).or_default();
+                        let bitset = module_chunk_groups.get_mut(&node.module).unwrap();
                         bitset.0 |= RoaringBitmap::from_iter(chunk_group_ids);
 
                         GraphTraversalAction::Continue
                     }
                     ChunkGroupInheritance::Inherit(parent) => {
-                        // Only inherit chunk groups from parent
+                        // Inherit chunk groups from parent, merge parent chunk groups into current
 
-                        // TODO don't clone here, but both parent and current are stored in
-                        // module_chunk_groups
-                        let parent_chunk_groups = module_chunk_groups.get(&parent).unwrap().clone();
+                        if parent == node.module {
+                            // A self-reference
+                            GraphTraversalAction::Skip
+                        } else {
+                            // Fast path
+                            let [Some(parent_chunk_groups), Some(current_chunk_groups)] =
+                                module_chunk_groups.get_many_mut([&parent, &node.module])
+                            else {
+                                // All modules are inserted in the previous iteration
+                                unreachable!()
+                            };
 
-                        match module_chunk_groups.entry(node.module) {
-                            Entry::Occupied(mut e) => {
-                                let current_chunk_groups = e.get_mut();
-                                if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
-                                    // Add bits from parent, and continue traversal because
-                                    // changed
-                                    current_chunk_groups.0 |= parent_chunk_groups.0;
-                                    GraphTraversalAction::Continue
-                                } else {
-                                    // Skip, fixpoint reached
-                                    GraphTraversalAction::Skip
-                                }
-                            }
-                            Entry::Vacant(e) => {
-                                e.insert(parent_chunk_groups);
+                            if current_chunk_groups.is_empty() {
+                                // Initial visit, clone instead of merging
+                                *current_chunk_groups = parent_chunk_groups.clone();
                                 GraphTraversalAction::Continue
+                            } else if parent_chunk_groups.is_proper_superset(current_chunk_groups) {
+                                // Add bits from parent, and continue traversal because changed
+                                current_chunk_groups.0 |= &parent_chunk_groups.0;
+                                GraphTraversalAction::Continue
+                            } else {
+                                // Unchanged, no need to forward to children
+                                GraphTraversalAction::Skip
                             }
                         }
                     }
