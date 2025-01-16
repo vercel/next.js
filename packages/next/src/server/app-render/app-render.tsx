@@ -1154,6 +1154,8 @@ async function renderToHTMLOrFlightImpl(
     // @ts-ignore
     globalThis.__next_chunk_load__ = (...args: Array<any>) => {
       const loadingChunk = instrumented.loadChunk(...args)
+      console.log('__next_chunk_load__', ...args)
+      console.log('  trackChunkLoading :: triggering from __next_chunk_load__')
       trackChunkLoading(loadingChunk)
       return loadingChunk
     }
@@ -2239,7 +2241,11 @@ async function spawnDynamicValidationInDev(
     initialServerStream = null
     // Before we attempt the SSR initial render we need to ensure all client modules
     // are already loaded.
-    await warmFlightResponse(warmupStream, clientReferenceManifest)
+    await warmFlightResponse(
+      warmupStream,
+      clientReferenceManifest,
+      workAsyncStorage.getStore()?.route ?? '<unknown route>'
+    )
 
     const prerender = require('react-dom/static.edge')
       .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -2705,7 +2711,8 @@ async function prerenderToStream(
           // are already loaded.
           await warmFlightResponse(
             initialServerResult.asStream(),
-            clientReferenceManifest
+            clientReferenceManifest,
+            workStore.route
           )
 
           const initialClientController = new AbortController()
@@ -3192,7 +3199,11 @@ async function prerenderToStream(
           initialServerStream = null
           // Before we attempt the SSR initial render we need to ensure all client modules
           // are already loaded.
-          await warmFlightResponse(warmupStream, clientReferenceManifest)
+          await warmFlightResponse(
+            warmupStream,
+            clientReferenceManifest,
+            workStore.route
+          )
 
           const prerender = require('react-dom/static.edge')
             .prerender as (typeof import('react-dom/static.edge'))['prerender']
@@ -3995,6 +4006,7 @@ function trackChunkLoading(load: Promise<unknown>) {
       loadingChunks.delete(load)
       if (loadingChunks.size === 0) {
         // We are not currently loading any chunks. We can notify all listeners
+        console.log('trackChunkLoading :: all finished')
         for (let i = 0; i < chunkListeners.length; i++) {
           chunkListeners[i]()
         }
@@ -4006,7 +4018,10 @@ function trackChunkLoading(load: Promise<unknown>) {
 
 export async function warmFlightResponse(
   flightStream: ReadableStream<Uint8Array>,
-  clientReferenceManifest: DeepReadonly<ClientReferenceManifest>
+  clientReferenceManifest: DeepReadonly<
+    Pick<ClientReferenceManifest, 'moduleLoading' | 'ssrModuleMapping'>
+  >,
+  route: string
 ) {
   let createFromReadableStream
   if (process.env.TURBOPACK) {
@@ -4035,7 +4050,17 @@ export async function warmFlightResponse(
 
   // We'll wait at least one task and then if no chunks have started to load
   // we'll we can infer that there are none to load from this flight response
-  trackChunkLoading(waitAtLeastOneReactRenderTask())
+  console.log(`warmFlightResponse[${route}] :: waitAtLeastOneReactRenderTask()`)
+  const p = waitAtLeastOneReactRenderTask()
+  p.then(() => {
+    console.log(
+      `warmFlightResponse[${route}] :: waitAtLeastOneReactRenderTask finished`
+    )
+  })
+  console.log(
+    `  trackChunkLoading :: triggering from warmFlightResponse[${route}]`
+  )
+  trackChunkLoading(p)
   return new Promise((r) => {
     chunkListeners.push(r)
   })
