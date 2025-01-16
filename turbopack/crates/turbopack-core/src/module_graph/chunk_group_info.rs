@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, BinaryHeap, HashMap},
+    collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
     hash::{DefaultHasher, Hash, Hasher},
     ops::{Deref, DerefMut},
 };
@@ -107,20 +107,10 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     let entries = &graph.graphs.last().unwrap().await?.entries;
 
     graph
-        .traverse_edges_from_entry(entries, |parent, node| {
+        .traverse_edges_from_entries_bfs(entries, |parent, node| {
             if let Some((parent, _)) = parent {
                 let parent_depth = *module_depth.get(&parent.module).unwrap();
-                let entry = module_depth.entry(node.module);
-                match entry {
-                    Entry::Occupied(mut e) => {
-                        if (parent_depth + 1) < *e.get() {
-                            e.insert(parent_depth + 1);
-                        }
-                    }
-                    Entry::Vacant(e) => {
-                        e.insert(parent_depth + 1);
-                    }
-                };
+                module_depth.entry(node.module).or_insert(parent_depth + 1);
             } else {
                 module_depth.insert(node.module, 0);
             };
@@ -290,6 +280,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
         let mut visit_count = 0usize;
 
+        let mut queue_set = HashSet::new();
         let mut queue = entries
             .iter()
             .map(|e| {
@@ -303,6 +294,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
             visitor(None, get_node!(graphs, entry_node.1)).await?;
         }
         while let Some(NodeWithPriority(priority, node)) = queue.pop() {
+            queue_set.remove(&node);
             let graph = &graphs[node.graph_idx].graph;
             let node_weight = get_node!(graphs, node);
             println!(
@@ -321,7 +313,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
                 let edge_weight = graph.edge_weight(edge).unwrap();
                 let action = visitor(Some((node_weight, edge_weight)), succ_weight).await?;
                 visit_count += 1;
-                if action == GraphTraversalAction::Continue {
+                if action == GraphTraversalAction::Continue && queue_set.insert(succ) {
                     queue.push(NodeWithPriority(
                         *module_depth.get(&succ_weight.module).unwrap(),
                         succ,

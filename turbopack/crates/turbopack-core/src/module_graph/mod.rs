@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     future::Future,
     ops::Deref,
 };
@@ -596,6 +596,58 @@ impl ModuleGraph {
                 })
             })
             .context("Couldn't find entry module in graph")
+    }
+
+    /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
+    /// target.
+    ///
+    /// This means that target nodes can be revisited (once per incoming edge).
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `visitor` - Called before visiting the children of a node.
+    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    pub async fn traverse_edges_from_entries_bfs<'a>(
+        &self,
+        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        mut visitor: impl FnMut(
+            Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+            &'_ SingleModuleGraphModuleNode,
+        ) -> GraphTraversalAction,
+    ) -> Result<()> {
+        let graphs = self.get_graphs().await?;
+
+        let mut queue = entries
+            .into_iter()
+            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap())
+            .collect::<VecDeque<_>>();
+        let mut visited = HashSet::new();
+        for entry_node in &queue {
+            visitor(None, get_node!(graphs, entry_node));
+        }
+        while let Some(node) = queue.pop_front() {
+            let graph = &graphs[node.graph_idx].graph;
+            let node_weight = get_node!(graphs, node);
+            if visited.insert(node) {
+                let neighbors = iter_neighbors(graph, node.node_idx);
+
+                for (edge, succ) in neighbors {
+                    let succ = GraphNodeIndex {
+                        graph_idx: node.graph_idx,
+                        node_idx: succ,
+                    };
+                    let succ_weight = get_node!(graphs, succ);
+                    let edge_weight = graph.edge_weight(edge).unwrap();
+                    let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                    if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
+                        queue.push_back(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
