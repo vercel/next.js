@@ -7155,9 +7155,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "10.2.3"
+version = "10.2.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "53c2af178addefdae6b2c39a8ec3a49117cf37a997999b6c700ef4652e7fe584"
+checksum = "ec28c0882615a9af1cc7173aa466a8760455104b76a209d1b7e1ccba4f8b05cc"
 dependencies = [
  "binding_macros",
  "swc",
@@ -7322,9 +7322,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "5.0.1"
+version = "5.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "82f448db2d1c52ffd2bd3788d89cafd8b5a75b97f0dc8aae00874dda2647f6b6"
+checksum = "b0f8476c5338a588dec42c3dc5eecb3192a517e88a74e1673c235ba4214167ba"
 dependencies = [
  "bitflags 2.5.0",
  "bytecheck 0.8.0",
@@ -8008,9 +8008,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "7.0.1"
+version = "7.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4b93de07370ea7319f8f466aeae6c95c5052e7b4d2766e2e5bed06ea5b4eb9c6"
+checksum = "3339f4ae2abde950cf2534b856928114c161a0b84cbc8aa187d74be438cde1a3"
 dependencies = [
  "indexmap 2.5.0",
  "num_cpus",
