@@ -841,7 +841,7 @@ impl Project {
         Ok(if *self.per_page_module_graph().await? {
             ModuleGraph::from_module(*entry)
         } else {
-            self.whole_app_module_graph()
+            *self.whole_app_module_graphs().await?.full
         })
     }
 
@@ -861,18 +861,18 @@ impl Project {
             );
             ModuleGraph::from_modules(entries)
         } else {
-            self.whole_app_module_graph()
+            *self.whole_app_module_graphs().await?.full
         })
     }
 
     #[turbo_tasks::function]
-    pub async fn whole_app_module_graph(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraph>> {
+    pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let operation = whole_app_module_graph_operation(self);
-            let module_graph = operation.connect();
-            let _ = module_graph.resolve_strongly_consistent().await?;
+            let module_graphs = operation.connect();
+            let _ = module_graphs.resolve_strongly_consistent().await?;
             let _ = operation.take_issues_with_path().await?;
-            Ok(module_graph)
+            Ok(module_graphs)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -1561,22 +1561,32 @@ impl Project {
 // This is a performance optimization. This function is a root aggregation function that
 // aggregates over the whole subgraph.
 #[turbo_tasks::function(operation)]
-async fn whole_app_module_graph_operation(project: ResolvedVc<Project>) -> Result<Vc<ModuleGraph>> {
+async fn whole_app_module_graph_operation(
+    project: ResolvedVc<Project>,
+) -> Result<Vc<ModuleGraphs>> {
     let base_single_module_graph = SingleModuleGraph::new_with_entries(project.get_all_entries());
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
-    let additional_entries = project
-        .get_all_additional_entries(ModuleGraph::from_single_graph(base_single_module_graph));
+    let base = ModuleGraph::from_single_graph(base_single_module_graph);
+    let additional_entries = project.get_all_additional_entries(base);
 
     let additional_module_graph = SingleModuleGraph::new_with_entries_visited(
         additional_entries.await?.into_iter().map(|m| **m).collect(),
         base_visited_modules,
     );
 
-    Ok(ModuleGraph::from_graphs(vec![
-        base_single_module_graph,
-        additional_module_graph,
-    ]))
+    let full = ModuleGraph::from_graphs(vec![base_single_module_graph, additional_module_graph]);
+    Ok(ModuleGraphs {
+        base: base.to_resolved().await?,
+        full: full.to_resolved().await?,
+    }
+    .cell())
+}
+
+#[turbo_tasks::value(shared)]
+pub struct ModuleGraphs {
+    pub base: ResolvedVc<ModuleGraph>,
+    pub full: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::function]
