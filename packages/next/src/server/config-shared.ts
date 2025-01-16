@@ -232,7 +232,6 @@ export interface IncomingRequestLoggingConfig {
   /**
    * A regular expression to match incoming requests that should not be logged.
    * You can specify multiple patterns to match incoming requests that should not be logged.
-   * @default undefined
    */
   ignore?: RegExp[] | RegExp
 }
@@ -250,7 +249,6 @@ export interface LoggingConfig {
   /**
    * If set to false, incoming request logging is disabled.
    * You can specify a pattern to match incoming requests that should not be logged.
-   * @default undefined
    */
   incomingRequest?: boolean | IncomingRequestLoggingConfig
 }
