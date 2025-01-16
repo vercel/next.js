@@ -496,7 +496,7 @@ impl SingleModuleGraph {
                     {
                         let action = visit_preorder(parent_arg, current_node, state);
                         stack.push((ReverseTopologicalPass::Visit, parent, current));
-                        if expanded.insert(current) && action? == GraphTraversalAction::Continue {
+                        if action? == GraphTraversalAction::Continue && expanded.insert(current) {
                             stack.extend(iter_neighbors(graph, current).map(|(edge, child)| {
                                 (
                                     ReverseTopologicalPass::ExpandAndVisit,
@@ -781,7 +781,7 @@ impl ModuleGraph {
                 ReverseTopologicalPass::ExpandAndVisit => {
                     let action = visit_preorder(parent_arg, current_node, state);
                     stack.push((ReverseTopologicalPass::Visit, parent, current));
-                    if expanded.insert(current) && action? == GraphTraversalAction::Continue {
+                    if action? == GraphTraversalAction::Continue && expanded.insert(current) {
                         let graph = &graphs[current.graph_idx].graph;
                         let (neighbors, current) =
                             match graph.node_weight(current.node_idx).unwrap() {
