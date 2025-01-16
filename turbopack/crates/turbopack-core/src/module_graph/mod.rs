@@ -593,8 +593,14 @@ impl ModuleGraph {
             })
         }) else {
             bail!(
-                "Couldn't find entry module {} in module graph",
-                entry.ident().to_string().await?
+                "Couldn't find entry module {} in module graph (potential entries: {:?})",
+                entry.ident().to_string().await?,
+                graphs
+                    .iter()
+                    .flat_map(|g| g.entries.iter())
+                    .map(|e| e.ident().to_string())
+                    .try_join()
+                    .await?
             );
         };
         Ok(idx)
