@@ -1022,14 +1022,7 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                     // .await?;
 
                     refs.iter()
-                        .flat_map(|(ty, modules)| {
-                            if matches!(ty, ChunkingType::Traced) {
-                                None
-                            } else {
-                                Some(modules.iter().map(|m| (ty.clone(), *m)))
-                            }
-                        })
-                        .flatten()
+                        .flat_map(|(ty, modules)| modules.iter().map(|m| (ty.clone(), *m)))
                         .map(async |(ty, target)| {
                             let to = if let Some(idx) = visited_modules.get(&target) {
                                 SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
