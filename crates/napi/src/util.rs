@@ -55,6 +55,8 @@ pub fn log_internal_error_and_inform(err_info: &str) {
     if cfg!(debug_assertions)
         || env::var("SWC_DEBUG") == Ok("1".to_string())
         || env::var("CI").is_ok_and(|v| !v.is_empty())
+        // Next's run-tests unsets CI and sets NEXT_TEST_CI
+        || env::var("NEXT_TEST_CI").is_ok_and(|v| !v.is_empty())
     {
         eprintln!(
             "{}: An unexpected Turbopack error occurred:\n{}",
