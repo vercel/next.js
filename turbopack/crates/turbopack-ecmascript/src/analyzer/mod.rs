@@ -4143,7 +4143,7 @@ mod tests {
                         i += 1;
                         let start = Instant::now();
                         async fn handle_args(
-                            args: Vec<EffectArg>,
+                            args: Box<[EffectArg]>,
                             queue: &mut Vec<(usize, Effect)>,
                             var_graph: &VarGraph,
                             i: usize,

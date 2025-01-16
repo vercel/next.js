@@ -1204,7 +1204,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 if let Some(&r) = import_references.get(esm_reference_index) {
                     if let Some("__turbopack_module_id__") = export.as_deref() {
                         analysis.add_reference(
-                            EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path))
+                            EsmModuleIdAssetReference::new(*r, Vc::cell(ast_path.into_vec()))
                                 .to_resolved()
                                 .await?,
                         )
@@ -1236,7 +1236,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                         analysis.add_binding(EsmBinding::new(
                             r,
                             export,
-                            ResolvedVc::cell(ast_path),
+                            ResolvedVc::cell(ast_path.into_vec()),
                         ));
                     }
                 }
@@ -1261,7 +1261,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     analysis.add_code_gen(ImportMetaBinding::new(source.ident().path()));
                 }
 
-                analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path)));
+                analysis.add_code_gen(ImportMetaRef::new(Vc::cell(ast_path.into_vec())));
             }
         }
     }
@@ -1353,8 +1353,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     fn explain_args(args: &[JsValue]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
     }
-    let linked_args = |args: Vec<EffectArg>| async move {
-        args.into_iter()
+    let linked_args = |args: Box<[EffectArg]>| async move {
+        args.into_vec()
+            .into_iter()
             .map(|arg| {
                 let add_effects = &add_effects;
                 async move {
