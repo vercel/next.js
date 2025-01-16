@@ -375,8 +375,6 @@ impl ChunkableModuleReference for EcmascriptClientReference {
         Vc::cell(Some(ChunkingType::Isolated {
             _ty: self.ty,
             merge_tag: self.merge_tag.clone(),
-            // TODO use proper values here
-            _chunking_context: None,
         }))
     }
 }
