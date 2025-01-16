@@ -1051,7 +1051,7 @@ impl AppEndpoint {
         let client_shared_availability_info = client_shared_chunk_group.availability_info;
 
         let reduced_graphs = get_reduced_graphs_for_endpoint(
-            *module_graphs.full,
+            *module_graphs.base,
             *project.per_page_module_graph().await?,
         );
         let next_dynamic_imports = reduced_graphs
@@ -1192,14 +1192,7 @@ impl AppEndpoint {
             }
         }
 
-        // Server actions are computed from the base module graph and not the full one
-        // TODO split server actions from redurced graphs to avoid computing the other information
-        // for the base module graph
-        let actions = get_reduced_graphs_for_endpoint(
-            *module_graphs.base,
-            *project.per_page_module_graph().await?,
-        )
-        .get_server_actions_for_endpoint(
+        let actions = reduced_graphs.get_server_actions_for_endpoint(
             *rsc_entry,
             match runtime {
                 NextRuntime::Edge => Vc::upcast(this.app_project.edge_rsc_module_context()),
