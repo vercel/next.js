@@ -1,6 +1,5 @@
 pub mod availability_info;
 pub mod available_modules;
-pub mod chunk_graph;
 pub mod chunk_group;
 pub mod chunking;
 pub(crate) mod chunking_context;
