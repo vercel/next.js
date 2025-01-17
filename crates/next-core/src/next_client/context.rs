@@ -6,6 +6,7 @@ use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::EnvMap;
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
+    css::chunk::CssChunkType,
     module_options::{
         module_options_context::ModuleOptionsContext, CssOptionsContext, EcmascriptOptionsContext,
         JsxTransformOptions, ModuleRule, TypeofWindow, TypescriptTransformOptions,
@@ -26,6 +27,7 @@ use turbopack_core::{
     free_var_references,
     resolve::{parse::Request, pattern::Pattern},
 };
+use turbopack_ecmascript::chunk::EcmascriptChunkType;
 use turbopack_node::{
     execution_context::ExecutionContext,
     transforms::postcss::{PostCssConfigLocation, PostCssTransformOptions},
@@ -457,12 +459,22 @@ pub async fn get_client_chunking_context(
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();
     } else {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 50_000,
-            max_chunk_count_per_group: 40,
-            max_merge_chunk_size: 200_000,
-            ..Default::default()
-        })
+        builder = builder.chunking_config(
+            Vc::<EcmascriptChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 50_000,
+                max_chunk_count_per_group: 40,
+                max_merge_chunk_size: 200_000,
+                ..Default::default()
+            },
+        );
+        builder = builder.chunking_config(
+            Vc::<CssChunkType>::default().to_resolved().await?,
+            ChunkingConfig {
+                min_chunk_size: 0,
+                ..Default::default()
+            },
+        );
     }
 
     Ok(Vc::upcast(builder.build()))
