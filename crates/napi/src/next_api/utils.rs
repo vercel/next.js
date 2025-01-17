@@ -175,13 +175,12 @@ pub fn create_turbo_tasks(
 #[derive(Clone)]
 pub struct VcArc<T> {
     turbo_tasks: NextTurboTasks,
-    /// The Vc. Must be resolved, otherwise you are referencing an inactive
-    /// operation.
-    vc: T,
+    /// The Vc. Must be unresolved, otherwise you are referencing an inactive operation.
+    vc: OperationVc<T>,
 }
 
 impl<T> VcArc<T> {
-    pub fn new(turbo_tasks: NextTurboTasks, vc: T) -> Self {
+    pub fn new(turbo_tasks: NextTurboTasks, vc: OperationVc<T>) -> Self {
         Self { turbo_tasks, vc }
     }
 
@@ -191,7 +190,7 @@ impl<T> VcArc<T> {
 }
 
 impl<T> Deref for VcArc<T> {
-    type Target = T;
+    type Target = OperationVc<T>;
 
     fn deref(&self) -> &Self::Target {
         &self.vc

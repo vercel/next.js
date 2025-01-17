@@ -236,18 +236,18 @@ pub struct DefineEnv {
     pub nodejs: Vec<(RcStr, RcStr)>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct Middleware {
-    pub endpoint: Vc<Box<dyn Endpoint>>,
+    pub endpoint: ResolvedVc<Box<dyn Endpoint>>,
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
 pub struct Instrumentation {
-    pub node_js: Vc<Box<dyn Endpoint>>,
-    pub edge: Vc<Box<dyn Endpoint>>,
+    pub node_js: ResolvedVc<Box<dyn Endpoint>>,
+    pub edge: ResolvedVc<Box<dyn Endpoint>>,
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 pub struct ProjectContainer {
     name: RcStr,
     options_state: State<Option<ProjectOptions>>,
@@ -754,12 +754,12 @@ impl Project {
         endpoints.push(entrypoints.pages_document_endpoint);
 
         if let Some(middleware) = &entrypoints.middleware {
-            endpoints.push(middleware.endpoint.to_resolved().await?);
+            endpoints.push(middleware.endpoint);
         }
 
         if let Some(instrumentation) = &entrypoints.instrumentation {
-            endpoints.push(instrumentation.node_js.to_resolved().await?);
-            endpoints.push(instrumentation.edge.to_resolved().await?);
+            endpoints.push(instrumentation.node_js);
+            endpoints.push(instrumentation.edge);
         }
 
         for (_, route) in entrypoints.routes.iter() {
@@ -780,7 +780,7 @@ impl Project {
                         rsc_endpoint: _,
                     } in page_routes
                     {
-                        endpoints.push(html_endpoint.to_resolved().await?);
+                        endpoints.push(*html_endpoint);
                     }
                 }
                 Route::AppRoute {
@@ -1136,7 +1136,7 @@ impl Project {
         let middleware = self.find_middleware();
         let middleware = if let FindContextFileResult::Found(..) = *middleware.await? {
             Some(Middleware {
-                endpoint: self.middleware_endpoint(),
+                endpoint: self.middleware_endpoint().to_resolved().await?,
             })
         } else {
             None
@@ -1145,8 +1145,8 @@ impl Project {
         let instrumentation = self.find_instrumentation();
         let instrumentation = if let FindContextFileResult::Found(..) = *instrumentation.await? {
             Some(Instrumentation {
-                node_js: self.instrumentation_endpoint(false),
-                edge: self.instrumentation_endpoint(true),
+                node_js: self.instrumentation_endpoint(false).to_resolved().await?,
+                edge: self.instrumentation_endpoint(true).to_resolved().await?,
             })
         } else {
             None

@@ -15,6 +15,7 @@ mod loadable_manifest;
 mod middleware;
 mod module_graph;
 mod nft_json;
+pub mod operation;
 mod pages;
 pub mod paths;
 pub mod project;
