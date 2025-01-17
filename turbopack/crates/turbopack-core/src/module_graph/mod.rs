@@ -1032,10 +1032,12 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                     refs.iter()
                         .flat_map(|(ty, modules)| modules.iter().map(|m| (ty.clone(), *m)))
                         .map(async |(ty, target)| {
-                            let to = if let Some(idx) = visited_modules.get(&target) {
-                                SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
-                            } else if ty == COMMON_CHUNKING_TYPE {
-                                SingleModuleGraphBuilderNode::new_module(target).await?
+                            let to = if ty == COMMON_CHUNKING_TYPE {
+                                if let Some(idx) = visited_modules.get(&target) {
+                                    SingleModuleGraphBuilderNode::new_visited_module(target, *idx)
+                                } else {
+                                    SingleModuleGraphBuilderNode::new_module(target).await?
+                                }
                             } else {
                                 SingleModuleGraphBuilderNode::new_chunkable_ref(module, target, ty)
                                     .await?
@@ -1047,7 +1049,14 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 }
                 (None, Some(chunkable_ref_target)) => {
                     vec![SingleModuleGraphBuilderEdge {
-                        to: SingleModuleGraphBuilderNode::new_module(chunkable_ref_target).await?,
+                        to: if let Some(idx) = visited_modules.get(&chunkable_ref_target) {
+                            SingleModuleGraphBuilderNode::new_visited_module(
+                                chunkable_ref_target,
+                                *idx,
+                            )
+                        } else {
+                            SingleModuleGraphBuilderNode::new_module(chunkable_ref_target).await?
+                        },
                     }]
                 }
                 _ => unreachable!(),
