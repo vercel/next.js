@@ -122,6 +122,7 @@ pub async fn make_chunks(
                 // Production chunking
                 make_production_chunks(chunk_items, module_graph, split_context).await?;
             } else {
+                // Development chunking
                 if !*ty.must_keep_item_order().await? {
                     app_vendors_split(
                         chunk_items,

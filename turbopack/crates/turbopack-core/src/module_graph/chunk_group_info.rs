@@ -62,7 +62,7 @@ impl DerefMut for RoaringBitmapWrapper {
 impl Hash for RoaringBitmapWrapper {
     fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
         struct HasherWriter<'a, H: std::hash::Hasher>(&'a mut H);
-        impl<'a, H: std::hash::Hasher> std::io::Write for HasherWriter<'a, H> {
+        impl<H: std::hash::Hasher> std::io::Write for HasherWriter<'_, H> {
             fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
                 self.0.write(buf);
                 Ok(buf.len())
