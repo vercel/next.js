@@ -32,10 +32,6 @@ pub struct EntrypointsOperation {
 }
 
 /// HACK: Wraps an `OperationVc<Entrypoints>` inside of a second `OperationVc`.
-///
-/// When `CollectiblesSource::take_collectibles` happens, it in-place *mutates* the `OperationVc`,
-/// which isn't what we want in `entrypoints_without_diagnostics_operation`. Instead we want a *new*
-/// `OperationVc` without diagnostics. This creates that new `OperationVc` to be mutated.
 #[turbo_tasks::function(operation)]
 fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints> {
     entrypoints.connect()
