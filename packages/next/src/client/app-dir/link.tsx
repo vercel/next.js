@@ -156,11 +156,6 @@ function mountLinkInstance(
   router: AppRouterInstance,
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 ) {
-  // Element could be possible undefined which leads to failed on later
-  // WeakMap and IntersectionObserver operations.
-  if (!element) {
-    return
-  }
   let prefetchUrl: URL | null = null
   try {
     prefetchUrl = createPrefetchURL(href)
@@ -645,12 +640,18 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     // currently mounted <Link> instances, e.g. so we can re-prefetch them after
     // a revalidation or refresh.
     const observeLinkVisibilityOnMount = React.useCallback(
-      (element: HTMLAnchorElement | SVGAElement) => {
+      (element: HTMLAnchorElement | SVGAElement | null) => {
         if (prefetchEnabled && router !== null) {
-          mountLinkInstance(element, href, router, appPrefetchKind)
+          // The useMergedRef could return null
+          if (element) {
+            mountLinkInstance(element, href, router, appPrefetchKind)
+          }
         }
         return () => {
-          unmountLinkInstance(element)
+          // The useMergedRef could return null
+          if (element) {
+            unmountLinkInstance(element)
+          }
         }
       },
       [prefetchEnabled, href, router, appPrefetchKind]
