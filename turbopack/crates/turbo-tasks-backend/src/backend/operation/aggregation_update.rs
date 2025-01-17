@@ -1998,7 +1998,7 @@ impl AggregationUpdateQueue {
             }
         }
 
-        if aggregation_number.effective != new_aggregation_number {
+        if aggregation_number.effective < new_aggregation_number {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!(
                 "optimize",
