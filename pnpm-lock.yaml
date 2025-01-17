@@ -4,31 +4,6 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
-overrides:
-  webpack: 5.96.1
-  browserslist: 4.22.2
-  caniuse-lite: 1.0.30001579
-  '@types/node': 20.17.6
-  '@babel/core': 7.22.5
-  '@babel/parser': 7.22.5
-  '@babel/types': 7.22.5
-  '@babel/traverse': 7.22.5
-  '@types/react': 19.0.0
-  '@types/react-dom': 19.0.0
-  jest-snapshot: 30.0.0-alpha.6
-  react: 19.1.0-canary-5b51a2b9-20250116
-  react-dom: 19.1.0-canary-5b51a2b9-20250116
-  react-is: 19.1.0-canary-5b51a2b9-20250116
-  scheduler: 0.26.0-canary-5b51a2b9-20250116
-
-patchedDependencies:
-  '@storybook/react@8.4.7':
-    hash: 3vtnbaj5dhujyrhznezprlo624
-    path: patches/@storybook__react@8.4.7.patch
-  webpack-sources@3.2.3:
-    hash: jbynf5dc46ambamq3wuyho6hkq
-    path: patches/webpack-sources@3.2.3.patch
-
 importers:
 
   .:
@@ -588,6 +563,12 @@ importers:
       yargs:
         specifier: 16.2.0
         version: 16.2.0
+
+  bench-test:
+    dependencies:
+      lucide-react:
+        specifier: ^0.383.0
+        version: 0.383.0(react@19.1.0-canary-f0edf41e-20250115)
 
   bench/app-router-server:
     dependencies:
@@ -11081,7 +11062,7 @@ packages:
   lucide-react@0.383.0:
     resolution: {integrity: sha512-13xlG0CQCJtzjSQYwwJ3WRqMHtRj3EXmLlorrARt7y+IHnxUCp3XyFNL1DfaGySWxHObDvnu1u1dV+0VMKHUSg==}
     peerDependencies:
-      react: 19.1.0-canary-5b51a2b9-20250116
+      react: ^16.5.1 || ^17.0.0 || ^18.0.0
 
   lz-string@1.5.0:
     resolution: {integrity: sha512-h5bgJWpxJNswbU7qCrV0tIKQCaS3blPDrqKWx+QxzuzL1zGUzij9XCWLrSLsJPu5t+eWA/ycetzYAO5IOMcWAQ==}
