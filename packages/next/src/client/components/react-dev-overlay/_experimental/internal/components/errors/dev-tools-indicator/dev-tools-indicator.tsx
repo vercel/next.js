@@ -36,14 +36,12 @@ export function DevToolsIndicator({
     isDevToolsIndicatorOpen && (
       <DevToolsPopover
         semver={state.versionInfo.installed}
-        onIssuesClick={() => {
-          setIsErrorOverlayOpen(true)
-        }}
         issueCount={readyErrorsLength}
         isStaticRoute={state.staticIndicator}
         hide={() => {
           setIsDevToolsIndicatorOpen(false)
         }}
+        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
         isTurbopack={!!process.env.TURBOPACK}
       />
     )
@@ -54,19 +52,19 @@ const ANIMATE_OUT_DURATION_MS = 200
 const ANIMATE_OUT_TIMING_FUNCTION = 'cubic-bezier(0.175, 0.885, 0.32, 1.1)'
 
 const DevToolsPopover = ({
-  onIssuesClick,
   issueCount,
   isStaticRoute,
-  hide,
   semver,
   isTurbopack,
+  hide,
+  setIsErrorOverlayOpen,
 }: {
-  onIssuesClick: () => void
   issueCount: number
   isStaticRoute: boolean
-  hide: () => void
   semver: string | undefined
   isTurbopack: boolean
+  hide: () => void
+  setIsErrorOverlayOpen: (value: boolean) => void
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLDivElement>(null)
@@ -174,7 +172,9 @@ const DevToolsPopover = ({
               <IndicatorRow
                 label="Issues"
                 value={<IssueCount count={issueCount} />}
-                onClick={issueCount > 0 ? onIssuesClick : undefined}
+                onClick={
+                  issueCount > 0 ? () => setIsErrorOverlayOpen(true) : undefined
+                }
               />
             </div>
           </div>
