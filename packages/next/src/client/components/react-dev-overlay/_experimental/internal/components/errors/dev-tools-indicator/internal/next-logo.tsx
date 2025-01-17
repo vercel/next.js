@@ -8,6 +8,8 @@ interface Props extends React.ComponentProps<'button'> {
   isDevRendering: boolean
 }
 
+const SIZE = 36
+
 export const NextLogo = ({
   issueCount,
   onClick,
@@ -16,23 +18,10 @@ export const NextLogo = ({
   ...props
 }: Props) => {
   const hasError = issueCount > 0
-
-  const ref = useRef<HTMLDivElement>(null)
   const [isLoading, setIsLoading] = useState(false)
-  const [error, setError] = useState(true)
-  const [width, setWidth] = useState()
 
-  // bind to F key
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'f') {
-        setError((e) => !e)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [])
+  const ref = useRef<HTMLDivElement | null>(null)
+  const width = useMeasureWidth(ref)
 
   // Only shows the loading state after a 200ms delay when building or rendering,
   // to avoid flashing the loading state for quick updates
@@ -47,7 +36,211 @@ export const NextLogo = ({
     }
   }, [isDevBuilding, isDevRendering])
 
-  // measure width of an element ref
+  return (
+    <>
+      {/* Styles */}
+      <style>
+        {css`
+          [data-next-badge] {
+            --timing: cubic-bezier(0.175, 0.5, 0.32, 1.1);
+            --duration: 300ms;
+            --color-outer-border: #171717;
+            --color-inner-border: hsla(0, 0%, 100%, 0.14);
+            --color-hover-alpha: hsla(0, 0%, 100%, 0.14);
+            --color-hover-alpha-2: hsla(0, 0%, 100%, 0.23);
+            --padding: 2px;
+            --mark-size: calc(var(--size) - var(--padding) * 2);
+
+            -webkit-font-smoothing: antialiased;
+            width: var(--size);
+            height: var(--size);
+            display: flex;
+            align-items: center;
+            position: relative;
+            background: rgba(0, 0, 0, 0.8);
+            box-shadow:
+              0 0 0 1px var(--color-outer-border),
+              inset 0 0 0 1px var(--color-inner-border),
+              0px 16px 32px -8px rgba(0, 0, 0, 0.24);
+            backdrop-filter: blur(48px);
+            border-radius: 9999px;
+            user-select: none;
+            cursor: pointer;
+            scale: 1;
+            overflow: hidden;
+            transition:
+              scale 150ms var(--timing),
+              width 250ms var(--timing),
+              background 150ms ease;
+
+            &:active:not([data-error='true']) {
+              scale: 0.95;
+            }
+
+            &[data-error='true'] {
+              background: #ca2a30;
+              --color-inner-border: #e5484d;
+
+              [data-next-mark] {
+                background: var(--color-hover-alpha);
+
+                &:hover {
+                  background: var(--color-hover-alpha-2);
+                }
+              }
+            }
+
+            > div {
+              display: flex;
+            }
+          }
+
+          [data-issues] {
+            display: flex;
+            gap: var(--padding);
+            align-items: center;
+            padding-left: 8px;
+            padding-right: calc(var(--padding) * 2);
+            height: 32px;
+            margin: 0 var(--padding);
+            border-radius: 9999px;
+            transition: background 150ms ease;
+
+            &:has([data-issues-open]:hover) {
+              background: var(--color-hover-alpha);
+            }
+
+            [data-cross] {
+              translate: 0 -1px;
+            }
+          }
+
+          [data-issues-open] {
+            font-size: 13px;
+            color: white;
+            width: fit-content;
+            height: 100%;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            margin: 0;
+            line-height: 36px;
+            font-weight: 500;
+            z-index: 2;
+            white-space: nowrap;
+          }
+
+          [data-issues-close] {
+            width: 24px;
+            height: 24px;
+            border-radius: 9999px;
+            transition: background 150ms ease;
+
+            &:hover {
+              background: var(--color-hover-alpha);
+            }
+          }
+
+          [data-next-mark] {
+            width: var(--mark-size);
+            height: var(--mark-size);
+            margin-left: var(--padding);
+            display: flex;
+            align-items: center;
+            border-radius: 9999px;
+            transition: background var(--duration) var(--timing);
+
+            svg {
+              flex-shrink: 0;
+            }
+          }
+
+          .path0 {
+            animation: draw0 1.5s ease-in-out infinite;
+          }
+
+          .path1 {
+            animation: draw1 1.5s ease-out infinite;
+            animation-delay: 0.3s;
+          }
+
+          .paused {
+            stroke-dashoffset: 0;
+          }
+
+          @keyframes draw0 {
+            0%,
+            25% {
+              stroke-dashoffset: -29.6;
+            }
+            25%,
+            50% {
+              stroke-dashoffset: 0;
+            }
+            50%,
+            75% {
+              stroke-dashoffset: 0;
+            }
+            75%,
+            100% {
+              stroke-dashoffset: 29.6;
+            }
+          }
+
+          @keyframes draw1 {
+            0%,
+            20% {
+              stroke-dashoffset: -11.6;
+            }
+            20%,
+            50% {
+              stroke-dashoffset: 0;
+            }
+            50%,
+            75% {
+              stroke-dashoffset: 0;
+            }
+            75%,
+            100% {
+              stroke-dashoffset: 11.6;
+            }
+          }
+        `}
+      </style>
+      <div
+        data-next-badge
+        data-error={hasError}
+        style={
+          {
+            width: hasError && width > SIZE ? width : SIZE,
+            '--size': `${SIZE}px`,
+          } as React.CSSProperties
+        }
+      >
+        <div ref={ref}>
+          {/* Children */}
+          <button data-next-mark onClick={onClick} {...props}>
+            <NextMark isLoading={isLoading} />
+          </button>
+          {hasError && (
+            <div data-issues>
+              <button data-issues-open aria-label="Open errors overlay">
+                {issueCount} {issueCount === 1 ? 'Issue' : 'Issues'}
+              </button>
+              <button data-issues-close aria-label="Clear errors">
+                <Cross />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </>
+  )
+}
+
+function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
+  const [width, setWidth] = useState<number>(0)
+
   useEffect(() => {
     const el = ref.current
 
@@ -62,219 +255,13 @@ export const NextLogo = ({
 
     observer.observe(el)
     return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  return (
-    <>
-      <div data-next-badge data-error={error} style={{ width }}>
-        {/* Styles */}
-        <style>
-          {css`
-            [data-next-badge] {
-              --bezier: cubic-bezier(0.175, 0.5, 0.32, 1.1);
-              --color-outer-border: #171717;
-              --color-inner-border: hsla(0, 0%, 100%, 0.14);
-              --color-hover-alpha: hsla(0, 0%, 100%, 0.14);
-              --color-hover-alpha-2: hsla(0, 0%, 100%, 0.23);
-              --padding: 2px;
-              --size: 36px;
-              --mark-size: calc(var(--size) - var(--padding) * 2);
-
-              -webkit-font-smoothing: antialiased;
-              width: var(--size);
-              height: var(--size);
-              display: flex;
-              align-items: center;
-              position: relative;
-              background: rgba(0, 0, 0, 0.8);
-              box-shadow:
-                0 0 0 1px var(--color-outer-border),
-                inset 0 0 0 1px var(--color-inner-border),
-                0px 16px 32px -8px rgba(0, 0, 0, 0.24);
-              backdrop-filter: blur(48px);
-              border-radius: 9999px;
-              user-select: none;
-              cursor: pointer;
-              scale: 1;
-              overflow: hidden;
-              transition:
-                scale 150ms var(--bezier),
-                width 250ms var(--bezier),
-                background 150ms var(--bezier);
-
-              &:active:not([data-error='true']) {
-                scale: 0.95;
-              }
-
-              &[data-error='true'] {
-                width: auto;
-                background: #ca2a30;
-                --color-inner-border: #e5484d;
-
-                [data-next-mark] {
-                  background: var(--color-hover-alpha);
-
-                  &:hover {
-                    background: var(--color-hover-alpha-2);
-                  }
-                }
-              }
-            }
-
-            [data-issues] {
-              display: flex;
-              gap: var(--padding);
-              align-items: center;
-              padding-left: 8px;
-              padding-right: calc(var(--padding) * 2);
-              height: 32px;
-              margin: 0 var(--padding);
-              border-radius: 9999px;
-              transition:
-                background 300ms var(--bezier),
-                translate 300ms var(--bezier);
-
-              &:has([data-issues-open]:hover) {
-                background: var(--color-hover-alpha);
-              }
-
-              [data-cross] {
-                translate: 0 -1px;
-              }
-            }
-
-            [data-issues-open] {
-              font-size: 13px;
-              color: white;
-              width: fit-content;
-              height: 100%;
-              display: flex;
-              gap: 8px;
-              align-items: center;
-              margin: 0;
-              line-height: 36px;
-              font-weight: 500;
-              z-index: 2;
-              white-space: nowrap;
-            }
-
-            [data-issues-close] {
-              width: 24px;
-              height: 24px;
-              border-radius: 9999px;
-
-              &:hover {
-                background: var(--color-hover-alpha);
-              }
-            }
-
-            [data-next-mark] {
-              width: var(--mark-size);
-              height: var(--mark-size);
-              margin-left: var(--padding);
-              display: flex;
-              align-items: center;
-              border-radius: 9999px;
-              transition: background 300ms var(--bezier);
-
-              svg {
-                flex-shrink: 0;
-              }
-            }
-
-            .path0 {
-              animation: draw0 1.5s ease-in-out infinite;
-            }
-
-            .path1 {
-              animation: draw1 1.5s ease-out infinite;
-              animation-delay: 0.3s;
-            }
-
-            .paused {
-              stroke-dashoffset: 0;
-            }
-
-            @keyframes draw0 {
-              0%,
-              25% {
-                stroke-dashoffset: -29.6;
-              }
-              25%,
-              50% {
-                stroke-dashoffset: 0;
-              }
-              50%,
-              75% {
-                stroke-dashoffset: 0;
-              }
-              75%,
-              100% {
-                stroke-dashoffset: 29.6;
-              }
-            }
-
-            @keyframes draw1 {
-              0%,
-              20% {
-                stroke-dashoffset: -11.6;
-              }
-              20%,
-              50% {
-                stroke-dashoffset: 0;
-              }
-              50%,
-              75% {
-                stroke-dashoffset: 0;
-              }
-              75%,
-              100% {
-                stroke-dashoffset: 11.6;
-              }
-            }
-          `}
-        </style>
-        {/* Children */}
-        <button data-next-mark onClick={onClick} {...props}>
-          <NextMark isLoading={isLoading} />
-        </button>
-        {hasError && (
-          <div data-issues>
-            <button data-issues-open aria-label="Open errors overlay">
-              {issueCount} {issueCount === 1 ? 'Issue' : 'Issues'}
-            </button>
-            <button data-issues-close aria-label="Clear errors">
-              <Cross />
-            </button>
-          </div>
-        )}
-      </div>
-      <div
-        ref={ref}
-        data-next-badge
-        data-error={error}
-        style={{ opacity: 0, position: 'absolute' }}
-      >
-        {/* Children */}
-        <button data-next-mark onClick={onClick} {...props}>
-          <NextMark isLoading={isLoading} />
-        </button>
-        {hasError && (
-          <div data-issues>
-            <button data-issues-open aria-label="Open errors overlay">
-              {issueCount} {issueCount === 1 ? 'Issue' : 'Issues'}
-            </button>
-            <button data-issues-close aria-label="Clear errors">
-              <Cross />
-            </button>
-          </div>
-        )}
-      </div>
-    </>
-  )
+  return width
 }
 
-function NextMark({ isLoading, style }: { isLoading?: boolean }) {
+function NextMark({ isLoading }: { isLoading?: boolean }) {
   return (
     <svg width="40" height="40" viewBox="0 0 40 40" fill="none">
       <g transform="translate(8.5, 13)">
