@@ -26,6 +26,7 @@ import { createInitialRouterState } from './components/router-reducer/create-ini
 import { MissingSlotContext } from '../shared/lib/app-router-context.shared-runtime'
 import { setAppBuildId } from './app-build-id'
 import { shouldRenderRootLevelErrorOverlay } from './lib/is-error-thrown-while-rendering-rsc'
+import { handleClientError } from './components/errors/use-error-handler'
 
 /// <reference types="react-dom/experimental" />
 
@@ -229,6 +230,16 @@ function Root({ children }: React.PropsWithChildren<{}>) {
     }, [])
   }
 
+  if (process.env.NODE_ENV !== 'production') {
+    const ssrError = devQueueSsrError()
+    // eslint-disable-next-line react-hooks/rules-of-hooks
+    React.useEffect(() => {
+      if (ssrError) {
+        handleClientError(ssrError, [])
+      }
+    }, [ssrError])
+  }
+
   return children
 }
 
@@ -281,5 +292,20 @@ export function hydrate() {
     const { linkGc } =
       require('./app-link-gc') as typeof import('./app-link-gc')
     linkGc()
+  }
+}
+
+function devQueueSsrError(): Error | undefined {
+  const ssrErrorTemplateTag = document.querySelector(
+    'template[data-next-error-message]'
+  )
+  if (ssrErrorTemplateTag) {
+    const message: string = ssrErrorTemplateTag.getAttribute(
+      'data-next-error-message'
+    )!
+    const stack = ssrErrorTemplateTag.getAttribute('data-next-error-stack')
+    const error = new Error(message)
+    error.stack = stack || ''
+    return error
   }
 }
