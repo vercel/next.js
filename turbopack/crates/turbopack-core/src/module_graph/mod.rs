@@ -7,7 +7,7 @@ use std::{
 use anyhow::{bail, Context, Result};
 use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
-    visit::{Dfs, EdgeRef, VisitMap, Visitable},
+    visit::{Dfs, EdgeRef, IntoNodeReferences, VisitMap, Visitable},
 };
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
@@ -287,9 +287,7 @@ impl SingleModuleGraph {
     pub fn enumerate_nodes(
         &self,
     ) -> impl Iterator<Item = (NodeIndex, &'_ SingleModuleGraphNode)> + '_ {
-        self.graph
-            .node_indices()
-            .map(move |idx| (idx, self.graph.node_weight(idx).unwrap()))
+        self.graph.node_references()
     }
 
     /// Traverses all reachable nodes (once)
