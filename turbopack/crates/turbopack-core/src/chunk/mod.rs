@@ -97,6 +97,14 @@ pub trait ChunkableModule: Module + Asset {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
 
+#[turbo_tasks::value_impl]
+impl ChunkableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct Chunks(Vec<ResolvedVc<Box<dyn Chunk>>>);
 

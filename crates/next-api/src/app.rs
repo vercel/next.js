@@ -55,8 +55,8 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkableModules, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
@@ -1559,9 +1559,9 @@ impl AppEndpoint {
                             .server_utils
                             .iter()
                             .map(|m| async move {
-                                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
+                                Ok(*ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
                                     .await?
-                                    .context("Expected server utils to be chunkable")
+                                    .context("Expected server utils to be chunkable")?)
                             })
                             .try_join()
                             .await?;
@@ -1569,7 +1569,7 @@ impl AppEndpoint {
                             .chunk_group_multiple(
                                 AssetIdent::from_path(this.app_project.project().project_path())
                                     .with_modifier(server_utils_modifier()),
-                                Vc::cell(server_utils),
+                                ChunkableModules::interned(server_utils),
                                 module_graph,
                                 Value::new(current_availability_info),
                             )
