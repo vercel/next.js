@@ -1107,11 +1107,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
-                    registry::get_function(*fn_type).span(task_id),
+                    registry::get_function(*fn_type).span(task_id.persistence()),
                     registry::get_function(*fn_type).execute(*this, &**arg),
                 ),
                 CachedTaskType::ResolveNative { fn_type, .. } => {
-                    let span = registry::get_function(*fn_type).resolve_span(task_id);
+                    let span = registry::get_function(*fn_type).resolve_span(task_id.persistence());
                     let turbo_tasks = turbo_tasks.pin();
                     (
                         span,
