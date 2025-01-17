@@ -9,6 +9,7 @@ import { isDynamicServerError } from '../../client/components/hooks-server-conte
 import { isNextRouterError } from '../../client/components/is-next-router-error'
 import { getProperError } from '../../lib/is-error'
 import { createDigestWithErrorCode } from '../../lib/error-telemetry-utils'
+import { getErrorCause } from '../../lib/helpers/get-error-cause'
 
 declare global {
   var __next_log_error__: undefined | ((err: unknown) => void)
@@ -28,6 +29,8 @@ export type DigestedError = Error & { digest: string }
  * reported.
  */
 export function getDigestForWellKnownError(error: unknown): string | undefined {
+  error = getErrorCause(error)
+
   // If we're bailing out to CSR, we don't need to log the error.
   if (isBailoutToCSRError(error)) return error.digest
 

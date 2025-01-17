@@ -183,6 +183,7 @@ import {
   createRenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
+import { getErrorCause } from '../../lib/helpers/get-error-cause'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -3779,7 +3780,8 @@ async function prerenderToStream(
         collectedTags: prerenderLegacyStore.tags,
       }
     }
-  } catch (err) {
+  } catch (originalErr) {
+    const err = getErrorCause(originalErr)
     if (
       isStaticGenBailoutError(err) ||
       (typeof err === 'object' &&
@@ -3815,7 +3817,7 @@ async function prerenderToStream(
     // If we errored when we did not have an RSC stream to read from. This is
     // not just a render error, we need to throw early.
     if (reactServerPrerenderResult === null) {
-      throw err
+      throw originalErr
     }
 
     let errorType: MetadataErrorType | 'redirect' | undefined
