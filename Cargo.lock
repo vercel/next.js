@@ -9808,6 +9808,7 @@ dependencies = [
  "anyhow",
  "indexmap 2.5.0",
  "indoc",
+ "rustc-hash 1.1.0",
  "serde",
  "tracing",
  "turbo-rcstr",
