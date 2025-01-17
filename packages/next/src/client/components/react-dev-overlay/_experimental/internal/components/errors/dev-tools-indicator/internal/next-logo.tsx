@@ -17,11 +17,24 @@ export const NextLogo = ({
   isDevRendering,
   ...props
 }: Props) => {
-  const hasError = issueCount > 0
+  const [hasError, setError] = useState(false)
+  // const hasError = issueCount > 0
   const [isLoading, setIsLoading] = useState(false)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const width = useMeasureWidth(ref)
+  // bind to F key
+
+  useEffect(() => {
+    const handleKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'f') {
+        setError((e) => !e)
+      }
+    }
+
+    window.addEventListener('keydown', handleKeydown)
+    return () => window.removeEventListener('keydown', handleKeydown)
+  }, [onClick])
 
   // Only shows the loading state after a 200ms delay when building or rendering,
   // to avoid flashing the loading state for quick updates
@@ -42,7 +55,7 @@ export const NextLogo = ({
       <style>
         {css`
           [data-next-badge] {
-            --timing: cubic-bezier(0.175, 0.42, 0.32, 1.1);
+            --timing: cubic-bezier(0.5, 0.36, 0.25, 1.1);
             --duration: 300ms;
             --color-outer-border: #171717;
             --color-inner-border: hsla(0, 0%, 100%, 0.14);
@@ -71,6 +84,7 @@ export const NextLogo = ({
             transition:
               scale 150ms var(--timing),
               width 250ms var(--timing),
+              box-shadow 250ms var(--timing),
               background 150ms ease;
 
             &:active:not([data-error='true']) {
