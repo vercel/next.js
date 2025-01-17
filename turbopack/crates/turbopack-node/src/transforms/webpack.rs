@@ -1,4 +1,4 @@
-use std::mem::take;
+use std::{borrow::Cow, mem::take};
 
 use anyhow::{bail, Context, Result};
 use async_trait::async_trait;
@@ -220,7 +220,19 @@ impl WebpackLoadersProcessedAsset {
             }
             .cell());
         };
-        let content = content.content().to_str()?;
+
+        // If the content is not a valid string (e.g. binary file), handle the error and return
+        // an empty string so the build process doesn't crash. e.g.
+        //      - failed to convert rope into string
+        //      - invalid utf-8 sequence of 1 bytes from index 35
+        // TODO Support Webpack "raw" option to pass content as raw bytes.
+        let content = match content.content().to_str() {
+            Ok(string) => string,
+            Err(_) => {
+                eprintln!("Failed to convert content to string.");
+                Cow::Borrowed("")
+            }
+        };
         let evaluate_context = transform.evaluate_context;
 
         let webpack_loaders_executor = webpack_loaders_executor(*evaluate_context)
