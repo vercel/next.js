@@ -224,10 +224,10 @@ export const NextLogo = ({
           </button>
           {hasError && (
             <div data-issues>
-              <button data-issues-open aria-label="Open errors overlay">
+              <button data-issues-open aria-label="Open issues overlay">
                 {issueCount} {issueCount === 1 ? 'Issue' : 'Issues'}
               </button>
-              <button data-issues-close aria-label="Clear errors">
+              <button data-issues-close aria-label="Clear issues">
                 <Cross />
               </button>
             </div>
