@@ -731,6 +731,11 @@ impl AppProject {
         extra_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
+        let extra_entries = extra_entries
+            .await?
+            .into_iter()
+            .map(|m| *ResolvedVc::upcast(*m));
+
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
@@ -742,10 +747,6 @@ impl AppProject {
                         server_component_entries,
                     } = &*find_server_entries(*rsc_entry).await?;
 
-                    let extra_entries = extra_entries
-                        .await?
-                        .into_iter()
-                        .map(|m| *ResolvedVc::upcast(*m));
                     let graph = SingleModuleGraph::new_with_entries_visited(
                         server_utils
                             .iter()
@@ -779,7 +780,12 @@ impl AppProject {
                     }
                     visited_modules
                 } else {
-                    VisitedModules::empty()
+                    let graph = SingleModuleGraph::new_with_entries_visited(
+                        extra_entries.collect::<_>(),
+                        VisitedModules::empty(),
+                    );
+                    graphs.push(graph);
+                    VisitedModules::from_graph(graph)
                 };
 
                 let graph =
