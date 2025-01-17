@@ -156,6 +156,11 @@ function mountLinkInstance(
   router: AppRouterInstance,
   kind: PrefetchKind.AUTO | PrefetchKind.FULL
 ) {
+  // Element could be possible undefined which leads to failed on later
+  // WeakMap and IntersectionObserver operations.
+  if (!element) {
+    return
+  }
   let prefetchUrl: URL | null = null
   try {
     prefetchUrl = createPrefetchURL(href)
@@ -193,11 +198,9 @@ function mountLinkInstance(
     // case there's a logical error somewhere else.
     unmountLinkInstance(element)
   }
-  if (element) {
-    links.set(element, instance)
-    if (observer !== null) {
-      observer.observe(element)
-    }
+  links.set(element, instance)
+  if (observer !== null) {
+    observer.observe(element)
   }
 }
 
