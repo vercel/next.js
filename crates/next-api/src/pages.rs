@@ -941,7 +941,7 @@ impl PageEndpoint {
             )) = next_dynamic_imports
             {
                 collect_next_dynamic_chunks(
-                    module_graph,
+                    self.client_module_graph(),
                     Vc::upcast(project.client_chunking_context()),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
