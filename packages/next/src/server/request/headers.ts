@@ -158,17 +158,17 @@ function makeDynamicallyTrackedExoticHeaders(
     '`headers()`'
   )
 
-  const capturedError = new Error()
-  Error.captureStackTrace(capturedError, headers)
-
   const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
+    get: function get(target, prop, receiver) {
       if (Object.hasOwn(promise, prop)) {
         // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
         // that was previously written to the promise and thus not an underlying searchParam value
         return ReflectAdapter.get(target, prop, receiver)
       }
+
+      const capturedError = new Error()
+      Error.captureStackTrace(capturedError, get)
 
       switch (prop) {
         case 'then': {
