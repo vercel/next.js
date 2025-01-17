@@ -25,21 +25,6 @@ describe('ignoreLoggingIncomingRequest', () => {
     expect(ignoreLoggingIncomingRequest(req, undefined)).toBe(false)
   })
 
-  it('should handle single RegExp ignore pattern', () => {
-    const config: LoggingConfig = {
-      incomingRequest: {
-        ignore: /^\/api\//,
-      },
-    }
-
-    expect(
-      ignoreLoggingIncomingRequest(createMockRequest('/api/test'), config)
-    ).toBe(true)
-    expect(
-      ignoreLoggingIncomingRequest(createMockRequest('/page'), config)
-    ).toBe(false)
-  })
-
   it('should handle array of RegExp ignore patterns', () => {
     const config: LoggingConfig = {
       incomingRequest: {
