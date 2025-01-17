@@ -5,7 +5,9 @@ use turbo_tasks::{
     FxIndexMap, ResolvedVc, TryFlatJoinIterExt, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbopack_core::{
-    chunk::{availability_info::AvailabilityInfo, ChunkingContext, ChunkingContextExt},
+    chunk::{
+        availability_info::AvailabilityInfo, ChunkableModules, ChunkingContext, ChunkingContextExt,
+    },
     module::Module,
     module_graph::ModuleGraph,
     output::OutputAssets,
@@ -189,7 +191,7 @@ pub async fn get_app_client_references_chunks(
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
 
-                                Some(ResolvedVc::upcast(
+                                Some(*ResolvedVc::upcast(
                                     ecmascript_client_reference_ref.ssr_module,
                                 ))
                             }
@@ -209,7 +211,7 @@ pub async fn get_app_client_references_chunks(
 
                         ssr_chunking_context.chunk_group_multiple(
                             base_ident.with_modifier(ssr_modules_modifier()),
-                            Vc::cell(ssr_modules),
+                            ChunkableModules::interned(ssr_modules),
                             module_graph,
                             Value::new(current_ssr_availability_info),
                         )
@@ -227,10 +229,10 @@ pub async fn get_app_client_references_chunks(
                             ) => {
                                 let ecmascript_client_reference_ref =
                                     ecmascript_client_reference.await?;
-                                ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
+                                *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
                             }
                             ClientReferenceType::CssClientReference(css_module) => {
-                                ResolvedVc::upcast(*css_module)
+                                *ResolvedVc::upcast(*css_module)
                             }
                         })
                     })
@@ -245,7 +247,7 @@ pub async fn get_app_client_references_chunks(
 
                     Some(client_chunking_context.chunk_group_multiple(
                         base_ident.with_modifier(client_modules_modifier()),
-                        Vc::cell(client_modules),
+                        ChunkableModules::interned(client_modules),
                         module_graph,
                         Value::new(current_client_availability_info),
                     ))
