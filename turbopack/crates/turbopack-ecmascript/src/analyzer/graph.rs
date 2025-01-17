@@ -1229,8 +1229,9 @@ impl Analyzer<'_> {
             match early_return {
                 EarlyReturn::Always {
                     prev_effects,
-                    start_ast_path,
+                    mut start_ast_path,
                 } => {
+                    start_ast_path.shrink_to_fit();
                     self.effects = prev_effects;
                     self.effects.push(Effect::Unreachable {
                         start_ast_path: start_ast_path.into_boxed_slice(),
