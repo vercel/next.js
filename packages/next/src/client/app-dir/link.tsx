@@ -195,9 +195,9 @@ function mountLinkInstance(
   }
   if (element) {
     links.set(element, instance)
-  }
-  if (observer !== null) {
-    observer.observe(element)
+    if (observer !== null) {
+      observer.observe(element)
+    }
   }
 }
 
