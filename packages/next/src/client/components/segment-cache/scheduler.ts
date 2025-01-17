@@ -91,9 +91,14 @@ export type PrefetchTask = {
   hasBackgroundWork: boolean
 
   /**
-   * True if the prefetch was cancelled.
+   * True if the prefetch is blocked by network data. We remove tasks from the
+   * queue once they are blocked, and add them back when they receive data.
+   *
+   * isBlocked also indicates whether the task is currently in the queue; tasks
+   * are removed from the queue when they are blocked. Use this to avoid
+   * queueing the same task multiple times.
    */
-  isCanceled: boolean
+  isBlocked: boolean
 
   /**
    * The index of the task in the heap's backing array. Used to efficiently
@@ -101,8 +106,6 @@ export type PrefetchTask = {
    * where it is in the array. This is only used internally by the heap
    * algorithm. The naive alternative is indexOf every time a task is queued,
    * which has O(n) complexity.
-   *
-   * We also use this field to check whether a task is currently in the queue.
    */
   _heapIndex: number
 }
@@ -182,9 +185,8 @@ let didScheduleMicrotask = false
 export function schedulePrefetchTask(
   key: RouteCacheKey,
   treeAtTimeOfPrefetch: FlightRouterState,
-  includeDynamicData: boolean,
-  priority: PrefetchPriority
-): PrefetchTask {
+  includeDynamicData: boolean
+): void {
   // Spawn a new prefetch task
   const task: PrefetchTask = {
     key,
@@ -193,7 +195,7 @@ export function schedulePrefetchTask(
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
-    isCanceled: false,
+    isBlocked: false,
     _heapIndex: -1,
   }
   heapPush(taskHeap, task)
@@ -205,46 +207,6 @@ export function schedulePrefetchTask(
   // By deferring to a microtask, we only process the queue once per JS task.
   // If they have different priorities, it also ensures they are processed in
   // the optimal order.
-  ensureWorkIsScheduled()
-
-  return task
-}
-
-export function cancelPrefetchTask(task: PrefetchTask): void {
-  // Remove the prefetch task from the queue. If the task already completed,
-  // then this is a no-op.
-  //
-  // We must also explicitly mark the task as canceled so that a blocked task
-  // does not get added back to the queue when it's pinged by the network.
-  task.isCanceled = true
-  heapDelete(taskHeap, task)
-}
-
-export function bumpPrefetchTask(
-  task: PrefetchTask,
-  priority: PrefetchPriority
-): void {
-  // Bump the prefetch task to the top of the queue, as if it were a fresh
-  // task. This is essentially the same as canceling the task and scheduling
-  // a new one, except it reuses the original object.
-  //
-  // The primary use case is to increase the priority of a Link-initated
-  // prefetch on hover.
-
-  // Un-cancel the task, in case it was previously canceled.
-  task.isCanceled = false
-
-  // Assign a new sort ID to move it ahead of all other tasks at the same
-  // priority level. (Higher sort IDs are processed first.)
-  task.sortId = sortIdCounter++
-  task.priority = priority
-
-  if (task._heapIndex !== -1) {
-    // The task is already in the queue.
-    heapResift(taskHeap, task)
-  } else {
-    heapPush(taskHeap, task)
-  }
   ensureWorkIsScheduled()
 }
 
@@ -314,15 +276,12 @@ function onPrefetchConnectionClosed(): void {
  */
 export function pingPrefetchTask(task: PrefetchTask) {
   // "Ping" a prefetch that's already in progress to notify it of new data.
-  if (
-    // Check if prefetch was canceled.
-    task.isCanceled ||
-    // Check if prefetch is already queued.
-    task._heapIndex !== -1
-  ) {
+  if (!task.isBlocked) {
+    // Prefetch is already queued.
     return
   }
-  // Add the task back to the queue.
+  // Unblock the task and requeue it.
+  task.isBlocked = false
   heapPush(taskHeap, task)
   ensureWorkIsScheduled()
 }
@@ -354,8 +313,10 @@ function processQueueInMicrotask() {
       case PrefetchTaskExitStatus.Blocked:
         // The task is blocked. It needs more data before it can proceed.
         // Keep the task out of the queue until the server responds.
-        heapPop(taskHeap)
+        task.isBlocked = true
+
         // Continue to the next task
+        heapPop(taskHeap)
         task = heapPeek(taskHeap)
         continue
       case PrefetchTaskExitStatus.Done:
@@ -1108,6 +1069,7 @@ function heapPop(heap: Array<PrefetchTask>): PrefetchTask | null {
   return first
 }
 
+// @ts-ignore
 function heapDelete(heap: Array<PrefetchTask>, node: PrefetchTask): void {
   const index = node._heapIndex
   if (index !== -1) {
