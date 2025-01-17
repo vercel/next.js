@@ -92,14 +92,14 @@ pub async fn make_production_chunks(
                 break;
             }
 
-            span.record("chunks", &heap.len());
+            span.record("chunks", heap.len());
 
             let mut total_size = 0;
             for ChunkCandidate { chunk_items, size } in heap.into_iter() {
                 total_size += size;
                 make_chunk(chunk_items, &mut String::new(), &mut split_context).await?;
             }
-            span.record("total_size", &total_size);
+            span.record("total_size", total_size);
         }
 
         Ok(())
