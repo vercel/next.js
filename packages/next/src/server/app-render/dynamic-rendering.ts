@@ -709,28 +709,18 @@ export function throwIfDisallowedDynamic(
   }
 
   if (serverDynamic.isDebugDynamicAccesses) {
-    const debugErrors = createDynamicAccessDebugErrors(
+    for (const debugError of createDynamicAccessDebugErrors(
       serverDynamic.dynamicAccesses
-    )
-
-    if (debugErrors.length > 0) {
-      warn('The following dynamic usage was detected in server components:')
-      for (const debugError of debugErrors) {
-        warn(debugError)
-      }
+    )) {
+      warn(debugError)
     }
   }
 
   if (clientDynamic.isDebugDynamicAccesses) {
-    const debugErrors = createDynamicAccessDebugErrors(
+    for (const debugError of createDynamicAccessDebugErrors(
       clientDynamic.dynamicAccesses
-    )
-
-    if (debugErrors.length > 0) {
-      warn('The following dynamic usage was detected in client components:')
-      for (const debugError of debugErrors) {
-        warn(debugError)
-      }
+    )) {
+      warn(debugError)
     }
   }
 

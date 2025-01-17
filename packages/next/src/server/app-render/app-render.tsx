@@ -1341,13 +1341,10 @@ async function renderToHTMLOrFlightImpl(
       accessedDynamicData(response.dynamicAccess) &&
       renderOpts.isDebugDynamicAccesses
     ) {
-      const debugErrors = createDynamicAccessDebugErrors(response.dynamicAccess)
-
-      if (debugErrors.length > 0) {
-        warn('The following dynamic usage was detected:')
-        for (const debugError of debugErrors) {
-          warn(debugError)
-        }
+      for (const debugError of createDynamicAccessDebugErrors(
+        response.dynamicAccess
+      )) {
+        warn(debugError)
       }
     }
 
