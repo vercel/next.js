@@ -3280,6 +3280,9 @@ function readPreviousThenableFromState() {
       index
     );
 }
+function unsupportedRefresh() {
+  throw Error("Cache cannot be refreshed during server rendering.");
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3369,6 +3372,9 @@ var HooksDispatcher = {
       for (var data = Array(size), i = 0; i < size; i++)
         data[i] = REACT_MEMO_CACHE_SENTINEL;
       return data;
+    },
+    useCacheRefresh: function () {
+      return unsupportedRefresh;
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
@@ -6071,13 +6077,13 @@ function addToReplayParent(node, parentKeyPath, trackedPostpones) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_777 = React.version;
 if (
-  "19.1.0-experimental-f0edf41e-20250115" !==
+  "19.1.0-experimental-5b51a2b9-20250116" !==
   isomorphicReactPackageVersion$jscomp$inline_777
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_777 +
-        "\n  - react-dom:  19.1.0-experimental-f0edf41e-20250115\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.1.0-experimental-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -6168,4 +6174,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-experimental-f0edf41e-20250115";
+exports.version = "19.1.0-experimental-5b51a2b9-20250116";

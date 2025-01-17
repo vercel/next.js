@@ -99,7 +99,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "../../webpack-api-runtime.js",
                         ),
                     ),
@@ -159,14 +159,14 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./hello.txt",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "utf-8",
                         ),
                     ),
@@ -191,7 +191,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "fs/promises",
                         ),
                     ),

@@ -8,12 +8,13 @@ use turbopack_core::{
         availability_info::AvailabilityInfo,
         chunk_group::{make_chunk_group, MakeChunkGroupResult},
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkingContext,
+        Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingContext,
         EntryChunkGroupResult, EvaluatableAssets, MinifyType, ModuleId,
     },
     environment::Environment,
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
 };
 use turbopack_ecmascript::{
@@ -222,12 +223,15 @@ impl BrowserChunkingContext {
         ident: Vc<AssetIdent>,
         other_chunks: Vc<OutputAssets>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        // TODO(sokra) remove this argument and pass chunk items instead
+        module_graph: Vc<ModuleGraph>,
     ) -> Vc<Box<dyn OutputAsset>> {
         Vc::upcast(EcmascriptDevEvaluateChunk::new(
             self,
             ident,
             other_chunks,
             evaluatable_assets,
+            module_graph,
         ))
     }
 
@@ -389,22 +393,41 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn chunk_group(
-        self: ResolvedVc<Self>,
+    fn chunk_group(
+        self: Vc<Self>,
         ident: Vc<AssetIdent>,
         module: ResolvedVc<Box<dyn ChunkableModule>>,
+        module_graph: Vc<ModuleGraph>,
+        availability_info: Value<AvailabilityInfo>,
+    ) -> Vc<ChunkGroupResult> {
+        self.chunk_group_multiple(
+            ident,
+            Vc::cell(vec![module]),
+            module_graph,
+            availability_info,
+        )
+    }
+
+    #[turbo_tasks::function]
+    async fn chunk_group_multiple(
+        self: ResolvedVc<Self>,
+        ident: Vc<AssetIdent>,
+        modules: Vc<ChunkableModules>,
+        module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = tracing::info_span!("chunking", ident = ident.to_string().await?.to_string());
         async move {
             let this = self.await?;
+            let modules = modules.await?;
             let input_availability_info = availability_info.into_value();
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
             } = make_chunk_group(
+                modules.iter().copied().map(ResolvedVc::upcast),
+                module_graph,
                 ResolvedVc::upcast(self),
-                [ResolvedVc::upcast(module)],
                 input_availability_info,
             )
             .await?;
@@ -455,6 +478,7 @@ impl ChunkingContext for BrowserChunkingContext {
         self: ResolvedVc<Self>,
         ident: Vc<AssetIdent>,
         evaluatable_assets: Vc<EvaluatableAssets>,
+        module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<ChunkGroupResult>> {
         let span = {
@@ -474,7 +498,13 @@ impl ChunkingContext for BrowserChunkingContext {
             let MakeChunkGroupResult {
                 chunks,
                 availability_info,
-            } = make_chunk_group(ResolvedVc::upcast(self), entries, availability_info).await?;
+            } = make_chunk_group(
+                entries,
+                module_graph,
+                ResolvedVc::upcast(self),
+                availability_info,
+            )
+            .await?;
 
             let mut assets: Vec<ResolvedVc<Box<dyn OutputAsset>>> = chunks
                 .iter()
@@ -498,7 +528,7 @@ impl ChunkingContext for BrowserChunkingContext {
             }
 
             assets.push(
-                self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets)
+                self.generate_evaluate_chunk(ident, other_assets, evaluatable_assets, module_graph)
                     .to_resolved()
                     .await?,
             );
@@ -519,6 +549,7 @@ impl ChunkingContext for BrowserChunkingContext {
         _path: Vc<FileSystemPath>,
         _module: Vc<Box<dyn Module>>,
         _evaluatable_assets: Vc<EvaluatableAssets>,
+        _module_graph: Vc<ModuleGraph>,
         _extra_chunks: Vc<OutputAssets>,
         _availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<EntryChunkGroupResult>> {
@@ -534,18 +565,20 @@ impl ChunkingContext for BrowserChunkingContext {
     async fn async_loader_chunk_item(
         self: Vc<Self>,
         module: Vc<Box<dyn ChunkableModule>>,
+        module_graph: Vc<ModuleGraph>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Result<Vc<Box<dyn ChunkItem>>> {
         Ok(if self.await?.manifest_chunks {
             let manifest_asset =
-                ManifestAsyncModule::new(module, Vc::upcast(self), availability_info);
+                ManifestAsyncModule::new(module, module_graph, Vc::upcast(self), availability_info);
             Vc::upcast(ManifestLoaderChunkItem::new(
                 manifest_asset,
+                module_graph,
                 Vc::upcast(self),
             ))
         } else {
             let module = AsyncLoaderModule::new(module, Vc::upcast(self), availability_info);
-            Vc::upcast(module.as_chunk_item(Vc::upcast(self)))
+            Vc::upcast(module.as_chunk_item(module_graph, Vc::upcast(self)))
         })
     }
 

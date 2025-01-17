@@ -25,6 +25,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -222,6 +223,11 @@ impl WebpackLoadersProcessedAsset {
             .module()
             .to_resolved()
             .await?;
+
+        let module_graph = ModuleGraph::from_module(*webpack_loaders_executor)
+            .to_resolved()
+            .await?;
+
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
         let Some(resource_path) = project_path
@@ -241,6 +247,7 @@ impl WebpackLoadersProcessedAsset {
             env,
             context_ident_for_issue: this.source.ident().to_resolved().await?,
             asset_context: evaluate_context,
+            module_graph,
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
@@ -397,6 +404,7 @@ pub struct WebpackLoaderContext {
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
     pub context_ident_for_issue: ResolvedVc<AssetIdent>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
@@ -420,6 +428,7 @@ impl EvaluateContext for WebpackLoaderContext {
             *self.cwd,
             *self.env,
             *self.asset_context,
+            *self.module_graph,
             *self.chunking_context,
             None,
             *self.additional_invalidation,

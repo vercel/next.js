@@ -24,6 +24,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     source::Source,
 };
@@ -96,6 +97,7 @@ impl ChunkableModule for StaticModuleAsset {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(ModuleChunkItem::cell(ModuleChunkItem {

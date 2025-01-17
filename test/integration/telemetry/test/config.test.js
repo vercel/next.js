@@ -368,6 +368,32 @@ describe('config telemetry', () => {
         }
       )
 
+      it('emits telemetry for usage of `experimental/dynamicIO`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.dynamic-io'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: 1 },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.dynamic-io')
+        )
+
+        const events = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/dynamicIO',
+          invocationCount: 1,
+        })
+      })
+
       it('emits telemetry for usage of `optimizeCss`', async () => {
         await fs.rename(
           path.join(appDir, 'next.config.optimize-css'),

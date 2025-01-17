@@ -11,8 +11,8 @@ use super::{
     ChunkItemWithAsyncModuleInfo, ChunkableModule, ChunkingContext,
 };
 use crate::{
-    environment::ChunkLoading, module::Module, output::OutputAssets, rebase::RebasedAsset,
-    reference::ModuleReference,
+    environment::ChunkLoading, module::Module, module_graph::ModuleGraph, output::OutputAssets,
+    rebase::RebasedAsset, reference::ModuleReference,
 };
 
 pub struct MakeChunkGroupResult {
@@ -22,8 +22,9 @@ pub struct MakeChunkGroupResult {
 
 /// Creates a chunk group from a set of entries.
 pub async fn make_chunk_group(
-    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     chunk_group_entries: impl IntoIterator<Item = ResolvedVc<Box<dyn Module>>>,
+    module_graph: Vc<ModuleGraph>,
+    chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     availability_info: AvailabilityInfo,
 ) -> Result<MakeChunkGroupResult> {
     let can_split_async = !matches!(
@@ -147,7 +148,7 @@ pub async fn make_chunk_group(
         .into_iter()
         .map(async |module| {
             chunking_context
-                .async_loader_chunk_item(*module, Value::new(availability_info))
+                .async_loader_chunk_item(*module, module_graph, Value::new(availability_info))
                 .to_resolved()
                 .await
         })
@@ -198,7 +199,10 @@ pub async fn make_chunk_group(
             Either::Left(async move {
                 Ok(ChunkItemWithAsyncModuleInfo {
                     ty: ChunkItemTy::Included,
-                    chunk_item: m.as_chunk_item(*chunking_context).to_resolved().await?,
+                    chunk_item: m
+                        .as_chunk_item(module_graph, *chunking_context)
+                        .to_resolved()
+                        .await?,
                     async_info: *async_info,
                 })
             })
@@ -207,7 +211,10 @@ pub async fn make_chunk_group(
             Either::Right(async move {
                 Ok(ChunkItemWithAsyncModuleInfo {
                     ty: ChunkItemTy::Passthrough,
-                    chunk_item: m.as_chunk_item(*chunking_context).to_resolved().await?,
+                    chunk_item: m
+                        .as_chunk_item(module_graph, *chunking_context)
+                        .to_resolved()
+                        .await?,
                     async_info: None,
                 })
             })

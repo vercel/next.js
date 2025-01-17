@@ -3292,6 +3292,9 @@ function readPreviousThenableFromState() {
       index
     );
 }
+function unsupportedRefresh() {
+  throw Error("Cache cannot be refreshed during server rendering.");
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3382,6 +3385,9 @@ var HooksDispatcher = {
       for (var data = Array(size), i = 0; i < size; i++)
         data[i] = REACT_MEMO_CACHE_SENTINEL;
       return data;
+    },
+    useCacheRefresh: function () {
+      return unsupportedRefresh;
     },
     useEffectEvent: function () {
       return throwOnUseEffectEventCall;
@@ -6153,4 +6159,4 @@ exports.renderToString = function (children, options) {
     'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
   );
 };
-exports.version = "19.1.0-experimental-f0edf41e-20250115";
+exports.version = "19.1.0-experimental-5b51a2b9-20250116";

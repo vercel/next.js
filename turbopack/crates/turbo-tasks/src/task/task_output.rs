@@ -6,7 +6,7 @@ use crate::{RawVc, Vc};
 
 /// Trait to implement in order for a type to be accepted as a
 /// `turbo_tasks::function` return type.
-pub trait TaskOutput {
+pub trait TaskOutput: Send {
     type Return;
 
     fn try_from_raw_vc(raw_vc: RawVc) -> Self::Return;
@@ -15,7 +15,7 @@ pub trait TaskOutput {
 
 impl<T> TaskOutput for Vc<T>
 where
-    T: ?Sized,
+    T: Send + ?Sized,
 {
     type Return = Vc<T>;
 

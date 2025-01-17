@@ -19,6 +19,7 @@ use turbopack_core::{
     issue::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
+    module_graph::ModuleGraph,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
@@ -530,12 +531,17 @@ impl PostCssTransformedAsset {
             "".into()
         };
 
+        let module_graph = ModuleGraph::from_module(*postcss_executor)
+            .to_resolved()
+            .await?;
+
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             module_asset: postcss_executor,
             cwd: *project_path,
             env: *env,
             context_ident_for_issue: self.source.ident().to_resolved().await?,
             asset_context: evaluate_context,
+            module_graph,
             chunking_context: *chunking_context,
             resolve_options_context: None,
             args: vec![

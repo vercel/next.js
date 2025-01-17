@@ -69,7 +69,7 @@ import type { ServerOnInstrumentationRequestError } from '../app-render/types'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import { logRequests } from './log-requests'
 import { FallbackMode } from '../../lib/fallback'
-import type { ReactDevOverlayType } from '../../client/components/react-dev-overlay/pages/ReactDevOverlay'
+import type { ReactDevOverlayType } from '../../client/components/react-dev-overlay/pages/react-dev-overlay'
 
 // Load ReactDevOverlay only when needed
 let ReactDevOverlayImpl: ReactDevOverlayType
@@ -867,34 +867,27 @@ export default class DevServer extends Server {
       // Wrap build errors so that they don't get logged again
       throw new WrappedBuildError(compilationErr)
     }
-    try {
-      if (shouldEnsure || this.serverOptions.customServer) {
-        await this.ensurePage({
-          page,
-          appPaths,
-          clientOnly: false,
-          definition: undefined,
-          url,
-        })
-      }
-
-      this.nextFontManifest = super.getNextFontManifest()
-
-      return await super.findPageComponents({
-        locale,
+    if (shouldEnsure || this.serverOptions.customServer) {
+      await this.ensurePage({
         page,
-        query,
-        params,
-        isAppPath,
-        shouldEnsure,
+        appPaths,
+        clientOnly: false,
+        definition: undefined,
         url,
       })
-    } catch (err) {
-      if ((err as any).code !== 'ENOENT') {
-        throw err
-      }
-      return null
     }
+
+    this.nextFontManifest = super.getNextFontManifest()
+
+    return await super.findPageComponents({
+      page,
+      query,
+      params,
+      locale,
+      isAppPath,
+      shouldEnsure,
+      url,
+    })
   }
 
   protected async getFallbackErrorComponents(

@@ -916,6 +916,36 @@ fn test_edge_assert(input: PathBuf) {
     );
 }
 
+#[fixture("tests/fixture/source-maps/**/input.js")]
+fn test_source_maps(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            (
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        dynamic_io_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter([]),
+                    },
+                    _tr.comments.as_ref().clone(),
+                ),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            module: Some(true),
+            sourcemap: true,
+            ..Default::default()
+        },
+    );
+}
+
 fn lint_to_fold<R>(r: R) -> impl Pass
 where
     R: Visit,
