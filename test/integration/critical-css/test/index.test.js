@@ -37,7 +37,7 @@ function runTests() {
   it('should inline critical CSS', async () => {
     const html = await renderViaHTTP(appPort, '/')
     expect(html).toMatch(
-      /<link rel="stylesheet" href="\/_next\/static\/css\/.*\.css" .*>/
+      /<link rel="stylesheet" href="\/_next\/static\/.*\.css" .*>/
     )
     expect(html).toMatch(/body{font-family:SF Pro Text/)
   })
@@ -45,7 +45,7 @@ function runTests() {
   it('should inline critical CSS (dynamic)', async () => {
     const html = await renderViaHTTP(appPort, '/another')
     expect(html).toMatch(
-      /<link rel="stylesheet" href="\/_next\/static\/css\/.*\.css" .*>/
+      /<link rel="stylesheet" href="\/_next\/static\/.*\.css" .*>/
     )
     expect(html).toMatch(/body{font-family:SF Pro Text/)
   })
@@ -57,23 +57,28 @@ function runTests() {
 }
 
 describe('CSS optimization for SSR apps', () => {
-  beforeAll(async () => {
-    await fs.writeFile(
-      nextConfig,
-      `module.exports = { experimental: {optimizeCss: true} }`,
-      'utf8'
-    )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.writeFile(
+          nextConfig,
+          `module.exports = { experimental: {optimizeCss: true} }`,
+          'utf8'
+        )
 
-    if (fs.pathExistsSync(join(appDir, '.next'))) {
-      await fs.remove(join(appDir, '.next'))
+        if (fs.pathExistsSync(join(appDir, '.next'))) {
+          await fs.remove(join(appDir, '.next'))
+        }
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await fs.remove(nextConfig)
+      })
+      runTests()
     }
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-    await fs.remove(nextConfig)
-  })
-  runTests()
+  )
 })

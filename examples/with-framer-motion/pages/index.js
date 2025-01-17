@@ -1,5 +1,5 @@
-import Gallery from '../components/Gallery'
+import Gallery from "../components/Gallery";
 
-const Index = () => <Gallery />
+const Index = () => <Gallery />;
 
-export default Index
+export default Index;

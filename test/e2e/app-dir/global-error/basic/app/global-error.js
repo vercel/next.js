@@ -12,3 +12,6 @@ export default function GlobalError({ error }) {
     </html>
   )
 }
+
+// for inspecting purpose
+GlobalError.displayName = 'GlobalError'

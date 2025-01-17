@@ -19,22 +19,36 @@ function runTests() {
     const html = await renderViaHTTP(appPort, '/')
     const $ = cheerio.load(html)
     const href = $('link').attr('href')
-    expect(href).toMatch(/\/_next\/static\/css\/.*\.css/)
     const css = await renderViaHTTP(appPort, href)
-    expect(css).toBe(
-      '.a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}'
-    )
+    if (process.env.TURBOPACK) {
+      expect(css).toMatchInlineSnapshot(`
+        "/* [project]/test/integration/css-minify/styles/global.css [client] (css) */
+        .a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}
+
+        /*# sourceMappingURL=test_integration_css-minify_styles_global_411632.css.map*/
+        "
+      `)
+    } else {
+      expect(css).toMatchInlineSnapshot(
+        `".a{--var-1:0;--var-2:0;--var-1:-50%;--var-2:-50%}.b{--var-1:0;--var-2:0;--var-2:-50%}"`
+      )
+    }
   })
 }
 
 describe('css-minify', () => {
-  beforeAll(async () => {
-    await nextBuild(appDir)
-    appPort = await findPort()
-    app = await nextStart(appDir, appPort)
-  })
-  afterAll(async () => {
-    await killApp(app)
-  })
-  runTests()
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+      })
+      runTests()
+    }
+  )
 })

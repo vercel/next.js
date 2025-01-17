@@ -72,8 +72,8 @@ function pluginSyntaxDynamicImport() {
   return require('next/dist/compiled/babel-packages').pluginSyntaxDynamicImport()
 }
 
-function pluginSyntaxImportAssertions() {
-  return require('next/dist/compiled/babel-packages').pluginSyntaxImportAssertions()
+function pluginSyntaxImportAttributes() {
+  return require('next/dist/compiled/babel-packages').pluginSyntaxImportAttributes()
 }
 
 function pluginSyntaxJsx() {
@@ -127,7 +127,7 @@ module.exports = {
   pluginProposalObjectRestSpread,
   pluginSyntaxBigint,
   pluginSyntaxDynamicImport,
-  pluginSyntaxImportAssertions,
+  pluginSyntaxImportAttributes,
   pluginSyntaxJsx,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,

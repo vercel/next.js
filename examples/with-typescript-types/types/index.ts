@@ -1,1 +1,1 @@
-export type { TypeA } from './package-1'
+export type { TypeA } from "./package-1";

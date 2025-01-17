@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { join } from 'path'
 import fs from 'fs-extra'
 import {
@@ -16,9 +16,9 @@ describe('type-module', () => {
     next = await createNext({
       files: {
         'pages/index.js': `
-          export default function Page() { 
+          export default function Page() {
             return <p>hello world</p>
-          } 
+          }
         `,
         'next.config.mjs': `export default ${JSON.stringify({
           output: 'standalone',
@@ -43,7 +43,7 @@ describe('type-module', () => {
     const appPort = await findPort()
     const server = await initNextServerScript(
       serverFile,
-      /Listening on/,
+      /- Local:/,
       { ...process.env, PORT: appPort.toString() },
       undefined,
       { cwd: next.testDir }

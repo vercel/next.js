@@ -1,4 +1,4 @@
-import Script from 'next/script'
+import Script from "next/script";
 
 export default function Inline() {
   return (
@@ -18,5 +18,5 @@ export default function Inline() {
         </h5>
       </main>
     </>
-  )
+  );
 }

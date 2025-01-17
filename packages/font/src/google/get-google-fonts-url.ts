@@ -1,3 +1,5 @@
+import { sortFontsVariantValues } from './sort-fonts-variant-values'
+
 /**
  * Generate the Google Fonts URL given the requested weight(s), style(s) and additional variable axes
  */
@@ -53,7 +55,7 @@ export function getGoogleFontsUrl(
   if (variants.length > 0) {
     url = `${url}:${variants[0].map(([key]) => key).join(',')}@${variants
       .map((variant) => variant.map(([, val]) => val).join(','))
-      .sort()
+      .sort(sortFontsVariantValues)
       .join(';')}`
   }
 

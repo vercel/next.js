@@ -1,8 +1,8 @@
-import styles from './view-source.module.css'
+import styles from "./view-source.module.css";
 
 type ViewSourceProps = {
-  pathname: string
-}
+  pathname: string;
+};
 
 const ViewSource = ({ pathname }: ViewSourceProps) => (
   <svg
@@ -25,6 +25,6 @@ const ViewSource = ({ pathname }: ViewSourceProps) => (
       <path d="M115 115s4 2 5 0l14-14c3-2 6-3 8-3-8-11-15-24 2-41 5-5 10-7 16-7 1-2 3-7 12-11 0 0 5 3 7 16 4 2 8 5 12 9s7 8 9 12c14 3 17 7 17 7-4 8-9 11-11 11 0 6-2 11-7 16-16 16-30 10-41 2 0 3-1 7-5 11l-12 11c-1 1 1 5 1 5z" />
     </a>
   </svg>
-)
+);
 
-export default ViewSource
+export default ViewSource;

@@ -39,6 +39,7 @@ now fully revert the conventional testing pyramid:
       <a
         href="https://martinfowler.com/articles/practical-test-pyramid.html#TheTestPyramid"
         target="_blank"
+        rel="noreferrer"
       >
         testing pyramid
       </a>
@@ -91,6 +92,7 @@ mostly re-used from deploy to deploy.
       <a
         target="_blank"
         href="https://github.com/rauchg/blog/pull/35#issuecomment-570270061"
+        rel="noreferrer"
       >
         for this very blog
       </a>
@@ -113,7 +115,7 @@ concurrent "staging" environments.
 I say "staging" in quotes because in reality, you run tests against the
 real production infrastructure, which has enormous reliability benefits.
 Not only are certain
-[features these days only enabled when SSL is on](https://developer.mozilla.org/en-US/docs/Web/Security/Secure_Contexts/features_restricted_to_secure_contexts),
+[features these days only enabled when SSL is on](https://developer.mozilla.org/docs/Web/Security/Secure_Contexts/features_restricted_to_secure_contexts),
 but having every other production feature enabled, like brotli
 compression and HTTP/2, reduces your risk of outages:
 

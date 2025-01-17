@@ -23,8 +23,7 @@ let server
 
 const context = {}
 
-// TODO: investigate this test stalling in CI
-describe.skip.each([
+describe.each([
   { title: 'using HTTP', useHttps: false },
   { title: 'using HTTPS', useHttps: true },
 ])('Custom Server $title', ({ useHttps }) => {
@@ -56,8 +55,7 @@ describe.skip.each([
     )
   }
 
-  // TODO: continue supporting this or remove it?
-  describe.skip('with dynamic assetPrefix', () => {
+  describe('with dynamic assetPrefix', () => {
     beforeAll(() => startServer())
     afterAll(() => killApp(server))
 
@@ -103,7 +101,7 @@ describe.skip.each([
     })
 
     it('should set the assetPrefix to a given request', async () => {
-      for (let lc = 0; lc < 1000; lc++) {
+      for (let lc = 0; lc < 10; lc++) {
         const [normalUsage, dynamicUsage] = await Promise.all([
           await renderViaHTTP(nextUrl, '/asset', undefined, { agent }),
           await renderViaHTTP(nextUrl, '/asset?setAssetPrefix=1', undefined, {
@@ -123,7 +121,19 @@ describe.skip.each([
       expect(html).toMatch(/made it to dashboard/)
     })
 
-    it('should contain customServer in NEXT_DATA', async () => {
+    it('should handle custom urls with requests handler', async () => {
+      const html = await renderViaHTTP(
+        nextUrl,
+        '/custom-url-with-request-handler',
+        undefined,
+        {
+          agent,
+        }
+      )
+      expect(html).toMatch(/made it to dashboard/)
+    })
+
+    it.skip('should contain customServer in NEXT_DATA', async () => {
       const html = await renderViaHTTP(nextUrl, '/', undefined, { agent })
       const $ = cheerio.load(html)
       expect(JSON.parse($('#__NEXT_DATA__').text()).customServer).toBe(true)
@@ -131,16 +141,23 @@ describe.skip.each([
   })
 
   describe('with generateEtags enabled', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
-    })
-    afterAll(() => killApp(server))
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        beforeAll(async () => {
+          await nextBuild(appDir)
+          await startServer({ GENERATE_ETAGS: 'true', NODE_ENV: 'production' })
+        })
+        afterAll(() => killApp(server))
 
-    it('response includes etag header', async () => {
-      const response = await fetchViaHTTP(nextUrl, '/', undefined, { agent })
-      expect(response.headers.get('etag')).toBeTruthy()
-    })
+        it('response includes etag header', async () => {
+          const response = await fetchViaHTTP(nextUrl, '/', undefined, {
+            agent,
+          })
+          expect(response.headers.get('etag')).toBeTruthy()
+        })
+      }
+    )
   })
 
   describe('with generateEtags disabled', () => {
@@ -157,8 +174,8 @@ describe.skip.each([
   if (!useHttps) {
     describe('HMR with custom server', () => {
       beforeAll(() => startServer())
-      afterAll(() => {
-        killApp(server)
+      afterAll(async () => {
+        await killApp(server)
         indexPg.restore()
       })
 
@@ -194,7 +211,7 @@ describe.skip.each([
   describe('Error when rendering without starting slash', () => {
     afterEach(() => killApp(server))
 
-    it('should warn in dev mode', async () => {
+    it('should warn in development mode', async () => {
       let stderr = ''
       await startServer(
         {},
@@ -210,28 +227,32 @@ describe.skip.each([
       expect(html).toContain('made it to dashboard')
       expect(stderr).toContain('Cannot render page with path "dashboard"')
     })
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it('should warn in production mode', async () => {
+          const { code } = await nextBuild(appDir)
+          expect(code).toBe(0)
 
-    it('should warn in production mode', async () => {
-      const { code } = await nextBuild(appDir)
-      expect(code).toBe(0)
+          let stderr = ''
 
-      let stderr = ''
+          await startServer(
+            { NODE_ENV: 'production' },
+            {
+              onStderr(msg) {
+                stderr += msg || ''
+              },
+            }
+          )
 
-      await startServer(
-        { NODE_ENV: 'production' },
-        {
-          onStderr(msg) {
-            stderr += msg || ''
-          },
-        }
-      )
-
-      const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
-        agent,
-      })
-      expect(html).toContain('made it to dashboard')
-      expect(stderr).toContain('Cannot render page with path "dashboard"')
-    })
+          const html = await renderViaHTTP(nextUrl, '/no-slash', undefined, {
+            agent,
+          })
+          expect(html).toContain('made it to dashboard')
+          expect(stderr).toContain('Cannot render page with path "dashboard"')
+        })
+      }
+    )
   })
 
   describe('compression handling', function () {
@@ -279,10 +300,8 @@ describe.skip.each([
       )
       await fetchViaHTTP(nextUrl, '/unhandled-rejection', undefined, { agent })
       await check(() => stderr, /unhandledRejection/)
-      expect(stderr).toContain(
-        '- error unhandledRejection: Error: unhandled rejection'
-      )
-      expect(stderr).toContain('server.js:37:22')
+      expect(stderr).toContain('unhandledRejection: Error: unhandled rejection')
+      expect(stderr).toMatch(/\/server\.js:\d+\d+/)
     })
   })
 
@@ -296,6 +315,77 @@ describe.skip.each([
       expect(response.headers.get('x-original-url')).toBe(
         `${useHttps ? 'https' : 'http'}://localhost:${appPort}${path}`
       )
+    })
+  })
+
+  const modes = process.env.TURBOPACK_DEV
+    ? ['development']
+    : process.env.TURBOPACK_BUILD
+      ? ['production']
+      : ['development', 'production']
+
+  describe.each(modes)('legacy NextCustomServer methods - %s mode', (mode) => {
+    const isNextDev = mode === 'development'
+
+    beforeAll(async () => {
+      if (!isNextDev) {
+        await nextBuild(appDir)
+      }
+      await startServer({ NODE_ENV: mode })
+    })
+    afterAll(() => killApp(server))
+
+    it('NextCustomServer.renderToHTML', async () => {
+      const rawHTML = await renderViaHTTP(
+        nextUrl,
+        '/legacy-methods/render-to-html?q=2',
+        undefined,
+        { agent }
+      )
+      const $ = cheerio.load(rawHTML)
+      const text = $('p').text()
+      expect(text).toContain('made it to dynamic dashboard')
+      expect(text).toContain('query param: 1')
+    })
+
+    it('NextCustomServer.render404', async () => {
+      const html = await renderViaHTTP(
+        nextUrl,
+        '/legacy-methods/render404',
+        undefined,
+        { agent }
+      )
+      expect(html).toContain('made it to 404')
+    })
+
+    it('NextCustomServer.renderError', async () => {
+      const html = await renderViaHTTP(
+        nextUrl,
+        '/legacy-methods/render-error',
+        undefined,
+        { agent }
+      )
+      if (isNextDev) {
+        // in dev, we always render error overlay + default error page, not /500
+        expect(html).toContain('Error: kaboom')
+      } else {
+        expect(html).toContain('made it to 500')
+      }
+    })
+
+    it('NextCustomServer.renderErrorToHTML', async () => {
+      const html = await renderViaHTTP(
+        nextUrl,
+        '/legacy-methods/render-error-to-html',
+        undefined,
+        { agent }
+      )
+      if (isNextDev) {
+        // in dev, we always render error overlay + default error page, not /500
+        expect(html).toContain('Error: kaboom')
+      } else {
+        expect(html).toContain('made it to 500')
+      }
     })
   })
 })

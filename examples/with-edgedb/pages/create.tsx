@@ -1,28 +1,28 @@
-import React, { useState } from 'react'
-import Layout from '../components/Layout'
-import Router from 'next/router'
-import Link from 'next/link'
+import React, { useState } from "react";
+import Layout from "../components/Layout";
+import Router from "next/router";
+import Link from "next/link";
 
 const Draft: React.FC = () => {
-  const [title, setTitle] = useState('')
-  const [content, setContent] = useState('')
-  const [authorName, setAuthorName] = useState('')
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [authorName, setAuthorName] = useState("");
 
   const submitData = async (e: React.SyntheticEvent) => {
-    e.preventDefault()
+    e.preventDefault();
     try {
-      const body = { title, content, authorName }
+      const body = { title, content, authorName };
       const result = await fetch(`/api/post`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
-      })
-      await result.json()
-      await Router.push('/drafts')
+      });
+      await result.json();
+      await Router.push("/drafts");
     } catch (error) {
-      console.error(error)
+      console.error(error);
     }
-  }
+  };
 
   return (
     <Layout>
@@ -68,7 +68,7 @@ const Draft: React.FC = () => {
           align-items: center;
         }
 
-        input[type='text'],
+        input[type="text"],
         textarea {
           width: 100%;
           padding: 0.5rem;
@@ -77,7 +77,7 @@ const Draft: React.FC = () => {
           border: 0.125rem solid rgba(0, 0, 0, 0.2);
         }
 
-        input[type='submit'] {
+        input[type="submit"] {
           cursor: pointer;
           border: 2px solid transparent;
           border-radius: 4px;
@@ -91,7 +91,7 @@ const Draft: React.FC = () => {
         }
       `}</style>
     </Layout>
-  )
-}
+  );
+};
 
-export default Draft
+export default Draft;

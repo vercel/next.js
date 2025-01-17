@@ -1,0 +1,856 @@
+[
+    FreeVar {
+        var: FreeVar(
+            "require",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 11..18,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    0,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 11..25,
+        in_try: false,
+        new: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "require",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 79..86,
+        in_try: false,
+    },
+    Call {
+        func: FreeVar(
+            "require",
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "path",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    1,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 79..94,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 115..124,
+        in_try: false,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    2,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 115..138,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 158..167,
+        in_try: false,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo/",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    3,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 158..182,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 202..211,
+        in_try: false,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "/bar",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    4,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 202..226,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 246..255,
+        in_try: false,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo/",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "/bar",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    5,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 246..271,
+        in_try: false,
+        new: false,
+    },
+    Member {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Callee,
+            ),
+            Callee(
+                Expr,
+            ),
+            Expr(
+                Member,
+            ),
+        ],
+        span: 291..300,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+            CallExpr(
+                Args(
+                    4,
+                ),
+            ),
+            ExprOrSpread(
+                Expr,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 328..334,
+        in_try: false,
+    },
+    MemberCall {
+        obj: Variable(
+            (
+                "path",
+                #2,
+            ),
+        ),
+        prop: Constant(
+            Str(
+                Atom(
+                    "join",
+                ),
+            ),
+        ),
+        args: [
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "bar",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "..",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "baz",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                FreeVar(
+                    "global",
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "..",
+                        ),
+                    ),
+                ),
+            ),
+            Value(
+                Constant(
+                    Str(
+                        Atom(
+                            "foo",
+                        ),
+                    ),
+                ),
+            ),
+        ],
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    6,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Call,
+            ),
+        ],
+        span: 291..348,
+        in_try: false,
+        new: false,
+    },
+]

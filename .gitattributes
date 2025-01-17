@@ -1,5 +1,13 @@
-packages/next/bundles/** -text
-packages/next/compiled/** -text
+packages/next/bundles/** -text linguist-vendored
+packages/next/compiled/** -text linguist-vendored
 
 # Make next/src/build folder indexable for github search
-packages/next/src/build/** linguist-generated=false
+build/** linguist-generated=false
+
+crates/next-custom-transforms/tests/fixture/**/output* linguist-generated=true
+
+turbopack/crates/turbo-tasks-macros-tests/tests/**/*.stderr linguist-generated=true
+turbopack/crates/turbopack-ecmascript/tests/tree-shaker/analyzer/**/output.md linguist-generated=true
+turbopack/crates/turbopack-tests/tests/snapshot/**/output/** linguist-generated=true
+
+**/__snapshots__/** linguist-generated=true

@@ -1,10 +1,12 @@
 # Example app with analytics
 
-This example shows how to use [Next.js](https://github.com/vercel/next.js) along with [Google Analytics](https://developers.google.com/analytics/devguides/collection/gtagjs/). A custom [\_app](https://nextjs.org/docs/advanced-features/custom-app) is used to inject [tracking snippet](https://developers.google.com/analytics/devguides/collection/gtagjs/) and track [pageviews](https://developers.google.com/analytics/devguides/collection/gtagjs/pages) and [event](https://developers.google.com/analytics/devguides/collection/gtagjs/events).
+This example shows how to use [Next.js](https://github.com/vercel/next.js) along with [Google Analytics 4](https://developers.google.com/analytics/devguides/collection/ga4).
+
+If you are using the Pages Router, please refer to the [pages/ documentation.](https://nextjs.org/docs/pages/building-your-application/optimizing/third-party-libraries)
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-google-analytics)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-google-analytics&project-name=with-google-analytics&repository-name=with-google-analytics)
 

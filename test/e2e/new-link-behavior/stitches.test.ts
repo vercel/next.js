@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import path from 'path'
 
@@ -21,8 +21,6 @@ describe('New Link Behavior with stitches', () => {
       dependencies: {
         '@stitches/react': '^1.2.6',
         next: 'latest',
-        react: 'latest',
-        'react-dom': 'latest',
       },
     })
   })

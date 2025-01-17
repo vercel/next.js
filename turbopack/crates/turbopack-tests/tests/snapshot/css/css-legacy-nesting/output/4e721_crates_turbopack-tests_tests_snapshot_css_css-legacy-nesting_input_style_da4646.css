@@ -1,0 +1,4 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/css-legacy-nesting/input/style.css [test] (css) */
+.prose :where(table):not(:where([class~=not-prose],[class~=not-prose] *)){text-wrap:initial}.prose :where(table):not(:where([class~=not-prose],[class~=not-prose] *)) tr td:first-child{text-wrap:nowrap}.prose :where(code):not(:where([class~=not-prose],[class~=not-prose] *)){text-wrap:nowrap}
+
+/*# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_css_css-legacy-nesting_input_style_da4646.css.map*/

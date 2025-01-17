@@ -1,17 +1,17 @@
-import { useState } from 'react'
-import { useRouter } from 'next/router'
-import Link from 'next/link'
+import { useState } from "react";
+import { useRouter } from "next/router";
+import Link from "next/link";
 
-import { nhost } from '../utils/nhost'
+import { nhost } from "../utils/nhost";
 
 export default function Login() {
-  const router = useRouter()
-  const [displayName, setDisplayName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
+  const router = useRouter();
+  const [displayName, setDisplayName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
 
   async function handleLogin(e) {
-    e.preventDefault()
+    e.preventDefault();
 
     try {
       await nhost.auth.register({
@@ -22,13 +22,13 @@ export default function Login() {
             display_name: displayName,
           },
         },
-      })
+      });
     } catch (error) {
-      console.error(error)
-      return alert('failed to register')
+      console.error(error);
+      return alert("failed to register");
     }
 
-    router.push('/')
+    router.push("/");
   }
 
   return (
@@ -67,5 +67,5 @@ export default function Login() {
         <Link href="/login">Login</Link>
       </div>
     </div>
-  )
+  );
 }

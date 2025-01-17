@@ -1,5 +1,6 @@
 import type { ReadonlyHeaders } from 'next/dist/server/web/spec-extension/adapters/headers'
 import type { ReadonlyRequestCookies } from 'next/dist/server/web/spec-extension/adapters/request-cookies'
+import type { Headers as NodeFetchHeaders } from 'node-fetch'
 
 const KEY = 'x-request-meta'
 
@@ -60,10 +61,10 @@ type Cookies = {
 export function getRequestMeta(
   headersOrCookies:
     | Headers
-    | import('node-fetch').Headers
     | Cookies
     | ReadonlyHeaders
     | ReadonlyRequestCookies
+    | NodeFetchHeaders
 ): Record<string, any> {
   const headerOrCookie = headersOrCookies.get(KEY)
   if (!headerOrCookie) return {}

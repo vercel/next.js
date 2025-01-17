@@ -1,11 +1,11 @@
-import Reflux from 'reflux'
-import CounterStore from '../store/counterStore'
-import Actions from '../actions/actions'
+import Reflux from "reflux";
+import CounterStore from "../store/counterStore";
+import Actions from "../actions/actions";
 
 export default class Home extends Reflux.Component {
   constructor() {
-    super()
-    this.store = CounterStore
+    super();
+    this.store = CounterStore;
   }
   render() {
     return (
@@ -14,6 +14,6 @@ export default class Home extends Reflux.Component {
         <button onClick={Actions.increment}>Increment</button>
         <button onClick={Actions.decrement}>Decrement</button>
       </div>
-    )
+    );
   }
 }

@@ -45,8 +45,14 @@ describe('Document and App', () => {
   rendering(
     context,
     'Rendering via HTTP',
-    (p, q) => renderViaHTTP(context.appPort, p, q),
-    (p, q) => fetchViaHTTP(context.appPort, p, q)
+    (p, q) =>
+      renderViaHTTP(context.appPort, p, q, {
+        headers: { 'user-agent': 'Safari' },
+      }),
+    (p, q) =>
+      fetchViaHTTP(context.appPort, p, q, {
+        headers: { 'user-agent': 'Safari' },
+      })
   )
   client(context, (p, q) => renderViaHTTP(context.appPort, p, q))
   csp(context, (p, q) => renderViaHTTP(context.appPort, p, q))

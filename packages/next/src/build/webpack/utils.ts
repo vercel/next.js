@@ -1,32 +1,39 @@
-import { webpack } from 'next/dist/compiled/webpack/webpack'
-import { isAppRouteRoute } from '../../lib/is-app-route-route'
+import type {
+  Compilation,
+  Chunk,
+  ChunkGroup,
+  NormalModule,
+  Module,
+  ModuleGraph,
+} from 'webpack'
+import type { ModuleGraphConnection } from 'webpack'
 
 export function traverseModules(
-  compilation: webpack.Compilation,
+  compilation: Compilation,
   callback: (
     mod: any,
-    chunk: webpack.Chunk,
+    chunk: Chunk,
     chunkGroup: (typeof compilation.chunkGroups)[0],
-    modId: string | number
+    modId: string | null
   ) => any,
-  filterChunkGroup?: (chunkGroup: webpack.ChunkGroup) => boolean
+  filterChunkGroup?: (chunkGroup: ChunkGroup) => boolean
 ) {
   compilation.chunkGroups.forEach((chunkGroup) => {
     if (filterChunkGroup && !filterChunkGroup(chunkGroup)) {
       return
     }
-    chunkGroup.chunks.forEach((chunk: webpack.Chunk) => {
+    chunkGroup.chunks.forEach((chunk: Chunk) => {
       const chunkModules = compilation.chunkGraph.getChunkModulesIterable(
         chunk
         // TODO: Update type so that it doesn't have to be cast.
-      ) as Iterable<webpack.NormalModule>
+      ) as Iterable<NormalModule>
       for (const mod of chunkModules) {
-        const modId = compilation.chunkGraph.getModuleId(mod)
-        callback(mod, chunk, chunkGroup, modId)
+        const modId = compilation.chunkGraph.getModuleId(mod)?.toString()
+        if (modId) callback(mod, chunk, chunkGroup, modId)
         const anyModule = mod as any
         if (anyModule.modules) {
           for (const subMod of anyModule.modules)
-            callback(subMod, chunk, chunkGroup, modId)
+            if (modId) callback(subMod, chunk, chunkGroup, modId)
         }
       }
     })
@@ -40,17 +47,12 @@ export function forEachEntryModule(
 ) {
   for (const [name, entry] of compilation.entries.entries()) {
     // Skip for entries under pages/
-    if (
-      name.startsWith('pages/') ||
-      // Skip for route.js entries
-      (name.startsWith('app/') && isAppRouteRoute(name))
-    ) {
+    if (name.startsWith('pages/')) {
       continue
     }
 
     // Check if the page entry is a server component or not.
-    const entryDependency: webpack.NormalModule | undefined =
-      entry.dependencies?.[0]
+    const entryDependency: NormalModule | undefined = entry.dependencies?.[0]
     // Ensure only next-app-loader entries are handled.
     if (!entryDependency || !entryDependency.request) continue
 
@@ -58,14 +60,18 @@ export function forEachEntryModule(
 
     if (
       !request.startsWith('next-edge-ssr-loader?') &&
+      !request.startsWith('next-edge-app-route-loader?') &&
       !request.startsWith('next-app-loader?')
     )
       continue
 
-    let entryModule: webpack.NormalModule =
+    let entryModule: NormalModule =
       compilation.moduleGraph.getResolvedModule(entryDependency)
 
-    if (request.startsWith('next-edge-ssr-loader?')) {
+    if (
+      request.startsWith('next-edge-ssr-loader?') ||
+      request.startsWith('next-edge-app-route-loader?')
+    ) {
       entryModule.dependencies.forEach((dependency) => {
         const modRequest: string | undefined = (dependency as any).request
         if (modRequest?.includes('next-app-loader')) {
@@ -76,4 +82,28 @@ export function forEachEntryModule(
 
     callback({ name, entryModule })
   }
+}
+
+export function formatBarrelOptimizedResource(
+  resource: string,
+  matchResource: string
+) {
+  return `${resource}@${matchResource}`
+}
+
+export function getModuleReferencesInOrder(
+  module: Module,
+  moduleGraph: ModuleGraph
+): ModuleGraphConnection[] {
+  const connections = []
+  for (const connection of moduleGraph.getOutgoingConnections(module)) {
+    if (connection.dependency && connection.module) {
+      connections.push({
+        connection,
+        index: moduleGraph.getParentBlockIndex(connection.dependency),
+      })
+    }
+  }
+  connections.sort((a, b) => a.index - b.index)
+  return connections.map((c) => c.connection)
 }

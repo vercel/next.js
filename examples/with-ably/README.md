@@ -68,23 +68,23 @@ API_ROOT=http://localhost:3000
 [pages/\_app.js](pages/_app.js) is where the Ably SDK is configured:
 
 ```js
-import { configureAbly } from '@ably-labs/react-hooks'
+import { configureAbly } from "@ably-labs/react-hooks";
 
-const prefix = process.env.API_ROOT || ''
+const prefix = process.env.API_ROOT || "";
 const clientId =
   Math.random().toString(36).substring(2, 15) +
-  Math.random().toString(36).substring(2, 15)
+  Math.random().toString(36).substring(2, 15);
 
 configureAbly({
   authUrl: `${prefix}/api/createTokenRequest?clientId=${clientId}`,
   clientId: clientId,
-})
+});
 
 function MyApp({ Component, pageProps }) {
-  return <Component {...pageProps} />
+  return <Component {...pageProps} />;
 }
 
-export default MyApp
+export default MyApp;
 ```
 
 `configureAbly` matches the method signature of the Ably SDK - and requires either a string or a [AblyClientOptions](https://ably.com/docs/api/realtime-sdk#client-options) object. You can use this configuration object to setup your [tokenAuthentication](https://ably.com/docs/core-features/authentication#token-authentication). If you want to use the usePresence function, you'll need to explicitly provide a `clientId`.
@@ -96,13 +96,13 @@ You can do this anywhere in your code before the rest of the library is used.
 The `useChannel` hook lets you subscribe to a channel and receive messages from it:
 
 ```js
-import { useState } from 'react'
-import { useChannel } from '@ably-labs/react-hooks'
+import { useState } from "react";
+import { useChannel } from "@ably-labs/react-hooks";
 
 export default function Home() {
-  const [channel] = useChannel('your-channel', async (message) => {
-    console.log('Received Ably message', message)
-  })
+  const [channel] = useChannel("your-channel", async (message) => {
+    console.log("Received Ably message", message);
+  });
 }
 ```
 
@@ -113,7 +113,7 @@ Every time a message is sent to `your-channel` it will be logged to the console.
 The `channel` instance returned by `useChannel` can be used to send messages to the channel. It is a regular Ably JavaScript SDK `channel` instance.
 
 ```javascript
-channel.publish('test-message', { text: 'message text' })
+channel.publish("test-message", { text: "message text" });
 ```
 
 #### usePresence
@@ -121,19 +121,19 @@ channel.publish('test-message', { text: 'message text' })
 The `usePresence` hook lets you subscribe to presence events on a channel - this will allow you to get notified when a user joins or leaves the channel. The presence data is automatically updated and your component re-rendered when presence changes:
 
 ```js
-import { useState } from 'react'
-import { usePresence } from '@ably-labs/react-hooks'
+import { useState } from "react";
+import { usePresence } from "@ably-labs/react-hooks";
 
 export default function Home() {
-  const [presenceData, updateStatus] = usePresence('your-channel-name')
+  const [presenceData, updateStatus] = usePresence("your-channel-name");
 
   const presentClients = presenceData.map((msg, index) => (
     <li key={index}>
       {msg.clientId}: {msg.data}
     </li>
-  ))
+  ));
 
-  return <ul>{presentClients}</ul>
+  return <ul>{presentClients}</ul>;
 }
 ```
 

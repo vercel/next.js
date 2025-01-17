@@ -1,12 +1,12 @@
-import Head from 'next/head'
-import ErrorPage from 'next/error'
-import { useRouter } from 'next/router'
-import Layout from '../components/layout'
-import Container from '../components/container'
-import { CMS_NAME } from '../lib/constants'
-import { getAgilityPaths, getAgilityPageProps } from '../lib/api'
-import usePreviewRedirect from '../lib/use-preview-redirect'
-import CMSPageTemplate from '../lib/components/page-template'
+import Head from "next/head";
+import ErrorPage from "next/error";
+import { useRouter } from "next/router";
+import Layout from "../components/layout";
+import Container from "../components/container";
+import { CMS_NAME } from "../lib/constants";
+import { getAgilityPaths, getAgilityPageProps } from "../lib/api";
+import usePreviewRedirect from "../lib/use-preview-redirect";
+import CMSPageTemplate from "../lib/components/page-template";
 
 export default function Slug({
   sitemapNode,
@@ -16,11 +16,11 @@ export default function Slug({
   channelName,
   preview,
 }) {
-  usePreviewRedirect()
+  usePreviewRedirect();
 
-  const router = useRouter()
+  const router = useRouter();
   if (!router.isFallback && !page) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
 
   return (
@@ -45,14 +45,14 @@ export default function Slug({
         </Container>
       </Layout>
     </>
-  )
+  );
 }
 
 export async function getStaticProps({ params, preview = false }) {
-  const props = await getAgilityPageProps({ params, preview })
+  const props = await getAgilityPageProps({ params, preview });
 
   if (!props) {
-    return { props: {} }
+    return { props: {} };
   }
 
   return {
@@ -64,13 +64,13 @@ export async function getStaticProps({ params, preview = false }) {
       channelName: props.channelName,
       preview,
     },
-  }
+  };
 }
 
 export async function getStaticPaths() {
-  const paths = await getAgilityPaths()
+  const paths = await getAgilityPaths();
   return {
     paths: paths,
     fallback: true,
-  }
+  };
 }

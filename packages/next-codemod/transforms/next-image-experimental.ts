@@ -9,6 +9,7 @@ import type {
   JSXAttribute,
   Options,
 } from 'jscodeshift'
+import { createParserFromPath } from '../lib/parser'
 
 function findAndReplaceProps(
   j: JSCodeshift,
@@ -255,10 +256,10 @@ function nextConfigTransformer(
 
 export default function transformer(
   file: FileInfo,
-  api: API,
+  _api: API,
   options: Options
 ) {
-  const j = api.jscodeshift.withParser('tsx')
+  const j = createParserFromPath(file.path)
   const root = j(file.source)
 
   const parsed = parse(file.path || '/')

@@ -4,10 +4,8 @@ import * as path from 'path'
 const url =
   'https://nextjs.org/docs/messages/no-before-interactive-script-outside-document'
 
-const startsWithUsingCorrectSeparators = (str: string, start: string) =>
-  [path.sep, path.posix.sep].some((sep) =>
-    str.startsWith(start.replace(/\//g, sep))
-  )
+const convertToCorrectSeparator = (str: string) =>
+  str.replace(/[\\/]/g, path.sep)
 
 export = defineRule({
   meta: {
@@ -25,24 +23,17 @@ export = defineRule({
 
     return {
       'ImportDeclaration[source.value="next/script"] > ImportDefaultSpecifier'(
-        node
+        node: any
       ) {
         scriptImportName = node.local.name
       },
       JSXOpeningElement(node) {
-        let pathname = context.getFilename()
+        const pathname = convertToCorrectSeparator(context.filename)
 
-        if (startsWithUsingCorrectSeparators(pathname, 'src/')) {
-          pathname = pathname.slice(4)
-        } else if (startsWithUsingCorrectSeparators(pathname, '/src/')) {
-          pathname = pathname.slice(5)
-        }
+        const isInAppDir = pathname.includes(`${path.sep}app${path.sep}`)
 
         // This rule shouldn't fire in `app/`
-        if (
-          startsWithUsingCorrectSeparators(pathname, 'app/') ||
-          startsWithUsingCorrectSeparators(pathname, '/app/')
-        ) {
+        if (isInAppDir) {
           return
         }
 
@@ -66,7 +57,7 @@ export = defineRule({
           return
         }
 
-        const document = context.getFilename().split('pages')[1]
+        const document = context.filename.split('pages', 2)[1]
         if (document && path.parse(document).name.startsWith('_document')) {
           return
         }

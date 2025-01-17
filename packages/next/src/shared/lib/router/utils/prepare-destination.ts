@@ -1,7 +1,6 @@
 import type { IncomingMessage } from 'http'
 import type { Key } from 'next/dist/compiled/path-to-regexp'
 import type { NextParsedUrlQuery } from '../../../../server/request-meta'
-import type { Params } from './route-matcher'
 import type { RouteHas } from '../../../../lib/load-custom-routes'
 import type { BaseNextRequest } from '../../../../server/base-http'
 
@@ -11,8 +10,10 @@ import { parseUrl } from './parse-url'
 import {
   INTERCEPTION_ROUTE_MARKERS,
   isInterceptionRouteAppPath,
-} from '../../../../server/future/helpers/interception-routes'
+} from '../../../../server/lib/interception-routes'
 import { NEXT_RSC_UNION_QUERY } from '../../../../client/components/app-router-headers'
+import { getCookieParser } from '../../../../server/api-utils/get-cookie-parser'
+import type { Params } from '../../../../server/request/params'
 
 /**
  * Ensure only a-zA-Z are used for param names for proper interpolating
@@ -54,7 +55,7 @@ export function matchHas(
   const params: Params = {}
 
   const hasMatch = (hasItem: RouteHas) => {
-    let value: undefined | string
+    let value
     let key = hasItem.key
 
     switch (hasItem.type) {
@@ -64,7 +65,13 @@ export function matchHas(
         break
       }
       case 'cookie': {
-        value = (req as any).cookies[hasItem.key]
+        if ('cookies' in req) {
+          value = req.cookies[hasItem.key]
+        } else {
+          const cookies = getCookieParser(req.headers)()
+          value = cookies[hasItem.key]
+        }
+
         break
       }
       case 'query': {
@@ -74,7 +81,7 @@ export function matchHas(
       case 'host': {
         const { host } = req?.headers || {}
         // remove port from host if present
-        const hostname = host?.split(':')[0].toLowerCase()
+        const hostname = host?.split(':', 1)[0].toLowerCase()
         value = hostname
         break
       }
@@ -160,16 +167,14 @@ export function prepareDestination(args: {
   query: NextParsedUrlQuery
 }) {
   const query = Object.assign({}, args.query)
-  delete query.__nextLocale
-  delete query.__nextDefaultLocale
-  delete query.__nextDataReq
-  delete query.__nextInferredLocaleFromDefault
   delete query[NEXT_RSC_UNION_QUERY]
 
   let escapedDestination = args.destination
 
   for (const param of Object.keys({ ...args.params, ...query })) {
-    escapedDestination = escapeSegment(escapedDestination, param)
+    escapedDestination = param
+      ? escapeSegment(escapedDestination, param)
+      : escapedDestination
   }
 
   const parsedDestination = parseUrl(escapedDestination)
@@ -241,7 +246,12 @@ export function prepareDestination(args: {
         segment.startsWith(m)
       )
       if (marker) {
-        args.params['0'] = marker
+        if (marker === '(..)(..)') {
+          args.params['0'] = '(..)'
+          args.params['1'] = '(..)'
+        } else {
+          args.params['0'] = marker
+        }
         break
       }
     }
@@ -250,7 +260,7 @@ export function prepareDestination(args: {
   try {
     newUrl = destPathCompiler(args.params)
 
-    const [pathname, hash] = newUrl.split('#')
+    const [pathname, hash] = newUrl.split('#', 2)
     parsedDestination.hostname = destHostnameCompiler(args.params)
     parsedDestination.pathname = pathname
     parsedDestination.hash = `${hash ? '#' : ''}${hash || ''}`

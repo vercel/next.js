@@ -28,8 +28,8 @@ function pluginSyntaxDynamicImport() {
   return require('@babel/plugin-syntax-dynamic-import')
 }
 
-function pluginSyntaxImportAssertions() {
-  return require('@babel/plugin-syntax-import-assertions')
+function pluginSyntaxImportAttributes() {
+  return require('@babel/plugin-syntax-import-attributes')
 }
 
 function pluginSyntaxJsx() {
@@ -72,7 +72,7 @@ module.exports = {
   pluginProposalObjectRestSpread,
   pluginSyntaxBigint,
   pluginSyntaxDynamicImport,
-  pluginSyntaxImportAssertions,
+  pluginSyntaxImportAttributes,
   pluginSyntaxJsx,
   pluginTransformDefine,
   pluginTransformModulesCommonjs,

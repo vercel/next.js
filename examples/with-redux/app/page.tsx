@@ -1,10 +1,10 @@
-/* Components */
-import { Counter } from './components/Counter/Counter'
+import type { Metadata } from "next";
+import { Counter } from "./components/counter/Counter";
 
 export default function IndexPage() {
-  return <Counter />
+  return <Counter />;
 }
 
-export const metadata = {
-  title: 'Redux Toolkit',
-}
+export const metadata: Metadata = {
+  title: "Redux Toolkit",
+};

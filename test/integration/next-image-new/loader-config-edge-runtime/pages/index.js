@@ -1,6 +1,8 @@
 import React from 'react'
 import Image from 'next/image'
 
+export const config = { runtime: 'experimental-edge' }
+
 function loader({ src, width, quality }) {
   return `${src}?wid=${width}&qual=${quality || 35}`
 }

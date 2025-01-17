@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP, File, nextBuild } from 'next-test-utils'
 import { join } from 'path'
 import stripAnsi from 'strip-ansi'
@@ -7,7 +7,7 @@ import stripAnsi from 'strip-ansi'
 const pagePath = 'pages/index.jsx'
 const apiPath = 'pages/api/edge.js'
 
-describe.each([
+;(process.env.TURBOPACK ? describe.skip.each : describe.each)([
   { appDir: join(__dirname, './app/src'), title: 'src/pages and API routes' },
   { appDir: join(__dirname, './app'), title: 'pages and API routes' },
 ])('Configurable runtime for $title', ({ appDir }) => {
@@ -16,7 +16,7 @@ describe.each([
   const api = new File(join(appDir, apiPath))
 
   if ((global as any).isNextDev) {
-    describe('In dev mode', () => {
+    describe('In development mode', () => {
       beforeAll(async () => {
         next = await createNext({
           files: new FileRef(appDir),
@@ -54,7 +54,7 @@ describe.each([
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `- warn /api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
+          `/api/edge provided runtime 'experimental-edge'. It can be updated to 'edge' instead.`
         )
       })
       it('warns about page using edge runtime', async () => {
@@ -70,7 +70,7 @@ describe.each([
         expect(res.status).toEqual(200)
         expect(next.cliOutput).not.toInclude('error')
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `- warn You are using an experimental edge runtime, the API might change.`
+          `You are using an experimental edge runtime, the API might change.`
         )
       })
 
@@ -86,7 +86,7 @@ describe.each([
         const res = await fetchViaHTTP(next.url, `/`)
         expect(res.status).toEqual(200)
         expect(stripAnsi(next.cliOutput)).toInclude(
-          `- error Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
+          `Page / provided runtime 'edge', the edge runtime for rendering is currently experimental. Use runtime 'experimental-edge' instead.`
         )
         expect(next.cliOutput).not.toInclude('warn')
       })

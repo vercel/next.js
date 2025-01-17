@@ -4,8 +4,9 @@ import type { ParsedUrlQuery } from 'querystring'
 import type { UrlWithParsedQuery } from 'url'
 import type { BaseNextRequest } from './base-http'
 import type { CloneableBody } from './body-streams'
-import { RouteMatch } from './future/route-matches/route-match'
-import { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { RouteMatch } from './route-matches/route-match'
+import type { NEXT_RSC_UNION_QUERY } from '../client/components/app-router-headers'
+import type { ServerComponentsHmrCache } from './response-cache'
 
 // FIXME: (wyattjoh) this is a temporary solution to allow us to pass data between bundled modules
 export const NEXT_REQUEST_META = Symbol.for('NextInternalRequestMeta')
@@ -15,31 +16,168 @@ export type NextIncomingMessage = (BaseNextRequest | IncomingMessage) & {
 }
 
 export interface RequestMeta {
-  __NEXT_INIT_QUERY?: ParsedUrlQuery
-  __NEXT_INIT_URL?: string
-  __NEXT_CLONABLE_BODY?: CloneableBody
-  __nextHadTrailingSlash?: boolean
+  /**
+   * The query that was used to make the request.
+   */
+  initQuery?: ParsedUrlQuery
+
+  /**
+   * The URL that was used to make the request.
+   */
+  initURL?: string
+
+  /**
+   * The protocol that was used to make the request.
+   */
+  initProtocol?: string
+
+  /**
+   * The body that was read from the request. This is used to allow the body to
+   * be read multiple times.
+   */
+  clonableBody?: CloneableBody
 
   /**
    * True when the request matched a locale domain that was configured in the
    * next.config.js file.
    */
-  __nextIsLocaleDomain?: boolean
+  isLocaleDomain?: boolean
 
   /**
    * True when the request had locale information stripped from the pathname
    * part of the URL.
    */
-  __nextStrippedLocale?: boolean
-  _nextDidRewrite?: boolean
-  _nextHadBasePath?: boolean
-  _nextRewroteUrl?: string
-  _nextMiddlewareCookie?: string[]
-  _protocol?: string
-  _nextDataNormalizing?: boolean
-  _nextMatch?: RouteMatch
-  _nextIncrementalCache?: any
-  _nextMinimalMode?: boolean
+  didStripLocale?: boolean
+
+  /**
+   * If the request had it's URL rewritten, this is the URL it was rewritten to.
+   */
+  rewroteURL?: string
+
+  /**
+   * The cookies that were added by middleware and were added to the response.
+   */
+  middlewareCookie?: string[]
+
+  /**
+   * The match on the request for a given route.
+   */
+  match?: RouteMatch
+
+  /**
+   * The incremental cache to use for the request.
+   */
+  incrementalCache?: any
+
+  /**
+   * The server components HMR cache, only for dev.
+   */
+  serverComponentsHmrCache?: ServerComponentsHmrCache
+
+  /**
+   * True when the request is for the prefetch flight data.
+   */
+  isPrefetchRSCRequest?: true
+
+  /**
+   * True when the request is for the flight data.
+   */
+  isRSCRequest?: true
+
+  /**
+   * True when the request is for the `/_next/data` route using the pages
+   * router.
+   */
+  isNextDataReq?: true
+
+  /**
+   * Postponed state to use for resumption. If present it's assumed that the
+   * request is for a page that has postponed (there are no guarantees that the
+   * page actually has postponed though as it would incur an additional cache
+   * lookup).
+   */
+  postponed?: string
+
+  /**
+   * If provided, this will be called when a response cache entry was generated
+   * or looked up in the cache.
+   */
+  onCacheEntry?: (
+    cacheEntry: any,
+    requestMeta: any
+  ) => Promise<boolean | void> | boolean | void
+
+  /**
+   * The previous revalidate before rendering 404 page for notFound: true
+   */
+  notFoundRevalidate?: number | false
+
+  /**
+   * In development, the original source page that returned a 404.
+   */
+  developmentNotFoundSourcePage?: string
+
+  /**
+   * The path we routed to and should be invoked
+   */
+  invokePath?: string
+
+  /**
+   * The specific page output we should be matching
+   */
+  invokeOutput?: string
+
+  /**
+   * The status we are invoking the request with from routing
+   */
+  invokeStatus?: number
+
+  /**
+   * The routing error we are invoking with
+   */
+  invokeError?: Error
+
+  /**
+   * The query parsed for the invocation
+   */
+  invokeQuery?: Record<string, undefined | string | string[]>
+
+  /**
+   * Whether the request is a middleware invocation
+   */
+  middlewareInvoke?: boolean
+
+  /**
+   * Whether the default route matches were set on the request during routing.
+   */
+  didSetDefaultRouteMatches?: boolean
+
+  /**
+   * Whether the request is for the custom error page.
+   */
+  customErrorRender?: true
+
+  /**
+   * Whether to bubble up the NoFallbackError to the caller when a 404 is
+   * returned.
+   */
+  bubbleNoFallback?: true
+
+  /**
+   * True when the request had locale information inferred from the default
+   * locale.
+   */
+  localeInferredFromDefault?: true
+
+  /**
+   * The locale that was inferred or explicitly set for the request.
+   */
+  locale?: string
+
+  /**
+   * The default locale that was inferred or explicitly set for the request.
+   */
+  defaultLocale?: string
 }
 
 /**
@@ -113,30 +251,10 @@ export function removeRequestMeta<K extends keyof RequestMeta>(
 }
 
 type NextQueryMetadata = {
-  __nextNotFoundSrcPage?: string
-  __nextDefaultLocale?: string
-  __nextFallback?: 'true'
-
   /**
-   * The locale that was inferred or explicitly set for the request.
-   *
-   * When this property is mutated, it's important to also update the request
-   * metadata for `_nextInferredDefaultLocale` to ensure that the correct
-   * behavior is applied.
+   * The `_rsc` query parameter used for cache busting to ensure that the RSC
+   * requests do not get cached by the browser explicitly.
    */
-  __nextLocale?: string
-
-  /**
-   * `1` when the request did not have a locale in the pathname part of the
-   * URL but the default locale was inferred from either the domain or the
-   * configuration.
-   */
-  __nextInferredLocaleFromDefault?: '1'
-
-  __nextSsgPath?: string
-  _nextBubbleNoFallback?: '1'
-  __nextDataReq?: '1'
-  __nextCustomErrorRender?: '1'
   [NEXT_RSC_UNION_QUERY]?: string
 }
 
@@ -147,28 +265,4 @@ export type NextParsedUrlQuery = ParsedUrlQuery &
 
 export interface NextUrlWithParsedQuery extends UrlWithParsedQuery {
   query: NextParsedUrlQuery
-}
-
-export function getNextInternalQuery(
-  query: NextParsedUrlQuery
-): NextQueryMetadata {
-  const keysToInclude: (keyof NextQueryMetadata)[] = [
-    '__nextDefaultLocale',
-    '__nextFallback',
-    '__nextLocale',
-    '__nextSsgPath',
-    '_nextBubbleNoFallback',
-    '__nextDataReq',
-    '__nextInferredLocaleFromDefault',
-  ]
-  const nextInternalQuery: NextQueryMetadata = {}
-
-  for (const key of keysToInclude) {
-    if (key in query) {
-      // @ts-ignore this can't be typed correctly
-      nextInternalQuery[key] = query[key]
-    }
-  }
-
-  return nextInternalQuery
 }

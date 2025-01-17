@@ -1,5 +1,7 @@
 import { NextTypesPlugin } from '.'
 
+const normalizeSlashes = (p: string) => p.replace(/\\/g, '/')
+
 describe('next-types-plugin', () => {
   it('should generate correct base import path', () => {
     const plugin = new NextTypesPlugin({
@@ -10,20 +12,23 @@ describe('next-types-plugin', () => {
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       typedRoutes: false,
+      cacheLifeConfig: undefined,
       originalRewrites: undefined,
       originalRedirects: undefined,
     })
-    expect(plugin.getRelativePathFromAppTypesDir('page.tsx')).toEqual(
-      '../../../app/page.tsx'
-    )
-    expect(plugin.getRelativePathFromAppTypesDir('layout.tsx')).toEqual(
-      '../../../app/layout.tsx'
-    )
-    expect(plugin.getRelativePathFromAppTypesDir('test/page.tsx')).toEqual(
-      '../../../../app/test/page.tsx'
-    )
     expect(
-      plugin.getRelativePathFromAppTypesDir('deeply/nested/page.tsx')
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('page.tsx'))
+    ).toEqual('../../../app/page.tsx')
+    expect(
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('layout.tsx'))
+    ).toEqual('../../../app/layout.tsx')
+    expect(
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('test/page.tsx'))
+    ).toEqual('../../../../app/test/page.tsx')
+    expect(
+      normalizeSlashes(
+        plugin.getRelativePathFromAppTypesDir('deeply/nested/page.tsx')
+      )
     ).toEqual('../../../../../app/deeply/nested/page.tsx')
   })
 
@@ -36,15 +41,16 @@ describe('next-types-plugin', () => {
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       typedRoutes: false,
+      cacheLifeConfig: undefined,
       originalRewrites: undefined,
       originalRedirects: undefined,
     })
-    expect(plugin.getRelativePathFromAppTypesDir('layout.tsx')).toEqual(
-      '../../../../../../apps/myproject/app/layout.tsx'
-    )
-    expect(plugin.getRelativePathFromAppTypesDir('test/page.tsx')).toEqual(
-      '../../../../../../../apps/myproject/app/test/page.tsx'
-    )
+    expect(
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('layout.tsx'))
+    ).toEqual('../../../../../../apps/myproject/app/layout.tsx')
+    expect(
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('test/page.tsx'))
+    ).toEqual('../../../../../../../apps/myproject/app/test/page.tsx')
   })
 
   it('should generate correct base import path for custom projects', () => {
@@ -56,14 +62,15 @@ describe('next-types-plugin', () => {
       isEdgeServer: false,
       pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
       typedRoutes: false,
+      cacheLifeConfig: undefined,
       originalRewrites: undefined,
       originalRedirects: undefined,
     })
-    expect(plugin.getRelativePathFromAppTypesDir('layout.tsx')).toEqual(
-      '../../../../../ui/app/layout.tsx'
-    )
-    expect(plugin.getRelativePathFromAppTypesDir('test/page.tsx')).toEqual(
-      '../../../../../../ui/app/test/page.tsx'
-    )
+    expect(
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('layout.tsx'))
+    ).toEqual('../../../../../ui/app/layout.tsx')
+    expect(
+      normalizeSlashes(plugin.getRelativePathFromAppTypesDir('test/page.tsx'))
+    ).toEqual('../../../../../../ui/app/test/page.tsx')
   })
 })

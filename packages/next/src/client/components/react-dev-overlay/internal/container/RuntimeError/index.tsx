@@ -1,81 +1,51 @@
 import * as React from 'react'
 import { CodeFrame } from '../../components/CodeFrame'
-import { ReadyRuntimeError } from '../../helpers/getErrorByType'
+import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import { noop as css } from '../../helpers/noop-template'
-import { OriginalStackFrame } from '../../helpers/stack-frame'
-import { groupStackFramesByFramework } from '../../helpers/group-stack-frames-by-framework'
 import { CallStackFrame } from './CallStackFrame'
-import { GroupedStackFrames } from './GroupedStackFrames'
-import { ComponentStackFrameRow } from './ComponentStackFrameRow'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
-const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
-  error,
-}) {
-  const firstFirstPartyFrameIndex = React.useMemo<number>(() => {
-    return error.frames.findIndex(
+export function RuntimeError({ error }: RuntimeErrorProps) {
+  const [isIgnoredExpanded, setIsIgnoredExpanded] = React.useState(false)
+  const {
+    firstFrame,
+    allLeadingFrames,
+    trailingCallStackFrames,
+    displayedFramesCount,
+  } = React.useMemo(() => {
+    const filteredFrames = error.frames.filter((frame) =>
+      isIgnoredExpanded ? true : !frame.ignored
+    )
+
+    const firstFirstPartyFrameIndex = filteredFrames.findIndex(
       (entry) =>
-        entry.expanded &&
+        !entry.ignored &&
         Boolean(entry.originalCodeFrame) &&
         Boolean(entry.originalStackFrame)
     )
-  }, [error.frames])
-  const firstFrame = React.useMemo<OriginalStackFrame | null>(() => {
-    return error.frames[firstFirstPartyFrameIndex] ?? null
-  }, [error.frames, firstFirstPartyFrameIndex])
 
-  const allLeadingFrames = React.useMemo<OriginalStackFrame[]>(
-    () =>
-      firstFirstPartyFrameIndex < 0
-        ? []
-        : error.frames.slice(0, firstFirstPartyFrameIndex),
-    [error.frames, firstFirstPartyFrameIndex]
-  )
-
-  const [all, setAll] = React.useState(firstFrame == null)
-  const toggleAll = React.useCallback(() => {
-    setAll((v) => !v)
-  }, [])
-
-  const leadingFrames = React.useMemo(
-    () => allLeadingFrames.filter((f) => f.expanded || all),
-    [all, allLeadingFrames]
-  )
-  const allCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => error.frames.slice(firstFirstPartyFrameIndex + 1),
-    [error.frames, firstFirstPartyFrameIndex]
-  )
-  const visibleCallStackFrames = React.useMemo<OriginalStackFrame[]>(
-    () => allCallStackFrames.filter((f) => f.expanded || all),
-    [all, allCallStackFrames]
-  )
-
-  const canShowMore = React.useMemo<boolean>(() => {
-    return (
-      allCallStackFrames.length !== visibleCallStackFrames.length ||
-      (all && firstFrame != null)
-    )
-  }, [
-    all,
-    allCallStackFrames.length,
-    firstFrame,
-    visibleCallStackFrames.length,
-  ])
-
-  const stackFramesGroupedByFramework = React.useMemo(
-    () => groupStackFramesByFramework(visibleCallStackFrames),
-    [visibleCallStackFrames]
-  )
+    return {
+      displayedFramesCount: filteredFrames.length,
+      firstFrame: filteredFrames[firstFirstPartyFrameIndex] ?? null,
+      allLeadingFrames:
+        firstFirstPartyFrameIndex < 0
+          ? []
+          : filteredFrames.slice(0, firstFirstPartyFrameIndex),
+      trailingCallStackFrames: filteredFrames.slice(
+        firstFirstPartyFrameIndex + 1
+      ),
+    }
+  }, [error.frames, isIgnoredExpanded])
 
   return (
     <React.Fragment>
       {firstFrame ? (
-        <React.Fragment>
+        <>
           <h2>Source</h2>
-          {leadingFrames.map((frame, index) => (
+          {allLeadingFrames.map((frame, frameIndex) => (
             <CallStackFrame
-              key={`leading-frame-${index}-${all}`}
+              key={`call-stack-leading-${frameIndex}`}
               frame={frame}
             />
           ))}
@@ -83,71 +53,90 @@ const RuntimeError: React.FC<RuntimeErrorProps> = function RuntimeError({
             stackFrame={firstFrame.originalStackFrame!}
             codeFrame={firstFrame.originalCodeFrame!}
           />
-        </React.Fragment>
-      ) : undefined}
-
-      {error.componentStackFrames ? (
-        <>
-          <h2>Component Stack</h2>
-          {error.componentStackFrames.map((componentStackFrame, index) => (
-            <ComponentStackFrameRow
-              key={index}
-              componentStackFrame={componentStackFrame}
-            />
-          ))}
         </>
-      ) : null}
+      ) : undefined}
 
-      {stackFramesGroupedByFramework.length ? (
-        <React.Fragment>
-          <h2>Call Stack</h2>
-          <GroupedStackFrames
-            groupedStackFrames={stackFramesGroupedByFramework}
-            all={all}
-          />
-        </React.Fragment>
-      ) : undefined}
-      {canShowMore ? (
-        <React.Fragment>
+      {trailingCallStackFrames.map((frame, frameIndex) => (
+        <CallStackFrame
+          key={`call-stack-leading-${frameIndex}`}
+          frame={frame}
+        />
+      ))}
+      {
+        // if the default displayed ignored frames count is equal equal to the total frames count, hide the button
+        displayedFramesCount === error.frames.length &&
+        !isIgnoredExpanded ? null : (
           <button
-            tabIndex={10}
-            data-nextjs-data-runtime-error-collapsed-action
-            type="button"
-            onClick={toggleAll}
+            data-expand-ignore-button={isIgnoredExpanded}
+            onClick={() => setIsIgnoredExpanded(!isIgnoredExpanded)}
           >
-            {all ? 'Hide' : 'Show'} collapsed frames
+            {`${isIgnoredExpanded ? 'Hide' : 'Show'} ignored frames`}
           </button>
-        </React.Fragment>
-      ) : undefined}
+        )
+      }
     </React.Fragment>
   )
 }
 
 export const styles = css`
-  button[data-nextjs-data-runtime-error-collapsed-action] {
-    background: none;
-    border: none;
-    padding: 0;
-    font-size: var(--size-font-small);
-    line-height: var(--size-font-bigger);
-    color: var(--color-accents-3);
-  }
-
   [data-nextjs-call-stack-frame]:not(:last-child),
   [data-nextjs-component-stack-frame]:not(:last-child) {
     margin-bottom: var(--size-gap-double);
   }
 
+  [data-expand-ignore-button]:focus:not(:focus-visible),
+  [data-expand-ignore-button] {
+    background: none;
+    border: none;
+    color: var(--color-font);
+    cursor: pointer;
+    font-size: var(--size-font);
+    margin: var(--size-gap) 0;
+    padding: 0;
+    text-decoration: underline;
+    outline: none;
+  }
+
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
+    position: relative;
+    margin-left: var(--size-gap);
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-button] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-button {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-button--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
+    color: var(--color-ansi-red);
+  }
+  .nextjs-data-runtime-error-copy-button--success {
+    color: var(--color-ansi-green);
+  }
+
   [data-nextjs-call-stack-frame] > h3,
   [data-nextjs-component-stack-frame] > h3 {
     margin-top: 0;
-    margin-bottom: var(--size-gap);
+    margin-bottom: 0;
     font-family: var(--font-stack-monospace);
     font-size: var(--size-font);
-    color: #222;
   }
   [data-nextjs-call-stack-frame] > h3[data-nextjs-frame-expanded='false'] {
     color: #666;
+    display: inline-block;
   }
   [data-nextjs-call-stack-frame] > div,
   [data-nextjs-component-stack-frame] > div {
@@ -158,24 +147,24 @@ export const styles = css`
     color: #999;
   }
   [data-nextjs-call-stack-frame] > div > svg,
-  [data-nextjs-component-stack-frame] > div > svg {
+  [data-nextjs-component-stack-frame] > [role='link'] > svg {
     width: auto;
     height: var(--size-font-small);
     margin-left: var(--size-gap);
-
+    flex-shrink: 0;
     display: none;
   }
 
   [data-nextjs-call-stack-frame] > div[data-has-source],
-  [data-nextjs-component-stack-frame] > div {
+  [data-nextjs-component-stack-frame] > [role='link'] {
     cursor: pointer;
   }
   [data-nextjs-call-stack-frame] > div[data-has-source]:hover,
-  [data-nextjs-component-stack-frame] > div:hover {
+  [data-nextjs-component-stack-frame] > [role='link']:hover {
     text-decoration: underline dotted;
   }
   [data-nextjs-call-stack-frame] > div[data-has-source] > svg,
-  [data-nextjs-component-stack-frame] > div > svg {
+  [data-nextjs-component-stack-frame] > [role='link'] > svg {
     display: unset;
   }
 
@@ -195,7 +184,7 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] summary {
     display: flex;
     align-items: center;
-    margin: var(--size-gap-double) 0;
+    margin-bottom: var(--size-gap);
     list-style: none;
   }
   [data-nextjs-collapsed-call-stack-details] summary::-webkit-details-marker {
@@ -208,6 +197,35 @@ export const styles = css`
   [data-nextjs-collapsed-call-stack-details] [data-nextjs-call-stack-frame] {
     margin-bottom: var(--size-gap-double);
   }
-`
 
-export { RuntimeError }
+  [data-nextjs-container-errors-pseudo-html] {
+    position: relative;
+  }
+  [data-nextjs-container-errors-pseudo-html-collapse] {
+    position: absolute;
+    left: 10px;
+    top: 10px;
+    color: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='add'] {
+    color: var(--color-ansi-green);
+  }
+  [data-nextjs-container-errors-pseudo-html--diff='remove'] {
+    color: var(--color-ansi-red);
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-error] {
+    color: var(--color-ansi-red);
+    font-weight: bold;
+  }
+  /* hide but text are still accessible in DOM */
+  [data-nextjs-container-errors-pseudo-html--hint] {
+    display: inline-block;
+    font-size: 0;
+  }
+  [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
+    color: var(--color-accents-1);
+  }
+`

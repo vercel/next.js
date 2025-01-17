@@ -1,9 +1,16 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { fetchViaHTTP } from 'next-test-utils'
+import { NextInstance } from 'e2e-utils'
+import { fetchViaHTTP, shouldRunTurboDevTest } from 'next-test-utils'
 
 describe('Edge compiler module exports preference', () => {
   let next: NextInstance
+
+  if ((global as any).isNextDeploy) {
+    // this test is skipped when deployed because it manually creates a package in the node_modules directory
+    // which is unsupported
+    it('should skip next deploy', () => {})
+    return
+  }
 
   beforeAll(async () => {
     next = await createNext({
@@ -25,25 +32,25 @@ describe('Edge compiler module exports preference', () => {
             })
           }
         `,
-        'my-lib/package.json': JSON.stringify({
+        'node_modules/my-lib/package.json': JSON.stringify({
           name: 'my-lib',
           version: '1.0.0',
           main: 'index.js',
           browser: 'browser.js',
         }),
-        'my-lib/index.js': `module.exports = "Node.js"`,
-        'my-lib/browser.js': `module.exports = "Browser"`,
+        'node_modules/my-lib/index.js': `module.exports = "Node.js"`,
+        'node_modules/my-lib/browser.js': `module.exports = "Browser"`,
       },
       packageJson: {
         scripts: {
-          setup: `cp -r ./my-lib ./node_modules`,
-          build: 'yarn setup && next build',
-          dev: 'yarn setup && next dev',
+          build: 'next build',
+          dev: `next ${shouldRunTurboDevTest() ? 'dev --turbo' : 'dev'}`,
           start: 'next start',
         },
       },
-      startCommand: (global as any).isNextDev ? 'yarn dev' : 'yarn start',
-      buildCommand: 'yarn build',
+      installCommand: 'pnpm i',
+      startCommand: (global as any).isNextDev ? 'pnpm dev' : 'pnpm start',
+      buildCommand: 'pnpm run build',
       dependencies: {},
     })
   })

@@ -1,5 +1,5 @@
-import Link from 'next/link'
-import { Trans } from '@lingui/macro'
+import Link from "next/link";
+import { Trans } from "@lingui/macro";
 
 const Index = () => (
   <div>
@@ -9,6 +9,6 @@ const Index = () => (
     </Link>
     <br />
   </div>
-)
+);
 
-export default Index
+export default Index;

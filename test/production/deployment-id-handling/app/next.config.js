@@ -1,5 +1,4 @@
+/** @type {import('next').NextConfig} */
 module.exports = {
-  experimental: {
-    useDeploymentId: true,
-  },
+  deploymentId: process.env.CUSTOM_DEPLOYMENT_ID,
 }

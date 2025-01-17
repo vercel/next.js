@@ -70,40 +70,45 @@ function runTests() {
 }
 
 describe('Fetch polyfill', () => {
-  describe('dev support', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      await startApiServer()
-      app = await launchApp(appDir, appPort, {
-        env: {
-          NEXT_PUBLIC_API_PORT: apiServerPort,
-        },
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        await startApiServer()
+        app = await launchApp(appDir, appPort, {
+          env: {
+            NEXT_PUBLIC_API_PORT: apiServerPort,
+          },
+        })
       })
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await killApp(apiServer)
-    })
-
-    runTests()
-  })
-
-  describe('Server support', () => {
-    beforeAll(async () => {
-      await startApiServer()
-      await nextBuild(appDir, [], {
-        env: {
-          NEXT_PUBLIC_API_PORT: apiServerPort,
-        },
+      afterAll(async () => {
+        await killApp(app)
+        await killApp(apiServer)
       })
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(async () => {
-      await killApp(app)
-      await killApp(apiServer)
-    })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await startApiServer()
+        await nextBuild(appDir, [], {
+          env: {
+            NEXT_PUBLIC_API_PORT: apiServerPort,
+          },
+        })
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(async () => {
+        await killApp(app)
+        await killApp(apiServer)
+      })
+
+      runTests()
+    }
+  )
 })

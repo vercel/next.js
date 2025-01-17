@@ -7,83 +7,98 @@ import { join } from 'path'
 const appDir = join(__dirname, '../')
 
 describe('Build warnings', () => {
-  it('should not shown warning about minification withou any modification', async () => {
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
-    expect(stderr).not.toContain('optimization has been disabled')
-  })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      it('should not shown warning about minification without any modification', async () => {
+        const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+        expect(stderr).not.toContain('optimization has been disabled')
+      })
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should shown warning about minification for minimize',
+        async () => {
+          const nextConfig = new File(join(appDir, 'next.config.js'))
 
-  it('should shown warning about minification for minimize', async () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
+          await waitFor(500)
 
-    await waitFor(500)
+          nextConfig.replace('true', 'false')
 
-    nextConfig.replace('true', 'false')
+          const { stderr } = await nextBuild(appDir, undefined, {
+            stderr: true,
+          })
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(stderr).toContain('optimization has been disabled')
 
-    expect(stderr).toContain('optimization has been disabled')
+          nextConfig.restore()
+        }
+      )
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'should shown warning about minification for minimizer',
+        async () => {
+          const nextConfig = new File(join(appDir, 'next.config.js'))
 
-    nextConfig.restore()
-  })
+          await waitFor(500)
 
-  it('should shown warning about minification for minimizer', async () => {
-    const nextConfig = new File(join(appDir, 'next.config.js'))
+          nextConfig.replace(
+            'config.optimization.minimize = true',
+            'config.optimization.minimizer = []'
+          )
 
-    await waitFor(500)
+          const { stderr } = await nextBuild(appDir, undefined, {
+            stderr: true,
+          })
 
-    nextConfig.replace(
-      'config.optimization.minimize = true',
-      'config.optimization.minimizer = []'
-    )
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(stderr).toContain('optimization has been disabled')
 
-    const { stderr } = await nextBuild(appDir, undefined, { stderr: true })
+          nextConfig.restore()
+        }
+      )
 
-    expect(stderr).toContain('optimization has been disabled')
+      it('should not warn about missing cache in non-CI', async () => {
+        await remove(join(appDir, '.next'))
 
-    nextConfig.restore()
-  })
+        const { stdout } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          env: {
+            CI: '',
+            CIRCLECI: '',
+            TRAVIS: '',
+            SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: '',
+            GITHUB_ACTIONS: '',
+            GITHUB_EVENT_NAME: '',
+          },
+        })
+        expect(stdout).not.toContain('no-cache')
+      })
 
-  it('should not warn about missing cache in non-CI', async () => {
-    await remove(join(appDir, '.next'))
+      it('should not warn about missing cache on supported platforms', async () => {
+        await remove(join(appDir, '.next'))
 
-    const { stdout } = await nextBuild(appDir, undefined, {
-      stdout: true,
-      env: {
-        CI: '',
-        CIRCLECI: '',
-        TRAVIS: '',
-        SYSTEM_TEAMFOUNDATIONCOLLECTIONURI: '',
-        GITHUB_ACTIONS: '',
-        GITHUB_EVENT_NAME: '',
-      },
-    })
-    expect(stdout).not.toContain('no-cache')
-  })
+        const { stdout } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          env: { CI: '1', NOW_BUILDER: '1' },
+        })
+        expect(stdout).not.toContain('no-cache')
+      })
 
-  it('should not warn about missing cache on supported platforms', async () => {
-    await remove(join(appDir, '.next'))
+      it('should warn about missing cache in CI', async () => {
+        await remove(join(appDir, '.next'))
 
-    const { stdout } = await nextBuild(appDir, undefined, {
-      stdout: true,
-      env: { CI: '1', NOW_BUILDER: '1' },
-    })
-    expect(stdout).not.toContain('no-cache')
-  })
+        let { stdout } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          env: { CI: '1' },
+        })
+        expect(stdout).toContain('no-cache')
 
-  it('should warn about missing cache in CI', async () => {
-    await remove(join(appDir, '.next'))
-
-    let { stdout } = await nextBuild(appDir, undefined, {
-      stdout: true,
-      env: { CI: '1' },
-    })
-    expect(stdout).toContain('no-cache')
-
-    // Do not warn after cache is present
-    ;({ stdout } = await nextBuild(appDir, undefined, {
-      stdout: true,
-      env: { CI: '1' },
-    }))
-    expect(stdout).not.toContain('no-cache')
-  })
+        // Do not warn after cache is present
+        ;({ stdout } = await nextBuild(appDir, undefined, {
+          stdout: true,
+          env: { CI: '1' },
+        }))
+        expect(stdout).not.toContain('no-cache')
+      })
+    }
+  )
 })

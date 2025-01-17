@@ -1,52 +1,82 @@
-const { default: AppRouter } =
-  require('next/dist/client/components/app-router') as typeof import('../../client/components/app-router')
-const { default: LayoutRouter } =
-  require('next/dist/client/components/layout-router') as typeof import('../../client/components/layout-router')
-const { default: RenderFromTemplateContext } =
-  require('next/dist/client/components/render-from-template-context') as typeof import('../../client/components/render-from-template-context')
-
-const { staticGenerationAsyncStorage } =
-  require('next/dist/client/components/static-generation-async-storage') as typeof import('../../client/components/static-generation-async-storage')
-
-const { requestAsyncStorage } =
-  require('next/dist/client/components/request-async-storage') as typeof import('../../client/components/request-async-storage')
-const { actionAsyncStorage } =
-  require('next/dist/client/components/action-async-storage') as typeof import('../../client/components/action-async-storage')
-
-const { staticGenerationBailout } =
-  require('next/dist/client/components/static-generation-bailout') as typeof import('../../client/components/static-generation-bailout')
-const { default: StaticGenerationSearchParamsBailoutProvider } =
-  require('next/dist/client/components/static-generation-searchparams-bailout-provider') as typeof import('../../client/components/static-generation-searchparams-bailout-provider')
-const { createSearchParamsBailoutProxy } =
-  require('next/dist/client/components/searchparams-bailout-proxy') as typeof import('../../client/components/searchparams-bailout-proxy')
-
-const serverHooks =
-  require('next/dist/client/components/hooks-server-context') as typeof import('../../client/components/hooks-server-context')
-
-const {
+// eslint-disable-next-line import/no-extraneous-dependencies
+export {
+  createTemporaryReferenceSet,
   renderToReadableStream,
   decodeReply,
   decodeAction,
-  // eslint-disable-next-line import/no-extraneous-dependencies
-} = require('react-server-dom-webpack/server.edge')
-const { preloadStyle, preloadFont, preconnect } =
-  require('next/dist/server/app-render/rsc/preloads') as typeof import('../../server/app-render/rsc/preloads')
+  decodeFormState,
+} from 'react-server-dom-webpack/server.edge'
+
+// eslint-disable-next-line import/no-extraneous-dependencies
+export { unstable_prerender as prerender } from 'react-server-dom-webpack/static.edge'
+
+import LayoutRouter from '../../client/components/layout-router'
+import RenderFromTemplateContext from '../../client/components/render-from-template-context'
+import { workAsyncStorage } from '../app-render/work-async-storage.external'
+import { workUnitAsyncStorage } from './work-unit-async-storage.external'
+import { actionAsyncStorage } from '../app-render/action-async-storage.external'
+import { ClientPageRoot } from '../../client/components/client-page'
+import { ClientSegmentRoot } from '../../client/components/client-segment'
+import {
+  createServerSearchParamsForServerPage,
+  createPrerenderSearchParamsForClientPage,
+  createServerSearchParamsForMetadata,
+} from '../request/search-params'
+import {
+  createServerParamsForServerSegment,
+  createServerParamsForMetadata,
+  createPrerenderParamsForClientSegment,
+} from '../request/params'
+import * as serverHooks from '../../client/components/hooks-server-context'
+import { HTTPAccessFallbackBoundary } from '../../client/components/http-access-fallback/error-boundary'
+import { createMetadataComponents } from '../../lib/metadata/metadata'
+import { patchFetch as _patchFetch } from '../lib/patch-fetch'
+// not being used but needs to be included in the client manifest for /_not-found
+import '../../client/components/error-boundary'
+import {
+  MetadataBoundary,
+  ViewportBoundary,
+  OutletBoundary,
+} from '../../lib/metadata/metadata-boundary'
+
+import { preloadStyle, preloadFont, preconnect } from './rsc/preloads'
+import { Postpone } from './rsc/postpone'
+import { taintObjectReference } from './rsc/taint'
+export { collectSegmentData } from './collect-segment-data'
+
+// patchFetch makes use of APIs such as `React.unstable_postpone` which are only available
+// in the experimental channel of React, so export it from here so that it comes from the bundled runtime
+function patchFetch() {
+  return _patchFetch({
+    workAsyncStorage,
+    workUnitAsyncStorage,
+  })
+}
 
 export {
-  AppRouter,
   LayoutRouter,
   RenderFromTemplateContext,
-  staticGenerationAsyncStorage,
-  requestAsyncStorage,
+  workAsyncStorage,
+  workUnitAsyncStorage,
   actionAsyncStorage,
-  staticGenerationBailout,
-  createSearchParamsBailoutProxy,
+  createServerSearchParamsForServerPage,
+  createServerSearchParamsForMetadata,
+  createPrerenderSearchParamsForClientPage,
+  createServerParamsForServerSegment,
+  createServerParamsForMetadata,
+  createPrerenderParamsForClientSegment,
   serverHooks,
-  renderToReadableStream,
-  decodeReply,
-  decodeAction,
   preloadStyle,
   preloadFont,
   preconnect,
-  StaticGenerationSearchParamsBailoutProvider,
+  Postpone,
+  MetadataBoundary,
+  ViewportBoundary,
+  OutletBoundary,
+  taintObjectReference,
+  ClientPageRoot,
+  ClientSegmentRoot,
+  HTTPAccessFallbackBoundary,
+  patchFetch,
+  createMetadataComponents,
 }

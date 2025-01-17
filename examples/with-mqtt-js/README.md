@@ -4,7 +4,7 @@ This example shows how to use [MQTT.js](https://github.com/mqttjs/MQTT.js) with 
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-mqtt-js)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-mqtt-js&project-name=with-mqtt-js&repository-name=with-mqtt-js)
 
@@ -33,7 +33,7 @@ cp .env.local.example .env.local
 Then set each variable on `.env.local`:
 
 - `NEXT_MQTT_URI`: The URI of the broker. For example `wss://test.mosquitto.org:8081/mqtt`
-- `NEXT_MQTT_CLIENTID`: An arbritrary string of max. 23 characters.
+- `NEXT_MQTT_CLIENTID`: An arbitrary string of max. 23 characters.
 - `NEXT_MQTT_USERNAME`: The username for the connection to the broker.
 - `NEXT_MQTT_PASSWORD`: The password for the connection to the broker.
 

@@ -1,42 +1,42 @@
 import React from 'react'
-import type { FlightData } from '../../../server/app-render/types'
 import { invalidateCacheBelowFlightSegmentPath } from './invalidate-cache-below-flight-segmentpath'
-import { CacheStates, CacheNode } from '../../../shared/lib/app-router-context'
+import type { CacheNode } from '../../../shared/lib/app-router-context.shared-runtime'
 import { fillCacheWithNewSubTreeData } from './fill-cache-with-new-subtree-data'
+import type { NormalizedFlightData } from '../../flight-data-helpers'
 
-const getFlightData = (): FlightData => {
+const getFlightData = (): NormalizedFlightData[] => {
   return [
-    [
-      'children',
-      'linking',
-      'children',
-      'about',
-      [
-        'about',
-        {
-          children: ['', {}],
-        },
-      ],
-      <h1>About Page!</h1>,
-      <>
-        <title>About page!</title>
-      </>,
-    ],
+    {
+      pathToSegment: ['children', 'linking', 'children'],
+      segmentPath: ['children', 'linking', 'children', 'about'],
+      segment: 'about',
+      tree: ['about', { children: ['', {}] }],
+      seedData: ['about', <h1>About Page!</h1>, {}, null, false],
+      head: null,
+      isHeadPartial: false,
+      isRootRender: false,
+    },
   ]
 }
 
 describe('invalidateCacheBelowFlightSegmentPath', () => {
   it('should invalidate cache below flight segment path', () => {
     const cache: CacheNode = {
-      status: CacheStates.LAZY_INITIALIZED,
-      data: null,
-      subTreeData: null,
+      lazyData: null,
+      rsc: null,
+      prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map(),
     }
     const existingCache: CacheNode = {
-      data: null,
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      lazyData: null,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -44,9 +44,12 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
-                data: null,
-                status: CacheStates.READY,
-                subTreeData: <>Linking</>,
+                lazyData: null,
+                rsc: <>Linking</>,
+                prefetchRsc: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -54,9 +57,12 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
-                          data: null,
-                          status: CacheStates.READY,
-                          subTreeData: <>Page</>,
+                          lazyData: null,
+                          rsc: <>Page</>,
+                          prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
+                          loading: null,
                           parallelRoutes: new Map(),
                         },
                       ],
@@ -77,26 +83,26 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
     }
 
     // Mirrors the way router-reducer values are passed in.
-    const flightDataPath = flightData[0]
-    const flightSegmentPath = flightDataPath.slice(0, -3)
+    const normalizedFlightData = flightData[0]
 
-    // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
-    cache.status = CacheStates.READY
-    // Copy subTreeData for the root node of the cache.
-    // @ts-expect-error TODO-APP: investigate why this is not a TS error in router-reducer.
-    cache.subTreeData = existingCache.subTreeData
-    // Create a copy of the existing cache with the subTreeData applied.
-    fillCacheWithNewSubTreeData(cache, existingCache, flightDataPath, false)
+    // Copy rsc for the root node of the cache.
+    cache.rsc = existingCache.rsc
+    cache.prefetchRsc = existingCache.prefetchRsc
+    // Create a copy of the existing cache with the rsc applied.
+    fillCacheWithNewSubTreeData(cache, existingCache, normalizedFlightData)
 
     // Invalidate the cache below the flight segment path. This should remove the 'about' node.
     invalidateCacheBelowFlightSegmentPath(
       cache,
       existingCache,
-      flightSegmentPath
+      normalizedFlightData.segmentPath
     )
 
     const expectedCache: CacheNode = {
-      data: null,
+      lazyData: null,
+      head: null,
+      prefetchHead: null,
+      loading: null,
       parallelRoutes: new Map([
         [
           'children',
@@ -104,7 +110,10 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
             [
               'linking',
               {
-                data: null,
+                lazyData: null,
+                head: null,
+                prefetchHead: null,
+                loading: null,
                 parallelRoutes: new Map([
                   [
                     'children',
@@ -112,24 +121,27 @@ describe('invalidateCacheBelowFlightSegmentPath', () => {
                       [
                         '',
                         {
-                          data: null,
+                          lazyData: null,
+                          loading: null,
                           parallelRoutes: new Map(),
-                          status: CacheStates.READY,
-                          subTreeData: <React.Fragment>Page</React.Fragment>,
+                          rsc: <React.Fragment>Page</React.Fragment>,
+                          prefetchRsc: null,
+                          head: null,
+                          prefetchHead: null,
                         },
                       ],
                     ]),
                   ],
                 ]),
-                status: CacheStates.READY,
-                subTreeData: <React.Fragment>Linking</React.Fragment>,
+                rsc: <React.Fragment>Linking</React.Fragment>,
+                prefetchRsc: null,
               },
             ],
           ]),
         ],
       ]),
-      status: CacheStates.READY,
-      subTreeData: <>Root layout</>,
+      rsc: <>Root layout</>,
+      prefetchRsc: null,
     }
 
     expect(cache).toMatchObject(expectedCache)

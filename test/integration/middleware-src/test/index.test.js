@@ -4,17 +4,17 @@ import fs from 'fs-extra'
 import { join } from 'path'
 import {
   fetchViaHTTP,
+  File,
   findPort,
   launchApp,
   killApp,
   nextBuild,
-  nextStart,
-  nextExport,
 } from 'next-test-utils'
 
 let app
 let appPort
 const appDir = join(__dirname, '../')
+const nextConfig = new File(join(appDir, 'next.config.js'))
 const srcHeader = 'X-From-Src-Middleware'
 const rootHeader = 'X-From-Root-Middleware'
 const rootMiddlewareJSFile = join(appDir, 'middleware.js')
@@ -89,47 +89,42 @@ describe.each([
 ])('$title', ({ setup, teardown, runTest }) => {
   beforeAll(() => setup())
   afterAll(() => teardown())
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+      runTest()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      let exportOutput = ''
 
-    runTest()
-  })
-
-  describe('production mode', () => {
-    let exportOutput = ''
-
-    beforeAll(async () => {
-      await nextBuild(appDir)
-
-      const outdir = join(__dirname, '..', 'out')
-      await fs.remove(outdir).catch(() => {})
-
-      const result = await nextExport(
-        appDir,
-        { outdir },
-        {
+      beforeAll(async () => {
+        nextConfig.write(`module.exports = { output: 'export' }`)
+        const result = await nextBuild(appDir, [], {
           stderr: true,
           stdout: true,
-        }
-      )
-      exportOutput = result.stderr + result.stdout
+        })
 
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+        const outdir = join(__dirname, '..', 'out')
+        await fs.remove(outdir).catch(() => {})
 
-    it('should warn about middleware on export', async () => {
-      expect(exportOutput).toContain(
-        'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
-      )
-    })
+        exportOutput = result.stderr + result.stdout
+      })
+      afterAll(() => nextConfig.delete())
 
-    runTest()
-  })
+      it('should warn about middleware on export', async () => {
+        expect(exportOutput).toContain(
+          'Statically exporting a Next.js application via `next export` disables API routes and middleware.'
+        )
+      })
+    }
+  )
 })

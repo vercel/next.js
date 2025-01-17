@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
 import { check } from 'next-test-utils'
 
@@ -25,44 +25,42 @@ describe('useSelectedLayoutSegment(s)', () => {
     expect(
       await browser.elementByCss('#root > .segments').text()
     ).toMatchInlineSnapshot(
-      `"[\\"segment-name\\",\\"value1\\",\\"segment-name2\\",\\"value2\\",\\"value3/value4\\"]"`
+      `"["segment-name","value1","segment-name2","value2","value3/value4"]"`
     )
 
     expect(
       await browser.elementByCss('#root > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"segment-name\\""`)
+    ).toMatchInlineSnapshot(`""segment-name""`)
   })
 
   it('should return correct values in layout before static segment', async () => {
     expect(
       await browser.elementByCss('#before-static > .segments').text()
-    ).toMatchInlineSnapshot(
-      `"[\\"segment-name2\\",\\"value2\\",\\"value3/value4\\"]"`
-    )
+    ).toMatchInlineSnapshot(`"["segment-name2","value2","value3/value4"]"`)
 
     expect(
       await browser.elementByCss('#before-static > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"segment-name2\\""`)
+    ).toMatchInlineSnapshot(`""segment-name2""`)
   })
 
   it('should return correct values in layout before param segment', async () => {
     expect(
       await browser.elementByCss('#before-param > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"value2\\",\\"value3/value4\\"]"`)
+    ).toMatchInlineSnapshot(`"["value2","value3/value4"]"`)
 
     expect(
       await browser.elementByCss('#before-param > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"value2\\""`)
+    ).toMatchInlineSnapshot(`""value2""`)
   })
 
   it('should return correct values in layout before catchall segment', async () => {
     expect(
       await browser.elementByCss('#before-catchall > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"value3/value4\\"]"`)
+    ).toMatchInlineSnapshot(`"["value3/value4"]"`)
 
     expect(
       await browser.elementByCss('#before-catchall > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"value3/value4\\""`)
+    ).toMatchInlineSnapshot(`""value3/value4""`)
   })
 
   it('should return correct values in layout after last segment', async () => {
@@ -85,17 +83,15 @@ describe('useSelectedLayoutSegment(s)', () => {
 
     expect(
       await browser.elementByCss('#root > .segments').text()
-    ).toMatchInlineSnapshot(
-      `"[\\"segment-name\\",\\"param1\\",\\"different-segment\\"]"`
-    )
+    ).toMatchInlineSnapshot(`"["segment-name","param1","different-segment"]"`)
 
     expect(
       await browser.elementByCss('#before-static > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"different-segment\\"]"`)
+    ).toMatchInlineSnapshot(`"["different-segment"]"`)
 
     expect(
       await browser.elementByCss('#before-static > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"different-segment\\""`)
+    ).toMatchInlineSnapshot(`""different-segment""`)
   })
 
   it('should correctly update when changing param segment', async () => {
@@ -109,16 +105,16 @@ describe('useSelectedLayoutSegment(s)', () => {
     expect(
       await browser.elementByCss('#root > .segments').text()
     ).toMatchInlineSnapshot(
-      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"different-value\\",\\"value3/value4\\"]"`
+      `"["segment-name","param1","segment-name2","different-value","value3/value4"]"`
     )
 
     expect(
       await browser.elementByCss('#before-param > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"different-value\\",\\"value3/value4\\"]"`)
+    ).toMatchInlineSnapshot(`"["different-value","value3/value4"]"`)
 
     expect(
       await browser.elementByCss('#before-param > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"different-value\\""`)
+    ).toMatchInlineSnapshot(`""different-value""`)
   })
 
   it('should correctly update when changing catchall segment', async () => {
@@ -132,15 +128,15 @@ describe('useSelectedLayoutSegment(s)', () => {
     expect(
       await browser.elementByCss('#root > .segments').text()
     ).toMatchInlineSnapshot(
-      `"[\\"segment-name\\",\\"param1\\",\\"segment-name2\\",\\"value2\\",\\"different/random/paths\\"]"`
+      `"["segment-name","param1","segment-name2","value2","different/random/paths"]"`
     )
 
     expect(
       await browser.elementByCss('#before-catchall > .segments').text()
-    ).toMatchInlineSnapshot(`"[\\"different/random/paths\\"]"`)
+    ).toMatchInlineSnapshot(`"["different/random/paths"]"`)
 
     expect(
       await browser.elementByCss('#before-catchall > .segment').text()
-    ).toMatchInlineSnapshot(`"\\"different/random/paths\\""`)
+    ).toMatchInlineSnapshot(`""different/random/paths""`)
   })
 })

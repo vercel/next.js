@@ -17,6 +17,7 @@ const CategoryNav = ({ categories }) => {
           key={item.slug}
           href={`/nested-navigation/${item.slug}`}
           isActive={item.slug === selectedLayoutSegment}
+          prefetch={item.prefetch}
         >
           {item.name}
         </TabNavItem>

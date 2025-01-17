@@ -24,23 +24,21 @@ function runTests() {
     app = await launchApp(appDir, appPort, {})
     const data = await makeRequest()
     expect(data).toEqual([{ title: 'Nextjs' }])
-    killApp(app)
+    await killApp(app)
   })
 
-  // TODO: we can't allow req fields with the proxying required for separate
-  // workers
-  it.skip('should not throw if request body is already parsed in custom middleware', async () => {
+  it('should not throw if request body is already parsed in custom middleware', async () => {
     await startServer()
     const data = await makeRequest()
     expect(data).toEqual([{ title: 'Nextjs' }])
-    killApp(server)
+    await killApp(server)
   })
 
   it("should not throw if request's content-type is invalid", async () => {
     await startServer()
     const status = await makeRequestWithInvalidContentType()
     expect(status).toBe(200)
-    killApp(server)
+    await killApp(server)
   })
 }
 
@@ -71,7 +69,11 @@ async function makeRequestWithInvalidContentType() {
 const startServer = async (optEnv = {}, opts) => {
   const scriptPath = join(appDir, 'server.js')
   context.appPort = appPort = await getPort()
-  const env = Object.assign({ ...process.env }, { PORT: `${appPort}` }, optEnv)
+  const env = Object.assign(
+    { ...process.env },
+    { PORT: `${appPort}`, CUSTOM_SERVER: 'true' },
+    optEnv
+  )
 
   server = await initNextServerScript(
     scriptPath,

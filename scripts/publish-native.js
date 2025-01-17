@@ -2,9 +2,8 @@
 
 const path = require('path')
 const execa = require('execa')
-const { copy } = require('fs-extra')
 const { Sema } = require('async-sema')
-const { readFile, readdir, writeFile } = require('fs/promises')
+const { readFile, readdir, writeFile, cp } = require('fs/promises')
 
 const cwd = process.cwd()
 
@@ -17,7 +16,7 @@ const cwd = process.cwd()
     ).version
 
     // Copy binaries to package folders, update version, and publish
-    let nativePackagesDir = path.join(cwd, 'packages/next-swc/crates/napi/npm')
+    let nativePackagesDir = path.join(cwd, 'crates/napi/npm')
     let platforms = (await readdir(nativePackagesDir)).filter(
       (name) => !name.startsWith('.')
     )
@@ -25,10 +24,11 @@ const cwd = process.cwd()
     await Promise.all(
       platforms.map(async (platform) => {
         await publishSema.acquire()
+        let output = ''
 
         try {
           let binaryName = `next-swc.${platform}.node`
-          await copy(
+          await cp(
             path.join(cwd, 'packages/next-swc/native', binaryName),
             path.join(nativePackagesDir, platform, binaryName)
           )
@@ -42,7 +42,7 @@ const cwd = process.cwd()
             path.join(nativePackagesDir, platform, 'package.json'),
             JSON.stringify(pkg, null, 2)
           )
-          await execa(
+          const child = execa(
             `npm`,
             [
               `publish`,
@@ -53,14 +53,20 @@ const cwd = process.cwd()
             ],
             { stdio: 'inherit' }
           )
+          const handleData = (type) => (chunk) => {
+            process[type].write(chunk)
+            output += chunk.toString()
+          }
+          child.stdout?.on('data', handleData('stdout'))
+          child.stderr?.on('data', handleData('stderr'))
+          await child
         } catch (err) {
           // don't block publishing other versions on single platform error
           console.error(`Failed to publish`, platform, err)
 
           if (
-            err.message &&
-            err.message.includes(
-              'You cannot publish over the previously published versions'
+            output.includes(
+              'cannot publish over the previously published versions'
             )
           ) {
             console.error('Ignoring already published error', platform, err)
@@ -74,13 +80,11 @@ const cwd = process.cwd()
     )
 
     // Update name/version of wasm packages and publish
-    const pkgDirectory = 'packages/next-swc/crates/wasm'
+    const pkgDirectory = 'crates/wasm'
     let wasmDir = path.join(cwd, pkgDirectory)
-
     await Promise.all(
       ['web', 'nodejs'].map(async (wasmTarget) => {
         await publishSema.acquire()
-
         let wasmPkg = JSON.parse(
           await readFile(path.join(wasmDir, `pkg-${wasmTarget}/package.json`))
         )
@@ -91,12 +95,10 @@ const cwd = process.cwd()
           url: 'https://github.com/vercel/next.js',
           directory: pkgDirectory,
         }
-
         await writeFile(
           path.join(wasmDir, `pkg-${wasmTarget}/package.json`),
           JSON.stringify(wasmPkg, null, 2)
         )
-
         try {
           await execa(
             `npm`,
@@ -112,7 +114,6 @@ const cwd = process.cwd()
         } catch (err) {
           // don't block publishing other versions on single platform error
           console.error(`Failed to publish`, wasmTarget, err)
-
           if (
             err.message &&
             err.message.includes(

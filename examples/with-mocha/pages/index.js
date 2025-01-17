@@ -8,5 +8,5 @@ export default function Home() {
       `}</style>
       <p>Hello World!</p>
     </div>
-  )
+  );
 }

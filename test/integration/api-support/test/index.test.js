@@ -8,10 +8,10 @@ import {
   findPort,
   launchApp,
   fetchViaHTTP,
+  File,
   renderViaHTTP,
   nextBuild,
   nextStart,
-  nextExport,
   getPageFileFromBuildManifest,
   getPageFileFromPagesManifest,
   check,
@@ -547,7 +547,7 @@ function runTests(dev = false) {
       expect(getPageFileFromPagesManifest(appDir, '/api/users')).toBeTruthy()
     })
 
-    it('should show warning when the API resolves without ending the request in dev mode', async () => {
+    it('should show warning when the API resolves without ending the request in development mode', async () => {
       const controller = new AbortController()
       setTimeout(() => {
         controller.abort()
@@ -593,15 +593,16 @@ function runTests(dev = false) {
       expect(await req.text()).toBe('hello world')
     })
   } else {
-    it('should show warning with next export', async () => {
-      const { stderr } = await nextExport(
-        appDir,
-        { outdir: join(appDir, 'out') },
-        { stderr: true }
-      )
-      expect(stderr).toContain(
-        'https://nextjs.org/docs/messages/api-routes-static-export'
-      )
+    it('should show error with output export', async () => {
+      const nextConfig = new File(join(appDir, 'next.config.js'))
+      nextConfig.write(`module.exports = { output: 'export' }`)
+      try {
+        const { stderr, code } = await nextBuild(appDir, [], { stderr: true })
+        expect(stderr).toContain('https://nextjs.org/docs/messages/gssp-export')
+        expect(code).toBe(1)
+      } finally {
+        nextConfig.delete()
+      }
     })
 
     it('should build api routes', async () => {
@@ -643,16 +644,18 @@ describe('API routes', () => {
 
     runTests(true)
   })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        mode = 'server'
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  describe('Server support', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      mode = 'server'
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

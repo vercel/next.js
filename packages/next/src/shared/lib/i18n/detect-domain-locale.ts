@@ -1,7 +1,7 @@
 import type { DomainLocale } from '../../../server/config-shared'
 
 export function detectDomainLocale(
-  domainItems?: DomainLocale[],
+  domainItems?: readonly DomainLocale[],
   hostname?: string,
   detectedLocale?: string
 ) {
@@ -13,7 +13,7 @@ export function detectDomainLocale(
 
   for (const item of domainItems) {
     // remove port if present
-    const domainHostname = item.domain?.split(':')[0].toLowerCase()
+    const domainHostname = item.domain?.split(':', 1)[0].toLowerCase()
     if (
       hostname === domainHostname ||
       detectedLocale === item.defaultLocale.toLowerCase() ||

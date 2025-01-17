@@ -1,5 +1,5 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP } from 'next-test-utils'
 import { join } from 'path'
 import cheerio from 'cheerio'
@@ -15,6 +15,139 @@ describe('skip-trailing-slash-redirect', () => {
     })
   })
   afterAll(() => next.destroy())
+
+  // the tests below are run in both pages and app dir to ensure the behavior is the same
+  // the other cases aren't added to this block since they are either testing pages-specific behavior
+  // or aren't specific to either router implementation
+  async function runSharedTests(basePath: string) {
+    it('should not apply trailing slash redirect (with slash)', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `${basePath}another/`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('another page')
+    })
+
+    it('should not apply trailing slash redirect (without slash)', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `${basePath}another`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('another page')
+    })
+
+    it('should preserve original trailing slashes to links on client', async () => {
+      const browser = await webdriver(next.url, basePath)
+      await browser.eval('window.beforeNav = 1')
+
+      expect(
+        new URL(
+          await browser.elementByCss('#to-another').getAttribute('href'),
+          'http://n'
+        ).pathname
+      ).toBe(`${basePath}another`)
+
+      expect(
+        new URL(
+          await browser
+            .elementByCss('#to-another-with-slash')
+            .getAttribute('href'),
+          'http://n'
+        ).pathname
+      ).toBe(`${basePath}another/`)
+
+      await browser.elementByCss('#to-another').click()
+      await browser.waitForElementByCss('#another')
+
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}another`
+      )
+
+      await browser.back().waitForElementByCss('#to-another')
+
+      expect(
+        new URL(
+          await browser
+            .elementByCss('#to-another-with-slash')
+            .getAttribute('href'),
+          'http://n'
+        ).pathname
+      ).toBe(`${basePath}another/`)
+
+      await browser.elementByCss('#to-another-with-slash').click()
+      await browser.waitForElementByCss('#another')
+
+      expect(await browser.eval('window.location.pathname')).toBe(
+        `${basePath}another/`
+      )
+
+      await browser.back().waitForElementByCss('#to-another')
+      expect(await browser.eval('window.beforeNav')).toBe(1)
+    })
+
+    it('should respond to index correctly', async () => {
+      const res = await fetchViaHTTP(next.url, basePath, undefined, {
+        redirect: 'manual',
+      })
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('index page')
+    })
+
+    it('should respond to dynamic route correctly', async () => {
+      const res = await fetchViaHTTP(
+        next.url,
+        `${basePath}blog/first`,
+        undefined,
+        {
+          redirect: 'manual',
+        }
+      )
+      expect(res.status).toBe(200)
+      expect(await res.text()).toContain('blog page')
+    })
+
+    it('should navigate client side correctly', async () => {
+      const browser = await webdriver(next.url, basePath)
+
+      expect(await browser.eval('location.pathname')).toBe(basePath)
+
+      await browser.elementByCss('#to-another').click()
+      await browser.waitForElementByCss('#another')
+
+      expect(await browser.eval('location.pathname')).toBe(`${basePath}another`)
+      await browser.back()
+      await browser.waitForElementByCss('#index')
+
+      expect(await browser.eval('location.pathname')).toBe(basePath)
+
+      await browser.elementByCss('#to-blog-first').click()
+      await browser.waitForElementByCss('#blog')
+
+      expect(await browser.eval('location.pathname')).toBe(
+        `${basePath}blog/first`
+      )
+    })
+  }
+
+  it('should parse locale info for data request correctly', async () => {
+    const pathname = `/_next/data/${next.buildId}/ja-jp/locale-test.json`
+    const res = await next.fetch(pathname)
+
+    expect(await res.json()).toEqual({
+      locale: 'ja-jp',
+      pathname,
+    })
+  })
 
   it.each(['EN', 'JA-JP'])(
     'should be able to redirect locale casing $1',
@@ -218,58 +351,6 @@ describe('skip-trailing-slash-redirect', () => {
     expect(await res.text()).toContain('another page')
   })
 
-  it('should not apply trailing slash redirect (with slash)', async () => {
-    const res = await fetchViaHTTP(next.url, '/another/', undefined, {
-      redirect: 'manual',
-    })
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('another page')
-  })
-
-  it('should not apply trailing slash redirect (without slash)', async () => {
-    const res = await fetchViaHTTP(next.url, '/another', undefined, {
-      redirect: 'manual',
-    })
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('another page')
-  })
-
-  it('should not apply trailing slash to links on client', async () => {
-    const browser = await webdriver(next.url, '/')
-    await browser.eval('window.beforeNav = 1')
-
-    expect(
-      new URL(
-        await browser.elementByCss('#to-another').getAttribute('href'),
-        'http://n'
-      ).pathname
-    ).toBe('/another')
-
-    await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#another')
-
-    expect(await browser.eval('window.location.pathname')).toBe('/another')
-
-    await browser.back().waitForElementByCss('#to-another')
-
-    expect(
-      new URL(
-        await browser
-          .elementByCss('#to-another-with-slash')
-          .getAttribute('href'),
-        'http://n'
-      ).pathname
-    ).toBe('/another/')
-
-    await browser.elementByCss('#to-another-with-slash').click()
-    await browser.waitForElementByCss('#another')
-
-    expect(await browser.eval('window.location.pathname')).toBe('/another/')
-
-    await browser.back().waitForElementByCss('#to-another')
-    expect(await browser.eval('window.beforeNav')).toBe(1)
-  })
-
   it('should not apply trailing slash on load on client', async () => {
     let browser = await webdriver(next.url, '/another')
     await check(() => browser.eval('next.router.isReady ? "yes": "no"'), 'yes')
@@ -282,39 +363,11 @@ describe('skip-trailing-slash-redirect', () => {
     expect(await browser.eval('location.pathname')).toBe('/another/')
   })
 
-  it('should respond to index correctly', async () => {
-    const res = await fetchViaHTTP(next.url, '/', undefined, {
-      redirect: 'manual',
-    })
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('index page')
+  describe('pages dir', () => {
+    runSharedTests('/')
   })
 
-  it('should respond to dynamic route correctly', async () => {
-    const res = await fetchViaHTTP(next.url, '/blog/first', undefined, {
-      redirect: 'manual',
-    })
-    expect(res.status).toBe(200)
-    expect(await res.text()).toContain('blog page')
-  })
-
-  it('should navigate client side correctly', async () => {
-    const browser = await webdriver(next.url, '/')
-
-    expect(await browser.eval('location.pathname')).toBe('/')
-
-    await browser.elementByCss('#to-another').click()
-    await browser.waitForElementByCss('#another')
-
-    expect(await browser.eval('location.pathname')).toBe('/another')
-    await browser.back()
-    await browser.waitForElementByCss('#index')
-
-    expect(await browser.eval('location.pathname')).toBe('/')
-
-    await browser.elementByCss('#to-blog-first').click()
-    await browser.waitForElementByCss('#blog')
-
-    expect(await browser.eval('location.pathname')).toBe('/blog/first')
+  describe('app dir - skip trailing slash redirect', () => {
+    runSharedTests('/with-app-dir/')
   })
 })

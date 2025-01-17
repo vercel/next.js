@@ -47,7 +47,7 @@
 
 .inlineCode::before,
 .inlineCode::after {
-  content: '`';
+  content: "`";
 }
 
 .code {

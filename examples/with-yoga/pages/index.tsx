@@ -1,4 +1,4 @@
-import { Box, Text, Button, Divider } from '@gympass/yoga'
+import { Box, Text, Button, Divider } from "@gympass/yoga";
 
 export default function Home() {
   return (
@@ -7,5 +7,5 @@ export default function Home() {
       <Divider />
       <Button>Yoga Design System</Button>
     </Box>
-  )
+  );
 }

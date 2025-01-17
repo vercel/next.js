@@ -1,3 +1,3 @@
-import { DrupalPreview } from 'next-drupal'
+import { DrupalPreview } from "next-drupal";
 
-export default DrupalPreview()
+export default DrupalPreview();

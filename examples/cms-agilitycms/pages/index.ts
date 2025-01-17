@@ -1,5 +1,5 @@
-import Page, { getStaticProps } from './[...slug]'
+import Page, { getStaticProps } from "./[...slug]";
 
-export default Page
+export default Page;
 
-export { getStaticProps }
+export { getStaticProps };

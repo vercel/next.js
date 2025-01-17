@@ -1,0 +1,3 @@
+# Ignoring generated files
+./sanity.types.ts
+./schema.json

@@ -1,4 +1,4 @@
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { describeVariants as describe } from 'next-test-utils'
@@ -8,16 +8,12 @@ import { outdent } from 'outdent'
 describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
   // Module trace is only available with webpack 5
   test('Node.js builtins', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -39,6 +35,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       ])
     )
 
+    const { session } = sandbox
+
     await session.patch(
       'index.js',
       outdent`
@@ -49,14 +47,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(true)).toBe(true)
-    expect(await session.getRedboxSource()).toMatchSnapshot()
+    await session.assertHasRedbox()
+    if (process.env.TURBOPACK) {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./node_modules/my-package/index.js:1:13
+        Module not found: Can't resolve 'dns'
+        > 1 | const dns = require('dns')
+            |             ^^^^^^^^^^^^^^
+          2 | module.exports = dns
 
-    await cleanup()
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
+        "./node_modules/my-package/index.js:1:1
+        Module not found: Can't resolve 'dns'
+        > 1 | const dns = require('dns')
+            | ^
+          2 | module.exports = dns
+
+        https://nextjs.org/docs/messages/module-not-found
+
+        Import trace for requested module:
+        ./index.js
+        ./app/page.js"
+      `)
+    }
   })
 
   test('Module not found', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'index.js',
@@ -72,16 +93,42 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source).toMatchSnapshot()
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js:1:1
+        Module not found: Can't resolve 'b'
+        > 1 | import Comp from 'b'
+            | ^^^^^^^^^^^^^^^^^^^^
+          2 | export default function Oops() {
+          3 |   return (
+          4 |     <div>
 
-    await cleanup()
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+        "./index.js:1:1
+        Module not found: Can't resolve 'b'
+        > 1 | import Comp from 'b'
+            | ^
+          2 | export default function Oops() {
+          3 |   return (
+          4 |     <div>
+
+        https://nextjs.org/docs/messages/module-not-found
+
+        Import trace for requested module:
+        ./app/page.js"
+      `)
+    }
   })
 
   test('Module not found empty import trace', async () => {
-    const { session, cleanup } = await sandbox(next)
+    await using sandbox = await createSandbox(next)
+    const { session } = sandbox
 
     await session.patch(
       'app/page.js',
@@ -98,16 +145,40 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       `
     )
 
-    expect(await session.hasRedbox(true)).toBe(true)
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source).toMatchSnapshot()
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./app/page.js:2:1
+        Module not found: Can't resolve 'b'
+          1 | 'use client'
+        > 2 | import Comp from 'b'
+            | ^^^^^^^^^^^^^^^^^^^^
+          3 | export default function Oops() {
+          4 |   return (
+          5 |     <div>
 
-    await cleanup()
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+        "./app/page.js:2:1
+        Module not found: Can't resolve 'b'
+          1 | 'use client'
+        > 2 | import Comp from 'b'
+            | ^
+          3 | export default function Oops() {
+          4 |   return (
+          5 |     <div>
+
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    }
   })
 
   test('Module not found missing global CSS', async () => {
-    const { session, cleanup } = await sandbox(
+    await using sandbox = await createSandbox(
       next,
       new Map([
         [
@@ -122,11 +193,37 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         ],
       ])
     )
-    expect(await session.hasRedbox(true)).toBe(true)
+    const { session } = sandbox
+    await session.assertHasRedbox()
 
     const source = await session.getRedboxSource()
-    expect(source).toMatchSnapshot()
+    if (process.env.TURBOPACK) {
+      expect(source).toMatchInlineSnapshot(`
+        "./app/page.js:2:1
+        Module not found: Can't resolve './non-existent.css'
+          1 | 'use client'
+        > 2 | import './non-existent.css'
+            | ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+          3 | export default function Page(props) {
+          4 |   return <p>index page</p>
+          5 | }
 
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    } else {
+      expect(source).toMatchInlineSnapshot(`
+        "./app/page.js:2:1
+        Module not found: Can't resolve './non-existent.css'
+          1 | 'use client'
+        > 2 | import './non-existent.css'
+            | ^
+          3 | export default function Page(props) {
+          4 |   return <p>index page</p>
+          5 | }
+
+        https://nextjs.org/docs/messages/module-not-found"
+      `)
+    }
     await session.patch(
       'app/page.js',
       outdent`
@@ -136,11 +233,9 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
         }
       `
     )
-    expect(await session.hasRedbox(false)).toBe(false)
+    await session.assertNoRedbox()
     expect(
       await session.evaluate(() => document.documentElement.innerHTML)
     ).toContain('index page')
-
-    await cleanup()
   })
 })

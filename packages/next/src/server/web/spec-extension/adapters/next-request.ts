@@ -6,6 +6,34 @@ import type { Writable } from 'node:stream'
 import { getRequestMeta } from '../../../request-meta'
 import { fromNodeOutgoingHttpHeaders } from '../../utils'
 import { NextRequest } from '../request'
+import { isNodeNextRequest, isWebNextRequest } from '../../../base-http/helpers'
+
+export const ResponseAbortedName = 'ResponseAborted'
+export class ResponseAborted extends Error {
+  public readonly name = ResponseAbortedName
+}
+
+/**
+ * Creates an AbortController tied to the closing of a ServerResponse (or other
+ * appropriate Writable).
+ *
+ * If the `close` event is fired before the `finish` event, then we'll send the
+ * `abort` signal.
+ */
+export function createAbortController(response: Writable): AbortController {
+  const controller = new AbortController()
+
+  // If `finish` fires first, then `res.end()` has been called and the close is
+  // just us finishing the stream on our side. If `close` fires first, then we
+  // know the client disconnected before we finished.
+  response.once('close', () => {
+    if (response.writableFinished) return
+
+    controller.abort(new ResponseAborted())
+  })
+
+  return controller
+}
 
 /**
  * Creates an AbortSignal tied to the closing of a ServerResponse (or other
@@ -15,26 +43,14 @@ import { NextRequest } from '../request'
  * the `abort` event will not fire if to data has been fully read (because that
  * will "close" the readable stream and nothing fires after that).
  */
-export function signalFromNodeResponse(response: Writable) {
+export function signalFromNodeResponse(response: Writable): AbortSignal {
   const { errored, destroyed } = response
-  if (errored || destroyed) return AbortSignal.abort(errored)
-
-  const controller = new AbortController()
-  // If `finish` fires first, then `res.end()` has been called and the close is
-  // just us finishing the stream on our side. If `close` fires first, then we
-  // know the client disconnected before we finished.
-  function onClose() {
-    controller.abort()
-    // eslint-disable-next-line @typescript-eslint/no-use-before-define
-    response.off('finish', onFinish)
+  if (errored || destroyed) {
+    return AbortSignal.abort(errored ?? new ResponseAborted())
   }
-  function onFinish() {
-    response.off('close', onClose)
-  }
-  response.once('close', onClose)
-  response.once('finish', onFinish)
 
-  return controller.signal
+  const { signal } = createAbortController(response)
+  return signal
 }
 
 export class NextRequestAdapter {
@@ -42,15 +58,23 @@ export class NextRequestAdapter {
     request: BaseNextRequest,
     signal: AbortSignal
   ): NextRequest {
-    // TODO: look at refining this check
-    if ('request' in request && (request as WebNextRequest).request) {
-      return NextRequestAdapter.fromWebNextRequest(request as WebNextRequest)
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(request)
+    ) {
+      return NextRequestAdapter.fromWebNextRequest(request)
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(request)
+    ) {
+      return NextRequestAdapter.fromNodeNextRequest(request, signal)
+    } else {
+      throw new Error('Invariant: Unsupported NextRequest type')
     }
-
-    return NextRequestAdapter.fromNodeNextRequest(
-      request as NodeNextRequest,
-      signal
-    )
   }
 
   public static fromNodeNextRequest(
@@ -69,7 +93,7 @@ export class NextRequestAdapter {
       url = new URL(request.url)
     } else {
       // Grab the full URL from the request metadata.
-      const base = getRequestMeta(request, '__NEXT_INIT_URL')
+      const base = getRequestMeta(request, 'initURL')
       if (!base || !base.startsWith('http')) {
         // Because the URL construction relies on the fact that the URL provided
         // is absolute, we need to provide a base URL. We can't use the request
@@ -81,7 +105,6 @@ export class NextRequestAdapter {
     }
 
     return new NextRequest(url, {
-      body,
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -90,6 +113,14 @@ export class NextRequestAdapter {
       // geo
       // ip
       // nextConfig
+
+      // body can not be passed if request was aborted
+      // or we get a Request body was disturbed error
+      ...(signal.aborted
+        ? {}
+        : {
+            body,
+          }),
     })
   }
 
@@ -101,7 +132,6 @@ export class NextRequestAdapter {
     }
 
     return new NextRequest(request.url, {
-      body,
       method: request.method,
       headers: fromNodeOutgoingHttpHeaders(request.headers),
       // @ts-expect-error - see https://github.com/whatwg/fetch/pull/1457
@@ -110,6 +140,14 @@ export class NextRequestAdapter {
       // geo
       // ip
       // nextConfig
+
+      // body can not be passed if request was aborted
+      // or we get a Request body was disturbed error
+      ...(request.request.signal.aborted
+        ? {}
+        : {
+            body,
+          }),
     })
   }
 }

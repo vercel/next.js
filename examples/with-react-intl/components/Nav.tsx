@@ -1,10 +1,10 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
-import { FormattedMessage } from 'react-intl'
-import styles from './Nav.module.css'
+import Link from "next/link";
+import { useRouter } from "next/router";
+import { FormattedMessage } from "react-intl";
+import styles from "./Nav.module.css";
 
 export default function Nav() {
-  const { locale, locales, asPath } = useRouter()
+  const { locale, locales, asPath } = useRouter();
   return (
     <nav className={styles.nav}>
       <li className={styles.li}>
@@ -40,5 +40,5 @@ export default function Nav() {
         </li>
       ))}
     </nav>
-  )
+  );
 }

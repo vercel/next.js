@@ -1,9 +1,9 @@
-import chalk from 'next/dist/compiled/chalk'
-import { Worker } from 'next/dist/compiled/jest-worker'
+import { red } from './picocolors'
+import { Worker } from './worker'
 import { existsSync } from 'fs'
 import { join } from 'path'
-import { ESLINT_DEFAULT_DIRS, ESLINT_DEFAULT_DIRS_WITH_APP } from './constants'
-import { Telemetry } from '../telemetry/storage'
+import { ESLINT_DEFAULT_DIRS } from './constants'
+import type { Telemetry } from '../telemetry/storage'
 import { eventLintCheckCompleted } from '../telemetry/events'
 import { CompileError } from './compile-error'
 import isError from './is-error'
@@ -13,11 +13,17 @@ export async function verifyAndLint(
   cacheLocation: string,
   configLintDirs: string[] | undefined,
   enableWorkerThreads: boolean | undefined,
-  telemetry: Telemetry,
-  hasAppDir: boolean
+  telemetry: Telemetry
 ): Promise<void> {
+  let lintWorkers:
+    | (Worker & {
+        runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
+      })
+    | undefined
+
   try {
-    const lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+    lintWorkers = new Worker(require.resolve('./eslint/runLintCheck'), {
+      exposedMethods: ['runLintCheck'],
       numWorkers: 1,
       enableWorkerThreads,
       maxRetries: 0,
@@ -25,15 +31,7 @@ export async function verifyAndLint(
       runLintCheck: typeof import('./eslint/runLintCheck').runLintCheck
     }
 
-    lintWorkers.getStdout().pipe(process.stdout)
-    lintWorkers.getStderr().pipe(process.stderr)
-
-    // Remove that when the `appDir` will be stable.
-    const directoriesToLint = hasAppDir
-      ? ESLINT_DEFAULT_DIRS_WITH_APP
-      : ESLINT_DEFAULT_DIRS
-
-    const lintDirs = (configLintDirs ?? directoriesToLint).reduce(
+    const lintDirs = (configLintDirs ?? ESLINT_DEFAULT_DIRS).reduce(
       (res: string[], d: string) => {
         const currDir = join(dir, d)
         if (!existsSync(currDir)) return res
@@ -43,17 +41,12 @@ export async function verifyAndLint(
       []
     )
 
-    const lintResults = await lintWorkers.runLintCheck(
-      dir,
-      lintDirs,
-      hasAppDir,
-      {
-        lintDuringBuild: true,
-        eslintOptions: {
-          cacheLocation,
-        },
-      }
-    )
+    const lintResults = await lintWorkers?.runLintCheck(dir, lintDirs, {
+      lintDuringBuild: true,
+      eslintOptions: {
+        cacheLocation,
+      },
+    })
     const lintOutput =
       typeof lintResults === 'string' ? lintResults : lintResults?.output
 
@@ -74,12 +67,10 @@ export async function verifyAndLint(
     if (lintOutput) {
       console.log(lintOutput)
     }
-
-    lintWorkers.end()
   } catch (err) {
     if (isError(err)) {
       if (err.type === 'CompileError' || err instanceof CompileError) {
-        console.error(chalk.red('\nFailed to compile.'))
+        console.error(red('\nFailed to compile.'))
         console.error(err.message)
         process.exit(1)
       } else if (err.type === 'FatalError') {
@@ -88,5 +79,9 @@ export async function verifyAndLint(
       }
     }
     throw err
+  } finally {
+    try {
+      lintWorkers?.end()
+    } catch {}
   }
 }

@@ -1,11 +1,11 @@
-import {
-  NodePath,
+import { types as BabelTypes } from 'next/dist/compiled/babel/core'
+import type {
   PluginObj,
   PluginPass,
-  types as BabelTypes,
   Visitor,
+  NodePath,
 } from 'next/dist/compiled/babel/core'
-import { PageConfig } from 'next/types'
+import type { PageConfig } from '../../../types'
 import { STRING_LITERAL_DROP_BUNDLE } from '../../../shared/lib/constants'
 
 const CONFIG_KEY = 'config'
@@ -51,10 +51,8 @@ export default function nextPageConfig({
             {
               ExportDeclaration(exportPath, exportState) {
                 if (
-                  BabelTypes.isExportNamedDeclaration(exportPath) &&
-                  (
-                    exportPath.node as BabelTypes.ExportNamedDeclaration
-                  ).specifiers?.some((specifier) => {
+                  BabelTypes.isExportNamedDeclaration(exportPath.node) &&
+                  exportPath.node.specifiers?.some((specifier) => {
                     return (
                       (t.isIdentifier(specifier.exported)
                         ? specifier.exported.name

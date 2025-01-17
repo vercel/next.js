@@ -1,16 +1,16 @@
-const { devDependencies } = require('../package.json')
+const { devDependencies } = require("../package.json");
 
 module.exports = {
   presets: [
     [
-      'next/babel',
+      "next/babel",
       {
-        'preset-env': {
+        "preset-env": {
           targets: {
-            electron: devDependencies.electron.replace(/^\^|~/, ''),
+            electron: devDependencies.electron.replace(/^\^|~/, ""),
           },
         },
       },
     ],
   ],
-}
+};

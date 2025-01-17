@@ -150,75 +150,78 @@ function runTests(dev) {
 }
 
 describe('CSS Module client-side navigation', () => {
-  describe('production', () => {
-    beforeAll(async () => {
-      await remove(join(appDir, '.next'))
-      await nextBuild(appDir)
-      const port = await findPort()
-      app = await nextStart(appDir, port)
-      appPort = await findPort()
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await remove(join(appDir, '.next'))
+        await nextBuild(appDir)
+        const port = await findPort()
+        app = await nextStart(appDir, port)
+        appPort = await findPort()
 
-      const proxy = httpProxy.createProxyServer({
-        target: `http://localhost:${port}`,
+        const proxy = httpProxy.createProxyServer({
+          target: `http://localhost:${port}`,
+        })
+
+        proxyServer = http.createServer(async (req, res) => {
+          if (stallCss && req.url.endsWith('.css')) {
+            console.log('stalling request for', req.url)
+            await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+          }
+          proxy.web(req, res)
+        })
+
+        proxy.on('error', (err) => {
+          console.warn('Failed to proxy', err)
+        })
+
+        await new Promise((resolve) => {
+          proxyServer.listen(appPort, () => resolve())
+        })
+      })
+      afterAll(async () => {
+        proxyServer.close()
+        await killApp(app)
       })
 
-      proxyServer = http.createServer(async (req, res) => {
-        if (stallCss && req.url.endsWith('.css')) {
-          console.log('stalling request for', req.url)
-          await new Promise((resolve) => setTimeout(resolve, 5 * 1000))
+      it('should time out and hard navigate for stalled CSS request', async () => {
+        let browser
+        stallCss = true
+
+        try {
+          browser = await webdriver(appPort, '/red')
+          await browser.eval('window.beforeNav = "hello"')
+
+          const redColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('#verify-red')).color`
+          )
+          expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
+          expect(await browser.eval('window.beforeNav')).toBe('hello')
+
+          await browser.elementByCss('#link-blue').click()
+
+          await browser.waitForElementByCss('#verify-blue')
+
+          const blueColor = await browser.eval(
+            `window.getComputedStyle(document.querySelector('#verify-blue')).color`
+          )
+          expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
+
+          // the timeout should have been reached and we did a hard
+          // navigation
+          expect(await browser.eval('window.beforeNav')).toBeFalsy()
+        } finally {
+          stallCss = false
+          if (browser) {
+            await browser.close()
+          }
         }
-        proxy.web(req, res)
       })
 
-      proxy.on('error', (err) => {
-        console.warn('Failed to proxy', err)
-      })
-
-      await new Promise((resolve) => {
-        proxyServer.listen(appPort, () => resolve())
-      })
-    })
-    afterAll(async () => {
-      proxyServer.close()
-      await killApp(app)
-    })
-
-    it('should time out and hard navigate for stalled CSS request', async () => {
-      let browser
-      stallCss = true
-
-      try {
-        browser = await webdriver(appPort, '/red')
-        await browser.eval('window.beforeNav = "hello"')
-
-        const redColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('#verify-red')).color`
-        )
-        expect(redColor).toMatchInlineSnapshot(`"rgb(255, 0, 0)"`)
-        expect(await browser.eval('window.beforeNav')).toBe('hello')
-
-        await browser.elementByCss('#link-blue').click()
-
-        await browser.waitForElementByCss('#verify-blue')
-
-        const blueColor = await browser.eval(
-          `window.getComputedStyle(document.querySelector('#verify-blue')).color`
-        )
-        expect(blueColor).toMatchInlineSnapshot(`"rgb(0, 0, 255)"`)
-
-        // the timeout should have been reached and we did a hard
-        // navigation
-        expect(await browser.eval('window.beforeNav')).toBeFalsy()
-      } finally {
-        stallCss = false
-        if (browser) {
-          await browser.close()
-        }
-      }
-    })
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 
   describe('dev', () => {
     beforeAll(async () => {

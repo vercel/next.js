@@ -1,8 +1,18 @@
 'use client'
+import { use } from 'react'
 
 import { useSearchParams } from 'next/navigation'
+import dynamic from 'next/dynamic'
 
-export default function IdPage({ children, params }) {
+const Button = dynamic(() =>
+  import('../../../../components/button/button').then((mod) => mod.Button)
+)
+
+export default function IdPage(props) {
+  const params = use(props.params)
+
+  const { children } = props
+
   return (
     <>
       <p>
@@ -14,6 +24,7 @@ export default function IdPage({ children, params }) {
       <p id="search-params">
         {JSON.stringify(Object.fromEntries(useSearchParams()))}
       </p>
+      <Button>button on app/dynamic-client</Button>
     </>
   )
 }

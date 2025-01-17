@@ -1,7 +1,9 @@
 import path from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import webdriver from 'next-webdriver'
+
+const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('prerender native module', () => {
   let next: NextInstance
@@ -67,26 +69,28 @@ describe('prerender native module', () => {
         {
           page: '/_app',
           tests: [
-            /webpack-runtime\.js/,
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
-            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+            isReact18
+              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+              : /node_modules\/react\/cjs\/react\.production\.js/,
           ],
           notTests: [],
         },
         {
           page: '/blog/[slug]',
           tests: [
-            /webpack-runtime\.js/,
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
             /node_modules\/react\/index\.js/,
             /node_modules\/react\/package\.json/,
-            /node_modules\/react\/cjs\/react\.production\.min\.js/,
+            isReact18
+              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+              : /node_modules\/react\/cjs\/react\.production\.js/,
             /node_modules\/sqlite3\/.*?\.js/,
             /node_modules\/sqlite3\/.*?\.node/,
             /node_modules\/sqlite\/.*?\.js/,
             /node_modules\/next/,
-            /next\/router\.js/,
-            /next\/dist\/client\/router\.js/,
             /\/data\.sqlite/,
           ],
           notTests: [],
@@ -99,7 +103,6 @@ describe('prerender native module', () => {
         )
         const { version, files } = JSON.parse(contents)
         expect(version).toBe(1)
-
         expect(
           check.tests.every((item) => files.some((file) => item.test(file)))
         ).toBe(true)

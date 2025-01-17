@@ -1,9 +1,18 @@
-import { ChildProcess } from 'child_process'
+import type { ChildProcess } from 'child_process'
 import { Worker as JestWorker } from 'next/dist/compiled/jest-worker'
-import { getNodeOptionsWithoutInspect } from '../server/lib/utils'
+import { Transform } from 'stream'
+
 type FarmOptions = ConstructorParameters<typeof JestWorker>[1]
 
 const RESTARTED = Symbol('restarted')
+
+const cleanupWorkers = (worker: JestWorker) => {
+  for (const curWorker of ((worker as any)._workerPool?._workers || []) as {
+    _child?: ChildProcess
+  }[]) {
+    curWorker._child?.kill('SIGINT')
+  }
+}
 
 export class Worker {
   private _worker: JestWorker | undefined
@@ -12,18 +21,26 @@ export class Worker {
     workerPath: string,
     options: FarmOptions & {
       timeout?: number
+      onActivity?: () => void
+      onActivityAbort?: () => void
       onRestart?: (method: string, args: any[], attempts: number) => void
+      logger?: Pick<typeof console, 'error' | 'info' | 'warn'>
       exposedMethods: ReadonlyArray<string>
       enableWorkerThreads?: boolean
     }
   ) {
-    let { timeout, onRestart, ...farmOptions } = options
+    let { timeout, onRestart, logger = console, ...farmOptions } = options
 
     let restartPromise: Promise<typeof RESTARTED>
     let resolveRestartPromise: (arg: typeof RESTARTED) => void
     let activeTasks = 0
 
     this._worker = undefined
+
+    // ensure we end workers if they weren't before exit
+    process.on('exit', () => {
+      this.close()
+    })
 
     const createWorker = () => {
       this._worker = new JestWorker(workerPath, {
@@ -33,13 +50,9 @@ export class Worker {
           env: {
             ...((farmOptions.forkOptions?.env || {}) as any),
             ...process.env,
-            // we don't pass down NODE_OPTIONS as it can
-            // extra memory usage
-            NODE_OPTIONS: getNodeOptionsWithoutInspect()
-              .replace(/--max-old-space-size=[\d]{1,}/, '')
-              .trim(),
           } as any,
         },
+        maxRetries: 0,
       }) as JestWorker
       restartPromise = new Promise(
         (resolve) => (resolveRestartPromise = resolve)
@@ -60,16 +73,51 @@ export class Worker {
           _child?: ChildProcess
         }[]) {
           worker._child?.on('exit', (code, signal) => {
-            // log unexpected exit if .end() wasn't called
-            if ((code || signal) && this._worker) {
-              console.error(
-                `Static worker unexpectedly exited with code: ${code} and signal: ${signal}`
+            if ((code || (signal && signal !== 'SIGINT')) && this._worker) {
+              logger.error(
+                `Static worker exited with code: ${code} and signal: ${signal}`
               )
+
+              // if a child process doesn't exit gracefully, we want to bubble up the exit code to the parent process
+              process.exit(code ?? 1)
+            }
+          })
+
+          // if a child process emits a particular message, we track that as activity
+          // so the parent process can keep track of progress
+          worker._child?.on('message', ([, data]: [number, unknown]) => {
+            if (
+              data &&
+              typeof data === 'object' &&
+              'type' in data &&
+              data.type === 'activity'
+            ) {
+              onActivity()
             }
           })
         }
       }
 
+      let aborted = false
+      const onActivityAbort = () => {
+        if (!aborted) {
+          options.onActivityAbort?.()
+          aborted = true
+        }
+      }
+
+      // Listen to the worker's stdout and stderr, if there's any thing logged, abort the activity first
+      const abortActivityStreamOnLog = new Transform({
+        transform(_chunk, _encoding, callback) {
+          onActivityAbort()
+          callback()
+        },
+      })
+      // Stop the activity if there's any output from the worker
+      this._worker.getStdout().pipe(abortActivityStreamOnLog)
+      this._worker.getStderr().pipe(abortActivityStreamOnLog)
+
+      // Pipe the worker's stdout and stderr to the parent process
       this._worker.getStdout().pipe(process.stdout)
       this._worker.getStderr().pipe(process.stderr)
     }
@@ -80,6 +128,11 @@ export class Worker {
       if (!worker) return
       const resolve = resolveRestartPromise
       createWorker()
+      logger.warn(
+        `Sending SIGTERM signal to static worker due to timeout${
+          timeout ? ` of ${timeout / 1000} seconds` : ''
+        }. Subsequent errors may be a result of the worker exiting.`
+      )
       worker.end().then(() => {
         resolve(RESTARTED)
       })
@@ -89,6 +142,8 @@ export class Worker {
 
     const onActivity = () => {
       if (hangingTimer) clearTimeout(hangingTimer)
+      if (options.onActivity) options.onActivity()
+
       hangingTimer = activeTasks > 0 && setTimeout(onHanging, timeout)
     }
 
@@ -123,6 +178,7 @@ export class Worker {
     if (!worker) {
       throw new Error('Farm is ended, no more calls can be done to it')
     }
+    cleanupWorkers(worker)
     this._worker = undefined
     return worker.end()
   }
@@ -132,6 +188,7 @@ export class Worker {
    */
   close(): void {
     if (this._worker) {
+      cleanupWorkers(this._worker)
       this._worker.end()
     }
   }

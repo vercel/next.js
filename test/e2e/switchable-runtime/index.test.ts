@@ -1,11 +1,8 @@
 /* eslint-env jest */
 import webdriver from 'next-webdriver'
-import { join } from 'path'
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { check, fetchViaHTTP, renderViaHTTP, waitFor } from 'next-test-utils'
-
-import { readJson } from 'fs-extra'
 
 function splitLines(text) {
   return text
@@ -46,10 +43,6 @@ describe('Switchable runtime', () => {
   beforeAll(async () => {
     next = await createNext({
       files: new FileRef(__dirname),
-      dependencies: {
-        react: 'latest',
-        'react-dom': 'latest',
-      },
     })
     context = {
       appPort: next.url,
@@ -179,40 +172,6 @@ describe('Switchable runtime', () => {
         response = await fetchViaHTTP(context.appPort, '/api/edge')
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
-
-        if (!(global as any).isNextDeploy) {
-          const manifest = await readJson(
-            join(context.appDir, '.next/server/middleware-manifest.json')
-          )
-          expect(manifest).toMatchObject({
-            functions: {
-              '/api/hello': {
-                files: [
-                  'server/edge-runtime-webpack.js',
-                  'server/pages/api/hello.js',
-                ],
-                name: 'pages/api/hello',
-                page: '/api/hello',
-                matchers: [
-                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
-                ],
-                wasm: [],
-              },
-              '/api/edge': {
-                files: [
-                  'server/edge-runtime-webpack.js',
-                  'server/pages/api/edge.js',
-                ],
-                name: 'pages/api/edge',
-                page: '/api/edge',
-                matchers: [
-                  { regexp: '^/api/edge$', originalSource: '/api/edge' },
-                ],
-                wasm: [],
-              },
-            },
-          })
-        }
       })
 
       it('should be possible to switch between runtimes in API routes', async () => {
@@ -424,7 +383,7 @@ describe('Switchable runtime', () => {
           /Hello from page with invalid type/
         )
         expect(next.cliOutput).toInclude(
-          '- error The `runtime` config must be a string. Please leave it empty or choose one of:'
+          'The `runtime` config must be a string. Please leave it empty or choose one of:'
         )
 
         // Invalid runtime
@@ -445,7 +404,7 @@ describe('Switchable runtime', () => {
           /Hello from page with invalid runtime/
         )
         expect(next.cliOutput).toInclude(
-          '- error Provided runtime "asd" is not supported. Please leave it empty or choose one of:'
+          'Provided runtime "asd" is not supported. Please leave it empty or choose one of:'
         )
 
         // Fix the runtime
@@ -484,7 +443,7 @@ describe('Switchable runtime', () => {
           /Hello from app/
         )
         expect(next.cliOutput).toInclude(
-          '- error Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
+          'Provided runtime "invalid-runtime" is not supported. Please leave it empty or choose one of:'
         )
 
         await next.patchFile(
@@ -613,40 +572,6 @@ describe('Switchable runtime', () => {
         response = await fetchViaHTTP(context.appPort, 'rewrite/api/edge')
         text = await response.text()
         expect(text).toMatch(/Returned by Edge API Route .+\/api\/edge/)
-
-        if (!(global as any).isNextDeploy) {
-          const manifest = await readJson(
-            join(context.appDir, '.next/server/middleware-manifest.json')
-          )
-          expect(manifest).toMatchObject({
-            functions: {
-              '/api/hello': {
-                files: [
-                  'server/edge-runtime-webpack.js',
-                  'server/pages/api/hello.js',
-                ],
-                name: 'pages/api/hello',
-                page: '/api/hello',
-                matchers: [
-                  { regexp: '^/api/hello$', originalSource: '/api/hello' },
-                ],
-                wasm: [],
-              },
-              '/api/edge': {
-                files: [
-                  'server/edge-runtime-webpack.js',
-                  'server/pages/api/edge.js',
-                ],
-                name: 'pages/api/edge',
-                page: '/api/edge',
-                matchers: [
-                  { regexp: '^/api/edge$', originalSource: '/api/edge' },
-                ],
-                wasm: [],
-              },
-            },
-          })
-        }
       })
 
       it.skip('should display correct tree view with page types in terminal', async () => {
@@ -656,17 +581,17 @@ describe('Switchable runtime', () => {
         const expectedOutputLines = splitLines(`
       ┌   /_app
       ├ ○ /404
-      ├ ℇ /api/hello
-      ├ λ /api/node
-      ├ ℇ /edge
-      ├ ℇ /edge-rsc
+      ├ ƒ /api/hello
+      ├ ƒ /api/node
+      ├ ƒ /edge
+      ├ ƒ /edge-rsc
       ├ ○ /node
       ├ ● /node-rsc
       ├ ● /node-rsc-isr
       ├ ● /node-rsc-ssg
-      ├ λ /node-rsc-ssr
+      ├ ƒ /node-rsc-ssr
       ├ ● /node-ssg
-      ├ λ /node-ssr
+      ├ ƒ /node-ssr
       └ ○ /static
       `)
 

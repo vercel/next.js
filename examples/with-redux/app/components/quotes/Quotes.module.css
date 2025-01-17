@@ -1,0 +1,20 @@
+.select {
+  font-size: 25px;
+  padding: 5px;
+  padding-top: 2px;
+  padding-bottom: 2px;
+  size: 50;
+  outline: none;
+  border: 2px solid transparent;
+  color: rgb(112, 76, 182);
+  cursor: pointer;
+  background-color: rgba(112, 76, 182, 0.1);
+  border-radius: 5px;
+  transition: all 0.15s;
+}
+
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

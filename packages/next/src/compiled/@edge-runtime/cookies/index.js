@@ -21,12 +21,15 @@ var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: tru
 var src_exports = {};
 __export(src_exports, {
   RequestCookies: () => RequestCookies,
-  ResponseCookies: () => ResponseCookies
+  ResponseCookies: () => ResponseCookies,
+  parseCookie: () => parseCookie,
+  parseSetCookie: () => parseSetCookie,
+  stringifyCookie: () => stringifyCookie
 });
 module.exports = __toCommonJS(src_exports);
 
 // src/serialize.ts
-function serialize(c) {
+function stringifyCookie(c) {
   var _a;
   const attrs = [
     "path" in c && c.path && `Path=${c.path}`,
@@ -35,11 +38,14 @@ function serialize(c) {
     "domain" in c && c.domain && `Domain=${c.domain}`,
     "secure" in c && c.secure && "Secure",
     "httpOnly" in c && c.httpOnly && "HttpOnly",
-    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`
+    "sameSite" in c && c.sameSite && `SameSite=${c.sameSite}`,
+    "partitioned" in c && c.partitioned && "Partitioned",
+    "priority" in c && c.priority && `Priority=${c.priority}`
   ].filter(Boolean);
-  return `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}; ${attrs.join("; ")}`;
+  const stringified = `${c.name}=${encodeURIComponent((_a = c.value) != null ? _a : "")}`;
+  return attrs.length === 0 ? stringified : `${stringified}; ${attrs.join("; ")}`;
 }
-function parseCookieString(cookie) {
+function parseCookie(cookie) {
   const map = /* @__PURE__ */ new Map();
   for (const pair of cookie.split(/; */)) {
     if (!pair)
@@ -57,13 +63,26 @@ function parseCookieString(cookie) {
   }
   return map;
 }
-function parseSetCookieString(setCookie) {
+function parseSetCookie(setCookie) {
   if (!setCookie) {
     return void 0;
   }
-  const [[name, value], ...attributes] = parseCookieString(setCookie);
-  const { domain, expires, httponly, maxage, path, samesite, secure } = Object.fromEntries(
-    attributes.map(([key, value2]) => [key.toLowerCase(), value2])
+  const [[name, value], ...attributes] = parseCookie(setCookie);
+  const {
+    domain,
+    expires,
+    httponly,
+    maxage,
+    path,
+    samesite,
+    secure,
+    partitioned,
+    priority
+  } = Object.fromEntries(
+    attributes.map(([key, value2]) => [
+      key.toLowerCase().replace(/-/g, ""),
+      value2
+    ])
   );
   const cookie = {
     name,
@@ -74,7 +93,9 @@ function parseSetCookieString(setCookie) {
     ...typeof maxage === "string" && { maxAge: Number(maxage) },
     path,
     ...samesite && { sameSite: parseSameSite(samesite) },
-    ...secure && { secure: true }
+    ...secure && { secure: true },
+    ...priority && { priority: parsePriority(priority) },
+    ...partitioned && { partitioned: true }
   };
   return compact(cookie);
 }
@@ -92,165 +113,10 @@ function parseSameSite(string) {
   string = string.toLowerCase();
   return SAME_SITE.includes(string) ? string : void 0;
 }
-
-// src/request-cookies.ts
-var RequestCookies = class {
-  constructor(requestHeaders) {
-    /** @internal */
-    this._parsed = /* @__PURE__ */ new Map();
-    this._headers = requestHeaders;
-    const header = requestHeaders.get("cookie");
-    if (header) {
-      const parsed = parseCookieString(header);
-      for (const [name, value] of parsed) {
-        this._parsed.set(name, { name, value });
-      }
-    }
-  }
-  [Symbol.iterator]() {
-    return this._parsed[Symbol.iterator]();
-  }
-  /**
-   * The amount of cookies received from the client
-   */
-  get size() {
-    return this._parsed.size;
-  }
-  get(...args) {
-    const name = typeof args[0] === "string" ? args[0] : args[0].name;
-    return this._parsed.get(name);
-  }
-  getAll(...args) {
-    var _a;
-    const all = Array.from(this._parsed);
-    if (!args.length) {
-      return all.map(([_, value]) => value);
-    }
-    const name = typeof args[0] === "string" ? args[0] : (_a = args[0]) == null ? void 0 : _a.name;
-    return all.filter(([n]) => n === name).map(([_, value]) => value);
-  }
-  has(name) {
-    return this._parsed.has(name);
-  }
-  set(...args) {
-    const [name, value] = args.length === 1 ? [args[0].name, args[0].value] : args;
-    const map = this._parsed;
-    map.set(name, { name, value });
-    this._headers.set(
-      "cookie",
-      Array.from(map).map(([_, value2]) => serialize(value2)).join("; ")
-    );
-    return this;
-  }
-  /**
-   * Delete the cookies matching the passed name or names in the request.
-   */
-  delete(names) {
-    const map = this._parsed;
-    const result = !Array.isArray(names) ? map.delete(names) : names.map((name) => map.delete(name));
-    this._headers.set(
-      "cookie",
-      Array.from(map).map(([_, value]) => serialize(value)).join("; ")
-    );
-    return result;
-  }
-  /**
-   * Delete all the cookies in the cookies in the request.
-   */
-  clear() {
-    this.delete(Array.from(this._parsed.keys()));
-    return this;
-  }
-  /**
-   * Format the cookies in the request as a string for logging
-   */
-  [Symbol.for("edge-runtime.inspect.custom")]() {
-    return `RequestCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
-  }
-  toString() {
-    return [...this._parsed.values()].map((v) => `${v.name}=${encodeURIComponent(v.value)}`).join("; ");
-  }
-};
-
-// src/response-cookies.ts
-var ResponseCookies = class {
-  constructor(responseHeaders) {
-    /** @internal */
-    this._parsed = /* @__PURE__ */ new Map();
-    var _a, _b, _c;
-    this._headers = responseHeaders;
-    const setCookie = (
-      // @ts-expect-error See https://github.com/whatwg/fetch/issues/973
-      (_c = (_b = (_a = responseHeaders.getAll) == null ? void 0 : _a.call(responseHeaders, "set-cookie")) != null ? _b : responseHeaders.get("set-cookie")) != null ? _c : []
-    );
-    const cookieStrings = Array.isArray(setCookie) ? setCookie : splitCookiesString(setCookie);
-    for (const cookieString of cookieStrings) {
-      const parsed = parseSetCookieString(cookieString);
-      if (parsed)
-        this._parsed.set(parsed.name, parsed);
-    }
-  }
-  /**
-   * {@link https://wicg.github.io/cookie-store/#CookieStore-get CookieStore#get} without the Promise.
-   */
-  get(...args) {
-    const key = typeof args[0] === "string" ? args[0] : args[0].name;
-    return this._parsed.get(key);
-  }
-  /**
-   * {@link https://wicg.github.io/cookie-store/#CookieStore-getAll CookieStore#getAll} without the Promise.
-   */
-  getAll(...args) {
-    var _a;
-    const all = Array.from(this._parsed.values());
-    if (!args.length) {
-      return all;
-    }
-    const key = typeof args[0] === "string" ? args[0] : (_a = args[0]) == null ? void 0 : _a.name;
-    return all.filter((c) => c.name === key);
-  }
-  /**
-   * {@link https://wicg.github.io/cookie-store/#CookieStore-set CookieStore#set} without the Promise.
-   */
-  set(...args) {
-    const [name, value, cookie] = args.length === 1 ? [args[0].name, args[0].value, args[0]] : args;
-    const map = this._parsed;
-    map.set(name, normalizeCookie({ name, value, ...cookie }));
-    replace(map, this._headers);
-    return this;
-  }
-  /**
-   * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
-   */
-  delete(...args) {
-    const name = typeof args[0] === "string" ? args[0] : args[0].name;
-    return this.set({ name, value: "", expires: /* @__PURE__ */ new Date(0) });
-  }
-  [Symbol.for("edge-runtime.inspect.custom")]() {
-    return `ResponseCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
-  }
-  toString() {
-    return [...this._parsed.values()].map(serialize).join("; ");
-  }
-};
-function replace(bag, headers) {
-  headers.delete("set-cookie");
-  for (const [, value] of bag) {
-    const serialized = serialize(value);
-    headers.append("set-cookie", serialized);
-  }
-}
-function normalizeCookie(cookie = { name: "", value: "" }) {
-  if (typeof cookie.expires === "number") {
-    cookie.expires = new Date(cookie.expires);
-  }
-  if (cookie.maxAge) {
-    cookie.expires = new Date(Date.now() + cookie.maxAge * 1e3);
-  }
-  if (cookie.path === null || cookie.path === void 0) {
-    cookie.path = "/";
-  }
-  return cookie;
+var PRIORITY = ["low", "medium", "high"];
+function parsePriority(string) {
+  string = string.toLowerCase();
+  return PRIORITY.includes(string) ? string : void 0;
 }
 function splitCookiesString(cookiesString) {
   if (!cookiesString)
@@ -303,8 +169,171 @@ function splitCookiesString(cookiesString) {
   }
   return cookiesStrings;
 }
+
+// src/request-cookies.ts
+var RequestCookies = class {
+  constructor(requestHeaders) {
+    /** @internal */
+    this._parsed = /* @__PURE__ */ new Map();
+    this._headers = requestHeaders;
+    const header = requestHeaders.get("cookie");
+    if (header) {
+      const parsed = parseCookie(header);
+      for (const [name, value] of parsed) {
+        this._parsed.set(name, { name, value });
+      }
+    }
+  }
+  [Symbol.iterator]() {
+    return this._parsed[Symbol.iterator]();
+  }
+  /**
+   * The amount of cookies received from the client
+   */
+  get size() {
+    return this._parsed.size;
+  }
+  get(...args) {
+    const name = typeof args[0] === "string" ? args[0] : args[0].name;
+    return this._parsed.get(name);
+  }
+  getAll(...args) {
+    var _a;
+    const all = Array.from(this._parsed);
+    if (!args.length) {
+      return all.map(([_, value]) => value);
+    }
+    const name = typeof args[0] === "string" ? args[0] : (_a = args[0]) == null ? void 0 : _a.name;
+    return all.filter(([n]) => n === name).map(([_, value]) => value);
+  }
+  has(name) {
+    return this._parsed.has(name);
+  }
+  set(...args) {
+    const [name, value] = args.length === 1 ? [args[0].name, args[0].value] : args;
+    const map = this._parsed;
+    map.set(name, { name, value });
+    this._headers.set(
+      "cookie",
+      Array.from(map).map(([_, value2]) => stringifyCookie(value2)).join("; ")
+    );
+    return this;
+  }
+  /**
+   * Delete the cookies matching the passed name or names in the request.
+   */
+  delete(names) {
+    const map = this._parsed;
+    const result = !Array.isArray(names) ? map.delete(names) : names.map((name) => map.delete(name));
+    this._headers.set(
+      "cookie",
+      Array.from(map).map(([_, value]) => stringifyCookie(value)).join("; ")
+    );
+    return result;
+  }
+  /**
+   * Delete all the cookies in the cookies in the request.
+   */
+  clear() {
+    this.delete(Array.from(this._parsed.keys()));
+    return this;
+  }
+  /**
+   * Format the cookies in the request as a string for logging
+   */
+  [Symbol.for("edge-runtime.inspect.custom")]() {
+    return `RequestCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
+  }
+  toString() {
+    return [...this._parsed.values()].map((v) => `${v.name}=${encodeURIComponent(v.value)}`).join("; ");
+  }
+};
+
+// src/response-cookies.ts
+var ResponseCookies = class {
+  constructor(responseHeaders) {
+    /** @internal */
+    this._parsed = /* @__PURE__ */ new Map();
+    var _a, _b, _c;
+    this._headers = responseHeaders;
+    const setCookie = (_c = (_b = (_a = responseHeaders.getSetCookie) == null ? void 0 : _a.call(responseHeaders)) != null ? _b : responseHeaders.get("set-cookie")) != null ? _c : [];
+    const cookieStrings = Array.isArray(setCookie) ? setCookie : splitCookiesString(setCookie);
+    for (const cookieString of cookieStrings) {
+      const parsed = parseSetCookie(cookieString);
+      if (parsed)
+        this._parsed.set(parsed.name, parsed);
+    }
+  }
+  /**
+   * {@link https://wicg.github.io/cookie-store/#CookieStore-get CookieStore#get} without the Promise.
+   */
+  get(...args) {
+    const key = typeof args[0] === "string" ? args[0] : args[0].name;
+    return this._parsed.get(key);
+  }
+  /**
+   * {@link https://wicg.github.io/cookie-store/#CookieStore-getAll CookieStore#getAll} without the Promise.
+   */
+  getAll(...args) {
+    var _a;
+    const all = Array.from(this._parsed.values());
+    if (!args.length) {
+      return all;
+    }
+    const key = typeof args[0] === "string" ? args[0] : (_a = args[0]) == null ? void 0 : _a.name;
+    return all.filter((c) => c.name === key);
+  }
+  has(name) {
+    return this._parsed.has(name);
+  }
+  /**
+   * {@link https://wicg.github.io/cookie-store/#CookieStore-set CookieStore#set} without the Promise.
+   */
+  set(...args) {
+    const [name, value, cookie] = args.length === 1 ? [args[0].name, args[0].value, args[0]] : args;
+    const map = this._parsed;
+    map.set(name, normalizeCookie({ name, value, ...cookie }));
+    replace(map, this._headers);
+    return this;
+  }
+  /**
+   * {@link https://wicg.github.io/cookie-store/#CookieStore-delete CookieStore#delete} without the Promise.
+   */
+  delete(...args) {
+    const [name, options] = typeof args[0] === "string" ? [args[0]] : [args[0].name, args[0]];
+    return this.set({ ...options, name, value: "", expires: /* @__PURE__ */ new Date(0) });
+  }
+  [Symbol.for("edge-runtime.inspect.custom")]() {
+    return `ResponseCookies ${JSON.stringify(Object.fromEntries(this._parsed))}`;
+  }
+  toString() {
+    return [...this._parsed.values()].map(stringifyCookie).join("; ");
+  }
+};
+function replace(bag, headers) {
+  headers.delete("set-cookie");
+  for (const [, value] of bag) {
+    const serialized = stringifyCookie(value);
+    headers.append("set-cookie", serialized);
+  }
+}
+function normalizeCookie(cookie = { name: "", value: "" }) {
+  if (typeof cookie.expires === "number") {
+    cookie.expires = new Date(cookie.expires);
+  }
+  if (cookie.maxAge) {
+    cookie.expires = new Date(Date.now() + cookie.maxAge * 1e3);
+  }
+  if (cookie.path === null || cookie.path === void 0) {
+    cookie.path = "/";
+  }
+  return cookie;
+}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   RequestCookies,
-  ResponseCookies
+  ResponseCookies,
+  parseCookie,
+  parseSetCookie,
+  stringifyCookie
 });

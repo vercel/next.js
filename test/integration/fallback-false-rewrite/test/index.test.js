@@ -89,29 +89,49 @@ const runTests = () => {
       slug: 'second',
     })
   })
+
+  it('should behave properly when accessing the dynamic param directly', async () => {
+    const res = await fetchViaHTTP(appPort, '/[slug]', undefined, {
+      redirect: 'manual',
+    })
+    expect(res.status).toBe(200)
+
+    const html = await res.text()
+    const $ = cheerio.load(html)
+
+    expect($('#another').text()).toBe('another')
+    expect(JSON.parse($('#query').text())).toEqual({
+      path: ['[slug]'],
+    })
+  })
 }
 
 describe('fallback: false rewrite', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await fs.remove(join(appDir, '.next'))
+        await nextBuild(appDir, [])
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await fs.remove(join(appDir, '.next'))
-      await nextBuild(appDir, [])
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

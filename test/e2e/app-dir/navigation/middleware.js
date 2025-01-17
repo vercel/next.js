@@ -1,6 +1,5 @@
 // @ts-check
 import { NextResponse } from 'next/server'
-// @ts-ignore
 import { NEXT_RSC_UNION_QUERY } from 'next/dist/client/components/app-router-headers'
 
 if (NEXT_RSC_UNION_QUERY !== '_rsc') {
@@ -21,5 +20,14 @@ export function middleware(request) {
 
   if (request.nextUrl.pathname === '/redirect-middleware-to-dashboard') {
     return NextResponse.redirect(new URL('/redirect-dest', request.url))
+  }
+
+  if (request.nextUrl.pathname === '/redirect-on-refresh/auth') {
+    const cookie = request.cookies.get('token')
+    if (cookie) {
+      return NextResponse.redirect(
+        new URL('/redirect-on-refresh/dashboard', request.url)
+      )
+    }
   }
 }

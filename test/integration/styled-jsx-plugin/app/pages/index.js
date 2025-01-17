@@ -3,7 +3,10 @@ export default () => (
     <p>Hello World</p>
     <style jsx>{`
       .hello {
-        font: 15px Helvetica, Arial, sans-serif;
+        font:
+          15px Helvetica,
+          Arial,
+          sans-serif;
         background: #eee;
         padding: 100px;
         text-align: center;

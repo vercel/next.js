@@ -1,8 +1,8 @@
-import Link from 'next/link'
-import { useRouter } from 'next/router'
+import Link from "next/link";
+import { useRouter } from "next/router";
 
 export default function Nav() {
-  const router = useRouter()
+  const router = useRouter();
   return (
     <div className="root">
       <h2>Default</h2>
@@ -12,7 +12,7 @@ export default function Nav() {
       </p>
       <Link href="/" legacyBehavior>
         <a>Home</a>
-      </Link>{' '}
+      </Link>{" "}
       <Link href="/features" legacyBehavior>
         <a>Features</a>
       </Link>
@@ -21,8 +21,8 @@ export default function Nav() {
       <Link prefetch={false} href="/about" legacyBehavior>
         <a
           onMouseEnter={() => {
-            router.prefetch('/about')
-            console.log('prefetching /about!')
+            router.prefetch("/about");
+            console.log("prefetching /about!");
           }}
         >
           About
@@ -43,5 +43,5 @@ export default function Nav() {
         }
       `}</style>
     </div>
-  )
+  );
 }

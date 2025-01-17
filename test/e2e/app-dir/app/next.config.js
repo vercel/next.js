@@ -1,14 +1,27 @@
+/**
+ * @type import('next').NextConfig
+ */
 module.exports = {
+  env: {
+    LEGACY_ENV_KEY: '1',
+  },
   experimental: {
     clientRouterFilterRedirects: true,
-    sri: {
-      algorithm: 'sha256',
-    },
+    parallelServerCompiles: true,
+    parallelServerBuildTraces: true,
     webpackBuildWorker: true,
   },
   // output: 'standalone',
   rewrites: async () => {
     return {
+      beforeFiles: [
+        {
+          source: '/before-files-rewrite-with-empty-arrays',
+          destination: '/',
+          has: [],
+          missing: [],
+        },
+      ],
       afterFiles: [
         {
           source: '/rewritten-to-dashboard',
@@ -23,6 +36,20 @@ module.exports = {
           source: '/search-params-prop-server-rewrite',
           destination:
             '/search-params-prop/server?first=value&second=other%20value&third',
+        },
+        {
+          source: '/after-files-rewrite-with-empty-arrays',
+          destination: '/',
+          has: [],
+          missing: [],
+        },
+      ],
+      fallback: [
+        {
+          source: '/fallback-rewrite-with-empty-arrays',
+          destination: '/',
+          has: [],
+          missing: [],
         },
       ],
     }

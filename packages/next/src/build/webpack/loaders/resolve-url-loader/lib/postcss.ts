@@ -35,9 +35,11 @@ export default function process(
 ) {
   // #107 libsass emits orphan CR not considered newline, postcss does consider newline (content vs source-map mismatch)
 
+  postcssPlugin.postcss = true
+
   // prepend file protocol to all sources to avoid problems with source map
   // eslint-disable-next-line @typescript-eslint/no-use-before-define
-  return postcss([postcss.plugin('postcss-resolve-url', postcssPlugin)])
+  return postcss([postcssPlugin])
     .process(sourceContent, {
       from: prepend(sourceFile),
       map: params.outputSourceMap && {
@@ -56,9 +58,12 @@ export default function process(
    * Plugin for postcss that follows SASS transpilation.
    */
   function postcssPlugin() {
-    return function (styles: any) {
-      // eslint-disable-next-line @typescript-eslint/no-use-before-define
-      styles.walkDecls(eachDeclaration)
+    return {
+      postcssPlugin: 'postcss-resolve-url',
+      Once: function (root: any) {
+        // eslint-disable-next-line @typescript-eslint/no-use-before-define
+        root.walkDecls(eachDeclaration)
+      },
     }
 
     /**

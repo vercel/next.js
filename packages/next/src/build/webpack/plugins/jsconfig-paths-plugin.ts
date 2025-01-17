@@ -4,8 +4,9 @@
  * https://github.com/microsoft/TypeScript/blob/214df64e287804577afa1fea0184c18c40f7d1ca/LICENSE.txt
  */
 import path from 'path'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { debug } from 'next/dist/compiled/debug'
+import type { ResolvedBaseUrl } from '../../load-jsconfig'
 
 const log = debug('next:jsconfig-paths-plugin')
 
@@ -166,19 +167,24 @@ type Paths = { [match: string]: string[] }
  * Largely based on how the TypeScript compiler handles it:
  * https://github.com/microsoft/TypeScript/blob/1a9c8197fffe3dace5f8dca6633d450a88cba66d/src/compiler/moduleNameResolver.ts#L1362
  */
-export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
+
+type NonFunction<T> = T extends Function ? never : T
+
+// Pick the object type of ResolvePluginInstance
+type ResolvePluginPlugin = NonFunction<webpack.ResolvePluginInstance>
+export class JsConfigPathsPlugin implements ResolvePluginPlugin {
   paths: Paths
-  resolvedBaseUrl: string
+  resolvedBaseUrl: ResolvedBaseUrl
   jsConfigPlugin: true
 
-  constructor(paths: Paths, resolvedBaseUrl: string) {
+  constructor(paths: Paths, resolvedBaseUrl: ResolvedBaseUrl) {
     this.paths = paths
     this.resolvedBaseUrl = resolvedBaseUrl
     this.jsConfigPlugin = true
     log('tsconfig.json or jsconfig.json paths: %O', paths)
     log('resolved baseUrl: %s', resolvedBaseUrl)
   }
-  apply(resolver: any) {
+  apply(resolver: webpack.Resolver) {
     const target = resolver.ensureHook('resolve')
     resolver
       .getHook('described-resolve')
@@ -189,6 +195,10 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
           resolveContext: any,
           callback: (err?: any, result?: any) => void
         ) => {
+          const resolvedBaseUrl = this.resolvedBaseUrl
+          if (resolvedBaseUrl === undefined) {
+            return callback()
+          }
           const paths = this.paths
           const pathsKeys = Object.keys(paths)
 
@@ -248,7 +258,7 @@ export class JsConfigPathsPlugin implements webpack.ResolvePluginInstance {
                 // try next path candidate
                 return pathCallback()
               }
-              const candidate = path.join(this.resolvedBaseUrl, curPath)
+              const candidate = path.join(resolvedBaseUrl.baseUrl, curPath)
               const obj = Object.assign({}, request, {
                 request: candidate,
               })

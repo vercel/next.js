@@ -1,6 +1,6 @@
 import localFont from 'next/font/local'
 
-const pageFont = localFont({ src: './page-font.woff2' })
+const pageFont = localFont({ src: './page-font-raleway-thin.woff2' })
 
 export default function HomePage() {
   return (

@@ -44,9 +44,9 @@ describe('Edge runtime code with imports', () => {
     await remove(join(__dirname, '../.next'))
   })
 
-  afterEach(() => {
+  afterEach(async () => {
     if (context.app) {
-      killApp(context.app)
+      await killApp(context.app)
     }
     context.api.restore()
     context.middleware.restore()
@@ -72,17 +72,25 @@ describe('Edge runtime code with imports', () => {
       )
       expect(res.status).toBe(500)
     })
-
-    it(`${title} build test Response`, async () => {
-      await nextBuild(context.appDir, undefined, {
-        stderr: true,
-      })
-      context.app = await nextStart(context.appDir, context.appPort, appOption)
-      const res = await fetchViaHTTP(context.appPort, url)
-      expect(context.logs.stderr).toContain(
-        'Expected an instance of Response to be returned'
-      )
-      expect(res.status).toBe(500)
-    })
+    ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+      'production mode',
+      () => {
+        it(`${title} build test Response`, async () => {
+          await nextBuild(context.appDir, undefined, {
+            stderr: true,
+          })
+          context.app = await nextStart(
+            context.appDir,
+            context.appPort,
+            appOption
+          )
+          const res = await fetchViaHTTP(context.appPort, url)
+          expect(context.logs.stderr).toContain(
+            'Expected an instance of Response to be returned'
+          )
+          expect(res.status).toBe(500)
+        })
+      }
+    )
   })
 })

@@ -1,11 +1,57 @@
-import type { ResolvedMetadata } from '../types/metadata-interface'
+import type {
+  ResolvedMetadata,
+  ResolvedViewport,
+  Viewport,
+} from '../types/metadata-interface'
+import type { ViewportLayout } from '../types/extra-types'
 
 import React from 'react'
 import { Meta, MetaFilter, MultiMeta } from './meta'
+import { ViewportMetaKeys } from '../constants'
+import { getOrigin } from './utils'
 
-export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
+// convert viewport object to string for viewport meta tag
+function resolveViewportLayout(viewport: Viewport) {
+  let resolved: string | null = null
+
+  if (viewport && typeof viewport === 'object') {
+    resolved = ''
+    for (const viewportKey_ in ViewportMetaKeys) {
+      const viewportKey = viewportKey_ as keyof ViewportLayout
+      if (viewportKey in viewport) {
+        let value = viewport[viewportKey]
+        if (typeof value === 'boolean') value = value ? 'yes' : 'no'
+        if (resolved) resolved += ', '
+        resolved += `${ViewportMetaKeys[viewportKey]}=${value}`
+      }
+    }
+  }
+  return resolved
+}
+
+export function ViewportMeta({ viewport }: { viewport: ResolvedViewport }) {
   return MetaFilter([
     <meta charSet="utf-8" />,
+    Meta({ name: 'viewport', content: resolveViewportLayout(viewport) }),
+    ...(viewport.themeColor
+      ? viewport.themeColor.map((themeColor) =>
+          Meta({
+            name: 'theme-color',
+            content: themeColor.color,
+            media: themeColor.media,
+          })
+        )
+      : []),
+    Meta({ name: 'color-scheme', content: viewport.colorScheme }),
+  ])
+}
+
+export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
+  const manifestOrigin = metadata.manifest
+    ? getOrigin(metadata.manifest)
+    : undefined
+
+  return MetaFilter([
     metadata.title !== null && metadata.title.absolute ? (
       <title>{metadata.title.absolute}</title>
     ) : null,
@@ -20,22 +66,21 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
         ])
       : []),
     metadata.manifest ? (
-      <link rel="manifest" href={metadata.manifest.toString()} />
+      <link
+        rel="manifest"
+        href={metadata.manifest.toString()}
+        // If it's same origin, and it's a preview deployment,
+        // including credentials for manifest request.
+        crossOrigin={
+          !manifestOrigin && process.env.VERCEL_ENV === 'preview'
+            ? 'use-credentials'
+            : undefined
+        }
+      />
     ) : null,
     Meta({ name: 'generator', content: metadata.generator }),
     Meta({ name: 'keywords', content: metadata.keywords?.join(',') }),
     Meta({ name: 'referrer', content: metadata.referrer }),
-    ...(metadata.themeColor
-      ? metadata.themeColor.map((themeColor) =>
-          Meta({
-            name: 'theme-color',
-            content: themeColor.color,
-            media: themeColor.media,
-          })
-        )
-      : []),
-    Meta({ name: 'color-scheme', content: metadata.colorScheme }),
-    Meta({ name: 'viewport', content: metadata.viewport }),
     Meta({ name: 'creator', content: metadata.creator }),
     Meta({ name: 'publisher', content: metadata.publisher }),
     Meta({ name: 'robots', content: metadata.robots?.basic }),
@@ -54,15 +99,28 @@ export function BasicMetadata({ metadata }: { metadata: ResolvedMetadata }) {
           <link rel="bookmarks" href={bookmark} />
         ))
       : []),
+    ...(metadata.pagination
+      ? [
+          metadata.pagination.previous ? (
+            <link rel="prev" href={metadata.pagination.previous} />
+          ) : null,
+          metadata.pagination.next ? (
+            <link rel="next" href={metadata.pagination.next} />
+          ) : null,
+        ]
+      : []),
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
     ...(metadata.other
-      ? Object.entries(metadata.other).map(([name, content]) =>
-          Meta({
-            name,
-            content: Array.isArray(content) ? content.join(',') : content,
-          })
-        )
+      ? Object.entries(metadata.other).map(([name, content]) => {
+          if (Array.isArray(content)) {
+            return content.map((contentItem) =>
+              Meta({ name, content: contentItem })
+            )
+          } else {
+            return Meta({ name, content })
+          }
+        })
       : []),
   ])
 }
@@ -75,6 +133,23 @@ export function ItunesMeta({ itunes }: { itunes: ResolvedMetadata['itunes'] }) {
     content += `, app-argument=${appArgument}`
   }
   return <meta name="apple-itunes-app" content={content} />
+}
+
+export function FacebookMeta({
+  facebook,
+}: {
+  facebook: ResolvedMetadata['facebook']
+}) {
+  if (!facebook) return null
+
+  const { appId, admins } = facebook
+
+  return MetaFilter([
+    appId ? <meta property="fb:app_id" content={appId} /> : null,
+    ...(admins
+      ? admins.map((admin) => <meta property="fb:admins" content={admin} />)
+      : []),
+  ])
 }
 
 const formatDetectionKeys = [
@@ -110,9 +185,7 @@ export function AppleWebAppMeta({
   const { capable, title, startupImage, statusBarStyle } = appleWebApp
 
   return MetaFilter([
-    capable
-      ? Meta({ name: 'apple-mobile-web-app-capable', content: 'yes' })
-      : null,
+    capable ? Meta({ name: 'mobile-web-app-capable', content: 'yes' }) : null,
     Meta({ name: 'apple-mobile-web-app-title', content: title }),
     startupImage
       ? startupImage.map((image) => (

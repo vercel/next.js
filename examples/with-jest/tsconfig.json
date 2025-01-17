@@ -9,18 +9,30 @@
     "noEmit": true,
     "esModuleInterop": true,
     "module": "esnext",
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
     "jsx": "preserve",
     "incremental": true,
     "baseUrl": ".",
+    "types": ["@testing-library/jest-dom"],
     "paths": {
       "@/components/*": ["components/*"],
       "@/pages/*": ["pages/*"],
       "@/styles/*": ["styles/*"]
-    }
+    },
+    "plugins": [
+      {
+        "name": "next"
+      }
+    ]
   },
-  "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", "types.d.ts"],
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "types.d.ts",
+    ".next/types/**/*.ts"
+  ],
   "exclude": ["node_modules"]
 }

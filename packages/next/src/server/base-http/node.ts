@@ -1,23 +1,30 @@
 import type { ServerResponse, IncomingMessage } from 'http'
 import type { Writable, Readable } from 'stream'
-import type { SizeLimit } from 'next/types'
 
-import { NextApiRequestCookies, SYMBOL_CLEARED_COOKIES } from '../api-utils'
-import { parseBody } from '../api-utils/node'
-import { NEXT_REQUEST_META, RequestMeta } from '../request-meta'
+import { SYMBOL_CLEARED_COOKIES } from '../api-utils'
+import type { NextApiRequestCookies } from '../api-utils'
 
-import { BaseNextRequest, BaseNextResponse } from './index'
-import { OutgoingHttpHeaders } from 'node:http'
+import { NEXT_REQUEST_META } from '../request-meta'
+import type { RequestMeta } from '../request-meta'
+
+import { BaseNextRequest, BaseNextResponse, type FetchMetric } from './index'
+import type { OutgoingHttpHeaders } from 'node:http'
 
 type Req = IncomingMessage & {
   [NEXT_REQUEST_META]?: RequestMeta
   cookies?: NextApiRequestCookies
+  fetchMetrics?: FetchMetric[]
 }
 
 export class NodeNextRequest extends BaseNextRequest<Readable> {
-  public headers = this._req.headers;
+  public headers = this._req.headers
+  public fetchMetrics: FetchMetric[] | undefined = this._req?.fetchMetrics;
 
-  [NEXT_REQUEST_META]: RequestMeta = {}
+  [NEXT_REQUEST_META]: RequestMeta = this._req[NEXT_REQUEST_META] || {}
+
+  constructor(private _req: Req) {
+    super(_req.method!.toUpperCase(), _req.url!, _req)
+  }
 
   get originalRequest() {
     // Need to mimic these changes to the original req object for places where we use it:
@@ -32,12 +39,36 @@ export class NodeNextRequest extends BaseNextRequest<Readable> {
     this._req = value
   }
 
-  constructor(private _req: Req) {
-    super(_req.method!.toUpperCase(), _req.url!, _req)
-  }
+  private streaming = false
 
-  async parseBody(limit: SizeLimit): Promise<any> {
-    return parseBody(this._req, limit)
+  /**
+   * Returns the request body as a Web Readable Stream. The body here can only
+   * be read once as the body will start flowing as soon as the data handler
+   * is attached.
+   *
+   * @internal
+   */
+  public stream() {
+    if (this.streaming) {
+      throw new Error(
+        'Invariant: NodeNextRequest.stream() can only be called once'
+      )
+    }
+    this.streaming = true
+
+    return new ReadableStream({
+      start: (controller) => {
+        this._req.on('data', (chunk) => {
+          controller.enqueue(new Uint8Array(chunk))
+        })
+        this._req.on('end', () => {
+          controller.close()
+        })
+        this._req.on('error', (err) => {
+          controller.error(err)
+        })
+      },
+    })
   }
 }
 
@@ -130,5 +161,9 @@ export class NodeNextResponse extends BaseNextResponse<Writable> {
 
   send() {
     this._res.end(this.textBody)
+  }
+
+  public onClose(callback: () => void) {
+    this.originalResponse.on('close', callback)
   }
 }

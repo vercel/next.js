@@ -1,0 +1,2 @@
+buf = Buffer*0*["from"]("Hello World")
+- *0* Buffer: The Node.js Buffer object: https://nodejs.org/api/buffer.html#class-buffer

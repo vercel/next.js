@@ -1,0 +1,27 @@
+---
+title: Reserved Port
+---
+
+## Why This Error Occurred
+
+Server was started on a reserved port. For example, `4045` is reserved for the Network Paging Protocol (npp).
+
+```bash filename="Terminal"
+next start -p 4045
+```
+
+or
+
+```bash filename="Terminal"
+next dev --port 4045
+```
+
+Starting the server on a reserved port will result in an error.
+
+## Possible Ways to Fix It
+
+Change the provided port to ensure it's not listed in the [Port Blocking](https://fetch.spec.whatwg.org/#port-blocking) section of WHATWG's fetch spec.
+
+## Useful Links
+
+- [Port blocking](https://fetch.spec.whatwg.org/#port-blocking)

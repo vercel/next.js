@@ -1,19 +1,31 @@
-import { createHrefFromUrl } from '../create-href-from-url'
-import { fetchServerResponse } from '../fetch-server-response'
-import {
+import type {
   PrefetchAction,
   ReducerState,
   ReadonlyReducerState,
-  PrefetchKind,
 } from '../router-reducer-types'
-import { createRecordFromThenable } from '../create-record-from-thenable'
-import { prunePrefetchCache } from './prune-prefetch-cache'
-import { NEXT_RSC_UNION_QUERY } from '../../app-router-headers'
 import { PromiseQueue } from '../../promise-queue'
+import {
+  getOrCreatePrefetchCacheEntry,
+  prunePrefetchCache,
+} from '../prefetch-cache-utils'
 
 export const prefetchQueue = new PromiseQueue(5)
 
-export function prefetchReducer(
+export const prefetchReducer = process.env.__NEXT_CLIENT_SEGMENT_CACHE
+  ? identityReducerWhenSegmentCacheIsEnabled
+  : prefetchReducerImpl
+
+function identityReducerWhenSegmentCacheIsEnabled<T>(state: T): T {
+  // Unlike the old implementation, the Segment Cache doesn't store its data in
+  // the router reducer state.
+  //
+  // This shouldn't be reachable because we wrap the prefetch API in a check,
+  // too, which prevents the action from being dispatched. But it's here for
+  // clarity + code elimination.
+  return state
+}
+
+function prefetchReducerImpl(
   state: ReadonlyReducerState,
   action: PrefetchAction
 ): ReducerState {
@@ -21,63 +33,14 @@ export function prefetchReducer(
   prunePrefetchCache(state.prefetchCache)
 
   const { url } = action
-  url.searchParams.delete(NEXT_RSC_UNION_QUERY)
 
-  const href = createHrefFromUrl(
+  getOrCreatePrefetchCacheEntry({
     url,
-    // Ensures the hash is not part of the cache key as it does not affect fetching the server
-    false
-  )
-
-  const cacheEntry = state.prefetchCache.get(href)
-  if (cacheEntry) {
-    /**
-     * If the cache entry present was marked as temporary, it means that we prefetched it from the navigate reducer,
-     * where we didn't have the prefetch intent. We want to update it to the new, more accurate, kind here.
-     */
-    if (cacheEntry.kind === PrefetchKind.TEMPORARY) {
-      state.prefetchCache.set(href, {
-        ...cacheEntry,
-        kind: action.kind,
-      })
-    }
-
-    /**
-     * if the prefetch action was a full prefetch and that the current cache entry wasn't one, we want to re-prefetch,
-     * otherwise we can re-use the current cache entry
-     **/
-    if (
-      !(
-        cacheEntry.kind === PrefetchKind.AUTO &&
-        action.kind === PrefetchKind.FULL
-      )
-    ) {
-      return state
-    }
-  }
-
-  // fetchServerResponse is intentionally not awaited so that it can be unwrapped in the navigate-reducer
-  const serverResponse = createRecordFromThenable(
-    prefetchQueue.enqueue(() =>
-      fetchServerResponse(
-        url,
-        // initialTree is used when history.state.tree is missing because the history state is set in `useEffect` below, it being missing means this is the hydration case.
-        state.tree,
-        state.nextUrl,
-        state.buildId,
-        action.kind
-      )
-    )
-  )
-
-  // Create new tree based on the flightSegmentPath and router state patch
-  state.prefetchCache.set(href, {
-    // Create new tree based on the flightSegmentPath and router state patch
-    treeAtTimeOfPrefetch: state.tree,
-    data: serverResponse,
+    nextUrl: state.nextUrl,
+    prefetchCache: state.prefetchCache,
     kind: action.kind,
-    prefetchTime: Date.now(),
-    lastUsedTime: null,
+    tree: state.tree,
+    allowAliasing: true,
   })
 
   return state

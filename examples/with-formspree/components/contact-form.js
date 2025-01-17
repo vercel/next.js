@@ -1,11 +1,11 @@
-import * as React from 'react'
-import { useForm, ValidationError } from '@formspree/react'
-import formStyles from '../styles/form.module.css'
+import * as React from "react";
+import { useForm, ValidationError } from "@formspree/react";
+import formStyles from "../styles/form.module.css";
 
 export default function ContactForm() {
-  const [state, handleSubmit] = useForm(process.env.NEXT_PUBLIC_FORM)
+  const [state, handleSubmit] = useForm(process.env.NEXT_PUBLIC_FORM);
   if (state.succeeded) {
-    return <p>Thanks for your submission!</p>
+    return <p>Thanks for your submission!</p>;
   }
   return (
     <form onSubmit={handleSubmit} className={formStyles.container}>
@@ -50,5 +50,5 @@ export default function ContactForm() {
         className={formStyles.formErrors}
       />
     </form>
-  )
+  );
 }

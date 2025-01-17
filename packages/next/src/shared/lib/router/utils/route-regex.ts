@@ -1,9 +1,10 @@
-import { INTERCEPTION_ROUTE_MARKERS } from '../../../../server/future/helpers/interception-routes'
+import {
+  NEXT_INTERCEPTION_MARKER_PREFIX,
+  NEXT_QUERY_PARAM_PREFIX,
+} from '../../../../lib/constants'
+import { INTERCEPTION_ROUTE_MARKERS } from '../../../../server/lib/interception-routes'
 import { escapeStringRegexp } from '../../escape-regexp'
 import { removeTrailingSlash } from './remove-trailing-slash'
-
-const NEXT_QUERY_PARAM_PREFIX = 'nxtP'
-const NEXT_INTERCEPTION_MARKER_PREFIX = 'nxtI'
 
 export interface Group {
   pos: number
@@ -16,15 +17,86 @@ export interface RouteRegex {
   re: RegExp
 }
 
+type GetNamedRouteRegexOptions = {
+  /**
+   * Whether to prefix the route keys with the NEXT_INTERCEPTION_MARKER_PREFIX
+   * or NEXT_QUERY_PARAM_PREFIX. This is only relevant when creating the
+   * routes-manifest during the build.
+   */
+  prefixRouteKeys: boolean
+
+  /**
+   * Whether to include extra parts in the route regex. This means that when you
+   * have something like `/[...slug].json` the `.json` part will be included
+   * in the regex, yielding `/(.*).json` as the regex.
+   */
+  includeExtraParts?: boolean
+
+  /**
+   * Whether to exclude the optional trailing slash from the route regex.
+   */
+  excludeOptionalTrailingSlash?: boolean
+}
+
+type GetRouteRegexOptions = {
+  /**
+   * Whether to include extra parts in the route regex. This means that when you
+   * have something like `/[...slug].json` the `.json` part will be included
+   * in the regex, yielding `/(.*).json` as the regex.
+   */
+  includeExtraParts?: boolean
+
+  /**
+   * Whether to exclude the optional trailing slash from the route regex.
+   */
+  excludeOptionalTrailingSlash?: boolean
+}
+
+/**
+ * Regular expression pattern used to match route parameters.
+ * Matches both single parameters and parameter groups.
+ * Examples:
+ *   - `[[...slug]]` matches parameter group with key 'slug', repeat: true, optional: true
+ *   - `[...slug]` matches parameter group with key 'slug', repeat: true, optional: false
+ *   - `[[foo]]` matches parameter with key 'foo', repeat: false, optional: true
+ *   - `[bar]` matches parameter with key 'bar', repeat: false, optional: false
+ */
+const PARAMETER_PATTERN = /\[((?:\[.*\])|.+)\](.*)/
+
 /**
  * Parses a given parameter from a route to a data structure that can be used
- * to generate the parametrized route. Examples:
+ * to generate the parametrized route.
+ * Examples:
+ *   - `[[...slug]]` -> `{ key: 'slug', repeat: true, optional: true }`
+ *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: false }`
+ *   - `[[foo]]` -> `{ key: 'foo', repeat: false, optional: true }`
+ *   - `[bar]` -> `{ key: 'bar', repeat: false, optional: false }`
+ *   - `fizz` -> `{ key: 'fizz', repeat: false, optional: false }`
+ * @param param - The parameter to parse.
+ * @returns The parsed parameter as a data structure.
+ */
+export function parseParameter(param: string) {
+  const match = param.match(PARAMETER_PATTERN)
+
+  if (!match) {
+    return parseMatchedParameter(param)
+  }
+
+  return parseMatchedParameter(match[1])
+}
+
+/**
+ * Parses a matched parameter from the PARAMETER_PATTERN regex to a data structure that can be used
+ * to generate the parametrized route.
+ * Examples:
  *   - `[...slug]` -> `{ key: 'slug', repeat: true, optional: true }`
  *   - `...slug` -> `{ key: 'slug', repeat: true, optional: false }`
  *   - `[foo]` -> `{ key: 'foo', repeat: false, optional: true }`
  *   - `bar` -> `{ key: 'bar', repeat: false, optional: false }`
+ * @param param - The matched parameter to parse.
+ * @returns The parsed parameter as a data structure.
  */
-function parseParameter(param: string) {
+function parseMatchedParameter(param: string) {
   const optional = param.startsWith('[') && param.endsWith(']')
   if (optional) {
     param = param.slice(1, -1)
@@ -36,31 +108,38 @@ function parseParameter(param: string) {
   return { key: param, repeat, optional }
 }
 
-function getParametrizedRoute(route: string) {
-  const segments = removeTrailingSlash(route).slice(1).split('/')
+function getParametrizedRoute(route: string, includeExtraParts: boolean) {
   const groups: { [groupName: string]: Group } = {}
   let groupIndex = 1
-  return {
-    parameterizedRoute: segments
-      .map((segment) => {
-        const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) =>
-          segment.startsWith(m)
-        )
-        const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
 
-        if (markerMatch && paramMatches) {
-          const { key, optional, repeat } = parseParameter(paramMatches[1])
-          groups[key] = { pos: groupIndex++, repeat, optional }
-          return `/${escapeStringRegexp(markerMatch)}([^/]+?)`
-        } else if (paramMatches) {
-          const { key, repeat, optional } = parseParameter(paramMatches[1])
-          groups[key] = { pos: groupIndex++, repeat, optional }
-          return repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
-        } else {
-          return `/${escapeStringRegexp(segment)}`
-        }
-      })
-      .join(''),
+  const segments: string[] = []
+  for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
+    const markerMatch = INTERCEPTION_ROUTE_MARKERS.find((m) =>
+      segment.startsWith(m)
+    )
+    const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
+
+    if (markerMatch && paramMatches) {
+      const { key, optional, repeat } = parseMatchedParameter(paramMatches[1])
+      groups[key] = { pos: groupIndex++, repeat, optional }
+      segments.push(`/${escapeStringRegexp(markerMatch)}([^/]+?)`)
+    } else if (paramMatches) {
+      const { key, repeat, optional } = parseMatchedParameter(paramMatches[1])
+      groups[key] = { pos: groupIndex++, repeat, optional }
+      segments.push(
+        repeat ? (optional ? '(?:/(.+?))?' : '/(.+?)') : '/([^/]+?)'
+      )
+    } else {
+      segments.push(`/${escapeStringRegexp(segment)}`)
+    }
+
+    if (includeExtraParts && paramMatches && paramMatches[2]) {
+      segments.push(escapeStringRegexp(paramMatches[2]))
+    }
+  }
+
+  return {
+    parameterizedRoute: segments.join(''),
     groups,
   }
 }
@@ -70,10 +149,25 @@ function getParametrizedRoute(route: string) {
  * a corresponding groups object intended to be used to store matching groups
  * from the regular expression.
  */
-export function getRouteRegex(normalizedRoute: string): RouteRegex {
-  const { parameterizedRoute, groups } = getParametrizedRoute(normalizedRoute)
+export function getRouteRegex(
+  normalizedRoute: string,
+  {
+    includeExtraParts = false,
+    excludeOptionalTrailingSlash = false,
+  }: GetRouteRegexOptions = {}
+): RouteRegex {
+  const { parameterizedRoute, groups } = getParametrizedRoute(
+    normalizedRoute,
+    includeExtraParts
+  )
+
+  let re = parameterizedRoute
+  if (!excludeOptionalTrailingSlash) {
+    re += '(?:/)?'
+  }
+
   return {
-    re: new RegExp(`^${parameterizedRoute}(?:/)?$`),
+    re: new RegExp(`^${re}$`),
     groups: groups,
   }
 }
@@ -83,36 +177,33 @@ export function getRouteRegex(normalizedRoute: string): RouteRegex {
  * number of characters.
  */
 function buildGetSafeRouteKey() {
-  let routeKeyCharCode = 97
-  let routeKeyCharLength = 1
+  let i = 0
 
   return () => {
     let routeKey = ''
-    for (let i = 0; i < routeKeyCharLength; i++) {
-      routeKey += String.fromCharCode(routeKeyCharCode)
-      routeKeyCharCode++
-
-      if (routeKeyCharCode > 122) {
-        routeKeyCharLength++
-        routeKeyCharCode = 97
-      }
+    let j = ++i
+    while (j > 0) {
+      routeKey += String.fromCharCode(97 + ((j - 1) % 26))
+      j = Math.floor((j - 1) / 26)
     }
     return routeKey
   }
 }
 
 function getSafeKeyFromSegment({
+  interceptionMarker,
+  getSafeRouteKey,
   segment,
   routeKeys,
   keyPrefix,
 }: {
+  interceptionMarker?: string
+  getSafeRouteKey: () => string
   segment: string
   routeKeys: Record<string, string>
   keyPrefix?: string
 }) {
-  const getSafeRouteKey = buildGetSafeRouteKey()
-
-  const { key, optional, repeat } = parseParameter(segment)
+  const { key, optional, repeat } = parseMatchedParameter(segment)
 
   // replace any non-word characters since they can break
   // the named regex
@@ -139,46 +230,73 @@ function getSafeKeyFromSegment({
   if (keyPrefix) {
     routeKeys[cleanedKey] = `${keyPrefix}${key}`
   } else {
-    routeKeys[cleanedKey] = `${key}`
+    routeKeys[cleanedKey] = key
   }
+
+  // if the segment has an interception marker, make sure that's part of the regex pattern
+  // this is to ensure that the route with the interception marker doesn't incorrectly match
+  // the non-intercepted route (ie /app/(.)[username] should not match /app/[username])
+  const interceptionPrefix = interceptionMarker
+    ? escapeStringRegexp(interceptionMarker)
+    : ''
 
   return repeat
     ? optional
-      ? `(?:/(?<${cleanedKey}>.+?))?`
-      : `/(?<${cleanedKey}>.+?)`
-    : `/(?<${cleanedKey}>[^/]+?)`
+      ? `(?:/${interceptionPrefix}(?<${cleanedKey}>.+?))?`
+      : `/${interceptionPrefix}(?<${cleanedKey}>.+?)`
+    : `/${interceptionPrefix}(?<${cleanedKey}>[^/]+?)`
 }
 
-function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
-  const segments = removeTrailingSlash(route).slice(1).split('/')
+function getNamedParametrizedRoute(
+  route: string,
+  prefixRouteKeys: boolean,
+  includeExtraParts: boolean
+) {
+  const getSafeRouteKey = buildGetSafeRouteKey()
   const routeKeys: { [named: string]: string } = {}
-  return {
-    namedParameterizedRoute: segments
-      .map((segment) => {
-        const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) =>
-          segment.startsWith(m)
-        )
-        const paramMatches = segment.match(/\[((?:\[.*\])|.+)\]/) // Check for parameters
 
-        if (hasInterceptionMarker && paramMatches) {
-          return getSafeKeyFromSegment({
-            segment: paramMatches[1],
-            routeKeys,
-            keyPrefix: prefixRouteKeys
-              ? NEXT_INTERCEPTION_MARKER_PREFIX
-              : undefined,
-          })
-        } else if (paramMatches) {
-          return getSafeKeyFromSegment({
-            segment: paramMatches[1],
-            routeKeys,
-            keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
-          })
-        } else {
-          return `/${escapeStringRegexp(segment)}`
-        }
-      })
-      .join(''),
+  const segments: string[] = []
+  for (const segment of removeTrailingSlash(route).slice(1).split('/')) {
+    const hasInterceptionMarker = INTERCEPTION_ROUTE_MARKERS.some((m) =>
+      segment.startsWith(m)
+    )
+
+    const paramMatches = segment.match(PARAMETER_PATTERN) // Check for parameters
+
+    if (hasInterceptionMarker && paramMatches) {
+      const [usedMarker] = segment.split(paramMatches[0])
+
+      segments.push(
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          interceptionMarker: usedMarker,
+          segment: paramMatches[1],
+          routeKeys,
+          keyPrefix: prefixRouteKeys
+            ? NEXT_INTERCEPTION_MARKER_PREFIX
+            : undefined,
+        })
+      )
+    } else if (paramMatches) {
+      segments.push(
+        getSafeKeyFromSegment({
+          getSafeRouteKey,
+          segment: paramMatches[1],
+          routeKeys,
+          keyPrefix: prefixRouteKeys ? NEXT_QUERY_PARAM_PREFIX : undefined,
+        })
+      )
+    } else {
+      segments.push(`/${escapeStringRegexp(segment)}`)
+    }
+
+    if (includeExtraParts && paramMatches && paramMatches[2]) {
+      segments.push(escapeStringRegexp(paramMatches[2]))
+    }
+  }
+
+  return {
+    namedParameterizedRoute: segments.join(''),
     routeKeys,
   }
 }
@@ -193,12 +311,22 @@ function getNamedParametrizedRoute(route: string, prefixRouteKeys: boolean) {
  */
 export function getNamedRouteRegex(
   normalizedRoute: string,
-  prefixRouteKey: boolean
+  options: GetNamedRouteRegexOptions
 ) {
-  const result = getNamedParametrizedRoute(normalizedRoute, prefixRouteKey)
+  const result = getNamedParametrizedRoute(
+    normalizedRoute,
+    options.prefixRouteKeys,
+    options.includeExtraParts ?? false
+  )
+
+  let namedRegex = result.namedParameterizedRoute
+  if (!options.excludeOptionalTrailingSlash) {
+    namedRegex += '(?:/)?'
+  }
+
   return {
-    ...getRouteRegex(normalizedRoute),
-    namedRegex: `^${result.namedParameterizedRoute}(?:/)?$`,
+    ...getRouteRegex(normalizedRoute, options),
+    namedRegex: `^${namedRegex}$`,
     routeKeys: result.routeKeys,
   }
 }
@@ -213,7 +341,7 @@ export function getNamedMiddlewareRegex(
     catchAll?: boolean
   }
 ) {
-  const { parameterizedRoute } = getParametrizedRoute(normalizedRoute)
+  const { parameterizedRoute } = getParametrizedRoute(normalizedRoute, false)
   const { catchAll = true } = options
   if (parameterizedRoute === '/') {
     let catchAllRegex = catchAll ? '.*' : ''
@@ -224,6 +352,7 @@ export function getNamedMiddlewareRegex(
 
   const { namedParameterizedRoute } = getNamedParametrizedRoute(
     normalizedRoute,
+    false,
     false
   )
   let catchAllGroupedRegex = catchAll ? '(?:(/.*)?)' : ''

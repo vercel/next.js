@@ -1,9 +1,17 @@
-[[profile.default.overrides]]
-filter = "package(next-dev-tests)"
-# Default is 100ms. Extending this addresses false positives in the
-# next-dev integration tests.
-leak-timeout = "500ms"
-retries = 2
-slow-timeout = "60s"
-threads-required = 4
-failure-output = "immediate-final"
+[profile.tp-test-linux.junit]
+path = "junit.xml"
+report-name = "Turbopack tests (Linux)"
+store-success-output = true
+store-failure-output = true
+
+[profile.tp-test-mac.junit]
+path = "junit.xml"
+report-name = "Turbopack tests (Mac)"
+store-success-output = true
+store-failure-output = true
+
+[profile.tp-test-win.junit]
+path = "junit.xml"
+report-name = "Turbopack tests (Windows)"
+store-success-output = true
+store-failure-output = true

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { type JSX } from 'react'
 
 export function World(): JSX.Element {
   return <>World</>

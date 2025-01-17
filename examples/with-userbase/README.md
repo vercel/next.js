@@ -6,7 +6,7 @@ Deployed Demo: [https://next-userbase.vercel.app](https://next-userbase.vercel.a
 
 ## Deploy your own
 
-Once you have access to [the environment variables you'll need](#step-2-setting-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Once you have access to [the environment variables you'll need](#step-2-setting-up-environment-variables), deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/with-userbase)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/with-userbase&project-name=with-userbase&repository-name=with-userbase&env=NEXT_PUBLIC_USERBASE_APP_ID&envDescription=The%20Userbase%20app%20ID,%20found%20in%20the%20Userbase%20dashboard&envLink=https://v1.userbase.com/)
 
@@ -16,9 +16,13 @@ Execute [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packag
 
 ```bash
 npx create-next-app --example with-userbase next-userbase-app
-# or
+```
+
+```bash
 yarn create next-app --example with-userbase next-userbase-app
-# or
+```
+
+```bash
 pnpm create next-app --example with-userbase next-userbase-app
 ```
 
@@ -53,11 +57,12 @@ NEXT_PUBLIC_USERBASE_APP_ID=...
 ```bash
 npm install
 npm run dev
-
 # or
-
 yarn install
 yarn dev
+# or
+pnpm install
+pnpm dev
 ```
 
 Your todo app should be up and running on [http://localhost:3000](http://localhost:3000)! If it doesn't work, post on [GitHub discussions](https://github.com/vercel/next.js/discussions).

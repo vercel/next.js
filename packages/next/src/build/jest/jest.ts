@@ -1,7 +1,6 @@
 import { loadEnvConfig } from '@next/env'
 import { resolve, join } from 'path'
 import loadConfig from '../../server/config'
-import type { NextConfigComplete } from '../../server/config-shared'
 import { PHASE_TEST } from '../../shared/lib/constants'
 import loadJsConfig from '../load-jsconfig'
 import * as Log from '../output/log'
@@ -9,6 +8,8 @@ import { findPagesDir } from '../../lib/find-pages-dir'
 import { loadBindings, lockfilePatchPromise } from '../swc'
 import type { JestTransformerConfig } from '../swc/jest-transformer'
 import type { Config } from '@jest/types'
+
+const DEFAULT_TRANSPILED_PACKAGES: string[] = require('../../lib/default-transpiled-packages.json')
 
 async function getConfig(dir: string) {
   const conf = await loadConfig(PHASE_TEST, dir)
@@ -31,30 +32,31 @@ function loadClosestPackageJson(dir: string, attempts = 1): any {
 }
 
 /** Loads dotenv files and sets environment variables based on next config. */
-function setUpEnv(dir: string, nextConfig: NextConfigComplete) {
+function setUpEnv(dir: string) {
   const dev = false
   loadEnvConfig(dir, dev, Log)
-
-  if (nextConfig.experimental.newNextLinkBehavior) {
-    process.env.__NEXT_NEW_LINK_BEHAVIOR = 'true'
-  }
 }
 
-/*
-// Usage in jest.config.js
-const nextJest = require('next/jest');
-
-// Optionally provide path to Next.js app which will enable loading next.config.js and .env files
-const createJestConfig = nextJest({ dir })
-
-// Any custom config you want to pass to Jest
-const customJestConfig = {
-    setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
-}
-
-// createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
-module.exports = createJestConfig(customJestConfig)
-*/
+/**
+ * @example
+ * ```ts
+ * // Usage in jest.config.js
+ * const nextJest = require('next/jest');
+ *
+ * // Optionally provide path to Next.js app which will enable loading next.config.js and .env files
+ * const createJestConfig = nextJest({ dir })
+ *
+ * // Any custom config you want to pass to Jest
+ * const customJestConfig = {
+ *     setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+ * }
+ *
+ * // createJestConfig is exported in this way to ensure that next/jest can load the Next.js config which is async
+ * module.exports = createJestConfig(customJestConfig)
+ * ```
+ *
+ * Read more: [Next.js Docs: Setting up Jest with Next.js](https://nextjs.org/docs/app/building-your-application/testing/jest)
+ */
 export default function nextJest(options: { dir?: string } = {}) {
   // createJestConfig
   return (
@@ -70,7 +72,7 @@ export default function nextJest(options: { dir?: string } = {}) {
       let resolvedBaseUrl
       let isEsmProject = false
       let pagesDir: string | undefined
-      let hasServerComponents: boolean | undefined
+      let serverComponents: boolean | undefined
 
       if (options.dir) {
         const resolvedDir = resolve(options.dir)
@@ -78,11 +80,10 @@ export default function nextJest(options: { dir?: string } = {}) {
         isEsmProject = packageConfig.type === 'module'
 
         nextConfig = await getConfig(resolvedDir)
-        const isAppDirEnabled = !!nextConfig.experimental.appDir
-        const findPagesDirResult = findPagesDir(resolvedDir, isAppDirEnabled)
-        hasServerComponents = !!findPagesDirResult.appDir
+        const findPagesDirResult = findPagesDir(resolvedDir)
+        serverComponents = !!findPagesDirResult.appDir
         pagesDir = findPagesDirResult.pagesDir
-        setUpEnv(resolvedDir, nextConfig)
+        setUpEnv(resolvedDir)
         // TODO: revisit when bug in SWC is fixed that strips `.css`
         const result = await loadJsConfig(resolvedDir, nextConfig)
         jsConfig = result.jsConfig
@@ -95,13 +96,15 @@ export default function nextJest(options: { dir?: string } = {}) {
           : customJestConfig) ?? {}
 
       // eagerly load swc bindings instead of waiting for transform calls
-      await loadBindings()
+      await loadBindings(nextConfig?.experimental?.useWasmBinary)
 
       if (lockfilePatchPromise.cur) {
         await lockfilePatchPromise.cur
       }
 
-      const transpiled = (nextConfig?.transpilePackages ?? []).join('|')
+      const transpiled = (nextConfig?.transpilePackages ?? [])
+        .concat(DEFAULT_TRANSPILED_PACKAGES)
+        .join('|')
 
       const jestTransformerConfig: JestTransformerConfig = {
         modularizeImports: nextConfig?.modularizeImports,
@@ -109,7 +112,7 @@ export default function nextJest(options: { dir?: string } = {}) {
         compilerOptions: nextConfig?.compiler,
         jsConfig,
         resolvedBaseUrl,
-        hasServerComponents,
+        serverComponents,
         isEsmProject,
         pagesDir,
       }

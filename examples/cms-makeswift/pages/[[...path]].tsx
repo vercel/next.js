@@ -1,51 +1,51 @@
-import '../lib/makeswift/register-components'
+import "../lib/makeswift/register-components";
 
-import { Makeswift } from '@makeswift/runtime/next'
+import { Makeswift } from "@makeswift/runtime/next";
 import {
   GetStaticPathsResult,
   GetStaticPropsContext,
   GetStaticPropsResult,
-} from 'next'
+} from "next";
 
 import {
   Page as MakeswiftPage,
   PageProps as MakeswiftPageProps,
-} from '@makeswift/runtime/next'
+} from "@makeswift/runtime/next";
 
-type ParsedUrlQuery = { path?: string[] }
+type ParsedUrlQuery = { path?: string[] };
 
 export async function getStaticPaths(): Promise<
   GetStaticPathsResult<ParsedUrlQuery>
 > {
-  const makeswift = new Makeswift(process.env.MAKESWIFT_SITE_API_KEY!)
-  const pages = await makeswift.getPages()
+  const makeswift = new Makeswift(process.env.MAKESWIFT_SITE_API_KEY!);
+  const pages = await makeswift.getPages();
 
   return {
     paths: pages.map((page) => ({
       params: {
-        path: page.path.split('/').filter((segment) => segment !== ''),
+        path: page.path.split("/").filter((segment) => segment !== ""),
       },
     })),
-    fallback: 'blocking',
-  }
+    fallback: "blocking",
+  };
 }
 
-type Props = MakeswiftPageProps
+type Props = MakeswiftPageProps;
 
 export async function getStaticProps(
-  ctx: GetStaticPropsContext<ParsedUrlQuery>
+  ctx: GetStaticPropsContext<ParsedUrlQuery>,
 ): Promise<GetStaticPropsResult<Props>> {
-  const makeswift = new Makeswift(process.env.MAKESWIFT_SITE_API_KEY!)
-  const path = '/' + (ctx.params?.path ?? []).join('/')
+  const makeswift = new Makeswift(process.env.MAKESWIFT_SITE_API_KEY!);
+  const path = "/" + (ctx.params?.path ?? []).join("/");
   const snapshot = await makeswift.getPageSnapshot(path, {
     preview: ctx.preview,
-  })
+  });
 
-  if (snapshot == null) return { notFound: true }
+  if (snapshot == null) return { notFound: true };
 
-  return { props: { snapshot } }
+  return { props: { snapshot } };
 }
 
 export default function Page({ snapshot }: Props) {
-  return <MakeswiftPage snapshot={snapshot} />
+  return <MakeswiftPage snapshot={snapshot} />;
 }

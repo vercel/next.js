@@ -1,33 +1,33 @@
 import { join } from 'path'
-import webdriver from 'next-webdriver'
-import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
-import { check } from 'next-test-utils'
+import webdriver, { BrowserInterface } from 'next-webdriver'
+import { FileRef, nextTestSetup } from 'e2e-utils'
+import { check, shouldRunTurboDevTest } from 'next-test-utils'
+
+// [TODO]: It is unclear why turbopack takes longer to run this test
+// remove once it's fixed
+if (shouldRunTurboDevTest()) {
+  jest.setTimeout(1000 * 60 * 5)
+}
 
 describe('TailwindCSS JIT', () => {
-  let next: NextInstance
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'postcss.config.js': new FileRef(
-          join(__dirname, 'tailwind-jit/postcss.config.js')
-        ),
-        'tailwind.config.js': new FileRef(
-          join(__dirname, 'tailwind-jit/tailwind.config.js')
-        ),
-        pages: new FileRef(join(__dirname, 'tailwind-jit/pages')),
-      },
-      dependencies: {
-        tailwindcss: '2.2.19',
-        postcss: '8.3.5',
-      },
-    })
+  const { next } = nextTestSetup({
+    files: {
+      'postcss.config.js': new FileRef(
+        join(__dirname, 'tailwind-jit/postcss.config.js')
+      ),
+      'tailwind.config.js': new FileRef(
+        join(__dirname, 'tailwind-jit/tailwind.config.js')
+      ),
+      pages: new FileRef(join(__dirname, 'tailwind-jit/pages')),
+    },
+    dependencies: {
+      tailwindcss: '2.2.19',
+      postcss: '8.3.5',
+    },
   })
-  afterAll(() => next.destroy())
 
   it('works with JIT enabled', async () => {
-    let browser
+    let browser: BrowserInterface
     try {
       browser = await webdriver(next.url, '/')
       const text = await browser.elementByCss('.text-6xl').text()
@@ -44,6 +44,7 @@ describe('TailwindCSS JIT', () => {
         '<a className="text-blue-600" href="https://nextjs.org" id="test-link">',
         '<a className="text-red-600" href="https://nextjs.org" id="test-link">'
       )
+      await browser.eval('window.REAL_HMR = 1;')
 
       // change the content
       try {
@@ -52,6 +53,7 @@ describe('TailwindCSS JIT', () => {
           () => browser.elementByCss('#test-link').getComputedCss('color'),
           /rgb\(220, 38, 38\)/
         )
+        expect(await browser.eval('window.REAL_HMR')).toBe(1)
       } finally {
         // add the original content
         await next.patchFile(aboutPagePath, originalContent)

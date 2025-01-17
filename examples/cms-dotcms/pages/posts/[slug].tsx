@@ -1,27 +1,27 @@
-import { useRouter } from 'next/router'
-import Head from 'next/head'
-import ErrorPage from 'next/error'
-import Container from '@components/container'
-import MoreStories from '@components/more-stories'
-import Header from '@components/header'
-import PostHeader from '@components/post-header'
-import PostBody from '@components/post-body'
-import SectionSeparator from '@components/section-separator'
-import Layout from '@components/layout'
-import PostTitle from '@components/post-title'
-import { CMS_NAME } from '@lib/constants'
-import { getAllPostsWithSlug, getPostAndMorePosts } from '@lib/api'
+import { useRouter } from "next/router";
+import Head from "next/head";
+import ErrorPage from "next/error";
+import Container from "@components/container";
+import MoreStories from "@components/more-stories";
+import Header from "@components/header";
+import PostHeader from "@components/post-header";
+import PostBody from "@components/post-body";
+import SectionSeparator from "@components/section-separator";
+import Layout from "@components/layout";
+import PostTitle from "@components/post-title";
+import { CMS_NAME } from "@lib/constants";
+import { getAllPostsWithSlug, getPostAndMorePosts } from "@lib/api";
 
 export default function Post({ post, morePosts, preview }) {
-  const router = useRouter()
+  const router = useRouter();
 
   if (!router.isFallback && !post) {
-    return <ErrorPage statusCode={404} />
+    return <ErrorPage statusCode={404} />;
   }
 
   const title = `${
-    post?.title || 'dotcms'
-  } | Next.js Blog Example with ${CMS_NAME}`
+    post?.title || "dotcms"
+  } | Next.js Blog Example with ${CMS_NAME}`;
 
   return (
     <Layout preview={preview}>
@@ -58,25 +58,25 @@ export default function Post({ post, morePosts, preview }) {
         )}
       </Container>
     </Layout>
-  )
+  );
 }
 
 export async function getStaticProps({ params, preview = false }) {
-  const data = await getPostAndMorePosts(params.slug, preview)
+  const data = await getPostAndMorePosts(params.slug, preview);
 
   return {
     props: {
       preview,
       ...data,
     },
-  }
+  };
 }
 
 export async function getStaticPaths() {
-  const allPosts = await getAllPostsWithSlug()
+  const allPosts = await getAllPostsWithSlug();
 
   return {
     paths: allPosts?.map((post) => `/posts/${post.urlTitle}`) || [],
     fallback: true,
-  }
+  };
 }

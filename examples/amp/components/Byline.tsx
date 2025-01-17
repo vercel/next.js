@@ -1,6 +1,6 @@
 type BylineProps = {
-  author: string
-}
+  author: string;
+};
 
 export default function Byline({ author }: BylineProps) {
   return (
@@ -13,5 +13,5 @@ export default function Byline({ author }: BylineProps) {
         }
       `}</style>
     </>
-  )
+  );
 }

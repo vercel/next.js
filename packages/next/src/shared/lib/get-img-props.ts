@@ -7,6 +7,8 @@ import type {
   ImageLoaderPropsWithConfig,
 } from './image-config'
 
+import type { JSX } from 'react'
+
 export interface StaticImageData {
   src: string
   height: number
@@ -38,6 +40,11 @@ export type ImageProps = Omit<
   placeholder?: PlaceholderValue
   blurDataURL?: string
   unoptimized?: boolean
+  overrideSrc?: string
+  /**
+   * @deprecated Use `onLoad` instead.
+   * @see https://nextjs.org/docs/app/api-reference/components/image#onload
+   */
   onLoadingComplete?: OnLoadingComplete
   /**
    * @deprecated Use `fill` prop instead of `layout="fill"` or change import to `next/legacy/image`.
@@ -62,7 +69,7 @@ export type ImageProps = Omit<
   lazyRoot?: string
 }
 
-export type ImgProps = Omit<ImageProps, 'src' | 'alt' | 'loader'> & {
+export type ImgProps = Omit<ImageProps, 'src' | 'loader'> & {
   loading: LoadingValue
   width: number | undefined
   height: number | undefined
@@ -86,7 +93,7 @@ export type ImageLoader = (p: ImageLoaderProps) => string
 // built-in loaders, not for a custom loader() prop.
 type ImageLoaderWithConfig = (p: ImageLoaderPropsWithConfig) => string
 
-export type PlaceholderValue = 'blur' | 'empty'
+export type PlaceholderValue = 'blur' | 'empty' | `data:image/${string}`
 export type OnLoad = React.ReactEventHandler<HTMLImageElement> | undefined
 export type OnLoadingComplete = (img: HTMLImageElement) => void
 
@@ -104,6 +111,7 @@ function isStaticImageData(
 
 function isStaticImport(src: string | StaticImport): src is StaticImport {
   return (
+    !!src &&
     typeof src === 'object' &&
     (isStaticRequire(src as StaticImport) ||
       isStaticImageData(src as StaticImport))
@@ -112,7 +120,7 @@ function isStaticImport(src: string | StaticImport): src is StaticImport {
 
 const allImgs = new Map<
   string,
-  { src: string; priority: boolean; placeholder: string }
+  { src: string; priority: boolean; placeholder: PlaceholderValue }
 >()
 let perfObserver: PerformanceObserver | undefined
 
@@ -241,11 +249,13 @@ export function getImgProps(
     height,
     fill = false,
     style,
+    overrideSrc,
     onLoad,
     onLoadingComplete,
     placeholder = 'empty',
     blurDataURL,
     fetchPriority,
+    decoding = 'async',
     layout,
     objectFit,
     objectPosition,
@@ -276,9 +286,15 @@ export function getImgProps(
   } else {
     const allSizes = [...c.deviceSizes, ...c.imageSizes].sort((a, b) => a - b)
     const deviceSizes = c.deviceSizes.sort((a, b) => a - b)
-    config = { ...c, allSizes, deviceSizes }
+    const qualities = c.qualities?.sort((a, b) => a - b)
+    config = { ...c, allSizes, deviceSizes, qualities }
   }
 
+  if (typeof defaultLoader === 'undefined') {
+    throw new Error(
+      'images.loaderFile detected but the file is missing default export.\nRead more: https://nextjs.org/docs/messages/invalid-images-config'
+    )
+  }
   let loader: ImageLoaderWithConfig = rest.loader || defaultLoader
 
   // Remove property so it's not spread on <img> element
@@ -375,20 +391,21 @@ export function getImgProps(
   let isLazy =
     !priority && (loading === 'lazy' || typeof loading === 'undefined')
   if (!src || src.startsWith('data:') || src.startsWith('blob:')) {
-    // https://developer.mozilla.org/en-US/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
+    // https://developer.mozilla.org/docs/Web/HTTP/Basics_of_HTTP/Data_URIs
     unoptimized = true
     isLazy = false
   }
   if (config.unoptimized) {
     unoptimized = true
   }
-  if (isDefaultLoader && src.endsWith('.svg') && !config.dangerouslyAllowSVG) {
+  if (
+    isDefaultLoader &&
+    !config.dangerouslyAllowSVG &&
+    src.split('?', 1)[0].endsWith('.svg')
+  ) {
     // Special case to make svg serve as-is to avoid proxying
     // through the built-in Image Optimization API.
     unoptimized = true
-  }
-  if (priority) {
-    fetchPriority = 'high'
   }
 
   const qualityInt = getInt(quality)
@@ -454,6 +471,18 @@ export function getImgProps(
             `Image with src "${src}" has invalid "height" property. Expected a numeric value in pixels but received "${height}".`
           )
         }
+        // eslint-disable-next-line no-control-regex
+        if (/^[\x00-\x20]/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot start with a space or control character. Use src.trimStart() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
+        // eslint-disable-next-line no-control-regex
+        if (/[\x00-\x20]$/.test(src)) {
+          throw new Error(
+            `Image with src "${src}" cannot end with a space or control character. Use src.trimEnd() to remove it or encodeURIComponent(src) to keep it.`
+          )
+        }
       }
     }
     if (!VALID_LOADING_VALUES.includes(loading)) {
@@ -468,32 +497,39 @@ export function getImgProps(
         `Image with src "${src}" has both "priority" and "loading='lazy'" properties. Only one should be used.`
       )
     }
-
-    if (placeholder === 'blur') {
+    if (
+      placeholder !== 'empty' &&
+      placeholder !== 'blur' &&
+      !placeholder.startsWith('data:image/')
+    ) {
+      throw new Error(
+        `Image with src "${src}" has invalid "placeholder" property "${placeholder}".`
+      )
+    }
+    if (placeholder !== 'empty') {
       if (widthInt && heightInt && widthInt * heightInt < 1600) {
         warnOnce(
-          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder='blur'" property to improve performance.`
-        )
-      }
-
-      if (!blurDataURL) {
-        const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
-
-        throw new Error(
-          `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
-          Possible solutions:
-            - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
-            - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
-              ','
-            )}
-            - Remove the "placeholder" property, effectively no blur effect
-          Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+          `Image with src "${src}" is smaller than 40x40. Consider removing the "placeholder" property to improve performance.`
         )
       }
     }
+    if (placeholder === 'blur' && !blurDataURL) {
+      const VALID_BLUR_EXT = ['jpeg', 'png', 'webp', 'avif'] // should match next-image-loader
+
+      throw new Error(
+        `Image with src "${src}" has "placeholder='blur'" property but is missing the "blurDataURL" property.
+        Possible solutions:
+          - Add a "blurDataURL" property, the contents should be a small Data URL to represent the image
+          - Change the "src" property to a static import with one of the supported file types: ${VALID_BLUR_EXT.join(
+            ','
+          )} (animated images not supported)
+          - Remove the "placeholder" property, effectively no blur effect
+        Read more: https://nextjs.org/docs/messages/placeholder-blur-data-url`
+      )
+    }
     if ('ref' in rest) {
       warnOnce(
-        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoadingComplete" property instead.`
+        `Image with src "${src}" is using unsupported "ref" property. Consider using the "onLoad" property instead.`
       )
     }
 
@@ -514,6 +550,12 @@ export function getImgProps(
             `\nRead more: https://nextjs.org/docs/messages/next-image-missing-loader-width`
         )
       }
+    }
+
+    if (onLoadingComplete) {
+      warnOnce(
+        `Image with src "${src}" is using deprecated "onLoadingComplete" property. Please use the "onLoad" property instead.`
+      )
     }
 
     for (const [legacyKey, legacyValue] of Object.entries({
@@ -544,7 +586,7 @@ export function getImgProps(
           if (
             lcpImage &&
             !lcpImage.priority &&
-            lcpImage.placeholder !== 'blur' &&
+            lcpImage.placeholder === 'empty' &&
             !lcpImage.src.startsWith('data:') &&
             !lcpImage.src.startsWith('blob:')
           ) {
@@ -585,31 +627,39 @@ export function getImgProps(
     style
   )
 
-  const blurStyle =
-    placeholder === 'blur' && blurDataURL && !blurComplete
-      ? {
-          backgroundSize: imgStyle.objectFit || 'cover',
-          backgroundPosition: imgStyle.objectPosition || '50% 50%',
-          backgroundRepeat: 'no-repeat',
-          backgroundImage: `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg(
-            {
-              widthInt,
-              heightInt,
-              blurWidth,
-              blurHeight,
-              blurDataURL,
-              objectFit: imgStyle.objectFit,
-            }
-          )}")`,
-        }
-      : {}
+  const backgroundImage =
+    !blurComplete && placeholder !== 'empty'
+      ? placeholder === 'blur'
+        ? `url("data:image/svg+xml;charset=utf-8,${getImageBlurSvg({
+            widthInt,
+            heightInt,
+            blurWidth,
+            blurHeight,
+            blurDataURL: blurDataURL || '', // assume not undefined
+            objectFit: imgStyle.objectFit,
+          })}")`
+        : `url("${placeholder}")` // assume `data:image/`
+      : null
+
+  let placeholderStyle = backgroundImage
+    ? {
+        backgroundSize: imgStyle.objectFit || 'cover',
+        backgroundPosition: imgStyle.objectPosition || '50% 50%',
+        backgroundRepeat: 'no-repeat',
+        backgroundImage,
+      }
+    : {}
 
   if (process.env.NODE_ENV === 'development') {
-    if (blurStyle.backgroundImage && blurDataURL?.startsWith('/')) {
+    if (
+      placeholderStyle.backgroundImage &&
+      placeholder === 'blur' &&
+      blurDataURL?.startsWith('/')
+    ) {
       // During `next dev`, we don't want to generate blur placeholders with webpack
       // because it can delay starting the dev server. Instead, `next-image-loader.js`
       // will inline a special url to lazily generate the blur placeholder at request time.
-      blurStyle.backgroundImage = `url("${blurDataURL}")`
+      placeholderStyle.backgroundImage = `url("${blurDataURL}")`
     }
   }
 
@@ -641,12 +691,12 @@ export function getImgProps(
     fetchPriority,
     width: widthInt,
     height: heightInt,
-    decoding: 'async',
+    decoding,
     className,
-    style: { ...imgStyle, ...blurStyle },
+    style: { ...imgStyle, ...placeholderStyle },
     sizes: imgAttributes.sizes,
     srcSet: imgAttributes.srcSet,
-    src: imgAttributes.src,
+    src: overrideSrc || imgAttributes.src,
   }
   const meta = { unoptimized, priority, placeholder, fill }
   return { props, meta }

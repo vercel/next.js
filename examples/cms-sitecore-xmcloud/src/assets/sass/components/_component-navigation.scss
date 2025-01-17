@@ -1,0 +1,54 @@
+@import "@sass/abstracts/mixins";
+@import "@sass/abstracts/vars";
+
+.navigation {
+  background: $nav-bg;
+  ul {
+    padding-left: 0;
+  }
+  .level0,
+  .level1 {
+    > .navigation-title > a {
+      font-size: $navigation-font-basic;
+      border-color: $nav-border-root;
+      border-style: solid;
+      border-width: 0 0 2px 0;
+      padding-right: 10px;
+      margin-right: 5px;
+      &:hover {
+        text-decoration: none;
+      }
+    }
+  }
+  a {
+    color: $nav-color-root;
+    .lt-ie9 &,
+    .lt-ie9 & span {
+      color: $nav-color-root;
+    }
+    &:focus,
+    &:hover {
+      color: $nav-color-root-active;
+    }
+  }
+  li {
+    &.submenu {
+      margin-bottom: 0;
+    }
+    > .navigation-title {
+      > a {
+        padding: 3px 5px 3px 0;
+        display: block;
+        color: $nav-color-root;
+        text-decoration: none;
+      }
+    }
+    > ul a {
+      font-size: $navigation-font-basic-submenu;
+    }
+  }
+  .submenu > ul {
+    padding-left: 10px;
+  }
+}
+@import "@sass/components/navigation/";

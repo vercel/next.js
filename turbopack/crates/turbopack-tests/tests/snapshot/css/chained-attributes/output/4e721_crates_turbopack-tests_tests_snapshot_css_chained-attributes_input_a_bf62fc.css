@@ -1,0 +1,9 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/a.css [test] (css, layer(layer) print supports(not(display: inline-grid))) */
+@layer layer {
+@media print {
+@supports not(display: inline-grid) {
+.imported{color:#0ff}
+}
+}
+}
+/*# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_css_chained-attributes_input_a_bf62fc.css.map*/

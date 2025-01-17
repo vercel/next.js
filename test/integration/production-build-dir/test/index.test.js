@@ -2,36 +2,35 @@
 
 import { join } from 'path'
 import {
-  nextServer,
   runNextCommand,
-  startApp,
-  stopApp,
+  nextStart,
+  killApp,
+  findPort,
   renderViaHTTP,
 } from 'next-test-utils'
 
 describe('Production Custom Build Directory', () => {
-  describe('With basic usage', () => {
-    it('should render the page', async () => {
-      const result = await runNextCommand(['build', 'build'], {
-        cwd: join(__dirname, '..'),
-        stdout: true,
-        stderr: true,
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      describe('With basic usage', () => {
+        it('should render the page', async () => {
+          const result = await runNextCommand(['build', 'build'], {
+            cwd: join(__dirname, '..'),
+            stdout: true,
+            stderr: true,
+          })
+          expect(result.stderr).toBe('')
+
+          const appPort = await findPort()
+          const app = await nextStart(join(__dirname, '../build'), appPort)
+
+          const html = await renderViaHTTP(appPort, '/')
+          expect(html).toMatch(/Hello World/)
+
+          await killApp(app)
+        })
       })
-      expect(result.stderr).toBe('')
-
-      const app = nextServer({
-        dir: join(__dirname, '../build'),
-        dev: false,
-        quiet: true,
-      })
-
-      const server = await startApp(app)
-      const appPort = server.address().port
-
-      const html = await renderViaHTTP(appPort, '/')
-      expect(html).toMatch(/Hello World/)
-
-      await stopApp(server)
-    })
-  })
+    }
+  )
 })

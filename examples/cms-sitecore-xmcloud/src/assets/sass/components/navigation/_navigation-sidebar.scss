@@ -1,0 +1,29 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+
+.navigation.navigation-sidebar {
+  a {
+    text-decoration: none;
+  }
+  nav > ul {
+    .rel-level1 {
+      > .navigation-title {
+        margin-bottom: 0;
+        > a {
+          padding: 5px 10px;
+          display: block;
+          position: relative;
+          z-index: 1;
+          margin-right: 0;
+        }
+      }
+      > ul {
+        margin-left: $small-margin;
+        margin-top: $extrasmall-margin;
+      }
+    }
+    .rel-level2 {
+      display: block;
+    }
+  }
+}

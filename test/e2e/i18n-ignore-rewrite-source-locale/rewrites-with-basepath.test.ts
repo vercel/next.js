@@ -1,5 +1,5 @@
 import { createNext } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import { fetchViaHTTP, renderViaHTTP } from 'next-test-utils'
 import path from 'path'
 import fs from 'fs-extra'
@@ -72,7 +72,8 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
 
   // build artifacts aren't available on deploy
   if (!(global as any).isNextDeploy) {
-    test.each(locales)(
+    // chunks are not written to disk with TURBOPACK
+    ;(process.env.TURBOPACK ? it.skip.each : it.each)(locales)(
       'get _next/static/ files by skipping locale in rewrite, locale: %s',
       async (locale) => {
         const chunks = (
@@ -85,6 +86,7 @@ describe('i18n-ignore-rewrite-source-locale with basepath', () => {
               next.url,
               `/basepath${locale}/rewrite-files/_next/static/chunks/${file}`
             )
+            // eslint-disable-next-line jest/no-standalone-expect
             expect(res.status).toBe(200)
           })
         )

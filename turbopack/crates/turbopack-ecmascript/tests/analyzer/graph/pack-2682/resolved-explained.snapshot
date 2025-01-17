@@ -1,0 +1,32 @@
+*arrow function 24* = (...) => FreeVar(JSON)["stringify"](
+    {
+        "condition": (variable === "true"),
+        "buggedConditionalCheck": ((variable === "true") ? "true" : "false")
+    }
+)
+
+BuggyArguments = (...) => FreeVar(JSON)["stringify"](
+    {
+        "condition": (variable === "true"),
+        "buggedConditionalCheck": ((variable === "true") ? "true" : "false")
+    }
+)
+
+res = ???*0*
+- *0* ???*1*["stringify"](
+        {
+            "condition": (variable === "true"),
+            "buggedConditionalCheck": ((variable === "true") ? "true" : "false")
+        }
+    )
+  ⚠️  unknown callee object
+  ⚠️  This value might have side effects
+- *1* FreeVar(JSON)
+  ⚠️  unknown global
+  ⚠️  This value might have side effects
+
+variable = (???*0* | "true")
+- *0* ???*1*["variable"]
+  ⚠️  unknown object
+- *1* arguments[0]
+  ⚠️  function calls are not analysed yet

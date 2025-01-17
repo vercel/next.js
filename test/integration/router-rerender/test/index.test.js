@@ -17,7 +17,7 @@ let app
 
 const runTests = () => {
   describe('with middleware', () => {
-    it('should not trigger unncessary rerenders when middleware is used', async () => {
+    it('should not trigger unnecessary rerenders when middleware is used', async () => {
       const browser = await webdriver(appPort, '/')
       await new Promise((resolve) => setTimeout(resolve, 100))
 
@@ -27,30 +27,35 @@ const runTests = () => {
 
   describe('with rewrites', () => {
     // TODO: Figure out the `isReady` issue.
-    it.skip('should not trigger unncessary rerenders when rewrites are used', async () => {})
+    it.skip('should not trigger unnecessary rerenders when rewrites are used', async () => {})
     it.skip('should rerender with the correct query parameter if present with rewrites', async () => {})
   })
 }
 
 describe('router rerender', () => {
-  describe('dev mode', () => {
-    beforeAll(async () => {
-      appPort = await findPort()
-      app = await launchApp(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
+  ;(process.env.TURBOPACK_BUILD ? describe.skip : describe)(
+    'development mode',
+    () => {
+      beforeAll(async () => {
+        appPort = await findPort()
+        app = await launchApp(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-    runTests()
-  })
+      runTests()
+    }
+  )
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
+      afterAll(() => killApp(app))
 
-  describe('production mode', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
-    afterAll(() => killApp(app))
-
-    runTests()
-  })
+      runTests()
+    }
+  )
 })

@@ -41,7 +41,7 @@ describe('getSortedRoutes', () => {
         '/apples/[ab]/[cd]/ef',
       ])
     ).toMatchInlineSnapshot(`
-      Array [
+      [
         "/",
         "/apples/[ab]/[cd]/ef",
         "/blog/abc",
@@ -75,19 +75,19 @@ describe('getSortedRoutes', () => {
         '/blog/[id]/comments/[cid]',
         '/blog/[cid]',
       ])
-    ).toThrowError(/different slug names/)
+    ).toThrow(/different slug names/)
   })
 
   it('catches reused param names', () => {
     expect(() =>
       getSortedRoutes(['/', '/blog', '/blog/[id]/comments/[id]', '/blog/[id]'])
-    ).toThrowError(/the same slug name/)
+    ).toThrow(/the same slug name/)
   })
 
   it('catches reused param names with catch-all', () => {
-    expect(() =>
-      getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])
-    ).toThrowError(/the same slug name/)
+    expect(() => getSortedRoutes(['/blog/[id]', '/blog/[id]/[...id]'])).toThrow(
+      /the same slug name/
+    )
   })
 
   it('catches middle catch-all with another catch-all', () => {
@@ -154,17 +154,17 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[[blog]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+      `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
     expect(() =>
       getSortedRoutes(['/abc/[[blog]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+      `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
     expect(() =>
       getSortedRoutes(['/abc/[[blog]]/def'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"Optional route parameters are not yet supported (\\"[[blog]]\\")."`
+      `"Optional route parameters are not yet supported ("[[blog]]")."`
     )
   })
 
@@ -172,12 +172,12 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/[...one]', '/[[...one]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an required and optional catch-all route at the same level (\\"[...one]\\" and \\"[[...one]]\\" )."`
+      `"You cannot use both an required and optional catch-all route at the same level ("[...one]" and "[[...one]]" )."`
     )
     expect(() =>
       getSortedRoutes(['/[[...one]]', '/[...one]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot use both an optional and required catch-all route at the same level (\\"[[...one]]\\" and \\"[...one]\\")."`
+      `"You cannot use both an optional and required catch-all route at the same level ("[[...one]]" and "[...one]")."`
     )
   })
 
@@ -185,23 +185,23 @@ describe('getSortedRoutes', () => {
     expect(() =>
       getSortedRoutes(['/', '/[[...all]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/" and "/[[...all]]")."`
     )
     expect(() =>
       getSortedRoutes(['/[[...all]]', '/'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/\\" and \\"/[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/" and "/[[...all]]")."`
     )
 
     expect(() =>
       getSortedRoutes(['/sub', '/sub/[[...all]]'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/sub" and "/sub[[...all]]")."`
     )
     expect(() =>
       getSortedRoutes(['/sub/[[...all]]', '/sub'])
     ).toThrowErrorMatchingInlineSnapshot(
-      `"You cannot define a route with the same specificity as a optional catch-all route (\\"/sub\\" and \\"/sub[[...all]]\\")."`
+      `"You cannot define a route with the same specificity as a optional catch-all route ("/sub" and "/sub[[...all]]")."`
     )
   })
 
@@ -211,6 +211,12 @@ describe('getSortedRoutes', () => {
         '/blog/[helloworld]',
         '/blog/[helloworld]/[hello-world]',
       ])
-    ).toThrowError(/differ only by non-word/)
+    ).toThrow(/differ only by non-word/)
+  })
+
+  it('catches param names start with three-dot character not actual three dots', () => {
+    expect(() => getSortedRoutes(['[…three-dots]'])).toThrow(
+      /Detected a three-dot character/
+    )
   })
 })

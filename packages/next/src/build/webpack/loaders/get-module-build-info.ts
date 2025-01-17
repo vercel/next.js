@@ -3,7 +3,7 @@ import type {
   MiddlewareMatcher,
   RSCModuleType,
 } from '../../analysis/get-page-static-info'
-import { webpack } from 'next/dist/compiled/webpack/webpack'
+import type { webpack } from 'next/dist/compiled/webpack/webpack'
 
 export type ModuleBuildInfo = {
   nextEdgeMiddleware?: EdgeMiddlewareMeta
@@ -29,6 +29,7 @@ export function getModuleBuildInfo(webpackModule: webpack.Module) {
 export interface RSCMeta {
   type: RSCModuleType
   actions?: string[]
+  actionIds?: Record<string, string>
   clientRefs?: string[]
   clientEntryType?: 'cjs' | 'auto'
   isClientRef?: boolean
@@ -40,6 +41,9 @@ export interface RouteMeta {
   absolutePagePath: string
   preferredRegion: string | string[] | undefined
   middlewareConfig: MiddlewareConfig
+  // references to other modules that this route needs
+  // e.g. related routes, not-found routes, etc
+  relatedModules?: string[]
 }
 
 export interface EdgeMiddlewareMeta {

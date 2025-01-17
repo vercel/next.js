@@ -9,7 +9,7 @@ import {
   Page,
   ElementHandle,
   devices,
-} from 'playwright-chromium'
+} from 'playwright'
 import path from 'path'
 
 let page: Page
@@ -21,11 +21,29 @@ let websocketFrames: Array<{ payload: string | Buffer }> = []
 
 const tracePlaywright = process.env.TRACE_PLAYWRIGHT
 
+const defaultTimeout = process.env.NEXT_E2E_TEST_TIMEOUT
+  ? parseInt(process.env.NEXT_E2E_TEST_TIMEOUT, 10)
+  : // In development mode, compilation can take longer due to lower CPU
+    // availability in GitHub Actions.
+    60 * 1000
+
+// loose global to register teardown functions before quitting the browser instance.
+// This is due to `quit` can be called anytime outside of BrowserInterface's lifecycle,
+// which can create corrupted state by terminating the context.
+// [TODO] global `quit` might need to be removed, instead should introduce per-instance teardown
+const pendingTeardown = []
 export async function quit() {
+  await Promise.all(pendingTeardown.map((fn) => fn()))
   await context?.close()
   await browser?.close()
   context = undefined
   browser = undefined
+}
+
+async function teardown(tearDownFn: () => Promise<void>) {
+  pendingTeardown.push(tearDownFn)
+  await tearDownFn()
+  pendingTeardown.splice(pendingTeardown.indexOf(tearDownFn), 1)
 }
 
 interface ElementHandleExt extends ElementHandle {
@@ -37,6 +55,52 @@ export class Playwright extends BrowserInterface {
   private activeTrace?: string
   private eventCallbacks: Record<Event, Set<(...args: any[]) => void>> = {
     request: new Set(),
+    response: new Set(),
+  }
+  private async initContextTracing(url: string, context: BrowserContext) {
+    if (!tracePlaywright) {
+      return
+    }
+
+    try {
+      // Clean up if any previous traces are still active
+      await teardown(this.teardownTracing.bind(this))
+
+      await context.tracing.start({
+        screenshots: true,
+        snapshots: true,
+        sources: true,
+      })
+      this.activeTrace = encodeURIComponent(url)
+    } catch (e) {
+      this.activeTrace = undefined
+    }
+  }
+
+  private async teardownTracing() {
+    if (!this.activeTrace) {
+      return
+    }
+
+    try {
+      const traceDir = path.join(__dirname, '../../traces')
+      const traceOutputPath = path.join(
+        traceDir,
+        `${path
+          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
+          .replace(/\//g, '-')}`,
+        `playwright-${this.activeTrace}-${Date.now()}.zip`
+      )
+
+      await fs.remove(traceOutputPath)
+      await context.tracing.stop({
+        path: traceOutputPath,
+      })
+    } catch (e) {
+      require('console').warn('Failed to teardown playwright tracing', e)
+    } finally {
+      this.activeTrace = undefined
+    }
   }
 
   on(event: Event, cb: (...args: any[]) => void) {
@@ -53,8 +117,13 @@ export class Playwright extends BrowserInterface {
     this.eventCallbacks[event]?.delete(cb)
   }
 
-  async setup(browserName: string, locale: string, javaScriptEnabled: boolean) {
-    const headless = !!process.env.HEADLESS
+  async setup(
+    browserName: string,
+    locale: string,
+    javaScriptEnabled: boolean,
+    ignoreHTTPSErrors: boolean,
+    headless: boolean
+  ) {
     let device
 
     if (process.env.DEVICE_NAME) {
@@ -70,10 +139,12 @@ export class Playwright extends BrowserInterface {
     if (browser) {
       if (contextHasJSEnabled !== javaScriptEnabled) {
         // If we have switched from having JS enable/disabled we need to recreate the context.
+        await teardown(this.teardownTracing.bind(this))
         await context?.close()
         context = await browser.newContext({
           locale,
           javaScriptEnabled,
+          ignoreHTTPSErrors,
           ...device,
         })
         contextHasJSEnabled = javaScriptEnabled
@@ -82,19 +153,41 @@ export class Playwright extends BrowserInterface {
     }
 
     browser = await this.launchBrowser(browserName, { headless })
-    context = await browser.newContext({ locale, javaScriptEnabled, ...device })
+    context = await browser.newContext({
+      locale,
+      javaScriptEnabled,
+      ignoreHTTPSErrors,
+      ...device,
+    })
     contextHasJSEnabled = javaScriptEnabled
+  }
+
+  async close(): Promise<void> {
+    await teardown(this.teardownTracing.bind(this))
+    await page?.close()
   }
 
   async launchBrowser(browserName: string, launchOptions: Record<string, any>) {
     if (browserName === 'safari') {
       return await webkit.launch(launchOptions)
     } else if (browserName === 'firefox') {
-      return await firefox.launch(launchOptions)
+      return await firefox.launch({
+        ...launchOptions,
+        firefoxUserPrefs: {
+          ...launchOptions.firefoxUserPrefs,
+          // The "fission.webContentIsolationStrategy" pref must be
+          // set to 1 on Firefox due to the bug where a new history
+          // state is pushed on a page reload.
+          // See https://github.com/microsoft/playwright/issues/22640
+          // See https://bugzilla.mozilla.org/show_bug.cgi?id=1832341
+          'fission.webContentIsolationStrategy': 1,
+        },
+      })
     } else {
       return await chromium.launch({
         devtools: !launchOptions.headless,
         ...launchOptions,
+        ignoreDefaultArgs: ['--disable-back-forward-cache'],
       })
     }
   }
@@ -105,36 +198,25 @@ export class Playwright extends BrowserInterface {
 
   async loadPage(
     url: string,
-    opts?: { disableCache: boolean; beforePageLoad?: (...args: any[]) => void }
-  ) {
-    if (this.activeTrace) {
-      const traceDir = path.join(__dirname, '../../traces')
-      const traceOutputPath = path.join(
-        traceDir,
-        `${path
-          .relative(path.join(__dirname, '../../'), process.env.TEST_FILE_PATH)
-          .replace(/\//g, '-')}`,
-        `playwright-${this.activeTrace}-${Date.now()}.zip`
-      )
-
-      await fs.remove(traceOutputPath)
-      await context.tracing
-        .stop({
-          path: traceOutputPath,
-        })
-        .catch((err) => console.error('failed to write playwright trace', err))
+    opts?: {
+      disableCache: boolean
+      cpuThrottleRate: number
+      pushErrorAsConsoleLog?: boolean
+      beforePageLoad?: (...args: any[]) => void
     }
+  ) {
+    await this.close()
 
     // clean-up existing pages
     for (const oldPage of context.pages()) {
       await oldPage.close()
     }
+
+    await this.initContextTracing(url, context)
     page = await context.newPage()
 
-    // in development compilation can take longer due to
-    // lower CPU availability in GH actions
-    page.setDefaultTimeout(60 * 1000)
-    page.setDefaultNavigationTimeout(60 * 1000)
+    page.setDefaultTimeout(defaultTimeout)
+    page.setDefaultNavigationTimeout(defaultTimeout)
 
     pageLogs = []
     websocketFrames = []
@@ -143,20 +225,35 @@ export class Playwright extends BrowserInterface {
       console.log('browser log:', msg)
       pageLogs.push({ source: msg.type(), message: msg.text() })
     })
-    page.on('crash', (page) => {
+    page.on('crash', () => {
       console.error('page crashed')
     })
     page.on('pageerror', (error) => {
       console.error('page error', error)
+
+      if (opts?.pushErrorAsConsoleLog) {
+        pageLogs.push({ source: 'error', message: error.message })
+      }
     })
     page.on('request', (req) => {
       this.eventCallbacks.request.forEach((cb) => cb(req))
+    })
+    page.on('response', (res) => {
+      this.eventCallbacks.response.forEach((cb) => cb(res))
     })
 
     if (opts?.disableCache) {
       // TODO: this doesn't seem to work (dev tools does not check the box as expected)
       const session = await context.newCDPSession(page)
       session.send('Network.setCacheDisabled', { cacheDisabled: true })
+    }
+
+    if (opts?.cpuThrottleRate) {
+      const session = await context.newCDPSession(page)
+      // https://chromedevtools.github.io/devtools-protocol/tot/Emulation/#method-setCPUThrottlingRate
+      session.send('Emulation.setCPUThrottlingRate', {
+        rate: opts.cpuThrottleRate,
+      })
     }
 
     page.on('websocket', (ws) => {
@@ -175,52 +272,37 @@ export class Playwright extends BrowserInterface {
         websocketFrames.push({ payload: frame.payload })
 
         if (tracePlaywright) {
-          if (!frame.payload.includes('pong')) {
-            page
-              .evaluate(`console.log('received ws message ${frame.payload}')`)
-              .catch(() => {})
-          }
+          page
+            .evaluate(`console.log('received ws message ${frame.payload}')`)
+            .catch(() => {})
         }
       })
     })
 
     opts?.beforePageLoad?.(page)
 
-    if (tracePlaywright) {
-      await context.tracing.start({
-        screenshots: true,
-        snapshots: true,
-      })
-      this.activeTrace = encodeURIComponent(url)
-    }
     await page.goto(url, { waitUntil: 'load' })
   }
 
-  back(): BrowserInterface {
+  back(options) {
     return this.chain(async () => {
-      await page.goBack()
+      await page.goBack(options)
     })
   }
-  forward(): BrowserInterface {
+  forward(options) {
     return this.chain(async () => {
-      await page.goForward()
+      await page.goForward(options)
     })
   }
-  refresh(): BrowserInterface {
+  refresh() {
     return this.chain(async () => {
       await page.reload()
     })
   }
-  setDimensions({
-    width,
-    height,
-  }: {
-    height: number
-    width: number
-  }): BrowserInterface {
+  setDimensions({ width, height }: { height: number; width: number }) {
     return this.chain(() => page.setViewportSize({ width, height }))
   }
-  addCookie(opts: { name: string; value: string }): BrowserInterface {
+  addCookie(opts: { name: string; value: string }) {
     return this.chain(async () =>
       context.addCookies([
         {
@@ -231,7 +313,7 @@ export class Playwright extends BrowserInterface {
       ])
     )
   }
-  deleteCookies(): BrowserInterface {
+  deleteCookies() {
     return this.chain(async () => context.clearCookies())
   }
 
@@ -289,21 +371,21 @@ export class Playwright extends BrowserInterface {
     }) as any
   }
 
-  async getAttribute<T = any>(attr) {
-    return this.chain((el: ElementHandleExt) => el.getAttribute(attr)) as T
+  async getAttribute(attr) {
+    return this.chain((el: ElementHandleExt) => el.getAttribute(attr))
   }
 
   hasElementByCssSelector(selector: string) {
     return this.eval<boolean>(`!!document.querySelector('${selector}')`)
   }
 
-  keydown(key: string): BrowserInterface {
+  keydown(key: string) {
     return this.chain((el: ElementHandleExt) => {
       return page.keyboard.down(key).then(() => el)
     })
   }
 
-  keyup(key: string): BrowserInterface {
+  keyup(key: string) {
     return this.chain((el: ElementHandleExt) => {
       return page.keyboard.up(key).then(() => el)
     })
@@ -334,7 +416,7 @@ export class Playwright extends BrowserInterface {
           return el
         })
       })
-    ) as any as BrowserInterface[]
+    )
   }
 
   waitForElementByCss(selector, timeout?: number) {
@@ -357,7 +439,7 @@ export class Playwright extends BrowserInterface {
   }
 
   eval<T = any>(fn: any, ...args: any[]): Promise<T> {
-    return this.chainWithReturnValue(() =>
+    return this.chain(() =>
       page
         .evaluate(fn, ...args)
         .catch((err) => {
@@ -371,7 +453,7 @@ export class Playwright extends BrowserInterface {
     )
   }
 
-  async evalAsync<T = any>(fn: any, ...args: any[]) {
+  async evalAsync<T = any>(fn: any) {
     if (typeof fn === 'function') {
       fn = fn.toString()
     }
@@ -393,15 +475,15 @@ export class Playwright extends BrowserInterface {
   }
 
   async log() {
-    return this.chain(() => pageLogs) as any
+    return this.chain(() => pageLogs)
   }
 
   async websocketFrames() {
-    return this.chain(() => websocketFrames) as any
+    return this.chain(() => websocketFrames)
   }
 
   async url() {
-    return this.chain(() => page.evaluate('window.location.href')) as any
+    return this.chain(() => page.url())
   }
 
   async waitForIdleNetwork(): Promise<void> {

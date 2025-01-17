@@ -92,14 +92,15 @@ export const isPageFile = (filePath: string) => {
 }
 
 // Check if a module is a client entry.
-export function getIsClientEntry(
+export function getEntryInfo(
   fileName: string,
   throwOnInvalidDirective?: boolean
 ) {
   const source = getSource(fileName)
   if (source) {
-    let isClientEntry = false
     let isDirective = true
+    let isClientEntry = false
+    let isServerEntry = false
 
     ts.forEachChild(source!, (node) => {
       if (
@@ -120,13 +121,38 @@ export function getIsClientEntry(
               throw e
             }
           }
+        } else if (node.expression.text === 'use server') {
+          if (isDirective) {
+            isServerEntry = true
+          } else {
+            if (throwOnInvalidDirective) {
+              const e = {
+                messageText:
+                  'The `"use server"` directive must be put at the top of the file.',
+                start: node.expression.getStart(),
+                length: node.expression.getWidth(),
+              }
+              throw e
+            }
+          }
+        }
+
+        if (isClientEntry && isServerEntry) {
+          const e = {
+            messageText:
+              'Cannot use both "use client" and "use server" directives in the same file.',
+            start: node.expression.getStart(),
+            length: node.expression.getWidth(),
+          }
+          throw e
         }
       } else {
         isDirective = false
       }
     })
 
-    return isClientEntry
+    return { client: isClientEntry, server: isServerEntry }
   }
-  return false
+
+  return { client: false, server: false }
 }

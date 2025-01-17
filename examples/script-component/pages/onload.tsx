@@ -1,26 +1,26 @@
-import { useMemo, useState } from 'react'
-import Script from 'next/script'
+import { useMemo, useState } from "react";
+import Script from "next/script";
 
 export default function Onload() {
   const [stripe, setStripe] = useState<{ stripe: typeof window.Stripe } | null>(
-    null
-  )
+    null,
+  );
   const methods = useMemo(
     () =>
       stripe
         ? Object.entries(stripe.stripe).filter(
-            ([_key, value]) => typeof value === 'function'
+            ([_key, value]) => typeof value === "function",
           )
         : [],
-    [stripe]
-  )
+    [stripe],
+  );
 
   function handleLoad() {
-    const stripe = window.Stripe('pk_test_1234')
+    const stripe = window.Stripe("pk_test_1234");
 
-    console.log('Stripe loaded: ', stripe)
+    console.log("Stripe loaded: ", stripe);
 
-    setStripe({ stripe })
+    setStripe({ stripe });
   }
 
   return (
@@ -44,5 +44,5 @@ export default function Onload() {
         </div>
       </main>
     </>
-  )
+  );
 }

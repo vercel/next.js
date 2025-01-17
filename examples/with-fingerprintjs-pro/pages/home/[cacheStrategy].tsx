@@ -1,21 +1,21 @@
-import Toggler from '../../components/Toggler'
-import VisitorDataPresenter from '../../components/VisitorDataPresenter'
-import { useContext } from 'react'
+import Toggler from "../../components/Toggler";
+import VisitorDataPresenter from "../../components/VisitorDataPresenter";
+import { useContext } from "react";
 import {
   FpjsContext,
   useVisitorData,
-} from '@fingerprintjs/fingerprintjs-pro-react'
+} from "@fingerprintjs/fingerprintjs-pro-react";
 
 function VisitorDataComponent() {
-  const { data, isLoading, error } = useVisitorData({ extendedResult: true })
+  const { data, isLoading, error } = useVisitorData({ extendedResult: true });
 
   return (
     <VisitorDataPresenter data={data} isLoading={isLoading} error={error} />
-  )
+  );
 }
 
 function HomePage() {
-  const { clearCache } = useContext(FpjsContext)
+  const { clearCache } = useContext(FpjsContext);
 
   return (
     <section className="body">
@@ -32,7 +32,7 @@ function HomePage() {
         Clear cache
       </button>
     </section>
-  )
+  );
 }
 
-export default HomePage
+export default HomePage;

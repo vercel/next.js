@@ -8,10 +8,7 @@ const appDir = join(__dirname, '../')
 
 function runTests() {
   it('includes sourcemaps for all browser files', async () => {
-    const browserFiles = await recursiveReadDir(
-      join(appDir, '.next', 'static'),
-      (f) => /.*/.test(f)
-    )
+    const browserFiles = await recursiveReadDir(join(appDir, '.next', 'static'))
     const jsFiles = browserFiles.filter(
       (file) => file.endsWith('.js') && file.includes('/pages/')
     )
@@ -41,11 +38,16 @@ function runTests() {
 }
 
 describe('Production browser sourcemaps', () => {
-  describe('Server support', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir, [], {})
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      describe('Server support', () => {
+        beforeAll(async () => {
+          await nextBuild(appDir, [], {})
+        })
 
-    runTests()
-  })
+        runTests()
+      })
+    }
+  )
 })

@@ -6,4 +6,4 @@ export default function layout({ children }) {
   )
 }
 
-export const runtime = 'experimental-edge'
+export const runtime = 'edge'

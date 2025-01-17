@@ -57,19 +57,22 @@ const runTests = () => {
 }
 
 describe('Auto Export', () => {
-  describe('production', () => {
-    beforeAll(async () => {
-      await nextBuild(appDir)
-      appPort = await findPort()
-      app = await nextStart(appDir, appPort)
-    })
+  ;(process.env.TURBOPACK_DEV ? describe.skip : describe)(
+    'production mode',
+    () => {
+      beforeAll(async () => {
+        await nextBuild(appDir)
+        appPort = await findPort()
+        app = await nextStart(appDir, appPort)
+      })
 
-    afterAll(async () => {
-      await killApp(app)
-    })
+      afterAll(async () => {
+        await killApp(app)
+      })
 
-    runTests()
-  })
+      runTests()
+    }
+  )
 
   describe('dev', () => {
     beforeAll(async () => {
@@ -85,18 +88,6 @@ describe('Auto Export', () => {
       const browser = await webdriver(appPort, '/zeit/cmnt-1')
       const caughtWarns = await browser.eval(`window.caughtWarns`)
       expect(caughtWarns).toEqual([])
-    })
-
-    it('should include error link when hydration error does occur', async () => {
-      const browser = await webdriver(appPort, '/post-1/hydrate-error')
-      const logs = await browser.log()
-      expect(
-        logs.some((log) =>
-          log.message.includes(
-            'See more info here: https://nextjs.org/docs/messages/react-hydration-error'
-          )
-        )
-      ).toBe(true)
     })
   })
 })

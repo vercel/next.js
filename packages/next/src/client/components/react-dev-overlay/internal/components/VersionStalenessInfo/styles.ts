@@ -4,12 +4,6 @@ const styles = css`
   .nextjs-container-build-error-version-status {
     flex: 1;
     text-align: right;
-  }
-  .nextjs-container-build-error-version-status small {
-    margin-left: var(--size-gap);
-    font-size: var(--size-font-small);
-  }
-  .nextjs-container-build-error-version-status a {
     font-size: var(--size-font-small);
   }
   .nextjs-container-build-error-version-status span {

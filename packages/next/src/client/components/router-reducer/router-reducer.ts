@@ -4,18 +4,20 @@ import {
   ACTION_RESTORE,
   ACTION_REFRESH,
   ACTION_PREFETCH,
+  ACTION_HMR_REFRESH,
+  ACTION_SERVER_ACTION,
+} from './router-reducer-types'
+import type {
   ReducerActions,
   ReducerState,
   ReadonlyReducerState,
-  ACTION_FAST_REFRESH,
-  ACTION_SERVER_ACTION,
 } from './router-reducer-types'
 import { navigateReducer } from './reducers/navigate-reducer'
 import { serverPatchReducer } from './reducers/server-patch-reducer'
 import { restoreReducer } from './reducers/restore-reducer'
 import { refreshReducer } from './reducers/refresh-reducer'
 import { prefetchReducer } from './reducers/prefetch-reducer'
-import { fastRefreshReducer } from './reducers/fast-refresh-reducer'
+import { hmrRefreshReducer } from './reducers/hmr-refresh-reducer'
 import { serverActionReducer } from './reducers/server-action-reducer'
 
 /**
@@ -38,8 +40,8 @@ function clientReducer(
     case ACTION_REFRESH: {
       return refreshReducer(state, action)
     }
-    case ACTION_FAST_REFRESH: {
-      return fastRefreshReducer(state, action)
+    case ACTION_HMR_REFRESH: {
+      return hmrRefreshReducer(state, action)
     }
     case ACTION_PREFETCH: {
       return prefetchReducer(state, action)

@@ -1,4 +1,4 @@
-import PostPreview from '../components/post-preview'
+import PostPreview from "../components/post-preview";
 
 export default function MoreStories({ title, posts }) {
   return (
@@ -20,7 +20,7 @@ export default function MoreStories({ title, posts }) {
         ))}
       </div>
     </section>
-  )
+  );
 }
 
 // The data returned here will be send as `props` to the component
@@ -29,11 +29,11 @@ MoreStories.getCustomInitialProps = async function ({
   item,
   pageInSitemap,
 }) {
-  const postToExcludeContentID = pageInSitemap.contentID ?? -1
-  const posts = await client.getPostsForMoreStories({ postToExcludeContentID })
+  const postToExcludeContentID = pageInSitemap.contentID ?? -1;
+  const posts = await client.getPostsForMoreStories({ postToExcludeContentID });
 
   return {
     title: item.fields.title,
     posts,
-  }
-}
+  };
+};

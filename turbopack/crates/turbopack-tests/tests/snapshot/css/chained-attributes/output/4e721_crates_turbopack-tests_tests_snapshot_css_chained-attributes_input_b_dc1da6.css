@@ -1,0 +1,9 @@
+/* [project]/turbopack/crates/turbopack-tests/tests/snapshot/css/chained-attributes/input/b.css [test] (css, layer(layer) print supports(not(display: inline-grid)) supports(font-format(woff2))) */
+@layer layer {
+@media print {
+@supports not(display: inline-grid) and font-format(woff2) {
+.imported{color:orange}
+}
+}
+}
+/*# sourceMappingURL=4e721_crates_turbopack-tests_tests_snapshot_css_chained-attributes_input_b_dc1da6.css.map*/

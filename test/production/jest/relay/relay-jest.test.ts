@@ -1,10 +1,11 @@
 import { createNext, FileRef } from 'e2e-utils'
-import { NextInstance } from 'test/lib/next-modes/base'
+import { NextInstance } from 'e2e-utils'
 import path from 'path'
 
 const appDir = path.join(__dirname, 'app')
 
-describe('next/jest', () => {
+// react-relay is not compatible with React 19 and therefore Next.js 15
+describe.skip('next/jest', () => {
   let next: NextInstance
 
   beforeAll(async () => {
@@ -13,7 +14,7 @@ describe('next/jest', () => {
         components: new FileRef(path.join(appDir, 'components')),
         pages: new FileRef(path.join(appDir, 'pages')),
         'tests/entry.test.tsx': `
-        import { render as renderFn, waitFor } from '@testing-library/react'
+        import { render, waitFor } from '@testing-library/react'
         import { RelayEnvironmentProvider } from 'react-relay'
         import { createMockEnvironment, MockPayloadGenerator } from 'relay-test-utils'
         
@@ -23,7 +24,7 @@ describe('next/jest', () => {
           it('should work', async () => {
             let environment = createMockEnvironment()
         
-            const { getByText } = renderFn(
+            const { getByText } = render(
               <RelayEnvironmentProvider environment={environment}>
                 <Page />
               </RelayEnvironmentProvider>
@@ -48,25 +49,25 @@ describe('next/jest', () => {
       },
       dependencies: {
         jest: '27.4.7',
-        'react-relay': '^13.2.0',
-        '@testing-library/react': '^13.1.1',
-        '@types/jest': '^27.4.1',
-        'babel-jest': '^27.5.1',
-        'babel-plugin-relay': '^13.2.0',
-        jsdom: '^19.0.0',
-        'relay-compiler': '^13.0.1',
-        'relay-runtime': '^13.0.2',
-        'relay-test-utils': '^13.0.2',
-        typescript: '^4.6.3',
+        'react-relay': '13.2.0',
+        '@testing-library/react': '15.0.2',
+        '@types/jest': '27.4.1',
+        'babel-jest': '27.5.1',
+        'babel-plugin-relay': '13.2.0',
+        jsdom: '19.0.0',
+        'relay-compiler': '13.0.1',
+        'relay-runtime': '13.0.2',
+        'relay-test-utils': '13.0.2',
+        typescript: '5.2.2',
       },
       packageJson: {
         scripts: {
           // Runs jest and bails if jest fails
-          build:
-            'yarn jest --forceExit tests/entry.test.tsx && yarn next build',
+          build: 'jest --forceExit tests/entry.test.tsx && next build',
         },
       },
-      buildCommand: `yarn build`,
+      installCommand: 'pnpm i',
+      buildCommand: `pnpm build`,
     })
   })
   afterAll(() => next.destroy())

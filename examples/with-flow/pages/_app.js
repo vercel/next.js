@@ -1,4 +1,4 @@
-import Link from 'next/link'
+import Link from "next/link";
 
 function MyApp({ Component, pageProps }) {
   return (
@@ -14,7 +14,7 @@ function MyApp({ Component, pageProps }) {
 
       <footer>I`m here to stay</footer>
     </>
-  )
+  );
 }
 
-export default MyApp
+export default MyApp;

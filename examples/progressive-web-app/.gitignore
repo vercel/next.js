@@ -3,7 +3,12 @@
 # dependencies
 /node_modules
 /.pnp
-.pnp.js
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
 # testing
 /coverage
@@ -44,4 +49,3 @@ next-env.d.ts
 /public/sw.js.map
 /public/workbox-*.js.map
 /public/worker-*.js.map
-/public/fallback-*.js

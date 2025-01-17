@@ -1,0 +1,45 @@
+[package]
+name = "next-api"
+version = "0.1.0"
+description = "TBD"
+license = "MPL-2.0"
+edition = "2021"
+autobenches = false
+
+[lib]
+bench = false
+
+[lints]
+workspace = true
+
+[dependencies]
+anyhow = { workspace = true, features = ["backtrace"] }
+auto-hash-map = { workspace = true }
+futures = { workspace = true }
+indexmap = { workspace = true }
+next-core = { workspace = true }
+petgraph = { workspace = true, features = ["serde-1"]}
+regex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+shadow-rs = { workspace = true }
+tracing = { workspace = true }
+turbo-rcstr = { workspace = true }
+turbo-tasks = { workspace = true }
+turbo-tasks-env = { workspace = true }
+turbo-tasks-fs = { workspace = true }
+turbo-tasks-memory = { workspace = true }
+turbopack = { workspace = true }
+turbopack-browser = { workspace = true }
+turbopack-cli-utils = { workspace = true }
+turbopack-core = { workspace = true }
+turbopack-env = { workspace = true }
+turbopack-ecmascript = { workspace = true }
+turbopack-node = { workspace = true }
+turbopack-nodejs = { workspace = true }
+swc_core = { workspace = true }
+
+[build-dependencies]
+# It is not a mistake this dependency is specified in dep / build-dep both.
+shadow-rs = { workspace = true }
+turbo-tasks-build = { workspace = true }

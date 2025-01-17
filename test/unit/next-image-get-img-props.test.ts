@@ -1,7 +1,7 @@
 /* eslint-env jest */
-import { unstable_getImgProps } from 'next/image'
+import { getImageProps } from 'next/image'
 
-describe('getImgProps()', () => {
+describe('getImageProps()', () => {
   let warningMessages: string[]
   const originalConsoleWarn = console.warn
   beforeEach(() => {
@@ -14,17 +14,14 @@ describe('getImgProps()', () => {
   afterEach(() => {
     console.warn = originalConsoleWarn
   })
-  it('should warn on first usage and return props in correct order', async () => {
-    const { props } = unstable_getImgProps({
+  it('should return props in correct order', async () => {
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
       width: 100,
       height: 200,
     })
-    expect(warningMessages).toStrictEqual([
-      'Warning: unstable_getImgProps() is experimental and may change or be removed at any time. Use at your own risk.',
-    ])
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
       ['id', 'my-image'],
@@ -40,8 +37,32 @@ describe('getImgProps()', () => {
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
   })
+
+  it('should have correct type for props', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+    })
+
+    expect(props.alt).toBeString()
+    expect(props.id).toBeString()
+    expect(props.loading).toBeString()
+
+    expect(props.width).toBeNumber()
+    expect(props.height).toBeNumber()
+
+    expect(props.decoding).toBeString()
+    expect(props.style).toBeObject()
+    expect(props.style.color).toBeString()
+    expect(props.src).toBeString()
+    expect(props.srcSet).toBeString()
+  })
+
   it('should handle priority', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -53,6 +74,31 @@ describe('getImgProps()', () => {
     expect(Object.entries(props)).toStrictEqual([
       ['alt', 'a nice desc'],
       ['id', 'my-image'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+    ])
+  })
+  it('should handle fetchPriority', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      id: 'my-image',
+      src: '/test.png',
+      width: 100,
+      height: 200,
+      fetchPriority: 'high',
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['id', 'my-image'],
+      ['loading', 'lazy'],
       ['fetchPriority', 'high'],
       ['width', 100],
       ['height', 200],
@@ -66,7 +112,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle quality', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -91,7 +137,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle loading eager', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -116,7 +162,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle sizes', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -142,7 +188,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle fill', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -178,7 +224,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle style', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -203,7 +249,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle loader', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       id: 'my-image',
       src: '/test.png',
@@ -229,7 +275,7 @@ describe('getImgProps()', () => {
     ])
   })
   it('should handle arbitrary props', async () => {
-    const { props } = unstable_getImgProps({
+    const { props } = getImageProps({
       alt: 'a nice desc',
       src: '/test.png',
       width: 100,
@@ -256,5 +302,210 @@ describe('getImgProps()', () => {
       ],
       ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
     ])
+  })
+  it('should override src', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.png',
+      overrideSrc: '/override.png',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/override.png'],
+    ])
+  })
+  it('should handle decoding=sync', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.png',
+      decoding: 'sync',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'sync'],
+      ['style', { color: 'transparent' }],
+      [
+        'srcSet',
+        '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+      ],
+      ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+    ])
+  })
+  it('should auto unoptimized for relative svg', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.svg',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', '/test.svg'],
+    ])
+  })
+  it('should auto unoptimized for relative svg with query', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: '/test.svg?v=1',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', '/test.svg?v=1'],
+    ])
+  })
+  it('should auto unoptimized for absolute svg', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'https://example.com/test.svg',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', 'https://example.com/test.svg'],
+    ])
+  })
+  it('should auto unoptimized for absolute svg with query', async () => {
+    const { props } = getImageProps({
+      alt: 'a nice desc',
+      src: 'https://example.com/test.svg?v=1',
+      width: 100,
+      height: 200,
+    })
+    expect(warningMessages).toStrictEqual([])
+    expect(Object.entries(props)).toStrictEqual([
+      ['alt', 'a nice desc'],
+      ['loading', 'lazy'],
+      ['width', 100],
+      ['height', 200],
+      ['decoding', 'async'],
+      ['style', { color: 'transparent' }],
+      ['src', 'https://example.com/test.svg?v=1'],
+    ])
+  })
+  it('should add query string for imported local image when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/_next/static/media/test.abc123.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=128&q=75&dpl=dpl_123 1x, /_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=%2F_next%2Fstatic%2Fmedia%2Ftest.abc123.png&w=256&q=75&dpl=dpl_123',
+        ],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should not add query string for relative local image when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: '/test.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=%2Ftest.png&w=128&q=75 1x, /_next/image?url=%2Ftest.png&w=256&q=75 2x',
+        ],
+        ['src', '/_next/image?url=%2Ftest.png&w=256&q=75'],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
+  })
+  it('should not add query string for absolute remote image when NEXT_DEPLOYMENT_ID defined', async () => {
+    try {
+      process.env.NEXT_DEPLOYMENT_ID = 'dpl_123'
+      const { props } = getImageProps({
+        alt: 'a nice desc',
+        src: 'http://example.com/test.png',
+        width: 100,
+        height: 200,
+      })
+      expect(warningMessages).toStrictEqual([])
+      expect(Object.entries(props)).toStrictEqual([
+        ['alt', 'a nice desc'],
+        ['loading', 'lazy'],
+        ['width', 100],
+        ['height', 200],
+        ['decoding', 'async'],
+        ['style', { color: 'transparent' }],
+        [
+          'srcSet',
+          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=128&q=75 1x, /_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75 2x',
+        ],
+        [
+          'src',
+          '/_next/image?url=http%3A%2F%2Fexample.com%2Ftest.png&w=256&q=75',
+        ],
+      ])
+    } finally {
+      delete process.env.NEXT_DEPLOYMENT_ID
+    }
   })
 })

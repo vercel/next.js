@@ -1,9 +1,13 @@
-import { Token } from 'next/dist/compiled/path-to-regexp'
+import type { Token } from 'next/dist/compiled/path-to-regexp'
 import { BloomFilter } from '../shared/lib/bloom-filter'
 import { isDynamicRoute } from '../shared/lib/router/utils'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
-import { Redirect } from './load-custom-routes'
+import type { Redirect } from './load-custom-routes'
 import { tryToParsePath } from './try-to-parse-path'
+import {
+  extractInterceptionRouteInformation,
+  isInterceptionRouteAppPath,
+} from '../server/lib/interception-routes'
 
 export function createClientRouterFilter(
   paths: string[],
@@ -16,8 +20,12 @@ export function createClientRouterFilter(
   const staticPaths = new Set<string>()
   const dynamicPaths = new Set<string>()
 
-  for (const path of paths) {
+  for (let path of paths) {
     if (isDynamicRoute(path)) {
+      if (isInterceptionRouteAppPath(path)) {
+        path = extractInterceptionRouteInformation(path).interceptedRoute
+      }
+
       let subPath = ''
       const pathParts = path.split('/')
 
@@ -47,7 +55,7 @@ export function createClientRouterFilter(
 
     try {
       tokens = tryToParsePath(source).tokens || []
-    } catch (_) {}
+    } catch {}
 
     if (tokens.every((token) => typeof token === 'string')) {
       // only include static redirects initially

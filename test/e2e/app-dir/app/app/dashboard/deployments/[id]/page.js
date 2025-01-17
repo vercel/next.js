@@ -16,11 +16,14 @@ async function getData({ params }) {
 }
 
 export default function DeploymentsPage(props) {
+  console.log('rendering /dashboard/deployments/[id]')
   const data = use(getData(props))
 
   return (
     <>
       <p>hello from app/dashboard/deployments/[id]. ID is: {data.id}</p>
+      <span id="my-env">{process.env.NEXT_PUBLIC_TEST_ID}</span>
+      <span id="my-other-env">{`${process.env.NEXT_PUBLIC_TEST_ID}-suffix`}</span>
     </>
   )
 }

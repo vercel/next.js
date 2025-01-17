@@ -1,6 +1,16 @@
-import { FlightRouterState } from './types'
+import type { FlightRouterState } from './types'
 import { flightRouterStateSchema } from './types'
+import { assert } from 'next/dist/compiled/superstruct'
 
+export function parseAndValidateFlightRouterState(
+  stateHeader: string | string[]
+): FlightRouterState
+export function parseAndValidateFlightRouterState(
+  stateHeader: undefined
+): undefined
+export function parseAndValidateFlightRouterState(
+  stateHeader: string | string[] | undefined
+): FlightRouterState | undefined
 export function parseAndValidateFlightRouterState(
   stateHeader: string | string[] | undefined
 ): FlightRouterState | undefined {
@@ -23,9 +33,9 @@ export function parseAndValidateFlightRouterState(
   }
 
   try {
-    return flightRouterStateSchema.parse(
-      JSON.parse(decodeURIComponent(stateHeader))
-    )
+    const state = JSON.parse(decodeURIComponent(stateHeader))
+    assert(state, flightRouterStateSchema)
+    return state
   } catch {
     throw new Error('The router state header was sent but could not be parsed.')
   }

@@ -1,6 +1,6 @@
-import { parseISO, format } from 'date-fns'
+import { parseISO, format } from "date-fns";
 
 export default function HumanDate({ dateString }) {
-  const date = parseISO(dateString)
-  return <time dateTime={dateString}>{format(date, 'MMM	d, yyyy')}</time>
+  const date = parseISO(dateString);
+  return <time dateTime={dateString}>{format(date, "MMM	d, yyyy")}</time>;
 }

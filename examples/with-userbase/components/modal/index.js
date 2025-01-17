@@ -1,49 +1,49 @@
-import { useState, useEffect } from 'react'
-import userbase from 'userbase-js'
+import { useState, useEffect } from "react";
+import userbase from "userbase-js";
 
 function LoginModal({ toggle, modalType, setUser }) {
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
-  const [loading, setLoading] = useState()
-  const [error, setError] = useState()
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
+  const [loading, setLoading] = useState();
+  const [error, setError] = useState();
 
   useEffect(() => {
-    setError('')
-  }, [modalType])
+    setError("");
+  }, [modalType]);
 
   async function handleSignUp(e) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     try {
       const user = await userbase.signUp({
         username,
         password,
-        rememberMe: 'none',
-      })
-      setUser(user)
-      setLoading(false)
-      toggle(false)
+        rememberMe: "none",
+      });
+      setUser(user);
+      setLoading(false);
+      toggle(false);
     } catch (e) {
-      setLoading(false)
-      setError(e.message)
+      setLoading(false);
+      setError(e.message);
     }
   }
 
   async function handleLogIn(e) {
-    e.preventDefault()
-    setLoading(true)
+    e.preventDefault();
+    setLoading(true);
     try {
       const user = await userbase.signIn({
         username,
         password,
-        rememberMe: 'none',
-      })
-      setUser(user)
-      setLoading(false)
-      toggle(false)
+        rememberMe: "none",
+      });
+      setUser(user);
+      setLoading(false);
+      toggle(false);
     } catch (e) {
-      setLoading(false)
-      setError(e.message)
+      setLoading(false);
+      setError(e.message);
     }
   }
 
@@ -88,13 +88,13 @@ function LoginModal({ toggle, modalType, setUser }) {
         >
           Cancel
         </span>
-        {modalType === 'logIn' ? (
+        {modalType === "logIn" ? (
           <button
             disabled={loading}
             className="btn-yellow"
             onClick={handleLogIn}
           >
-            {loading ? 'Logging In ...' : 'Log In'}
+            {loading ? "Logging In ..." : "Log In"}
           </button>
         ) : (
           <button
@@ -102,13 +102,13 @@ function LoginModal({ toggle, modalType, setUser }) {
             className="btn-yellow"
             onClick={handleSignUp}
           >
-            {loading ? 'Signing up ...' : 'Sign Up'}
+            {loading ? "Signing up ..." : "Sign Up"}
           </button>
         )}
       </div>
       <p className="text-red-500 font-bold">{error}</p>
     </form>
-  )
+  );
 }
 
-export default LoginModal
+export default LoginModal;

@@ -1,8 +1,12 @@
 # build output
 dist
+!.github/actions/*/dist
 .next
 target
 packages/next/wasm/@next
+tarballs/
+packages/**/*.tgz
+.errors/
 
 # dependencies
 node_modules
@@ -17,6 +21,7 @@ test/node_modules
 *.log
 pids
 *.cpuprofile
+*.heapsnapshot
 
 # coverage
 .nyc_output
@@ -51,3 +56,6 @@ test-timings.json
 *.tsbuildinfo
 .swc/
 .turbo
+
+# Storybook
+*storybook.log

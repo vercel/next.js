@@ -1,8 +1,8 @@
 # Rewrites Example
 
-This example shows how to use [rewrites in Next.js](https://nextjs.org/docs/api-reference/next.config.js/rewrites) to map an incoming request path to a different destination path.
+This example shows how to use [rewrites in Next.js](https://nextjs.org/docs/app/api-reference/config/next-config-js/rewrites) to map an incoming request path to a different destination path.
 
-The index page ([`pages/index.js`](pages/index.js)) has a list of links that match the rewrites defined in [`next.config.js`](next.config.js). Run or deploy the app to see how it works!
+The index page ([`app/page.tsx`](app/page.ts)) has a list of links that match the rewrites defined in [`next.config.js`](next.config.js). Run or deploy the app to see how it works!
 
 ## Deploy your own
 

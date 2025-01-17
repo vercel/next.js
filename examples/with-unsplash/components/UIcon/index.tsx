@@ -1,4 +1,4 @@
-import styles from './UIcon.module.css'
+import styles from "./UIcon.module.css";
 
 const UIcon = ({ url, name }) => {
   return (
@@ -14,7 +14,7 @@ const UIcon = ({ url, name }) => {
         alt={`${name} icon`}
       />
     </a>
-  )
-}
+  );
+};
 
-export default UIcon
+export default UIcon;

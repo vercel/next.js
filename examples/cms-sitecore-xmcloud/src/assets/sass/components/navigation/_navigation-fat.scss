@@ -1,0 +1,57 @@
+@import "@sass/abstracts/vars";
+@import "@sass/abstracts/mixins";
+@import "@fontawesome/scss/mixins";
+@import "@fontawesome/scss/variables";
+
+.navigation.navigation-fat {
+  background: $bg-basic-color;
+  @include border-basic();
+
+  a {
+    text-decoration: none;
+  }
+
+  nav > ul {
+    list-style: none;
+    padding: 10px 0;
+    overflow: hidden;
+  }
+
+  .rel-level1 {
+    margin: $small-margin;
+    padding: 0;
+    display: inline-block;
+    vertical-align: top;
+
+    &.submenu ul a {
+      position: relative;
+      &:before {
+        @include fa-icon();
+        transform: translateY(-50%);
+        position: absolute;
+        content: $fa-var-chevron-right;
+        top: 50%;
+        left: -9px;
+        font-size: 10px;
+      }
+    }
+    > .navigation-title > a {
+      @include border-basic(top, $border-basic-color, 2px);
+      border-bottom: 0;
+      background: $nav-bg-root;
+      padding: 5px 10px;
+      display: block;
+      width: auto;
+      &:hover {
+        border-color: $menu-hover-color;
+      }
+    }
+    > ul {
+      padding: 0;
+    }
+  }
+  .rel-level2 {
+    padding-left: $small-margin;
+    display: block;
+  }
+}

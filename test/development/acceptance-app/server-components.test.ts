@@ -1,5 +1,5 @@
 /* eslint-env jest */
-import { sandbox } from 'development-sandbox'
+import { createSandbox } from 'development-sandbox'
 import { FileRef, nextTestSetup } from 'e2e-utils'
 import path from 'path'
 import { check } from 'next-test-utils'
@@ -8,16 +8,12 @@ import { outdent } from 'outdent'
 describe('Error Overlay for server components', () => {
   const { next } = nextTestSetup({
     files: new FileRef(path.join(__dirname, 'fixtures', 'default-template')),
-    dependencies: {
-      react: 'latest',
-      'react-dom': 'latest',
-    },
     skipStart: true,
   })
 
   describe('createContext called in Server Component', () => {
     it('should show error when React.createContext is called', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -38,7 +34,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -53,12 +49,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React.createContext is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -94,7 +88,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -109,12 +103,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when createContext is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -150,6 +142,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -164,14 +157,12 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'createContext only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/context-in-server-component'
       )
-
-      await cleanup()
     })
   })
 
   describe('React component hooks called in Server Component', () => {
     it('should show error when React.<client-hook> is called', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -186,7 +177,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -201,12 +192,69 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'useRef only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
+    })
 
-      await cleanup()
+    it('should show error when React.experiment_useOptimistic is called', async () => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              import React from 'react'
+              export default function Page() {
+                const optimistic = React.experimental_useOptimistic()
+                return "Hello world"
+              }
+            `,
+          ],
+        ])
+      )
+      const { browser } = sandbox
+      await check(async () => {
+        expect(
+          await browser
+            .waitForElementByCss('#nextjs__container_errors_desc')
+            .text()
+        ).toContain(
+          'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
+        )
+        return 'success'
+      }, 'success')
+
+      expect(next.cliOutput).toContain(
+        'experimental_useOptimistic only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
+      )
+    })
+
+    it('should show error when React.experiment_useOptimistic is renamed in destructuring', async () => {
+      await using sandbox = await createSandbox(
+        next,
+        new Map([
+          [
+            'app/page.js',
+            outdent`
+              import { experimental_useOptimistic as useOptimistic } from 'react'
+              export default function Page() {
+                const optimistic = useOptimistic()
+                return "Hello world"
+              }
+            `,
+          ],
+        ])
+      )
+      const { browser } = sandbox
+      await check(async () => {
+        const html = await browser.eval('document.documentElement.innerHTML')
+        expect(html).toContain('experimental_useOptimistic')
+        return 'success'
+      }, 'success')
+
+      expect(next.cliOutput).toContain('experimental_useOptimistic')
     })
 
     it('should show error when React.<client-hook> is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -239,7 +287,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -254,12 +302,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'useState only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React client hook is called in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -292,7 +338,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -307,14 +353,12 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'useEffect only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component'
       )
-
-      await cleanup()
     })
   })
 
   describe('Class component used in Server Component', () => {
     it('should show error when Class Component is used', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -330,7 +374,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -345,12 +389,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
       )
-
-      await cleanup()
     })
 
     it('should show error when React.PureComponent is rendered in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -384,7 +426,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -399,12 +441,10 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
       )
-
-      await cleanup()
     })
 
     it('should show error when Component is rendered in external package', async () => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -438,7 +478,7 @@ describe('Error Overlay for server components', () => {
           ],
         ])
       )
-
+      const { browser } = sandbox
       await check(async () => {
         expect(
           await browser
@@ -453,22 +493,19 @@ describe('Error Overlay for server components', () => {
       expect(next.cliOutput).toContain(
         'This might be caused by a React Class Component being rendered in a Server Component'
       )
-
-      await cleanup()
     })
   })
 
-  describe('Next.js component hooks called in Server Component', () => {
+  describe('Next.js navigation client hooks called in Server Component', () => {
     it.each([
-      // TODO-APP: add test for useParams
-      // ["useParams"],
+      ['useParams'],
       ['useRouter'],
+      ['usePathname'],
       ['useSearchParams'],
       ['useSelectedLayoutSegment'],
       ['useSelectedLayoutSegments'],
-      ['usePathname'],
     ])('should show error when %s is called', async (hook: string) => {
-      const { browser, cleanup } = await sandbox(
+      await using sandbox = await createSandbox(
         next,
         new Map([
           [
@@ -476,30 +513,23 @@ describe('Error Overlay for server components', () => {
             outdent`
               import { ${hook} } from 'next/navigation'
               export default function Page() {
-                ${hook}()
                 return "Hello world"
               }
             `,
           ],
         ])
       )
-
-      await check(async () => {
-        expect(
-          await browser
-            .waitForElementByCss('#nextjs__container_errors_desc')
-            .text()
-        ).toContain(
-          `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
-        )
-        return 'success'
-      }, 'success')
-
-      expect(next.cliOutput).toContain(
-        `Error: ${hook} only works in Client Components. Add the "use client" directive at the top of the file to use it. Read more: https://nextjs.org/docs/messages/react-client-hook-in-server-component`
+      const { session } = sandbox
+      await session.assertHasRedbox()
+      // In webpack when the message too long it gets truncated with `  | ` with new lines.
+      // So we need to check for the first part of the message.
+      const normalizedSource = await session.getRedboxSource()
+      expect(normalizedSource).toContain(
+        `You're importing a component that needs \`${hook}\`. This React hook only works in a client component. To fix, mark the file (or its parent) with the \`"use client"\` directive.`
       )
-
-      await cleanup()
+      expect(normalizedSource).toContain(
+        `import { ${hook} } from 'next/navigation'`
+      )
     })
   })
 })

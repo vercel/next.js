@@ -1,7 +1,7 @@
 {
   "compilerOptions": {
     "esModuleInterop": true,
-    "module": "esnext",
+    "module": "NodeNext",
     "jsx": "preserve",
     "target": "es5",
     "lib": ["dom", "dom.iterable", "esnext"],

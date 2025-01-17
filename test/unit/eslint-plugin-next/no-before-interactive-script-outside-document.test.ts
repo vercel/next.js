@@ -1,18 +1,13 @@
-import rule from '@next/eslint-plugin-next/dist/rules/no-before-interactive-script-outside-document'
-import { RuleTester } from 'eslint'
-;(RuleTester as any).setDefaultConfig({
-  parserOptions: {
-    ecmaVersion: 2018,
-    sourceType: 'module',
-    ecmaFeatures: {
-      modules: true,
-      jsx: true,
-    },
-  },
-})
-const ruleTester = new RuleTester()
+import { RuleTester as ESLintTesterV8 } from 'eslint-v8'
+import { RuleTester as ESLintTesterV9 } from 'eslint'
+import { rules } from '@next/eslint-plugin-next'
 
-ruleTester.run('no-before-interactive-script-outside-document', rule, {
+const NextESLintRule = rules['no-before-interactive-script-outside-document']
+
+const message =
+  "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document"
+
+const tests = {
   valid: [
     {
       code: `
@@ -109,59 +104,33 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
 
       export default function Index() {
         return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
         );
       }`,
-      filename: 'app/deep/root/layout.tsx',
+      filename: '/Users/user_name/projects/project-name/app/layout.tsx',
     },
     {
       code: `
       import Script from "next/script";
 
-      export default function Index() {
+      export default function test() {
         return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
         );
       }`,
-      filename: 'app/deep/page.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
-        );
-      }`,
-      filename: 'app/deep/randomFile.tsx',
-    },
-    {
-      code: `
-      import Script from "next/script";
-
-      export default function Index() {
-        return (
-          <Script
-            id="scriptBeforeInteractive"
-            src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
-            strategy="beforeInteractive"
-          ></Script>
-        );
-      }`,
-      filename: 'src/app/deep/randomFile.tsx',
+      filename: 'C:\\Users\\username\\projects\\project-name\\app\\layout.tsx',
     },
     {
       code: `
@@ -178,13 +147,13 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/src/app/layout.tsx',
+      filename: '/Users/user_name/projects/project-name/src/app/layout.tsx',
     },
     {
       code: `
       import Script from "next/script";
 
-      export default function Index() {
+      export default function test() {
         return (
           <html lang="en">
             <body className={inter.className}>{children}</body>
@@ -195,15 +164,10 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
           </html>
         );
       }`,
-      filename: '/app/layout.tsx',
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\src\\app\\layout.tsx',
     },
-  ].map((obj, idx) => ({
-    ...obj,
-    code: `// valid-${idx}
-      ${obj.code}
-    `,
-  })),
-
+  ],
   invalid: [
     {
       code: `
@@ -220,12 +184,7 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: 'pages/index.js',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
     {
       code: `
@@ -242,17 +201,107 @@ ruleTester.run('no-before-interactive-script-outside-document', rule, {
         );
       }`,
       filename: 'components/outside-known-dirs.js',
-      errors: [
-        {
-          message:
-            "`next/script`'s `beforeInteractive` strategy should not be used outside of `pages/_document.js`. See: https://nextjs.org/docs/messages/no-before-interactive-script-outside-document",
-        },
-      ],
+      errors: [{ message }],
     },
-  ].map((obj, idx) => ({
-    ...obj,
-    code: `// invalid-${idx}
-      ${obj.code}
-    `,
-  })),
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/Users/user_name/projects/project-name/pages/layout.tsx',
+      errors: [{ message }],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\pages\\layout.tsx',
+      errors: [{ message }],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function Index() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename: '/Users/user_name/projects/project-name/src/pages/layout.tsx',
+      errors: [{ message }],
+    },
+    {
+      code: `
+      import Script from "next/script";
+
+      export default function test() {
+        return (
+          <html lang="en">
+            <body className={inter.className}>{children}</body>
+            <Script
+              src="https://cdnjs.cloudflare.com/ajax/libs/lodash.js/4.17.20/lodash.min.js?a=scriptBeforeInteractive"
+              strategy='beforeInteractive'
+            />
+          </html>
+        );
+      }`,
+      filename:
+        'C:\\Users\\username\\projects\\project-name\\src\\pages\\layout.tsx',
+      errors: [{ message }],
+    },
+  ],
+}
+
+describe('no-before-interactive-script-outside-document', () => {
+  new ESLintTesterV8({
+    parserOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      ecmaFeatures: {
+        modules: true,
+        jsx: true,
+      },
+    },
+  }).run('eslint-v8', NextESLintRule, tests)
+
+  new ESLintTesterV9({
+    languageOptions: {
+      ecmaVersion: 2018,
+      sourceType: 'module',
+      parserOptions: {
+        ecmaFeatures: {
+          modules: true,
+          jsx: true,
+        },
+      },
+    },
+  }).run('eslint-v9', NextESLintRule, tests)
 })

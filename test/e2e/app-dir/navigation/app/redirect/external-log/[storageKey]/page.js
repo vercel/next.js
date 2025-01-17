@@ -1,15 +1,18 @@
 /*global navigation*/
 'use client'
 
+import { use } from 'react'
+
 import { redirect, useSearchParams } from 'next/navigation'
 
 let listening = false
 
-export default function Page({ params: { storageKey } }) {
+export default function Page({ params }) {
   if (typeof window === 'undefined') {
     throw new Error('Client render only')
   }
 
+  const { storageKey } = use(params)
   let searchParams = useSearchParams()
 
   if (searchParams.get('read')) {

@@ -1,5 +1,5 @@
-import type { Container, Engine, ISourceOptions } from 'tsparticles-engine'
-import Particles from 'react-tsparticles'
+import type { Container, Engine, ISourceOptions } from "tsparticles-engine";
+import Particles from "react-tsparticles";
 
 const ParticlesComponent = () => {
   const particlesInit = async (engine: Engine) => {
@@ -24,12 +24,12 @@ const ParticlesComponent = () => {
     // https://github.com/matteobruni/tsparticles/tree/main/updaters all official tsParticles additional updaters
     // for example
     // await loadOrbitUpdater(engine); // it requires "tsparticles-updater-orbit" dependency
-  }
+  };
 
   const particlesLoaded = async (container: Container) => {
     // the container is the current particles instance, it has methods like refresh(), start(), stop(), play(), pause()
     // the documentation can be found here: https://particles.js.org/docs/modules/Core_Container.html
-  }
+  };
 
   // options variable is the particles configuration
   // many configurations can be found here: https://particles.js.org
@@ -49,10 +49,10 @@ const ParticlesComponent = () => {
         },
       },
       color: {
-        value: ['#2EB67D', '#ECB22E', '#E01E5B', '#36C5F0'],
+        value: ["#2EB67D", "#ECB22E", "#E01E5B", "#36C5F0"],
       },
       shape: {
-        type: 'circle',
+        type: "circle",
       },
       opacity: {
         value: 1,
@@ -63,7 +63,7 @@ const ParticlesComponent = () => {
       links: {
         enable: true,
         distance: 150,
-        color: '#808080',
+        color: "#808080",
         opacity: 0.4,
         width: 1,
       },
@@ -71,7 +71,7 @@ const ParticlesComponent = () => {
         enable: true,
         speed: 5,
         outModes: {
-          default: 'out',
+          default: "out",
         },
       },
     },
@@ -79,11 +79,11 @@ const ParticlesComponent = () => {
       events: {
         onHover: {
           enable: true,
-          mode: 'grab',
+          mode: "grab",
         },
         onClick: {
           enable: true,
-          mode: 'push',
+          mode: "push",
         },
       },
       modes: {
@@ -91,7 +91,7 @@ const ParticlesComponent = () => {
           distance: 280,
           links: {
             opacity: 1,
-            color: '#808080',
+            color: "#808080",
           },
         },
         push: {
@@ -99,7 +99,7 @@ const ParticlesComponent = () => {
         },
       },
     },
-  }
+  };
 
   return (
     <Particles
@@ -108,7 +108,7 @@ const ParticlesComponent = () => {
       loaded={particlesLoaded}
       options={options}
     />
-  )
-}
+  );
+};
 
-export default ParticlesComponent
+export default ParticlesComponent;

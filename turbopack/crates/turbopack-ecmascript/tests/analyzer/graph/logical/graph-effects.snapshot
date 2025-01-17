@@ -1,0 +1,358 @@
+[
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    7,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 132..138,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    8,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Paren,
+            ),
+            ParenExpr(
+                Expr,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 164..170,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    9,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 208..214,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    10,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 256..262,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    11,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 284..290,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    12,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 323..329,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    13,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Left,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 346..352,
+        in_try: false,
+    },
+    FreeVar {
+        var: FreeVar(
+            "global",
+        ),
+        ast_path: [
+            Program(
+                Script,
+            ),
+            Script(
+                Body(
+                    14,
+                ),
+            ),
+            Stmt(
+                Decl,
+            ),
+            Decl(
+                Var,
+            ),
+            VarDecl(
+                Decls(
+                    0,
+                ),
+            ),
+            VarDeclarator(
+                Init,
+            ),
+            Expr(
+                Bin,
+            ),
+            BinExpr(
+                Right,
+            ),
+            Expr(
+                Ident,
+            ),
+        ],
+        span: 387..393,
+        in_try: false,
+    },
+]
