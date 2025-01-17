@@ -1,3 +1,4 @@
+/* eslint-disable jest/no-standalone-expect */
 /* eslint-env jest */
 import cheerio from 'cheerio'
 import fs, { existsSync } from 'fs-extra'
@@ -119,221 +120,223 @@ describe('Production Usage', () => {
     // we should only have 4 segments and the initial message logged out
     expect(next.cliOutput.match(/Generating static pages/g).length).toBe(5)
   })
+  ;(process.env.NEXT_RSPACK ? it.skip : it)(
+    'should output traces',
+    async () => {
+      const serverTrace = await next.readJSON('.next/next-server.js.nft.json')
 
-  it('should output traces', async () => {
-    const serverTrace = await next.readJSON('.next/next-server.js.nft.json')
-
-    expect(serverTrace.version).toBe(1)
-    expect(
-      serverTrace.files.some((file) =>
-        file.includes('next/dist/server/send-payload.js')
-      )
-    ).toBe(true)
-    expect(
-      serverTrace.files.some((file) =>
-        file.includes('next/dist/server/lib/route-resolver.js')
-      )
-    ).toBe(false)
-    const repoRoot = join(next.testDir, '../../../../')
-    expect(
-      serverTrace.files.some((file) => {
-        const fullPath = join(next.testDir, '.next', file)
-        if (!fullPath.startsWith(repoRoot)) {
-          console.error(`Found next-server trace file outside repo root`, {
-            repoRoot,
-            fullPath,
-            file,
-          })
-          return true
-        }
-        return false
-      })
-    ).toBe(false)
-    expect(
-      serverTrace.files.some((file) =>
-        file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
-      )
-    ).toBe(true)
-    expect(
-      serverTrace.files.some((file) =>
-        file.includes('next/dist/server/render.js')
-      )
-    ).toBe(true)
-    expect(
-      serverTrace.files.some((file) =>
-        file.includes('next/dist/server/load-components.js')
-      )
-    ).toBe(true)
-
-    if (process.platform !== 'win32') {
+      expect(serverTrace.version).toBe(1)
       expect(
         serverTrace.files.some((file) =>
-          file.includes('next/dist/compiled/webpack/bundle5.js')
+          file.includes('next/dist/server/send-payload.js')
+        )
+      ).toBe(true)
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/server/lib/route-resolver.js')
         )
       ).toBe(false)
+      const repoRoot = join(next.testDir, '../../../../')
       expect(
-        serverTrace.files.some((file) => file.includes('node_modules/sharp'))
-      ).toBe(true)
-    }
-
-    const checks = [
-      {
-        page: '/_app',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          /node_modules\/react\/index\.js/,
-          /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
-        ],
-        notTests: [/\0/, /\?/, /!/],
-      },
-      {
-        page: '/client-error',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          // TODO: rspack chunks aren't always nested in chunks
-          // folder
-          ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
-          /node_modules\/react\/index\.js/,
-          /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
-          /node_modules\/next/,
-        ],
-        notTests: [/\0/, /\?/, /!/],
-      },
-      {
-        page: '/index',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-          // TODO: rspack chunks aren't always nested in chunks
-          // folder
-          ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
-          /node_modules\/react\/index\.js/,
-          /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
-          /node_modules\/next/,
-
-          // rspack bundles directly to the CJS file
-          process.env.NEXT_RSPACK
-            ? /node_modules\/nanoid\/index\.cjs/
-            : /node_modules\/nanoid\/index\.js/,
-
-          process.env.NEXT_RSPACK
-            ? /node_modules\/nanoid\/url-alphabet\/index\.cjs/
-            : /node_modules\/nanoid\/url-alphabet\/index\.js/,
-
-          /node_modules\/es5-ext\/array\/#\/clear\.js/,
-        ],
-        notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
-      },
-      {
-        page: '/next-import',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-
-          // TODO: rspack chunks aren't always nested in chunks
-          // folder
-          ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
-          /node_modules\/react\/index\.js/,
-          /node_modules\/react\/package\.json/,
-          isReact18
-            ? /node_modules\/react\/cjs\/react\.production\.min\.js/
-            : /node_modules\/react\/cjs\/react\.production\.js/,
-          /node_modules\/next/,
-        ],
-        notTests: [
-          /next\/dist\/server\/next\.js/,
-          /next\/dist\/bin/,
-          /\0/,
-          /\?/,
-          /!/,
-        ],
-      },
-      {
-        page: '/api',
-        tests: [
-          /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
-
-          // TODO: rspack doesn't trace fs/path usage currently
-          ...(process.env.NEXT_RSPACK ? [] : [/\/logo\.module\.css/]),
-        ],
-        notTests: [
-          /next\/dist\/server\/next\.js/,
-          /next\/dist\/bin/,
-          /\0/,
-          /\?/,
-          /!/,
-        ],
-      },
-      // TODO: rspack doesn't trace fs/path usage currently
-      ...(!process.env.NEXT_RSPACK
-        ? [
-            {
-              page: '/api/readfile-dirname',
-              tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
-              notTests: [
-                /next\/dist\/server\/next\.js/,
-                /next\/dist\/bin/,
-                /\0/,
-                /\?/,
-                /!/,
-              ],
-            },
-            {
-              page: '/api/readfile-processcwd',
-              tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
-              notTests: [
-                /next\/dist\/server\/next\.js/,
-                /next\/dist\/bin/,
-                /\0/,
-                /\?/,
-                /!/,
-              ],
-            },
-          ]
-        : []),
-    ]
-
-    for (const check of checks) {
-      require('console').log('checking', check.page)
-      const { version, files } = await next.readJSON(
-        join('.next/server/pages/', check.page + '.js.nft.json')
-      )
-      expect(version).toBe(1)
-      expect([...new Set(files)].length).toBe(files.length)
-
-      expect(
-        check.tests.every((item) => {
-          if (files.some((file) => item.test(file))) {
+        serverTrace.files.some((file) => {
+          const fullPath = join(next.testDir, '.next', file)
+          if (!fullPath.startsWith(repoRoot)) {
+            console.error(`Found next-server trace file outside repo root`, {
+              repoRoot,
+              fullPath,
+              file,
+            })
             return true
           }
-          console.error(
-            `Failed to find ${item} for page ${check.page} in`,
-            files
-          )
           return false
         })
+      ).toBe(false)
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/shared/lib/page-path/normalize-page-path.js')
+        )
+      ).toBe(true)
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/server/render.js')
+        )
+      ).toBe(true)
+      expect(
+        serverTrace.files.some((file) =>
+          file.includes('next/dist/server/load-components.js')
+        )
       ).toBe(true)
 
-      if (sep === '/') {
+      if (process.platform !== 'win32') {
         expect(
-          check.notTests.some((item) => {
+          serverTrace.files.some((file) =>
+            file.includes('next/dist/compiled/webpack/bundle5.js')
+          )
+        ).toBe(false)
+        expect(
+          serverTrace.files.some((file) => file.includes('node_modules/sharp'))
+        ).toBe(true)
+      }
+
+      const checks = [
+        {
+          page: '/_app',
+          tests: [
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            isReact18
+              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+              : /node_modules\/react\/cjs\/react\.production\.js/,
+          ],
+          notTests: [/\0/, /\?/, /!/],
+        },
+        {
+          page: '/client-error',
+          tests: [
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+            // TODO: rspack chunks aren't always nested in chunks
+            // folder
+            ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            isReact18
+              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+              : /node_modules\/react\/cjs\/react\.production\.js/,
+            /node_modules\/next/,
+          ],
+          notTests: [/\0/, /\?/, /!/],
+        },
+        {
+          page: '/index',
+          tests: [
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+            // TODO: rspack chunks aren't always nested in chunks
+            // folder
+            ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            isReact18
+              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+              : /node_modules\/react\/cjs\/react\.production\.js/,
+            /node_modules\/next/,
+
+            // rspack bundles directly to the CJS file
+            process.env.NEXT_RSPACK
+              ? /node_modules\/nanoid\/index\.cjs/
+              : /node_modules\/nanoid\/index\.js/,
+
+            process.env.NEXT_RSPACK
+              ? /node_modules\/nanoid\/url-alphabet\/index\.cjs/
+              : /node_modules\/nanoid\/url-alphabet\/index\.js/,
+
+            /node_modules\/es5-ext\/array\/#\/clear\.js/,
+          ],
+          notTests: [/next\/dist\/pages\/_error\.js/, /\0/, /\?/, /!/],
+        },
+        {
+          page: '/next-import',
+          tests: [
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+
+            // TODO: rspack chunks aren't always nested in chunks
+            // folder
+            ...(process.env.NEXT_RSPACK ? [] : [/chunks\/.*?\.js/]),
+            /node_modules\/react\/index\.js/,
+            /node_modules\/react\/package\.json/,
+            isReact18
+              ? /node_modules\/react\/cjs\/react\.production\.min\.js/
+              : /node_modules\/react\/cjs\/react\.production\.js/,
+            /node_modules\/next/,
+          ],
+          notTests: [
+            /next\/dist\/server\/next\.js/,
+            /next\/dist\/bin/,
+            /\0/,
+            /\?/,
+            /!/,
+          ],
+        },
+        {
+          page: '/api',
+          tests: [
+            /(webpack-runtime\.js|\[turbopack\]_runtime\.js)/,
+
+            // TODO: rspack doesn't trace fs/path usage currently
+            ...(process.env.NEXT_RSPACK ? [] : [/\/logo\.module\.css/]),
+          ],
+          notTests: [
+            /next\/dist\/server\/next\.js/,
+            /next\/dist\/bin/,
+            /\0/,
+            /\?/,
+            /!/,
+          ],
+        },
+        // TODO: rspack doesn't trace fs/path usage currently
+        ...(!process.env.NEXT_RSPACK
+          ? [
+              {
+                page: '/api/readfile-dirname',
+                tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+                notTests: [
+                  /next\/dist\/server\/next\.js/,
+                  /next\/dist\/bin/,
+                  /\0/,
+                  /\?/,
+                  /!/,
+                ],
+              },
+              {
+                page: '/api/readfile-processcwd',
+                tests: [/webpack-api-runtime\.js/, /static\/data\/item\.txt/],
+                notTests: [
+                  /next\/dist\/server\/next\.js/,
+                  /next\/dist\/bin/,
+                  /\0/,
+                  /\?/,
+                  /!/,
+                ],
+              },
+            ]
+          : []),
+      ]
+
+      for (const check of checks) {
+        require('console').log('checking', check.page)
+        const { version, files } = await next.readJSON(
+          join('.next/server/pages/', check.page + '.js.nft.json')
+        )
+        expect(version).toBe(1)
+        expect([...new Set(files)].length).toBe(files.length)
+
+        expect(
+          check.tests.every((item) => {
             if (files.some((file) => item.test(file))) {
-              console.error(`Found unexpected ${item} in`, files)
               return true
             }
+            console.error(
+              `Failed to find ${item} for page ${check.page} in`,
+              files
+            )
             return false
           })
-        ).toBe(false)
+        ).toBe(true)
+
+        if (sep === '/') {
+          expect(
+            check.notTests.some((item) => {
+              if (files.some((file) => item.test(file))) {
+                console.error(`Found unexpected ${item} in`, files)
+                return true
+              }
+              return false
+            })
+          ).toBe(false)
+        }
       }
     }
-  })
+  )
 
   // This test checks webpack chunks in particular
   ;(process.env.TURBOPACK ? it.skip : it)(
