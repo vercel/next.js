@@ -71,8 +71,10 @@ impl<T> NonLocalSourceProvider<T> {
     /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
     /// this wrapper type and unsafe constructor.
     ///
-    /// Safety: `source_provider` must be a type that could safely implement `NonLocalValue`. If
-    /// it's a closure, the closure must not capture any values that are not a `NonLocalValue`.
+    /// # Safety
+    ///
+    /// `source_provider` must be a type that could safely implement `NonLocalValue`. If it's a
+    /// closure, the closure must not capture any values that are not a `NonLocalValue`.
     pub unsafe fn new(source_provider: T) -> Self {
         Self(source_provider)
     }

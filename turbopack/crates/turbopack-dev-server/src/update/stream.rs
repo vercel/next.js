@@ -33,7 +33,9 @@ pub struct GetContentFn(Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> 
 impl GetContentFn {
     /// Wrap a function in `GetContentFn`.
     ///
-    /// Safety: The closure must not include any types that aren't `NonLocalValue`, or that couldn't
+    /// # Safety
+    ///
+    /// The closure must not include any types that aren't `NonLocalValue`, or that couldn't
     /// otherwise safely implement `NonLocalValue`.
     ///
     /// In the future, `auto_traits` may be be able to implement `NonLocalValue` for us, and avoid
@@ -47,7 +49,9 @@ impl GetContentFn {
     /// Wrap a boxed function in `GetContentFn`. This specialized version of [`GetContentFn::new`]
     /// avoids double-boxing if you already have a boxed function.
     ///
-    /// Safety: Same as [`GetContentFn::new`].
+    /// # Safety
+    ///
+    /// Same as [`GetContentFn::new`].
     pub unsafe fn new_boxed(
         func: Box<dyn Fn() -> OperationVc<ResolveSourceRequestResult> + Send + Sync>,
     ) -> Self {
