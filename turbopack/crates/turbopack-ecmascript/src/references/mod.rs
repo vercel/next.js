@@ -1353,8 +1353,9 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
     fn explain_args(args: &[JsValue]) -> (String, String) {
         JsValue::explain_args(args, 10, 2)
     }
-    let linked_args = |args: Vec<EffectArg>| async move {
-        args.into_iter()
+    let linked_args = |args: Box<[EffectArg]>| async move {
+        args.into_vec()
+            .into_iter()
             .map(|arg| {
                 let add_effects = &add_effects;
                 async move {
