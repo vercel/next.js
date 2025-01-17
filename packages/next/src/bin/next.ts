@@ -161,6 +161,7 @@ program
       'If no directory is provided, the current directory will be used.'
     )}`
   )
+  .option('-d, --debug', 'Enables a more verbose output.')
   .option('--turbo', 'Starts development mode using Turbopack.')
   .option('--turbopack', 'Starts development mode using Turbopack.')
   .addOption(

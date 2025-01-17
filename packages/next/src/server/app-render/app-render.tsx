@@ -2167,7 +2167,7 @@ async function spawnDynamicValidationInDev(
   route: string,
   requestStore: RequestStore
 ): Promise<void> {
-  const { componentMod: ComponentMod } = ctx
+  const { componentMod: ComponentMod, renderOpts } = ctx
 
   // Prerender controller represents the lifetime of the prerender.
   // It will be aborted when a Task is complete or a synchronously aborting
@@ -2342,8 +2342,9 @@ async function spawnDynamicValidationInDev(
 
   const finalServerController = new AbortController()
 
-  // TODO: Set debug param based on to-be-added --debug CLI flag for `next dev`.
-  const serverDynamicTracking = createDynamicTrackingState(true)
+  const serverDynamicTracking = createDynamicTrackingState(
+    renderOpts.isDebugDynamicAccesses
+  )
 
   const finalServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
@@ -2363,8 +2364,10 @@ async function spawnDynamicValidationInDev(
 
   const finalClientController = new AbortController()
 
-  // TODO: Set debug param based on to-be-added --debug CLI flag for `next dev`.
-  const clientDynamicTracking = createDynamicTrackingState(true)
+  const clientDynamicTracking = createDynamicTrackingState(
+    renderOpts.isDebugDynamicAccesses
+  )
+
   const dynamicValidation = createDynamicValidationState()
 
   const finalClientPrerenderStore: PrerenderStore = {

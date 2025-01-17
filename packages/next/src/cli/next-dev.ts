@@ -40,6 +40,7 @@ import { flushAllTraces, trace } from '../trace'
 import { traceId } from '../trace/shared'
 
 export type NextDevOptions = {
+  debug: boolean
   disableSourceMaps: boolean
   turbo?: boolean
   turbopack?: boolean
@@ -284,6 +285,7 @@ const nextDev = async (
         stdio: 'inherit',
         env: {
           ...defaultEnv,
+          __NEXT_DYNAMIC_ACCESS_DEBUGGING: options.debug ? '1' : undefined,
           TURBOPACK: process.env.TURBOPACK,
           NEXT_PRIVATE_WORKER: '1',
           NEXT_PRIVATE_TRACE_ID: traceId,

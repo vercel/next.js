@@ -2202,9 +2202,11 @@ export default abstract class Server<
       hasDebugStaticShellQuery && isRoutePPREnabled
 
     // We should enable debugging dynamic accesses when the static shell
-    // debugging has been enabled and we're also in development mode.
+    // debugging has been enabled and we're also in development mode
     const isDebugDynamicAccesses =
-      isDebugStaticShell && this.renderOpts.dev === true
+      (isDebugStaticShell && this.renderOpts.dev === true) ||
+      // ...or if it has been explicitly enabled.
+      Boolean(process.env.__NEXT_DYNAMIC_ACCESS_DEBUGGING)
 
     const isDebugFallbackShell = hasDebugFallbackShellQuery && isRoutePPREnabled
 
@@ -2541,14 +2543,17 @@ export default abstract class Server<
         setAppIsrStatus: (this as any).setAppIsrStatus,
       }
 
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
+      if (isDebugDynamicAccesses) {
+        renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
+      }
+
+      if (isDebugStaticShell) {
         supportsDynamicResponse = false
         renderOpts.nextExport = true
         renderOpts.supportsDynamicResponse = false
         renderOpts.isStaticGeneration = true
         renderOpts.isRevalidate = true
         renderOpts.isDebugStaticShell = isDebugStaticShell
-        renderOpts.isDebugDynamicAccesses = isDebugDynamicAccesses
       }
 
       // Legacy render methods will return a render result that needs to be
@@ -3111,10 +3116,7 @@ export default abstract class Server<
 
       // When we're in minimal mode, if we're trying to debug the static shell,
       // we should just return nothing instead of resuming the dynamic render.
-      if (
-        (isDebugStaticShell || isDebugDynamicAccesses) &&
-        typeof postponed !== 'undefined'
-      ) {
+      if (isDebugStaticShell && typeof postponed !== 'undefined') {
         return {
           revalidate: 1,
           isFallback: false,
@@ -3596,11 +3598,10 @@ export default abstract class Server<
         }
       }
 
-      // If we're debugging the static shell or the dynamic API accesses, we
-      // should just serve the HTML without resuming the render. The returned
-      // HTML will be the static shell so all the Dynamic API's will be used
-      // during static generation.
-      if (isDebugStaticShell || isDebugDynamicAccesses) {
+      // If we're debugging the static shell, we should just serve the HTML
+      // without resuming the render. The returned HTML will be the static shell
+      // so all the Dynamic API's will be used during static generation.
+      if (isDebugStaticShell) {
         // Since we're not resuming the render, we need to at least add the
         // closing body and html tags to create valid HTML.
         body.chain(
