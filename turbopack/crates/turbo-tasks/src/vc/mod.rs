@@ -138,9 +138,9 @@ use crate::{
 ///
 /// Function calls are neither "eager", nor "lazy". Even if not awaited, they are guaranteed to
 /// execute (potentially emitting collectibles) before the root task finishes or before the
-/// completion of any [strongly consistent read][OperationVc::read_strongly_consistent] containing
-/// their call. However, the exact point when that execution begins is an implementation detail.
-/// Functions may execute more than once due to dirty task invalidation.
+/// completion of any strongly consistent read containing their call. However, the exact point when
+/// that execution begins is an implementation detail. Functions may execute more than once due to
+/// dirty task invalidation.
 ///
 ///
 /// ## Equality & Hashing
@@ -400,13 +400,6 @@ where
             _t: PhantomData,
         }
     }
-
-    /// Returns a untracked read of the value. This will not invalidate the current function when
-    /// the read value changed.
-    #[must_use]
-    pub fn untracked(self) -> ReadVcFuture<T> {
-        self.node.into_read_untracked().into()
-    }
 }
 
 impl<T, Inner, Repr> Vc<T>
@@ -463,15 +456,15 @@ where
         }
     }
 
-    /// Resolve the reference until it points to a cell directly using [eventual
-    /// consistency][crate::ReadConsistency::Eventual].
+    /// Resolve the reference until it points to a cell directly.
     ///
-    /// Resolving will wait for task execution to be finished, so that the returned `Vc` points to a
-    /// cell that stores a value.
+    /// Resolving will wait for task execution to be finished, so that the
+    /// returned `Vc` points to a cell that stores a value.
     ///
     /// Resolving is necessary to compare identities of `Vc`s.
     ///
-    /// This is async and will rethrow any fatal error that happened during task execution.
+    /// This is async and will rethrow any fatal error that happened during task
+    /// execution.
     pub async fn resolve(self) -> Result<Vc<T>> {
         Ok(Self {
             node: self.node.resolve().await?,
@@ -479,8 +472,9 @@ where
         })
     }
 
-    /// Resolve the reference until it points to a cell directly, and wrap the result in a
-    /// [`ResolvedVc`], which guarantees that the [`Vc`] was resolved.
+    /// Resolve the reference until it points to a cell directly, and wrap the
+    /// result in a [`ResolvedVc`], which strongly guarantees that the
+    /// [`Vc`] was resolved.
     pub async fn to_resolved(self) -> Result<ResolvedVc<T>> {
         Ok(ResolvedVc {
             node: self.resolve().await?,
@@ -502,6 +496,23 @@ where
     /// turbo-tasks.
     pub fn is_local(self) -> bool {
         self.node.is_local()
+    }
+
+    /// Resolve the reference until it points to a cell directly in a strongly
+    /// consistent way.
+    ///
+    /// Resolving will wait for task execution to be finished, so that the
+    /// returned Vc points to a cell that stores a value.
+    ///
+    /// Resolving is necessary to compare identities of Vcs.
+    ///
+    /// This is async and will rethrow any fatal error that happened during task
+    /// execution.
+    pub async fn resolve_strongly_consistent(self) -> Result<Self> {
+        Ok(Self {
+            node: self.node.resolve_strongly_consistent().await?,
+            _t: PhantomData,
+        })
     }
 }
 
@@ -623,6 +634,25 @@ macro_rules! into_future {
 into_future!(Vc<T>);
 into_future!(&Vc<T>);
 into_future!(&mut Vc<T>);
+
+impl<T> Vc<T>
+where
+    T: VcValueType,
+{
+    /// Returns a strongly consistent read of the value. This ensures that all
+    /// internal tasks are finished before the read is returned.
+    #[must_use]
+    pub fn strongly_consistent(self) -> ReadVcFuture<T> {
+        self.node.into_strongly_consistent_read().into()
+    }
+
+    /// Returns a untracked read of the value. This will not invalidate the current function when
+    /// the read value changed.
+    #[must_use]
+    pub fn untracked(self) -> ReadVcFuture<T> {
+        self.node.into_read_untracked().into()
+    }
+}
 
 impl<T> Unpin for Vc<T> where T: ?Sized {}
 
