@@ -140,8 +140,8 @@ pub struct SingleModuleGraph {
 
     /// The number of modules in the graph (excluding VisitedModule nodes)
     pub number_of_modules: usize,
-    // NodeIndex isn't necessarily stable, but these are first nodes in the graph, so shouldn't
-    // ever be involved in a swap_remove operation
+
+    // NodeIndex isn't necessarily stable (because of swap_remove), but we never remove nodes.
     //
     // HashMaps have nondeterministic order, but this map is only used for lookups (in
     // `get_module`) and not iteration.
@@ -149,6 +149,7 @@ pub struct SingleModuleGraph {
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
     modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
+
     #[turbo_tasks(trace_ignore)]
     pub entries: Vec<ResolvedVc<Box<dyn Module>>>,
 }
