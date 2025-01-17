@@ -1520,7 +1520,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-canary-5b51a2b9-20250116";
+    exports.version = "19.1.0-canary-d46b04a2-20250117";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
