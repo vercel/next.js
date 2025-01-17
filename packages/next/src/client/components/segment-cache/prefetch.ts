@@ -1,7 +1,7 @@
 import type { FlightRouterState } from '../../../server/app-render/types'
 import { createPrefetchURL } from '../../components/app-router'
 import { createCacheKey } from './cache-key'
-import { schedulePrefetchTask, PrefetchPriority } from './scheduler'
+import { schedulePrefetchTask } from './scheduler'
 
 /**
  * Entrypoint for prefetching a URL into the Segment Cache.
@@ -26,10 +26,5 @@ export function prefetch(
     return
   }
   const cacheKey = createCacheKey(url.href, nextUrl)
-  schedulePrefetchTask(
-    cacheKey,
-    treeAtTimeOfPrefetch,
-    includeDynamicData,
-    PrefetchPriority.Default
-  )
+  schedulePrefetchTask(cacheKey, treeAtTimeOfPrefetch, includeDynamicData)
 }

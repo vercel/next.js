@@ -191,7 +191,6 @@ export function schedulePrefetchTask(
   const task: PrefetchTask = {
     key,
     treeAtTimeOfPrefetch,
-    priority,
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
@@ -1067,22 +1066,6 @@ function heapPop(heap: Array<PrefetchTask>): PrefetchTask | null {
     heapSiftDown(heap, last, 0)
   }
   return first
-}
-
-// @ts-ignore
-function heapDelete(heap: Array<PrefetchTask>, node: PrefetchTask): void {
-  const index = node._heapIndex
-  if (index !== -1) {
-    node._heapIndex = -1
-    if (heap.length !== 0) {
-      const last = heap.pop() as PrefetchTask
-      if (last !== node) {
-        heap[index] = last
-        last._heapIndex = index
-        heapSiftDown(heap, last, index)
-      }
-    }
-  }
 }
 
 function heapResift(heap: Array<PrefetchTask>, node: PrefetchTask): void {
