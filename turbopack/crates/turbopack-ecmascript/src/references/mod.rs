@@ -604,30 +604,41 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
             *origin,
-            Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
-            r.issue_source
-                .unwrap_or_else(|| IssueSource::from_source_only(*source)),
+            Request::parse(Value::new(RcStr::from(&*r.module_path).into()))
+                .resolve()
+                .await?,
+            if let Some(issue_source) = r.issue_source {
+                issue_source.resolve().await?
+            } else {
+                IssueSource::from_source_only(*source).resolve().await?
+            },
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::evaluation())
+                        Some(ModulePart::evaluation().resolve().await?)
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                    ImportedSymbol::Symbol(name) => {
+                        Some(ModulePart::export((&**name).into()).resolve().await?)
+                    }
                     ImportedSymbol::PartEvaluation(part_id) => {
                         evaluation_references.push(i);
-                        Some(ModulePart::internal_evaluation(*part_id))
+                        Some(ModulePart::internal_evaluation(*part_id).resolve().await?)
                     }
-                    ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
-                    ImportedSymbol::Exports => Some(ModulePart::exports()),
+                    ImportedSymbol::Part(part_id) => {
+                        Some(ModulePart::internal(*part_id).resolve().await?)
+                    }
+                    ImportedSymbol::Exports => Some(ModulePart::exports().resolve().await?),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::evaluation())
+                        Some(ModulePart::evaluation().resolve().await?)
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                    ImportedSymbol::Symbol(name) => {
+                        Some(ModulePart::export((&**name).into()).resolve().await?)
+                    }
                     ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
                         bail!("Internal imports doesn't exist in reexports only mode")
                     }
