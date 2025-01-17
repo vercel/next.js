@@ -11,6 +11,7 @@ use crate::{
     module_graph::ModuleGraph,
 };
 
+#[tracing::instrument(level = "trace", skip_all, fields(chunk_items = chunk_items.len()))]
 pub async fn make_production_chunks(
     chunk_items: Vec<ChunkItemWithInfo>,
     module_graph: Vc<ModuleGraph>,

@@ -4,7 +4,7 @@ mod production;
 use std::mem::replace;
 
 use anyhow::Result;
-use tracing::Level;
+use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 
@@ -70,6 +70,7 @@ pub async fn make_chunks(
             Ok((c, chunk_item_info))
         })
         .try_join()
+        .instrument(tracing::trace_span!("get chunk item info"))
         .await?;
 
     let mut map = FxIndexMap::<_, Vec<_>>::default();
@@ -82,61 +83,66 @@ pub async fn make_chunks(
     let mut chunks = Vec::new();
     for (ty, chunk_items) in map {
         let ty_name = ty.to_string().await?;
-
-        let chunk_items = chunk_items
-            .into_iter()
-            .map(
-                async |(
-                    ChunkItemWithAsyncModuleInfo {
-                        ty,
-                        chunk_item,
-                        module,
-                        async_info,
+        let span = tracing::trace_span!("make chunks for type", name = ty_name.as_str());
+        async {
+            let chunk_items = chunk_items
+                .into_iter()
+                .map(
+                    async |(
+                        ChunkItemWithAsyncModuleInfo {
+                            ty,
+                            chunk_item,
+                            module,
+                            async_info,
+                        },
+                        chunk_item_info,
+                    )| {
+                        Ok(ChunkItemWithInfo {
+                            ty: *ty,
+                            chunk_item: *chunk_item,
+                            module: *module,
+                            async_info: *async_info,
+                            size: chunk_item_info.size,
+                            asset_ident: chunk_item_info.name.await?,
+                        })
                     },
-                    chunk_item_info,
-                )| {
-                    Ok(ChunkItemWithInfo {
-                        ty: *ty,
-                        chunk_item: *chunk_item,
-                        module: *module,
-                        async_info: *async_info,
-                        size: chunk_item_info.size,
-                        asset_ident: chunk_item_info.name.await?,
-                    })
-                },
-            )
-            .try_join()
-            .await?;
+                )
+                .try_join()
+                .await?;
 
-        let mut split_context = SplitContext {
-            ty,
-            chunking_context,
-            chunks: &mut chunks,
-            referenced_output_assets: &mut referenced_output_assets,
-            empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
-        };
+            let mut split_context = SplitContext {
+                ty,
+                chunking_context,
+                chunks: &mut chunks,
+                referenced_output_assets: &mut referenced_output_assets,
+                empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
+            };
 
-        if let Some(_chunking_config) = chunking_configs.get(&ty) {
-            // Production chunking
-            make_production_chunks(chunk_items, module_graph, split_context).await?;
-            continue;
+            if let Some(_chunking_config) = chunking_configs.get(&ty) {
+                // Production chunking
+                make_production_chunks(chunk_items, module_graph, split_context).await?;
+            } else {
+                if !*ty.must_keep_item_order().await? {
+                    app_vendors_split(
+                        chunk_items,
+                        format!("{key_prefix}{ty_name}"),
+                        &mut split_context,
+                    )
+                    .await?;
+                } else {
+                    make_chunk(
+                        chunk_items,
+                        &mut format!("{key_prefix}{ty_name}"),
+                        &mut split_context,
+                    )
+                    .await?;
+                }
+            }
+
+            anyhow::Ok(())
         }
-
-        if !*ty.must_keep_item_order().await? {
-            app_vendors_split(
-                chunk_items,
-                format!("{key_prefix}{ty_name}"),
-                &mut split_context,
-            )
-            .await?;
-        } else {
-            make_chunk(
-                chunk_items,
-                &mut format!("{key_prefix}{ty_name}"),
-                &mut split_context,
-            )
-            .await?;
-        }
+        .instrument(span)
+        .await?
     }
 
     // Resolve all chunks before returning
