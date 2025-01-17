@@ -8,7 +8,7 @@ use turbo_tasks_fs::{
 use crate::version::{VersionedAssetContent, VersionedContent};
 
 /// An asset. It also forms a graph when following [Asset::references].
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Asset {
     /// The content of the [Asset].
     fn content(self: Vc<Self>) -> Vc<AssetContent>;

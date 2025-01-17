@@ -4,7 +4,7 @@ use crate::{asset::Asset, ident::AssetIdent, reference::ModuleReferences};
 
 /// A module. This usually represents parsed source code, which has references
 /// to other modules.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Module: Asset {
     /// The identifier of the [Module]. It's expected to be unique and capture
     /// all properties of the [Module].
