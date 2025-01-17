@@ -14,15 +14,14 @@ use smallvec::SmallVec;
     feature = "trace_find_and_schedule"
 ))]
 use tracing::{span::Span, trace_span};
-use turbo_tasks::{FxIndexMap, SessionId, TaskId, TraitTypeId};
+use turbo_tasks::{FxIndexMap, SessionId, TaskId};
 
+#[cfg(feature = "trace_task_dirty")]
+use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         get_mut, get_mut_or_insert_with,
-        operation::{
-            invalidate::{make_task_dirty, TaskDirtyCause},
-            ExecuteContext, Operation, TaskGuard,
-        },
+        operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
         storage::{
             count, get, get_many, iter_many, remove, update, update_count, update_ucount_and_get,
         },
@@ -138,7 +137,8 @@ pub enum AggregationUpdateJob {
     /// Invalidates tasks that are dependent on a collectible type.
     InvalidateDueToCollectiblesChange {
         task_ids: SmallVec<[TaskId; 4]>,
-        collectible_type: TraitTypeId,
+        #[cfg(feature = "trace_task_dirty")]
+        collectible_type: turbo_tasks::TraitTypeId,
     },
     /// Increases the active counter of the task
     IncreaseActiveCount { task: TaskId },
@@ -349,6 +349,7 @@ impl AggregatedDataUpdate {
                 if !dependent.is_empty() {
                     queue.push(AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                         task_ids: dependent,
+                        #[cfg(feature = "trace_task_dirty")]
                         collectible_type: ty,
                     })
                 }
@@ -783,11 +784,13 @@ impl AggregationUpdateQueue {
                 }
                 AggregationUpdateJob::InvalidateDueToCollectiblesChange {
                     task_ids,
+                    #[cfg(feature = "trace_task_dirty")]
                     collectible_type,
                 } => {
                     for task_id in task_ids {
                         make_task_dirty(
                             task_id,
+                            #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::CollectiblesChange { collectible_type },
                             self,
                             ctx,
