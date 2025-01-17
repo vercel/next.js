@@ -473,9 +473,15 @@ export function getInstrumentationEntry(opts: {
   }
 }
 
+export function getAppLoader() {
+  return process.env.BUILTIN_APP_LOADER
+    ? `builtin:next-app-loader`
+    : 'next-app-loader'
+}
+
 export function getAppEntry(opts: Readonly<AppLoaderOptions>) {
   return {
-    import: `next-app-loader?${stringify(opts)}!`,
+    import: `${getAppLoader()}?${stringify(opts)}!`,
     layer: WEBPACK_LAYERS.reactServerComponents,
   }
 }
