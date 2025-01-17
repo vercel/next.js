@@ -642,13 +642,12 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     const observeLinkVisibilityOnMount = React.useCallback(
       (element: HTMLAnchorElement | SVGAElement | null) => {
         if (prefetchEnabled && router !== null) {
-          // The useMergedRef could return null
+          // FIXME: element still can be null here in some cases. Require further investigation.
           if (element) {
             mountLinkInstance(element, href, router, appPrefetchKind)
           }
         }
         return () => {
-          // The useMergedRef could return null
           if (element) {
             unmountLinkInstance(element)
           }
