@@ -7,7 +7,10 @@ use turbo_prehash::BuildHasherExt;
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 
 use crate::{
-    chunk::chunking::{make_chunk, ChunkItemWithInfo, SplitContext},
+    chunk::{
+        chunking::{make_chunk, ChunkItemWithInfo, SplitContext},
+        ChunkingConfig,
+    },
     module::Module,
     module_graph::ModuleGraph,
 };
@@ -15,6 +18,7 @@ use crate::{
 pub async fn make_production_chunks(
     chunk_items: Vec<ChunkItemWithInfo>,
     module_graph: Vc<ModuleGraph>,
+    chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
 ) -> Result<()> {
     let span_outer = tracing::trace_span!(
@@ -49,7 +53,7 @@ pub async fn make_production_chunks(
             grouped_chunk_items.entry(key).or_default().push(chunk_item);
         }
 
-        let min_chunk_size = 20000;
+        let &ChunkingConfig { min_chunk_size } = chunking_config;
 
         if min_chunk_size == 0 {
             span.record("chunks", grouped_chunk_items.len());

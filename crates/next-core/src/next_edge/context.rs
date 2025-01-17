@@ -233,7 +233,10 @@ pub async fn get_edge_chunking_context_with_client_assets(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {})
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {
+            min_chunk_size: 20000,
+            ..Default::default()
+        })
     }
 
     Ok(Vc::upcast(builder.build()))
@@ -274,7 +277,10 @@ pub async fn get_edge_chunking_context(
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {})
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {
+            min_chunk_size: 20000,
+            ..Default::default()
+        })
     }
 
     Ok(Vc::upcast(builder.build()))
