@@ -18,22 +18,22 @@ export class AwaiterMulti {
     // if a promise settles before we await it, we should drop it --
     // storing them indefinitely could result in a memory leak.
     const cleanup = () => {
-      this.promises.delete(wrappedPromise)
+      this.promises.delete(promise)
     }
 
-    const wrappedPromise = promise.then(cleanup, (err) => {
+    promise.then(cleanup, (err) => {
       cleanup()
       this.onError(err)
     })
 
-    this.promises.add(wrappedPromise)
+    this.promises.add(promise)
   }
 
   public async awaiting(): Promise<void> {
     while (this.promises.size > 0) {
       const promises = Array.from(this.promises)
       this.promises.clear()
-      await Promise.all(promises)
+      await Promise.allSettled(promises)
     }
   }
 }
