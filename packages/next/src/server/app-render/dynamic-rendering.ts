@@ -42,6 +42,7 @@ import {
   OUTLET_BOUNDARY_NAME,
 } from '../../lib/metadata/metadata-constants'
 import { scheduleOnNextTick } from '../../lib/scheduler'
+import { warn } from '../../build/output/log'
 
 const hasPostpone = typeof React.unstable_postpone === 'function'
 
@@ -457,42 +458,71 @@ export function consumeDynamicAccess(
   return serverDynamic.dynamicAccesses
 }
 
-export function formatDynamicAPIAccesses(
+export function createDynamicAccessDebugErrors(
   dynamicAccesses: Array<DynamicAccess>
-): string[] {
-  return dynamicAccesses
-    .filter(
-      (access): access is Required<DynamicAccess> =>
-        typeof access.stack === 'string' && access.stack.length > 0
-    )
-    .map(({ expression, stack }) => {
-      stack = stack
-        .split('\n')
-        // Remove the "Error: " prefix from the first line of the stack trace as
-        // well as the first 4 lines of the stack trace which is the distance
-        // from the user code and the `new Error().stack` call.
-        .slice(4)
-        .filter((line) => {
-          // Exclude Next.js internals from the stack trace.
-          if (line.includes('node_modules/next/')) {
-            return false
-          }
+): Error[] {
+  const errors: Error[] = []
 
-          // Exclude anonymous functions from the stack trace.
-          if (line.includes(' (<anonymous>)')) {
-            return false
-          }
+  for (const { expression, stack } of dynamicAccesses) {
+    if (typeof stack !== 'string' || stack.length === 0) {
+      continue
+    }
 
-          // Exclude Node.js internals from the stack trace.
-          if (line.includes(' (node:')) {
-            return false
-          }
+    const filteredStackLines = stack
+      .split('\n')
+      // Remove the first line from the error stack which is the error message.
+      .slice(1)
+      .filter((line) => {
+        // Exclude Next.js internals.
+        if (line.includes('node_modules/next/')) {
+          return false
+        }
 
-          return true
-        })
-        .join('\n')
-      return `Dynamic API Usage Debug - ${expression}:\n${stack}`
-    })
+        // Exclude Next.js internals when developing in the Next.js repo.
+        if (
+          process.env.NEXT_PRIVATE_LOCAL_DEV &&
+          line.includes('packages/next/dist')
+        ) {
+          return false
+        }
+
+        // Exclude anonymous functions.
+        if (line.includes(' (<anonymous>)')) {
+          return false
+        }
+
+        // Exclude Node.js internals.
+        if (line.includes(' (node:') || line.includes(' at node:')) {
+          return false
+        }
+
+        return true
+      })
+
+    if (filteredStackLines.length === 0) {
+      // If there are not stack lines remaining (i.e. no app code is present in
+      // the stack), this dynamic access was most likely triggered by Flight
+      // serializing the `params` or `searchParams` props.
+      continue
+    }
+
+    const filteredStack = filteredStackLines.join('\n')
+
+    // TODO: Do we even need to include the expression here, since we're showing
+    // the source of the call site when printing the error?
+    const error = new Error(`Dynamic Usage - ${expression}`)
+
+    // Make sure the default "Error: " prefix is not used when the error is
+    // logged. This only works for the terminal though, because Flight does not
+    // serialize the error name. So when replaying the error in the browser, the
+    // "Error: " prefix will be used unfortunately.
+    error.name = 'Debug'
+    error.stack = `${error.message}\n${filteredStack}`
+
+    errors.push(error)
+  }
+
+  return errors
 }
 
 function assertPostpone() {
@@ -550,14 +580,13 @@ export function createHangingInputAbortSignal(
 
 export function annotateDynamicAccess(
   expression: string,
-  prerenderStore: PrerenderStoreModern
+  prerenderStore: PrerenderStoreModern,
+  stack: string | undefined
 ) {
   const dynamicTracking = prerenderStore.dynamicTracking
   if (dynamicTracking) {
     dynamicTracking.dynamicAccesses.push({
-      stack: dynamicTracking.isDebugDynamicAccesses
-        ? new Error().stack
-        : undefined,
+      stack: dynamicTracking.isDebugDynamicAccesses ? stack : undefined,
       expression,
     })
   }
@@ -633,7 +662,14 @@ export function trackAllowedDynamicAccess(
     dynamicValidation.hasSyncDynamicErrors = true
     return
   } else {
-    const message = `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+    const isDebugDynamicAccesses =
+      serverDynamic.isDebugDynamicAccesses ||
+      clientDynamic.isDebugDynamicAccesses
+
+    const message = isDebugDynamicAccesses
+      ? `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+      : `Route "${route}": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don't have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense`
+
     const error = createErrorWithComponentStack(message, componentStack)
     dynamicValidation.dynamicErrors.push(error)
     return
@@ -670,6 +706,32 @@ export function throwIfDisallowedDynamic(
     syncError = null
     syncExpression = undefined
     syncLogged = false
+  }
+
+  if (serverDynamic.isDebugDynamicAccesses) {
+    const debugErrors = createDynamicAccessDebugErrors(
+      serverDynamic.dynamicAccesses
+    )
+
+    if (debugErrors.length > 0) {
+      warn('The following dynamic usage was detected in server components:')
+      for (const debugError of debugErrors) {
+        warn(debugError)
+      }
+    }
+  }
+
+  if (clientDynamic.isDebugDynamicAccesses) {
+    const debugErrors = createDynamicAccessDebugErrors(
+      clientDynamic.dynamicAccesses
+    )
+
+    if (debugErrors.length > 0) {
+      warn('The following dynamic usage was detected in client components:')
+      for (const debugError of debugErrors) {
+        warn(debugError)
+      }
+    }
   }
 
   if (dynamicValidation.hasSyncDynamicErrors && syncError) {

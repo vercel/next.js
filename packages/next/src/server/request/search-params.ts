@@ -188,7 +188,7 @@ function makeAbortingExoticSearchParams(
   )
 
   const proxiedPromise = new Proxy(promise, {
-    get(target, prop, receiver) {
+    get: function get(target, prop, receiver) {
       if (Object.hasOwn(promise, prop)) {
         // The promise has this property directly. we must return it.
         // We know it isn't a dynamic access because it can only be something
@@ -196,17 +196,20 @@ function makeAbortingExoticSearchParams(
         return ReflectAdapter.get(target, prop, receiver)
       }
 
+      const capturedError = new Error()
+      Error.captureStackTrace(capturedError, get)
+
       switch (prop) {
         case 'then': {
           const expression =
             '`await searchParams`, `searchParams.then`, or similar'
-          annotateDynamicAccess(expression, prerenderStore)
+          annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
           return ReflectAdapter.get(target, prop, receiver)
         }
         case 'status': {
           const expression =
             '`use(searchParams)`, `searchParams.status`, or similar'
-          annotateDynamicAccess(expression, prerenderStore)
+          annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
           return ReflectAdapter.get(target, prop, receiver)
         }
 

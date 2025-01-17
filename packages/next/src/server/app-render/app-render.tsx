@@ -125,7 +125,7 @@ import { getStackWithoutErrorMessage } from '../../lib/format-server-error'
 import {
   accessedDynamicData,
   createPostponedAbortSignal,
-  formatDynamicAPIAccesses,
+  createDynamicAccessDebugErrors,
   isPrerenderInterruptedError,
   createDynamicTrackingState,
   createDynamicValidationState,
@@ -1341,9 +1341,13 @@ async function renderToHTMLOrFlightImpl(
       accessedDynamicData(response.dynamicAccess) &&
       renderOpts.isDebugDynamicAccesses
     ) {
-      warn('The following dynamic usage was detected:')
-      for (const access of formatDynamicAPIAccesses(response.dynamicAccess)) {
-        warn(access)
+      const debugErrors = createDynamicAccessDebugErrors(response.dynamicAccess)
+
+      if (debugErrors.length > 0) {
+        warn('The following dynamic usage was detected:')
+        for (const debugError of debugErrors) {
+          warn(debugError)
+        }
       }
     }
 
@@ -2337,7 +2341,9 @@ async function spawnDynamicValidationInDev(
   // due to lazy module initialization. We can restart our render to capture results
 
   const finalServerController = new AbortController()
-  const serverDynamicTracking = createDynamicTrackingState(false)
+
+  // TODO: Set debug param based on to-be-added --debug CLI flag for `next dev`.
+  const serverDynamicTracking = createDynamicTrackingState(true)
 
   const finalServerPrerenderStore: PrerenderStore = {
     type: 'prerender',
@@ -2356,7 +2362,9 @@ async function spawnDynamicValidationInDev(
   }
 
   const finalClientController = new AbortController()
-  const clientDynamicTracking = createDynamicTrackingState(false)
+
+  // TODO: Set debug param based on to-be-added --debug CLI flag for `next dev`.
+  const clientDynamicTracking = createDynamicTrackingState(true)
   const dynamicValidation = createDynamicValidationState()
 
   const finalClientPrerenderStore: PrerenderStore = {

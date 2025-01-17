@@ -2,6 +2,7 @@ import {
   HeadersAdapter,
   type ReadonlyHeaders,
 } from '../web/spec-extension/adapters/headers'
+import { ReflectAdapter } from '../web/spec-extension/adapters/reflect'
 import { workAsyncStorage } from '../app-render/work-async-storage.external'
 import { getExpectedRequestStore } from '../app-render/work-unit-async-storage.external'
 import {
@@ -14,12 +15,17 @@ import {
   throwToInterruptStaticGeneration,
   trackDynamicDataInDynamicRender,
   trackSynchronousRequestDataAccessInDev,
+  annotateDynamicAccess,
 } from '../app-render/dynamic-rendering'
 import { StaticGenBailoutError } from '../../client/components/static-generation-bailout'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import { createDedupedByCallsiteServerErrorLoggerDev } from '../create-deduped-by-callsite-server-error-logger'
 import { scheduleImmediate } from '../../lib/scheduler'
-import { isRequestAPICallableInsideAfter } from './utils'
+import {
+  describeHasCheckingStringProperty,
+  describeStringPropertyAccess,
+  isRequestAPICallableInsideAfter,
+} from './utils'
 
 /**
  * In this version of Next.js `headers()` returns a Promise however you can still reference the properties of the underlying Headers instance
@@ -151,144 +157,222 @@ function makeDynamicallyTrackedExoticHeaders(
     prerenderStore.renderSignal,
     '`headers()`'
   )
-  CachedHeaders.set(prerenderStore, promise)
 
-  Object.defineProperties(promise, {
-    append: {
-      value: function append() {
-        const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    delete: {
-      value: function _delete() {
-        const expression = `\`headers().delete(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    get: {
-      value: function get() {
-        const expression = `\`headers().get(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    has: {
-      value: function has() {
-        const expression = `\`headers().has(${describeNameArg(arguments[0])})\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    set: {
-      value: function set() {
-        const expression = `\`headers().set(${describeNameArg(arguments[0])}, ...)\``
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    getSetCookie: {
-      value: function getSetCookie() {
-        const expression = '`headers().getSetCookie()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    forEach: {
-      value: function forEach() {
-        const expression = '`headers().forEach(...)`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    keys: {
-      value: function keys() {
-        const expression = '`headers().keys()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    values: {
-      value: function values() {
-        const expression = '`headers().values()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    entries: {
-      value: function entries() {
-        const expression = '`headers().entries()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-    [Symbol.iterator]: {
-      value: function () {
-        const expression = '`headers()[Symbol.iterator]()`'
-        const error = createHeadersAccessError(route, expression)
-        abortAndThrowOnSynchronousRequestDataAccess(
-          route,
-          expression,
-          error,
-          prerenderStore
-        )
-      },
-    },
-  } satisfies HeadersExtensions)
+  const capturedError = new Error()
+  Error.captureStackTrace(capturedError, headers)
 
-  return promise
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (Object.hasOwn(promise, prop)) {
+        // The promise has this property directly. we must return it.
+        // We know it isn't a dynamic access because it can only be something
+        // that was previously written to the promise and thus not an underlying searchParam value
+        return ReflectAdapter.get(target, prop, receiver)
+      }
+
+      switch (prop) {
+        case 'then': {
+          const expression = '`await headers()`, `headers().then`, or similar'
+          annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'status': {
+          const expression = '`use(headers())`, `headers().status`, or similar'
+          annotateDynamicAccess(expression, prerenderStore, capturedError.stack)
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        // Object prototype
+        case 'hasOwnProperty':
+        case 'isPrototypeOf':
+        case 'propertyIsEnumerable':
+        case 'toString':
+        case 'valueOf':
+        case 'toLocaleString':
+
+        // Promise prototype
+        // fallthrough
+        case 'catch':
+        case 'finally':
+
+        // Common tested properties
+        // fallthrough
+        case 'toJSON':
+        case '$$typeof':
+        case '__esModule': {
+          // These properties cannot be shadowed because they need to be the
+          // true underlying value for Promises to work correctly at runtime
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+
+        case 'append': {
+          const expression = `\`headers().append(${describeNameArg(arguments[0])}, ...)\``
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'delete': {
+          const expression = `\`headers().delete(${describeNameArg(arguments[0])})\``
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'get': {
+          const expression = `\`headers().get(${describeNameArg(arguments[0])})\``
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'has': {
+          const expression = `\`headers().has(${describeNameArg(arguments[0])})\``
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'set': {
+          const expression = `\`headers().set(${describeNameArg(arguments[0])}, ...)\``
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'getSetCookie': {
+          const expression = '`headers().getSetCookie()`'
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'forEach': {
+          const expression = '`headers().forEach(...)`'
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'keys': {
+          const expression = '`headers().keys()`'
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'values': {
+          const expression = '`headers().values()`'
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'entries': {
+          const expression = '`headers().entries()`'
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case Symbol.iterator: {
+          const expression = '`headers()[Symbol.iterator]()`'
+          const error = createHeadersAccessError(route, expression)
+          abortAndThrowOnSynchronousRequestDataAccess(
+            route,
+            expression,
+            error,
+            prerenderStore
+          )
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+
+        default: {
+          if (typeof prop === 'string') {
+            const expression = describeStringPropertyAccess('headers()', prop)
+            const error = createHeadersAccessError(route, expression)
+            abortAndThrowOnSynchronousRequestDataAccess(
+              route,
+              expression,
+              error,
+              prerenderStore
+            )
+          }
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+      }
+    },
+    has(target, prop) {
+      // We don't expect key checking to be used except for testing the existence of
+      // headers() so we make all has tests trigger dynamic. this means that `promise.then`
+      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
+      // you are testing whether the headers() has a 'then' property.
+      if (typeof prop === 'string') {
+        const expression = describeHasCheckingStringProperty('headers()', prop)
+        const error = createHeadersAccessError(route, expression)
+        abortAndThrowOnSynchronousRequestDataAccess(
+          route,
+          expression,
+          error,
+          prerenderStore
+        )
+      }
+      return ReflectAdapter.has(target, prop)
+    },
+    ownKeys() {
+      const expression =
+        '`{...headers()}`, `Object.keys(headers())`, or similar'
+      const error = createHeadersAccessError(route, expression)
+      abortAndThrowOnSynchronousRequestDataAccess(
+        route,
+        expression,
+        error,
+        prerenderStore
+      )
+    },
+  })
+
+  CachedHeaders.set(prerenderStore, proxiedPromise)
+  return proxiedPromise
 }
 
 function makeUntrackedExoticHeaders(
