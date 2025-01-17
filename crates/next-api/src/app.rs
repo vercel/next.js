@@ -736,9 +736,7 @@ impl AppProject {
             // segment
             async move {
                 let mut graphs = vec![];
-                let mut visited_modules = VisitedModules::empty();
-
-                if has_layout_segments {
+                let mut visited_modules = if has_layout_segments {
                     let ServerEntries {
                         server_utils,
                         server_component_entries,
@@ -754,10 +752,10 @@ impl AppProject {
                             .map(|m| **m)
                             .chain(extra_entries)
                             .collect(),
-                        visited_modules,
+                        VisitedModules::empty(),
                     );
                     graphs.push(graph);
-                    visited_modules = VisitedModules::from_graph(graph);
+                    let mut visited_modules = VisitedModules::from_graph(graph);
 
                     for module in server_component_entries.iter() {
                         let graph = SingleModuleGraph::new_with_entries_visited(
@@ -774,12 +772,15 @@ impl AppProject {
                             visited_modules.concatenate(graph)
                         } else {
                             // Prevents graph index from getting out of sync.
-                            // TODO We should remove VisitedModule entirely in favor of lookups in
-                            // SingleModuleGraph
+                            // TODO We should remove VisitedModule entirely in favor of lookups
+                            // in SingleModuleGraph
                             visited_modules.with_incremented_index()
                         };
                     }
-                }
+                    visited_modules
+                } else {
+                    VisitedModules::empty()
+                };
 
                 let graph =
                     SingleModuleGraph::new_with_entries_visited(vec![*rsc_entry], visited_modules);

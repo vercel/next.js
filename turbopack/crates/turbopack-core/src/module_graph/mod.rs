@@ -77,7 +77,7 @@ impl VisitedModules {
                     SingleModuleGraphNode::VisitedModule { .. } => None,
                 })
                 .collect(),
-            next_graph_idx: 0,
+            next_graph_idx: 1,
         }
         .cell())
     }
