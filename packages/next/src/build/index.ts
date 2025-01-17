@@ -3241,7 +3241,7 @@ export default async function build(
                     : normalizeRouteRegex(
                         getNamedRouteRegex(dataRoute, {
                           prefixRouteKeys: false,
-                          includeExtraParts: true,
+                          includeSuffix: true,
                           excludeOptionalTrailingSlash: true,
                         }).re.source
                       ),
@@ -3251,7 +3251,7 @@ export default async function build(
                     : normalizeRouteRegex(
                         getNamedRouteRegex(prefetchDataRoute, {
                           prefixRouteKeys: false,
-                          includeExtraParts: true,
+                          includeSuffix: true,
                           excludeOptionalTrailingSlash: true,
                         }).re.source
                       ),
@@ -3669,7 +3669,7 @@ export default async function build(
             dataRouteRegex: normalizeRouteRegex(
               getNamedRouteRegex(dataRoute, {
                 prefixRouteKeys: true,
-                includeExtraParts: true,
+                includeSuffix: true,
                 excludeOptionalTrailingSlash: true,
               }).re.source
             ),

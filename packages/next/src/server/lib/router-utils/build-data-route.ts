@@ -16,7 +16,7 @@ export function buildDataRoute(page: string, buildId: string) {
   if (isDynamicRoute(page)) {
     const routeRegex = getNamedRouteRegex(dataRoute, {
       prefixRouteKeys: true,
-      includeExtraParts: true,
+      includeSuffix: true,
       excludeOptionalTrailingSlash: true,
     })
 
