@@ -42,7 +42,7 @@ export const NextLogo = ({
       <style>
         {css`
           [data-next-badge] {
-            --timing: cubic-bezier(0.175, 0.5, 0.32, 1.1);
+            --timing: cubic-bezier(0.175, 0.42, 0.32, 1.1);
             --duration: 300ms;
             --color-outer-border: #171717;
             --color-inner-border: hsla(0, 0%, 100%, 0.14);
