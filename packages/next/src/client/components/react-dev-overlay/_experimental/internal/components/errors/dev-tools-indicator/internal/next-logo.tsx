@@ -17,24 +17,11 @@ export const NextLogo = ({
   isDevRendering,
   ...props
 }: Props) => {
-  const [hasError, setError] = useState(false)
-  // const hasError = issueCount > 0
+  const hasError = issueCount > 0
   const [isLoading, setIsLoading] = useState(false)
 
   const ref = useRef<HTMLDivElement | null>(null)
   const width = useMeasureWidth(ref)
-  // bind to F key
-
-  useEffect(() => {
-    const handleKeydown = (event: KeyboardEvent) => {
-      if (event.key === 'f') {
-        setError((e) => !e)
-      }
-    }
-
-    window.addEventListener('keydown', handleKeydown)
-    return () => window.removeEventListener('keydown', handleKeydown)
-  }, [onClick])
 
   // Only shows the loading state after a 200ms delay when building or rendering,
   // to avoid flashing the loading state for quick updates
