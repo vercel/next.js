@@ -1067,7 +1067,10 @@ impl AppEndpoint {
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
 
-        let client_references = reduced_graphs.get_client_references_for_endpoint(*rsc_entry);
+        let client_references = reduced_graphs.get_client_references_for_endpoint(
+            *rsc_entry,
+            matches!(this.ty, AppEndpointType::Page { .. }),
+        );
 
         let client_references_chunks = get_app_client_references_chunks(
             client_references,
