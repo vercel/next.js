@@ -728,41 +728,43 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
+        has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
-                let ServerEntries {
-                    server_utils,
-                    server_component_entries,
-                } = &*find_server_entries(*rsc_entry).await?;
-
                 let mut graphs = vec![];
-
                 let mut visited_modules = VisitedModules::empty();
 
-                if !server_utils.is_empty() {
-                    let graph = SingleModuleGraph::new_with_entries_visited(
-                        server_utils.iter().map(|m| **m).collect(),
-                        visited_modules,
-                    );
-                    graphs.push(graph);
-                    visited_modules = VisitedModules::from_graph(graph)
-                }
+                if has_layout_segments {
+                    let ServerEntries {
+                        server_utils,
+                        server_component_entries,
+                    } = &*find_server_entries(*rsc_entry).await?;
+                    if !server_utils.is_empty() {
+                        let graph = SingleModuleGraph::new_with_entries_visited(
+                            server_utils.iter().map(|m| **m).collect(),
+                            visited_modules,
+                        );
+                        graphs.push(graph);
+                        visited_modules = VisitedModules::from_graph(graph)
+                    }
 
-                for module in server_component_entries.iter() {
-                    let graph = SingleModuleGraph::new_with_entries_visited(
-                        vec![Vc::upcast(**module)],
-                        visited_modules,
-                    );
-                    graphs.push(graph);
-                    let is_layout =
-                        module.server_path().file_stem().await?.as_deref() == Some("layout");
-                    if is_layout {
-                        // Only propagate the visited_modules of the parent layout(s), not across
-                        // siblings such as loading.js and page.js.
-                        visited_modules = visited_modules.concatenate(graph);
+                    for module in server_component_entries.iter() {
+                        let graph = SingleModuleGraph::new_with_entries_visited(
+                            vec![Vc::upcast(**module)],
+                            visited_modules,
+                        );
+                        graphs.push(graph);
+                        let is_layout =
+                            module.server_path().file_stem().await?.as_deref() == Some("layout");
+                        if is_layout {
+                            // Only propagate the visited_modules of the parent layout(s), not
+                            // across siblings such as loading.js and
+                            // page.js.
+                            visited_modules = visited_modules.concatenate(graph);
+                        }
                     }
                 }
 
@@ -1014,7 +1016,14 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
-        let module_graphs = this.app_project.app_module_graphs(self, *rsc_entry).await?;
+        let module_graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *rsc_entry,
+                matches!(this.ty, AppEndpointType::Page { .. }),
+            )
+            .await?;
 
         let client_chunking_context = project.client_chunking_context();
 
@@ -1058,7 +1067,10 @@ impl AppEndpoint {
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
 
-        let client_references = reduced_graphs.get_client_references_for_endpoint(*rsc_entry);
+        let client_references = reduced_graphs.get_client_references_for_endpoint(
+            *rsc_entry,
+            matches!(this.ty, AppEndpointType::Page { .. }),
+        );
 
         let client_references_chunks = get_app_client_references_chunks(
             client_references,
