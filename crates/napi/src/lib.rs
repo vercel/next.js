@@ -37,7 +37,10 @@ extern crate napi_derive;
 use std::{
     env,
     panic::set_hook,
-    sync::{Arc, Once},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc, Once,
+    },
 };
 
 use backtrace::Backtrace;
@@ -97,6 +100,7 @@ pub fn complete_output(
     env: &Env,
     output: TransformOutput,
     eliminated_packages: FxHashSet<String>,
+    use_cache_directive_count: Arc<AtomicUsize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
@@ -109,6 +113,10 @@ pub fn complete_output(
             env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
         )?;
     }
+    js_output.set_named_property(
+        "useCacheCount",
+        env.create_int32(use_cache_directive_count.load(Ordering::SeqCst) as i32)?,
+    )?;
     Ok(js_output)
 }
 

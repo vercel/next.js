@@ -1,4 +1,9 @@
-use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+    cell::RefCell,
+    path::PathBuf,
+    rc::Rc,
+    sync::{atomic::AtomicUsize, Arc},
+};
 
 use either::Either;
 use fxhash::FxHashSet;
@@ -125,6 +130,7 @@ pub fn custom_before_pass<'a, C>(
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
     unresolved_mark: Mark,
+    use_cache_directive_count: Arc<AtomicUsize>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
@@ -303,6 +309,7 @@ where
                     &file.name,
                     config.clone(),
                     comments.clone(),
+                    use_cache_directive_count,
                 )),
                 None => Either::Right(noop_pass()),
             },

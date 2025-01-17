@@ -185,6 +185,11 @@ async function loaderTransform(
         this.eliminatedPackages.add(pkg)
       }
     }
+
+    if (output.useCacheCount > 0 && this.useCacheCountRef) {
+      this.useCacheCountRef.current += output.useCacheCount
+    }
+
     return [output.code, output.map ? JSON.parse(output.map) : undefined]
   })
 }

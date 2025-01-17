@@ -3637,6 +3637,17 @@ export default async function build(
             NextBuildContext.telemetryState.packagesUsedInServerSideProps
           )
         )
+        const useCacheCount = NextBuildContext.telemetryState.useCacheCount
+        if (useCacheCount > 0) {
+          telemetry.record(
+            eventBuildFeatureUsage([
+              {
+                featureName: 'useCache',
+                invocationCount: useCacheCount,
+              },
+            ])
+          )
+        }
       }
 
       if (ssgPages.size > 0 || appDir) {

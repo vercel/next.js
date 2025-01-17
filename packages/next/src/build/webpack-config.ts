@@ -1937,6 +1937,11 @@ export default async function getBaseWebpackConfig(
             ].filter<[Feature, boolean]>(Boolean as any)
           )
         ),
+      !dev &&
+        !isClient &&
+        new (require('./webpack/plugins/telemetry-plugin').TelemetryPlugin)(
+          new Map()
+        ),
     ].filter(Boolean as any as ExcludesFalse),
   }
 

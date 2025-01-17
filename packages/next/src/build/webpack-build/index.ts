@@ -82,7 +82,12 @@ async function webpackBuildWithWorker(
     prunedBuildContext.pluginState = pluginState
 
     if (curResult.telemetryState) {
-      NextBuildContext.telemetryState = curResult.telemetryState
+      NextBuildContext.telemetryState = {
+        ...curResult.telemetryState,
+        useCacheCount:
+          (NextBuildContext.telemetryState?.useCacheCount || 0) +
+          curResult.telemetryState.useCacheCount,
+      }
     }
 
     combinedResult.duration += curResult.duration

@@ -31,7 +31,7 @@ use std::{
     fs::read_to_string,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
-    sync::Arc,
+    sync::{atomic::AtomicUsize, Arc},
 };
 
 use anyhow::{anyhow, bail, Context as _};
@@ -81,12 +81,13 @@ fn skip_filename() -> bool {
 }
 
 impl Task for TransformTask {
-    type Output = (TransformOutput, FxHashSet<String>);
+    type Output = (TransformOutput, FxHashSet<String>, Arc<AtomicUsize>);
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
             let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
+            let use_cache_directive_count = Arc::new(AtomicUsize::new(0));
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
                     self.c.cm.clone(),
@@ -143,6 +144,7 @@ impl Task for TransformTask {
                                         comments.clone(),
                                         eliminated_packages.clone(),
                                         unresolved_mark,
+                                        use_cache_directive_count.clone(),
                                     )
                                 },
                                 |_| noop_pass(),
@@ -161,7 +163,13 @@ impl Task for TransformTask {
 
             match res {
                 Ok(res) => res
-                    .map(|o| (o, eliminated_packages.replace(Default::default())))
+                    .map(|o| {
+                        (
+                            o,
+                            eliminated_packages.replace(Default::default()),
+                            use_cache_directive_count,
+                        )
+                    })
                     .convert_err(),
                 Err(err) => Err(napi::Error::new(
                     Status::GenericFailure,
@@ -174,9 +182,9 @@ impl Task for TransformTask {
     fn resolve(
         &mut self,
         env: Env,
-        (output, eliminated_packages): Self::Output,
+        (output, eliminated_packages, use_cache_directive_count): Self::Output,
     ) -> napi::Result<Self::JsValue> {
-        complete_output(&env, output, eliminated_packages)
+        complete_output(&env, output, eliminated_packages, use_cache_directive_count)
     }
 }
 

@@ -173,6 +173,7 @@ export type EventBuildFeatureUsage = {
     | 'skipTrailingSlashRedirect'
     | 'modularizeImports'
     | 'esmExternals'
+    | 'useCache'
   invocationCount: number
 }
 export function eventBuildFeatureUsage(

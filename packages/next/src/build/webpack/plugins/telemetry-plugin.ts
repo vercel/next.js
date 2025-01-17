@@ -44,7 +44,7 @@ export type Feature =
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
-
+  | 'useCache'
 interface FeatureUsage {
   featureName: Feature
   invocationCount: number
@@ -112,6 +112,10 @@ const BUILD_FEATURES: Array<Feature> = [
 ]
 
 const eliminatedPackages = new Set<string>()
+
+const useCacheCountRef = {
+  current: 0,
+}
 
 /**
  * Determine if there is a feature of interest in the specified 'module'.
@@ -217,13 +221,18 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
         callback()
       }
     )
+
     if (compiler.options.mode === 'production' && !compiler.watchMode) {
-      compiler.hooks.compilation.tap(TelemetryPlugin.name, (compilation) => {
-        const moduleHooks = NormalModule.getCompilationHooks(compilation)
-        moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext: any) => {
-          loaderContext.eliminatedPackages = eliminatedPackages
-        })
-      })
+      compiler.hooks.thisCompilation.tap(
+        TelemetryPlugin.name,
+        (compilation) => {
+          const moduleHooks = NormalModule.getCompilationHooks(compilation)
+          moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext: any) => {
+            loaderContext.eliminatedPackages = eliminatedPackages
+            loaderContext.useCacheCountRef = useCacheCountRef
+          })
+        }
+      )
     }
   }
 
@@ -234,6 +243,10 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
   packagesUsedInServerSideProps(): string[] {
     return Array.from(eliminatedPackages)
   }
+
+  useCacheCount(): number {
+    return useCacheCountRef.current
+  }
 }
 
 export type TelemetryPluginState = {
@@ -241,4 +254,5 @@ export type TelemetryPluginState = {
   packagesUsedInServerSideProps: ReturnType<
     TelemetryPlugin['packagesUsedInServerSideProps']
   >
+  useCacheCount: ReturnType<TelemetryPlugin['useCacheCount']>
 }

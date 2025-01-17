@@ -2,6 +2,10 @@ use std::{
     collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
 };
 
 use hex::encode as hex_encode;
@@ -117,7 +121,12 @@ enum ServerActionsErrorKind {
 pub type ActionsMap = BTreeMap<String, String>;
 
 #[tracing::instrument(level = tracing::Level::TRACE, skip_all)]
-pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comments: C) -> impl Pass {
+pub fn server_actions<C: Comments>(
+    file_name: &FileName,
+    config: Config,
+    comments: C,
+    use_cache_directive_count: Arc<AtomicUsize>,
+) -> impl Pass {
     visit_mut_pass(ServerActions {
         config,
         comments,
@@ -155,6 +164,8 @@ pub fn server_actions<C: Comments>(file_name: &FileName, config: Config, comment
 
         arrow_or_fn_expr_ident: None,
         exported_local_ids: HashSet::new(),
+
+        use_cache_directive_count,
     })
 }
 
@@ -210,6 +221,8 @@ struct ServerActions<C: Comments> {
 
     arrow_or_fn_expr_ident: Option<Ident>,
     exported_local_ids: HashSet<Id>,
+
+    use_cache_directive_count: Arc<AtomicUsize>,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -351,6 +364,7 @@ impl<C: Comments> ServerActions<C> {
                 has_file_directive: self.file_directive.is_some(),
                 is_allowed_position: true,
                 location: DirectiveLocation::FunctionBody,
+                use_cache_directive_count: Arc::clone(&self.use_cache_directive_count),
             };
 
             body.stmts.retain(|stmt| {
@@ -377,6 +391,7 @@ impl<C: Comments> ServerActions<C> {
             has_file_directive: false,
             is_allowed_position: true,
             location: DirectiveLocation::Module,
+            use_cache_directive_count: Arc::clone(&self.use_cache_directive_count),
         };
 
         stmts.retain(|item| {
@@ -2605,6 +2620,7 @@ struct DirectiveVisitor<'a> {
     directive: Option<Directive>,
     has_file_directive: bool,
     is_allowed_position: bool,
+    use_cache_directive_count: Arc<AtomicUsize>,
 }
 
 impl DirectiveVisitor<'_> {
@@ -2658,6 +2674,10 @@ impl DirectiveVisitor<'_> {
                 } else
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
+                    // Increment telemetry counter tracking usage of "use cache" directives
+                    self.use_cache_directive_count
+                        .fetch_add(1, Ordering::SeqCst);
+
                     if in_fn_body && !allow_inline {
                         emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
                             span: *span,

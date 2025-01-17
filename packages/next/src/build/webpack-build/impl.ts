@@ -353,6 +353,7 @@ export async function webpackBuildImpl(
         usages: telemetryPlugin?.usages() || [],
         packagesUsedInServerSideProps:
           telemetryPlugin?.packagesUsedInServerSideProps() || [],
+        useCacheCount: telemetryPlugin?.useCacheCount() || 0,
       },
     }
   }
