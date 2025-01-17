@@ -97,6 +97,14 @@ pub trait ChunkableModule: Module + Asset {
 #[turbo_tasks::value(transparent)]
 pub struct ChunkableModules(Vec<ResolvedVc<Box<dyn ChunkableModule>>>);
 
+#[turbo_tasks::value_impl]
+impl ChunkableModules {
+    #[turbo_tasks::function]
+    pub fn interned(modules: Vec<ResolvedVc<Box<dyn ChunkableModule>>>) -> Vc<Self> {
+        Vc::cell(modules)
+    }
+}
+
 #[turbo_tasks::value(transparent)]
 pub struct Chunks(Vec<ResolvedVc<Box<dyn Chunk>>>);
 
@@ -180,11 +188,10 @@ pub enum ChunkingType {
     Async,
     /// Create a new chunk group in a separate context, merging references with the same tag into a
     /// single chunk group. It does not inherit the available modules from the parent.
-    // TODO implement
+    // TODO this is currently skipped in chunking
     Isolated {
         _ty: ChunkGroupType,
-        _merge_tag: Option<RcStr>,
-        _chunking_context: Option<ResolvedVc<Box<dyn ChunkingContext>>>,
+        merge_tag: Option<RcStr>,
     },
     /// Module not placed in chunk group, but its references are still followed and placed into the
     /// chunk group.

@@ -55,8 +55,8 @@ use turbopack::{
 use turbopack_core::{
     asset::AssetContent,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
+        availability_info::AvailabilityInfo, ChunkableModule, ChunkableModules, ChunkingContext,
+        ChunkingContextExt, EntryChunkGroupResult, EvaluatableAsset, EvaluatableAssets,
     },
     file_source::FileSource,
     ident::AssetIdent,
@@ -728,41 +728,43 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
+        has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
-                let ServerEntries {
-                    server_utils,
-                    server_component_entries,
-                } = &*find_server_entries(*rsc_entry).await?;
-
                 let mut graphs = vec![];
-
                 let mut visited_modules = VisitedModules::empty();
 
-                if !server_utils.is_empty() {
-                    let graph = SingleModuleGraph::new_with_entries_visited(
-                        server_utils.iter().map(|m| **m).collect(),
-                        visited_modules,
-                    );
-                    graphs.push(graph);
-                    visited_modules = VisitedModules::from_graph(graph)
-                }
+                if has_layout_segments {
+                    let ServerEntries {
+                        server_utils,
+                        server_component_entries,
+                    } = &*find_server_entries(*rsc_entry).await?;
+                    if !server_utils.is_empty() {
+                        let graph = SingleModuleGraph::new_with_entries_visited(
+                            server_utils.iter().map(|m| **m).collect(),
+                            visited_modules,
+                        );
+                        graphs.push(graph);
+                        visited_modules = VisitedModules::from_graph(graph)
+                    }
 
-                for module in server_component_entries.iter() {
-                    let graph = SingleModuleGraph::new_with_entries_visited(
-                        vec![Vc::upcast(**module)],
-                        visited_modules,
-                    );
-                    graphs.push(graph);
-                    let is_layout =
-                        module.server_path().file_stem().await?.as_deref() == Some("layout");
-                    if is_layout {
-                        // Only propagate the visited_modules of the parent layout(s), not across
-                        // siblings such as loading.js and page.js.
-                        visited_modules = visited_modules.concatenate(graph);
+                    for module in server_component_entries.iter() {
+                        let graph = SingleModuleGraph::new_with_entries_visited(
+                            vec![Vc::upcast(**module)],
+                            visited_modules,
+                        );
+                        graphs.push(graph);
+                        let is_layout =
+                            module.server_path().file_stem().await?.as_deref() == Some("layout");
+                        if is_layout {
+                            // Only propagate the visited_modules of the parent layout(s), not
+                            // across siblings such as loading.js and
+                            // page.js.
+                            visited_modules = visited_modules.concatenate(graph);
+                        }
                     }
                 }
 
@@ -804,8 +806,8 @@ pub fn app_entry_point_to_route(
             pages
                 .into_iter()
                 .map(|page| AppPageRoute {
-                    original_name: page.to_string(),
-                    html_endpoint: Vc::upcast(
+                    original_name: RcStr::from(page.to_string()),
+                    html_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Html,
@@ -814,9 +816,9 @@ pub fn app_entry_point_to_route(
                             app_project,
                             page: page.clone(),
                         }
-                        .cell(),
+                        .resolved_cell(),
                     ),
-                    rsc_endpoint: Vc::upcast(
+                    rsc_endpoint: ResolvedVc::upcast(
                         AppEndpoint {
                             ty: AppEndpointType::Page {
                                 ty: AppPageEndpointType::Rsc,
@@ -825,7 +827,7 @@ pub fn app_entry_point_to_route(
                             app_project,
                             page,
                         }
-                        .cell(),
+                        .resolved_cell(),
                     ),
                 })
                 .collect(),
@@ -835,7 +837,7 @@ pub fn app_entry_point_to_route(
             path,
             root_layouts,
         } => Route::AppRoute {
-            original_name: page.to_string(),
+            original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Route { path, root_layouts },
@@ -846,7 +848,7 @@ pub fn app_entry_point_to_route(
             ),
         },
         AppEntrypoint::AppMetadata { page, metadata } => Route::AppRoute {
-            original_name: page.to_string(),
+            original_name: page.to_string().into(),
             endpoint: ResolvedVc::upcast(
                 AppEndpoint {
                     ty: AppEndpointType::Metadata { metadata },
@@ -1014,7 +1016,14 @@ impl AppEndpoint {
         let runtime = app_entry.config.await?.runtime.unwrap_or_default();
 
         let rsc_entry = app_entry.rsc_entry;
-        let module_graphs = this.app_project.app_module_graphs(self, *rsc_entry).await?;
+        let module_graphs = this
+            .app_project
+            .app_module_graphs(
+                self,
+                *rsc_entry,
+                matches!(this.ty, AppEndpointType::Page { .. }),
+            )
+            .await?;
 
         let client_chunking_context = project.client_chunking_context();
 
@@ -1058,7 +1067,10 @@ impl AppEndpoint {
             .get_next_dynamic_imports_for_endpoint(*rsc_entry)
             .await?;
 
-        let client_references = reduced_graphs.get_client_references_for_endpoint(*rsc_entry);
+        let client_references = reduced_graphs.get_client_references_for_endpoint(
+            *rsc_entry,
+            matches!(this.ty, AppEndpointType::Page { .. }),
+        );
 
         let client_references_chunks = get_app_client_references_chunks(
             client_references,
@@ -1559,9 +1571,9 @@ impl AppEndpoint {
                             .server_utils
                             .iter()
                             .map(|m| async move {
-                                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
+                                Ok(*ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
                                     .await?
-                                    .context("Expected server utils to be chunkable")
+                                    .context("Expected server utils to be chunkable")?)
                             })
                             .try_join()
                             .await?;
@@ -1569,7 +1581,7 @@ impl AppEndpoint {
                             .chunk_group_multiple(
                                 AssetIdent::from_path(this.app_project.project().project_path())
                                     .with_modifier(server_utils_modifier()),
-                                Vc::cell(server_utils),
+                                ChunkableModules::interned(server_utils),
                                 module_graph,
                                 Value::new(current_availability_info),
                             )

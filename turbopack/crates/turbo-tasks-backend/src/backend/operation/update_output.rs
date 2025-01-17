@@ -4,10 +4,12 @@ use anyhow::{anyhow, Result};
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{util::SharedError, RawVc, TaskId};
 
+#[cfg(feature = "trace_task_dirty")]
+use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
-            invalidate::{make_task_dirty, make_task_dirty_internal, TaskDirtyCause},
+            invalidate::{make_task_dirty, make_task_dirty_internal},
             AggregationUpdateQueue, ExecuteContext, Operation, TaskGuard,
         },
         storage::{get, get_many},
@@ -19,6 +21,7 @@ use crate::{
 #[derive(Serialize, Deserialize, Clone, Default)]
 pub enum UpdateOutputOperation {
     MakeDependentTasksDirty {
+        #[cfg(feature = "trace_task_dirty")]
         task_id: TaskId,
         dependent_tasks: Vec<TaskId>,
         children: Vec<TaskId>,
@@ -117,6 +120,7 @@ impl UpdateOutputOperation {
             &mut task,
             task_id,
             false,
+            #[cfg(feature = "trace_task_dirty")]
             TaskDirtyCause::InitialDirty,
             &mut queue,
             &ctx,
@@ -127,6 +131,7 @@ impl UpdateOutputOperation {
         drop(old_error);
 
         UpdateOutputOperation::MakeDependentTasksDirty {
+            #[cfg(feature = "trace_task_dirty")]
             task_id,
             dependent_tasks,
             children,
@@ -142,6 +147,7 @@ impl Operation for UpdateOutputOperation {
             ctx.operation_suspend_point(&self);
             match self {
                 UpdateOutputOperation::MakeDependentTasksDirty {
+                    #[cfg(feature = "trace_task_dirty")]
                     task_id,
                     ref mut dependent_tasks,
                     ref mut children,
@@ -150,6 +156,7 @@ impl Operation for UpdateOutputOperation {
                     if let Some(dependent_task_id) = dependent_tasks.pop() {
                         make_task_dirty(
                             dependent_task_id,
+                            #[cfg(feature = "trace_task_dirty")]
                             TaskDirtyCause::OutputChange { task_id },
                             queue,
                             ctx,
@@ -173,6 +180,7 @@ impl Operation for UpdateOutputOperation {
                                 &mut child_task,
                                 child_id,
                                 false,
+                                #[cfg(feature = "trace_task_dirty")]
                                 TaskDirtyCause::InitialDirty,
                                 queue,
                                 ctx,

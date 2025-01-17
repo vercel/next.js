@@ -23,7 +23,7 @@ import {
   useErrorOverlayReducer,
 } from '../shared'
 import { parseStack } from '../internal/helpers/parse-stack'
-import ReactDevOverlay from './ReactDevOverlay'
+import ReactDevOverlay from './react-dev-overlay'
 import { useErrorHandler } from '../../errors/use-error-handler'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
 import {

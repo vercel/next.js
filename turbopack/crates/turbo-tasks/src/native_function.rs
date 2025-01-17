@@ -13,7 +13,7 @@ use crate::{
         function::{IntoTaskFnWithThis, NativeTaskFuture},
         IntoTaskFn, TaskFn,
     },
-    RawVc, TaskId, TaskInput,
+    RawVc, TaskInput, TaskPersistence,
 };
 
 type ResolveFunctor =
@@ -163,27 +163,47 @@ impl NativeFunction {
         }
     }
 
-    pub fn span(&'static self, task_id: TaskId) -> Span {
-        if task_id.is_transient() {
-            tracing::trace_span!(
-                "turbo_tasks::function",
-                name = self.name.as_str(),
-                transient = true
-            )
-        } else {
-            tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
+    pub fn span(&'static self, persistence: TaskPersistence) -> Span {
+        match persistence {
+            TaskPersistence::Persistent => {
+                tracing::trace_span!("turbo_tasks::function", name = self.name.as_str())
+            }
+            TaskPersistence::Transient => {
+                tracing::trace_span!(
+                    "turbo_tasks::function",
+                    name = self.name.as_str(),
+                    transient = true,
+                )
+            }
+            TaskPersistence::LocalCells => {
+                tracing::trace_span!(
+                    "turbo_tasks::function",
+                    name = self.name.as_str(),
+                    local_cells = true,
+                )
+            }
         }
     }
 
-    pub fn resolve_span(&'static self, task_id: TaskId) -> Span {
-        if task_id.is_transient() {
-            tracing::trace_span!(
-                "turbo_tasks::resolve_call",
-                name = self.name.as_str(),
-                transient = true
-            )
-        } else {
-            tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
+    pub fn resolve_span(&'static self, persistence: TaskPersistence) -> Span {
+        match persistence {
+            TaskPersistence::Persistent => {
+                tracing::trace_span!("turbo_tasks::resolve_call", name = self.name.as_str())
+            }
+            TaskPersistence::Transient => {
+                tracing::trace_span!(
+                    "turbo_tasks::resolve_call",
+                    name = self.name.as_str(),
+                    transient = true,
+                )
+            }
+            TaskPersistence::LocalCells => {
+                tracing::trace_span!(
+                    "turbo_tasks::resolve_call",
+                    name = self.name.as_str(),
+                    local_cells = true,
+                )
+            }
         }
     }
 

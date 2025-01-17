@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet},
+    collections::{HashMap, HashSet, VecDeque},
     future::Future,
     ops::Deref,
 };
@@ -10,6 +10,7 @@ use petgraph::{
     visit::{Dfs, EdgeRef, VisitMap, Visitable},
 };
 use serde::{Deserialize, Serialize};
+use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -22,10 +23,15 @@ use crate::{
     chunk::ChunkingType,
     issue::Issue,
     module::{Module, Modules},
+    module_graph::chunk_group_info::{compute_chunk_group_info, ChunkGroupInfo},
     reference::primary_chunkable_referenced_modules,
 };
 
-#[derive(Debug, Copy, Clone, Eq, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs)]
+pub mod chunk_group_info;
+
+#[derive(
+    Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
+)]
 pub struct GraphNodeIndex {
     #[turbo_tasks(trace_ignore)]
     graph_idx: usize,
@@ -538,6 +544,13 @@ impl ModuleGraph {
     pub fn from_modules(modules: Vc<Modules>) -> Vc<Self> {
         Self::from_single_graph(SingleModuleGraph::new_with_entries(modules))
     }
+
+    #[turbo_tasks::function]
+    pub async fn chunk_group_info(&self) -> Result<Vc<ChunkGroupInfo>> {
+        compute_chunk_group_info(self)
+            .instrument(tracing::info_span!("compute_chunk_group_info"))
+            .await
+    }
 }
 
 // fn get_node(graph: T, node: T) -> SingleModuleGraphModuleNode {
@@ -583,6 +596,58 @@ impl ModuleGraph {
                 })
             })
             .context("Couldn't find entry module in graph")
+    }
+
+    /// Traverses all reachable edges exactly once and calls the visitor with the edge source and
+    /// target.
+    ///
+    /// This means that target nodes can be revisited (once per incoming edge).
+    ///
+    /// * `entry` - The entry module to start the traversal from
+    /// * `visitor` - Called before visiting the children of a node.
+    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode, state &S
+    ///    - Can return [GraphTraversalAction]s to control the traversal
+    pub async fn traverse_edges_from_entries_bfs<'a>(
+        &self,
+        entries: impl IntoIterator<Item = &'a ResolvedVc<Box<dyn Module>>>,
+        mut visitor: impl FnMut(
+            Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
+            &'_ SingleModuleGraphModuleNode,
+        ) -> GraphTraversalAction,
+    ) -> Result<()> {
+        let graphs = self.get_graphs().await?;
+
+        let mut queue = entries
+            .into_iter()
+            .map(|e| ModuleGraph::get_entry(&graphs, e).unwrap())
+            .collect::<VecDeque<_>>();
+        let mut visited = HashSet::new();
+        for entry_node in &queue {
+            visitor(None, get_node!(graphs, entry_node));
+        }
+        while let Some(node) = queue.pop_front() {
+            let graph = &graphs[node.graph_idx].graph;
+            let node_weight = get_node!(graphs, node);
+            if visited.insert(node) {
+                let neighbors = iter_neighbors(graph, node.node_idx);
+
+                for (edge, succ) in neighbors {
+                    let succ = GraphNodeIndex {
+                        graph_idx: node.graph_idx,
+                        node_idx: succ,
+                    };
+                    let succ_weight = get_node!(graphs, succ);
+                    let edge_weight = graph.edge_weight(edge).unwrap();
+                    let action = visitor(Some((node_weight, edge_weight)), succ_weight);
+                    if !visited.contains(&succ) && action == GraphTraversalAction::Continue {
+                        queue.push_back(succ);
+                    }
+                }
+            }
+        }
+
+        Ok(())
     }
 
     /// Traverses all reachable edges exactly once and calls the visitor with the edge source and

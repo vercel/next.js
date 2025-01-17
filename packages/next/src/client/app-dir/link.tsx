@@ -643,12 +643,17 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     // currently mounted <Link> instances, e.g. so we can re-prefetch them after
     // a revalidation or refresh.
     const observeLinkVisibilityOnMount = React.useCallback(
-      (element: HTMLAnchorElement | SVGAElement) => {
+      (element: HTMLAnchorElement | SVGAElement | null) => {
         if (prefetchEnabled && router !== null) {
-          mountLinkInstance(element, href, router, appPrefetchKind)
+          // FIXME: element still can be null here in some cases. Require further investigation.
+          if (element) {
+            mountLinkInstance(element, href, router, appPrefetchKind)
+          }
         }
         return () => {
-          unmountLinkInstance(element)
+          if (element) {
+            unmountLinkInstance(element)
+          }
         }
       },
       [prefetchEnabled, href, router, appPrefetchKind]
