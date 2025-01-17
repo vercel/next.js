@@ -64,7 +64,7 @@ impl MiddlewareEndpoint {
     }
 
     #[turbo_tasks::function]
-    async fn edge_files(&self) -> Result<Vc<OutputAssets>> {
+    async fn entry_module(&self) -> Vc<Box<dyn Module>> {
         let userland_module = self
             .asset_context
             .process(
@@ -79,44 +79,51 @@ impl MiddlewareEndpoint {
             userland_module,
         );
 
-        let module = wrap_edge_entry(
+        wrap_edge_entry(
             *self.asset_context,
             self.project.project_path(),
             module,
             "middleware".into(),
-        );
+        )
+    }
 
-        let mut evaluatable_assets = get_server_runtime_entries(
+    #[turbo_tasks::function]
+    async fn edge_files(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
+        let this = self.await?;
+        let module = self.entry_module();
+
+        let evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Middleware {
-                app_dir: self.app_dir,
-                ecmascript_client_reference_transition_name: self
+                app_dir: this.app_dir,
+                ecmascript_client_reference_transition_name: this
                     .ecmascript_client_reference_transition_name,
             }),
-            self.project.next_mode(),
+            this.project.next_mode(),
         )
-        .resolve_entries(*self.asset_context)
-        .await?
-        .clone_value();
+        .resolve_entries(*this.asset_context);
+
+        let module_graph = this.project.module_graph_for_entries(evaluatable_assets);
+
+        let mut evaluatable_assets = evaluatable_assets.await?.clone_value();
 
         let Some(module) =
             Vc::try_resolve_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
         else {
             bail!("Entry module must be evaluatable");
         };
-
         let evaluatable = Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(module)
             .await?
             .context("Entry module must be evaluatable")?;
         evaluatable_assets.push(evaluatable.to_resolved().await?);
 
-        let edge_chunking_context = self.project.edge_chunking_context(false);
+        let edge_chunking_context = this.project.edge_chunking_context(false);
 
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
             Vc::cell(evaluatable_assets),
+            module_graph,
             Value::new(AvailabilityInfo::Root),
         );
-
         Ok(edge_files)
     }
 
@@ -322,7 +329,7 @@ impl Endpoint for MiddlewareEndpoint {
 
     #[turbo_tasks::function]
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        Ok(Vc::cell(vec![self.userland_module().to_resolved().await?]))
+        Ok(Vc::cell(vec![self.entry_module().to_resolved().await?]))
     }
 }
 

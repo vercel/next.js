@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
 };
 
@@ -154,6 +155,7 @@ impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
@@ -273,7 +275,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 ///
 /// It is used to include a module's ident in the module graph before the module
 /// itself is resolved, as is the case with NextServerComponentModule's
-/// "client modules" and "client modules ssr".
+/// "client modules" and "ssr modules".
 #[turbo_tasks::value]
 pub struct IncludeIdentModule {
     ident: ResolvedVc<AssetIdent>,

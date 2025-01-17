@@ -8,6 +8,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleModuleReference},
     resolve::{origin::ResolveOrigin, ModulePart},
 };
@@ -72,11 +73,12 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn module_content(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptModuleContent> {
         self.full_module
-            .module_content(chunking_context, async_module_info)
+            .module_content(module_graph, chunking_context, async_module_info)
     }
 }
 
@@ -378,11 +380,13 @@ impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModulePartChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),

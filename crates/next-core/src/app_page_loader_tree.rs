@@ -250,7 +250,7 @@ impl AppPageLoaderTreeBuilder {
         let metadata_route = &*get_metadata_route_name((*item).into()).await?;
         writeln!(
             self.loader_tree_code,
-            "{s}  url: fillMetadataSegment({}, props.params, {}) + \
+            "{s}  url: fillMetadataSegment({}, await props.params, {}) + \
              `?${{{identifier}.src.split(\"/\").splice(-1)[0]}}`,",
             StringifyJs(&pathname_prefix),
             StringifyJs(metadata_route),

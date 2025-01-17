@@ -19,7 +19,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./a",
                         ),
                     ),
@@ -44,7 +44,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "./test",
                         ),
                     ),
@@ -54,8 +54,10 @@
                 ),
                 Constant(
                     Regex(
-                        "\\.test\\.js$",
-                        "",
+                        (
+                            "\\.test\\.js$",
+                            "",
+                        ),
                     ),
                 ),
             ],

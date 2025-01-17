@@ -1,7 +1,8 @@
-use anyhow::{Context, Result};
+use anyhow::Result;
 use indoc::formatdoc;
+use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexSet, ResolvedVc, TaskInput, TryJoinIterExt, Value, ValueToString, Vc};
 use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
@@ -9,6 +10,7 @@ use turbopack_core::{
         availability_info::AvailabilityInfo, ChunkItemExt, ChunkableModule, ChunkingContext,
         ModuleId as TurbopackModuleId,
     },
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     virtual_output::VirtualOutputAsset,
 };
@@ -18,31 +20,49 @@ use super::{ClientReferenceManifest, CssResource, ManifestNode, ManifestNodeEntr
 use crate::{
     mode::NextMode,
     next_app::ClientReferencesChunks,
-    next_client_reference::{
-        ecmascript_client_reference::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule,
-        ClientReferenceGraphResult, ClientReferenceType,
-    },
+    next_client_reference::{ClientReferenceGraphResult, ClientReferenceType},
     next_config::NextConfig,
     util::NextRuntime,
 };
+
+#[derive(TaskInput, Clone, Hash, Debug, PartialEq, Eq, Serialize, Deserialize)]
+pub struct ClientReferenceManifestOptions {
+    pub node_root: Vc<FileSystemPath>,
+    pub client_relative_path: Vc<FileSystemPath>,
+    pub entry_name: RcStr,
+    pub client_references: Vc<ClientReferenceGraphResult>,
+    pub client_references_chunks: Vc<ClientReferencesChunks>,
+    pub rsc_app_entry_chunks: Vc<OutputAssets>,
+    pub rsc_app_entry_chunks_availability: Value<AvailabilityInfo>,
+    pub module_graph: Vc<ModuleGraph>,
+    pub client_chunking_context: Vc<Box<dyn ChunkingContext>>,
+    pub ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
+    pub next_config: Vc<NextConfig>,
+    pub runtime: NextRuntime,
+    pub mode: Vc<NextMode>,
+}
 
 #[turbo_tasks::value_impl]
 impl ClientReferenceManifest {
     #[turbo_tasks::function]
     pub async fn build_output(
-        node_root: Vc<FileSystemPath>,
-        client_relative_path: Vc<FileSystemPath>,
-        entry_name: RcStr,
-        client_references: Vc<ClientReferenceGraphResult>,
-        client_references_chunks: Vc<ClientReferencesChunks>,
-        rsc_app_entry_chunks: Vc<OutputAssets>,
-        rsc_app_entry_chunks_availability: Value<AvailabilityInfo>,
-        client_chunking_context: Vc<Box<dyn ChunkingContext>>,
-        ssr_chunking_context: Option<Vc<Box<dyn ChunkingContext>>>,
-        next_config: Vc<NextConfig>,
-        runtime: NextRuntime,
-        mode: Vc<NextMode>,
+        options: ClientReferenceManifestOptions,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
+        let ClientReferenceManifestOptions {
+            node_root,
+            client_relative_path,
+            entry_name,
+            client_references,
+            client_references_chunks,
+            rsc_app_entry_chunks,
+            rsc_app_entry_chunks_availability,
+            module_graph,
+            client_chunking_context,
+            ssr_chunking_context,
+            next_config,
+            runtime,
+            mode,
+        } = options;
         let mut entry_manifest: ClientReferenceManifest = Default::default();
         let mut references = FxIndexSet::default();
         entry_manifest.module_loading.prefix = next_config
@@ -66,18 +86,16 @@ impl ClientReferenceManifest {
             let app_client_reference_ty = app_client_reference.ty();
 
             // An client component need to be emitted into the client reference manifest
-            if let ClientReferenceType::EcmascriptClientReference {
-                parent_module,
-                module: ecmascript_client_reference,
-            } = app_client_reference_ty
+            if let ClientReferenceType::EcmascriptClientReference(client_reference_module) =
+                app_client_reference_ty
             {
-                let ecmascript_client_reference = ecmascript_client_reference.await?;
+                let client_reference_module_ref = client_reference_module.await?;
 
-                let server_path = ecmascript_client_reference.server_ident.to_string().await?;
+                let server_path = client_reference_module_ref.server_ident.to_string().await?;
 
-                let client_module = ecmascript_client_reference.client_module;
+                let client_module = client_reference_module_ref.client_module;
                 let client_chunk_item = client_module
-                    .as_chunk_item(Vc::upcast(client_chunking_context))
+                    .as_chunk_item(module_graph, Vc::upcast(client_chunking_context))
                     .to_resolved()
                     .await?;
 
@@ -119,21 +137,15 @@ impl ClientReferenceManifest {
                     };
 
                 if let Some(ssr_chunking_context) = ssr_chunking_context {
-                    let ssr_module = ecmascript_client_reference.ssr_module;
+                    let ssr_module = client_reference_module_ref.ssr_module;
                     let ssr_chunk_item = ssr_module
-                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
+                        .as_chunk_item(module_graph, Vc::upcast(ssr_chunking_context))
                         .to_resolved()
                         .await?;
                     let ssr_module_id = ssr_chunk_item.id().await?;
 
-                    let rsc_module = ResolvedVc::try_downcast_type::<
-                        EcmascriptClientReferenceProxyModule,
-                    >(parent_module)
-                    .await?
-                    .context("Expected EcmascriptClientReferenceProxyModule")?;
-
-                    let rsc_chunk_item = rsc_module
-                        .as_chunk_item(Vc::upcast(ssr_chunking_context))
+                    let rsc_chunk_item = client_reference_module
+                        .as_chunk_item(module_graph, Vc::upcast(ssr_chunking_context))
                         .to_resolved()
                         .await?;
                     let rsc_module_id = rsc_chunk_item.id().await?;
@@ -196,7 +208,7 @@ impl ClientReferenceManifest {
 
                         let is_async = is_item_async(
                             &rsc_app_entry_chunks_availability,
-                            ResolvedVc::upcast(rsc_module),
+                            ResolvedVc::upcast(client_reference_module),
                         )
                         .await?;
 

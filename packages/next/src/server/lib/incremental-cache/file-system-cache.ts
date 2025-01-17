@@ -19,6 +19,7 @@ import {
   RSC_SUFFIX,
 } from '../../../lib/constants'
 import { tagsManifest } from './tags-manifest.external'
+import { MultiFileWriter } from '../../../lib/multi-file-writer'
 
 type FileSystemCacheContext = Omit<
   CacheHandlerContext,
@@ -353,13 +354,17 @@ export default class FileSystemCache implements CacheHandler {
 
     if (!this.flushToDisk || !data) return
 
+    // Create a new writer that will prepare to write all the files to disk
+    // after their containing directory is created.
+    const writer = new MultiFileWriter(this.fs)
+
     if (data.kind === CachedRouteKind.APP_ROUTE) {
       const filePath = this.getFilePath(
         `${key}.body`,
         IncrementalCacheKind.APP_ROUTE
       )
-      await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(filePath, data.body)
+
+      writer.append(filePath, data.body)
 
       const meta: RouteMetadata = {
         headers: data.headers,
@@ -368,7 +373,7 @@ export default class FileSystemCache implements CacheHandler {
         segmentPaths: undefined,
       }
 
-      await this.fs.writeFile(
+      writer.append(
         filePath.replace(/\.body$/, NEXT_META_SUFFIX),
         JSON.stringify(meta, null, 2)
       )
@@ -381,12 +386,12 @@ export default class FileSystemCache implements CacheHandler {
         `${key}.html`,
         isAppPath ? IncrementalCacheKind.APP_PAGE : IncrementalCacheKind.PAGES
       )
-      await this.fs.mkdir(path.dirname(htmlPath))
-      await this.fs.writeFile(htmlPath, data.html)
+
+      writer.append(htmlPath, data.html)
 
       // Fallbacks don't generate a data file.
       if (!isFallback) {
-        await this.fs.writeFile(
+        writer.append(
           this.getFilePath(
             `${key}${
               isAppPath
@@ -399,27 +404,45 @@ export default class FileSystemCache implements CacheHandler {
               ? IncrementalCacheKind.APP_PAGE
               : IncrementalCacheKind.PAGES
           ),
-          isAppPath ? data.rscData : JSON.stringify(data.pageData)
+          isAppPath ? data.rscData! : JSON.stringify(data.pageData)
         )
       }
 
       if (data?.kind === CachedRouteKind.APP_PAGE) {
+        let segmentPaths: string[] | undefined
+        if (data.segmentData) {
+          segmentPaths = []
+          const segmentsDir = htmlPath.replace(
+            /\.html$/,
+            RSC_SEGMENTS_DIR_SUFFIX
+          )
+
+          for (const [segmentPath, buffer] of data.segmentData) {
+            segmentPaths.push(segmentPath)
+            const segmentDataFilePath =
+              segmentPath === '/'
+                ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
+                : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
+
+            writer.append(segmentDataFilePath, buffer)
+          }
+        }
+
         const meta: RouteMetadata = {
           headers: data.headers,
           status: data.status,
           postponed: data.postponed,
-          segmentPaths: undefined,
+          segmentPaths,
         }
 
-        await this.fs.writeFile(
+        writer.append(
           htmlPath.replace(/\.html$/, NEXT_META_SUFFIX),
           JSON.stringify(meta)
         )
       }
     } else if (data.kind === CachedRouteKind.FETCH) {
       const filePath = this.getFilePath(key, IncrementalCacheKind.FETCH)
-      await this.fs.mkdir(path.dirname(filePath))
-      await this.fs.writeFile(
+      writer.append(
         filePath,
         JSON.stringify({
           ...data,
@@ -427,6 +450,9 @@ export default class FileSystemCache implements CacheHandler {
         })
       )
     }
+
+    // Wait for all FS operations to complete.
+    await writer.wait()
   }
 
   private getFilePath(pathname: string, kind: IncrementalCacheKind): string {

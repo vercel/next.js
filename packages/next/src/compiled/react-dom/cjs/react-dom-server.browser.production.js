@@ -3486,6 +3486,9 @@ function unwrapThenable(thenable) {
   null === thenableState && (thenableState = []);
   return trackUsedThenable(thenableState, thenable, index);
 }
+function unsupportedRefresh() {
+  throw Error(formatProdErrorMessage(393));
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3570,6 +3573,9 @@ var HooksDispatcher = {
       for (var data = Array(size), i = 0; i < size; i++)
         data[i] = REACT_MEMO_CACHE_SENTINEL;
       return data;
+    },
+    useCacheRefresh: function () {
+      return unsupportedRefresh;
     }
   },
   currentResumableState = null,
@@ -5948,12 +5954,12 @@ function abort(request, reason) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-canary-f0edf41e-20250115" !== isomorphicReactPackageVersion)
+  if ("19.1.0-canary-5b51a2b9-20250116" !== isomorphicReactPackageVersion)
     throw Error(
       formatProdErrorMessage(
         527,
         isomorphicReactPackageVersion,
-        "19.1.0-canary-f0edf41e-20250115"
+        "19.1.0-canary-5b51a2b9-20250116"
       )
     );
 }
@@ -6100,4 +6106,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-canary-f0edf41e-20250115";
+exports.version = "19.1.0-canary-5b51a2b9-20250116";

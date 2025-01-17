@@ -32,6 +32,7 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -346,7 +347,7 @@ struct AnalysisState<'a> {
     var_graph: &'a VarGraph,
     /// This is the current state of known values of function
     /// arguments.
-    fun_args_values: Mutex<HashMap<u32, Vec<JsValue>>>,
+    fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -362,7 +363,7 @@ impl AnalysisState<'_> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
-            value.clone(),
+            value,
             &early_value_visitor,
             &|value| {
                 value_visitor(
@@ -860,7 +861,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         origin,
         compile_time_info,
         var_graph: &var_graph,
-        fun_args_values: Mutex::new(HashMap::<u32, Vec<JsValue>>::new()),
+        fun_args_values: Mutex::new(FxHashMap::<u32, Vec<JsValue>>::default()),
         first_import_meta: true,
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
@@ -915,7 +916,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let condition_has_side_effects = condition.has_side_effects();
 
                 let condition = analysis_state
-                    .link_value(condition, ImportAttributes::empty_ref())
+                    .link_value(*condition, ImportAttributes::empty_ref())
                     .await?;
 
                 macro_rules! inactive {
@@ -1068,7 +1069,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(func, eval_context.imports.get_attributes(span))
+                    .link_value(*func, eval_context.imports.get_attributes(span))
                     .await?;
 
                 handle_call(
@@ -1100,10 +1101,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                 }
                 let mut obj = analysis_state
-                    .link_value(obj, ImportAttributes::empty_ref())
+                    .link_value(*obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportAttributes::empty_ref())
+                    .link_value(*prop, ImportAttributes::empty_ref())
                     .await?;
 
                 if !new {
@@ -1170,11 +1171,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 // FreeVar("require") might be turbopackIgnore-d
                 if !analysis_state
-                    .link_value(var.clone(), eval_context.imports.get_attributes(span))
+                    .link_value(*var.clone(), eval_context.imports.get_attributes(span))
                     .await?
                     .is_unknown()
                 {
-                    handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                    handle_free_var(&ast_path, *var, span, &analysis_state, &mut analysis).await?;
                 }
             }
             Effect::Member {
@@ -1185,10 +1186,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 in_try: _,
             } => {
                 let obj = analysis_state
-                    .link_value(obj, ImportAttributes::empty_ref())
+                    .link_value(*obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportAttributes::empty_ref())
+                    .link_value(*prop, ImportAttributes::empty_ref())
                     .await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
@@ -1246,7 +1247,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
             } => {
                 let arg = analysis_state
-                    .link_value(arg, ImportAttributes::empty_ref())
+                    .link_value(*arg, ImportAttributes::empty_ref())
                     .await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
@@ -3380,7 +3381,7 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
                 {
                     // Is `-e` one of the arguments passed to the program?
                     if items.iter().any(|e| {
-                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Word(arg))) =
+                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Atom(arg))) =
                             e
                         {
                             arg == "-e"

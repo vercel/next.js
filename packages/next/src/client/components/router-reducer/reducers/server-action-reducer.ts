@@ -56,6 +56,7 @@ import {
   extractInfoFromServerReferenceId,
   omitUnusedArgs,
 } from './server-reference-info'
+import { revalidateEntireCache } from '../../segment-cache/cache'
 
 type FetchServerActionResult = {
   redirectLocation: URL | undefined
@@ -338,8 +339,11 @@ export function serverActionReducer(
           )
 
           mutable.cache = cache
-          mutable.prefetchCache = new Map()
-
+          if (process.env.__NEXT_CLIENT_SEGMENT_CACHE) {
+            revalidateEntireCache()
+          } else {
+            mutable.prefetchCache = new Map()
+          }
           if (actionRevalidated) {
             await refreshInactiveParallelSegments({
               state,

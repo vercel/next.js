@@ -14,8 +14,8 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::CssModuleAsset;
 use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
-use super::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 use crate::{
+    next_client_reference::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
     next_server_component::server_component_module::NextServerComponentModule,
     next_server_utility::server_utility_module::NextServerUtilityModule,
 };
@@ -62,11 +62,7 @@ impl ClientReference {
     NonLocalValue,
 )]
 pub enum ClientReferenceType {
-    EcmascriptClientReference {
-        /// should be the EcmascriptClientReferenceProxyModule
-        parent_module: ResolvedVc<Box<dyn Module>>,
-        module: ResolvedVc<EcmascriptClientReferenceModule>,
-    },
+    EcmascriptClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
     CssClientReference(ResolvedVc<CssModuleAsset>),
 }
 
@@ -201,9 +197,8 @@ pub async fn client_reference_graph(
                 VisitClientReferenceNodeType::ClientReference(client_reference, _) => {
                     client_references.push(*client_reference);
 
-                    if let ClientReferenceType::EcmascriptClientReference {
-                        module: entry, ..
-                    } = client_reference.ty()
+                    if let ClientReferenceType::EcmascriptClientReference(entry) =
+                        client_reference.ty()
                     {
                         client_references_by_server_component
                             .entry(client_reference.server_component)
@@ -409,10 +404,9 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         ty: VisitClientReferenceNodeType::ClientReference(
                             ClientReference {
                                 server_component: node.state.server_component(),
-                                ty: ClientReferenceType::EcmascriptClientReference {
-                                    parent_module,
-                                    module: client_reference_module,
-                                },
+                                ty: ClientReferenceType::EcmascriptClientReference(
+                                    client_reference_module,
+                                ),
                             },
                             client_reference_module.ident().to_string().await?,
                         ),

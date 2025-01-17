@@ -3520,6 +3520,9 @@ function unwrapThenable(thenable) {
   null === thenableState && (thenableState = []);
   return trackUsedThenable(thenableState, thenable, index);
 }
+function unsupportedRefresh() {
+  throw Error("Cache cannot be refreshed during server rendering.");
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3609,6 +3612,9 @@ var HooksDispatcher = {
       for (var data = Array(size), i = 0; i < size; i++)
         data[i] = REACT_MEMO_CACHE_SENTINEL;
       return data;
+    },
+    useCacheRefresh: function () {
+      return unsupportedRefresh;
     }
   },
   currentResumableState = null,
@@ -6040,11 +6046,11 @@ function abort(request, reason) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-canary-f0edf41e-20250115" !== isomorphicReactPackageVersion)
+  if ("19.1.0-canary-5b51a2b9-20250116" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.1.0-canary-f0edf41e-20250115\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.1.0-canary-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6201,4 +6207,4 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-exports.version = "19.1.0-canary-f0edf41e-20250115";
+exports.version = "19.1.0-canary-5b51a2b9-20250116";

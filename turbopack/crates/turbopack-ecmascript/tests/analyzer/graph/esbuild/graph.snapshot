@@ -12,7 +12,7 @@
                         items: [
                             Constant(
                                 Str(
-                                    Word(
+                                    Atom(
                                         "node",
                                     ),
                                 ),
@@ -41,21 +41,21 @@
                                             ),
                                             Constant(
                                                 Str(
-                                                    Word(
+                                                    Atom(
                                                         "..",
                                                     ),
                                                 ),
                                             ),
                                             Constant(
                                                 Str(
-                                                    Word(
+                                                    Atom(
                                                         "bin",
                                                     ),
                                                 ),
                                             ),
                                             Constant(
                                                 Str(
-                                                    Word(
+                                                    Atom(
                                                         "esbuild",
                                                     ),
                                                 ),
@@ -368,7 +368,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "esbuild",
                                 ),
                             ),
@@ -436,7 +436,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-android-arm64",
                             ),
                         ),
@@ -452,7 +452,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-darwin-arm64",
                             ),
                         ),
@@ -468,7 +468,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-darwin-64",
                             ),
                         ),
@@ -484,7 +484,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-freebsd-arm64",
                             ),
                         ),
@@ -500,7 +500,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-freebsd-64",
                             ),
                         ),
@@ -516,7 +516,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-arm",
                             ),
                         ),
@@ -532,7 +532,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-arm64",
                             ),
                         ),
@@ -548,7 +548,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-32",
                             ),
                         ),
@@ -564,7 +564,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-mips64le",
                             ),
                         ),
@@ -580,7 +580,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-ppc64le",
                             ),
                         ),
@@ -596,7 +596,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-s390x",
                             ),
                         ),
@@ -612,7 +612,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-linux-64",
                             ),
                         ),
@@ -628,7 +628,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-netbsd-64",
                             ),
                         ),
@@ -644,7 +644,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-openbsd-64",
                             ),
                         ),
@@ -660,7 +660,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-sunos-64",
                             ),
                         ),
@@ -685,7 +685,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-windows-arm64",
                             ),
                         ),
@@ -701,7 +701,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-windows-32",
                             ),
                         ),
@@ -717,7 +717,7 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "esbuild-windows-64",
                             ),
                         ),
@@ -737,7 +737,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "os",
                         ),
                     ),
@@ -755,7 +755,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -773,7 +773,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "path",
                         ),
                     ),
@@ -986,14 +986,14 @@
                 },
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "esbuild.exe",
                         ),
                     ),
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "bin/esbuild",
                         ),
                     ),
@@ -1052,7 +1052,7 @@
                 ),
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "--ping",
                         ),
                     ),
