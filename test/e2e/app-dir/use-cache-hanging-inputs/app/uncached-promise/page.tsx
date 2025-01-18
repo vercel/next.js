@@ -1,8 +1,8 @@
-import { connection } from 'next/server'
 import React from 'react'
+import { setTimeout } from 'timers/promises'
 
 async function fetchUncachedData() {
-  await connection()
+  await setTimeout(0)
 
   return Math.random()
 }

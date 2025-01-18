@@ -83,7 +83,7 @@ describe('use-cache-hanging-inputs', () => {
             ? `${expectedErrorMessage}
     at [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)`
             : `${expectedErrorMessage}
-    at eval (webpack-internal:///(rsc)/./app/uncached-promise/page.tsx:25:97)`
+    at eval (webpack-internal:///(rsc)/./app/uncached-promise/page.tsx:26:97)`
         )
       }, 180_000)
     })
