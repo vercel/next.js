@@ -604,6 +604,14 @@ export default class DevServer extends Server {
       this.nextConfig.basePath
     ).map((route) => new RegExp(buildCustomRoute('rewrite', route).regex))
 
+    if (this.nextConfig.output === 'export' && rewrites.length > 0) {
+      Log.error(
+        'Intercepting routes are not supported with static export.\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features'
+      )
+
+      process.exit(1)
+    }
+
     return rewrites ?? []
   }
 
