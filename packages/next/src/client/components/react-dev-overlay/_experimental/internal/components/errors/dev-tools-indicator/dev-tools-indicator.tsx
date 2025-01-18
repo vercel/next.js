@@ -5,6 +5,7 @@ import React, { useState, useEffect, useRef } from 'react'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
+import { useDelayedRender } from './internal/use-delayed-render'
 
 // TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
@@ -36,6 +37,9 @@ export function DevToolsIndicator({
   )
 }
 
+const ANIMATE_OUT_DURATION_MS = 200
+const ANIMATE_OUT_TIMING_FUNCTION = 'cubic-bezier(0.175, 0.885, 0.32, 1.1)'
+
 const DevToolsPopover = ({
   onIssuesClick,
   issueCount,
@@ -54,6 +58,13 @@ const DevToolsPopover = ({
   const popoverRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLDivElement>(null)
   const [isPopoverOpen, setIsPopoverOpen] = useState(false)
+
+  const { mounted, rendered } = useDelayedRender(isPopoverOpen, {
+    // Intentionally no fade in, makes the UI feel more immediate
+    enterDelay: 0,
+    // Graceful fade out to confirm that the UI did not break
+    exitDelay: ANIMATE_OUT_DURATION_MS,
+  })
 
   useEffect(() => {
     // Close popover when clicking outside of it or its button
@@ -114,13 +125,20 @@ const DevToolsPopover = ({
         />
       </div>
 
-      {isPopoverOpen && (
+      {mounted && (
         <div
           ref={popoverRef}
           id="dev-tools-popover"
           role="dialog"
           aria-labelledby="dev-tools-title"
           data-nextjs-dev-tools-popover
+          data-rendered={rendered}
+          style={
+            {
+              '--animate-out-duration-ms': `${ANIMATE_OUT_DURATION_MS}ms`,
+              '--animate-out-timing-function': ANIMATE_OUT_TIMING_FUNCTION,
+            } as React.CSSProperties
+          }
           tabIndex={-1}
         >
           <div data-nextjs-dev-tools-content>
