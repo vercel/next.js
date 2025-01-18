@@ -43,16 +43,7 @@ export class ErrorBoundary extends PureComponent<
 > {
   state = { isReactError: false, reactError: null }
 
-  componentDidUpdate(
-    _prevProps: ReactDevOverlayProps,
-    prevState: ReactDevOverlayState
-  ) {
-    if (prevState.isReactError !== this.state.isReactError) {
-      this.props.onError(this.state.isReactError)
-    }
-  }
-
-  static getDerivedStateFromError(error: Error): ReactDevOverlayState {
+  static getDerivedStateFromError(error: Error) {
     if (!error.stack) {
       return { isReactError: false, reactError: null }
     }
@@ -63,6 +54,10 @@ export class ErrorBoundary extends PureComponent<
       isReactError: true,
       reactError: error,
     }
+  }
+
+  componentDidCatch() {
+    this.props.onError(this.state.isReactError)
   }
 
   render() {
