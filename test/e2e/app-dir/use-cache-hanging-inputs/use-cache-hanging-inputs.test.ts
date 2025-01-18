@@ -6,6 +6,7 @@ import {
   assertHasRedbox,
   getRedboxTitle,
   getRedboxTotalErrorCount,
+  assertNoRedbox,
 } from 'next-test-utils'
 import stripAnsi from 'strip-ansi'
 
@@ -54,6 +55,19 @@ describe('use-cache-hanging-inputs', () => {
     at eval (webpack-internal:///(rsc)/./app/search-params/page.tsx:16:97)`
         )
       }, 180_000)
+    })
+
+    describe('when searchParams are unused inside of "use cache"', () => {
+      it('should not show an error', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await next.browser('/search-params-unused?n=1')
+
+        await assertNoRedbox(browser)
+
+        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+        expect(cliOutput).not.toContain(expectedErrorMessage)
+      })
     })
 
     describe('when an uncached promise is used inside of "use cache"', () => {
