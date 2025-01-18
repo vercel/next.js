@@ -1,3 +1,4 @@
+import type { Dispatch, SetStateAction } from 'react'
 import type { OverlayState } from '../../../../../shared'
 
 import { useState, useEffect, useRef } from 'react'
@@ -19,7 +20,7 @@ export function DevToolsIndicator({
 }: {
   state: OverlayState
   readyErrorsLength: number
-  setIsErrorOverlayOpen: (value: boolean) => void
+  setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
   // Register `(cmd|ctrl) + .` to show/hide the error indicator.
@@ -64,7 +65,7 @@ const DevToolsPopover = ({
   semver: string | undefined
   isTurbopack: boolean
   hide: () => void
-  setIsErrorOverlayOpen: (value: boolean) => void
+  setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) => {
   const popoverRef = useRef<HTMLDivElement>(null)
   const buttonRef = useRef<HTMLDivElement>(null)
@@ -114,7 +115,16 @@ const DevToolsPopover = ({
     }
   }, [])
 
-  const togglePopover = () => setIsPopoverOpen((prev) => !prev)
+  const togglePopover = () =>
+    setIsPopoverOpen((prev) => {
+      console.log('togglePopover', prev)
+      return !prev
+    })
+  const onIssuesClick = () => setIsErrorOverlayOpen(true)
+  const onLogoClick = () => {
+    togglePopover()
+    onIssuesClick()
+  }
 
   return (
     <Toast
@@ -127,7 +137,7 @@ const DevToolsPopover = ({
         <NextLogo
           key={issueCount}
           issueCount={issueCount}
-          onClick={togglePopover}
+          onLogoClick={onLogoClick}
           onIssuesClick={onIssuesClick}
           isDevBuilding={useIsDevBuilding()}
           isDevRendering={useIsDevRendering()}
