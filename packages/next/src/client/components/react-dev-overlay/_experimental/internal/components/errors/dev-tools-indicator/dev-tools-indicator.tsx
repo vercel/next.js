@@ -114,8 +114,10 @@ const DevToolsPopover = ({
     >
       <div ref={buttonRef}>
         <NextLogo
+          key={issueCount}
           issueCount={issueCount}
           onClick={togglePopover}
+          onIssuesClick={onIssuesClick}
           isDevBuilding={useIsDevBuilding()}
           isDevRendering={useIsDevRendering()}
           aria-haspopup="true"
