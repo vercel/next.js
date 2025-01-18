@@ -31,7 +31,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, WrittenEndpoint},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
 };
 
 #[turbo_tasks::value]
@@ -277,18 +277,11 @@ impl MiddlewareEndpoint {
 #[turbo_tasks::value_impl]
 impl Endpoint for MiddlewareEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("middleware endpoint");
         async move {
             let this = self.await?;
-            let output_assets_op = output_assets_operation(self);
-            let output_assets = output_assets_op.connect();
-            let _ = output_assets.resolve().await?;
-            let _ = this
-                .project
-                .emit_all_output_assets(output_assets_op)
-                .resolve()
-                .await?;
+            let output_assets = self.output_assets();
 
             let (server_paths, client_paths) = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
@@ -308,9 +301,14 @@ impl Endpoint for MiddlewareEndpoint {
                 (vec![], vec![])
             };
 
-            Ok(WrittenEndpoint::Edge {
-                server_paths,
-                client_paths,
+            Ok(EndpointOutput {
+                output_paths: EndpointOutputPaths::Edge {
+                    server_paths,
+                    client_paths,
+                }
+                .resolved_cell(),
+                output_assets: output_assets.to_resolved().await?,
+                project: this.project,
             }
             .cell())
         }
@@ -332,9 +330,4 @@ impl Endpoint for MiddlewareEndpoint {
     async fn root_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
         Ok(Vc::cell(vec![self.entry_module().to_resolved().await?]))
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn output_assets_operation(endpoint: ResolvedVc<MiddlewareEndpoint>) -> Vc<OutputAssets> {
-    endpoint.output_assets()
 }
