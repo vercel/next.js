@@ -622,5 +622,7 @@
   "621": "Required root params (%s) were not provided in generateStaticParams for %s, please provide at least one value for each.",
   "622": "A required root parameter (%s) was not provided in generateStaticParams for %s, please provide at least one value.",
   "623": "Invalid quality prop (%s) on \\`next/image\\` does not match \\`images.qualities\\` configured in your \\`next.config.js\\`\\nSee more info: https://nextjs.org/docs/messages/next-image-unconfigured-qualities",
-  "624": "Internal Next.js Error: createMutableActionQueue was called more than once"
+  "624": "Internal Next.js Error: createMutableActionQueue was called more than once",
+  "625": "Server Actions are not supported with static export.\\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features",
+  "626": "Intercepting routes are not supported with static export.\\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features"
 }

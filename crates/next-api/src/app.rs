@@ -728,28 +728,35 @@ impl AppProject {
         &self,
         endpoint: Vc<AppEndpoint>,
         rsc_entry: ResolvedVc<Box<dyn Module>>,
+        extra_entries: Vc<EvaluatableAssets>,
         has_layout_segments: bool,
     ) -> Result<Vc<ModuleGraphs>> {
+        let extra_entries = extra_entries
+            .await?
+            .into_iter()
+            .map(|m| *ResolvedVc::upcast(*m));
+
         if *self.project.per_page_module_graph().await? {
             // Implements layout segment optimization to compute a graph "chain" for each layout
             // segment
             async move {
                 let mut graphs = vec![];
-                let mut visited_modules = VisitedModules::empty();
-
-                if has_layout_segments {
+                let mut visited_modules = if has_layout_segments {
                     let ServerEntries {
                         server_utils,
                         server_component_entries,
                     } = &*find_server_entries(*rsc_entry).await?;
-                    if !server_utils.is_empty() {
-                        let graph = SingleModuleGraph::new_with_entries_visited(
-                            server_utils.iter().map(|m| **m).collect(),
-                            visited_modules,
-                        );
-                        graphs.push(graph);
-                        visited_modules = VisitedModules::from_graph(graph)
-                    }
+
+                    let graph = SingleModuleGraph::new_with_entries_visited(
+                        server_utils
+                            .iter()
+                            .map(|m| **m)
+                            .chain(extra_entries)
+                            .collect(),
+                        VisitedModules::empty(),
+                    );
+                    graphs.push(graph);
+                    let mut visited_modules = VisitedModules::from_graph(graph);
 
                     for module in server_component_entries.iter() {
                         let graph = SingleModuleGraph::new_with_entries_visited(
@@ -759,14 +766,27 @@ impl AppProject {
                         graphs.push(graph);
                         let is_layout =
                             module.server_path().file_stem().await?.as_deref() == Some("layout");
-                        if is_layout {
+                        visited_modules = if is_layout {
                             // Only propagate the visited_modules of the parent layout(s), not
                             // across siblings such as loading.js and
                             // page.js.
-                            visited_modules = visited_modules.concatenate(graph);
-                        }
+                            visited_modules.concatenate(graph)
+                        } else {
+                            // Prevents graph index from getting out of sync.
+                            // TODO We should remove VisitedModule entirely in favor of lookups
+                            // in SingleModuleGraph
+                            visited_modules.with_incremented_index()
+                        };
                     }
-                }
+                    visited_modules
+                } else {
+                    let graph = SingleModuleGraph::new_with_entries_visited(
+                        extra_entries.collect::<_>(),
+                        VisitedModules::empty(),
+                    );
+                    graphs.push(graph);
+                    VisitedModules::from_graph(graph)
+                };
 
                 let graph =
                     SingleModuleGraph::new_with_entries_visited(vec![*rsc_entry], visited_modules);
@@ -1021,6 +1041,7 @@ impl AppEndpoint {
             .app_module_graphs(
                 self,
                 *rsc_entry,
+                this.app_project.client_runtime_entries(),
                 matches!(this.ty, AppEndpointType::Page { .. }),
             )
             .await?;
