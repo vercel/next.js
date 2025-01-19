@@ -400,7 +400,7 @@ export async function collectBuildTraces({
         // we aren't getting all chunks in the trace-entrypoint plugin
         // with rspack currently so for now just add them manually for
         // all trace files
-        if (process.env.NEXT_RSPAC) {
+        if (process.env.NEXT_RSPACK) {
           chunks = await fs.readdir(path.join(distDir, 'server', 'chunks'))
         }
 
