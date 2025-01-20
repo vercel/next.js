@@ -347,6 +347,14 @@ impl<K, V, H, const I: usize> AutoMap<K, V, H, I> {
         }
     }
 
+    /// see [HashMap::capacity](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.capacity)
+    pub fn capacity(&self) -> usize {
+        match self {
+            AutoMap::List(list) => list.capacity(),
+            AutoMap::Map(map) => map.capacity(),
+        }
+    }
+
     /// see [HashMap::values_mut](https://doc.rust-lang.org/std/collections/struct.HashMap.html#method.values_mut)
     pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
         match self {

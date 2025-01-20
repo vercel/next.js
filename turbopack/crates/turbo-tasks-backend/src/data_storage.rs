@@ -25,6 +25,9 @@ pub trait Storage {
     fn shrink_to_fit(&mut self);
     fn is_empty(&self) -> bool;
     fn len(&self) -> usize;
+    fn capacity(&self) -> usize;
+    fn size(&self) -> usize;
+    fn capacity_size(&self) -> usize;
     fn iter(&self) -> Self::Iterator<'_>;
 }
 
@@ -98,6 +101,18 @@ impl<V> Storage for OptionStorage<V> {
         } else {
             0
         }
+    }
+
+    fn capacity(&self) -> usize {
+        1
+    }
+
+    fn size(&self) -> usize {
+        0
+    }
+
+    fn capacity_size(&self) -> usize {
+        0
     }
 
     fn iter(&self) -> Self::Iterator<'_> {
@@ -188,6 +203,18 @@ impl<K: Hash + Eq, V> Storage for AutoMapStorage<K, V> {
 
     fn len(&self) -> usize {
         self.map.len()
+    }
+
+    fn capacity(&self) -> usize {
+        self.map.capacity()
+    }
+
+    fn size(&self) -> usize {
+        self.map.len() * size_of::<(K, V)>()
+    }
+
+    fn capacity_size(&self) -> usize {
+        self.map.capacity() * size_of::<(K, V)>()
     }
 
     fn iter(&self) -> Self::Iterator<'_> {
