@@ -35,10 +35,10 @@ impl Debug for Histogram {
                 continue;
             }
             if i == 0 {
-                writeln!(f, "0: {}", count)?;
+                writeln!(f, "      0 -       0: {}", count)?;
                 continue;
             }
-            writeln!(f, "{:2} - {:2}: {}", 1 << (i - 1), (1 << i) - 1, count)?;
+            writeln!(f, "{:7} - {:7}: {}", 1 << (i - 1), (1 << i) - 1, count)?;
         }
         Ok(())
     }
