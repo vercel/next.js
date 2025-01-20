@@ -775,8 +775,8 @@ fn pretty_join(
     }
 }
 
-fn total_nodes(vec: &[JsValue]) -> usize {
-    vec.iter().map(|v| v.total_nodes()).sum::<usize>()
+fn total_nodes(vec: &[JsValue]) -> u32 {
+    vec.iter().map(|v| v.total_nodes()).sum::<u32>()
 }
 
 // Private meta methods
@@ -943,7 +943,7 @@ impl JsValue {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
-                .sum::<usize>(),
+                .sum::<u32>(),
             parts: list,
             mutable: true,
         }
@@ -957,7 +957,7 @@ impl JsValue {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
-                .sum::<usize>(),
+                .sum::<u32>(),
             parts: list,
             mutable: false,
         }
@@ -1109,7 +1109,7 @@ impl JsValue {
                         ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                         ObjectPart::Spread(s) => s.total_nodes(),
                     })
-                    .sum::<usize>();
+                    .sum::<u32>();
             }
             JsValue::New(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
@@ -1155,7 +1155,7 @@ impl JsValue {
     #[cfg(not(debug_assertions))]
     pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
 
-    pub fn ensure_node_limit(&mut self, limit: usize) {
+    pub fn ensure_node_limit(&mut self, limit: u32) {
         fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
             a.total_nodes().cmp(&b.total_nodes())
         }
@@ -3292,7 +3292,7 @@ impl JsValue {
                             0 => Vec::new(),
                             1 => vec![added.into_iter().next().unwrap()],
                             _ => vec![JsValue::Add(
-                                1 + added.iter().map(|v| v.total_nodes()).sum::<usize>(),
+                                1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
                                 added,
                             )],
                         };
@@ -3301,7 +3301,7 @@ impl JsValue {
                             concat.push(item);
                         }
                         *self = JsValue::Concat(
-                            1 + concat.iter().map(|v| v.total_nodes()).sum::<usize>(),
+                            1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>(),
                             concat,
                         );
                         return;
