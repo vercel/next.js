@@ -5,6 +5,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
 };
 
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
@@ -26,6 +27,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
     pub(super) module: ResolvedVc<EcmascriptModulePartAsset>,
+    pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -55,6 +57,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             parsed,
             module.full_module.ident(),
             module_type_result.module_type,
+            *self.module_graph,
             *self.chunking_context,
             *analyze.references,
             *analyze.code_generation,
@@ -100,11 +103,6 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     #[turbo_tasks::function]
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.module)
-    }
-
-    #[turbo_tasks::function]
-    fn is_self_async(&self) -> Vc<bool> {
-        self.module.is_async_module()
     }
 }
 

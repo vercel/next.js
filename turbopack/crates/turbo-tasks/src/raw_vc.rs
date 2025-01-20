@@ -93,8 +93,11 @@ impl RawVc {
 
     pub fn is_transient(&self) -> bool {
         match self {
-            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
-            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) | RawVc::LocalOutput(task, _) => {
+                task.is_transient()
+            }
+            // TODO track the transient flag in the highest bit of the execution id
+            RawVc::LocalCell(_, _) => todo!(),
         }
     }
 
@@ -244,6 +247,36 @@ impl RawVc {
         }
     }
 
+    /// Convert a potentially local `RawVc` into a non-local `RawVc`. This is a subset of resolution
+    /// resolution, because the returned `RawVc` can be a `TaskOutput`.
+    pub(crate) async fn to_non_local(self) -> Result<RawVc> {
+        let tt = turbo_tasks();
+        let mut current = self;
+        let mut notified = false;
+        let mut lazily_notify = || {
+            if !notified {
+                tt.notify_scheduled_tasks();
+                notified = true;
+            }
+        };
+        loop {
+            match current {
+                RawVc::LocalOutput(task_id, local_cell_id) => {
+                    lazily_notify();
+                    current =
+                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
+                            .await?;
+                }
+                RawVc::LocalCell(execution_id, local_cell_id) => {
+                    let shared_reference = read_local_cell(execution_id, local_cell_id);
+                    let value_type = get_value_type(shared_reference.0);
+                    return Ok((value_type.raw_cell)(shared_reference));
+                }
+                non_local => return Ok(non_local),
+            }
+        }
+    }
+
     pub(crate) fn connect(&self) {
         let tt = turbo_tasks();
         tt.connect_task(self.get_task_id());
@@ -256,6 +289,26 @@ impl RawVc {
                 assert_execution_id(*execution_id);
                 current_task("RawVc::get_task_id")
             }
+        }
+    }
+
+    /// For a cell that's already resolved, synchronously check if it implements a trait using the
+    /// type information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
+        match self {
+            RawVc::TaskCell(_task_id, cell_id) => {
+                get_value_type(cell_id.type_id).has_trait(&trait_id)
+            }
+            _ => unreachable!("resolved_has_trait must be called with a RawVc::TaskCell"),
+        }
+    }
+
+    /// For a cell that's already resolved, synchronously check if it is a given type using the type
+    /// information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
+        match self {
+            RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id == type_id,
+            _ => unreachable!("resolved_is_type must be called with a RawVc::TaskCell"),
         }
     }
 }

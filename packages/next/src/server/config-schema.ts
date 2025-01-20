@@ -350,6 +350,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         swcTraceProfiling: z.boolean().optional(),
         // NonNullable<webpack.Configuration['experiments']>['buildHttp']
         urlImports: z.any().optional(),
+        viewTransition: z.boolean().optional(),
         workerThreads: z.boolean().optional(),
         webVitalsAttribution: z
           .array(
@@ -441,6 +442,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         authInterrupts: z.boolean().optional(),
         newDevOverlay: z.boolean().optional(),
         streamingMetadata: z.boolean().optional(),
+        htmlLimitedBots: z.instanceof(RegExp).optional(),
       })
       .optional(),
     exportPathMap: z

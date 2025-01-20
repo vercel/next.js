@@ -83,7 +83,7 @@ import {
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { isBot, isHtmlLimitedBotUA } from '../shared/lib/router/utils/is-bot'
+import { isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -175,6 +175,7 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
+import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -595,6 +596,7 @@ export default abstract class Server<
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
         streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
+        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1428,9 +1430,7 @@ export default abstract class Server<
         parsedUrl.pathname = normalizeResult.pathname
 
         for (const key of Object.keys(parsedUrl.query)) {
-          if (!key.startsWith('__next') && !key.startsWith('_next')) {
-            delete parsedUrl.query[key]
-          }
+          delete parsedUrl.query[key]
         }
         const invokeQuery = getRequestMeta(req, 'invokeQuery')
 
@@ -1675,11 +1675,13 @@ export default abstract class Server<
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
-        serveStreamingMetadata:
-          this.renderOpts.experimental.streamingMetadata &&
-          !isHtmlLimitedBotUA(ua),
+        serveStreamingMetadata: shouldServeStreamingMetadata(
+          ua,
+          this.renderOpts.experimental
+        ),
       },
     }
+
     const payload = await fn(ctx)
     if (payload === null) {
       return
@@ -2181,8 +2183,6 @@ export default abstract class Server<
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
-      opts.serveStreamingMetadata =
-        opts.experimental.streamingMetadata && !isHtmlLimitedBotUA(ua)
     }
 
     // In development, we always want to generate dynamic HTML.
@@ -3062,56 +3062,6 @@ export default abstract class Server<
       }
     )
 
-    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
-      // This is a prefetch request issued by the client Segment Cache. These
-      // should never reach the application layer (lambda). We should either
-      // respond from the cache (HIT) or respond with 204 No Content (MISS).
-
-      // Set a header to indicate that PPR is enabled for this route. This
-      // lets the client distinguish between a regular cache miss and a cache
-      // miss due to PPR being disabled. In other contexts this header is used
-      // to indicate that the response contains dynamic data, but here we're
-      // only using it to indicate that the feature is enabled — the segment
-      // response itself contains whether the data is dynamic.
-      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
-
-      if (
-        cacheEntry !== null &&
-        // This is always true at runtime but is needed to refine the type
-        // of cacheEntry.value to CachedAppPageValue, because the outer
-        // ResponseCacheEntry is not a discriminated union.
-        cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-        cacheEntry.value.segmentData
-      ) {
-        const matchedSegment = cacheEntry.value.segmentData.get(
-          segmentPrefetchHeader
-        )
-        if (matchedSegment !== undefined) {
-          // Cache hit
-          return {
-            type: 'rsc',
-            body: RenderResult.fromStatic(matchedSegment),
-            // TODO: Eventually this should use revalidate time of the
-            // individual segment, not the whole page.
-            revalidate: cacheEntry.revalidate,
-          }
-        }
-      }
-
-      // Cache miss. Either a cache entry for this route has not been generated
-      // (which technically should not be possible when PPR is enabled, because
-      // at a minimum there should always be a fallback entry) or there's no
-      // match for the requested segment. Respond with a 204 No Content. We
-      // don't bother to respond with 404, because these requests are only
-      // issued as part of a prefetch.
-      res.statusCode = 204
-      return {
-        type: 'rsc',
-        body: RenderResult.fromStatic(''),
-        revalidate: cacheEntry?.revalidate,
-      }
-    }
-
     if (isPreviewMode) {
       res.setHeader(
         'Cache-Control',
@@ -3203,6 +3153,53 @@ export default abstract class Server<
     }
 
     const { value: cachedData } = cacheEntry
+
+    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
+      // This is a prefetch request issued by the client Segment Cache. These
+      // should never reach the application layer (lambda). We should either
+      // respond from the cache (HIT) or respond with 204 No Content (MISS).
+
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled. In other contexts this header is used
+      // to indicate that the response contains dynamic data, but here we're
+      // only using it to indicate that the feature is enabled — the segment
+      // response itself contains whether the data is dynamic.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
+
+      if (
+        // This is always true at runtime but is needed to refine the type
+        // of cacheEntry.value to CachedAppPageValue, because the outer
+        // ResponseCacheEntry is not a discriminated union.
+        cachedData?.kind === CachedRouteKind.APP_PAGE &&
+        cachedData.segmentData
+      ) {
+        const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
+        if (matchedSegment !== undefined) {
+          // Cache hit
+          return {
+            type: 'rsc',
+            body: RenderResult.fromStatic(matchedSegment),
+            // TODO: Eventually this should use revalidate time of the
+            // individual segment, not the whole page.
+            revalidate: cacheEntry.revalidate,
+          }
+        }
+      }
+
+      // Cache miss. Either a cache entry for this route has not been generated
+      // (which technically should not be possible when PPR is enabled, because
+      // at a minimum there should always be a fallback entry) or there's no
+      // match for the requested segment. Respond with a 204 No Content. We
+      // don't bother to respond with 404, because these requests are only
+      // issued as part of a prefetch.
+      res.statusCode = 204
+      return {
+        type: 'rsc',
+        body: RenderResult.fromStatic(''),
+        revalidate: cacheEntry?.revalidate,
+      }
+    }
 
     // If the cache value is an image, we should error early.
     if (cachedData?.kind === CachedRouteKind.IMAGE) {

@@ -99,6 +99,16 @@ export function BasicMeta({ metadata }: { metadata: ResolvedMetadata }) {
           <link rel="bookmarks" href={bookmark} />
         ))
       : []),
+    ...(metadata.pagination
+      ? [
+          metadata.pagination.previous ? (
+            <link rel="prev" href={metadata.pagination.previous} />
+          ) : null,
+          metadata.pagination.next ? (
+            <link rel="next" href={metadata.pagination.next} />
+          ) : null,
+        ]
+      : []),
     Meta({ name: 'category', content: metadata.category }),
     Meta({ name: 'classification', content: metadata.classification }),
     ...(metadata.other

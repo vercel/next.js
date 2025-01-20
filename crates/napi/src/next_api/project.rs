@@ -8,11 +8,14 @@ use napi::{
 };
 use next_api::{
     entrypoints::Entrypoints,
-    project::{
-        DefineEnv, DraftModeOptions, Instrumentation, Middleware, PartialProjectOptions, Project,
-        ProjectContainer, ProjectOptions, WatchOptions,
+    operation::{
+        EntrypointsOperation, InstrumentationOperation, MiddlewareOperation, RouteOperation,
     },
-    route::{Endpoint, Route},
+    project::{
+        DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
+        ProjectOptions, WatchOptions,
+    },
+    route::Endpoint,
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
@@ -25,7 +28,8 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    get_effects, Completion, Effects, ReadRef, ResolvedVc, TransientInstance, UpdateInfo, Vc,
+    get_effects, Completion, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance,
+    UpdateInfo, Vc,
 };
 use turbo_tasks_fs::{
     get_relative_path_to, util::uri_from_file, DiskFileSystem, FileContent, FileSystem,
@@ -55,7 +59,7 @@ use super::{
         NextTurboTasks, RootTask, TurbopackResult, VcArc,
     },
 };
-use crate::register;
+use crate::{register, util::DhatProfilerGuard};
 
 /// Used by [`benchmark_file_io`]. This is a noisy benchmark, so set the
 /// threshold high.
@@ -295,11 +299,27 @@ pub async fn project_new(
     turbo_engine_options: NapiTurboEngineOptions,
 ) -> napi::Result<External<ProjectInstance>> {
     register();
-
-    let trace = std::env::var("NEXT_TURBOPACK_TRACING").ok();
     let (exit, exit_receiver) = ExitHandler::new_receiver();
 
-    if let Some(mut trace) = trace.filter(|v| !v.is_empty()) {
+    if let Some(dhat_profiler) = DhatProfilerGuard::try_init() {
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || drop(dhat_profiler))
+                .await
+                .unwrap()
+        });
+    }
+
+    let mut trace = std::env::var("NEXT_TURBOPACK_TRACING")
+        .ok()
+        .filter(|v| !v.is_empty());
+
+    if cfg!(feature = "tokio-console") && trace.is_none() {
+        // ensure `trace` is set to *something* so that the `tokio-console` feature works, otherwise
+        // you just get empty output from `tokio-console`, which can be confusing.
+        trace = Some("overview".to_owned());
+    }
+
+    if let Some(mut trace) = trace {
         // Trace presets
         match trace.as_str() {
             "overview" | "1" => {
@@ -318,6 +338,12 @@ pub async fn project_new(
         }
 
         let subscriber = Registry::default();
+
+        if cfg!(feature = "tokio-console") {
+            trace = format!("{trace},tokio=trace,runtime=trace");
+        }
+        #[cfg(feature = "tokio-console")]
+        let subscriber = subscriber.with(console_subscriber::spawn());
 
         let subscriber = subscriber.with(FilterLayer::try_new(&trace).unwrap());
         let dist_dir = options.dist_dir.clone();
@@ -517,38 +543,38 @@ struct NapiRoute {
 }
 
 impl NapiRoute {
-    fn from_route(pathname: String, value: Route, turbo_tasks: &NextTurboTasks) -> Self {
-        let convert_endpoint = |endpoint: Vc<Box<dyn Endpoint>>| {
+    fn from_route(pathname: String, value: RouteOperation, turbo_tasks: &NextTurboTasks) -> Self {
+        let convert_endpoint = |endpoint: OperationVc<Box<dyn Endpoint>>| {
             Some(External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
                 endpoint,
             ))))
         };
         match value {
-            Route::Page {
+            RouteOperation::Page {
                 html_endpoint,
                 data_endpoint,
             } => NapiRoute {
                 pathname,
                 r#type: "page",
-                html_endpoint: convert_endpoint(*html_endpoint),
-                data_endpoint: convert_endpoint(*data_endpoint),
+                html_endpoint: convert_endpoint(html_endpoint),
+                data_endpoint: convert_endpoint(data_endpoint),
                 ..Default::default()
             },
-            Route::PageApi { endpoint } => NapiRoute {
+            RouteOperation::PageApi { endpoint } => NapiRoute {
                 pathname,
                 r#type: "page-api",
-                endpoint: convert_endpoint(*endpoint),
+                endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::AppPage(pages) => NapiRoute {
+            RouteOperation::AppPage(pages) => NapiRoute {
                 pathname,
                 r#type: "app-page",
                 pages: Some(
                     pages
                         .into_iter()
                         .map(|page_route| AppPageNapiRoute {
-                            original_name: Some(page_route.original_name),
+                            original_name: Some(page_route.original_name.into_owned()),
                             html_endpoint: convert_endpoint(page_route.html_endpoint),
                             rsc_endpoint: convert_endpoint(page_route.rsc_endpoint),
                         })
@@ -556,17 +582,17 @@ impl NapiRoute {
                 ),
                 ..Default::default()
             },
-            Route::AppRoute {
+            RouteOperation::AppRoute {
                 original_name,
                 endpoint,
             } => NapiRoute {
                 pathname,
-                original_name: Some(original_name),
+                original_name: Some(original_name.into_owned()),
                 r#type: "app-route",
-                endpoint: convert_endpoint(*endpoint),
+                endpoint: convert_endpoint(endpoint),
                 ..Default::default()
             },
-            Route::Conflict => NapiRoute {
+            RouteOperation::Conflict => NapiRoute {
                 pathname,
                 r#type: "conflict",
                 ..Default::default()
@@ -581,7 +607,7 @@ struct NapiMiddleware {
 }
 
 impl NapiMiddleware {
-    fn from_middleware(value: &Middleware, turbo_tasks: &NextTurboTasks) -> Result<Self> {
+    fn from_middleware(value: &MiddlewareOperation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
         Ok(NapiMiddleware {
             endpoint: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -598,7 +624,10 @@ struct NapiInstrumentation {
 }
 
 impl NapiInstrumentation {
-    fn from_instrumentation(value: &Instrumentation, turbo_tasks: &NextTurboTasks) -> Result<Self> {
+    fn from_instrumentation(
+        value: &InstrumentationOperation,
+        turbo_tasks: &NextTurboTasks,
+    ) -> Result<Self> {
         Ok(NapiInstrumentation {
             node_js: External::new(ExternalEndpoint(VcArc::new(
                 turbo_tasks.clone(),
@@ -622,9 +651,9 @@ struct NapiEntrypoints {
     pub pages_error_endpoint: External<ExternalEndpoint>,
 }
 
-#[turbo_tasks::value(serialization = "none", local)]
+#[turbo_tasks::value(serialization = "none")]
 struct EntrypointsWithIssues {
-    entrypoints: ReadRef<Entrypoints>,
+    entrypoints: ReadRef<EntrypointsOperation>,
     issues: Arc<Vec<ReadRef<PlainIssue>>>,
     diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
     effects: Arc<Effects>,
@@ -632,10 +661,14 @@ struct EntrypointsWithIssues {
 
 #[turbo_tasks::function]
 async fn get_entrypoints_with_issues(
-    container: Vc<ProjectContainer>,
+    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
-    let entrypoints_operation = container.entrypoints();
-    let entrypoints = entrypoints_operation.strongly_consistent().await?;
+    let entrypoints_operation =
+        EntrypointsOperation::new(project_container_entrypoints_operation(container));
+    let entrypoints = entrypoints_operation
+        .connect()
+        .strongly_consistent()
+        .await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
     let effects = Arc::new(get_effects(entrypoints_operation).await?);
@@ -646,6 +679,15 @@ async fn get_entrypoints_with_issues(
         effects,
     }
     .cell())
+}
+
+#[turbo_tasks::function(operation)]
+fn project_container_entrypoints_operation(
+    // the container is a long-lived object with internally mutable state, there's no risk of it
+    // becoming stale
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<Entrypoints> {
+    container.entrypoints()
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -700,15 +742,15 @@ pub fn project_entrypoints_subscribe(
                         .transpose()?,
                     pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        *entrypoints.pages_document_endpoint,
+                        entrypoints.pages_document_endpoint,
                     ))),
                     pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        *entrypoints.pages_app_endpoint,
+                        entrypoints.pages_app_endpoint,
                     ))),
                     pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
                         turbo_tasks.clone(),
-                        *entrypoints.pages_error_endpoint,
+                        entrypoints.pages_error_endpoint,
                     ))),
                 },
                 issues: issues
@@ -731,12 +773,12 @@ struct HmrUpdateWithIssues {
 
 #[turbo_tasks::function]
 async fn hmr_update(
-    project: Vc<Project>,
+    project: ResolvedVc<Project>,
     identifier: RcStr,
-    state: Vc<VersionState>,
+    state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_operation = project.hmr_update(identifier, state);
-    let update = update_operation.strongly_consistent().await?;
+    let update_operation = project_hmr_update_operation(project, identifier, state);
+    let update = update_operation.connect().strongly_consistent().await?;
     let issues = get_issues(update_operation).await?;
     let diagnostics = get_diagnostics(update_operation).await?;
     let effects = Arc::new(get_effects(update_operation).await?);
@@ -747,6 +789,15 @@ async fn hmr_update(
         effects,
     }
     .cell())
+}
+
+#[turbo_tasks::function(operation)]
+fn project_hmr_update_operation(
+    project: ResolvedVc<Project>,
+    identifier: RcStr,
+    state: ResolvedVc<VersionState>,
+) -> Vc<Update> {
+    project.hmr_update(identifier, *state)
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
@@ -849,10 +900,13 @@ struct HmrIdentifiersWithIssues {
 
 #[turbo_tasks::function]
 async fn get_hmr_identifiers_with_issues(
-    container: Vc<ProjectContainer>,
+    container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_operation = container.hmr_identifiers();
-    let hmr_identifiers = hmr_identifiers_operation.strongly_consistent().await?;
+    let hmr_identifiers_operation = project_container_hmr_identifiers_operation(container);
+    let hmr_identifiers = hmr_identifiers_operation
+        .connect()
+        .strongly_consistent()
+        .await?;
     let issues = get_issues(hmr_identifiers_operation).await?;
     let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
     let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
@@ -863,6 +917,13 @@ async fn get_hmr_identifiers_with_issues(
         effects,
     }
     .cell())
+}
+
+#[turbo_tasks::function(operation)]
+fn project_container_hmr_identifiers_operation(
+    container: ResolvedVc<ProjectContainer>,
+) -> Vc<Vec<RcStr>> {
+    container.hmr_identifiers()
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]

@@ -17,7 +17,6 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
 pub use self::{
@@ -35,7 +34,7 @@ use crate::{
     manager::{create_local_cell, try_get_function_meta},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
+    CellId, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
@@ -425,11 +424,6 @@ impl<T> Vc<T>
 where
     T: ?Sized,
 {
-    /// Connects the operation pointed to by this `Vc` to the current task.
-    pub fn connect(vc: Self) {
-        vc.node.connect()
-    }
-
     /// Returns a debug identifier for this `Vc`.
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.resolve().await?;
@@ -587,19 +581,6 @@ where
     }
 }
 
-impl<T> CollectiblesSource for Vc<T>
-where
-    T: ?Sized,
-{
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.take_collectibles()
-    }
-
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.peek_collectibles()
-    }
-}
-
 impl<T> From<RawVc> for Vc<T>
 where
     T: ?Sized,
@@ -681,5 +662,25 @@ where
 {
     fn default() -> Self {
         T::value_default()
+    }
+}
+
+pub trait OptionVcExt<T>
+where
+    T: VcValueType,
+{
+    fn to_resolved(self) -> impl Future<Output = Result<Option<ResolvedVc<T>>>> + Send;
+}
+
+impl<T> OptionVcExt<T> for Option<Vc<T>>
+where
+    T: VcValueType,
+{
+    async fn to_resolved(self) -> Result<Option<ResolvedVc<T>>> {
+        if let Some(vc) = self {
+            Ok(Some(vc.to_resolved().await?))
+        } else {
+            Ok(None)
+        }
     }
 }

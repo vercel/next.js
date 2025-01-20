@@ -1,4 +1,4 @@
-import type { NextConfig, NextConfigComplete } from '../server/config-shared'
+import type { NextConfigComplete } from '../server/config-shared'
 import type { ExperimentalPPRConfig } from '../server/lib/experimental/ppr'
 import type { AppBuildManifest } from './webpack/plugins/app-build-manifest-plugin'
 import type { AssetBinding } from './webpack/loaders/get-module-build-info'
@@ -1466,7 +1466,7 @@ export async function copyTracedFiles(
   pageKeys: readonly string[],
   appPageKeys: readonly string[] | undefined,
   tracingRoot: string,
-  serverConfig: NextConfig,
+  serverConfig: NextConfigComplete,
   middlewareManifest: MiddlewareManifest,
   hasInstrumentationHook: boolean,
   staticPages: Set<string>

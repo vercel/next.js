@@ -317,15 +317,21 @@ export async function writeConfigurationDefaults(
   if (process.env.NEXT_PRIVATE_LOCAL_DEV && userTsConfig.exclude) {
     const tsGlob = '**/*.test.ts'
     const tsxGlob = '**/*.test.tsx'
+    let hasUpdates = false
     if (!userTsConfig.exclude.includes(tsGlob)) {
       userTsConfig.exclude.push(tsGlob)
+      hasUpdates = true
     }
     if (!userTsConfig.exclude.includes(tsxGlob)) {
       userTsConfig.exclude.push(tsxGlob)
+      hasUpdates = true
     }
-    requiredActions.push(
-      'Local development only: Excluded test files from coverage'
-    )
+
+    if (hasUpdates) {
+      requiredActions.push(
+        'Local development only: Excluded test files from coverage'
+      )
+    }
   }
 
   if (suggestedActions.length < 1 && requiredActions.length < 1) {

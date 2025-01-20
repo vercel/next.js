@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ops::ControlFlow, thread::available_parallelism, time::Duration};
+use std::{borrow::Cow, iter, ops::ControlFlow, thread::available_parallelism, time::Duration};
 
 use anyhow::{anyhow, bail, Result};
 use async_stream::try_stream as generator;
@@ -28,6 +28,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     reference_type::{InnerAssets, ReferenceType},
     virtual_source::VirtualSource,
@@ -149,15 +150,21 @@ async fn emit_evaluate_pool_assets_operation(
                 entries.push(entry)
             }
         }
-
-        Vc::<EvaluatableAssets>::cell(entries)
+        entries
     };
+
+    let module_graph = ModuleGraph::from_modules(Vc::cell(
+        iter::once(entry_module.to_resolved().await?)
+            .chain(runtime_entries.iter().copied().map(ResolvedVc::upcast))
+            .collect(),
+    ));
 
     let bootstrap = chunking_context.root_entry_chunk_group_asset(
         entrypoint,
         entry_module,
+        module_graph,
         OutputAssets::empty(),
-        runtime_entries,
+        Vc::<EvaluatableAssets>::cell(runtime_entries),
     );
 
     let output_root = chunking_context.output_root().to_resolved().await?;

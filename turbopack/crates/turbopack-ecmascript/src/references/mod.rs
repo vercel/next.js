@@ -32,6 +32,7 @@ use num_traits::Zero;
 use once_cell::sync::Lazy;
 use parking_lot::Mutex;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use sourcemap::decode_data_url;
 use swc_core::{
     atoms::JsWord,
@@ -126,7 +127,9 @@ use crate::{
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
     chunk::EcmascriptExports,
-    code_gen::{CodeGen, CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
+    code_gen::{
+        CodeGenerateable, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables, UnresolvedCodeGen,
+    },
     magic_identifier,
     parse::parse,
     references::{
@@ -167,7 +170,9 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     local_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
     reexport_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
     evaluation_references: FxIndexSet<ResolvedVc<Box<dyn ModuleReference>>>,
-    code_gens: Vec<CodeGen>,
+    // Many of these `code_gens` are accumulated inside of a synchronous SWC visitor, so we don't
+    // resolve them until `build()`.
+    code_gens: Vec<UnresolvedCodeGen>,
     exports: EcmascriptExports,
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
@@ -235,18 +240,18 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         C: Upcast<Box<dyn CodeGenerateable>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateable(Vc::upcast(code_gen)));
+            .push(UnresolvedCodeGen::CodeGenerateable(Vc::upcast(code_gen)));
     }
 
     /// Adds a codegen to the analysis result.
     #[allow(dead_code)]
-    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: ResolvedVc<C>)
+    pub fn add_code_gen_with_availability_info<C>(&mut self, code_gen: Vc<C>)
     where
         C: Upcast<Box<dyn CodeGenerateableWithAsyncModuleInfo>>,
     {
         self.code_gens
-            .push(CodeGen::CodeGenerateableWithAsyncModuleInfo(
-                ResolvedVc::upcast(code_gen),
+            .push(UnresolvedCodeGen::CodeGenerateableWithAsyncModuleInfo(
+                Vc::upcast(code_gen),
             ));
     }
 
@@ -274,14 +279,15 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         self.successful = successful;
     }
 
-    /// Builds the final analysis result. Resolves internal Vcs for performance
-    /// in using them.
+    /// Builds the final analysis result. Resolves internal Vcs.
     pub async fn build(
         mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let bindings = EsmBindings::new(take(&mut self.bindings));
-        if !bindings.await?.bindings.is_empty() {
+        let bindings = take(&mut self.bindings);
+        let has_bindings = !bindings.is_empty();
+        if has_bindings {
+            let bindings = EsmBindings::new(bindings);
             self.add_code_gen(bindings);
         }
 
@@ -301,14 +307,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             .into_iter()
             .flatten()
             .collect();
-        for c in self.code_gens.iter_mut() {
-            match c {
-                CodeGen::CodeGenerateable(c) => {
-                    *c = c.resolve().await?;
-                }
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(..) => {}
-            }
-        }
 
         let source_map = if let Some(source_map) = self.source_map {
             source_map
@@ -321,7 +319,13 @@ impl AnalyzeEcmascriptModuleResultBuilder {
                 local_references: ResolvedVc::cell(local_references),
                 reexport_references: ResolvedVc::cell(reexport_references),
                 evaluation_references: ResolvedVc::cell(evaluation_references),
-                code_generation: ResolvedVc::cell(self.code_gens),
+                code_generation: ResolvedVc::cell(
+                    self.code_gens
+                        .iter()
+                        .map(UnresolvedCodeGen::to_resolved)
+                        .try_join()
+                        .await?,
+                ),
                 exports: self.exports.resolved_cell(),
                 async_module: self.async_module,
                 successful: self.successful,
@@ -345,7 +349,7 @@ struct AnalysisState<'a> {
     var_graph: &'a VarGraph,
     /// This is the current state of known values of function
     /// arguments.
-    fun_args_values: Mutex<HashMap<u32, Vec<JsValue>>>,
+    fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -361,7 +365,7 @@ impl AnalysisState<'_> {
         let fun_args_values = self.fun_args_values.lock().clone();
         link(
             self.var_graph,
-            value.clone(),
+            value,
             &early_value_visitor,
             &|value| {
                 value_visitor(
@@ -601,31 +605,46 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     // ast-grep-ignore: to-resolved-in-loop
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
-            *origin,
-            Request::parse(Value::new(RcStr::from(&*r.module_path).into())),
-            r.issue_source
-                .unwrap_or_else(|| IssueSource::from_source_only(*source)),
+            origin,
+            Request::parse(Value::new(RcStr::from(&*r.module_path).into()))
+                .to_resolved()
+                .await?,
+            if let Some(issue_source) = r.issue_source {
+                issue_source.to_resolved().await?
+            } else {
+                IssueSource::from_source_only(*source).to_resolved().await?
+            },
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::evaluation())
+                        Some(ModulePart::evaluation().to_resolved().await?)
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                    ImportedSymbol::Symbol(name) => {
+                        Some(ModulePart::export((&**name).into()).to_resolved().await?)
+                    }
                     ImportedSymbol::PartEvaluation(part_id) => {
                         evaluation_references.push(i);
-                        Some(ModulePart::internal_evaluation(*part_id))
+                        Some(
+                            ModulePart::internal_evaluation(*part_id)
+                                .to_resolved()
+                                .await?,
+                        )
                     }
-                    ImportedSymbol::Part(part_id) => Some(ModulePart::internal(*part_id)),
-                    ImportedSymbol::Exports => Some(ModulePart::exports()),
+                    ImportedSymbol::Part(part_id) => {
+                        Some(ModulePart::internal(*part_id).to_resolved().await?)
+                    }
+                    ImportedSymbol::Exports => Some(ModulePart::exports().to_resolved().await?),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::evaluation())
+                        Some(ModulePart::evaluation().to_resolved().await?)
                     }
-                    ImportedSymbol::Symbol(name) => Some(ModulePart::export((&**name).into())),
+                    ImportedSymbol::Symbol(name) => {
+                        Some(ModulePart::export((&**name).into()).to_resolved().await?)
+                    }
                     ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
                         bail!("Internal imports doesn't exist in reexports only mode")
                     }
@@ -859,7 +878,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         origin,
         compile_time_info,
         var_graph: &var_graph,
-        fun_args_values: Mutex::new(HashMap::<u32, Vec<JsValue>>::new()),
+        fun_args_values: Mutex::new(FxHashMap::<u32, Vec<JsValue>>::default()),
         first_import_meta: true,
         tree_shaking_mode: options.tree_shaking_mode,
         import_externals: options.import_externals,
@@ -899,7 +918,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         match effect {
             Effect::Unreachable { start_ast_path } => {
                 analysis.add_code_gen(Unreachable::new(
-                    AstPathRange::StartAfter(start_ast_path.to_vec()).cell(),
+                    AstPathRange::StartAfter(start_ast_path.to_vec()).resolved_cell(),
                 ));
             }
             Effect::Conditional {
@@ -914,12 +933,13 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 let condition_has_side_effects = condition.has_side_effects();
 
                 let condition = analysis_state
-                    .link_value(condition, ImportAttributes::empty_ref())
+                    .link_value(*condition, ImportAttributes::empty_ref())
                     .await?;
 
                 macro_rules! inactive {
                     ($block:ident) => {
-                        analysis.add_code_gen(Unreachable::new($block.range.clone().cell()));
+                        analysis
+                            .add_code_gen(Unreachable::new($block.range.clone().resolved_cell()));
                     };
                 }
                 macro_rules! condition {
@@ -1067,7 +1087,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 }
 
                 let func = analysis_state
-                    .link_value(func, eval_context.imports.get_attributes(span))
+                    .link_value(*func, eval_context.imports.get_attributes(span))
                     .await?;
 
                 handle_call(
@@ -1099,10 +1119,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     }
                 }
                 let mut obj = analysis_state
-                    .link_value(obj, ImportAttributes::empty_ref())
+                    .link_value(*obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportAttributes::empty_ref())
+                    .link_value(*prop, ImportAttributes::empty_ref())
                     .await?;
 
                 if !new {
@@ -1169,11 +1189,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             } => {
                 // FreeVar("require") might be turbopackIgnore-d
                 if !analysis_state
-                    .link_value(var.clone(), eval_context.imports.get_attributes(span))
+                    .link_value(*var.clone(), eval_context.imports.get_attributes(span))
                     .await?
                     .is_unknown()
                 {
-                    handle_free_var(&ast_path, var, span, &analysis_state, &mut analysis).await?;
+                    handle_free_var(&ast_path, *var, span, &analysis_state, &mut analysis).await?;
                 }
             }
             Effect::Member {
@@ -1184,10 +1204,10 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 in_try: _,
             } => {
                 let obj = analysis_state
-                    .link_value(obj, ImportAttributes::empty_ref())
+                    .link_value(*obj, ImportAttributes::empty_ref())
                     .await?;
                 let prop = analysis_state
-                    .link_value(prop, ImportAttributes::empty_ref())
+                    .link_value(*prop, ImportAttributes::empty_ref())
                     .await?;
 
                 handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis).await?;
@@ -1207,6 +1227,28 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 .await?,
                         )
                     } else {
+                        let r = match options.tree_shaking_mode {
+                            Some(TreeShakingMode::ReexportsOnly) => {
+                                let r_ref = r.await?;
+                                if r_ref.export_name.is_none() && export.is_some() {
+                                    let export = export.clone().unwrap();
+                                    EsmAssetReference::new(
+                                        r_ref.origin,
+                                        r_ref.request,
+                                        r_ref.issue_source,
+                                        Value::new(r_ref.annotations.clone()),
+                                        Some(ModulePart::export(export).to_resolved().await?),
+                                        r_ref.import_externals,
+                                    )
+                                    .to_resolved()
+                                    .await?
+                                } else {
+                                    r
+                                }
+                            }
+                            _ => r,
+                        };
+
                         analysis.add_local_reference(r);
                         analysis.add_import_reference(r);
                         analysis.add_binding(EsmBinding::new(
@@ -1223,7 +1265,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 span,
             } => {
                 let arg = analysis_state
-                    .link_value(arg, ImportAttributes::empty_ref())
+                    .link_value(*arg, ImportAttributes::empty_ref())
                     .await?;
                 handle_typeof(&ast_path, arg, span, &analysis_state, &mut analysis).await?;
             }
@@ -2336,24 +2378,35 @@ async fn handle_free_var_reference(
             export,
         } => {
             let esm_reference = EsmAssetReference::new(
-                lookup_path.map_or(*state.origin, |lookup_path| {
-                    Vc::upcast(PlainResolveOrigin::new(
-                        state.origin.asset_context(),
-                        *lookup_path,
-                    ))
-                }),
-                Request::parse(Value::new(request.clone().into())),
+                if let Some(lookup_path) = lookup_path {
+                    ResolvedVc::upcast(
+                        PlainResolveOrigin::new(state.origin.asset_context(), **lookup_path)
+                            .to_resolved()
+                            .await?,
+                    )
+                } else {
+                    state.origin
+                },
+                Request::parse(Value::new(request.clone().into()))
+                    .to_resolved()
+                    .await?,
                 IssueSource::from_swc_offsets(
                     *state.source,
                     span.lo.to_usize(),
                     span.hi.to_usize(),
-                ),
+                )
+                .to_resolved()
+                .await?,
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
-                    | Some(TreeShakingMode::ReexportsOnly) => export
-                        .as_ref()
-                        .map(|export| ModulePart::export(export.clone())),
+                    | Some(TreeShakingMode::ReexportsOnly) => {
+                        if let Some(export) = export {
+                            Some(ModulePart::export(export.clone()).to_resolved().await?)
+                        } else {
+                            None
+                        }
+                    }
                     None => None,
                 },
                 state.import_externals,
@@ -2966,7 +3019,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportAll,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -2976,7 +3029,6 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast NamedExport,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
         // We create mutable exports for fake ESMs generated by module splitting
         let is_fake_esm = export
             .with
@@ -3032,6 +3084,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
 
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3046,7 +3099,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 .insert(name.clone(), EsmExport::LocalBinding(name, false));
         });
         self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+            .add_code_gen(EsmModuleItem::new(ResolvedVc::cell(as_parent_path(
+                ast_path,
+            ))));
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3060,7 +3115,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             EsmExport::LocalBinding(magic_identifier::mangle("default export").into(), false),
         );
         self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+            .add_code_gen(EsmModuleItem::new(ResolvedVc::cell(as_parent_path(
+                ast_path,
+            ))));
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3087,7 +3144,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
         self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+            .add_code_gen(EsmModuleItem::new(ResolvedVc::cell(as_parent_path(
+                ast_path,
+            ))));
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3096,7 +3155,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         import: &'ast ImportDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         let src = import.src.value.to_string();
         import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {
@@ -3357,7 +3416,7 @@ fn is_invoking_node_process_eval(args: &[JsValue]) -> bool {
                 {
                     // Is `-e` one of the arguments passed to the program?
                     if items.iter().any(|e| {
-                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Word(arg))) =
+                        if let JsValue::Constant(JsConstantValue::Str(ConstantString::Atom(arg))) =
                             e
                         {
                             arg == "-e"

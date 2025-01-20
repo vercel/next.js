@@ -80,6 +80,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -147,7 +148,6 @@ import {
   loadBindings,
   lockfilePatchPromise,
   teardownTraceSubscriber,
-  teardownHeapProfiler,
   createDefineEnv,
 } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
@@ -162,6 +162,8 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -214,6 +216,7 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 
 type Fallback = null | boolean | string
 
@@ -402,6 +405,10 @@ export type RoutesManifest = {
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
   }
+  rewriteHeaders: {
+    pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
+    queryHeader: typeof NEXT_REWRITTEN_QUERY_HEADER
+  }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
@@ -422,7 +429,9 @@ export type RoutesManifest = {
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getNamedRouteRegex(page, true)
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
@@ -1259,6 +1268,10 @@ export default async function build(
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
             },
+            rewriteHeaders: {
+              pathHeader: NEXT_REWRITTEN_PATH_HEADER,
+              queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
+            },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
               ? {
@@ -1305,6 +1318,24 @@ export default async function build(
           config.experimental.clientRouterFilterAllowedRate
         )
         NextBuildContext.clientRouterFilters = clientRouterFilters
+      }
+
+      if (config.experimental.streamingMetadata) {
+        // Write html limited bots config to response-config-manifest
+        const responseConfigManifestPath = path.join(
+          distDir,
+          RESPONSE_CONFIG_MANIFEST
+        )
+        const responseConfigManifest: {
+          version: number
+          htmlLimitedBots: string
+        } = {
+          version: 0,
+          htmlLimitedBots:
+            config.experimental.htmlLimitedBots ||
+            HTML_LIMITED_BOT_UA_RE_STRING,
+        }
+        await writeManifest(responseConfigManifestPath, responseConfigManifest)
       }
 
       // Ensure commonjs handling is used for files in the distDir (generally .next)
@@ -2487,6 +2518,9 @@ export default async function build(
               PRERENDER_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(config.experimental.streamingMetadata
+                ? [RESPONSE_CONFIG_MANIFEST]
+                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
@@ -2641,6 +2675,10 @@ export default async function build(
       }
 
       const features: EventBuildFeatureUsage[] = [
+        {
+          featureName: 'experimental/dynamicIO',
+          invocationCount: config.experimental.dynamicIO ? 1 : 0,
+        },
         {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
@@ -3184,7 +3222,9 @@ export default async function build(
                     : undefined,
                   experimentalBypassFor: bypassFor,
                   routeRegex: normalizeRouteRegex(
-                    getNamedRouteRegex(route.pathname, false).re.source
+                    getNamedRouteRegex(route.pathname, {
+                      prefixRouteKeys: false,
+                    }).re.source
                   ),
                   dataRoute,
                   fallback,
@@ -3198,22 +3238,21 @@ export default async function build(
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          dataRoute.replace(/\.rsc$/, ''),
-                          false
-                        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                        getNamedRouteRegex(dataRoute, {
+                          prefixRouteKeys: false,
+                          includeSuffix: true,
+                          excludeOptionalTrailingSlash: true,
+                        }).re.source
                       ),
                   prefetchDataRoute,
                   prefetchDataRouteRegex: !prefetchDataRoute
                     ? undefined
                     : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
+                        getNamedRouteRegex(prefetchDataRoute, {
+                          prefixRouteKeys: false,
+                          includeSuffix: true,
+                          excludeOptionalTrailingSlash: true,
+                        }).re.source
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
@@ -3611,7 +3650,9 @@ export default async function build(
 
           prerenderManifest.dynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
-              getNamedRouteRegex(tbdRoute, false).re.source
+              getNamedRouteRegex(tbdRoute, {
+                prefixRouteKeys: false,
+              }).re.source
             ),
             experimentalPPR: undefined,
             renderingMode: undefined,
@@ -3625,10 +3666,11 @@ export default async function build(
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
-              getNamedRouteRegex(
-                dataRoute.replace(/\.json$/, ''),
-                false
-              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
+              getNamedRouteRegex(dataRoute, {
+                prefixRouteKeys: true,
+                includeSuffix: true,
+                excludeOptionalTrailingSlash: true,
+              }).re.source
             ),
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
@@ -3753,7 +3795,6 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
 
     if (traceUploadUrl && loadedConfig) {
       uploadTrace({

@@ -17,7 +17,7 @@ use swc_core::{
     quote,
 };
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
@@ -30,9 +30,7 @@ pub struct Unreachable {
     range: ResolvedVc<AstPathRange>,
 }
 
-#[turbo_tasks::value_impl]
 impl Unreachable {
-    #[turbo_tasks::function]
     pub fn new(range: ResolvedVc<AstPathRange>) -> Vc<Self> {
         Self::cell(Unreachable { range })
     }
@@ -43,7 +41,8 @@ impl CodeGenerateable for Unreachable {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let range = self.range.await?;
         let visitors = match &*range {

@@ -147,6 +147,7 @@ export type RouteCacheEntry =
 
 export const enum FetchStrategy {
   PPR,
+  Full,
   LoadingBoundary,
 }
 
@@ -211,7 +212,7 @@ export type NonEmptySegmentCacheEntry = Exclude<
 // first level is keyed by href, the second level is keyed by Next-Url, and so
 // on (if were to add more levels).
 type RouteCacheKeypath = [NormalizedHref, NormalizedNextUrl]
-const routeCacheMap: TupleMap<RouteCacheKeypath, RouteCacheEntry> =
+let routeCacheMap: TupleMap<RouteCacheKeypath, RouteCacheEntry> =
   createTupleMap()
 
 // We use an LRU for memory management. We must update this whenever we add or
@@ -220,23 +221,41 @@ const routeCacheMap: TupleMap<RouteCacheKeypath, RouteCacheEntry> =
 // on navigator.deviceMemory, or some other heuristic. We should make this
 // customizable via the Next.js config, too.
 const maxRouteLruSize = 10 * 1024 * 1024 // 10 MB
-const routeCacheLru = createLRU<RouteCacheEntry>(
+let routeCacheLru = createLRU<RouteCacheEntry>(
   maxRouteLruSize,
   onRouteLRUEviction
 )
 
 // TODO: We may eventually store segment entries in a tuple map, too, to
 // account for search params.
-const segmentCacheMap = new Map<string, SegmentCacheEntry>()
+let segmentCacheMap = new Map<string, SegmentCacheEntry>()
 // NOTE: Segments and Route entries are managed by separate LRUs. We could
 // combine them into a single LRU, but because they are separate types, we'd
 // need to wrap each one in an extra LRU node (to maintain monomorphism, at the
 // cost of additional memory).
 const maxSegmentLruSize = 50 * 1024 * 1024 // 50 MB
-const segmentCacheLru = createLRU<SegmentCacheEntry>(
+let segmentCacheLru = createLRU<SegmentCacheEntry>(
   maxSegmentLruSize,
   onSegmentLRUEviction
 )
+
+/**
+ * Used to clear the client prefetch cache when a server action calls
+ * revalidatePath or revalidateTag. Eventually we will support only clearing the
+ * segments that were actually affected, but there's more work to be done on the
+ * server before the client is able to do this correctly.
+ */
+export function revalidateEntireCache() {
+  // Clearing the cache also effectively rejects any pending requests, because
+  // when the response is received, it gets written into a cache entry that is
+  // no longer reachable.
+  // TODO: There's an exception to this case that we don't currently handle
+  // correctly: background revalidations. See note in `upsertSegmentEntry`.
+  routeCacheMap = createTupleMap()
+  routeCacheLru = createLRU(maxRouteLruSize, onRouteLRUEviction)
+  segmentCacheMap = new Map()
+  segmentCacheLru = createLRU(maxSegmentLruSize, onSegmentLRUEviction)
+}
 
 export function readExactRouteCacheEntry(
   now: number,
@@ -448,6 +467,9 @@ export function upsertSegmentEntry(
   // We have a new entry that has not yet been inserted into the cache. Before
   // we do so, we need to confirm whether it takes precedence over the existing
   // entry (if one exists).
+  // TODO: We should not upsert an entry if its key was invalidated in the time
+  // since the request was made. We can do that by passing the "owner" entry to
+  // this function and confirming it's the same as `existingEntry`.
   const existingEntry = readSegmentCacheEntry(now, segmentKeyPath)
   if (existingEntry !== null) {
     if (candidateEntry.isPartial && !existingEntry.isPartial) {
@@ -847,12 +869,13 @@ export async function fetchRouteOnCacheMiss(
         return null
       }
 
+      const staleTimeMs = serverData.staleTime * 1000
       fulfillRouteCacheEntry(
         entry,
         convertRootTreePrefetchToRouteTree(serverData),
         serverData.head,
         serverData.isHeadPartial,
-        Date.now() + serverData.staleTime,
+        Date.now() + staleTimeMs,
         couldBeIntercepted,
         canonicalUrl,
         routeIsPPREnabled
@@ -1004,9 +1027,10 @@ export async function fetchSegmentOnCacheMiss(
   }
 }
 
-export async function fetchSegmentPrefetchesForPPRDisabledRoute(
+export async function fetchSegmentPrefetchesUsingDynamicRequest(
   task: PrefetchTask,
   route: FulfilledRouteCacheEntry,
+  fetchStrategy: FetchStrategy,
   dynamicRequestTree: FlightRouterState,
   spawnedEntries: Map<string, PendingSegmentCacheEntry>
 ): Promise<PrefetchSubtaskResult<null> | null> {
@@ -1014,13 +1038,19 @@ export async function fetchSegmentPrefetchesForPPRDisabledRoute(
   const nextUrl = task.key.nextUrl
   const headers: RequestHeaders = {
     [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
     [NEXT_ROUTER_STATE_TREE_HEADER]: encodeURIComponent(
       JSON.stringify(dynamicRequestTree)
     ),
   }
   if (nextUrl !== null) {
     headers[NEXT_URL] = nextUrl
+  }
+  // Only set the prefetch header if we're not doing a "full" prefetch. We
+  // omit the prefetch header from a full prefetch because it's essentially
+  // just a navigation request that happens ahead of time — it should include
+  // all the same data in the response.
+  if (fetchStrategy !== FetchStrategy.Full) {
+    headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
   try {
     const response = await fetchPrefetchResponse(href, headers)
@@ -1114,17 +1144,19 @@ function writeDynamicTreeResponseIntoCache(
 
   const flightRouterState = flightData.tree
   // TODO: Extract to function
-  const staleTimeHeader = response.headers.get(NEXT_ROUTER_STALE_TIME_HEADER)
-  const staleTime =
-    staleTimeHeader !== null
-      ? parseInt(staleTimeHeader, 10)
+  const staleTimeHeaderSeconds = response.headers.get(
+    NEXT_ROUTER_STALE_TIME_HEADER
+  )
+  const staleTimeMs =
+    staleTimeHeaderSeconds !== null
+      ? parseInt(staleTimeHeaderSeconds, 10) * 1000
       : STATIC_STALETIME_MS
   fulfillRouteCacheEntry(
     entry,
     convertRootFlightRouterStateToRouteTree(flightRouterState),
     flightData.head,
     flightData.isHeadPartial,
-    now + staleTime,
+    now + staleTimeMs,
     couldBeIntercepted,
     canonicalUrl,
     routeIsPPREnabled
@@ -1189,17 +1221,17 @@ function writeDynamicRenderResponseIntoCache(
           encodeSegment(segment)
         )
       }
-      const staleTimeHeader = response.headers.get(
+      const staleTimeHeaderSeconds = response.headers.get(
         NEXT_ROUTER_STALE_TIME_HEADER
       )
-      const staleTime =
-        staleTimeHeader !== null
-          ? parseInt(staleTimeHeader, 10)
+      const staleTimeMs =
+        staleTimeHeaderSeconds !== null
+          ? parseInt(staleTimeHeaderSeconds, 10) * 1000
           : STATIC_STALETIME_MS
       writeSeedDataIntoCache(
         now,
         route,
-        now + staleTime,
+        now + staleTimeMs,
         seedData,
         segmentKey,
         spawnedEntries

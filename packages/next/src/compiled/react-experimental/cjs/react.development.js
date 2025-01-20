@@ -723,6 +723,12 @@
               });
             }
           : enqueueTask;
+    deprecatedAPIs = Object.freeze({
+      __proto__: null,
+      c: function (size) {
+        return resolveDispatcher().useMemoCache(size);
+      }
+    });
     exports.Children = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
@@ -764,11 +770,7 @@
     exports.Suspense = REACT_SUSPENSE_TYPE;
     exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
-    exports.__COMPILER_RUNTIME = {
-      c: function (size) {
-        return resolveDispatcher().useMemoCache(size);
-      }
-    };
+    exports.__COMPILER_RUNTIME = deprecatedAPIs;
     exports.act = function (callback) {
       var prevActQueue = ReactSharedInternals.actQueue,
         prevActScopeDepth = actScopeDepth;
@@ -1247,7 +1249,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-experimental-74ea0c73-20250109";
+    exports.version = "19.1.0-experimental-5b51a2b9-20250116";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

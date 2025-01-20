@@ -28,6 +28,7 @@ pub trait Transition {
     fn process_source(self: Vc<Self>, asset: Vc<Box<dyn Source>>) -> Vc<Box<dyn Source>> {
         asset
     }
+
     /// Apply modifications to the compile-time information
     fn process_compile_time_info(
         self: Vc<Self>,
@@ -35,10 +36,12 @@ pub trait Transition {
     ) -> Vc<CompileTimeInfo> {
         compile_time_info
     }
+
     /// Apply modifications to the layer
     fn process_layer(self: Vc<Self>, layer: Vc<RcStr>) -> Vc<RcStr> {
         layer
     }
+
     /// Apply modifications/wrapping to the module options context
     fn process_module_options_context(
         self: Vc<Self>,
@@ -46,6 +49,7 @@ pub trait Transition {
     ) -> Vc<ModuleOptionsContext> {
         module_options_context
     }
+
     /// Apply modifications/wrapping to the resolve options context
     fn process_resolve_options_context(
         self: Vc<Self>,
@@ -53,6 +57,7 @@ pub trait Transition {
     ) -> Vc<ResolveOptionsContext> {
         resolve_options_context
     }
+
     /// Apply modifications/wrapping to the final asset
     fn process_module(
         self: Vc<Self>,
@@ -61,6 +66,7 @@ pub trait Transition {
     ) -> Vc<Box<dyn Module>> {
         module
     }
+
     /// Apply modifications to the context
     async fn process_context(
         self: Vc<Self>,
@@ -83,6 +89,7 @@ pub trait Transition {
         );
         Ok(module_asset_context)
     }
+
     /// Apply modification on the processing of the asset
     async fn process(
         self: Vc<Self>,
@@ -92,9 +99,11 @@ pub trait Transition {
     ) -> Result<Vc<ProcessResult>> {
         let asset = self.process_source(asset);
         let module_asset_context = self.process_context(module_asset_context);
+        let asset = asset.to_resolved().await?;
 
         Ok(match &*module_asset_context
             .process_default(asset, reference_type)
+            .await?
             .await?
         {
             ProcessResult::Module(m) => ProcessResult::Module(
@@ -109,7 +118,7 @@ pub trait Transition {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct TransitionOptions {
     pub named_transitions: HashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
@@ -132,9 +141,9 @@ impl TransitionOptions {
 
     pub async fn get_by_rules(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         reference_type: &ReferenceType,
-    ) -> Result<Option<Vc<Box<dyn Transition>>>> {
+    ) -> Result<Option<ResolvedVc<Box<dyn Transition>>>> {
         if self.transition_rules.is_empty() {
             return Ok(None);
         }

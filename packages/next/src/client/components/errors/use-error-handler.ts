@@ -68,6 +68,10 @@ export function useErrorHandler(
         rejectionHandlers.indexOf(handleOnUnhandledRejection),
         1
       )
+
+      // Reset error queues.
+      errorQueue.splice(0, 0)
+      rejectionQueue.splice(0, 0)
     }
   }, [handleOnUnhandledError, handleOnUnhandledRejection])
 }

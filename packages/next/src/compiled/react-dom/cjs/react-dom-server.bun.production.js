@@ -27,6 +27,7 @@ var React = require("next/dist/compiled/react"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
+  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
   REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
   isArrayImpl = Array.isArray,
@@ -3137,6 +3138,9 @@ function unwrapThenable(thenable) {
   null === thenableState && (thenableState = []);
   return trackUsedThenable(thenableState, thenable, index);
 }
+function unsupportedRefresh() {
+  throw Error("Cache cannot be refreshed during server rendering.");
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3221,6 +3225,14 @@ var HooksDispatcher = {
     useHostTransitionStatus: function () {
       resolveCurrentlyRenderingComponent();
       return sharedNotPendingObject;
+    },
+    useMemoCache: function (size) {
+      for (var data = Array(size), i = 0; i < size; i++)
+        data[i] = REACT_MEMO_CACHE_SENTINEL;
+      return data;
+    },
+    useCacheRefresh: function () {
+      return unsupportedRefresh;
     }
   },
   currentResumableState = null,
@@ -5579,13 +5591,13 @@ function abort(request, reason) {
 }
 var isomorphicReactPackageVersion$jscomp$inline_728 = React.version;
 if (
-  "19.1.0-canary-74ea0c73-20250109" !==
+  "19.1.0-canary-5b51a2b9-20250116" !==
   isomorphicReactPackageVersion$jscomp$inline_728
 )
   throw Error(
     'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
       (isomorphicReactPackageVersion$jscomp$inline_728 +
-        "\n  - react-dom:  19.1.0-canary-74ea0c73-20250109\nLearn more: https://react.dev/warnings/version-mismatch")
+        "\n  - react-dom:  19.1.0-canary-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
   );
 exports.renderToReadableStream = function (children, options) {
   return new Promise(function (resolve, reject) {
@@ -5676,4 +5688,4 @@ exports.renderToReadableStream = function (children, options) {
     startWork(request);
   });
 };
-exports.version = "19.1.0-canary-74ea0c73-20250109";
+exports.version = "19.1.0-canary-5b51a2b9-20250116";

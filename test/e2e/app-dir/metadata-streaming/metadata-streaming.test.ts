@@ -1,7 +1,7 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, createMultiDomMatcher } from 'next-test-utils'
 
-describe('metadata-streaming', () => {
+describe('app-dir - metadata-streaming', () => {
   const { next } = nextTestSetup({
     files: __dirname,
   })
@@ -79,5 +79,21 @@ describe('metadata-streaming', () => {
 
     expect(await browser.hasElementByCssSelector('body meta')).toBe(false)
     expect(await browser.hasElementByCssSelector('body title')).toBe(false)
+  })
+
+  describe('dynamic api', () => {
+    it('should only load streaming metadata on client', async () => {
+      const $ = await next.render$('/dynamic-api')
+      expect($('title').length).toBe(0)
+    })
+
+    it('should load the metadata in browser', async () => {
+      const browser = await next.browser('/dynamic-api')
+      await retry(async () => {
+        expect(await browser.elementByCss('title').text()).toMatch(
+          /Dynamic api \d+/
+        )
+      })
+    })
   })
 })

@@ -183,6 +183,7 @@ import {
   createRenderResumeDataCache,
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
+import isError from '../../lib/is-error'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -879,6 +880,7 @@ function Preloads({ preloadCallbacks }: { preloadCallbacks: Function[] }) {
 async function getErrorRSCPayload(
   tree: LoaderTree,
   ctx: AppRenderContext,
+  ssrError: unknown,
   errorType: MetadataErrorType | 'redirect' | undefined
 ) {
   const {
@@ -942,6 +944,11 @@ async function getErrorRSCPayload(
     query
   )
 
+  let err: Error | undefined = undefined
+  if (ssrError) {
+    err = isError(ssrError) ? ssrError : new Error(ssrError + '')
+  }
+
   // For metadata notFound error there's no global not found boundary on top
   // so we create a not found page with AppRouter
   const seedData: CacheNodeSeedData = [
@@ -950,7 +957,14 @@ async function getErrorRSCPayload(
       <head>
         <ErrorMetadataComponent />
       </head>
-      <body />
+      <body>
+        {process.env.NODE_ENV !== 'production' && err ? (
+          <template
+            data-next-error-message={err.message}
+            data-next-error-stack={err.stack}
+          />
+        ) : null}
+      </body>
     </html>,
     {},
     null,
@@ -2011,6 +2025,7 @@ async function renderToStream(
       getErrorRSCPayload,
       tree,
       ctx,
+      reactServerErrorsByDigest.has((err as any).digest) ? null : err,
       errorType
     )
 
@@ -3858,9 +3873,18 @@ async function prerenderToStream(
       type: 'prerender-legacy',
       phase: 'render',
       implicitTags: implicitTags,
-      revalidate: INFINITE_CACHE,
-      expire: INFINITE_CACHE,
-      stale: INFINITE_CACHE,
+      revalidate:
+        typeof prerenderStore?.revalidate !== 'undefined'
+          ? prerenderStore.revalidate
+          : INFINITE_CACHE,
+      expire:
+        typeof prerenderStore?.expire !== 'undefined'
+          ? prerenderStore.expire
+          : INFINITE_CACHE,
+      stale:
+        typeof prerenderStore?.stale !== 'undefined'
+          ? prerenderStore.stale
+          : INFINITE_CACHE,
       tags: [...(prerenderStore?.tags || implicitTags)],
     })
     const errorRSCPayload = await workUnitAsyncStorage.run(
@@ -3868,6 +3892,7 @@ async function prerenderToStream(
       getErrorRSCPayload,
       tree,
       ctx,
+      reactServerErrorsByDigest.has((err as any).digest) ? undefined : err,
       errorType
     )
 

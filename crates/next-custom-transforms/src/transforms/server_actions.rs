@@ -2649,6 +2649,12 @@ impl DirectiveVisitor<'_> {
                         directive: value.to_string(),
                         expected_directive: "use server".to_string(),
                     });
+                } else if value == "use action" {
+                    emit_error(ServerActionsErrorKind::MisspelledDirective {
+                        span: *span,
+                        directive: value.to_string(),
+                        expected_directive: "use server".to_string(),
+                    });
                 } else
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {

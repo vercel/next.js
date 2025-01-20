@@ -4,10 +4,13 @@ use anyhow::Result;
 use napi::{bindgen_prelude::External, JsFunction};
 use next_api::{
     paths::ServerPath,
-    route::{Endpoint, WrittenEndpoint},
+    route::{
+        endpoint_server_changed_operation, endpoint_write_to_disk_operation, Endpoint,
+        WrittenEndpoint,
+    },
 };
 use tracing::Instrument;
-use turbo_tasks::{get_effects, Completion, Effects, ReadRef, Vc, VcValueType};
+use turbo_tasks::{get_effects, Completion, Effects, OperationVc, ReadRef, Vc, VcValueType};
 use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
@@ -86,10 +89,10 @@ impl From<Option<WrittenEndpoint>> for NapiWrittenEndpoint {
 //    some async functions (in this case `endpoint_write_to_disk`) can cause
 //    higher-ranked lifetime errors. See https://github.com/rust-lang/rust/issues/102211
 // 2. the type_complexity clippy lint.
-pub struct ExternalEndpoint(pub VcArc<Vc<Box<dyn Endpoint>>>);
+pub struct ExternalEndpoint(pub VcArc<Box<dyn Endpoint>>);
 
 impl Deref for ExternalEndpoint {
-    type Target = VcArc<Vc<Box<dyn Endpoint>>>;
+    type Target = VcArc<Box<dyn Endpoint>>;
 
     fn deref(&self) -> &Self::Target {
         &self.0
@@ -99,14 +102,14 @@ impl Deref for ExternalEndpoint {
 // Await the source and return fatal issues if there are any, otherwise
 // propagate any actual error results.
 async fn strongly_consistent_catch_collectables<R: VcValueType + Send>(
-    source: Vc<R>,
+    source: OperationVc<R>,
 ) -> Result<(
     Option<ReadRef<R>>,
     Arc<Vec<ReadRef<PlainIssue>>>,
     Arc<Vec<ReadRef<PlainDiagnostic>>>,
     Arc<Effects>,
 )> {
-    let result = source.strongly_consistent().await;
+    let result = source.connect().strongly_consistent().await;
     let issues = get_issues(source).await?;
     let diagnostics = get_diagnostics(source).await?;
     let effects = Arc::new(get_effects(source).await?);
@@ -130,9 +133,9 @@ struct WrittenEndpointWithIssues {
 
 #[turbo_tasks::function]
 async fn get_written_endpoint_with_issues(
-    endpoint: Vc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<Box<dyn Endpoint>>,
 ) -> Result<Vc<WrittenEndpointWithIssues>> {
-    let write_to_disk = endpoint.write_to_disk();
+    let write_to_disk = endpoint_write_to_disk_operation(endpoint_op);
     let (written, issues, diagnostics, effects) =
         strongly_consistent_catch_collectables(write_to_disk).await?;
     Ok(WrittenEndpointWithIssues {
@@ -150,10 +153,10 @@ pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = ***endpoint;
+    let endpoint_op = ***endpoint;
     let (written, issues, diags) = turbo_tasks
         .run_once(async move {
-            let operation = get_written_endpoint_with_issues(endpoint);
+            let operation = get_written_endpoint_with_issues(endpoint_op);
             let WrittenEndpointWithIssues {
                 written,
                 issues,
@@ -186,8 +189,8 @@ pub fn endpoint_server_changed_subscribe(
         func,
         move || {
             async move {
-                let operation = subscribe_issues_and_diags(endpoint, issues);
-                let result = operation.strongly_consistent().await?;
+                let vc = subscribe_issues_and_diags(endpoint, issues);
+                let result = vc.strongly_consistent().await?;
                 result.effects.apply().await?;
                 Ok(result)
             }
@@ -236,10 +239,10 @@ impl Eq for EndpointIssuesAndDiags {}
 
 #[turbo_tasks::function]
 async fn subscribe_issues_and_diags(
-    endpoint: Vc<Box<dyn Endpoint>>,
+    endpoint_op: OperationVc<Box<dyn Endpoint>>,
     should_include_issues: bool,
 ) -> Result<Vc<EndpointIssuesAndDiags>> {
-    let changed = endpoint.server_changed();
+    let changed = endpoint_server_changed_operation(endpoint_op);
 
     if should_include_issues {
         let (changed_value, issues, diagnostics, effects) =
@@ -252,7 +255,7 @@ async fn subscribe_issues_and_diags(
         }
         .cell())
     } else {
-        let changed_value = changed.strongly_consistent().await?;
+        let changed_value = changed.connect().strongly_consistent().await?;
         Ok(EndpointIssuesAndDiags {
             changed: Some(changed_value),
             issues: Arc::new(vec![]),
@@ -275,8 +278,8 @@ pub fn endpoint_client_changed_subscribe(
         func,
         move || {
             async move {
-                let changed = endpoint.client_changed();
-                // We don't capture issues and diagonistics here since we don't want to be
+                let changed = endpoint.connect().client_changed();
+                // We don't capture issues and diagnostics here since we don't want to be
                 // notified when they change
                 changed.strongly_consistent().await?;
                 Ok(())
