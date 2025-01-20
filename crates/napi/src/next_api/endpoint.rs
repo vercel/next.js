@@ -269,22 +269,33 @@ async fn subscribe_issues_and_diags_operation(
     }
 }
 
+#[turbo_tasks::function(operation)]
+fn endpoint_client_changed_operation(
+    endpoint_op: OperationVc<Box<dyn Endpoint>>,
+) -> Vc<Completion> {
+    endpoint_op.connect().client_changed()
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint = ***endpoint;
+    let endpoint_op = ***endpoint;
     subscribe(
         turbo_tasks,
         func,
         move || {
             async move {
-                let changed = endpoint.connect().client_changed();
+                let changed_op = endpoint_client_changed_operation(endpoint_op);
                 // We don't capture issues and diagnostics here since we don't want to be
                 // notified when they change
-                changed.strongly_consistent().await?;
+                //
+                // This must be a *read*, not just a resolve, because we need the root task created
+                // by `subscribe` to re-run when the `Completion`'s value changes (via equality),
+                // even if the cell id doesn't change.
+                let _ = changed_op.read_strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
