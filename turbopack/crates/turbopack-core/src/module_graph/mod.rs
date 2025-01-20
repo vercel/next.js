@@ -10,7 +10,7 @@ use petgraph::{
     visit::{Dfs, EdgeRef, IntoNodeReferences, VisitMap, Visitable},
 };
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
+use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -1077,14 +1077,17 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 source_ident,
                 target_ident,
                 ..
-            } => {
-                tracing::info_span!(
-                    "chunkable reference",
-                    ty = debug(chunking_type),
-                    source = display(source_ident),
-                    target = display(target_ident)
-                )
-            }
+            } => match chunking_type {
+                ChunkingType::Parallel => Span::current(),
+                _ => {
+                    tracing::info_span!(
+                        "chunkable reference",
+                        ty = debug(chunking_type),
+                        source = display(source_ident),
+                        target = display(target_ident)
+                    )
+                }
+            },
             SingleModuleGraphBuilderNode::VisitedModule { .. } => {
                 tracing::info_span!("visited module")
             }
