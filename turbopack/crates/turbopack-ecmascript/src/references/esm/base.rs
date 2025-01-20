@@ -189,7 +189,8 @@ impl ModuleReference for EsmAssetReference {
             Value::new(ty),
             false,
             Some(*self.issue_source),
-        );
+        )
+        .await?;
 
         if let Some(part) = self.export_name {
             let part = part.await?;

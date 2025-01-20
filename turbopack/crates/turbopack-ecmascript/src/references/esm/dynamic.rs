@@ -85,7 +85,8 @@ impl ModuleReference for EsmAsyncAssetReference {
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             self.in_try,
             Some(*self.issue_source),
-        ))
+        )
+        .await?)
     }
 }
 
@@ -126,7 +127,8 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                 Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
                 self.in_try,
                 Some(*self.issue_source),
-            ),
+            )
+            .await?,
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,
                 ChunkLoading::Edge
