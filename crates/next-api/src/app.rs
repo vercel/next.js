@@ -309,7 +309,7 @@ impl AppProject {
     pub fn ecmascript_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         Vc::upcast(NextEcmascriptClientReferenceTransition::new(
             Vc::upcast(self.client_transition()),
-            self.ssr_transition(),
+            Vc::upcast(self.ssr_transition()),
         ))
     }
 
@@ -317,7 +317,7 @@ impl AppProject {
     pub fn edge_ecmascript_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         Vc::upcast(NextEcmascriptClientReferenceTransition::new(
             Vc::upcast(self.client_transition()),
-            self.edge_ssr_transition(),
+            Vc::upcast(self.edge_ssr_transition()),
         ))
     }
 
@@ -609,13 +609,40 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        let transitions = [
+            (
+                "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
+            ),
+        ]
+        .into_iter()
+        .collect();
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().server_compile_time_info(),
             self.ssr_module_options_context(),
             self.ssr_resolve_options_context(),
             Vc::cell("app-ssr".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn ssr_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+        let module_context = self.ssr_module_context();
+        FullContextTransition::new(module_context)
     }
 
     #[turbo_tasks::function]
@@ -629,13 +656,40 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    fn edge_ssr_transition(self: Vc<Self>) -> Vc<ContextTransition> {
-        ContextTransition::new(
+    async fn edge_ssr_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
+        let transitions = [
+            (
+                "next-dynamic".into(),
+                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+            ),
+            (
+                "next-dynamic-client".into(),
+                ResolvedVc::upcast(
+                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                        .to_resolved()
+                        .await?,
+                ),
+            ),
+        ]
+        .into_iter()
+        .collect();
+        Ok(ModuleAssetContext::new(
+            TransitionOptions {
+                named_transitions: transitions,
+                ..Default::default()
+            }
+            .cell(),
             self.project().edge_compile_time_info(),
             self.edge_ssr_module_options_context(),
             self.edge_ssr_resolve_options_context(),
             Vc::cell("app-edge-ssr".into()),
-        )
+        ))
+    }
+
+    #[turbo_tasks::function]
+    fn edge_ssr_transition(self: Vc<Self>) -> Vc<FullContextTransition> {
+        let module_context = self.edge_ssr_module_context();
+        FullContextTransition::new(module_context)
     }
 
     #[turbo_tasks::function]
