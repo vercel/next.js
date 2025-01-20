@@ -10,32 +10,62 @@ import { CssReset } from '../internal/styles/CssReset'
 import { RootLayoutMissingTagsError } from '../internal/container/RootLayoutMissingTagsError'
 import type { Dispatcher } from './hot-reloader-client'
 import { RuntimeErrorHandler } from '../../errors/runtime-error-handler'
+import type { GlobalErrorComponent } from '../../error-boundary'
+
+function ErroredHtml({
+  globalError: [GlobalError, globalErrorStyles],
+  error,
+}: {
+  globalError: [GlobalErrorComponent, React.ReactNode]
+  error: unknown
+}) {
+  if (!error) {
+    return (
+      <html>
+        <head />
+        <body />
+      </html>
+    )
+  }
+  return (
+    <>
+      {globalErrorStyles}
+      <GlobalError error={error} />
+    </>
+  )
+}
 
 interface ReactDevOverlayState {
+  reactError?: unknown
   isReactError: boolean
 }
 export default class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
+    globalError: [GlobalErrorComponent, React.ReactNode]
     dispatcher?: Dispatcher
     children: React.ReactNode
   },
   ReactDevOverlayState
 > {
-  state = { isReactError: false }
+  state = {
+    reactError: null,
+    isReactError: false,
+  }
 
   static getDerivedStateFromError(error: Error): ReactDevOverlayState {
     if (!error.stack) return { isReactError: false }
 
     RuntimeErrorHandler.hadRuntimeError = true
     return {
+      reactError: error,
       isReactError: true,
     }
   }
 
   render() {
-    const { state, children, dispatcher } = this.props
-    const { isReactError } = this.state
+    const { state, children, dispatcher, globalError } = this.props
+    const { isReactError, reactError } = this.state
 
     const hasBuildError = state.buildError != null
     const hasRuntimeErrors = Boolean(state.errors.length)
@@ -45,10 +75,7 @@ export default class ReactDevOverlay extends React.PureComponent<
     return (
       <>
         {isReactError ? (
-          <html>
-            <head></head>
-            <body></body>
-          </html>
+          <ErroredHtml globalError={globalError} error={reactError} />
         ) : (
           children
         )}

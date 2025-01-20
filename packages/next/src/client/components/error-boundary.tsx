@@ -142,6 +142,9 @@ export class ErrorBoundaryHandler extends React.Component<
   }
 }
 
+export type GlobalErrorComponent = React.ComponentType<{
+  error: any
+}>
 export function GlobalError({ error }: { error: any }) {
   const digest: string | undefined = error?.digest
   return (
