@@ -247,6 +247,7 @@ function Router({
   actionQueue,
   assetPrefix,
   basePath,
+  globalError,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
