@@ -41,10 +41,23 @@ pub fn get_condition_maps(
         }))
 }
 
-#[turbo_tasks::function]
-pub async fn apply_esm_specific_options(
+pub fn apply_esm_specific_options(
     options: Vc<ResolveOptions>,
     reference_type: Value<ReferenceType>,
+) -> Vc<ResolveOptions> {
+    apply_esm_specific_options_internal(
+        options,
+        matches!(
+            reference_type.into_value(),
+            ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(_))
+        ),
+    )
+}
+
+#[turbo_tasks::function]
+async fn apply_esm_specific_options_internal(
+    options: Vc<ResolveOptions>,
+    clear_extensions: bool,
 ) -> Result<Vc<ResolveOptions>> {
     let mut options: ResolveOptions = options.await?.clone_value();
     // TODO set fully_specified when in strict ESM mode
@@ -54,14 +67,11 @@ pub async fn apply_esm_specific_options(
         conditions.insert("require".into(), ConditionValue::Unset);
     }
 
-    if matches!(
-        reference_type.into_value(),
-        ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportWithType(_))
-    ) {
+    if clear_extensions {
         options.extensions.clear();
     }
 
-    Ok(options.into())
+    Ok(options.cell())
 }
 
 #[turbo_tasks::function]
