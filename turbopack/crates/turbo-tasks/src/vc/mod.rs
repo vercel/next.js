@@ -664,3 +664,23 @@ where
         T::value_default()
     }
 }
+
+pub trait OptionVcExt<T>
+where
+    T: VcValueType,
+{
+    fn to_resolved(self) -> impl Future<Output = Result<Option<ResolvedVc<T>>>> + Send;
+}
+
+impl<T> OptionVcExt<T> for Option<Vc<T>>
+where
+    T: VcValueType,
+{
+    async fn to_resolved(self) -> Result<Option<ResolvedVc<T>>> {
+        if let Some(vc) = self {
+            Ok(Some(vc.to_resolved().await?))
+        } else {
+            Ok(None)
+        }
+    }
+}
