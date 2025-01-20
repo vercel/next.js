@@ -407,6 +407,36 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     }
 }
 
+#[turbo_tasks::function]
+async fn determine_module_type_for_directory(
+    context_path: Vc<FileSystemPath>,
+) -> Result<Vc<ModuleTypeResult>> {
+    let find_package_json =
+        find_context_file(context_path, package_json().resolve().await?).await?;
+    let FindContextFileResult::Found(package_json, _) = *find_package_json else {
+        return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
+    };
+
+    // analysis.add_reference(PackageJsonReference::new(package_json));
+    if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
+        if let Some(r#type) = content.get("type") {
+            return Ok(ModuleTypeResult::new_with_package_json(
+                match r#type.as_str() {
+                    Some("module") => SpecifiedModuleType::EcmaScript,
+                    Some("commonjs") => SpecifiedModuleType::CommonJs,
+                    _ => SpecifiedModuleType::Automatic,
+                },
+                *package_json,
+            ));
+        }
+    }
+
+    Ok(ModuleTypeResult::new_with_package_json(
+        SpecifiedModuleType::Automatic,
+        *package_json,
+    ))
+}
+
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleAsset {
     #[turbo_tasks::function]
@@ -473,53 +503,32 @@ impl EcmascriptModuleAsset {
     pub fn parse(&self) -> Vc<ParseResult> {
         parse(*self.source, Value::new(self.ty), *self.transforms)
     }
+}
 
-    #[turbo_tasks::function]
-    pub(crate) async fn determine_module_type(self: Vc<Self>) -> Result<Vc<ModuleTypeResult>> {
+impl EcmascriptModuleAsset {
+    #[tracing::instrument(level = "trace", skip_all)]
+    pub(crate) async fn determine_module_type(self: Vc<Self>) -> Result<ReadRef<ModuleTypeResult>> {
         let this = self.await?;
 
         match this.options.await?.specified_module_type {
             SpecifiedModuleType::EcmaScript => {
-                return Ok(ModuleTypeResult::new(SpecifiedModuleType::EcmaScript))
+                return ModuleTypeResult::new(SpecifiedModuleType::EcmaScript).await
             }
             SpecifiedModuleType::CommonJs => {
-                return Ok(ModuleTypeResult::new(SpecifiedModuleType::CommonJs))
+                return ModuleTypeResult::new(SpecifiedModuleType::CommonJs).await
             }
             SpecifiedModuleType::Automatic => {}
         }
 
-        let find_package_json = find_context_file(
+        determine_module_type_for_directory(
             self.origin_path()
                 .resolve()
                 .await?
                 .parent()
                 .resolve()
                 .await?,
-            package_json().resolve().await?,
         )
-        .await?;
-        let FindContextFileResult::Found(package_json, _) = *find_package_json else {
-            return Ok(ModuleTypeResult::new(SpecifiedModuleType::Automatic));
-        };
-
-        // analysis.add_reference(PackageJsonReference::new(package_json));
-        if let FileJsonContent::Content(content) = &*package_json.read_json().await? {
-            if let Some(r#type) = content.get("type") {
-                return Ok(ModuleTypeResult::new_with_package_json(
-                    match r#type.as_str() {
-                        Some("module") => SpecifiedModuleType::EcmaScript,
-                        Some("commonjs") => SpecifiedModuleType::CommonJs,
-                        _ => SpecifiedModuleType::Automatic,
-                    },
-                    *package_json,
-                ));
-            }
-        }
-
-        Ok(ModuleTypeResult::new_with_package_json(
-            SpecifiedModuleType::Automatic,
-            *package_json,
-        ))
+        .await
     }
 }
 

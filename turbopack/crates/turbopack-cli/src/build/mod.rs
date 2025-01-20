@@ -317,6 +317,7 @@ async fn build_internal(
             let request = request_vc.await?;
             origin
                 .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
+                .await?
                 .first_module()
                 .await?
                 .with_context(|| {

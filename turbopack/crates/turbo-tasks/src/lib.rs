@@ -125,8 +125,8 @@ pub use turbo_tasks_macros::{function, value_impl, value_trait, KeyValuePair, Ta
 pub use value::{TransientInstance, TransientValue, Value};
 pub use value_type::{TraitMethod, TraitType, ValueType};
 pub use vc::{
-    Dynamic, NonLocalValue, OperationValue, OperationVc, ResolvedVc, TypedForInput, Upcast,
-    ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
+    Dynamic, NonLocalValue, OperationValue, OperationVc, OptionVcExt, ResolvedVc, TypedForInput,
+    Upcast, ValueDefault, Vc, VcCast, VcCellNewMode, VcCellSharedMode, VcDefaultRead, VcRead,
     VcTransparentRead, VcValueTrait, VcValueTraitCast, VcValueType, VcValueTypeCast,
 };
 

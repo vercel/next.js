@@ -625,6 +625,7 @@ impl PagesProject {
             false,
             None,
         )
+        .await?
         .first_module()
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
