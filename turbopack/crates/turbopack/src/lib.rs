@@ -145,8 +145,10 @@ async fn apply_module_type(
                 if let Some((part, _)) = part_ref {
                     if let ModulePart::Evaluation | ModulePart::InternalEvaluation(..) = &*part {
                         // Skip the evaluation part if the module is marked as side effect free.
-                        let side_effect_free_packages =
-                            module_asset_context.side_effect_free_packages();
+                        let side_effect_free_packages = module_asset_context
+                            .side_effect_free_packages()
+                            .resolve()
+                            .await?;
 
                         if *module
                             .is_marked_as_side_effect_free(side_effect_free_packages)
@@ -179,21 +181,27 @@ async fn apply_module_type(
                                     }
                                 }
                                 ModulePart::Export(_) => {
-                                    let side_effect_free_packages =
-                                        module_asset_context.side_effect_free_packages();
+                                    let side_effect_free_packages = module_asset_context
+                                        .side_effect_free_packages()
+                                        .resolve()
+                                        .await?;
 
                                     if *module.get_exports().needs_facade().await? {
                                         apply_reexport_tree_shaking(
-                                            Vc::upcast(EcmascriptModuleFacadeModule::new(
-                                                Vc::upcast(module),
-                                                ModulePart::exports(),
-                                            )),
+                                            Vc::upcast(
+                                                EcmascriptModuleFacadeModule::new(
+                                                    Vc::upcast(module),
+                                                    ModulePart::exports(),
+                                                )
+                                                .resolve()
+                                                .await?,
+                                            ),
                                             part,
                                             side_effect_free_packages,
                                         )
                                     } else {
                                         apply_reexport_tree_shaking(
-                                            Vc::upcast(module),
+                                            Vc::upcast(module.resolve().await?),
                                             part,
                                             side_effect_free_packages,
                                         )
