@@ -1186,15 +1186,9 @@ export default async function getBaseWebpackConfig(
       path: !dev && isNodeServer ? path.join(outputPath, 'chunks') : outputPath,
       // On the server we don't use hashes
       filename: isNodeOrEdgeCompilation
-        ? dev || (isEdgeServer && !isRspack)
+        ? dev || isEdgeServer
           ? `[name].js`
-          : // rspack currently isn't honoring the filename config
-            // in split chunks causing edge runtime chunks
-            // to override node runtime chunks so we force nesting
-            // under separate folder here
-            isEdgeServer && isRspack
-            ? 'edge-chunks/[name].js'
-            : `../[name].js`
+          : `../[name].js`
         : `static/chunks/${isDevFallback ? 'fallback/' : ''}[name]${
             dev ? '' : appDir ? '-[chunkhash]' : '-[contenthash]'
           }.js`,
