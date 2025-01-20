@@ -136,7 +136,7 @@ async fn apply_module_type(
             if runtime_code {
                 ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
-                let module = builder.build();
+                let module = builder.build().resolve().await?;
                 let part_ref = if let Some(part) = part {
                     Some((part.await?, part))
                 } else {
