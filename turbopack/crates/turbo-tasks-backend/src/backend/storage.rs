@@ -160,6 +160,17 @@ impl InnerStorage {
         self.map.iter_mut().position(|m| m.ty() == ty)
     }
 
+    fn get_or_create_map_index(&mut self, ty: CachedDataItemType) -> usize {
+        let i = self.map.iter().position(|m| m.ty() == ty);
+        if let Some(i) = i {
+            i
+        } else {
+            let i = self.map.len();
+            self.map.push(CachedDataItemStorage::new(ty));
+            i
+        }
+    }
+
     fn get_map(&self, ty: CachedDataItemType) -> Option<&CachedDataItemStorage> {
         self.map.iter().find(|m| m.ty() == ty)
     }
@@ -263,9 +274,12 @@ impl InnerStorage {
         key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        let map = self.get_or_create_map_mut(key.ty());
+        let i = self.get_or_create_map_index(key.ty());
+        let map = &mut self.map[i];
         if let Some(v) = update(map.remove(&key)) {
             map.insert(CachedDataItem::from_key_and_value(key, v));
+        } else if map.is_empty() {
+            self.map.swap_remove(i);
         }
     }
 
