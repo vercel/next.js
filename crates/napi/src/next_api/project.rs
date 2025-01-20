@@ -505,10 +505,35 @@ pub async fn project_update(
     Ok(())
 }
 
+/// Runs exit handlers for the project registered using the [`ExitHandler`] API.
+///
+/// This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
+/// one.
+#[napi]
+pub async fn project_on_exit(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+) {
+    project_on_exit_internal(&project).await
+}
+
+async fn project_on_exit_internal(project: &ProjectInstance) {
+    let exit_receiver = project.exit_receiver.lock().await.take();
+    exit_receiver
+        .expect("`project.onExitSync` must only be called once")
+        .run_exit_handler()
+        .await;
+}
+
+/// Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+///
+/// This is used in builds where it's important that we completely persist turbo-tasks to disk, but
+/// it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
+/// where we prioritize fast exit and user responsiveness over all else.
 #[napi]
 pub async fn project_shutdown(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
 ) {
+    project_on_exit_internal(&project).await;
     project.turbo_tasks.stop_and_wait().await;
 }
 
@@ -1304,16 +1329,4 @@ pub fn project_get_source_map_sync(
     within_runtime_if_available(|| {
         tokio::runtime::Handle::current().block_on(project_get_source_map(project, file_path))
     })
-}
-
-/// Runs exit handlers for the project registered using the [`ExitHandler`] API.
-#[napi]
-pub async fn project_on_exit(
-    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
-) {
-    let exit_receiver = project.exit_receiver.lock().await.take();
-    exit_receiver
-        .expect("`project.onExitSync` must only be called once")
-        .run_exit_handler()
-        .await;
 }
