@@ -560,13 +560,13 @@ async fn process_default_internal(
                             } else {
                                 let mut processed_rules = processed_rules.clone();
                                 processed_rules.push(i);
-                                return Ok(Box::pin(process_default(
+                                return Box::pin(process_default(
                                     module_asset_context,
                                     current_source,
                                     Value::new(reference_type),
                                     processed_rules,
                                 ))
-                                .await?);
+                                .await;
                             }
                         }
                     }
