@@ -1,5 +1,3 @@
-use std::sync::{atomic::AtomicUsize, Arc};
-
 use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{server_actions, Config};
@@ -63,7 +61,7 @@ impl CustomTransformer for NextServerActions {
                 cache_kinds: self.cache_kinds.await?.clone_value(),
             },
             ctx.comments.clone(),
-            Arc::new(AtomicUsize::new(0)),
+            Default::default(),
         );
         program.mutate(actions);
         Ok(())

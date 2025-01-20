@@ -1,7 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-    sync::{atomic::AtomicUsize, Arc},
-};
+use std::path::{Path, PathBuf};
 
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use serde::de::DeserializeOwned;
@@ -105,7 +102,7 @@ fn test(input: &Path, minify: bool) {
                         comments.clone(),
                         Default::default(),
                         unresolved_mark,
-                        Arc::new(AtomicUsize::new(0)),
+                        Default::default(),
                     )
                 },
                 |_| noop_pass(),

@@ -714,37 +714,48 @@ describe('config telemetry', () => {
         }
       })
 
-      it('emits telemetry for useCache directive', async () => {
-        // use cache depends on dynamicIO flag
-        await fs.rename(
-          path.join(appDir, 'next.config.dynamic-io'),
-          path.join(appDir, 'next.config.js')
-        )
+      // TODO: support use cache tracking in Turbopack
+      ;(process.env.TURBOPACK ? it.skip : it)(
+        'emits telemetry for useCache directive',
+        async () => {
+          // use cache depends on dynamicIO flag
+          await fs.rename(
+            path.join(appDir, 'next.config.use-cache'),
+            path.join(appDir, 'next.config.js')
+          )
 
-        await fs.rename(path.join(appDir, '_app'), path.join(appDir, 'app'))
+          await fs.move(path.join(appDir, '_app'), path.join(appDir, 'app'))
 
-        const { stderr } = await nextBuild(appDir, [], {
-          stderr: true,
-          env: { NEXT_TELEMETRY_DEBUG: 1 },
-        })
+          const { stderr } = await nextBuild(appDir, [], {
+            stderr: true,
+            env: { NEXT_TELEMETRY_DEBUG: 1 },
+          })
 
-        await fs.rename(
-          path.join(appDir, 'next.config.js'),
-          path.join(appDir, 'next.config.dynamic-io')
-        )
+          await fs.rename(
+            path.join(appDir, 'next.config.js'),
+            path.join(appDir, 'next.config.use-cache')
+          )
 
-        await fs.rename(path.join(appDir, 'app'), path.join(appDir, '_app'))
+          await fs.move(path.join(appDir, 'app'), path.join(appDir, '_app'))
 
-        const featureUsageEvents = findAllTelemetryEvents(
-          stderr,
-          'NEXT_BUILD_FEATURE_USAGE'
-        )
+          const featureUsageEvents = findAllTelemetryEvents(
+            stderr,
+            'NEXT_BUILD_FEATURE_USAGE'
+          )
 
-        expect(featureUsageEvents).toContainEqual({
-          featureName: 'useCache',
-          invocationCount: 2,
-        })
-      })
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'useCache/default',
+            invocationCount: 2,
+          })
+
+          // eslint-disable-next-line jest/no-standalone-expect
+          expect(featureUsageEvents).toContainEqual({
+            featureName: 'useCache/custom',
+            invocationCount: 3,
+          })
+        }
+      )
     }
   )
 })

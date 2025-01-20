@@ -10,6 +10,7 @@ import {
   formatNodeOptions,
   getParsedNodeOptionsWithoutInspect,
 } from '../../server/lib/utils'
+import { mergeUseCacheTrackers } from '../webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
 
 const debug = origDebug('next:build:webpack-build')
 
@@ -84,9 +85,10 @@ async function webpackBuildWithWorker(
     if (curResult.telemetryState) {
       NextBuildContext.telemetryState = {
         ...curResult.telemetryState,
-        useCacheCount:
-          (NextBuildContext.telemetryState?.useCacheCount || 0) +
-          curResult.telemetryState.useCacheCount,
+        useCacheTracker: mergeUseCacheTrackers(
+          NextBuildContext.telemetryState?.useCacheTracker,
+          curResult.telemetryState.useCacheTracker
+        ),
       }
     }
 

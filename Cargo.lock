@@ -4525,6 +4525,7 @@ version = "0.0.0"
 dependencies = [
  "anyhow",
  "chrono",
+ "dashmap 6.1.0",
  "easy-error",
  "either",
  "fxhash",
@@ -4561,6 +4562,7 @@ dependencies = [
  "anyhow",
  "backtrace",
  "console-subscriber",
+ "dashmap 6.1.0",
  "dhat",
  "fxhash",
  "getrandom",

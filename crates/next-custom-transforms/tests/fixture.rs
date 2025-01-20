@@ -2,7 +2,6 @@ use std::{
     env::current_dir,
     iter::FromIterator,
     path::{Path, PathBuf},
-    sync::{atomic::AtomicUsize, Arc},
 };
 
 use next_custom_transforms::transforms::{
@@ -573,7 +572,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     _tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },
@@ -607,7 +606,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },
@@ -634,7 +633,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },
@@ -937,7 +936,7 @@ fn test_source_maps(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter([]),
                     },
                     _tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },

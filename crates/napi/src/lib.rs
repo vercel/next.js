@@ -35,22 +35,18 @@ DEALINGS IN THE SOFTWARE.
 extern crate napi_derive;
 
 use std::{
-    env,
     panic::set_hook,
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc, Once,
-    },
+    sync::{Arc, Once},
 };
 
 use backtrace::Backtrace;
+use dashmap::DashMap;
 use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use swc_core::{
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
-
 #[cfg(not(target_arch = "wasm32"))]
 pub mod css;
 pub mod mdx;
@@ -100,7 +96,7 @@ pub fn complete_output(
     env: &Env,
     output: TransformOutput,
     eliminated_packages: FxHashSet<String>,
-    use_cache_directive_count: Arc<AtomicUsize>,
+    use_cache_telemetry_tracker: DashMap<String, usize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
@@ -113,10 +109,18 @@ pub fn complete_output(
             env.create_string_from_std(serde_json::to_string(&eliminated_packages)?)?,
         )?;
     }
-    js_output.set_named_property(
-        "useCacheCount",
-        env.create_int32(use_cache_directive_count.load(Ordering::SeqCst) as i32)?,
-    )?;
+    if !use_cache_telemetry_tracker.is_empty() {
+        js_output.set_named_property(
+            "useCacheTelemetryTracker",
+            env.create_string_from_std(serde_json::to_string(
+                &use_cache_telemetry_tracker
+                    .iter()
+                    .map(|entry| (entry.key().clone(), *entry.value()))
+                    .collect::<Vec<_>>(),
+            )?)?,
+        )?;
+    }
+
     Ok(js_output)
 }
 

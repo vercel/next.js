@@ -1,10 +1,6 @@
-use std::{
-    cell::RefCell,
-    path::PathBuf,
-    rc::Rc,
-    sync::{atomic::AtomicUsize, Arc},
-};
+use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
+use dashmap::DashMap;
 use either::Either;
 use fxhash::FxHashSet;
 use modularize_imports;
@@ -130,7 +126,7 @@ pub fn custom_before_pass<'a, C>(
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
     unresolved_mark: Mark,
-    use_cache_directive_count: Arc<AtomicUsize>,
+    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
@@ -309,7 +305,7 @@ where
                     &file.name,
                     config.clone(),
                     comments.clone(),
-                    use_cache_directive_count,
+                    use_cache_telemetry_tracker,
                 )),
                 None => Either::Right(noop_pass()),
             },

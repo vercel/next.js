@@ -1,8 +1,4 @@
-use std::{
-    iter::FromIterator,
-    path::PathBuf,
-    sync::{atomic::AtomicUsize, Arc},
-};
+use std::{iter::FromIterator, path::PathBuf};
 
 use next_custom_transforms::transforms::{
     disallow_re_export_all_in_page::disallow_re_export_all_in_page,
@@ -195,7 +191,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },
@@ -236,7 +232,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },
@@ -295,7 +291,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
-                    Arc::new(AtomicUsize::new(0)),
+                    Default::default(),
                 ),
             )
         },

@@ -1,13 +1,12 @@
 use std::{
+    cell::RefCell,
     collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
-    sync::{
-        atomic::{AtomicUsize, Ordering},
-        Arc,
-    },
+    rc::Rc,
 };
 
+use dashmap::DashMap;
 use hex::encode as hex_encode;
 use indoc::formatdoc;
 use rustc_hash::FxHashSet;
@@ -125,7 +124,7 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
-    use_cache_directive_count: Arc<AtomicUsize>,
+    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
 ) -> impl Pass {
     visit_mut_pass(ServerActions {
         config,
@@ -165,7 +164,7 @@ pub fn server_actions<C: Comments>(
         arrow_or_fn_expr_ident: None,
         exported_local_ids: HashSet::new(),
 
-        use_cache_directive_count,
+        use_cache_telemetry_tracker,
     })
 }
 
@@ -222,7 +221,7 @@ struct ServerActions<C: Comments> {
     arrow_or_fn_expr_ident: Option<Ident>,
     exported_local_ids: HashSet<Id>,
 
-    use_cache_directive_count: Arc<AtomicUsize>,
+    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -364,7 +363,7 @@ impl<C: Comments> ServerActions<C> {
                 has_file_directive: self.file_directive.is_some(),
                 is_allowed_position: true,
                 location: DirectiveLocation::FunctionBody,
-                use_cache_directive_count: Arc::clone(&self.use_cache_directive_count),
+                use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
             };
 
             body.stmts.retain(|stmt| {
@@ -391,7 +390,7 @@ impl<C: Comments> ServerActions<C> {
             has_file_directive: false,
             is_allowed_position: true,
             location: DirectiveLocation::Module,
-            use_cache_directive_count: Arc::clone(&self.use_cache_directive_count),
+            use_cache_telemetry_tracker: self.use_cache_telemetry_tracker.clone(),
         };
 
         stmts.retain(|item| {
@@ -2620,7 +2619,7 @@ struct DirectiveVisitor<'a> {
     directive: Option<Directive>,
     has_file_directive: bool,
     is_allowed_position: bool,
-    use_cache_directive_count: Arc<AtomicUsize>,
+    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
 }
 
 impl DirectiveVisitor<'_> {
@@ -2675,8 +2674,6 @@ impl DirectiveVisitor<'_> {
                 // `use cache` or `use cache: foo`
                 if value == "use cache" || value.starts_with("use cache: ") {
                     // Increment telemetry counter tracking usage of "use cache" directives
-                    self.use_cache_directive_count
-                        .fetch_add(1, Ordering::SeqCst);
 
                     if in_fn_body && !allow_inline {
                         emit_error(ServerActionsErrorKind::InlineUseCacheInClientComponent {
@@ -2699,6 +2696,7 @@ impl DirectiveVisitor<'_> {
                             self.directive = Some(Directive::UseCache {
                                 cache_kind: RcStr::from("default"),
                             });
+                            self.increment_cache_usage_counter("default");
                         } else {
                             // Slice the value after "use cache: "
                             let cache_kind = RcStr::from(value.split_at("use cache: ".len()).1);
@@ -2710,6 +2708,7 @@ impl DirectiveVisitor<'_> {
                                 });
                             }
 
+                            self.increment_cache_usage_counter(&cache_kind);
                             self.directive = Some(Directive::UseCache { cache_kind });
                         }
 
@@ -2777,6 +2776,28 @@ impl DirectiveVisitor<'_> {
         };
 
         false
+    }
+
+    // Increment telemetry counter tracking usage of "use cache" directives
+    fn increment_cache_usage_counter(&mut self, cache_kind: &str) {
+        // Retry up to 3 times to handle potential borrow conflicts
+        for _ in 0..3 {
+            match self.use_cache_telemetry_tracker.try_borrow_mut() {
+                Ok(tracker) => {
+                    if let Some(mut counter) = tracker.get_mut(cache_kind) {
+                        *counter += 1;
+                    } else {
+                        tracker.insert(cache_kind.to_string(), 1);
+                    }
+                    break;
+                }
+                Err(_) => {
+                    // If borrow fails, continue loop to retry
+                    println!("borrow failed, retrying...");
+                    continue;
+                }
+            }
+        }
     }
 }
 

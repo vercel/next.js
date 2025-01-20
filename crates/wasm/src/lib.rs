@@ -1,4 +1,4 @@
-use std::sync::{atomic::AtomicUsize, Arc};
+use std::sync::Arc;
 
 use anyhow::{Context, Error};
 use js_sys::JsString;
@@ -107,7 +107,7 @@ pub fn transform_sync(s: JsValue, opts: JsValue) -> Result<JsValue, JsValue> {
                                     comments.clone(),
                                     Default::default(),
                                     unresolved_mark,
-                                    Arc::new(AtomicUsize::new(0)),
+                                    Default::default(),
                                 )
                             },
                             |_| noop_pass(),
