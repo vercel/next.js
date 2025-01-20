@@ -269,29 +269,22 @@ async fn subscribe_issues_and_diags_operation(
     }
 }
 
-#[turbo_tasks::function(operation)]
-fn endpoint_client_changed_operation(
-    endpoint_op: OperationVc<Box<dyn Endpoint>>,
-) -> Vc<Completion> {
-    endpoint_op.connect().client_changed()
-}
-
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn endpoint_client_changed_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
     func: JsFunction,
 ) -> napi::Result<External<RootTask>> {
     let turbo_tasks = endpoint.turbo_tasks().clone();
-    let endpoint_op = ***endpoint;
+    let endpoint = ***endpoint;
     subscribe(
         turbo_tasks,
         func,
         move || {
             async move {
-                let changed_op = endpoint_client_changed_operation(endpoint_op);
+                let changed = endpoint.connect().client_changed();
                 // We don't capture issues and diagnostics here since we don't want to be
                 // notified when they change
-                let _ = changed_op.resolve_strongly_consistent().await?;
+                changed.strongly_consistent().await?;
                 Ok(())
             }
             .instrument(tracing::info_span!("client changes subscription"))
