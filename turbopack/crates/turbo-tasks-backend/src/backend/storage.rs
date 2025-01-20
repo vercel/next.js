@@ -200,6 +200,13 @@ impl InnerStorage {
             .add(self.output_dependent.len());
     }
 
+    pub fn size_by_type(&self, sizes: &mut HashMap<CachedDataItemType, usize>) {
+        for storage in self.map.iter() {
+            *sizes.entry(storage.ty()).or_default() +=
+                storage.size() + size_of::<CachedDataItemStorage>();
+        }
+    }
+
     pub fn persistance_state(&self) -> &PersistanceState {
         &self.persistance_state
     }
@@ -605,6 +612,14 @@ impl Storage {
             pair.value().count_histogram(&mut histogram);
         }
         histogram
+    }
+
+    pub fn size_by_type(&self) -> HashMap<CachedDataItemType, usize> {
+        let mut sizes = HashMap::new();
+        for pair in self.map.iter() {
+            pair.value().size_by_type(&mut sizes);
+        }
+        sizes
     }
 }
 

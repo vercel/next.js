@@ -837,12 +837,27 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 data_len / 1024 / 1024,
                 data_capacity / 1024 / 1024
             );
-            let histograms = self.storage.count_histogram();
-            let mut histograms = histograms.into_iter().collect::<Vec<_>>();
-            histograms.sort_by_key(|(key, _)| *key);
-            for (key, mut histogram) in histograms {
-                histogram.add_zero_by_total(tasks);
-                println!("### {:?}\n{:?}", key, histogram);
+            {
+                let count_histograms = self.storage.count_histogram();
+                let mut count_histograms = count_histograms.into_iter().collect::<Vec<_>>();
+                count_histograms.sort_by_key(|(key, _)| *key);
+                for (key, mut histogram) in count_histograms {
+                    histogram.add_zero_by_total(tasks);
+                    println!("### {:?} count\n{:?}", key, histogram);
+                }
+            }
+            {
+                let sizes = self.storage.size_by_type();
+                let mut sizes = sizes.into_iter().collect::<Vec<_>>();
+                sizes.sort_by_key(|(key, _)| *key);
+                for (key, size) in sizes {
+                    println!(
+                        "{:?} = {} {:.2}MiB",
+                        key,
+                        size,
+                        size as f64 / 1024.0 / 1024.0
+                    );
+                }
             }
         }
 

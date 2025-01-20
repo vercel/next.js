@@ -35,10 +35,17 @@ impl Debug for Histogram {
                 continue;
             }
             if i == 0 {
-                writeln!(f, "      0 -       0: {}", count)?;
-                continue;
+                write!(f, "      0 -       0: ")?;
+            } else {
+                write!(f, "{:7} - {:7}: ", 1 << (i - 1), (1 << i) - 1)?;
             }
-            writeln!(f, "{:7} - {:7}: {}", 1 << (i - 1), (1 << i) - 1, count)?;
+            if count < 1000 {
+                writeln!(f, "{}", count)?
+            } else if count < 1000000 {
+                writeln!(f, "{:.2}k", count as f64 / 1000.0)?
+            } else {
+                writeln!(f, "{:.2}M", count as f64 / 1000000.0)?
+            }
         }
         Ok(())
     }
