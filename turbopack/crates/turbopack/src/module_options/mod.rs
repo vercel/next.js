@@ -490,6 +490,17 @@ impl ModuleOptions {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
+                ModuleRule::new(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::Analyze,
+                        )),
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                    })],
+                ),
             ]);
         }
 

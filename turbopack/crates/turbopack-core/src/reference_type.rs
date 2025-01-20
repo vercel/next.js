@@ -174,6 +174,7 @@ pub enum CssReferenceSubType {
     /// Router implementation uses this to inject client references in-between
     /// Global/Module CSS assets and the underlying CSS assets.
     Internal,
+    Analyze,
     Custom(u8),
     Undefined,
 }
