@@ -68,9 +68,14 @@ pub struct EntryChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
+#[derive(
+    Default, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub struct ChunkingConfig {
-    // TODO
+    pub min_chunk_size: usize,
+
+    #[allow(dead_code)]
+    pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value(transparent)]

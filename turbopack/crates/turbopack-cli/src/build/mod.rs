@@ -234,7 +234,10 @@ async fn build_internal(
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.ecmascript_chunking_config(ChunkingConfig {})
+                    builder = builder.ecmascript_chunking_config(ChunkingConfig {
+                        min_chunk_size: 20000,
+                        ..Default::default()
+                    })
                 }
             }
 
@@ -260,7 +263,10 @@ async fn build_internal(
             match *node_env.await? {
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
-                    builder = builder.ecmascript_chunking_config(ChunkingConfig {})
+                    builder = builder.ecmascript_chunking_config(ChunkingConfig {
+                        min_chunk_size: 20000,
+                        ..Default::default()
+                    })
                 }
             }
 

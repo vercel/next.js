@@ -118,9 +118,10 @@ pub async fn make_chunks(
                 empty_referenced_output_assets: OutputAssets::empty().resolve().await?,
             };
 
-            if let Some(_chunking_config) = chunking_configs.get(&ty) {
+            if let Some(chunking_config) = chunking_configs.get(&ty) {
                 // Production chunking
-                make_production_chunks(chunk_items, module_graph, split_context).await?;
+                make_production_chunks(chunk_items, module_graph, chunking_config, split_context)
+                    .await?;
             } else {
                 // Development chunking
                 if !*ty.must_keep_item_order().await? {
