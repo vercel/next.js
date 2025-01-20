@@ -40,8 +40,15 @@ async function lazilyGetTSConfig(cwd: string) {
       'extends' in tsConfig &&
       tsConfig.extends
     ) {
-      for (const extend of [tsConfig.extends].flat()) {
-        tsConfig = parseJsonFile(require.resolve(extend, { paths: [cwd] }))
+      const currentExtends = tsConfig.extends
+      for (const extend of [currentExtends].flat()) {
+        try {
+          tsConfig = parseJsonFile(require.resolve(extend, { paths: [cwd] }))
+        } catch {}
+      }
+
+      if (currentExtends === tsConfig.extends) {
+        break
       }
     }
 
