@@ -73,6 +73,9 @@ pub struct EntryChunkGroupResult {
 )]
 pub struct ChunkingConfig {
     pub min_chunk_size: usize,
+
+    #[allow(dead_code)]
+    pub placeholder_for_future_extensions: (),
 }
 
 #[turbo_tasks::value(transparent)]

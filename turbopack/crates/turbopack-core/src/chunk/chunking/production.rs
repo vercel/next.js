@@ -53,7 +53,7 @@ pub async fn make_production_chunks(
             grouped_chunk_items.entry(key).or_default().push(chunk_item);
         }
 
-        let &ChunkingConfig { min_chunk_size } = chunking_config;
+        let &ChunkingConfig { min_chunk_size, .. } = chunking_config;
 
         if min_chunk_size == 0 {
             span.record("chunks", grouped_chunk_items.len());
