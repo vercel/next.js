@@ -23,7 +23,7 @@ use ecmascript::{
 };
 use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
-use tracing::Instrument;
+use tracing::{field::Empty, Instrument};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
@@ -39,8 +39,8 @@ use turbopack_core::{
     raw_module::RawModule,
     reference::{ModuleReference, TracedModuleReference},
     reference_type::{
-        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportWithType, InnerAssets,
-        ReferenceType,
+        CssReferenceSubType, EcmaScriptModulesReferenceSubType, ImportContext, ImportWithType,
+        InnerAssets, ReferenceType,
     },
     resolve::{
         options::ResolveOptions, origin::PlainResolveOrigin, parse::Request, resolve,
@@ -69,9 +69,9 @@ async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
-    reference_type: Value<ReferenceType>,
     part: Option<Vc<ModulePart>>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
+    css_import_context: Option<Vc<ImportContext>>,
     runtime_code: bool,
 ) -> Result<Vc<ProcessResult>> {
     let module_type = &*module_type.await?;
@@ -251,13 +251,7 @@ async fn apply_module_type(
                     .await?
                     .css
                     .minify_type,
-                if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) =
-                    reference_type.into_value()
-                {
-                    import.map(|v| *v)
-                } else {
-                    None
-                },
+                css_import_context,
             )
             .to_resolved()
             .await?,
@@ -436,8 +430,9 @@ impl ModuleAssetContext {
             *this.layer,
         ))
     }
+}
 
-    #[turbo_tasks::function]
+impl ModuleAssetContext {
     async fn process_with_transition_rules(
         self: Vc<Self>,
         source: ResolvedVc<Box<dyn Source>>,
@@ -453,23 +448,20 @@ impl ModuleAssetContext {
             {
                 transition.process(*source, self, reference_type)
             } else {
-                self.process_default(*source, reference_type)
+                self.process_default(source, reference_type).await?
             },
         )
     }
-}
 
-impl ModuleAssetContext {
-    fn process_default(
+    async fn process_default(
         self: Vc<Self>,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
-    ) -> Vc<ProcessResult> {
-        process_default(self, source, reference_type, Vec::new())
+    ) -> Result<Vc<ProcessResult>> {
+        process_default(self, source, reference_type, Vec::new()).await
     }
 }
 
-#[turbo_tasks::function]
 async fn process_default(
     module_asset_context: Vc<ModuleAssetContext>,
     source: ResolvedVc<Box<dyn Source>>,
@@ -478,9 +470,16 @@ async fn process_default(
 ) -> Result<Vc<ProcessResult>> {
     let span = tracing::info_span!(
         "process module",
-        name = source.ident().to_string().await?.to_string(),
+        name = %source.ident().to_string().await?,
+        layer = Empty,
         reference_type = display(&*reference_type)
     );
+    if !span.is_disabled() {
+        // Need to use record, otherwise future is not Send for some reason.
+        let module_asset_context_ref = module_asset_context.await?;
+        let layer = module_asset_context_ref.layer.await?;
+        span.record("layer", &**layer);
+    }
     process_default_internal(
         module_asset_context,
         source,
@@ -561,12 +560,13 @@ async fn process_default_internal(
                             } else {
                                 let mut processed_rules = processed_rules.clone();
                                 processed_rules.push(i);
-                                return Ok(process_default(
+                                return Ok(Box::pin(process_default(
                                     module_asset_context,
-                                    *current_source,
+                                    current_source,
                                     Value::new(reference_type),
                                     processed_rules,
-                                ));
+                                ))
+                                .await?);
                             }
                         }
                     }
@@ -648,9 +648,13 @@ async fn process_default_internal(
         *current_source,
         module_asset_context,
         module_type.cell(),
-        Value::new(reference_type.clone()),
         part,
         inner_assets.map(|v| *v),
+        if let ReferenceType::Css(CssReferenceSubType::AtImport(import)) = reference_type {
+            import.map(|v| *v)
+        } else {
+            None
+        },
         matches!(reference_type, ReferenceType::Runtime),
     ))
 }
@@ -857,14 +861,16 @@ impl AssetContext for ModuleAssetContext {
     #[turbo_tasks::function]
     async fn process(
         self: Vc<Self>,
-        asset: Vc<Box<dyn Source>>,
+        asset: ResolvedVc<Box<dyn Source>>,
         reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
         let this = self.await?;
         if let Some(transition) = this.transition {
-            Ok(transition.process(asset, self, reference_type))
+            Ok(transition.process(*asset, self, reference_type))
         } else {
-            Ok(self.process_with_transition_rules(asset, reference_type))
+            Ok(self
+                .process_with_transition_rules(asset, reference_type)
+                .await?)
         }
     }
 
