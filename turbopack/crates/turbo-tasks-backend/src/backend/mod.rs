@@ -840,7 +840,8 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let histograms = self.storage.count_histogram();
             let mut histograms = histograms.into_iter().collect::<Vec<_>>();
             histograms.sort_by_key(|(key, _)| *key);
-            for (key, histogram) in histograms {
+            for (key, mut histogram) in histograms {
+                histogram.add_zero_by_total(tasks);
                 println!("### {:?}\n{:?}", key, histogram);
             }
         }

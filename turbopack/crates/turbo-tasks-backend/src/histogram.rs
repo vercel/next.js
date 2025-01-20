@@ -21,6 +21,11 @@ impl Histogram {
         let bucket = if value == 0 { 0 } else { value.ilog2() + 1 };
         self.buckets[bucket as usize] += 1;
     }
+
+    pub fn add_zero_by_total(&mut self, total: usize) {
+        let zero = total.saturating_sub(self.buckets.iter().sum::<usize>());
+        self.buckets[0] += zero;
+    }
 }
 
 impl Debug for Histogram {
