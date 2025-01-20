@@ -33,39 +33,16 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
+import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
-// If the expire time is less than .
-const DYNAMIC_EXPIRE = 300
-
-const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
-const _globalThis: typeof globalThis & {
-  [cacheHandlersSymbol]?: {
-    RemoteCache?: CacheHandler
-    DefaultCache?: CacheHandler
-  }
-  __nextCacheHandlers?: Record<string, CacheHandler>
-} = globalThis
-
-const cacheHandlerMap: Map<string, CacheHandler> = new Map([
-  [
-    'default',
-    _globalThis[cacheHandlersSymbol]?.DefaultCache || DefaultCacheHandler,
-  ],
-  [
-    'remote',
-    // in dev remote maps to default handler
-    // and is meant to be overridden in prod
-    _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
-  ],
-])
+const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 
 function generateCacheEntry(
   workStore: WorkStore,
@@ -455,7 +432,7 @@ export function cache(
   fn: any
 ) {
   for (const [key, value] of Object.entries(
-    _globalThis.__nextCacheHandlers || {}
+    cacheHandlerGlobal.__nextCacheHandlers || {}
   )) {
     cacheHandlerMap.set(key, value)
   }

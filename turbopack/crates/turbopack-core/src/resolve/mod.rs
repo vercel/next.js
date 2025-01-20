@@ -64,7 +64,7 @@ pub use remap::{ResolveAliasMap, SubpathValue};
 
 use crate::{error::PrettyPrintError, issue::IssueSeverity};
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub enum ModuleResolveResultItem {
     Module(ResolvedVc<Box<dyn Module>>),
@@ -76,7 +76,7 @@ pub enum ModuleResolveResultItem {
         traced: Option<ResolvedVc<ModuleResolveResult>>,
     },
     /// A module could not be created (according to the rules, e.g. no module type as assigned)
-    Unknown(Vc<Box<dyn Source>>),
+    Unknown(ResolvedVc<Box<dyn Source>>),
     Ignore,
     Error(ResolvedVc<RcStr>),
     Empty,
@@ -88,7 +88,7 @@ impl ModuleResolveResultItem {
         Ok(match *self {
             ModuleResolveResultItem::Module(module) => Some(module),
             ModuleResolveResultItem::Unknown(source) => {
-                emit_unknown_module_type_error(source).await?;
+                emit_unknown_module_type_error(*source).await?;
                 None
             }
             ModuleResolveResultItem::Error(_err) => {
@@ -100,7 +100,7 @@ impl ModuleResolveResultItem {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Debug)]
 pub struct ModuleResolveResult {
     pub primary: FxIndexMap<RequestKey, ModuleResolveResultItem>,
@@ -414,7 +414,7 @@ impl Display for ExternalType {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub enum ResolveResultItem {
     Source(ResolvedVc<Box<dyn Source>>),
@@ -425,7 +425,7 @@ pub enum ResolveResultItem {
         traced: ExternalTraced,
     },
     Ignore,
-    Error(Vc<RcStr>),
+    Error(ResolvedVc<RcStr>),
     Empty,
     Custom(u8),
 }
@@ -473,7 +473,7 @@ impl RequestKey {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone)]
 pub struct ResolveResult {
     pub primary: FxIndexMap<RequestKey, ResolveResultItem>,
@@ -721,9 +721,7 @@ impl ResolveResult {
                                 }
                                 ResolveResultItem::Ignore => ModuleResolveResultItem::Ignore,
                                 ResolveResultItem::Empty => ModuleResolveResultItem::Empty,
-                                ResolveResultItem::Error(e) => {
-                                    ModuleResolveResultItem::Error(e.to_resolved().await?)
-                                }
+                                ResolveResultItem::Error(e) => ModuleResolveResultItem::Error(e),
                                 ResolveResultItem::Custom(u8) => {
                                     ModuleResolveResultItem::Custom(u8)
                                 }
@@ -1418,7 +1416,10 @@ pub async fn resolve_raw(
     path: Vc<Pattern>,
     force_in_lookup_dir: bool,
 ) -> Result<Vc<ResolveResult>> {
-    async fn to_result(request: &str, path: Vc<FileSystemPath>) -> Result<Vc<ResolveResult>> {
+    async fn to_result(
+        request: &str,
+        path: ResolvedVc<FileSystemPath>,
+    ) -> Result<Vc<ResolveResult>> {
         let RealPathResult { path, symlinks } = &*path.realpath_with_links().await?;
         Ok(ResolveResult::source_with_affecting_sources(
             RequestKey::new(request.into()),
@@ -1771,7 +1772,7 @@ async fn resolve_internal_inline(
                             results.push(
                                 resolved(
                                     RequestKey::new(matched_pattern.clone()),
-                                    *path,
+                                    **path,
                                     lookup_path,
                                     request,
                                     options_value,
@@ -1784,7 +1785,7 @@ async fn resolve_internal_inline(
                         }
                         PatternMatch::Directory(matched_pattern, path) => {
                             results.push(
-                                resolve_into_folder(*path, options)
+                                resolve_into_folder(**path, options)
                                     .with_request(matched_pattern.clone()),
                             );
                         }
@@ -2186,7 +2187,7 @@ async fn resolve_relative_request(
                             results.push(
                                 resolved(
                                     RequestKey::new(matched_pattern.into()),
-                                    *path,
+                                    **path,
                                     lookup_path,
                                     request,
                                     options_value,
@@ -2203,7 +2204,7 @@ async fn resolve_relative_request(
                         results.push(
                             resolved(
                                 RequestKey::new(matched_pattern.into()),
-                                *path,
+                                **path,
                                 lookup_path,
                                 request,
                                 options_value,
@@ -2226,7 +2227,7 @@ async fn resolve_relative_request(
                     results.push(
                         resolved(
                             RequestKey::new(matched_pattern.into()),
-                            *path,
+                            **path,
                             lookup_path,
                             request,
                             options_value,
@@ -2244,7 +2245,7 @@ async fn resolve_relative_request(
                 results.push(
                     resolved(
                         RequestKey::new(matched_pattern.clone()),
-                        *path,
+                        **path,
                         lookup_path,
                         request,
                         options_value,
@@ -2260,7 +2261,8 @@ async fn resolve_relative_request(
     // Directory matches must be resolved AFTER file matches
     for m in matches.iter() {
         if let PatternMatch::Directory(matched_pattern, path) = m {
-            results.push(resolve_into_folder(*path, options).with_request(matched_pattern.clone()));
+            results
+                .push(resolve_into_folder(**path, options).with_request(matched_pattern.clone()));
         }
     }
 

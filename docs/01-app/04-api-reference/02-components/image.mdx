@@ -1,5 +1,5 @@
 ---
-title: <Image>
+title: Image
 description: Optimize Images in your Next.js Application using the built-in `next/image` Component.
 ---
 
@@ -257,14 +257,18 @@ quality={75} // {number 1-100}
 
 The quality of the optimized image, an integer between `1` and `100`, where `100` is the best quality and therefore largest file size. Defaults to `75`.
 
+If the [`qualities`](#qualities) configuration is defined in `next.config.js`, the `quality` prop must match one of the values defined in the configuration.
+
+> **Good to know**: If the original source image was already low quality, setting the quality prop too high could cause the resulting optimized image to be larger than the original source image.
+
 ### `priority`
 
 ```js
 priority={false} // {false} | {true}
 ```
 
-When true, the image will be considered high priority and
-[preload](https://web.dev/preload-responsive-images/). Lazy loading is automatically disabled for images using `priority`. If the [`loading`](#loading) property is also used and set to `lazy`, the `priority` property can't be used. The [`loading`](#loading) property is only meant for advanced use cases. Remove `loading` when `priority` is needed.
+When true, Next.js will
+[preload](https://web.dev/preload-responsive-images/) the image. Lazy loading is automatically disabled for images using `priority`. If the [`loading`](#loading) property is also used and set to `lazy`, the `priority` property can't be used. The [`loading`](#loading) property is only meant for advanced use cases. Remove `loading` when `priority` is needed.
 
 You should use the `priority` property on any image detected as the [Largest Contentful Paint (LCP)](https://nextjs.org/learn/seo/web-performance/lcp) element. It may be appropriate to have multiple priority images, as different images may be the LCP element for different viewport sizes.
 
@@ -681,6 +685,20 @@ module.exports = {
 }
 ```
 
+### `qualities`
+
+The default [Image Optimization API](#loader) will automatically allow all qualities from 1 to 100. If you wish to restrict the allowed qualities, you can add configuration to `next.config.js`.
+
+```js filename="next.config.js"
+module.exports = {
+  images: {
+    qualities: [25, 50, 75],
+  },
+}
+```
+
+In this example above, only three qualities are allowed: 25, 50, and 75. If the [`quality`](#quality) prop does not match a value in this array, the image will fail with 400 Bad Request.
+
 ### `formats`
 
 The default [Image Optimization API](#loader) will automatically detect the browser's supported image formats via the request's `Accept` header in order to determine the best output format.
@@ -1076,6 +1094,7 @@ This `next/image` component uses browser native [lazy loading](https://caniuse.c
 | Version    | Changes                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                       |
 | ---------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `v15.0.0`  | `contentDispositionType` configuration default changed to `attachment`.                                                                                                                                                                                                                                                                                                                                                                                                                                       |
+| `v14.2.23` | `qualities` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
 | `v14.2.15` | `decoding` prop added and `localPatterns` configuration added.                                                                                                                                                                                                                                                                                                                                                                                                                                                |
 | `v14.2.14` | `remotePatterns.search` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
 | `v14.2.0`  | `overrideSrc` prop added.                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |

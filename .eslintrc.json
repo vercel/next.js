@@ -231,8 +231,7 @@
       "extends": ["plugin:mdx/recommended"],
       "parser": "eslint-mdx",
       "rules": {
-        "react/jsx-no-undef": "off",
-        "react/self-closing-comp": "error"
+        "react/jsx-no-undef": "off"
       }
     }
   ],

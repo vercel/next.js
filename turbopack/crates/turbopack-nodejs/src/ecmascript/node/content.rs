@@ -13,7 +13,7 @@ use turbopack_core::{
     version::{Version, VersionedContent},
 };
 use turbopack_ecmascript::{
-    chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt},
+    chunk::{EcmascriptChunkContent, EcmascriptChunkItemExt, EcmascriptChunkItemWithAsyncInfo},
     minify::minify,
     utils::StringifyJs,
 };
@@ -52,12 +52,18 @@ pub(super) async fn chunk_items(
         .await?
         .chunk_items
         .iter()
-        .map(|&(chunk_item, async_module_info)| async move {
-            Ok((
-                chunk_item.id().await?,
-                chunk_item.code(async_module_info).await?,
-            ))
-        })
+        .map(
+            async |&EcmascriptChunkItemWithAsyncInfo {
+                       chunk_item,
+                       async_info,
+                       ..
+                   }| {
+                Ok((
+                    chunk_item.id().await?,
+                    chunk_item.code(async_info.map(|info| *info)).await?,
+                ))
+            },
+        )
         .try_join()
         .await
 }

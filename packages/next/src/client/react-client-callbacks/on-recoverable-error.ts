@@ -3,7 +3,7 @@
 import type { HydrationOptions } from 'react-dom/client'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'
-import { getReactStitchedError } from '../components/react-dev-overlay/internal/helpers/stitched-error'
+import { getReactStitchedError } from '../components/errors/stitched-error'
 import isError from '../../lib/is-error'
 
 export const onRecoverableError: HydrationOptions['onRecoverableError'] = (

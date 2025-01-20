@@ -164,6 +164,19 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext"]
   },
+  "Agu Display": {
+    "weights": ["400", "variable"],
+    "styles": ["normal"],
+    "axes": [
+      {
+        "tag": "MORF",
+        "min": 0,
+        "max": 60,
+        "defaultValue": 0
+      }
+    ],
+    "subsets": ["latin", "latin-ext", "vietnamese"]
+  },
   "Aguafina Script": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -1319,7 +1332,12 @@
   "Bad Script": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["cyrillic", "latin"]
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
+  "Badeen Display": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["arabic", "latin", "latin-ext"]
   },
   "Bagel Fat One": {
     "weights": ["400"],
@@ -5072,6 +5090,11 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "tamil"]
   },
+  "Hind Mysuru": {
+    "weights": ["300", "400", "500", "600", "700"],
+    "styles": ["normal"],
+    "subsets": ["kannada", "latin", "latin-ext"]
+  },
   "Hind Siliguri": {
     "weights": ["300", "400", "500", "600", "700"],
     "styles": ["normal"],
@@ -5702,7 +5725,7 @@
   "Jomhuria": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["arabic", "latin", "latin-ext"]
+    "subsets": ["latin", "latin-ext"]
   },
   "Jomolhari": {
     "weights": ["400"],
@@ -7641,6 +7664,30 @@
     "styles": ["normal"],
     "subsets": ["latin"]
   },
+  "Montserrat Underline": {
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
+    "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
+    "subsets": ["cyrillic", "cyrillic-ext", "latin", "latin-ext", "vietnamese"]
+  },
   "Moo Lah Lah": {
     "weights": ["400"],
     "styles": ["normal"],
@@ -9405,10 +9452,10 @@
     "styles": ["normal"],
     "subsets": ["latin", "latin-ext", "pau-cin-hau"]
   },
-  "Noto Sans Phags Pa": {
+  "Noto Sans PhagsPa": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["phags-pa"]
+    "subsets": ["latin", "latin-ext", "math", "phags-pa", "symbols"]
   },
   "Noto Sans Phoenician": {
     "weights": ["400"],
@@ -11530,6 +11577,11 @@
     ],
     "subsets": []
   },
+  "Playwrite AR Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite AT": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal", "italic"],
@@ -11541,6 +11593,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite AT Guides": {
+    "weights": ["400"],
+    "styles": ["normal", "italic"],
     "subsets": []
   },
   "Playwrite AU NSW": {
@@ -11556,6 +11613,11 @@
     ],
     "subsets": []
   },
+  "Playwrite AU NSW Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite AU QLD": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11567,6 +11629,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite AU QLD Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite AU SA": {
@@ -11582,6 +11649,11 @@
     ],
     "subsets": []
   },
+  "Playwrite AU SA Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite AU TAS": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11593,6 +11665,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite AU TAS Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite AU VIC": {
@@ -11608,6 +11685,11 @@
     ],
     "subsets": []
   },
+  "Playwrite AU VIC Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite BE VLG": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11619,6 +11701,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite BE VLG Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite BE WAL": {
@@ -11634,6 +11721,11 @@
     ],
     "subsets": []
   },
+  "Playwrite BE WAL Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite BR": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11645,6 +11737,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite BR Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite CA": {
@@ -11660,6 +11757,11 @@
     ],
     "subsets": []
   },
+  "Playwrite CA Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite CL": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11671,6 +11773,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite CL Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite CO": {
@@ -11686,6 +11793,11 @@
     ],
     "subsets": []
   },
+  "Playwrite CO Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite CU": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11697,6 +11809,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite CU Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite CZ": {
@@ -11712,6 +11829,11 @@
     ],
     "subsets": []
   },
+  "Playwrite CZ Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite DE Grund": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11723,6 +11845,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite DE Grund Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite DE LA": {
@@ -11738,6 +11865,11 @@
     ],
     "subsets": []
   },
+  "Playwrite DE LA Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite DE SAS": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11749,6 +11881,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite DE SAS Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite DE VA": {
@@ -11764,6 +11901,11 @@
     ],
     "subsets": []
   },
+  "Playwrite DE VA Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite DK Loopet": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11777,6 +11919,11 @@
     ],
     "subsets": []
   },
+  "Playwrite DK Loopet Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite DK Uloopet": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11788,6 +11935,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite DK Uloopet Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite ES": {
@@ -11816,6 +11968,16 @@
     ],
     "subsets": []
   },
+  "Playwrite ES Deco Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
+  "Playwrite ES Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite FR Moderne": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11827,6 +11989,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite FR Moderne Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite FR Trad": {
@@ -11842,6 +12009,11 @@
     ],
     "subsets": []
   },
+  "Playwrite FR Trad Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite GB J": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal", "italic"],
@@ -11853,6 +12025,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite GB J Guides": {
+    "weights": ["400"],
+    "styles": ["normal", "italic"],
     "subsets": []
   },
   "Playwrite GB S": {
@@ -11868,6 +12045,11 @@
     ],
     "subsets": []
   },
+  "Playwrite GB S Guides": {
+    "weights": ["400"],
+    "styles": ["normal", "italic"],
+    "subsets": []
+  },
   "Playwrite HR": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11879,6 +12061,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite HR Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite HR Lijeva": {
@@ -11894,6 +12081,11 @@
     ],
     "subsets": []
   },
+  "Playwrite HR Lijeva Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite HU": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11905,6 +12097,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite HU Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite ID": {
@@ -11920,6 +12117,11 @@
     ],
     "subsets": []
   },
+  "Playwrite ID Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite IE": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11931,6 +12133,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite IE Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite IN": {
@@ -11946,6 +12153,11 @@
     ],
     "subsets": []
   },
+  "Playwrite IN Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite IS": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11957,6 +12169,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite IS Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite IT Moderna": {
@@ -11972,6 +12189,11 @@
     ],
     "subsets": []
   },
+  "Playwrite IT Moderna Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite IT Trad": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -11983,6 +12205,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite IT Trad Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite MX": {
@@ -11998,6 +12225,11 @@
     ],
     "subsets": []
   },
+  "Playwrite MX Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite NG Modern": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12009,6 +12241,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite NG Modern Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite NL": {
@@ -12024,6 +12261,11 @@
     ],
     "subsets": []
   },
+  "Playwrite NL Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite NO": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12035,6 +12277,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite NO Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite NZ": {
@@ -12050,6 +12297,11 @@
     ],
     "subsets": []
   },
+  "Playwrite NZ Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite PE": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12061,6 +12313,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite PE Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite PL": {
@@ -12076,6 +12333,11 @@
     ],
     "subsets": []
   },
+  "Playwrite PL Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite PT": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12087,6 +12349,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite PT Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite RO": {
@@ -12102,6 +12369,11 @@
     ],
     "subsets": []
   },
+  "Playwrite RO Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite SK": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12113,6 +12385,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite SK Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite TZ": {
@@ -12128,6 +12405,11 @@
     ],
     "subsets": []
   },
+  "Playwrite TZ Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite US Modern": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12139,6 +12421,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite US Modern Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Playwrite US Trad": {
@@ -12154,6 +12441,11 @@
     ],
     "subsets": []
   },
+  "Playwrite US Trad Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite VN": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12167,6 +12459,11 @@
     ],
     "subsets": []
   },
+  "Playwrite VN Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": []
+  },
   "Playwrite ZA": {
     "weights": ["100", "200", "300", "400", "variable"],
     "styles": ["normal"],
@@ -12178,6 +12475,11 @@
         "defaultValue": 400
       }
     ],
+    "subsets": []
+  },
+  "Playwrite ZA Guides": {
+    "weights": ["400"],
+    "styles": ["normal"],
     "subsets": []
   },
   "Plus Jakarta Sans": {
@@ -12919,8 +13221,33 @@
     "subsets": ["latin", "latin-ext", "vietnamese"]
   },
   "Roboto": {
-    "weights": ["100", "300", "400", "500", "700", "900"],
+    "weights": [
+      "100",
+      "200",
+      "300",
+      "400",
+      "500",
+      "600",
+      "700",
+      "800",
+      "900",
+      "variable"
+    ],
     "styles": ["normal", "italic"],
+    "axes": [
+      {
+        "tag": "wdth",
+        "min": 75,
+        "max": 100,
+        "defaultValue": 100
+      },
+      {
+        "tag": "wght",
+        "min": 100,
+        "max": 900,
+        "defaultValue": 400
+      }
+    ],
     "subsets": [
       "cyrillic",
       "cyrillic-ext",
@@ -12928,6 +13255,8 @@
       "greek-ext",
       "latin",
       "latin-ext",
+      "math",
+      "symbols",
       "vietnamese"
     ]
   },
@@ -14246,7 +14575,7 @@
   "Song Myung": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": []
   },
   "Sono": {
     "weights": ["200", "300", "400", "500", "600", "700", "800", "variable"],
@@ -14598,7 +14927,7 @@
   "Stylish": {
     "weights": ["400"],
     "styles": ["normal"],
-    "subsets": ["latin"]
+    "subsets": []
   },
   "Sue Ellen Francisco": {
     "weights": ["400"],

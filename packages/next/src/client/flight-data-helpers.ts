@@ -32,7 +32,7 @@ export type NormalizedFlightData = {
 export function getFlightDataPartsFromPath(
   flightDataPath: FlightDataPath
 ): NormalizedFlightData {
-  // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, [viewport, metadata], isHeadPartial].
+  // Pick the last 4 items from the `FlightDataPath` to get the [tree, seedData, viewport, isHeadPartial].
   const flightDataPathLength = 4
   // tree, seedData, and head are *always* the last three items in the `FlightDataPath`.
   const [tree, seedData, head, isHeadPartial] =

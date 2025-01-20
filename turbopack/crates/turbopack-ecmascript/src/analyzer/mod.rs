@@ -99,7 +99,6 @@ impl Eq for ConstantNumber {}
 
 #[derive(Debug, Clone)]
 pub enum ConstantString {
-    Word(JsWord),
     Atom(Atom),
     RcStr(RcStr),
 }
@@ -107,7 +106,6 @@ pub enum ConstantString {
 impl ConstantString {
     pub fn as_str(&self) -> &str {
         match self {
-            Self::Word(s) => s,
             Self::Atom(s) => s,
             Self::RcStr(s) => s,
         }
@@ -146,7 +144,7 @@ impl From<Atom> for ConstantString {
 
 impl From<&'static str> for ConstantString {
     fn from(v: &'static str) -> Self {
-        ConstantString::Word(v.into())
+        ConstantString::Atom(v.into())
     }
 }
 
@@ -171,8 +169,8 @@ pub enum ConstantValue {
     True,
     False,
     Null,
-    BigInt(BigInt),
-    Regex(Atom, Atom),
+    BigInt(Box<BigInt>),
+    Regex(Box<(Atom, Atom)>),
 }
 
 impl ConstantValue {
@@ -236,14 +234,14 @@ impl From<bool> for ConstantValue {
 
 impl From<&'_ str> for ConstantValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into()))
+        ConstantValue::Str(ConstantString::Atom(v.into()))
     }
 }
 
 impl From<Lit> for ConstantValue {
     fn from(v: Lit) -> Self {
         match v {
-            Lit::Str(v) => ConstantValue::Str(ConstantString::Word(v.value)),
+            Lit::Str(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
             Lit::Bool(v) => {
                 if v.value {
                     ConstantValue::True
@@ -253,8 +251,8 @@ impl From<Lit> for ConstantValue {
             }
             Lit::Null(_) => ConstantValue::Null,
             Lit::Num(v) => ConstantValue::Num(ConstantNumber(v.value)),
-            Lit::BigInt(v) => ConstantValue::BigInt(*v.value),
-            Lit::Regex(v) => ConstantValue::Regex(v.exp, v.flags),
+            Lit::BigInt(v) => ConstantValue::BigInt(v.value),
+            Lit::Regex(v) => ConstantValue::Regex(Box::new((v.exp, v.flags))),
             Lit::JSXText(v) => ConstantValue::Str(ConstantString::Atom(v.value)),
         }
     }
@@ -270,7 +268,7 @@ impl Display for ConstantValue {
             ConstantValue::Null => write!(f, "null"),
             ConstantValue::Num(ConstantNumber(n)) => write!(f, "{n}"),
             ConstantValue::BigInt(n) => write!(f, "{n}"),
-            ConstantValue::Regex(exp, flags) => write!(f, "/{exp}/{flags}"),
+            ConstantValue::Regex(regex) => write!(f, "/{}/{}", regex.0, regex.1),
         }
     }
 }
@@ -511,7 +509,7 @@ pub enum JsValue {
 
 impl From<&'_ str> for JsValue {
     fn from(v: &str) -> Self {
-        ConstantValue::Str(ConstantString::Word(v.into())).into()
+        ConstantValue::Str(ConstantString::Atom(v.into())).into()
     }
 }
 
@@ -523,6 +521,12 @@ impl From<Atom> for JsValue {
 
 impl From<BigInt> for JsValue {
     fn from(v: BigInt) -> Self {
+        Self::from(Box::new(v))
+    }
+}
+
+impl From<Box<BigInt>> for JsValue {
+    fn from(v: Box<BigInt>) -> Self {
         ConstantValue::BigInt(v).into()
     }
 }
@@ -863,43 +867,43 @@ impl JsValue {
         )
     }
 
-    pub fn iterated(iterable: JsValue) -> Self {
-        Self::Iterated(1 + iterable.total_nodes(), Box::new(iterable))
+    pub fn iterated(iterable: Box<JsValue>) -> Self {
+        Self::Iterated(1 + iterable.total_nodes(), iterable)
     }
 
-    pub fn equal(a: JsValue, b: JsValue) -> Self {
+    pub fn equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::Equal,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::NotEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictEqual,
-            Box::new(b),
+            b,
         )
     }
 
-    pub fn strict_not_equal(a: JsValue, b: JsValue) -> Self {
+    pub fn strict_not_equal(a: Box<JsValue>, b: Box<JsValue>) -> Self {
         Self::Binary(
             1 + a.total_nodes() + b.total_nodes(),
-            Box::new(a),
+            a,
             BinaryOperator::StrictNotEqual,
-            Box::new(b),
+            b,
         )
     }
 
@@ -3728,7 +3732,7 @@ pub fn parse_require_context(args: &[JsValue]) -> Result<RequireContextOptions> 
     };
 
     let filter = if let Some(filter) = args.get(2) {
-        if let JsValue::Constant(ConstantValue::Regex(pattern, flags)) = filter {
+        if let JsValue::Constant(ConstantValue::Regex(box (pattern, flags))) = filter {
             regex_from_js(pattern, flags)?
         } else {
             bail!("require.context(..., ..., filter) requires filter to be a regex");
@@ -4174,7 +4178,7 @@ mod tests {
                                 condition, kind, ..
                             } => {
                                 let condition =
-                                    resolve(&var_graph, condition, ImportAttributes::empty_ref())
+                                    resolve(&var_graph, *condition, ImportAttributes::empty_ref())
                                         .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
@@ -4224,7 +4228,7 @@ mod tests {
                             } => {
                                 let func = resolve(
                                     &var_graph,
-                                    func,
+                                    *func,
                                     eval_context.imports.get_attributes(span),
                                 )
                                 .await;
@@ -4239,11 +4243,11 @@ mod tests {
                                 ));
                             }
                             Effect::FreeVar { var, .. } => {
-                                resolved.push((format!("{parent} -> {i} free var"), var));
+                                resolved.push((format!("{parent} -> {i} free var"), *var));
                             }
                             Effect::TypeOf { arg, .. } => {
                                 let arg =
-                                    resolve(&var_graph, arg, ImportAttributes::empty_ref()).await;
+                                    resolve(&var_graph, *arg, ImportAttributes::empty_ref()).await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
                                     JsValue::type_of(Box::new(arg)),
@@ -4253,9 +4257,9 @@ mod tests {
                                 obj, prop, args, ..
                             } => {
                                 let obj =
-                                    resolve(&var_graph, obj, ImportAttributes::empty_ref()).await;
+                                    resolve(&var_graph, *obj, ImportAttributes::empty_ref()).await;
                                 let prop =
-                                    resolve(&var_graph, prop, ImportAttributes::empty_ref()).await;
+                                    resolve(&var_graph, *prop, ImportAttributes::empty_ref()).await;
                                 let new_args = handle_args(args, &mut queue, &var_graph, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),

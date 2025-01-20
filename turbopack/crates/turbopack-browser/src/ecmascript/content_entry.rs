@@ -4,13 +4,14 @@ use anyhow::Result;
 use tracing::{info_span, Instrument};
 use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ModuleId},
+    chunk::{AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkItemTy, ModuleId},
     code_builder::{Code, CodeBuilder},
     error::PrettyPrintError,
     issue::{code_gen::CodeGenerationIssue, IssueExt, IssueSeverity, StyledString},
 };
 use turbopack_ecmascript::chunk::{
     EcmascriptChunkContent, EcmascriptChunkItem, EcmascriptChunkItemExt,
+    EcmascriptChunkItemWithAsyncInfo,
 };
 
 /// A chunk item's content entry.
@@ -28,7 +29,7 @@ pub struct EcmascriptDevChunkContentEntry {
 
 impl EcmascriptDevChunkContentEntry {
     pub async fn new(
-        chunk_item: Vc<Box<dyn EcmascriptChunkItem>>,
+        chunk_item: ResolvedVc<Box<dyn EcmascriptChunkItem>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Self> {
         let code = chunk_item.code(async_module_info).to_resolved().await?;
@@ -52,14 +53,37 @@ impl EcmascriptDevChunkContentEntries {
     ) -> Result<Vc<EcmascriptDevChunkContentEntries>> {
         let chunk_content = chunk_content.await?;
 
-        let entries: FxIndexMap<_, _> = chunk_content
+        let included_chunk_items = chunk_content
             .chunk_items
             .iter()
-            .map(|&(chunk_item, async_module_info)| async move {
+            .map(
+                async |EcmascriptChunkItemWithAsyncInfo {
+                           ty,
+                           chunk_item,
+                           async_info,
+                       }| {
+                    if matches!(ty, ChunkItemTy::Included) {
+                        Ok(Some((chunk_item, async_info)))
+                    } else {
+                        Ok(None)
+                    }
+                },
+            )
+            .try_join()
+            .await?
+            .into_iter()
+            .flatten();
+
+        let entries: FxIndexMap<_, _> = included_chunk_items
+            .map(|(&chunk_item, &async_module_info)| async move {
                 async move {
                     Ok((
                         chunk_item.id().await?,
-                        EcmascriptDevChunkContentEntry::new(chunk_item, async_module_info).await?,
+                        EcmascriptDevChunkContentEntry::new(
+                            chunk_item,
+                            async_module_info.map(|info| *info),
+                        )
+                        .await?,
                     ))
                 }
                 .instrument(info_span!(

@@ -23,6 +23,7 @@ var REACT_ELEMENT_TYPE = Symbol.for("react.transitional.element"),
   REACT_LAZY_TYPE = Symbol.for("react.lazy"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator;
 function getIteratorFn(maybeIterable) {
   if (null === maybeIterable || "object" !== typeof maybeIterable) return null;
@@ -364,6 +365,7 @@ exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
+  __proto__: null,
   c: function (size) {
     return ReactSharedInternals.H.useMemoCache(size);
   }
@@ -495,6 +497,7 @@ exports.startTransition = function (scope) {
 };
 exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
 exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
 exports.unstable_getCacheForType = function (resourceType) {
   var dispatcher = ReactSharedInternals.A;
   return dispatcher ? dispatcher.getCacheForType(resourceType) : resourceType();
@@ -565,4 +568,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-experimental-518d06d2-20241219";
+exports.version = "19.1.0-experimental-5b51a2b9-20250116";

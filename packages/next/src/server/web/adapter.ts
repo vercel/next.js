@@ -8,11 +8,19 @@ import {
 } from './spec-extension/fetch-event'
 import { NextRequest } from './spec-extension/request'
 import { NextResponse } from './spec-extension/response'
-import { relativizeURL } from '../../shared/lib/router/utils/relativize-url'
+import {
+  parseRelativeURL,
+  getRelativeURL,
+} from '../../shared/lib/router/utils/relativize-url'
 import { NextURL } from './next-url'
 import { stripInternalSearchParams } from '../internal-utils'
 import { normalizeRscURL } from '../../shared/lib/router/utils/app-paths'
-import { FLIGHT_HEADERS } from '../../client/components/app-router-headers'
+import {
+  FLIGHT_HEADERS,
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
+  RSC_HEADER,
+} from '../../client/components/app-router-headers'
 import { ensureInstrumentationRegistered } from './globals'
 import { createRequestStoreForAPI } from '../async-storage/request-store'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
@@ -99,59 +107,61 @@ export async function adapter(
 
   params.request.url = normalizeRscURL(params.request.url)
 
-  const requestUrl = new NextURL(params.request.url, {
+  const requestURL = new NextURL(params.request.url, {
     headers: params.request.headers,
     nextConfig: params.request.nextConfig,
   })
 
   // Iterator uses an index to keep track of the current iteration. Because of deleting and appending below we can't just use the iterator.
   // Instead we use the keys before iteration.
-  const keys = [...requestUrl.searchParams.keys()]
+  const keys = [...requestURL.searchParams.keys()]
   for (const key of keys) {
-    const value = requestUrl.searchParams.getAll(key)
+    const value = requestURL.searchParams.getAll(key)
 
-    normalizeNextQueryParam(key, (normalizedKey) => {
-      requestUrl.searchParams.delete(normalizedKey)
-
+    const normalizedKey = normalizeNextQueryParam(key)
+    if (normalizedKey) {
+      requestURL.searchParams.delete(normalizedKey)
       for (const val of value) {
-        requestUrl.searchParams.append(normalizedKey, val)
+        requestURL.searchParams.append(normalizedKey, val)
       }
-      requestUrl.searchParams.delete(key)
-    })
+      requestURL.searchParams.delete(key)
+    }
   }
 
   // Ensure users only see page requests, never data requests.
-  const buildId = requestUrl.buildId
-  requestUrl.buildId = ''
-
-  const isNextDataRequest = params.request.headers['x-nextjs-data']
-
-  if (isNextDataRequest && requestUrl.pathname === '/index') {
-    requestUrl.pathname = '/'
-  }
+  const buildId = requestURL.buildId
+  requestURL.buildId = ''
 
   const requestHeaders = fromNodeOutgoingHttpHeaders(params.request.headers)
+  const isNextDataRequest = requestHeaders.has('x-nextjs-data')
+  const isRSCRequest = requestHeaders.get(RSC_HEADER) === '1'
+
+  if (isNextDataRequest && requestURL.pathname === '/index') {
+    requestURL.pathname = '/'
+  }
+
   const flightHeaders = new Map()
+
   // Headers should only be stripped for middleware
   if (!isEdgeRendering) {
     for (const header of FLIGHT_HEADERS) {
       const key = header.toLowerCase()
       const value = requestHeaders.get(key)
-      if (value) {
+      if (value !== null) {
         flightHeaders.set(key, value)
         requestHeaders.delete(key)
       }
     }
   }
 
-  const normalizeUrl = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
+  const normalizeURL = process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE
     ? new URL(params.request.url)
-    : requestUrl
+    : requestURL
 
   const request = new NextRequestHint({
     page: params.page,
     // Strip internal query parameters off the request.
-    input: stripInternalSearchParams(normalizeUrl).toString(),
+    input: stripInternalSearchParams(normalizeURL).toString(),
     init: {
       body: params.request.body,
       headers: requestHeaders,
@@ -312,17 +322,17 @@ export async function adapter(
    * a data URL if the request was a data request.
    */
   const rewrite = response?.headers.get('x-middleware-rewrite')
-  if (response && rewrite && !isEdgeRendering) {
-    const rewriteUrl = new NextURL(rewrite, {
+  if (response && rewrite && (isRSCRequest || !isEdgeRendering)) {
+    const destination = new NextURL(rewrite, {
       forceLocale: true,
       headers: params.request.headers,
       nextConfig: params.request.nextConfig,
     })
 
-    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
-      if (rewriteUrl.host === request.nextUrl.host) {
-        rewriteUrl.buildId = buildId || rewriteUrl.buildId
-        response.headers.set('x-middleware-rewrite', String(rewriteUrl))
+    if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE && !isEdgeRendering) {
+      if (destination.host === request.nextUrl.host) {
+        destination.buildId = buildId || destination.buildId
+        response.headers.set('x-middleware-rewrite', String(destination))
       }
     }
 
@@ -331,22 +341,39 @@ export async function adapter(
      * with an internal header so the client knows which component to load
      * from the data request.
      */
-    const relativizedRewrite = relativizeURL(
-      String(rewriteUrl),
-      String(requestUrl)
+    const { url: relativeDestination, isRelative } = parseRelativeURL(
+      destination.toString(),
+      requestURL.toString()
     )
 
     if (
+      !isEdgeRendering &&
       isNextDataRequest &&
       // if the rewrite is external and external rewrite
       // resolving config is enabled don't add this header
       // so the upstream app can set it instead
       !(
         process.env.__NEXT_EXTERNAL_MIDDLEWARE_REWRITE_RESOLVE &&
-        relativizedRewrite.match(/http(s)?:\/\//)
+        relativeDestination.match(/http(s)?:\/\//)
       )
     ) {
-      response.headers.set('x-nextjs-rewrite', relativizedRewrite)
+      response.headers.set('x-nextjs-rewrite', relativeDestination)
+    }
+
+    // If this is an RSC request, and the pathname or search has changed, and
+    // this isn't an external rewrite, we need to set the rewritten pathname and
+    // query headers.
+    if (isRSCRequest && isRelative) {
+      if (requestURL.pathname !== destination.pathname) {
+        response.headers.set(NEXT_REWRITTEN_PATH_HEADER, destination.pathname)
+      }
+      if (requestURL.search !== destination.search) {
+        response.headers.set(
+          NEXT_REWRITTEN_QUERY_HEADER,
+          // remove the leading ? from the search string
+          destination.search.slice(1)
+        )
+      }
     }
   }
 
@@ -370,9 +397,9 @@ export async function adapter(
     response = new Response(response.body, response)
 
     if (!process.env.__NEXT_NO_MIDDLEWARE_URL_NORMALIZE) {
-      if (redirectURL.host === request.nextUrl.host) {
+      if (redirectURL.host === requestURL.host) {
         redirectURL.buildId = buildId || redirectURL.buildId
-        response.headers.set('Location', String(redirectURL))
+        response.headers.set('Location', redirectURL.toString())
       }
     }
 
@@ -385,7 +412,7 @@ export async function adapter(
       response.headers.delete('Location')
       response.headers.set(
         'x-nextjs-redirect',
-        relativizeURL(String(redirectURL), String(requestUrl))
+        getRelativeURL(redirectURL.toString(), requestURL.toString())
       )
     }
   }

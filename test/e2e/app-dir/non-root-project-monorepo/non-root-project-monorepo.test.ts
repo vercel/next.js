@@ -109,10 +109,14 @@ describe('non-root-project-monorepo', () => {
              16 |"
           `)
           // TODO stacktrace-parser breaks in some cases with the rsc:// protocol
-          expect(normalizeStackTrace(await getRedboxCallStack(browser)))
-            .toMatchInlineSnapshot(`
+          expect(
+            normalizeStackTrace(await getRedboxCallStack(browser)).replace(
+              /\/apps_web_\w+._.js /,
+              '/apps_web_XXXXXX._.js '
+            )
+          ).toMatchInlineSnapshot(`
            "<unknown>
-           [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_8d1c0a._.js (7:7)
+           [project]/apps/web/app/separate-file.ts [app-rsc] (ecmascript) (rsc://React/Server/file://<full-path>/apps/web/.next/server/chunks/ssr/apps_web_XXXXXX._.js (7:7)
            innerFunction
            app/source-maps-rsc/page.tsx (10:3)
            Page

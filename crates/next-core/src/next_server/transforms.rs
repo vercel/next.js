@@ -1,6 +1,7 @@
 use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
-use turbo_tasks::Vc;
+use turbo_rcstr::RcStr;
+use turbo_tasks::{ResolvedVc, Vc};
 use turbopack::module_options::ModuleRule;
 
 use crate::{
@@ -30,6 +31,7 @@ pub async fn get_next_server_transforms_rules(
     mode: Vc<NextMode>,
     foreign_code: bool,
     next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vec<ModuleRule>> {
     let mut rules = vec![];
 
@@ -90,6 +92,7 @@ pub async fn get_next_server_transforms_rules(
             // need to apply to foreign code too
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Client,
+                encryption_key,
                 mdx_rs,
                 dynamic_io_enabled,
                 cache_kinds,
@@ -102,6 +105,7 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppRSC { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
+                encryption_key,
                 mdx_rs,
                 dynamic_io_enabled,
                 cache_kinds,
@@ -114,6 +118,7 @@ pub async fn get_next_server_transforms_rules(
         ServerContextType::AppRoute { .. } => {
             rules.push(get_server_actions_transform_rule(
                 ActionsTransform::Server,
+                encryption_key,
                 mdx_rs,
                 dynamic_io_enabled,
                 cache_kinds,

@@ -136,12 +136,16 @@ Then, in your Client Component, use the `use` hook read the promise:
 'use client'
 import { use } from 'react'
 
-export default function Posts({ posts }) {
-  const posts = use(posts)
+export default function Posts({
+  posts,
+}: {
+  posts: Promise<{ id: string; title: string }[]>
+}) {
+  const allPosts = use(posts)
 
   return (
     <ul>
-      {posts.map((post) => (
+      {allPosts.map((post) => (
         <li key={post.id}>{post.title}</li>
       ))}
     </ul>

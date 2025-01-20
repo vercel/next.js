@@ -57,6 +57,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (type.$$typeof) {
@@ -3595,6 +3597,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -4063,6 +4067,9 @@
           index
         );
     }
+    function unsupportedRefresh() {
+      throw Error("Cache cannot be refreshed during server rendering.");
+    }
     function noop$1() {}
     function disabledLog() {}
     function disableLogs() {
@@ -4346,6 +4353,8 @@
           return describeBuiltInComponentFrame("SuspenseList");
         case REACT_SUSPENSE_TYPE:
           return describeBuiltInComponentFrame("Suspense");
+        case REACT_VIEW_TRANSITION_TYPE:
+          return describeBuiltInComponentFrame("ViewTransition");
       }
       return "";
     }
@@ -5548,6 +5557,12 @@
             task.keyPath = keyPath;
             renderNodeDestructive(request, task, props.children, -1);
             task.keyPath = _prevKeyPath3;
+            return;
+          case REACT_VIEW_TRANSITION_TYPE:
+            var _prevKeyPath4 = task.keyPath;
+            task.keyPath = keyPath;
+            renderNodeDestructive(request, task, props.children, -1);
+            task.keyPath = _prevKeyPath4;
             return;
           case REACT_SCOPE_TYPE:
             throw Error(
@@ -8076,11 +8091,11 @@
     }
     function ensureCorrectIsomorphicReactVersion() {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-518d06d2-20241219" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-5b51a2b9-20250116" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-518d06d2-20241219\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     }
     function createDrainHandler(destination, request) {
@@ -8179,7 +8194,9 @@
       REACT_SCOPE_TYPE = Symbol.for("react.scope"),
       REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
       REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
+      REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       ASYNC_ITERATOR = Symbol.asyncIterator,
       isArrayImpl = Array.isArray,
@@ -9453,9 +9470,6 @@
     var didWarnAboutInvalidateContextType = new Set();
     var didWarnOnInvalidCallback = new Set();
     var classComponentUpdater = {
-        isMounted: function () {
-          return !1;
-        },
         enqueueSetState: function (inst, payload, callback) {
           var internals = inst._reactInternals;
           null === internals.queue
@@ -9595,6 +9609,14 @@
         useHostTransitionStatus: function () {
           resolveCurrentlyRenderingComponent();
           return NotPending;
+        },
+        useMemoCache: function (size) {
+          for (var data = Array(size), i = 0; i < size; i++)
+            data[i] = REACT_MEMO_CACHE_SENTINEL;
+          return data;
+        },
+        useCacheRefresh: function () {
+          return unsupportedRefresh;
         },
         useEffectEvent: function () {
           return throwOnUseEffectEventCall;
@@ -9843,5 +9865,5 @@
         }
       };
     };
-    exports.version = "19.1.0-experimental-518d06d2-20241219";
+    exports.version = "19.1.0-experimental-5b51a2b9-20250116";
   })();

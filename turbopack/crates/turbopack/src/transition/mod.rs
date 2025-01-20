@@ -109,7 +109,7 @@ pub trait Transition {
     }
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Default)]
 pub struct TransitionOptions {
     pub named_transitions: HashMap<RcStr, ResolvedVc<Box<dyn Transition>>>,
@@ -132,9 +132,9 @@ impl TransitionOptions {
 
     pub async fn get_by_rules(
         &self,
-        source: Vc<Box<dyn Source>>,
+        source: ResolvedVc<Box<dyn Source>>,
         reference_type: &ReferenceType,
-    ) -> Result<Option<Vc<Box<dyn Transition>>>> {
+    ) -> Result<Option<ResolvedVc<Box<dyn Transition>>>> {
         if self.transition_rules.is_empty() {
             return Ok(None);
         }

@@ -46,6 +46,7 @@ import {
   resolveVerification,
   resolveItunes,
   resolveFacebook,
+  resolvePagination,
 } from './resolvers/resolve-basics'
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
@@ -247,6 +248,14 @@ function mergeMetadata({
       case 'itunes': {
         target[key] = resolveItunes(
           source.itunes,
+          metadataBase,
+          metadataContext
+        )
+        break
+      }
+      case 'pagination': {
+        target.pagination = resolvePagination(
+          source.pagination,
           metadataBase,
           metadataContext
         )

@@ -268,6 +268,7 @@ export declare function projectUpdateInfoSubscribe(
 export interface StackFrame {
   isServer: boolean
   isInternal?: boolean
+  originalFile?: string
   file: string
   line?: number
   column?: number
@@ -380,10 +381,6 @@ export interface NapiRewrite {
   missing?: Array<NapiRouteHas>
 }
 export declare function getTargetTriple(): string
-export declare function initHeapProfiler(): ExternalObject<RefCell>
-export declare function teardownHeapProfiler(
-  guardExternal: ExternalObject<RefCell>
-): void
 /**
  * Initialize tracing subscriber to emit traces. This configures subscribers
  * for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.

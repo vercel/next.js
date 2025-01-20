@@ -77,6 +77,7 @@ describe('config telemetry', () => {
           expect(event1).toMatch(/"imageRemotePatternsCount": 1/)
           expect(event1).toMatch(/"imageLocalPatternsCount": 2/)
           expect(event1).toMatch(/"imageSizes": "64,128,256,512,1024"/)
+          expect(event1).toMatch(/"imageQualities": "25,50,75"/)
           expect(event1).toMatch(/"imageFormats": "image\/avif,image\/webp"/)
           expect(event1).toMatch(/"nextConfigOutput": null/)
           expect(event1).toMatch(/"trailingSlashEnabled": false/)
@@ -123,6 +124,7 @@ describe('config telemetry', () => {
           expect(event2).toMatch(/"imageDomainsCount": 2/)
           expect(event2).toMatch(/"imageRemotePatternsCount": 1/)
           expect(event2).toMatch(/"imageLocalPatternsCount": 2/)
+          expect(event2).toMatch(/"imageQualities": "25,50,75"/)
           expect(event2).toMatch(/"imageSizes": "64,128,256,512,1024"/)
           expect(event2).toMatch(/"nextConfigOutput": null/)
           expect(event2).toMatch(/"trailingSlashEnabled": false/)
@@ -365,6 +367,32 @@ describe('config telemetry', () => {
           )
         }
       )
+
+      it('emits telemetry for usage of `experimental/dynamicIO`', async () => {
+        await fs.rename(
+          path.join(appDir, 'next.config.dynamic-io'),
+          path.join(appDir, 'next.config.js')
+        )
+
+        const { stderr } = await nextBuild(appDir, [], {
+          stderr: true,
+          env: { NEXT_TELEMETRY_DEBUG: 1 },
+        })
+
+        await fs.rename(
+          path.join(appDir, 'next.config.js'),
+          path.join(appDir, 'next.config.dynamic-io')
+        )
+
+        const events = findAllTelemetryEvents(
+          stderr,
+          'NEXT_BUILD_FEATURE_USAGE'
+        )
+        expect(events).toContainEqual({
+          featureName: 'experimental/dynamicIO',
+          invocationCount: 1,
+        })
+      })
 
       it('emits telemetry for usage of `optimizeCss`', async () => {
         await fs.rename(

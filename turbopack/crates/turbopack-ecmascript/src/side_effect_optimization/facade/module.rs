@@ -8,6 +8,7 @@ use turbopack_core::{
     chunk::{ChunkableModule, ChunkingContext, EvaluatableAsset},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
     resolve::ModulePart,
 };
@@ -151,6 +152,19 @@ impl Module for EcmascriptModuleFacadeModule {
         };
         Ok(Vc::cell(references))
     }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(self: Vc<Self>) -> Result<Vc<bool>> {
+        let async_module = self.async_module();
+        let references = self.references();
+        let is_self_async = async_module
+            .resolve()
+            .await?
+            .is_self_async(references.resolve().await?)
+            .resolve()
+            .await?;
+        Ok(is_self_async)
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -186,10 +200,14 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                             exports.insert(
                                 name.clone(),
                                 EsmExport::ImportedBinding(
-                                    Vc::upcast(EcmascriptModulePartReference::new_part(
-                                        *self.module,
-                                        ModulePart::locals(),
-                                    )),
+                                    ResolvedVc::upcast(
+                                        EcmascriptModulePartReference::new_part(
+                                            *self.module,
+                                            ModulePart::locals(),
+                                        )
+                                        .to_resolved()
+                                        .await?,
+                                    ),
                                     name,
                                     *mutable,
                                 ),
@@ -229,10 +247,14 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                     exports.insert(
                         "default".into(),
                         EsmExport::ImportedBinding(
-                            Vc::upcast(EcmascriptModulePartReference::new_part(
-                                *self.module,
-                                ModulePart::exports(),
-                            )),
+                            ResolvedVc::upcast(
+                                EcmascriptModulePartReference::new_part(
+                                    *self.module,
+                                    ModulePart::exports(),
+                                )
+                                .to_resolved()
+                                .await?,
+                            ),
                             "default".into(),
                             false,
                         ),
@@ -252,7 +274,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
                 exports.insert(
                     export.await?.clone_value(),
                     EsmExport::ImportedBinding(
-                        Vc::upcast(EcmascriptModulePartReference::new(*self.module)),
+                        ResolvedVc::upcast(
+                            EcmascriptModulePartReference::new(*self.module)
+                                .to_resolved()
+                                .await?,
+                        ),
                         original_export.clone_value(),
                         false,
                     ),
@@ -261,9 +287,11 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             ModulePart::RenamedNamespace { export } => {
                 exports.insert(
                     export.await?.clone_value(),
-                    EsmExport::ImportedNamespace(Vc::upcast(EcmascriptModulePartReference::new(
-                        *self.module,
-                    ))),
+                    EsmExport::ImportedNamespace(ResolvedVc::upcast(
+                        EcmascriptModulePartReference::new(*self.module)
+                            .to_resolved()
+                            .await?,
+                    )),
                 );
             }
             ModulePart::Evaluation => {
@@ -276,8 +304,8 @@ impl EcmascriptChunkPlaceable for EcmascriptModuleFacadeModule {
             exports,
             star_exports,
         }
-        .cell();
-        Ok(EcmascriptExports::EsmExports(exports.to_resolved().await?).cell())
+        .resolved_cell();
+        Ok(EcmascriptExports::EsmExports(exports).cell())
     }
 
     #[turbo_tasks::function]
@@ -307,11 +335,13 @@ impl ChunkableModule for EcmascriptModuleFacadeModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModuleFacadeChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),

@@ -97,7 +97,7 @@ impl Introspectable for CombinedContentSource {
                 .await?
                 .into_iter()
                 .flatten()
-                .map(|i| (source, *i))
+                .map(|i| (source, i))
                 .collect(),
         ))
     }

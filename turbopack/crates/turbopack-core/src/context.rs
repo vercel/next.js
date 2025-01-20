@@ -12,13 +12,13 @@ use crate::{
     source::Source,
 };
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 pub enum ProcessResult {
     /// A module was created.
     Module(ResolvedVc<Box<dyn Module>>),
 
     /// A module could not be created (according to the rules, e.g. no module type was assigned)
-    Unknown(Vc<Box<dyn Source>>),
+    Unknown(ResolvedVc<Box<dyn Source>>),
 
     /// Reference is ignored. This should lead to no module being included by
     /// the reference.
@@ -46,7 +46,7 @@ impl ProcessResult {
         Ok(Vc::cell(match self {
             ProcessResult::Module(module) => Some(*module),
             ProcessResult::Unknown(source) => {
-                emit_unknown_module_type_error(*source).await?;
+                emit_unknown_module_type_error(**source).await?;
                 None
             }
             ProcessResult::Ignore => None,

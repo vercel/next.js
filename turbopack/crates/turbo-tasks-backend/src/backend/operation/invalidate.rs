@@ -1,8 +1,6 @@
-use std::fmt::Display;
-
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
-use turbo_tasks::{registry, TaskId, TraitTypeId, ValueTypeId};
+use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
@@ -24,6 +22,7 @@ pub enum InvalidateOperation {
     // TODO DetermineActiveness
     MakeDirty {
         task_ids: SmallVec<[TaskId; 4]>,
+        #[cfg(feature = "trace_task_dirty")]
         cause: TaskDirtyCause,
     },
     AggregationUpdate {
@@ -36,10 +35,15 @@ pub enum InvalidateOperation {
 impl InvalidateOperation {
     pub fn run(
         task_ids: SmallVec<[TaskId; 4]>,
-        cause: TaskDirtyCause,
+        #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
         mut ctx: impl ExecuteContext,
     ) {
-        InvalidateOperation::MakeDirty { task_ids, cause }.execute(&mut ctx)
+        InvalidateOperation::MakeDirty {
+            task_ids,
+            #[cfg(feature = "trace_task_dirty")]
+            cause,
+        }
+        .execute(&mut ctx)
     }
 }
 
@@ -48,10 +52,20 @@ impl Operation for InvalidateOperation {
         loop {
             ctx.operation_suspend_point(&self);
             match self {
-                InvalidateOperation::MakeDirty { task_ids, cause } => {
+                InvalidateOperation::MakeDirty {
+                    task_ids,
+                    #[cfg(feature = "trace_task_dirty")]
+                    cause,
+                } => {
                     let mut queue = AggregationUpdateQueue::new();
                     for task_id in task_ids {
-                        make_task_dirty(task_id, cause, &mut queue, ctx);
+                        make_task_dirty(
+                            task_id,
+                            #[cfg(feature = "trace_task_dirty")]
+                            cause,
+                            &mut queue,
+                            ctx,
+                        );
                     }
                     if queue.is_empty() {
                         self = InvalidateOperation::Done
@@ -73,23 +87,34 @@ impl Operation for InvalidateOperation {
     }
 }
 
+#[cfg(feature = "trace_task_dirty")]
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
 pub enum TaskDirtyCause {
     InitialDirty,
-    CellChange { value_type: ValueTypeId },
-    CellRemoved { value_type: ValueTypeId },
-    OutputChange { task_id: TaskId },
-    CollectiblesChange { collectible_type: TraitTypeId },
+    CellChange {
+        value_type: turbo_tasks::ValueTypeId,
+    },
+    CellRemoved {
+        value_type: turbo_tasks::ValueTypeId,
+    },
+    OutputChange {
+        task_id: TaskId,
+    },
+    CollectiblesChange {
+        collectible_type: turbo_tasks::TraitTypeId,
+    },
     Invalidator,
     Unknown,
 }
 
+#[cfg(feature = "trace_task_dirty")]
 struct TaskDirtyCauseInContext<'l, 'e, E: ExecuteContext<'e>> {
     cause: &'l TaskDirtyCause,
     ctx: &'l E,
     _phantom: std::marker::PhantomData<&'e ()>,
 }
 
+#[cfg(feature = "trace_task_dirty")]
 impl<'l, 'e, E: ExecuteContext<'e>> TaskDirtyCauseInContext<'l, 'e, E> {
     fn new(cause: &'l TaskDirtyCause, ctx: &'l E) -> Self {
         Self {
@@ -100,7 +125,8 @@ impl<'l, 'e, E: ExecuteContext<'e>> TaskDirtyCauseInContext<'l, 'e, E> {
     }
 }
 
-impl<'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'_, 'e, E> {
+#[cfg(feature = "trace_task_dirty")]
+impl<'e, E: ExecuteContext<'e>> std::fmt::Display for TaskDirtyCauseInContext<'_, 'e, E> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self.cause {
             TaskDirtyCause::InitialDirty => write!(f, "initial dirty"),
@@ -108,14 +134,14 @@ impl<'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'_, 'e, E> {
                 write!(
                     f,
                     "{} cell changed",
-                    registry::get_value_type(*value_type).name
+                    turbo_tasks::registry::get_value_type(*value_type).name
                 )
             }
             TaskDirtyCause::CellRemoved { value_type } => {
                 write!(
                     f,
                     "{} cell removed",
-                    registry::get_value_type(*value_type).name
+                    turbo_tasks::registry::get_value_type(*value_type).name
                 )
             }
             TaskDirtyCause::OutputChange { task_id } => {
@@ -129,7 +155,7 @@ impl<'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'_, 'e, E> {
                 write!(
                     f,
                     "{} collectible changed",
-                    registry::get_trait(*collectible_type).name
+                    turbo_tasks::registry::get_trait(*collectible_type).name
                 )
             }
             TaskDirtyCause::Invalidator => write!(f, "invalidator"),
@@ -140,7 +166,7 @@ impl<'e, E: ExecuteContext<'e>> Display for TaskDirtyCauseInContext<'_, 'e, E> {
 
 pub fn make_task_dirty(
     task_id: TaskId,
-    cause: TaskDirtyCause,
+    #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
     ctx: &mut impl ExecuteContext,
 ) {
@@ -150,20 +176,29 @@ pub fn make_task_dirty(
 
     let mut task = ctx.task(task_id, TaskDataCategory::All);
 
-    make_task_dirty_internal(&mut task, task_id, true, cause, queue, ctx);
+    make_task_dirty_internal(
+        &mut task,
+        task_id,
+        true,
+        #[cfg(feature = "trace_task_dirty")]
+        cause,
+        queue,
+        ctx,
+    );
 }
 
 pub fn make_task_dirty_internal(
     task: &mut impl TaskGuard,
     task_id: TaskId,
     make_stale: bool,
-    cause: TaskDirtyCause,
+    #[cfg(feature = "trace_task_dirty")] cause: TaskDirtyCause,
     queue: &mut AggregationUpdateQueue,
     ctx: &impl ExecuteContext,
 ) {
     if make_stale {
         if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
             if !*stale {
+                #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
                     "make task stale",
                     name = ctx.get_task_description(task_id),
@@ -185,6 +220,7 @@ pub fn make_task_dirty_internal(
                 clean_in_session: None,
             },
         }) => {
+            #[cfg(feature = "trace_task_dirty")]
             let _span = tracing::trace_span!(
                 "task already dirty",
                 name = ctx.get_task_description(task_id),
@@ -215,6 +251,7 @@ pub fn make_task_dirty_internal(
         _ => unreachable!(),
     };
 
+    #[cfg(feature = "trace_task_dirty")]
     let _span = tracing::trace_span!(
         "make task dirty",
         name = ctx.get_task_description(task_id),
@@ -232,7 +269,7 @@ pub fn make_task_dirty_internal(
                 AggregatedDataUpdate::new().dirty_container_update(task_id, aggregated_update),
             ));
         }
-        task.has_key(&CachedDataItemKey::AggregateRoot {})
+        task.has_key(&CachedDataItemKey::Activeness {})
     } else {
         true
     };

@@ -26,7 +26,6 @@ import {
 } from '../utils'
 import type { ChunkGroup } from 'webpack'
 import { encodeURIPath } from '../../../shared/lib/encode-uri-path'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 import type { ModuleInfo } from './flight-client-entry-plugin'
 
 interface Options {
@@ -224,28 +223,17 @@ export class ClientReferenceManifestPlugin {
   }
 
   apply(compiler: webpack.Compiler) {
-    compiler.hooks.compilation.tap(
-      PLUGIN_NAME,
-      (compilation, { normalModuleFactory }) => {
-        compilation.dependencyFactories.set(
-          webpack.dependencies.ModuleDependency,
-          normalModuleFactory
-        )
-        compilation.dependencyTemplates.set(
-          webpack.dependencies.ModuleDependency,
-          new webpack.dependencies.NullDependency.Template()
-        )
-        compilation.hooks.processAssets.tap(
-          {
-            name: PLUGIN_NAME,
-            // Have to be in the optimize stage to run after updating the CSS
-            // asset hash via extract mini css plugin.
-            stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
-          },
-          (assets) => this.createAsset(assets, compilation, compiler.context)
-        )
-      }
-    )
+    compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
+      compilation.hooks.processAssets.tap(
+        {
+          name: PLUGIN_NAME,
+          // Have to be in the optimize stage to run after updating the CSS
+          // asset hash via extract mini css plugin.
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_OPTIMIZE_HASH,
+        },
+        (assets) => this.createAsset(assets, compilation, compiler.context)
+      )
+    })
   }
 
   createAsset(
@@ -570,9 +558,9 @@ export class ClientReferenceManifestPlugin {
         manifestEntryFiles.push(entryName.replace(/\/page(\.[^/]+)?$/, '/page'))
       }
 
-      // We also need to create manifests for route handler entrypoints
-      // (excluding metadata route handlers) to enable `'use cache'`.
-      if (/\/route$/.test(entryName) && !isMetadataRoute(entryName)) {
+      // We also need to create manifests for route handler entrypoints to
+      // enable `'use cache'`.
+      if (/\/route$/.test(entryName)) {
         manifestEntryFiles.push(entryName)
       }
 

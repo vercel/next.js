@@ -462,7 +462,9 @@ impl Introspectable for CssChunk {
                 .map(|chunk_item| async move {
                     Ok((
                         entry_module_key().to_resolved().await?,
-                        IntrospectableModule::new(chunk_item.module()),
+                        IntrospectableModule::new(chunk_item.module())
+                            .to_resolved()
+                            .await?,
                     ))
                 })
                 .try_join()
@@ -501,14 +503,14 @@ impl ChunkType for CssChunkType {
         let content = CssChunkContent {
             chunk_items: chunk_items
                 .iter()
-                .map(|(chunk_item, _async_info)| async move {
+                .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
                     let Some(chunk_item) =
-                        Vc::try_resolve_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
                     else {
                         bail!("Chunk item is not an css chunk item but reporting chunk type css");
                     };
                     // CSS doesn't need to care about async_info, so we can discard it
-                    chunk_item.to_resolved().await
+                    Ok(chunk_item)
                 })
                 .try_join()
                 .await?,

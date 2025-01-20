@@ -2,7 +2,7 @@ use anyhow::Result;
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack_core::chunk::ChunkingContext;
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
 use crate::{
@@ -32,7 +32,8 @@ impl CodeGenerateable for IdentReplacement {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let value = self.value.clone();
         let path = &self.path.await?;

@@ -10,9 +10,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc,
 };
 use turbopack::css::CssModuleAsset;
-use turbopack_core::module::Module;
-
-use crate::module_graph::SingleModuleGraph;
+use turbopack_core::{module::Module, module_graph::SingleModuleGraph};
 
 #[derive(
     Clone, Serialize, Deserialize, Eq, PartialEq, TraceRawVcs, ValueDebugFormat, NonLocalValue,
@@ -38,6 +36,7 @@ pub async fn map_client_references(
         .iter_nodes()
         .map(|node| async move {
             let module = node.module;
+
             if let Some(client_reference_module) =
                 ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
             {

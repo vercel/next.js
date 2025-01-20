@@ -15,6 +15,7 @@ use turbopack_core::{
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
@@ -36,6 +37,9 @@ pub(crate) struct EcmascriptDevEvaluateChunk {
     ident: ResolvedVc<AssetIdent>,
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+    // TODO(sokra): It's weird to use ModuleGraph here, we should convert evaluatable_assets to a
+    // list of chunk items before passing it to this struct
+    module_graph: ResolvedVc<ModuleGraph>,
 }
 
 #[turbo_tasks::value_impl]
@@ -47,12 +51,14 @@ impl EcmascriptDevEvaluateChunk {
         ident: ResolvedVc<AssetIdent>,
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
+        module_graph: ResolvedVc<ModuleGraph>,
     ) -> Vc<Self> {
         EcmascriptDevEvaluateChunk {
             chunking_context,
             ident,
             other_chunks,
             evaluatable_assets,
+            module_graph,
         }
         .cell()
     }
@@ -95,6 +101,7 @@ impl EcmascriptDevEvaluateChunk {
             .iter()
             .map({
                 let chunking_context = this.chunking_context;
+                let module_graph = this.module_graph;
                 move |entry| async move {
                     if let Some(placeable) =
                         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
@@ -102,7 +109,7 @@ impl EcmascriptDevEvaluateChunk {
                     {
                         Ok(Some(
                             placeable
-                                .as_chunk_item(Vc::upcast(*chunking_context))
+                                .as_chunk_item(*module_graph, Vc::upcast(*chunking_context))
                                 .id()
                                 .await?,
                         ))

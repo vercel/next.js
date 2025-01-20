@@ -9,6 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssets,
 };
 
@@ -24,6 +25,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct AsyncLoaderChunkItem {
     pub module: ResolvedVc<AsyncLoaderModule>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -32,23 +34,14 @@ impl AsyncLoaderChunkItem {
     #[turbo_tasks::function]
     pub(super) async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let module = self.module.await?;
-        if let Some(chunk_items) = module.availability_info.available_chunk_items() {
-            if chunk_items
-                .get(
-                    module
-                        .inner
-                        .as_chunk_item(*ResolvedVc::upcast(self.chunking_context))
-                        .resolve()
-                        .await?,
-                )
-                .await?
-                .is_some()
-            {
+        if let Some(chunk_items) = module.availability_info.available_modules() {
+            if chunk_items.get(*module.inner).await?.is_some() {
                 return Ok(Vc::cell(vec![]));
             }
         }
         Ok(self.chunking_context.chunk_group_assets(
             *ResolvedVc::upcast(module.inner),
+            *self.module_graph,
             Value::new(module.availability_info),
         ))
     }
@@ -80,7 +73,10 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
         {
             Some(
                 placeable
-                    .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
+                    .as_chunk_item(
+                        *this.module_graph,
+                        *ResolvedVc::upcast(this.chunking_context),
+                    )
                     .id()
                     .await?,
             )
@@ -167,7 +163,7 @@ impl ChunkItem for AsyncLoaderChunkItem {
     async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.module.ident();
         if let Some(available_chunk_items) =
-            self.module.await?.availability_info.available_chunk_items()
+            self.module.await?.availability_info.available_modules()
         {
             ident = ident.with_modifier(Vc::cell(
                 available_chunk_items.hash().await?.to_string().into(),

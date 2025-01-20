@@ -10,9 +10,7 @@ use turbo_tasks::{
     TryJoinIterExt, Vc,
 };
 use turbopack_core::{
-    chunk::{
-        AsyncModuleInfo, ChunkableModule, ChunkableModuleReference, ChunkingContext, ChunkingType,
-    },
+    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingType},
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -102,7 +100,6 @@ impl AsyncModule {
     #[turbo_tasks::function]
     async fn get_async_idents(
         &self,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Vc<AsyncModuleInfo>,
         references: Vc<ModuleReferences>,
     ) -> Result<Vc<AsyncModuleIdents>> {
@@ -124,13 +121,9 @@ impl AsyncModule {
                         }
                     }
                     ReferencedAsset::Some(placeable) => {
-                        let chunk_item = placeable
-                            .as_chunk_item(Vc::upcast(chunking_context))
-                            .to_resolved()
-                            .await?;
                         if async_module_info
                             .referenced_async_modules
-                            .contains(&chunk_item)
+                            .contains(&ResolvedVc::upcast(*placeable))
                         {
                             referenced_asset.get_ident().await?
                         } else {
@@ -194,14 +187,11 @@ impl AsyncModule {
     #[turbo_tasks::function]
     pub async fn code_generation(
         self: Vc<Self>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
     ) -> Result<Vc<CodeGeneration>> {
         if let Some(async_module_info) = async_module_info {
-            let async_idents = self
-                .get_async_idents(chunking_context, async_module_info, references)
-                .await?;
+            let async_idents = self.get_async_idents(async_module_info, references).await?;
 
             if !async_idents.is_empty() {
                 let idents = async_idents

@@ -222,6 +222,7 @@ impl WebpackLoadersProcessedAsset {
             .module()
             .to_resolved()
             .await?;
+
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
         let Some(resource_path) = project_path

@@ -1,5 +1,6 @@
 {
   "$schema": "https://turborepo.org/schema.json",
+  "globalEnv": ["NEXT_CI_RUNNER"],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

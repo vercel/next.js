@@ -1,4 +1,4 @@
-import type { ExportRouteResult, FileWriter } from '../types'
+import type { ExportRouteResult } from '../types'
 import type AppRouteRouteModule from '../../server/route-modules/app-route/module'
 import type { AppRouteRouteHandlerContext } from '../../server/route-modules/app-route/module'
 import type { IncrementalCache } from '../../server/lib/incremental-cache'
@@ -27,6 +27,7 @@ import { isMetadataRouteFile } from '../../lib/metadata/is-metadata-route'
 import { normalizeAppPath } from '../../shared/lib/router/utils/app-paths'
 import type { Params } from '../../server/request/params'
 import { AfterRunner } from '../../server/after/run-with-after'
+import type { MultiFileWriter } from '../../lib/multi-file-writer'
 
 export const enum ExportedAppRouteFiles {
   BODY = 'BODY',
@@ -46,7 +47,7 @@ export async function exportAppRoute(
         [profile: string]: import('../../server/use-cache/cache-life').CacheLife
       },
   htmlFilepath: string,
-  fileWriter: FileWriter,
+  fileWriter: MultiFileWriter,
   experimental: Required<
     Pick<ExperimentalConfig, 'dynamicIO' | 'authInterrupts'>
   >,
@@ -148,17 +149,11 @@ export async function exportAppRoute(
 
     // Writing response body to a file.
     const body = Buffer.from(await blob.arrayBuffer())
-    await fileWriter(
-      ExportedAppRouteFiles.BODY,
-      htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX),
-      body,
-      'utf8'
-    )
+    fileWriter.append(htmlFilepath.replace(/\.html$/, NEXT_BODY_SUFFIX), body)
 
     // Write the request metadata to a file.
     const meta = { status: response.status, headers }
-    await fileWriter(
-      ExportedAppRouteFiles.META,
+    fileWriter.append(
       htmlFilepath.replace(/\.html$/, NEXT_META_SUFFIX),
       JSON.stringify(meta)
     )

@@ -387,10 +387,7 @@ function createCacheNodeOnNavigation(
       // `prefetchRsc` field.
       rsc,
       prefetchRsc: null,
-      head: (isLeafSegment ? possiblyPartialPrefetchHead : null) ?? [
-        null,
-        null,
-      ],
+      head: isLeafSegment ? possiblyPartialPrefetchHead : null,
       prefetchHead: null,
       loading,
       parallelRoutes: cacheNodeChildren,
@@ -698,12 +695,7 @@ function createPendingCacheNode(
     // Create a deferred promise. This will be fulfilled once the dynamic
     // response is received from the server.
     rsc: createDeferredRsc() as React.ReactNode,
-    head: isLeafSegment
-      ? [
-          createDeferredRsc() as React.ReactNode,
-          createDeferredRsc() as React.ReactNode,
-        ]
-      : [null, null],
+    head: isLeafSegment ? (createDeferredRsc() as React.ReactNode) : null,
   }
 }
 
@@ -805,12 +797,11 @@ function finishPendingCacheNode(
   // a pending promise that needs to be resolved with the dynamic head from
   // the server.
   const head = cacheNode.head
-  // Handle head[0] - viewport and head[1] - metadata
-  if (isDeferredRsc(head[0])) {
-    head[0].resolve(dynamicHead[0])
-  }
-  if (isDeferredRsc(head[1])) {
-    head[1].resolve(dynamicHead[1])
+  // TODO: change head back to ReactNode when metadata
+  // is stably rendered in body
+  // Handle head[0] - viewport
+  if (isDeferredRsc(head)) {
+    head.resolve(dynamicHead)
   }
 }
 

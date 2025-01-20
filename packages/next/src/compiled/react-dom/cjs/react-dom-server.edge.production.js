@@ -51,6 +51,8 @@ var React = require("next/dist/compiled/react"),
   REACT_SCOPE_TYPE = Symbol.for("react.scope"),
   REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
   REACT_LEGACY_HIDDEN_TYPE = Symbol.for("react.legacy_hidden"),
+  REACT_MEMO_CACHE_SENTINEL = Symbol.for("react.memo_cache_sentinel"),
+  REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
   MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
   isArrayImpl = Array.isArray;
 function murmurhash3_32_gc(key, seed) {
@@ -3201,9 +3203,6 @@ function switchContext(newSnapshot) {
     (currentActiveSnapshot = newSnapshot));
 }
 var classComponentUpdater = {
-    isMounted: function () {
-      return !1;
-    },
     enqueueSetState: function (inst, payload) {
       inst = inst._reactInternals;
       null !== inst.queue && inst.queue.push(payload);
@@ -3521,6 +3520,9 @@ function unwrapThenable(thenable) {
   null === thenableState && (thenableState = []);
   return trackUsedThenable(thenableState, thenable, index);
 }
+function unsupportedRefresh() {
+  throw Error("Cache cannot be refreshed during server rendering.");
+}
 function noop$1() {}
 var HooksDispatcher = {
     readContext: function (context) {
@@ -3605,6 +3607,14 @@ var HooksDispatcher = {
     useHostTransitionStatus: function () {
       resolveCurrentlyRenderingComponent();
       return sharedNotPendingObject;
+    },
+    useMemoCache: function (size) {
+      for (var data = Array(size), i = 0; i < size; i++)
+        data[i] = REACT_MEMO_CACHE_SENTINEL;
+      return data;
+    },
+    useCacheRefresh: function () {
+      return unsupportedRefresh;
     }
   },
   currentResumableState = null,
@@ -4416,6 +4426,7 @@ function renderElement(request, task, keyPath, type, props, ref) {
         renderNodeDestructive(request, task, props.children, -1);
         task.keyPath = type;
         return;
+      case REACT_VIEW_TRANSITION_TYPE:
       case REACT_SCOPE_TYPE:
         throw Error("ReactDOMServer does not yet support scope components.");
       case REACT_SUSPENSE_TYPE:
@@ -6035,11 +6046,11 @@ function abort(request, reason) {
 }
 function ensureCorrectIsomorphicReactVersion() {
   var isomorphicReactPackageVersion = React.version;
-  if ("19.1.0-canary-518d06d2-20241219" !== isomorphicReactPackageVersion)
+  if ("19.1.0-canary-5b51a2b9-20250116" !== isomorphicReactPackageVersion)
     throw Error(
       'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
         (isomorphicReactPackageVersion +
-          "\n  - react-dom:  19.1.0-canary-518d06d2-20241219\nLearn more: https://react.dev/warnings/version-mismatch")
+          "\n  - react-dom:  19.1.0-canary-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
     );
 }
 ensureCorrectIsomorphicReactVersion();
@@ -6196,4 +6207,4 @@ const setTimeoutOrImmediate =
     ? globalThis['set' + 'Immediate']
     : setTimeout;
 
-exports.version = "19.1.0-canary-518d06d2-20241219";
+exports.version = "19.1.0-canary-5b51a2b9-20250116";

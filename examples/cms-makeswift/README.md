@@ -4,7 +4,7 @@ This example showcases how you can use [Makeswift](https://www.makeswift.com/) t
 
 ## Deploy your own
 
-Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example):
+Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_medium=readme&utm_campaign=next-example) or preview live with [StackBlitz](https://stackblitz.com/github/vercel/next.js/tree/canary/examples/cms-makeswift)
 
 [![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/vercel/next.js/tree/canary/examples/cms-makeswift&project-name=cms-makeswift&repository-name=cms-makeswift)
 
@@ -51,9 +51,13 @@ Deploy the example using [Vercel](https://vercel.com?utm_source=github&utm_mediu
 
    ```bash
    npx create-next-app --example cms-makeswift cms-makeswift-app
-   # or
+   ```
+
+   ```bash
    yarn create next-app --example cms-makeswift cms-makeswift-app
-   # or
+   ```
+
+   ```bash
    pnpm create next-app --example cms-makeswift cms-makeswift-app
    ```
 
