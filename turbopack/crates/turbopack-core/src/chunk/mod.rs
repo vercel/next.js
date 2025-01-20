@@ -24,8 +24,8 @@ use turbo_tasks_hash::DeterministicHash;
 
 pub use self::{
     chunking_context::{
-        ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MinifyType,
+        ChunkGroupResult, ChunkGroupType, ChunkingContext, ChunkingContextExt,
+        EntryChunkGroupResult, MinifyType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -328,7 +328,6 @@ pub enum ChunkItemTy {
 pub struct ChunkItemWithAsyncModuleInfo {
     pub ty: ChunkItemTy,
     pub chunk_item: ResolvedVc<Box<dyn ChunkItem>>,
-    pub module: Option<ResolvedVc<Box<dyn ChunkableModule>>>,
     pub async_info: Option<ResolvedVc<AsyncModuleInfo>>,
 }
 

@@ -170,7 +170,6 @@ pub async fn make_chunk_group(
             .map(|&chunk_item| ChunkItemWithAsyncModuleInfo {
                 ty: ChunkItemTy::Included,
                 chunk_item,
-                module: None,
                 async_info: None,
             });
 
@@ -205,28 +204,26 @@ pub async fn make_chunk_group(
 
     let chunk_items = all_modules
         .iter()
-        .map(|(module, async_info)| {
+        .map(|(m, async_info)| {
             Either::Left(async move {
                 Ok(ChunkItemWithAsyncModuleInfo {
                     ty: ChunkItemTy::Included,
-                    chunk_item: module
+                    chunk_item: m
                         .as_chunk_item(module_graph, *chunking_context)
                         .to_resolved()
                         .await?,
-                    module: Some(*module),
                     async_info: *async_info,
                 })
             })
         })
-        .chain(passthrough_modules.into_iter().map(|module| {
+        .chain(passthrough_modules.into_iter().map(|m| {
             Either::Right(async move {
                 Ok(ChunkItemWithAsyncModuleInfo {
                     ty: ChunkItemTy::Passthrough,
-                    chunk_item: module
+                    chunk_item: m
                         .as_chunk_item(module_graph, *chunking_context)
                         .to_resolved()
                         .await?,
-                    module: Some(module),
                     async_info: None,
                 })
             })
@@ -236,7 +233,6 @@ pub async fn make_chunk_group(
 
     // Pass chunk items to chunking algorithm
     let mut chunks = make_chunks(
-        module_graph,
         *chunking_context,
         Vc::cell(chunk_items),
         "".into(),
@@ -250,7 +246,6 @@ pub async fn make_chunk_group(
         // We want them to be separate since they are specific to this chunk group due
         // to available chunk items differing
         let async_loader_chunks = make_chunks(
-            module_graph,
             *chunking_context,
             Vc::cell(async_loader_chunk_items.into_iter().collect()),
             "async-loader-".into(),

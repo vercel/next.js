@@ -59,21 +59,6 @@ impl DerefMut for RoaringBitmapWrapper {
         &mut self.0
     }
 }
-impl Hash for RoaringBitmapWrapper {
-    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
-        struct HasherWriter<'a, H: std::hash::Hasher>(&'a mut H);
-        impl<H: std::hash::Hasher> std::io::Write for HasherWriter<'_, H> {
-            fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
-                self.0.write(buf);
-                Ok(buf.len())
-            }
-            fn flush(&mut self) -> std::io::Result<()> {
-                Ok(())
-            }
-        }
-        self.0.serialize_into(HasherWriter(state)).unwrap();
-    }
-}
 
 #[turbo_tasks::value(transparent)]
 pub struct ChunkGroupInfo(HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
@@ -176,12 +161,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
 
         // First, compute the depth for each module in the graph
         let mut module_depth: HashMap<ResolvedVc<Box<dyn Module>>, usize> = HashMap::new();
-        // use all entries from all graphs
-        let entries = graphs
-            .iter()
-            .flat_map(|g| g.entries.iter().copied())
-            .collect::<Vec<_>>();
-        let entries = &entries;
+        let entries = &graph.graphs.last().unwrap().await?.entries;
         graph
             .traverse_edges_from_entries_bfs(entries, |parent, node| {
                 if let Some((parent, _)) = parent {

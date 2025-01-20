@@ -1,5 +1,4 @@
 use anyhow::Result;
-use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Upcast, Value, Vc};
@@ -8,7 +7,7 @@ use turbo_tasks_hash::DeterministicHash;
 
 use super::{availability_info::AvailabilityInfo, ChunkableModule, EvaluatableAssets};
 use crate::{
-    chunk::{ChunkItem, ChunkType, ChunkableModules, ModuleId},
+    chunk::{ChunkItem, ChunkableModules, ModuleId},
     environment::Environment,
     ident::AssetIdent,
     module::Module,
@@ -68,14 +67,6 @@ pub struct EntryChunkGroupResult {
     pub availability_info: AvailabilityInfo,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue)]
-pub struct ChunkingConfig {
-    // TODO
-}
-
-#[turbo_tasks::value(transparent)]
-pub struct ChunkingConfigs(FxHashMap<ResolvedVc<Box<dyn ChunkType>>, ChunkingConfig>);
-
 /// A context for the chunking that influences the way chunks are created
 #[turbo_tasks::value_trait]
 pub trait ChunkingContext {
@@ -114,14 +105,6 @@ pub trait ChunkingContext {
     ) -> Vc<FileSystemPath>;
 
     fn is_hot_module_replacement_enabled(self: Vc<Self>) -> Vc<bool> {
-        Vc::cell(false)
-    }
-
-    fn chunking_configs(self: Vc<Self>) -> Vc<ChunkingConfigs> {
-        Vc::cell(Default::default())
-    }
-
-    fn is_smart_chunk_enabled(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)
     }
 

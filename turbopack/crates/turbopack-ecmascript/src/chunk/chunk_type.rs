@@ -52,7 +52,6 @@ impl ChunkType for EcmascriptChunkType {
                     async |ChunkItemWithAsyncModuleInfo {
                                ty,
                                chunk_item,
-                               module: _,
                                async_info,
                            }| {
                         let Some(chunk_item) =

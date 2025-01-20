@@ -14,7 +14,7 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType},
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingContext, MinifyType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -425,8 +425,6 @@ pub async fn get_client_chunking_context(
 
     if next_mode.is_development() {
         builder = builder.hot_module_replacement().use_file_source_map_uris();
-    } else {
-        builder = builder.ecmascript_chunking_config(ChunkingConfig {})
     }
 
     Ok(Vc::upcast(builder.build()))
