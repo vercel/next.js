@@ -152,7 +152,9 @@ async fn specific_resolve(
     is_optional: bool,
     issue_source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
-    let result = origin.resolve_asset(request, options, reference_type.clone());
+    let result = origin
+        .resolve_asset(request, options, reference_type.clone())
+        .await?;
 
     handle_resolve_error(
         result,
