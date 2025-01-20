@@ -2019,6 +2019,7 @@
     function serializeErrorValue(request, error) {
       var env = (0, request.environmentName)();
       try {
+        var name = error.name;
         var message = String(error.message);
         var stack = filterStackTrace(request, error, 0);
         var errorEnv = error.environmentName;
@@ -2031,6 +2032,7 @@
       return (
         "$Z" +
         outlineModel(request, {
+          name: name,
           message: message,
           stack: stack,
           env: env

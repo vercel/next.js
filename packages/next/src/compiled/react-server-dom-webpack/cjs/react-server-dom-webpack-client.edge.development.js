@@ -1994,7 +1994,8 @@
         response.reason.close("" === row ? '"$undefined"' : row);
     }
     function resolveErrorDev(response, errorInfo) {
-      var env = errorInfo.env;
+      var name = errorInfo.name,
+        env = errorInfo.env;
       errorInfo = buildFakeCallStack(
         response,
         errorInfo.stack,
@@ -2007,6 +2008,7 @@
       );
       response = getRootTask(response, env);
       response = null != response ? response.run(errorInfo) : errorInfo();
+      response.name = name;
       response.environmentName = env;
       return response;
     }
