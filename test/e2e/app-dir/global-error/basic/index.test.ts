@@ -24,7 +24,7 @@ describe('app dir - global error', () => {
   })
 
   it('should render global error for error in server components', async () => {
-    const browser = await next.browser('/ssr/server')
+    const browser = await next.browser('/rsc')
     expect(await browser.elementByCss('h1').text()).toBe('Global Error')
 
     if (isNextDev) {
@@ -43,8 +43,8 @@ describe('app dir - global error', () => {
     expect(await browser.elementByCss('#digest').text()).toMatch(/\w+/)
   })
 
-  it('should render global error for error in client components', async () => {
-    const browser = await next.browser('/ssr/client')
+  it('should render global error for error in client components during SSR', async () => {
+    const browser = await next.browser('/ssr')
 
     if (isNextDev) {
       await assertHasRedbox(browser)
