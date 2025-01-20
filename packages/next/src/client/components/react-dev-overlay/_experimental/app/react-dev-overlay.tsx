@@ -12,19 +12,48 @@ import { CssReset } from '../internal/styles/css-reset'
 import { RootLayoutMissingTagsError } from '../internal/container/root-layout-missing-tags-error'
 import { RuntimeErrorHandler } from '../internal/helpers/runtime-error-handler'
 import { Colors } from '../internal/styles/colors'
+import type { GlobalErrorComponent } from '../../../error-boundary'
+
+function ErroredHtml({
+  globalError: [GlobalError, globalErrorStyles],
+  error,
+}: {
+  globalError: [GlobalErrorComponent, React.ReactNode]
+  error: unknown
+}) {
+  if (!error) {
+    return (
+      <html>
+        <head />
+        <body />
+      </html>
+    )
+  }
+  return (
+    <>
+      {globalErrorStyles}
+      <GlobalError error={error} />
+    </>
+  )
+}
 
 interface ReactDevOverlayState {
+  reactError?: unknown
   isReactError: boolean
 }
 export default class ReactDevOverlay extends React.PureComponent<
   {
     state: OverlayState
     dispatcher?: Dispatcher
+    globalError: [GlobalErrorComponent, React.ReactNode]
     children: React.ReactNode
   },
   ReactDevOverlayState
 > {
-  state = { isReactError: false }
+  state = {
+    reactError: null,
+    isReactError: false,
+  }
 
   static getDerivedStateFromError(error: Error): ReactDevOverlayState {
     if (!error.stack) return { isReactError: false }
@@ -36,8 +65,8 @@ export default class ReactDevOverlay extends React.PureComponent<
   }
 
   render() {
-    const { state, children } = this.props
-    const { isReactError } = this.state
+    const { state, children, globalError } = this.props
+    const { isReactError, reactError } = this.state
 
     const hasBuildError = state.buildError != null
     const hasStaticIndicator = state.staticIndicator
@@ -48,10 +77,7 @@ export default class ReactDevOverlay extends React.PureComponent<
     return (
       <>
         {isReactError ? (
-          <html>
-            <head></head>
-            <body></body>
-          </html>
+          <ErroredHtml globalError={globalError} error={reactError} />
         ) : (
           children
         )}
