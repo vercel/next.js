@@ -79,14 +79,14 @@ impl EsmAsyncAssetReference {
 impl ModuleReference for EsmAsyncAssetReference {
     #[turbo_tasks::function]
     async fn resolve_reference(&self) -> Result<Vc<ModuleResolveResult>> {
-        Ok(esm_resolve(
+        esm_resolve(
             self.get_origin().resolve().await?,
             *self.request,
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             self.in_try,
             Some(*self.issue_source),
         )
-        .await?)
+        .await
     }
 }
 
