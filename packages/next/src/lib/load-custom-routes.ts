@@ -508,12 +508,12 @@ function processRoutes<T>(
   }> = []
 
   if (config.i18n && type === 'redirect') {
-    for (const item of config.i18n?.domains || []) {
-      defaultLocales.push({
-        locale: item.defaultLocale,
-        base: `http${item.http ? '' : 's'}://${item.domain}`,
-      })
-    }
+    // for (const item of config.i18n?.domains || []) {
+    //   defaultLocales.push({
+    //     locale: item.defaultLocale,
+    //     base: `http${item.http ? '' : 's'}://${item.domain}`,
+    //   })
+    // }
 
     defaultLocales.push({
       locale: config.i18n.defaultLocale,
