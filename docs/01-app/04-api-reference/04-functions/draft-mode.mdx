@@ -54,7 +54,7 @@ import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
   const draft = await draftMode()
-  draft().enable()
+  draft.enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -64,7 +64,7 @@ import { draftMode } from 'next/headers'
 
 export async function GET(request) {
   const draft = await draftMode()
-  draft().enable()
+  draft.enable()
   return new Response('Draft mode is enabled')
 }
 ```
@@ -80,7 +80,7 @@ import { draftMode } from 'next/headers'
 
 export async function GET(request: Request) {
   const draft = await draftMode()
-  draft().disable()
+  draft.disable()
   return new Response('Draft mode is disabled')
 }
 ```
@@ -90,7 +90,7 @@ import { draftMode } from 'next/headers'
 
 export async function GET(request) {
   const draft = await draftMode()
-  draft().disable()
+  draft.disable()
   return new Response('Draft mode is disabled')
 }
 ```
