@@ -65,38 +65,3 @@ impl Asset for CssClientReferenceModule {
         bail!("CssClientReferenceModule has no content")
     }
 }
-
-// #[turbo_tasks::value_impl]
-// impl ParseCss for CssClientReferenceModule {
-//     #[turbo_tasks::function]
-//     async fn parse_css(&self) -> Result<Vc<ParseCssResult>> {
-//         let imp = ResolvedVc::try_sidecast_sync::<Box<dyn ParseCss>>(self.client_module)
-//             .context("CSS client reference client module must be CSS parseable")?;
-
-//         Ok(imp.parse_css())
-//     }
-// }
-
-// #[turbo_tasks::value_impl]
-// impl ProcessCss for CssClientReferenceModule {
-//     #[turbo_tasks::function]
-//     async fn get_css_with_placeholder(&self) -> Result<Vc<CssWithPlaceholderResult>> {
-//         let imp = ResolvedVc::try_sidecast_sync::<Box<dyn ProcessCss>>(self.client_module)
-//             .context("CSS client reference client module must be CSS processable")?;
-
-//         Ok(imp.get_css_with_placeholder())
-//     }
-
-//     #[turbo_tasks::function]
-//     async fn finalize_css(
-//         &self,
-//         module_graph: Vc<ModuleGraph>,
-//         chunking_context: Vc<Box<dyn ChunkingContext>>,
-//         minify_type: MinifyType,
-//     ) -> Result<Vc<FinalCssResult>> {
-//         let imp = ResolvedVc::try_sidecast_sync::<Box<dyn ProcessCss>>(self.client_module)
-//             .context("CSS client reference client module must be CSS processable")?;
-
-//         Ok(imp.finalize_css(module_graph, chunking_context, minify_type))
-//     }
-// }
