@@ -89,7 +89,7 @@ describe('app-dir - metadata-streaming', () => {
   })
 
   describe('dynamic api', () => {
-    it('should delay metadata with dynamic to body', async () => {
+    it('should render metadata to body', async () => {
       const $ = await next.render$('/dynamic-api')
       expect($('head title').length).toBe(0)
       expect($('body title').length).toBe(1)
