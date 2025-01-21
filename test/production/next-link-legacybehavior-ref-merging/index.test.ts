@@ -19,7 +19,7 @@ describe('Link with legacyBehavior - handles buggy userspace ref merging', () =>
     // shouldn't cause a crash
     expect(await browser.elementByCss('h1').text()).toEqual('Home')
     expect(await browser.elementByCss('body').text()).not.toContain(
-      'Application error: a client-side exception has occurred (see the browser console for more information).'
+      'Application error: a client-side exception has occurred'
     )
   })
 })

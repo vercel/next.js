@@ -1,6 +1,7 @@
 import React from 'react'
 import Head from '../shared/lib/head'
 import type { NextPageContext } from '../shared/lib/utils'
+import { getRequestMeta } from '../server/request-meta'
 
 const statusCodes: { [code: number]: string } = {
   400: 'Bad Request',
@@ -11,17 +12,32 @@ const statusCodes: { [code: number]: string } = {
 
 export type ErrorProps = {
   statusCode: number
+  hostname?: string
   title?: string
   withDarkMode?: boolean
 }
 
 function _getInitialProps({
+  req,
   res,
   err,
 }: NextPageContext): Promise<ErrorProps> | ErrorProps {
   const statusCode =
     res && res.statusCode ? res.statusCode : err ? err.statusCode! : 404
-  return { statusCode }
+
+  let hostname
+
+  if (typeof window !== 'undefined') {
+    hostname = window.location.hostname
+  } else if (req) {
+    const initUrl = getRequestMeta(req, 'initURL')
+    if (initUrl) {
+      const url = new URL(initUrl)
+      hostname = url.hostname
+    }
+  }
+
+  return { statusCode, hostname }
 }
 
 const styles: Record<string, React.CSSProperties> = {
@@ -121,8 +137,11 @@ export default class Error<P = {}> extends React.Component<P & ErrorProps> {
                 title
               ) : (
                 <>
-                  Application error: a client-side exception has occurred (see
-                  the browser console for more information)
+                  Application error: a client-side exception has occurred{' '}
+                  {Boolean(this.props.hostname) && (
+                    <>while loading {this.props.hostname}</>
+                  )}{' '}
+                  (see the browser console for more information)
                 </>
               )}
               .
