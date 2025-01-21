@@ -351,6 +351,14 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
+    }
+
+    #[turbo_tasks::function]
     async fn asset_path(
         &self,
         content_hash: RcStr,

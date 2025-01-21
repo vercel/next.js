@@ -533,6 +533,11 @@ pub async fn get_server_module_options_context(
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         execution_context: Some(execution_context),

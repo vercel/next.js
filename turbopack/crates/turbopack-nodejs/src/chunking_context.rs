@@ -290,6 +290,14 @@ impl ChunkingContext for NodeJsChunkingContext {
     }
 
     #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
+    }
+
+    #[turbo_tasks::function]
     fn should_use_file_source_map_uris(&self) -> Vc<bool> {
         Vc::cell(self.should_use_file_source_map_uris)
     }

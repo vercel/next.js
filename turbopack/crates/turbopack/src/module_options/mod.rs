@@ -14,6 +14,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
+    chunk::SourceMapsType,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -79,6 +80,7 @@ impl ModuleOptions {
                     import_externals,
                     esm_url_rewrite_behavior,
                     ref enable_typeof_window_inlining,
+                    source_maps: ecmascript_source_maps,
                     ..
                 },
             enable_mdx,
@@ -133,6 +135,7 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             refresh,
+            extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();

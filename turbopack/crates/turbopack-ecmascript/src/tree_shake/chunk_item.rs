@@ -52,6 +52,9 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
+        let generate_source_map = self
+            .chunking_context
+            .reference_module_source_maps(*ResolvedVc::upcast(self.module));
 
         let content = EcmascriptModuleContent::new(
             parsed,
@@ -62,6 +65,7 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
             *analyze.references,
             *analyze.code_generation,
             *analyze.async_module,
+            generate_source_map,
             *analyze.source_map,
             *analyze.exports,
             async_module_info,

@@ -318,6 +318,11 @@ pub async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         preset_env_versions: Some(env),
