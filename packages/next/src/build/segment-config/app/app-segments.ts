@@ -20,10 +20,7 @@ import {
 } from '../../../server/route-modules/checks'
 import { isClientReference } from '../../../lib/client-reference'
 import { getSegmentParam } from '../../../server/app-render/get-segment-param'
-import {
-  getLayoutOrPageModule,
-  type LoaderTree,
-} from '../../../server/lib/app-dir-module'
+import { getLayoutOrPageModule } from '../../../server/lib/app-dir-module'
 import { PAGE_SEGMENT_KEY } from '../../../shared/lib/segment'
 
 type GenerateStaticParams = (options: { params?: Params }) => Promise<Params[]>
@@ -77,21 +74,15 @@ export type AppSegment = {
  * @returns the segments for the app page route module
  */
 async function collectAppPageSegments(routeModule: AppPageRouteModule) {
-  // We keep track of unique segments, since with parallel routes, it's possible
-  // to see the same segment multiple times.
-  const uniqueSegments = new Map<string, AppSegment>()
-
-  // Queue will store tuples of [loaderTree, currentSegments]
-  type QueueItem = [LoaderTree, AppSegment[]]
-  const queue: QueueItem[] = [[routeModule.userland.loaderTree, []]]
-
-  while (queue.length > 0) {
-    const [loaderTree, currentSegments] = queue.shift()!
+  // Helper function to process a loader tree path
+  async function processLoaderTree(
+    loaderTree: any,
+    currentSegments: AppSegment[] = []
+  ): Promise<void> {
     const [name, parallelRoutes] = loaderTree
-
-    // Process current node
     const { mod: userland, filePath } = await getLayoutOrPageModule(loaderTree)
-    const isClientComponent = userland && isClientReference(userland)
+
+    const isClientComponent: boolean = userland && isClientReference(userland)
     const isDynamicSegment = /\[.*\]$/.test(name)
     const param = isDynamicSegment ? getSegmentParam(name)?.param : undefined
 
@@ -109,35 +100,23 @@ async function collectAppPageSegments(routeModule: AppPageRouteModule) {
       attach(segment, userland, routeModule.definition.pathname)
     }
 
-    // Create a unique key for the segment
-    const segmentKey = getSegmentKey(segment)
-    if (!uniqueSegments.has(segmentKey)) {
-      uniqueSegments.set(segmentKey, segment)
-    }
+    currentSegments.push(segment)
 
-    const updatedSegments = [...currentSegments, segment]
-
-    // If this is a page segment, we've reached a leaf node
+    // If this is a page segment, we know we've reached a leaf node associated with the
+    // page we're collecting segments for. We can add the collected segments to our final result.
     if (name === PAGE_SEGMENT_KEY) {
-      // Add all segments in the current path
-      updatedSegments.forEach((seg) => {
-        const key = getSegmentKey(seg)
-        uniqueSegments.set(key, seg)
-      })
+      segments.push(...currentSegments)
     }
 
-    // Add all parallel routes to the queue
+    // Recursively process parallel routes
     for (const parallelRouteKey in parallelRoutes) {
       const parallelRoute = parallelRoutes[parallelRouteKey]
-      queue.push([parallelRoute, updatedSegments])
+      await processLoaderTree(parallelRoute, [...currentSegments])
     }
   }
 
-  return Array.from(uniqueSegments.values())
-}
-
-function getSegmentKey(segment: AppSegment) {
-  return `${segment.name}-${segment.filePath ?? ''}-${segment.param ?? ''}`
+  await processLoaderTree(routeModule.userland.loaderTree)
+  return segments
 }
 
 /**
