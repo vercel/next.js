@@ -25,11 +25,13 @@ export default function ReactDevOverlay({
   const { readyErrors } = useErrorHook({ errors: state.errors, isAppDir: true })
 
   return (
-    <DevToolsErrorBoundary
-      onError={setIsErrorOverlayOpen}
-      globalError={globalError}
-    >
-      {children}
+    <>
+      <DevToolsErrorBoundary
+        onError={setIsErrorOverlayOpen}
+        globalError={globalError}
+      >
+        {children}
+      </DevToolsErrorBoundary>
 
       <ShadowPortal>
         <CssReset />
@@ -50,6 +52,6 @@ export default function ReactDevOverlay({
           setIsErrorOverlayOpen={setIsErrorOverlayOpen}
         />
       </ShadowPortal>
-    </DevToolsErrorBoundary>
+    </>
   )
 }
