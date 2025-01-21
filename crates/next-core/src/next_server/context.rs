@@ -542,6 +542,11 @@ pub async fn get_server_module_options_context(
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
