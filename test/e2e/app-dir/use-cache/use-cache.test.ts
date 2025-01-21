@@ -1,5 +1,6 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -457,5 +458,19 @@ describe('use-cache', () => {
     const browser = await next.browser('/not-found')
     const text = await browser.elementByCss('h2').text()
     expect(text).toBe('This page could not be found.')
+  })
+
+  // TODO: Fails with Turbopack.
+  it('should not trigger dynamic I/O error for inner "use cache" functions with client components', async () => {
+    const outputIndex = next.cliOutput.length
+    const browser = await next.browser('/inner-cache-with-client-component')
+    const text = await browser.elementByCss('p').text()
+    expect(text).toBe('foo')
+
+    const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+    expect(cliOutput).not.toContain(
+      'Error: Route "/inner-cache-with-client-component": A component accessed data, headers, params, searchParams, or a short-lived cache'
+    )
   })
 })
