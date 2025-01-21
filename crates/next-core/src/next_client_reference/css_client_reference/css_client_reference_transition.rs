@@ -41,6 +41,8 @@ impl Transition for NextCssClientReferenceTransition {
     ) -> Result<Vc<ProcessResult>> {
         let module_asset_context = self.process_context(module_asset_context);
 
+        // This has to transition to the client context even though we'd ideally have the Ecmascript
+        // ModuleCssAsset in the rsc context, but we want to transform the CSS module only once.
         let module = self.await?.client_transition.process(
             source,
             module_asset_context,
@@ -52,19 +54,21 @@ impl Transition for NextCssClientReferenceTransition {
             return Ok(ProcessResult::Ignore.cell());
         };
 
+        println!("module: {:?}", module);
         let result: Vc<Box<dyn Module>> = if let Some(css_module_module) =
             ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(module)
         {
             let ProcessResult::Module(client_module) = *css_module_module
-                .inner(Value::new(CssReferenceSubType::Undefined))
+                .inner(Value::new(CssReferenceSubType::Internal))
                 .await?
             else {
                 return Ok(ProcessResult::Ignore.cell());
             };
 
+            println!("client_module: {:?}", module);
             let client_module =
                 ResolvedVc::try_sidecast_sync::<Box<dyn CssChunkPlaceable>>(client_module)
-                    .context("client asset is not css chunk placeable")?;
+                    .context("css module client asset is not css chunk placeable")?;
 
             Vc::upcast(CssModuleClientReferenceModule::new(
                 *client_module,
@@ -72,7 +76,7 @@ impl Transition for NextCssClientReferenceTransition {
             ))
         } else {
             let client_module = ResolvedVc::try_sidecast_sync::<Box<dyn CssChunkPlaceable>>(module)
-                .context("client asset is not css chunk placeable")?;
+                .context("css client asset is not css chunk placeable")?;
 
             Vc::upcast(CssClientReferenceModule::new(*client_module))
         };

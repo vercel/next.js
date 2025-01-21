@@ -2,7 +2,11 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::ModuleRule;
+use turbopack::{
+    css::CssModuleAssetType,
+    module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition},
+};
+use turbopack_core::reference_type::{EntryReferenceSubType, ReferenceType};
 
 use crate::{
     mode::NextMode,
@@ -80,6 +84,21 @@ pub async fn get_next_client_transforms_rules(
                 dynamic_io_enabled,
                 cache_kinds,
             ));
+
+            // rules.extend([
+            //     // CSS Modules client reference referencing the actual CSS module
+            //     ModuleRule::new(
+            //         RuleCondition::all(vec![
+            //             RuleCondition::ReferenceType(ReferenceType::Entry(
+            //                 EntryReferenceSubType::AppClientComponent,
+            //             )),
+            //             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+            //         ]),
+            //         vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+            //             ty: CssModuleAssetType::Module,
+            //         })],
+            //     ),
+            // ]);
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
     };

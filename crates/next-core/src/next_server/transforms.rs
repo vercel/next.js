@@ -2,8 +2,11 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
-use turbopack_core::reference_type::{EntryReferenceSubType, ReferenceType};
+use turbopack::{
+    css::CssModuleAssetType,
+    module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition},
+};
+use turbopack_core::reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType};
 
 use crate::{
     mode::NextMode,
@@ -50,50 +53,38 @@ pub async fn get_next_server_transforms_rules(
     rules.push(get_next_font_transform_rule(mdx_rs));
 
     rules.extend([
-        // Ignore imports to non-module CSS files
-        // The CSS Module module is still needed for class names
-        ModuleRule::new(
-            RuleCondition::any(vec![
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathEndsWith(".css".into()),
-                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
-                ]),
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathEndsWith(".scss".into()),
-                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
-                ]),
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathEndsWith(".sass".into()),
-                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
-                ]),
-            ]),
-            vec![ModuleRuleEffect::Ignore],
-        ),
         // Ignore the internal ModuleCssAsset -> CssModuleAsset references
+        // The CSS Module module is still needed for class names
         ModuleRule::new_internal(
-            RuleCondition::any(vec![
-                RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                RuleCondition::ResourcePathEndsWith(".module.scss".into()),
-                RuleCondition::ResourcePathEndsWith(".module.sass".into()),
-            ]),
+            RuleCondition::ResourcePathEndsWith(".module.css".into()),
             vec![ModuleRuleEffect::Ignore],
-        ),
-        // For CSS Module client references (from RSC), use CssModuleOnly to not reference a CSS
-        // module in the first place
-        ModuleRule::new(
-            RuleCondition::all(vec![
-                RuleCondition::ReferenceType(ReferenceType::Entry(
-                    EntryReferenceSubType::AppClientComponent,
-                )),
-                RuleCondition::any(vec![
-                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                    RuleCondition::ResourcePathEndsWith(".module.scss".into()),
-                    RuleCondition::ResourcePathEndsWith(".module.sass".into()),
-                ]),
-            ]),
-            vec![ModuleRuleEffect::ModuleType(ModuleType::CssModuleOnly)],
         ),
     ]);
+    if matches!(context_ty, ServerContextType::AppRSC { .. }) {
+        rules.extend([
+            // CSS Modules client reference referencing the actual CSS module
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ReferenceType(ReferenceType::Css(
+                        CssReferenceSubType::Undefined,
+                    )),
+                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                    ty: CssModuleAssetType::Module,
+                })],
+            ),
+        ]);
+    } else {
+        // Ignore imports to non-module CSS files
+        rules.extend([ModuleRule::new(
+            RuleCondition::all(vec![
+                RuleCondition::ResourcePathEndsWith(".css".into()),
+                RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+            ]),
+            vec![ModuleRuleEffect::Ignore],
+        )]);
+    }
 
     if !foreign_code {
         rules.push(get_next_page_static_info_assert_rule(
