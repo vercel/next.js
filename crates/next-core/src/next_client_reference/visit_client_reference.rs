@@ -11,11 +11,14 @@ use turbo_tasks::{
     FxIndexMap, FxIndexSet, NonLocalValue, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc,
 };
 use turbo_tasks_fs::FileSystemPath;
-use turbopack::css::CssModuleAsset;
+use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{module::Module, reference::primary_referenced_modules};
 
 use crate::{
-    next_client_reference::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
+    next_client_reference::{
+        ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule,
+        CssClientReferenceModule,
+    },
     next_server_component::server_component_module::NextServerComponentModule,
     next_server_utility::server_utility_module::NextServerUtilityModule,
 };
@@ -63,7 +66,7 @@ impl ClientReference {
 )]
 pub enum ClientReferenceType {
     EcmascriptClientReference(ResolvedVc<EcmascriptClientReferenceModule>),
-    CssClientReference(ResolvedVc<CssModuleAsset>),
+    CssClientReference(ResolvedVc<Box<dyn CssChunkPlaceable>>),
 }
 
 #[turbo_tasks::value(shared)]
@@ -420,8 +423,8 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                     });
                 }
 
-                if let Some(css_client_reference_asset) =
-                    ResolvedVc::try_downcast_type::<CssModuleAsset>(*module).await?
+                if let Some(client_reference_module) =
+                    ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module).await?
                 {
                     return Ok(VisitClientReferenceNode {
                         state: node.state,
@@ -429,10 +432,10 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                             ClientReference {
                                 server_component: node.state.server_component(),
                                 ty: ClientReferenceType::CssClientReference(
-                                    css_client_reference_asset,
+                                    client_reference_module.await?.client_module,
                                 ),
                             },
-                            css_client_reference_asset.ident().to_string().await?,
+                            client_reference_module.ident().to_string().await?,
                         ),
                     });
                 }

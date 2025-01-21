@@ -18,8 +18,8 @@ use next_core::{
         get_client_runtime_entries, ClientContextType, RuntimeEntries,
     },
     next_client_reference::{
-        find_server_entries, ClientReferenceGraphResult, NextEcmascriptClientReferenceTransition,
-        ServerEntries,
+        find_server_entries, ClientReferenceGraphResult, NextCssClientReferenceTransition,
+        NextEcmascriptClientReferenceTransition, ServerEntries,
     },
     next_config::NextConfig,
     next_dynamic::NextDynamicTransition,
@@ -306,7 +306,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    pub fn client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+    pub fn ecmascript_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         Vc::upcast(NextEcmascriptClientReferenceTransition::new(
             Vc::upcast(self.client_transition()),
             self.ssr_transition(),
@@ -314,7 +314,7 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    pub fn edge_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+    pub fn edge_ecmascript_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
         Vc::upcast(NextEcmascriptClientReferenceTransition::new(
             Vc::upcast(self.client_transition()),
             self.edge_ssr_transition(),
@@ -322,11 +322,20 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
+    pub fn css_client_reference_transition(self: Vc<Self>) -> Vc<Box<dyn Transition>> {
+        Vc::upcast(NextCssClientReferenceTransition::new(Vc::upcast(
+            self.client_transition(),
+        )))
+    }
+
+    #[turbo_tasks::function]
     async fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.client_reference_transition().to_resolved().await?,
+                self.ecmascript_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ),
             (
                 "next-dynamic".into(),
@@ -360,7 +369,7 @@ impl AppProject {
                 named_transitions: transitions,
                 transition_rules: vec![TransitionRule::new(
                     styles_rule_condition(),
-                    ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
                 )],
                 ..Default::default()
             }
@@ -377,7 +386,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.edge_client_reference_transition()
+                self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
             ),
@@ -413,7 +422,7 @@ impl AppProject {
                 named_transitions: transitions,
                 transition_rules: vec![TransitionRule::new(
                     styles_rule_condition(),
-                    ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
                 )],
                 ..Default::default()
             }
@@ -430,7 +439,9 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.client_reference_transition().to_resolved().await?,
+                self.ecmascript_client_reference_transition()
+                    .to_resolved()
+                    .await?,
             ),
             (
                 "next-dynamic".into(),
@@ -478,7 +489,7 @@ impl AppProject {
         let transitions = [
             (
                 ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.edge_client_reference_transition()
+                self.edge_ecmascript_client_reference_transition()
                     .to_resolved()
                     .await?,
             ),

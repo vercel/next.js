@@ -156,7 +156,7 @@ struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    fn inner(&self) -> Vc<ProcessResult> {
+    pub fn inner(&self) -> Vc<ProcessResult> {
         self.asset_context.process(
             *self.source,
             Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
