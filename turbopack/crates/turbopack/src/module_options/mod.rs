@@ -85,7 +85,12 @@ impl ModuleOptions {
                 },
             enable_mdx,
             enable_mdx_rs,
-            css: CssOptionsContext { enable_raw_css, .. },
+            css:
+                CssOptionsContext {
+                    enable_raw_css,
+                    source_maps: css_source_maps,
+                    ..
+                },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -426,6 +431,7 @@ impl ModuleOptions {
                                 ),
                                 *execution_context,
                                 options.config_location,
+                                matches!(css_source_maps, SourceMapsType::Full),
                             )
                             .to_resolved()
                             .await?,
@@ -578,6 +584,7 @@ impl ModuleOptions {
                                 *rule.loaders,
                                 rule.rename_as.clone(),
                                 resolve_options_context,
+                                matches!(ecmascript_source_maps, SourceMapsType::Full),
                             )
                             .to_resolved()
                             .await?,

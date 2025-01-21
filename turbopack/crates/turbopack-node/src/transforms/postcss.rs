@@ -108,6 +108,7 @@ pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
+    source_maps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -117,11 +118,13 @@ impl PostCssTransform {
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
+        source_maps: bool,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
             execution_context,
             config_location,
+            source_maps,
         }
         .cell()
     }
@@ -137,6 +140,7 @@ impl SourceTransform for PostCssTransform {
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
+                source_map: self.source_maps,
             }
             .cell(),
         )
@@ -149,6 +153,7 @@ struct PostCssTransformedAsset {
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
+    source_map: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -506,6 +511,7 @@ impl PostCssTransformedAsset {
         };
         let content = content.content().to_str()?;
         let evaluate_context = self.evaluate_context;
+        let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
         let config_changed = config_changed(*evaluate_context, config_path)
@@ -541,6 +547,7 @@ impl PostCssTransformedAsset {
             args: vec![
                 ResolvedVc::cell(content.into()),
                 ResolvedVc::cell(css_path.into()),
+                ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
         })

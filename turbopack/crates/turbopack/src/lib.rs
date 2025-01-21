@@ -688,8 +688,7 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
                 ..Default::default()
             },
             css: CssOptionsContext {
-                // TODO add source maps handling for css
-                // source_maps: SourceMapsType::None,
+                source_maps: SourceMapsType::None,
                 ..Default::default()
             },
             ..Default::default()

@@ -181,9 +181,9 @@ pub struct CssOptionsContext {
 
     pub minify_type: MinifyType,
 
-    // TODO add source maps handling for css
-    // Specifies how Source Maps are handled.
-    // pub source_maps: SourceMapsType,
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
+
     pub placeholder_for_future_extensions: (),
 }
 
