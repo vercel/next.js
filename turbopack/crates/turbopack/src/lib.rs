@@ -230,14 +230,13 @@ async fn apply_module_type(
         }
         ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
-        ModuleType::CssGlobal => {
-            return Ok(module_asset_context.process(
-                *source,
-                Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-            ))
-        }
         ModuleType::CssModule => ResolvedVc::upcast(
-            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
+            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context), false)
+                .to_resolved()
+                .await?,
+        ),
+        ModuleType::CssModuleOnly => ResolvedVc::upcast(
+            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context), true)
                 .to_resolved()
                 .await?,
         ),

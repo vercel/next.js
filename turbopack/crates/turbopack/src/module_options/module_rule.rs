@@ -100,8 +100,8 @@ pub enum ModuleType {
     },
     Json,
     Raw,
-    CssGlobal,
     CssModule,
+    CssModuleOnly,
     Css {
         ty: CssModuleAssetType,
     },

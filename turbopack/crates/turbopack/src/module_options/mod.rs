@@ -440,7 +440,9 @@ impl ModuleOptions {
                             CssReferenceSubType::AtImport(None),
                         ))),
                     ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)],
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                    })],
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
@@ -478,6 +480,8 @@ impl ModuleOptions {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
+                // These are from Ecmascript CSS Modules or CSS client references to the actual CSS
+                // module
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
