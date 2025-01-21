@@ -32,7 +32,6 @@ describe('pages-dir - invalid-asset-path-req-404 - base-path', () => {
     const res = await next.fetch(`${BASE_PATH}/_next/static/_invalid-base-path`)
     expect(res.status).toBe(404)
     const text = await res.text()
-    // TODO: .toBe('') when fixed for behavior comparison.
-    expect(text).toContain('<!DOCTYPE html>')
+    expect(text).toBe('Not Found')
   })
 })

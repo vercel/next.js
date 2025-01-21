@@ -2091,6 +2091,15 @@ export default abstract class Server<
 
     const prerenderManifest = this.getPrerenderManifest()
 
+    // Instead of returning an HTML 404 page, return plain text 404
+    // for static assets to avoid confusing search engine bots.
+    // Use includes() to avoid issues with basePath and assetPrefix
+    if (is404Page && req.url.includes('/_next/static/')) {
+      res.statusCode = 404
+      res.body('Not Found').send()
+      return null
+    }
+
     if (
       hasFallback ||
       staticPaths?.includes(resolvedUrlPathname) ||
