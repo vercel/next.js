@@ -1525,21 +1525,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
-  public async stop(): Promise<void> {
-    await new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
-    })
-
-    if (this.fallbackWatcher) {
-      await new Promise((resolve, reject) => {
-        this.fallbackWatcher.close((err: any) =>
-          err ? reject(err) : resolve(true)
-        )
-      })
-    }
-    this.multiCompiler = undefined
-  }
-
   public async getCompilationErrors(page: string) {
     const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
