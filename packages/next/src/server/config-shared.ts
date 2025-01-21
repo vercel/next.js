@@ -182,6 +182,11 @@ export interface ExperimentalTurboOptions {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   minify?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   */
+  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {

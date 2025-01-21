@@ -39,6 +39,27 @@ pub enum MinifyType {
 
 #[derive(
     Debug,
+    Default,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum SourceMapsType {
+    #[default]
+    Full,
+    None,
+}
+
+#[derive(
+    Debug,
     TaskInput,
     Clone,
     Copy,

@@ -524,6 +524,7 @@ pub struct ExperimentalTurboConfig {
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
+    pub source_maps: Option<bool>,
     pub unstable_persistent_caching: Option<bool>,
 }
 
@@ -1483,6 +1484,13 @@ impl NextConfig {
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
+
+        Ok(Vc::cell(minify.unwrap_or(true)))
     }
 }
 

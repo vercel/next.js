@@ -25,7 +25,7 @@ use turbo_tasks_hash::DeterministicHash;
 pub use self::{
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MinifyType,
+        ChunkingContextExt, EntryChunkGroupResult, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
