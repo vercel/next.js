@@ -37,8 +37,8 @@ module.exports = {
 
 ### Incoming Requests
 
-By default all the incoming requests will be logged in the console during development. You can use this `incomingRequests` option and decided which requests to ignore.
-Since it's only logging for development so this option doesn't affect the production build.
+By default all the incoming requests will be logged in the console during development. You can use the `incomingRequests` option to decide which requests to ignore.
+Since this is only logged in development, this option doesn't affect production builds.
 
 ```js filename="next.config.js"
 module.exports = {
@@ -50,7 +50,7 @@ module.exports = {
 }
 ```
 
-Or you can disable only incoming requests logging by setting `incomingRequests` to `false`.
+Or you can disable incoming request logging by setting `incomingRequests` to `false`.
 
 ```js filename="next.config.js"
 module.exports = {
