@@ -126,7 +126,7 @@ pub fn custom_before_pass<'a, C>(
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
     unresolved_mark: Mark,
-    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
+    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,

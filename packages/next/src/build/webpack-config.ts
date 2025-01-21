@@ -1940,7 +1940,7 @@ export default async function getBaseWebpackConfig(
           )
         ),
       !dev &&
-        !isClient &&
+        isNodeServer &&
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
         ).TelemetryPlugin(new Map()),

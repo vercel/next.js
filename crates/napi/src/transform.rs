@@ -88,8 +88,7 @@ impl Task for TransformTask {
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
             let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
-            let use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>> =
-                Default::default();
+            let use_cache_telemetry_tracker: Rc<DashMap<String, usize>> = Default::default();
 
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
@@ -170,7 +169,7 @@ impl Task for TransformTask {
                         (
                             o,
                             eliminated_packages.replace(Default::default()),
-                            use_cache_telemetry_tracker.replace(Default::default()),
+                            (*use_cache_telemetry_tracker).clone(),
                         )
                     })
                     .convert_err(),

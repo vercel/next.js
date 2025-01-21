@@ -1,5 +1,4 @@
 use std::{
-    cell::RefCell,
     collections::{BTreeMap, HashSet},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
@@ -124,7 +123,7 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
-    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
+    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
 ) -> impl Pass {
     visit_mut_pass(ServerActions {
         config,
@@ -221,7 +220,7 @@ struct ServerActions<C: Comments> {
     arrow_or_fn_expr_ident: Option<Ident>,
     exported_local_ids: HashSet<Id>,
 
-    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
+    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -2619,7 +2618,7 @@ struct DirectiveVisitor<'a> {
     directive: Option<Directive>,
     has_file_directive: bool,
     is_allowed_position: bool,
-    use_cache_telemetry_tracker: Rc<RefCell<DashMap<String, usize>>>,
+    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
 }
 
 impl DirectiveVisitor<'_> {
@@ -2780,22 +2779,15 @@ impl DirectiveVisitor<'_> {
 
     // Increment telemetry counter tracking usage of "use cache" directives
     fn increment_cache_usage_counter(&mut self, cache_kind: &str) {
-        // Retry up to 3 times to handle potential borrow conflicts
-        for _ in 0..3 {
-            match self.use_cache_telemetry_tracker.try_borrow_mut() {
-                Ok(tracker) => {
-                    if let Some(mut counter) = tracker.get_mut(cache_kind) {
-                        *counter += 1;
-                    } else {
-                        tracker.insert(cache_kind.to_string(), 1);
-                    }
-                    break;
-                }
-                Err(_) => {
-                    // If borrow fails, continue loop to retry
-                    println!("borrow failed, retrying...");
-                    continue;
-                }
+        let entry = self
+            .use_cache_telemetry_tracker
+            .entry(cache_kind.to_string());
+        match entry {
+            dashmap::mapref::entry::Entry::Occupied(mut occupied) => {
+                *occupied.get_mut() += 1;
+            }
+            dashmap::mapref::entry::Entry::Vacant(vacant) => {
+                vacant.insert(1);
             }
         }
     }
