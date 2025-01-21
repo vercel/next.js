@@ -17,15 +17,27 @@ describe('Errors on conflict between public file and page file', () => {
     () => {
       it('Throws error during development', async () => {
         const appPort = await findPort()
-        const app = await launchApp(appDir, appPort)
-        const conflicts = ['/another/conflict', '/hello']
+        let output = ''
+        const app = await launchApp(appDir, appPort, {
+          onStdout: (data) => {
+            output += data.toString()
+          },
+          onStderr: (data) => {
+            output += data.toString()
+          },
+        })
 
+        const regex =
+          /A conflicting public file and page file was found for path/
+
+        const conflicts = ['/another/conflict', '/hello']
         for (const conflict of conflicts) {
           const html = await renderViaHTTP(appPort, conflict)
-          expect(html).toMatch(
-            /A conflicting public file and page file was found for path/
-          )
+          expect(html).toMatch(regex)
         }
+
+        expect(output).toMatch(regex)
+
         await killApp(app)
       })
     }
