@@ -6,7 +6,6 @@ error - [code gen] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imp
   
   Debug info:
   - An error occurred while generating the chunk item [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)
-  - Execution of *EcmascriptChunkItemContent::module_factory failed
   - Execution of <JsonChunkItem as EcmascriptChunkItem>::content failed
   - Unable to make a module from invalid JSON: expected `,` or `}` at line 3 column 26
       at nested.?
