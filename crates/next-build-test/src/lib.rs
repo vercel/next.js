@@ -42,7 +42,7 @@ pub async fn main_inner(
     let project = tt
         .run_once(async {
             let project = ProjectContainer::new("next-build-test".into(), options.dev);
-            let project = project.resolve().await?;
+            let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
         })
@@ -88,7 +88,7 @@ pub async fn main_inner(
     }
 
     if matches!(strat, Strategy::Development { .. }) {
-        hmr(tt, project).await?;
+        hmr(tt, *project).await?;
     }
 
     Ok(())

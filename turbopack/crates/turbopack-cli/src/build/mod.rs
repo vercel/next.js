@@ -140,7 +140,7 @@ impl TurbopackBuildBuilder {
             );
 
             // Await the result to propagate any errors.
-            build_result_op.connect().strongly_consistent().await?;
+            build_result_op.read_strongly_consistent().await?;
 
             apply_effects(build_result_op).await?;
 

@@ -408,7 +408,7 @@ pub async fn project_new(
     let container = turbo_tasks
         .run_once(async move {
             let project = ProjectContainer::new("next.js".into(), options.dev);
-            let project = project.resolve().await?;
+            let project = project.to_resolved().await?;
             project.initialize(options).await?;
             Ok(project)
         })
@@ -423,7 +423,7 @@ pub async fn project_new(
     Ok(External::new_with_size_hint(
         ProjectInstance {
             turbo_tasks,
-            container,
+            container: *container,
             exit_receiver: tokio::sync::Mutex::new(Some(exit_receiver)),
         },
         100,
@@ -659,16 +659,13 @@ struct EntrypointsWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function]
-async fn get_entrypoints_with_issues(
+#[turbo_tasks::function(operation)]
+async fn get_entrypoints_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<EntrypointsWithIssues>> {
     let entrypoints_operation =
         EntrypointsOperation::new(project_container_entrypoints_operation(container));
-    let entrypoints = entrypoints_operation
-        .connect()
-        .strongly_consistent()
-        .await?;
+    let entrypoints = entrypoints_operation.read_strongly_consistent().await?;
     let issues = get_issues(entrypoints_operation).await?;
     let diagnostics = get_diagnostics(entrypoints_operation).await?;
     let effects = Arc::new(get_effects(entrypoints_operation).await?);
@@ -702,13 +699,16 @@ pub fn project_entrypoints_subscribe(
         func,
         move || {
             async move {
-                let operation = get_entrypoints_with_issues(container);
+                let entrypoints_with_issues_op =
+                    get_entrypoints_with_issues_operation(container.to_resolved().await?);
                 let EntrypointsWithIssues {
                     entrypoints,
                     issues,
                     diagnostics,
                     effects,
-                } = &*operation.strongly_consistent().await?;
+                } = &*entrypoints_with_issues_op
+                    .read_strongly_consistent()
+                    .await?;
                 effects.apply().await?;
                 Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
             }
@@ -771,17 +771,17 @@ struct HmrUpdateWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function]
-async fn hmr_update(
+#[turbo_tasks::function(operation)]
+async fn hmr_update_with_issues_operation(
     project: ResolvedVc<Project>,
     identifier: RcStr,
     state: ResolvedVc<VersionState>,
 ) -> Result<Vc<HmrUpdateWithIssues>> {
-    let update_operation = project_hmr_update_operation(project, identifier, state);
-    let update = update_operation.connect().strongly_consistent().await?;
-    let issues = get_issues(update_operation).await?;
-    let diagnostics = get_diagnostics(update_operation).await?;
-    let effects = Arc::new(get_effects(update_operation).await?);
+    let update_op = project_hmr_update_operation(project, identifier, state);
+    let update = update_op.read_strongly_consistent().await?;
+    let issues = get_issues(update_op).await?;
+    let diagnostics = get_diagnostics(update_op).await?;
+    let effects = Arc::new(get_effects(update_op).await?);
     Ok(HmrUpdateWithIssues {
         update,
         issues,
@@ -819,11 +819,15 @@ pub fn project_hmr_events(
                 let identifier: RcStr = outer_identifier.clone().into();
                 let session = session.clone();
                 async move {
-                    let project = project.project().resolve().await?;
-                    let state = project.hmr_version_state(identifier.clone(), session);
+                    let project = project.project().to_resolved().await?;
+                    let state = project
+                        .hmr_version_state(identifier.clone(), session)
+                        .to_resolved()
+                        .await?;
 
-                    let operation = hmr_update(project, identifier.clone(), state);
-                    let update = operation.strongly_consistent().await?;
+                    let update_op =
+                        hmr_update_with_issues_operation(project, identifier.clone(), state);
+                    let update = update_op.read_strongly_consistent().await?;
                     let HmrUpdateWithIssues {
                         update,
                         issues,
@@ -898,18 +902,15 @@ struct HmrIdentifiersWithIssues {
     effects: Arc<Effects>,
 }
 
-#[turbo_tasks::function]
-async fn get_hmr_identifiers_with_issues(
+#[turbo_tasks::function(operation)]
+async fn get_hmr_identifiers_with_issues_operation(
     container: ResolvedVc<ProjectContainer>,
 ) -> Result<Vc<HmrIdentifiersWithIssues>> {
-    let hmr_identifiers_operation = project_container_hmr_identifiers_operation(container);
-    let hmr_identifiers = hmr_identifiers_operation
-        .connect()
-        .strongly_consistent()
-        .await?;
-    let issues = get_issues(hmr_identifiers_operation).await?;
-    let diagnostics = get_diagnostics(hmr_identifiers_operation).await?;
-    let effects = Arc::new(get_effects(hmr_identifiers_operation).await?);
+    let hmr_identifiers_op = project_container_hmr_identifiers_operation(container);
+    let hmr_identifiers = hmr_identifiers_op.read_strongly_consistent().await?;
+    let issues = get_issues(hmr_identifiers_op).await?;
+    let diagnostics = get_diagnostics(hmr_identifiers_op).await?;
+    let effects = Arc::new(get_effects(hmr_identifiers_op).await?);
     Ok(HmrIdentifiersWithIssues {
         identifiers: hmr_identifiers,
         issues,
@@ -937,13 +938,16 @@ pub fn project_hmr_identifiers_subscribe(
         turbo_tasks.clone(),
         func,
         move || async move {
-            let operation = get_hmr_identifiers_with_issues(container);
+            let hmr_identifiers_with_issues_op =
+                get_hmr_identifiers_with_issues_operation(container.to_resolved().await?);
             let HmrIdentifiersWithIssues {
                 identifiers,
                 issues,
                 diagnostics,
                 effects,
-            } = &*operation.strongly_consistent().await?;
+            } = &*hmr_identifiers_with_issues_op
+                .read_strongly_consistent()
+                .await?;
             effects.apply().await?;
 
             Ok((identifiers.clone(), issues.clone(), diagnostics.clone()))
