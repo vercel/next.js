@@ -94,6 +94,7 @@ pub struct WebpackLoaders {
     loaders: ResolvedVc<WebpackLoaderItems>,
     rename_as: Option<RcStr>,
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    source_maps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -105,6 +106,7 @@ impl WebpackLoaders {
         loaders: ResolvedVc<WebpackLoaderItems>,
         rename_as: Option<RcStr>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        source_maps: bool,
     ) -> Vc<Self> {
         WebpackLoaders {
             evaluate_context,
@@ -112,6 +114,7 @@ impl WebpackLoaders {
             loaders,
             rename_as,
             resolve_options_context,
+            source_maps,
         }
         .cell()
     }
@@ -250,6 +253,7 @@ impl WebpackLoadersProcessedAsset {
                 ResolvedVc::cell(resource_path.to_string().into()),
                 ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
                 ResolvedVc::cell(json!(*loaders)),
+                ResolvedVc::cell(transform.source_maps.into()),
             ],
             additional_invalidation: Completion::immutable().to_resolved().await?,
         })
@@ -270,7 +274,9 @@ impl WebpackLoadersProcessedAsset {
         .context("Unable to deserializate response from webpack loaders transform operation")?;
 
         // handle SourceMap
-        let source_map = if let Some(source_map) = processed.map {
+        let source_map = if !transform.source_maps {
+            None
+        } else if let Some(source_map) = processed.map {
             SourceMap::new_from_file_content(FileContent::Content(File::from(source_map)).cell())
                 .await?
                 .map(|source_map| source_map.resolved_cell())

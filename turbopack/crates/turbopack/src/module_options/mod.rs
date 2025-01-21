@@ -578,6 +578,7 @@ impl ModuleOptions {
                                 *rule.loaders,
                                 rule.rename_as.clone(),
                                 resolve_options_context,
+                                matches!(ecmascript_source_maps, SourceMapsType::Full),
                             )
                             .to_resolved()
                             .await?,
