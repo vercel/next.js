@@ -2960,7 +2960,8 @@ async function prerenderToStream(
           flightData,
           finalRenderPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
 
         if (serverIsDynamic || clientIsDynamic) {
@@ -3439,7 +3440,8 @@ async function prerenderToStream(
           flightData,
           finalClientPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3571,7 +3573,8 @@ async function prerenderToStream(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
       }
 
@@ -3763,7 +3766,8 @@ async function prerenderToStream(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
       }
 
@@ -3927,7 +3931,8 @@ async function prerenderToStream(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
       }
 
@@ -4068,7 +4073,8 @@ async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  fallbackRouteParams: FallbackRouteParams | null
 ): Promise<Map<string, Buffer> | undefined> {
   // Per-segment prefetch data
   //
@@ -4126,6 +4132,7 @@ async function collectSegmentData(
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
-    serverConsumerManifest
+    serverConsumerManifest,
+    fallbackRouteParams
   )
 }
