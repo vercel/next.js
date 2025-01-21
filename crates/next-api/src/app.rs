@@ -64,6 +64,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
+    reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,
@@ -104,6 +105,13 @@ fn styles_rule_condition() -> RuleCondition {
         RuleCondition::ResourcePathEndsWith(".css".into()),
         RuleCondition::ResourcePathEndsWith(".scss".into()),
         RuleCondition::ResourcePathEndsWith(".sass".into()),
+    ])
+}
+fn module_styles_rule_condition() -> RuleCondition {
+    RuleCondition::any(vec![
+        RuleCondition::ResourcePathEndsWith(".module.css".into()),
+        RuleCondition::ResourcePathEndsWith(".module.scss".into()),
+        RuleCondition::ResourcePathEndsWith(".module.sass".into()),
     ])
 }
 
@@ -367,10 +375,30 @@ impl AppProject {
         Ok(ModuleAssetContext::new(
             TransitionOptions {
                 named_transitions: transitions,
-                transition_rules: vec![TransitionRule::new(
-                    styles_rule_condition(),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
-                )],
+                transition_rules: vec![
+                    // CSS client reference imports
+                    TransitionRule::new(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::Analyze,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                    ),
+                    // CSS client reference imports
+                    TransitionRule::new(
+                        RuleCondition::all(vec![
+                            RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Entry(
+                                EntryReferenceSubType::AppClientComponent,
+                            ))),
+                            styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(
+                            self.css_client_reference_transition().to_resolved().await?,
+                        ),
+                    ),
+                ],
                 ..Default::default()
             }
             .cell(),

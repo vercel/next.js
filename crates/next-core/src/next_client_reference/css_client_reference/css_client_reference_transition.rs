@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbopack::{
     css::{chunk::CssChunkPlaceable, ModuleCssAsset},
@@ -6,7 +6,7 @@ use turbopack::{
     ModuleAssetContext,
 };
 use turbopack_core::{
-    context::ProcessResult,
+    context::{AssetContext, ProcessResult},
     module::Module,
     reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType},
     source::Source,
@@ -39,18 +39,14 @@ impl Transition for NextCssClientReferenceTransition {
         module_asset_context: Vc<ModuleAssetContext>,
         _reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let module_asset_context = self.process_context(module_asset_context);
-
-        // This has to transition to the client context even though we'd ideally have the Ecmascript
-        // ModuleCssAsset in the rsc context, but we want to transform the CSS module only once.
-        let module = self.await?.client_transition.process(
+        let module = module_asset_context.process(
             source,
-            module_asset_context,
             Value::new(ReferenceType::Entry(
                 EntryReferenceSubType::AppClientComponent,
             )),
         );
         let ProcessResult::Module(module) = *module.await? else {
+            bail!("expected module 1");
             return Ok(ProcessResult::Ignore.cell());
         };
 
@@ -58,9 +54,12 @@ impl Transition for NextCssClientReferenceTransition {
             ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(module)
         {
             let ProcessResult::Module(client_module) = *css_module_module
-                .inner(Value::new(CssReferenceSubType::Internal))
+                .inner(Value::new(ReferenceType::Entry(
+                    EntryReferenceSubType::AppClientComponent,
+                )))
                 .await?
             else {
+                bail!("expected module 2");
                 return Ok(ProcessResult::Ignore.cell());
             };
 

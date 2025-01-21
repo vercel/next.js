@@ -231,15 +231,11 @@ async fn apply_module_type(
         ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
         ModuleType::CssModule => ResolvedVc::upcast(
-            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context), false)
+            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
-        ModuleType::CssModuleMapping => ResolvedVc::upcast(
-            ModuleCssAsset::new(*source, Vc::upcast(module_asset_context), true)
-                .to_resolved()
-                .await?,
-        ),
+
         ModuleType::Css { ty } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 *source,

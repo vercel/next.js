@@ -81,21 +81,6 @@ pub async fn get_next_client_transforms_rules(
                 dynamic_io_enabled,
                 cache_kinds,
             ));
-
-            rules.extend([
-                // A CSS client reference, the client transition was already applied (which is why
-                // this rule lives in next_cliente), we only want the class mapping, the CSS itself
-                // is handled separately.
-                ModuleRule::new(
-                    RuleCondition::all(vec![
-                        RuleCondition::ReferenceType(ReferenceType::Entry(
-                            EntryReferenceSubType::AppClientComponent,
-                        )),
-                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModuleMapping)],
-                ),
-            ]);
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
     };

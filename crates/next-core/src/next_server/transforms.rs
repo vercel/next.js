@@ -2,7 +2,11 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
+use turbopack::{
+    css::CssModuleAssetType,
+    module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition},
+};
+use turbopack_core::reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType};
 
 use crate::{
     mode::NextMode,
@@ -48,14 +52,16 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
 
+    rules.extend([
+        // Ignore the internal ModuleCssAsset -> CssModuleAsset references
+        // The CSS Module module is still needed for class names
+        ModuleRule::new_internal(
+            RuleCondition::ResourcePathEndsWith(".module.css".into()),
+            vec![ModuleRuleEffect::Ignore],
+        ),
+    ]);
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
-            // In SSR, ignore the internal ModuleCssAsset -> CssModuleAsset references
-            // The CSS Module module is still needed for class names
-            ModuleRule::new_internal(
-                RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                vec![ModuleRuleEffect::Ignore],
-            ),
             // Ignore imports to all non-module CSS files
             ModuleRule::new(
                 RuleCondition::all(vec![
@@ -63,6 +69,26 @@ pub async fn get_next_server_transforms_rules(
                     RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
                 ]),
                 vec![ModuleRuleEffect::Ignore],
+            ),
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                    RuleCondition::ReferenceType(ReferenceType::Entry(
+                        EntryReferenceSubType::AppClientComponent,
+                    )),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                    ty: CssModuleAssetType::Module,
+                })],
+            ),
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                    RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Compose)),
+                ]),
+                vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                    ty: CssModuleAssetType::Module,
+                })],
             ),
         ]);
     }

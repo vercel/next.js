@@ -45,22 +45,45 @@ fn modifier() -> Vc<RcStr> {
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub exclude_css_references: bool,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub fn new(
+    pub async fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        exclude_css_references: bool,
-    ) -> Vc<Self> {
-        Self::cell(ModuleCssAsset {
+    ) -> Result<Vc<Self>> {
+        let this = Self::cell(ModuleCssAsset {
             source,
             asset_context,
-            exclude_css_references,
-        })
+        });
+
+        println!(
+            "ModuleCssAsset::references {:?} {:?} {:?} {:?}",
+            this.ident().to_string().await?,
+            this.await?.asset_context.layer().await?,
+            match &*this
+                .inner(Value::new(ReferenceType::Css(
+                    CssReferenceSubType::Internal
+                )))
+                .try_into_module()
+                .await?
+            {
+                Some(v) => Some(v.ident().to_string().await?),
+                None => None,
+            },
+            match &*this
+                .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
+                .try_into_module()
+                .await?
+            {
+                Some(v) => Some(v.ident().to_string().await?),
+                None => None,
+            },
+        );
+
+        Ok(this)
     }
 }
 
@@ -84,33 +107,31 @@ impl Module for ModuleCssAsset {
         // 1. @import or composes references are loaded first
         // 2. The local CSS is loaded last
 
-        if self.await?.exclude_css_references {
-            Ok(Vc::cell(vec![]))
-        } else {
-            let references = self
-                .module_references()
-                .await?
-                .iter()
-                .copied()
-                .chain(
-                    match *self
-                        .inner(Value::new(CssReferenceSubType::Internal))
-                        .try_into_module()
-                        .await?
-                    {
-                        Some(inner) => Some(
-                            InternalCssAssetReference::new(*inner)
-                                .to_resolved()
-                                .await
-                                .map(ResolvedVc::upcast)?,
-                        ),
-                        None => None,
-                    },
-                )
-                .collect();
+        let references = self
+            .module_references()
+            .await?
+            .iter()
+            .copied()
+            .chain(
+                match *self
+                    .inner(Value::new(ReferenceType::Css(
+                        CssReferenceSubType::Internal,
+                    )))
+                    .try_into_module()
+                    .await?
+                {
+                    Some(inner) => Some(
+                        InternalCssAssetReference::new(*inner)
+                            .to_resolved()
+                            .await
+                            .map(ResolvedVc::upcast)?,
+                    ),
+                    None => None,
+                },
+            )
+            .collect();
 
-            Ok(Vc::cell(references))
-        }
+        Ok(Vc::cell(references))
     }
 }
 
@@ -169,17 +190,15 @@ struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub fn inner(&self, ty: Value<CssReferenceSubType>) -> Vc<ProcessResult> {
-        self.asset_context.process(
-            *self.source,
-            Value::new(ReferenceType::Css(ty.into_value())),
-        )
+    pub fn inner(&self, ty: Value<ReferenceType>) -> Vc<ProcessResult> {
+        self.asset_context
+            .process(*self.source, Value::new(ty.into_value()))
     }
 
     #[turbo_tasks::function]
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
         let inner = self
-            .inner(Value::new(CssReferenceSubType::Analyze))
+            .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
             .module();
 
         let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
