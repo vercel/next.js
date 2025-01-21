@@ -3,14 +3,14 @@ import type {
   MiddlewareManifest,
 } from '../../../build/webpack/plugins/middleware-plugin'
 import type { StatsAsset, StatsChunk, StatsChunkGroup, StatsModule, StatsCompilation as WebpackStats } from 'webpack'
-import type { BuildManifest } from '../../get-page-files'
+import type { BuildManifest } from '../../../server/get-page-files'
 import type { AppBuildManifest } from '../../../build/webpack/plugins/app-build-manifest-plugin'
 import type { PagesManifest } from '../../../build/webpack/plugins/pages-manifest-plugin'
 import { pathToRegexp } from 'next/dist/compiled/path-to-regexp'
 import type { ActionManifest } from '../../../build/webpack/plugins/flight-client-entry-plugin'
 import type { NextFontManifest } from '../../../build/webpack/plugins/next-font-manifest-plugin'
 import type {
-  REACT_LOADABLE_MANIFEST} from '../../../shared/lib/constants';
+  REACT_LOADABLE_MANIFEST} from '../constants';
 import {
   APP_BUILD_MANIFEST,
   APP_PATHS_MANIFEST,
@@ -23,11 +23,11 @@ import {
   SERVER_REFERENCE_MANIFEST,
   TURBOPACK_CLIENT_MIDDLEWARE_MANIFEST,
   WEBPACK_STATS,
-} from '../../../shared/lib/constants'
+} from '../constants'
 import { join, posix } from 'path'
 import { readFile } from 'fs/promises'
-import type { SetupOpts } from '../../lib/router-utils/setup-dev-bundler'
-import { deleteCache } from '../require-cache'
+import type { SetupOpts } from '../../../server/lib/router-utils/setup-dev-bundler'
+import { deleteCache } from '../../../server/dev/require-cache'
 import { writeFileAtomic } from '../../../lib/fs/write-atomic'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import {
@@ -36,14 +36,14 @@ import {
   srcEmptySsgManifest,
   processRoute,
 } from '../../../build/webpack/plugins/build-manifest-plugin'
-import type { Entrypoints } from './types'
-import getAssetPathFromRoute from '../../../shared/lib/router/utils/get-asset-path-from-route'
+import getAssetPathFromRoute from '../router/utils/get-asset-path-from-route'
 import { getEntryKey, type EntryKey } from './entry-key'
 import type { CustomRoutes } from '../../../lib/load-custom-routes'
-import { getSortedRoutes } from '../../../shared/lib/router/utils'
+import { getSortedRoutes } from '../router/utils'
 import { existsSync } from 'fs'
-import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../turbopack-utils'
+import { addMetadataIdToRoute, addRouteSuffix, removeRouteSuffix } from '../../../server/dev/turbopack-utils'
 import { tryToParsePath } from '../../../lib/try-to-parse-path'
+import type { Entrypoints } from '../../../build/swc/types'
 
 interface InstrumentationDefinition {
   files: string[]

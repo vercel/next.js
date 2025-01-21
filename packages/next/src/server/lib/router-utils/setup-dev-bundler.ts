@@ -66,15 +66,15 @@ import { HMR_ACTIONS_SENT_TO_BROWSER } from '../../dev/hot-reloader-types'
 import { PAGE_TYPES } from '../../../lib/page-types'
 import { createHotReloaderTurbopack } from '../../dev/hot-reloader-turbopack'
 import { generateEncryptionKeyBase64 } from '../../app-render/encryption-utils-server'
-import {
-  ModuleBuildError,
-  TurbopackInternalError,
-} from '../../dev/turbopack-utils'
 import { isMetadataRouteFile } from '../../../lib/metadata/is-metadata-route'
 import { normalizeMetadataPageToRoute } from '../../../lib/metadata/get-metadata-route'
 import { createEnvDefinitions } from '../experimental/create-env-definitions'
 import { JsConfigPathsPlugin } from '../../../build/webpack/plugins/jsconfig-paths-plugin'
 import { store as consoleStore } from '../../../build/output/store'
+import {
+  ModuleBuildError,
+  TurbopackInternalError,
+} from '../../../shared/lib/turbopack/utils'
 
 export type SetupOpts = {
   renderServer: LazyRenderServerInstance
