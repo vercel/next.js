@@ -6,7 +6,7 @@ import { Base } from '../internal/styles/base'
 import { ComponentStyles } from '../internal/styles/component-styles'
 import { CssReset } from '../internal/styles/css-reset'
 
-import { ErrorBoundary } from '../../pages/error-boundary'
+import { DevToolsErrorBoundary } from './error-boundary'
 import { usePagesReactDevOverlay } from '../../pages/hooks'
 import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
@@ -32,9 +32,9 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
 
   return (
     <>
-      <ErrorBoundary isMounted={isMounted} onError={onComponentError}>
+      <DevToolsErrorBoundary isMounted={isMounted} onError={onComponentError}>
         {children ?? null}
-      </ErrorBoundary>
+      </DevToolsErrorBoundary>
 
       <ShadowPortal>
         <CssReset />
