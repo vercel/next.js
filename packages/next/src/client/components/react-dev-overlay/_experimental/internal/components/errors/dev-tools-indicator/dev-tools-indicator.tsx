@@ -1,39 +1,52 @@
-import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
+import type { OverlayState } from '../../../../../shared'
+
+import { useState, useEffect, useRef } from 'react'
 import { Toast } from '../../toast'
-import React, { useState, useEffect, useRef } from 'react'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
 import { useDelayedRender } from './internal/use-delayed-render'
+import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
+import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 
 // TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
 
 export function DevToolsIndicator({
-  versionInfo,
-  hasStaticIndicator,
-  readyErrors,
-  fullscreen,
-  hide,
-  isTurbopack,
+  state,
+  readyErrorsLength,
+  setIsErrorOverlayOpen,
 }: {
-  versionInfo: VersionInfo | undefined
-  readyErrors: ReadyRuntimeError[]
-  fullscreen: () => void
-  hide: () => void
-  hasStaticIndicator?: boolean
-  isTurbopack: boolean
+  state: OverlayState
+  readyErrorsLength: number
+  setIsErrorOverlayOpen: (value: boolean) => void
 }) {
+  const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
+  // Register `(cmd|ctrl) + .` to show/hide the error indicator.
+  useKeyboardShortcut({
+    key: '.',
+    modifiers: [MODIFIERS.CTRL_CMD],
+    callback: () => {
+      setIsDevToolsIndicatorOpen(!isDevToolsIndicatorOpen)
+      setIsErrorOverlayOpen(!isDevToolsIndicatorOpen)
+    },
+  })
+
   return (
-    <DevToolsPopover
-      semver={versionInfo?.installed}
-      onIssuesClick={fullscreen}
-      issueCount={readyErrors.length}
-      isStaticRoute={hasStaticIndicator === true}
-      hide={hide}
-      isTurbopack={isTurbopack}
-    />
+    isDevToolsIndicatorOpen && (
+      <DevToolsPopover
+        semver={state.versionInfo.installed}
+        onIssuesClick={() => {
+          setIsErrorOverlayOpen(true)
+        }}
+        issueCount={readyErrorsLength}
+        isStaticRoute={state.staticIndicator}
+        hide={() => {
+          setIsDevToolsIndicatorOpen(false)
+        }}
+        isTurbopack={!!process.env.TURBOPACK}
+      />
+    )
   )
 }
 
