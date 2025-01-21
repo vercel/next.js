@@ -429,11 +429,11 @@ export async function initialize(opts: {
         ) {
           res.statusCode = 500
           const message = `A conflicting public file and page file was found for path ${matchedOutput.itemPath} https://nextjs.org/docs/messages/conflicting-public-file-page`
-          console.error(message)
           await invokeRender(parsedUrl, '/_error', handleIndex, {
             invokeStatus: 500,
             invokeError: new Error(message),
           })
+          Log.error(message)
           return
         }
 
