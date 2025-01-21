@@ -3,9 +3,9 @@ import { noop as css } from '../../../../../../internal/helpers/noop-template'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
-  onClick: () => void
   isDevBuilding: boolean
   isDevRendering: boolean
+  onLogoClick: () => void
   onIssuesClick: () => void
 }
 
@@ -13,9 +13,9 @@ const SIZE = 36
 
 export const NextLogo = ({
   issueCount,
-  onClick,
   isDevBuilding,
   isDevRendering,
+  onLogoClick,
   onIssuesClick,
   ...props
 }: Props) => {
@@ -223,7 +223,7 @@ export const NextLogo = ({
       >
         <div ref={ref}>
           {/* Children */}
-          <button data-next-mark onClick={onClick} {...props}>
+          <button data-next-mark onClick={onLogoClick} {...props}>
             <NextMark isLoading={isLoading} />
           </button>
           {isErrorExpanded && (
