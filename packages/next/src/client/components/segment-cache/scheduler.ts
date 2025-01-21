@@ -513,7 +513,7 @@ function pingPPRRouteTree(
   tree: RouteTree
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
   const segment = readOrCreateSegmentCacheEntry(now, route, tree.key)
-  pingPerSegment(now, task, route, segment, task.key, tree.key, tree.token)
+  pingPerSegment(now, task, route, segment, task.key, tree.key)
   if (tree.slots !== null) {
     if (!hasNetworkBandwidth()) {
       // Stop prefetching segments until there's more bandwidth.
@@ -842,16 +842,8 @@ function pingPerSegment(
   route: FulfilledRouteCacheEntry,
   segment: SegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKey: string,
-  accessToken: string | null
+  segmentKey: string
 ): void {
-  if (accessToken === null) {
-    // We don't have an access token for this segment, which means we can't
-    // do a per-segment prefetch. This happens when the route tree was
-    // returned by a dynamic server response. Or if the server has decided
-    // not to grant access to this segment.
-    return
-  }
   switch (segment.status) {
     case EntryStatus.Empty:
       // Upgrade to Pending so we know there's already a request in progress
@@ -860,8 +852,7 @@ function pingPerSegment(
           route,
           upgradeToPendingSegment(segment, FetchStrategy.PPR),
           routeKey,
-          segmentKey,
-          accessToken
+          segmentKey
         )
       )
       break
@@ -887,8 +878,7 @@ function pingPerSegment(
               segment,
               route,
               routeKey,
-              segmentKey,
-              accessToken
+              segmentKey
             )
           }
           break
@@ -916,14 +906,7 @@ function pingPerSegment(
           // Because a rejected segment will definitely prevent the segment (and
           // all of its children) from rendering, we perform this revalidation
           // immediately instead of deferring it to a background task.
-          pingPPRSegmentRevalidation(
-            now,
-            segment,
-            route,
-            routeKey,
-            segmentKey,
-            accessToken
-          )
+          pingPPRSegmentRevalidation(now, segment, route, routeKey, segmentKey)
           break
         default:
           segment.fetchStrategy satisfies never
@@ -947,8 +930,7 @@ function pingPPRSegmentRevalidation(
   currentSegment: SegmentCacheEntry,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKey: string,
-  accessToken: string | null
+  segmentKey: string
 ): void {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
@@ -965,8 +947,7 @@ function pingPPRSegmentRevalidation(
             route,
             upgradeToPendingSegment(revalidatingSegment, FetchStrategy.PPR),
             routeKey,
-            segmentKey,
-            accessToken
+            segmentKey
           )
         )
       )

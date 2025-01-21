@@ -38,12 +38,6 @@ export type RootTreePrefetch = {
 }
 
 export type TreePrefetch = {
-  // Access token. Required to fetch the segment data. In the future this will
-  // not be provided during a prefetch if the parent segment did not include it
-  // in its prerender; the client will have to perform a dynamic navigation in
-  // order to get the access token.
-  token: string
-
   // The segment, in the format expected by a FlightRouterState.
   segment: FlightRouterStateSegment
 
@@ -197,7 +191,7 @@ async function PrefetchTreeData({
   // Compute the route metadata tree by traversing the FlightRouterState. As we
   // walk the tree, we will also spawn a task to produce a prefetch response for
   // each segment.
-  const tree = await collectSegmentDataImpl(
+  const tree = collectSegmentDataImpl(
     shouldAssumePartialData,
     flightRouterState,
     buildId,
@@ -206,7 +200,6 @@ async function PrefetchTreeData({
     clientModules,
     serverConsumerManifest,
     ROOT_SEGMENT_KEY,
-    '',
     segmentTasks
   )
 
@@ -229,7 +222,7 @@ async function PrefetchTreeData({
   return treePrefetch
 }
 
-async function collectSegmentDataImpl(
+function collectSegmentDataImpl(
   shouldAssumePartialData: boolean,
   route: FlightRouterState,
   buildId: string,
@@ -238,9 +231,8 @@ async function collectSegmentDataImpl(
   clientModules: ManifestNode,
   serverConsumerManifest: any,
   key: string,
-  accessToken: string,
   segmentTasks: Array<Promise<[string, Buffer]>>
-): Promise<TreePrefetch> {
+): TreePrefetch {
   // Metadata about the segment. Sent as part of the tree prefetch. Null if
   // there are no children.
   let slotMetadata: { [parallelRouteKey: string]: TreePrefetch } | null = null
@@ -257,12 +249,7 @@ async function collectSegmentDataImpl(
       parallelRouteKey,
       encodeSegment(childSegment)
     )
-    // Create an access token for each child slot.
-    const childAccessToken = await createSegmentAccessToken(
-      key,
-      parallelRouteKey
-    )
-    const childTree = await collectSegmentDataImpl(
+    const childTree = collectSegmentDataImpl(
       shouldAssumePartialData,
       childRoute,
       buildId,
@@ -271,7 +258,6 @@ async function collectSegmentDataImpl(
       clientModules,
       serverConsumerManifest,
       childKey,
-      childAccessToken,
       segmentTasks
     )
     if (slotMetadata === null) {
@@ -291,7 +277,6 @@ async function collectSegmentDataImpl(
           buildId,
           seedData,
           key,
-          accessToken,
           clientModules
         )
       )
@@ -308,7 +293,6 @@ async function collectSegmentDataImpl(
   // tree prefetch.
   return {
     segment: route[0],
-    token: accessToken,
     slots: slotMetadata,
     isRootLayout: route[4] === true,
   }
@@ -319,7 +303,6 @@ async function renderSegmentPrefetch(
   buildId: string,
   seedData: CacheNodeSeedData,
   key: string,
-  accessToken: string,
   clientModules: ManifestNode
 ): Promise<[string, Buffer]> {
   // Render the segment data to a stream.
@@ -348,20 +331,7 @@ async function renderSegmentPrefetch(
     }
   )
   const segmentBuffer = await streamToBuffer(segmentStream)
-  // Add the buffer to the result map.
-  if (key === ROOT_SEGMENT_KEY) {
-    return [ROOT_SEGMENT_KEY, segmentBuffer]
-  } else {
-    // The access token is appended to the end of the segment name. To request
-    // a segment, the client sends a header like:
-    //
-    //   Next-Router-Segment-Prefetch: /path/to/segment.accesstoken
-    //
-    // The segment path is provided by the tree prefetch, and the access
-    // token is provided in the parent layout's data.
-    const fullPath = `${key}.${accessToken}`
-    return [fullPath, segmentBuffer]
-  }
+  return [key, segmentBuffer]
 }
 
 async function isPartialRSCData(
@@ -386,39 +356,6 @@ async function isPartialRSCData(
     onError() {},
   })
   return isPartial
-}
-
-async function createSegmentAccessToken(
-  parentSegmentPathStr: string,
-  parallelRouteKey: string
-): Promise<string> {
-  // Create an access token that the client passes when requesting a segment.
-  // The token is sent to the client as part of the parent layout's data.
-  //
-  // The token is hash of the parent segment path and the parallel route key. A
-  // subtle detail here is that it does *not* include the value of the segment
-  // itself — the token grants access to the parallel route slot, not the
-  // particular segment that is rendered there.
-  //
-  // TODO: Because this only affects prefetches, this doesn't need to be secure.
-  // It's just for obfuscation. But eventually we will use this technique when
-  // performing dynamic navigations, to support auth checks in a layout that
-  // conditionally renders its slots. At that point we'll need to add a salt.
-
-  // Encode the inputs as Uint8Array
-  const encoder = new TextEncoder()
-  const data = encoder.encode(parentSegmentPathStr + parallelRouteKey)
-
-  // Use the Web Crypto API to generate a SHA-256 hash.
-  const hashBuffer = await crypto.subtle.digest('SHA-256', data)
-
-  // Convert the ArrayBuffer to a hex string
-  const hashArray = new Uint8Array(hashBuffer)
-  const hashHex = Array.from(hashArray)
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
-
-  return hashHex
 }
 
 function createUnclosingPrefetchStream(
