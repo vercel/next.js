@@ -73,6 +73,9 @@ impl EcmascriptBuildNodeChunkContent {
     #[turbo_tasks::function]
     async fn code(self: Vc<Self>) -> Result<Vc<Code>> {
         let this = self.await?;
+        let source_maps = this
+            .chunking_context
+            .reference_chunk_source_maps(*ResolvedVc::upcast(this.chunk));
         let chunk_path_vc = this.chunk.ident().path();
         let chunk_path = chunk_path_vc.await?;
 
@@ -94,7 +97,7 @@ impl EcmascriptBuildNodeChunkContent {
 
         write!(code, "\n}};")?;
 
-        if code.has_source_map() {
+        if *source_maps.await? && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -108,7 +111,7 @@ impl EcmascriptBuildNodeChunkContent {
             this.chunking_context.await?.minify_type(),
             MinifyType::Minify
         ) {
-            return Ok(minify(chunk_path_vc, code));
+            return Ok(minify(chunk_path_vc, code, source_maps));
         }
 
         Ok(code)
