@@ -34,7 +34,6 @@ describe('pages-dir - invalid-asset-path-req-404 - asset-prefix', () => {
     )
     expect(res.status).toBe(404)
     const text = await res.text()
-    // TODO: .toBe('') when fixed for behavior comparison.
-    expect(text).toContain('<!DOCTYPE html>')
+    expect(text).toBe('Not Found')
   })
 })
