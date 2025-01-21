@@ -269,8 +269,10 @@ pub trait EcmascriptAnalyzable {
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
-    async fn module_content_without_analysis(self: Vc<Self>)
-        -> Result<Vc<EcmascriptModuleContent>>;
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+        generate_source_map: Vc<bool>,
+    ) -> Result<Vc<EcmascriptModuleContent>>;
 
     async fn module_content(
         self: Vc<Self>,
@@ -369,6 +371,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content_without_analysis(
         self: Vc<Self>,
+        generate_source_map: Vc<bool>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
@@ -378,6 +381,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             parsed,
             self.ident(),
             this.options.await?.specified_module_type,
+            generate_source_map,
         ))
     }
 
@@ -806,13 +810,14 @@ impl EcmascriptModuleContent {
         parsed: Vc<ParseResult>,
         ident: Vc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
+        generate_source_map: Vc<bool>,
     ) -> Result<Vc<Self>> {
         gen_content_with_code_gens(
             parsed.to_resolved().await?,
             ident.to_resolved().await?,
             specified_module_type,
             &[],
-            Vc::cell(false),
+            generate_source_map,
             OptionSourceMap::none().to_resolved().await?,
         )
         .await

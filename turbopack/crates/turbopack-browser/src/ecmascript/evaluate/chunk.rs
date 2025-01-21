@@ -157,6 +157,7 @@ impl EcmascriptDevEvaluateChunk {
                     chunking_context.chunk_base_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
+                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -166,6 +167,7 @@ impl EcmascriptDevEvaluateChunk {
                     chunking_context.chunk_base_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
+                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }

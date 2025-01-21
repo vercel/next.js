@@ -20,6 +20,10 @@ pub fn embed_file_path(path: RcStr) -> Vc<FileSystemPath> {
 }
 
 #[turbo_tasks::function]
-pub fn embed_static_code(asset_context: Vc<Box<dyn AssetContext>>, path: RcStr) -> Vc<Code> {
-    StaticEcmascriptCode::new(asset_context, embed_file_path(path)).code()
+pub fn embed_static_code(
+    asset_context: Vc<Box<dyn AssetContext>>,
+    path: RcStr,
+    generate_source_map: Vc<bool>,
+) -> Vc<Code> {
+    StaticEcmascriptCode::new(asset_context, embed_file_path(path), generate_source_map).code()
 }
