@@ -560,6 +560,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               hmrRefreshes: z.boolean().optional(),
             })
             .optional(),
+          incomingRequest: z
+            .union([
+              z.boolean(),
+              z.object({
+                ignore: z.array(z.instanceof(RegExp)),
+              }),
+            ])
+            .optional(),
         }),
         z.literal(false),
       ])
