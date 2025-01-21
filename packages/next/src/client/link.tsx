@@ -466,7 +466,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     })
 
     const setIntersectionWithResetRef = React.useCallback(
-      (el: Element) => {
+      (el: Element | null) => {
         // Before the link getting observed, check if visible state need to be reset
         if (previousAs.current !== as || previousHref.current !== href) {
           resetVisible()
