@@ -8,7 +8,7 @@ use turbopack::{
 use turbopack_core::{
     context::ProcessResult,
     module::Module,
-    reference_type::{EntryReferenceSubType, ReferenceType},
+    reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType},
     source::Source,
 };
 
@@ -55,7 +55,10 @@ impl Transition for NextCssClientReferenceTransition {
         let result: Vc<Box<dyn Module>> = if let Some(css_module_module) =
             ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(module)
         {
-            let ProcessResult::Module(client_module) = *css_module_module.inner().await? else {
+            let ProcessResult::Module(client_module) = *css_module_module
+                .inner(Value::new(CssReferenceSubType::Internal))
+                .await?
+            else {
                 return Ok(ProcessResult::Ignore.cell());
             };
 
