@@ -623,6 +623,10 @@ impl AppProject {
                         .await?,
                 ),
             ),
+            (
+                "next-shared".into(),
+                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
+            ),
         ]
         .into_iter()
         .collect();
@@ -669,6 +673,10 @@ impl AppProject {
                         .to_resolved()
                         .await?,
                 ),
+            ),
+            (
+                "next-shared".into(),
+                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
             ),
         ]
         .into_iter()
