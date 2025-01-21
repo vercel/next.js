@@ -3,7 +3,7 @@ export default function Page() {
 }
 
 export async function generateMetadata() {
-  await new Promise((resolve) => setTimeout(resolve, 3 * 1000))
+  await new Promise((resolve) => setTimeout(resolve, 1 * 1000))
   return {
     title: 'index page',
   }
