@@ -217,10 +217,7 @@ export async function exportAppPage(
       for (const [segmentPath, buffer] of segmentData) {
         segmentPaths.push(segmentPath)
         const segmentDataFilePath =
-          segmentPath === '/'
-            ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-            : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-
+          segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
         fileWriter.append(segmentDataFilePath, buffer)
       }
     }

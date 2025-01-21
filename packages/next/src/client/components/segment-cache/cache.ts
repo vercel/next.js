@@ -953,7 +953,15 @@ export async function fetchSegmentOnCacheMiss(
   try {
     const response = await fetchSegmentPrefetchResponse(
       href,
-      segmentKeyPath,
+      segmentKeyPath === ROOT_SEGMENT_KEY
+        ? // The root segment is a special case. To simplify the server-side
+          // handling of these requests, we encode the root segment path as
+          // `_index` instead of as an empty string. This should be treated as
+          // an implementation detail and not as a stable part of the protocol.
+          // It just needs to match the equivalent logic that happens when
+          // prerendering the responses. It should not leak outside of Next.js.
+          '/_index'
+        : '/' + segmentKeyPath,
       routeKey.nextUrl
     )
     if (
