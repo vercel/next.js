@@ -56,7 +56,7 @@ impl Transition for NextCssClientReferenceTransition {
             ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(module)
         {
             let ProcessResult::Module(client_module) = *css_module_module
-                .inner(Value::new(CssReferenceSubType::Internal))
+                .inner(Value::new(CssReferenceSubType::Undefined))
                 .await?
             else {
                 return Ok(ProcessResult::Ignore.cell());

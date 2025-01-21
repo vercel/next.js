@@ -45,7 +45,7 @@ fn modifier() -> Vc<RcStr> {
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub include_css_reference: bool,
+    pub exclude_css_reference: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -54,12 +54,12 @@ impl ModuleCssAsset {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-        include_css_reference: bool,
+        exclude_css_reference: bool,
     ) -> Vc<Self> {
         Self::cell(ModuleCssAsset {
             source,
             asset_context,
-            include_css_reference,
+            exclude_css_reference,
         })
     }
 }
@@ -89,7 +89,7 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(if self.await?.include_css_reference {
+            .chain(if !self.await?.exclude_css_reference {
                 match *self
                     .inner(Value::new(CssReferenceSubType::Internal))
                     .try_into_module()
