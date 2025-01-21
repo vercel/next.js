@@ -85,20 +85,18 @@ pub async fn get_next_client_transforms_rules(
                 cache_kinds,
             ));
 
-            // rules.extend([
-            //     // CSS Modules client reference referencing the actual CSS module
-            //     ModuleRule::new(
-            //         RuleCondition::all(vec![
-            //             RuleCondition::ReferenceType(ReferenceType::Entry(
-            //                 EntryReferenceSubType::AppClientComponent,
-            //             )),
-            //             RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
-            //         ]),
-            //         vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-            //             ty: CssModuleAssetType::Module,
-            //         })],
-            //     ),
-            // ]);
+            rules.extend([
+                // CSS Modules client reference referencing the actual CSS module
+                ModuleRule::new(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Entry(
+                            EntryReferenceSubType::AppClientComponent,
+                        )),
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    ]),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssModuleMapping)],
+                ),
+            ]);
         }
         ClientContextType::Fallback | ClientContextType::Other => {}
     };

@@ -45,6 +45,7 @@ fn modifier() -> Vc<RcStr> {
 pub struct ModuleCssAsset {
     pub source: ResolvedVc<Box<dyn Source>>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
+    pub exclude_css_references: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -53,10 +54,12 @@ impl ModuleCssAsset {
     pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
+        exclude_css_references: bool,
     ) -> Vc<Self> {
         Self::cell(ModuleCssAsset {
             source,
             asset_context,
+            exclude_css_references,
         })
     }
 }
@@ -81,29 +84,33 @@ impl Module for ModuleCssAsset {
         // 1. @import or composes references are loaded first
         // 2. The local CSS is loaded last
 
-        let references = self
-            .module_references()
-            .await?
-            .iter()
-            .copied()
-            .chain(
-                match *self
-                    .inner(Value::new(CssReferenceSubType::Internal))
-                    .try_into_module()
-                    .await?
-                {
-                    Some(inner) => Some(
-                        InternalCssAssetReference::new(*inner)
-                            .to_resolved()
-                            .await
-                            .map(ResolvedVc::upcast)?,
-                    ),
-                    None => None,
-                },
-            )
-            .collect();
+        if self.await?.exclude_css_references {
+            return Ok(Vc::cell(vec![]));
+        } else {
+            let references = self
+                .module_references()
+                .await?
+                .iter()
+                .copied()
+                .chain(
+                    match *self
+                        .inner(Value::new(CssReferenceSubType::Internal))
+                        .try_into_module()
+                        .await?
+                    {
+                        Some(inner) => Some(
+                            InternalCssAssetReference::new(*inner)
+                                .to_resolved()
+                                .await
+                                .map(ResolvedVc::upcast)?,
+                        ),
+                        None => None,
+                    },
+                )
+                .collect();
 
-        Ok(Vc::cell(references))
+            Ok(Vc::cell(references))
+        }
     }
 }
 

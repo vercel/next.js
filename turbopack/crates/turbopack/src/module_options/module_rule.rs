@@ -100,7 +100,10 @@ pub enum ModuleType {
     },
     Json,
     Raw,
+    /// A CSS Module mapping, references to load all necessary CSS
     CssModule,
+    /// Only the CSS Module mapping, without references to any CSS
+    CssModuleMapping,
     Css {
         ty: CssModuleAssetType,
     },
