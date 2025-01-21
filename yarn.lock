@@ -937,7 +937,7 @@
     "@babel/helper-string-parser" "^7.25.9"
     "@babel/helper-validator-identifier" "^7.25.9"
 
-"@healthline/six-million@~8.1.0":
+"@healthline/six-million@~8.1.4":
   version "8.1.4"
   resolved "https://registry.yarnpkg.com/@healthline/six-million/-/six-million-8.1.4.tgz#09d33cd4896b63045f95b7eef6bc7eb755510f87"
   integrity sha512-EfQu26BTCX2JRaAkDKb2cbzaCg0fKK2ASyXfCV8RDmX4xxbPn8r2s8pWwNWatTrwhh8BDpkw6Mh0y46RmIpNrA==
