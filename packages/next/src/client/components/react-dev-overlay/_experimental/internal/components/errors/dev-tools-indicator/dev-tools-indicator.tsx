@@ -115,12 +115,10 @@ const DevToolsPopover = ({
     }
   }, [])
 
-  const togglePopover = () =>
-    setIsPopoverOpen((prev) => {
-      console.log('togglePopover', prev)
-      return !prev
-    })
-  const onIssuesClick = () => setIsErrorOverlayOpen(true)
+  const togglePopover = () => setIsPopoverOpen((prev) => !prev)
+  const onIssuesClick = () =>
+    issueCount > 0 ? setIsErrorOverlayOpen(true) : null
+
   const onLogoClick = () => {
     togglePopover()
     onIssuesClick()
@@ -182,9 +180,7 @@ const DevToolsPopover = ({
               <IndicatorRow
                 label="Issues"
                 value={<IssueCount count={issueCount} />}
-                onClick={
-                  issueCount > 0 ? () => setIsErrorOverlayOpen(true) : undefined
-                }
+                onClick={onIssuesClick}
               />
             </div>
           </div>
