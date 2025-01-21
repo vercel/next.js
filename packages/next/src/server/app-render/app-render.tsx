@@ -4022,16 +4022,24 @@ const chunkListeners: Array<(x?: unknown) => void> = []
 function trackChunkLoading(load: Promise<unknown>) {
   loadingChunks.add(load)
   load.finally(() => {
-    if (loadingChunks.has(load)) {
-      loadingChunks.delete(load)
-      if (loadingChunks.size === 0) {
-        // We are not currently loading any chunks. We can notify all listeners
-        for (let i = 0; i < chunkListeners.length; i++) {
-          chunkListeners[i]()
+    // The loaded chunk might contain a component with a "use cache" directive
+    // (inline or at the module level). When this component is rendered, the
+    // "use cache" wrapper starts a separate Flight render. So we need to wait
+    // at least one render task to give React a chance to start loading further
+    // chunks, e.g. if this component renders client components with SSR chunks,
+    // before checking the loadingChunks size and notifying the chunk listeners.
+    waitAtLeastOneReactRenderTask().then(() => {
+      if (loadingChunks.has(load)) {
+        loadingChunks.delete(load)
+        if (loadingChunks.size === 0) {
+          // We are not currently loading any chunks. We can notify all listeners
+          for (let i = 0; i < chunkListeners.length; i++) {
+            chunkListeners[i]()
+          }
+          chunkListeners.length = 0
         }
-        chunkListeners.length = 0
       }
-    }
+    })
   })
 }
 
