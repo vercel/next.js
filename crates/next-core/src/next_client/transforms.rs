@@ -2,10 +2,7 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::{
-    css::CssModuleAssetType,
-    module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition},
-};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
 use turbopack_core::reference_type::{EntryReferenceSubType, ReferenceType};
 
 use crate::{
@@ -86,7 +83,9 @@ pub async fn get_next_client_transforms_rules(
             ));
 
             rules.extend([
-                // CSS Modules client reference referencing the actual CSS module
+                // A CSS client reference, the client transition was already applied (which is why
+                // this rule lives in next_cliente), we only want the class mapping, the CSS itself
+                // is handled separately.
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Entry(

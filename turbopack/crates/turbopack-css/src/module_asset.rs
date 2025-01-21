@@ -85,7 +85,7 @@ impl Module for ModuleCssAsset {
         // 2. The local CSS is loaded last
 
         if self.await?.exclude_css_references {
-            return Ok(Vc::cell(vec![]));
+            Ok(Vc::cell(vec![]))
         } else {
             let references = self
                 .module_references()

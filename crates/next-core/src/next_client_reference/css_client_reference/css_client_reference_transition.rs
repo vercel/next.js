@@ -54,7 +54,6 @@ impl Transition for NextCssClientReferenceTransition {
             return Ok(ProcessResult::Ignore.cell());
         };
 
-        println!("module: {:?}", module);
         let result: Vc<Box<dyn Module>> = if let Some(css_module_module) =
             ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(module)
         {
@@ -65,7 +64,6 @@ impl Transition for NextCssClientReferenceTransition {
                 return Ok(ProcessResult::Ignore.cell());
             };
 
-            println!("client_module: {:?}", module);
             let client_module =
                 ResolvedVc::try_sidecast_sync::<Box<dyn CssChunkPlaceable>>(client_module)
                     .context("css module client asset is not css chunk placeable")?;
