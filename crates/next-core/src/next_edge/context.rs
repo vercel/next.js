@@ -6,7 +6,10 @@ use turbo_tasks_fs::FileSystemPath;
 use turbopack::resolve_options_context::ResolveOptionsContext;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType},
+    chunk::{
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
+        SourceMapsType,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -208,6 +211,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
@@ -230,6 +234,11 @@ pub async fn get_edge_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    })
     .module_id_strategy(module_id_strategy);
 
     if !next_mode.is_development() {
@@ -251,6 +260,7 @@ pub async fn get_edge_chunking_context(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let output_root = node_root.join("server/edge".into()).to_resolved().await?;
     let next_mode = mode.await?;
@@ -273,6 +283,11 @@ pub async fn get_edge_chunking_context(
         MinifyType::Minify
     } else {
         MinifyType::NoMinify
+    })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy);
 

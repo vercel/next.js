@@ -13,7 +13,7 @@ use turbopack_core::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId,
+        ModuleId, SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -45,6 +45,11 @@ impl NodeJsChunkingContextBuilder {
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
+        self.chunking_context.source_maps_type = source_maps;
         self
     }
 
@@ -116,6 +121,8 @@ pub struct NodeJsChunkingContext {
     enable_file_tracing: bool,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// Whether to generate source maps
+    source_maps_type: SourceMapsType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The strategy to use for generating module ids
@@ -151,6 +158,7 @@ impl NodeJsChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
                 should_use_file_source_map_uris: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
@@ -275,7 +283,18 @@ impl ChunkingContext for NodeJsChunkingContext {
 
     #[turbo_tasks::function]
     fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
-        Vc::cell(true)
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
+    }
+
+    #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
     }
 
     #[turbo_tasks::function]

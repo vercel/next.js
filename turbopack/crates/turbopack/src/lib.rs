@@ -30,6 +30,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -62,7 +63,7 @@ use turbopack_static::StaticModuleAsset;
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
-use crate::module_options::CustomModuleType;
+use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -681,7 +682,19 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         CompileTimeInfo::builder(env).cell().await?,
-        ModuleOptionsContext::default().cell(),
+        ModuleOptionsContext {
+            ecmascript: EcmascriptOptionsContext {
+                source_maps: SourceMapsType::None,
+                ..Default::default()
+            },
+            css: CssOptionsContext {
+                // TODO add source maps handling for css
+                // source_maps: SourceMapsType::None,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .cell(),
         resolve_options.cell(),
         Vc::cell("externals-tracing".into()),
     ))

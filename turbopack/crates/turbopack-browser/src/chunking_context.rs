@@ -11,7 +11,7 @@ use turbopack_core::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
         Chunk, ChunkGroupResult, ChunkItem, ChunkableModule, ChunkableModules, ChunkingConfig,
         ChunkingConfigs, ChunkingContext, EntryChunkGroupResult, EvaluatableAssets, MinifyType,
-        ModuleId,
+        ModuleId, SourceMapsType,
     },
     environment::Environment,
     ident::AssetIdent,
@@ -67,16 +67,6 @@ impl BrowserChunkingContextBuilder {
         self
     }
 
-    pub fn reference_chunk_source_maps(mut self, source_maps: bool) -> Self {
-        self.chunking_context.reference_chunk_source_maps = source_maps;
-        self
-    }
-
-    pub fn reference_css_chunk_source_maps(mut self, source_maps: bool) -> Self {
-        self.chunking_context.reference_css_chunk_source_maps = source_maps;
-        self
-    }
-
     pub fn runtime_type(mut self, runtime_type: RuntimeType) -> Self {
         self.chunking_context.runtime_type = runtime_type;
         self
@@ -89,6 +79,11 @@ impl BrowserChunkingContextBuilder {
 
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.chunking_context.minify_type = minify_type;
+        self
+    }
+
+    pub fn source_maps(mut self, source_maps: SourceMapsType) -> Self {
+        self.chunking_context.source_maps_type = source_maps;
         self
     }
 
@@ -135,10 +130,6 @@ pub struct BrowserChunkingContext {
     client_root: ResolvedVc<FileSystemPath>,
     /// Chunks are placed at this path
     chunk_root_path: ResolvedVc<FileSystemPath>,
-    /// Chunks reference source maps assets
-    reference_chunk_source_maps: bool,
-    /// Css chunks reference source maps assets
-    reference_css_chunk_source_maps: bool,
     /// Static assets are placed at this path
     asset_root_path: ResolvedVc<FileSystemPath>,
     /// Base path that will be prepended to all chunk URLs when loading them.
@@ -157,6 +148,8 @@ pub struct BrowserChunkingContext {
     runtime_type: RuntimeType,
     /// Whether to minify resulting chunks
     minify_type: MinifyType,
+    /// Whether to generate source maps
+    source_maps_type: SourceMapsType,
     /// Whether to use manifest chunks for lazy compilation
     manifest_chunks: bool,
     /// The module id strategy to use
@@ -185,8 +178,6 @@ impl BrowserChunkingContext {
                 client_root,
                 chunk_root_path,
                 should_use_file_source_map_uris: false,
-                reference_chunk_source_maps: true,
-                reference_css_chunk_source_maps: true,
                 asset_root_path,
                 chunk_base_path: ResolvedVc::cell(None),
                 asset_base_path: ResolvedVc::cell(None),
@@ -195,6 +186,7 @@ impl BrowserChunkingContext {
                 environment,
                 runtime_type,
                 minify_type: MinifyType::NoMinify,
+                source_maps_type: SourceMapsType::Full,
                 manifest_chunks: false,
                 module_id_strategy: ResolvedVc::upcast(DevModuleIdStrategy::new_resolved()),
                 ecmascript_chunking_config: None,
@@ -351,21 +343,19 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn reference_chunk_source_maps(
-        &self,
-        chunk: Vc<Box<dyn OutputAsset>>,
-    ) -> Result<Vc<bool>> {
-        let mut source_maps = self.reference_chunk_source_maps;
-        let path = chunk.ident().path().await?;
-        let extension = path.extension_ref().unwrap_or_default();
-        #[allow(clippy::single_match, reason = "future extensions")]
-        match extension {
-            ".css" => {
-                source_maps = self.reference_css_chunk_source_maps;
-            }
-            _ => {}
-        }
-        Ok(Vc::cell(source_maps))
+    fn reference_chunk_source_maps(&self, _chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool> {
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
+    }
+
+    #[turbo_tasks::function]
+    fn reference_module_source_maps(&self, _module: Vc<Box<dyn Module>>) -> Vc<bool> {
+        Vc::cell(match self.source_maps_type {
+            SourceMapsType::Full => true,
+            SourceMapsType::None => false,
+        })
     }
 
     #[turbo_tasks::function]

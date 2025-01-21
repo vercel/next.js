@@ -39,6 +39,29 @@ pub enum MinifyType {
 
 #[derive(
     Debug,
+    Default,
+    TaskInput,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    DeterministicHash,
+    NonLocalValue,
+)]
+pub enum SourceMapsType {
+    /// Extracts source maps from input files and writes source maps for output files.
+    #[default]
+    Full,
+    /// Ignores the existance of source maps and does not write source maps for output files.
+    None,
+}
+
+#[derive(
+    Debug,
     TaskInput,
     Clone,
     Copy,
@@ -104,9 +127,11 @@ pub trait ChunkingContext {
     // dependency first.
     fn chunk_path(self: Vc<Self>, ident: Vc<AssetIdent>, extension: RcStr) -> Vc<FileSystemPath>;
 
-    // TODO(alexkirsz) Remove this from the chunking context.
     /// Reference Source Map Assets for chunks
     fn reference_chunk_source_maps(self: Vc<Self>, chunk: Vc<Box<dyn OutputAsset>>) -> Vc<bool>;
+
+    /// Include Source Maps for modules
+    fn reference_module_source_maps(self: Vc<Self>, module: Vc<Box<dyn Module>>) -> Vc<bool>;
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
