@@ -195,7 +195,7 @@ function mountLinkInstance(
   }
   links.set(element, instance)
   if (observer !== null) {
-    observer.observe(element)
+    // observer.observe(element)
   }
 }
 
@@ -209,7 +209,7 @@ export function unmountLinkInstance(element: HTMLAnchorElement | SVGAElement) {
     }
   }
   if (observer !== null) {
-    observer.unobserve(element)
+    // observer.unobserve(element)
   }
 }
 
