@@ -3,7 +3,7 @@ use std::{
     hash::Hash,
 };
 
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_tasks_macros::{TraceRawVcs, ValueDebugFormat};
 
@@ -117,7 +117,7 @@ where
                 .rev()
                 .map(|root| (None, root))
                 .collect(),
-            expanded: HashSet::new(),
+            expanded: FxHashSet::default(),
         }
     }
 
@@ -132,7 +132,7 @@ where
                 .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 
@@ -145,7 +145,7 @@ where
         ReverseTopologicalIter {
             adjacency_map: &self.adjacency_map,
             stack: vec![(ReverseTopologicalPass::Pre, node)],
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 }
@@ -213,7 +213,7 @@ where
 {
     adjacency_map: FxHashMap<T, Vec<T>>,
     stack: VecDeque<(Option<T>, T)>,
-    expanded: HashSet<T>,
+    expanded: FxHashSet<T>,
 }
 
 impl<T> Iterator for IntoBreadthFirstEdges<T>
@@ -249,7 +249,7 @@ where
 {
     adjacency_map: &'graph FxHashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, &'graph T)>,
-    visited: HashSet<&'graph T>,
+    visited: FxHashSet<&'graph T>,
 }
 
 impl<'graph, T> Iterator for ReverseTopologicalIter<'graph, T>
