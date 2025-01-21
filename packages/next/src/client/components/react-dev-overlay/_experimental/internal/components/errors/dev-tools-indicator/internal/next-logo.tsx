@@ -235,18 +235,6 @@ export const NextLogo = ({
             }
           }
 
-          @keyframes pop {
-            0% {
-              scale: 0;
-            }
-            50% {
-              scale: 1.2;
-            }
-            100% {
-              scale: 1;
-            }
-          }
-
           .path0 {
             animation: draw0 1.5s ease-in-out infinite;
           }
