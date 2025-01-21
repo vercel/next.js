@@ -208,9 +208,7 @@ export default class FileSystemCache implements CacheHandler {
             await Promise.all(
               meta.segmentPaths.map(async (segmentPath: string) => {
                 const segmentDataFilePath = this.getFilePath(
-                  segmentPath === '/'
-                    ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                    : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
+                  segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX,
                   IncrementalCacheKind.APP_PAGE
                 )
                 try {
@@ -420,10 +418,7 @@ export default class FileSystemCache implements CacheHandler {
           for (const [segmentPath, buffer] of data.segmentData) {
             segmentPaths.push(segmentPath)
             const segmentDataFilePath =
-              segmentPath === '/'
-                ? segmentsDir + '/_index' + RSC_SEGMENT_SUFFIX
-                : segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
-
+              segmentsDir + segmentPath + RSC_SEGMENT_SUFFIX
             writer.append(segmentDataFilePath, buffer)
           }
         }

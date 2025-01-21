@@ -331,7 +331,11 @@ async function renderSegmentPrefetch(
     }
   )
   const segmentBuffer = await streamToBuffer(segmentStream)
-  return [key, segmentBuffer]
+  if (key === ROOT_SEGMENT_KEY) {
+    return ['/_index', segmentBuffer]
+  } else {
+    return ['/' + key, segmentBuffer]
+  }
 }
 
 async function isPartialRSCData(
