@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { noop as css } from '../../../../../../internal/helpers/noop-template'
+import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
@@ -21,24 +22,12 @@ export const NextLogo = ({
 }: Props) => {
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
-  const [isLoading, setIsLoading] = useState(false)
-
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const ref = useRef<HTMLDivElement | null>(null)
   const width = useMeasureWidth(ref)
-
-  // Only shows the loading state after a 200ms delay when building or rendering,
-  // to avoid flashing the loading state for quick updates
-  useEffect(() => {
-    if (isDevBuilding || isDevRendering) {
-      const timeout = setTimeout(() => {
-        setIsLoading(true)
-      }, 200)
-      return () => clearTimeout(timeout)
-    } else {
-      setIsLoading(false)
-    }
-  }, [isDevBuilding, isDevRendering])
+  const isLoading = useMinimumLoadingTimeMultiple(
+    isDevBuilding || isDevRendering
+  )
 
   useEffect(() => {
     if (hasError) {
