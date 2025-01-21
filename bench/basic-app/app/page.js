@@ -1,10 +1,7 @@
-'use client'
-
-if (typeof window === 'undefined') {
-  require('./page.css')
-  console.log(require('./page.module.css'))
-}
+import React from 'react'
 
 export default function Page() {
   return <h1>My Page</h1>
 }
+
+export const dynamic = 'force-dynamic'
