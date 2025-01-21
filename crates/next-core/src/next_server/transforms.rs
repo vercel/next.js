@@ -2,11 +2,7 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::{
-    css::CssModuleAssetType,
-    module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition},
-};
-use turbopack_core::reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType};
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 
 use crate::{
     mode::NextMode,
@@ -52,38 +48,23 @@ pub async fn get_next_server_transforms_rules(
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
 
-    rules.extend([
-        // Ignore the internal ModuleCssAsset -> CssModuleAsset references
-        // The CSS Module module is still needed for class names
-        ModuleRule::new_internal(
-            RuleCondition::ResourcePathEndsWith(".module.css".into()),
-            vec![ModuleRuleEffect::Ignore],
-        ),
-    ]);
-    if matches!(context_ty, ServerContextType::AppRSC { .. }) {
+    if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
-            // CSS Modules client reference referencing the actual CSS module
+            // In SSR, ignore the internal ModuleCssAsset -> CssModuleAsset references
+            // The CSS Module module is still needed for class names
+            ModuleRule::new_internal(
+                RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+            // Ignore imports to all non-module CSS files
             ModuleRule::new(
                 RuleCondition::all(vec![
-                    RuleCondition::ReferenceType(ReferenceType::Css(
-                        CssReferenceSubType::Undefined,
-                    )),
-                    RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    RuleCondition::ResourcePathEndsWith(".css".into()),
+                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
                 ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                    ty: CssModuleAssetType::Module,
-                })],
+                vec![ModuleRuleEffect::Ignore],
             ),
         ]);
-    } else {
-        // Ignore imports to non-module CSS files
-        rules.extend([ModuleRule::new(
-            RuleCondition::all(vec![
-                RuleCondition::ResourcePathEndsWith(".css".into()),
-                RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
-            ]),
-            vec![ModuleRuleEffect::Ignore],
-        )]);
     }
 
     if !foreign_code {
