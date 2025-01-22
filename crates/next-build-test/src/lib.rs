@@ -9,7 +9,7 @@ use anyhow::{Context, Result};
 use futures_util::{StreamExt, TryStreamExt};
 use next_api::{
     project::{ProjectContainer, ProjectOptions},
-    route::{Endpoint, Route},
+    route::{endpoint_write_to_disk, Route},
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ReadConsistency, TransientInstance, TurboTasks, Vc};
@@ -185,21 +185,21 @@ pub async fn render_routes(
                             html_endpoint,
                             data_endpoint: _,
                         } => {
-                            html_endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk(*html_endpoint).await?;
                         }
                         Route::PageApi { endpoint } => {
-                            endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk(*endpoint).await?;
                         }
                         Route::AppPage(routes) => {
                             for route in routes {
-                                route.html_endpoint.write_to_disk().await?;
+                                endpoint_write_to_disk(*route.html_endpoint).await?;
                             }
                         }
                         Route::AppRoute {
                             original_name: _,
                             endpoint,
                         } => {
-                            endpoint.write_to_disk().await?;
+                            endpoint_write_to_disk(*endpoint).await?;
                         }
                         Route::Conflict => {
                             tracing::info!("WARN: conflict {}", name);

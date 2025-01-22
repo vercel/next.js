@@ -14846,14 +14846,31 @@
         ? props.name
         : instance.autoName;
     }
-    function getViewTransitionClassName(className, eventClassName) {
-      return null == eventClassName
-        ? className
-        : "none" === eventClassName
-          ? eventClassName
-          : null != className
-            ? className + " " + eventClassName
-            : eventClassName;
+    function getClassNameByType(classByType) {
+      if (null == classByType || "string" === typeof classByType)
+        return classByType;
+      var className = null,
+        activeTypes = pendingTransitionTypes;
+      if (null !== activeTypes)
+        for (var i = 0; i < activeTypes.length; i++) {
+          var match = classByType[activeTypes[i]];
+          if (null != match) {
+            if ("none" === match) return "none";
+            className = null == className ? match : className + (" " + match);
+          }
+        }
+      return null == className ? classByType.default : className;
+    }
+    function getViewTransitionClassName(defaultClass, eventClass) {
+      defaultClass = getClassNameByType(defaultClass);
+      eventClass = getClassNameByType(eventClass);
+      return null == eventClass
+        ? defaultClass
+        : "none" === eventClass
+          ? eventClass
+          : null != defaultClass && "none" !== defaultClass
+            ? defaultClass + " " + eventClass
+            : eventClass;
     }
     function markUpdate(workInProgress) {
       workInProgress.flags |= 4;
@@ -17005,10 +17022,14 @@
         pendingEffectsRemainingLanes = didIncludeRenderPhaseUpdate;
         pendingPassiveTransitions = transitions;
         pendingRecoverableErrors = recoverableErrors;
-        pendingViewTransitionEvents = null;
         pendingEffectsRenderEndTime = completedRenderEndTime;
         pendingSuspendedCommitReason = suspendedCommitReason;
-        recoverableErrors = (lanes & 335544192) === lanes ? 10262 : 10256;
+        pendingViewTransitionEvents = null;
+        (lanes & 335544192) === lanes
+          ? ((pendingTransitionTypes = ReactSharedInternals.V),
+            (ReactSharedInternals.V = null),
+            (recoverableErrors = 10262))
+          : ((pendingTransitionTypes = null), (recoverableErrors = 10256));
         0 !== finishedWork.actualDuration ||
         0 !== (finishedWork.subtreeFlags & recoverableErrors) ||
         0 !== (finishedWork.flags & recoverableErrors)
@@ -17054,6 +17075,7 @@
         (shouldStartViewTransition &&
           startViewTransition(
             root.containerInfo,
+            pendingTransitionTypes,
             flushMutationEffects,
             flushLayoutEffects,
             flushAfterMutationEffects,
@@ -17351,13 +17373,17 @@
           }
         }
         recoverableErrors = pendingViewTransitionEvents;
+        onRecoverableError = pendingTransitionTypes;
+        pendingTransitionTypes = null;
         if (null !== recoverableErrors)
           for (
-            pendingViewTransitionEvents = null, onRecoverableError = 0;
-            onRecoverableError < recoverableErrors.length;
-            onRecoverableError++
+            pendingViewTransitionEvents = null,
+              null === onRecoverableError && (onRecoverableError = []),
+              recoverableError = 0;
+            recoverableError < recoverableErrors.length;
+            recoverableError++
           )
-            (0, recoverableErrors[onRecoverableError])();
+            (0, recoverableErrors[recoverableError])(onRecoverableError);
         0 !== (pendingEffectsLanes & 3) && flushPendingEffects();
         ensureRootIsScheduled(root);
         suspendedCommitReason = root.pendingLanes;
@@ -21222,6 +21248,7 @@
     }
     function startViewTransition(
       rootContainer,
+      transitionTypes,
       mutationCallback,
       layoutCallback,
       afterMutationCallback,
@@ -21268,7 +21295,7 @@
               );
             afterMutationCallback();
           },
-          types: null
+          types: transitionTypes
         });
         ownerDocument.__reactViewTransition = transition;
         transition.ready.then(void 0, function (reason) {
@@ -26218,6 +26245,7 @@
       pendingPassiveTransitions = null,
       pendingRecoverableErrors = null,
       pendingViewTransitionEvents = null,
+      pendingTransitionTypes = null,
       pendingSuspendedCommitReason = IMMEDIATE_COMMIT,
       NESTED_UPDATE_LIMIT = 50,
       nestedUpdateCount = 0,
@@ -26794,11 +26822,11 @@
     };
     (function () {
       var isomorphicReactPackageVersion = React.version;
-      if ("19.1.0-experimental-5b51a2b9-20250116" !== isomorphicReactPackageVersion)
+      if ("19.1.0-experimental-9b62ee71-20250122" !== isomorphicReactPackageVersion)
         throw Error(
           'Incompatible React versions: The "react" and "react-dom" packages must have the exact same version. Instead got:\n  - react:      ' +
             (isomorphicReactPackageVersion +
-              "\n  - react-dom:  19.1.0-experimental-5b51a2b9-20250116\nLearn more: https://react.dev/warnings/version-mismatch")
+              "\n  - react-dom:  19.1.0-experimental-9b62ee71-20250122\nLearn more: https://react.dev/warnings/version-mismatch")
         );
     })();
     ("function" === typeof Map &&
@@ -26835,10 +26863,10 @@
       !(function () {
         var internals = {
           bundleType: 1,
-          version: "19.1.0-experimental-5b51a2b9-20250116",
+          version: "19.1.0-experimental-9b62ee71-20250122",
           rendererPackageName: "react-dom",
           currentDispatcherRef: ReactSharedInternals,
-          reconcilerVersion: "19.1.0-experimental-5b51a2b9-20250116"
+          reconcilerVersion: "19.1.0-experimental-9b62ee71-20250122"
         };
         internals.overrideHookState = overrideHookState;
         internals.overrideHookStateDeletePath = overrideHookStateDeletePath;
@@ -26982,7 +27010,7 @@
       listenToAllSupportedEvents(container);
       return new ReactDOMHydrationRoot(initialChildren);
     };
-    exports.version = "19.1.0-experimental-5b51a2b9-20250116";
+    exports.version = "19.1.0-experimental-9b62ee71-20250122";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

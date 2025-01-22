@@ -45,18 +45,17 @@ impl AggregatedGraph {
 
     #[turbo_tasks::function]
     async fn references(self: Vc<Self>) -> Result<Vc<AggregatedGraphsSet>> {
-        Ok(match *self.await? {
+        Ok(match &*self.await? {
             AggregatedGraph::Leaf(asset) => {
                 let mut refs = HashSet::new();
-                for reference in asset.references().await?.iter() {
-                    let reference = reference.resolve().await?;
-                    if asset != reference.to_resolved().await? {
-                        refs.insert(AggregatedGraph::leaf(reference).to_resolved().await?);
+                for reference in asset.references().await? {
+                    if asset != reference {
+                        refs.insert(AggregatedGraph::leaf(**reference).to_resolved().await?);
                     }
                 }
                 AggregatedGraphsSet { set: refs }.into()
             }
-            AggregatedGraph::Node { ref references, .. } => {
+            AggregatedGraph::Node { references, .. } => {
                 let mut set = HashSet::new();
                 for item in references
                     .iter()

@@ -275,8 +275,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ]);
         };
 
-        let result = result.resolve().await?;
-        let result_from_original_location = result_from_original_location.resolve().await?;
         if result_from_original_location != result {
             let package_json_file = find_context_file(
                 result.ident().path().parent().resolve().await?,

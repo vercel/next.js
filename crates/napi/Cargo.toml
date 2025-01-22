@@ -73,6 +73,7 @@ tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [
     "base_concurrent",

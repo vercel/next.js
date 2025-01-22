@@ -2,7 +2,7 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::ModuleRule;
+use turbopack::module_options::{ModuleRule, ModuleRuleEffect, RuleCondition};
 
 use crate::{
     mode::NextMode,
@@ -47,6 +47,27 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
     rules.push(get_next_font_transform_rule(mdx_rs));
+
+    if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
+        rules.extend([
+            // Ignore the internal ModuleCssAsset -> CssModuleAsset references
+            // The CSS Module module itself is still needed for class names
+            ModuleRule::new_internal(
+                RuleCondition::ResourcePathEndsWith(".module.css".into()),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
+        rules.extend([
+            // Ignore all non-module CSS references
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".css".into()),
+                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+                ]),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
+    }
 
     if !foreign_code {
         rules.push(get_next_page_static_info_assert_rule(

@@ -3,6 +3,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import {
   renderToReadableStream,
   decodeReply,
+  decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
 } from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
@@ -39,6 +40,7 @@ import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
+import { UseCacheTimeoutError } from './use-cache-errors'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -49,7 +51,8 @@ function generateCacheEntry(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
@@ -62,7 +65,8 @@ function generateCacheEntry(
     outerWorkUnitStore,
     clientReferenceManifest,
     encodedArguments,
-    fn
+    fn,
+    timeoutError
   )
 }
 
@@ -71,7 +75,8 @@ function generateCacheEntryWithRestoredWorkStore(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -87,7 +92,8 @@ function generateCacheEntryWithRestoredWorkStore(
     outerWorkUnitStore,
     clientReferenceManifest,
     encodedArguments,
-    fn
+    fn,
+    timeoutError
   )
 }
 
@@ -96,7 +102,8 @@ function generateCacheEntryWithCacheContext(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ) {
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
@@ -135,12 +142,12 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
-    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
     encodedArguments,
-    fn
+    fn,
+    timeoutError
   )
 }
 
@@ -261,22 +268,49 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
-  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , args] = await decodeReply<any[]>(
-    encodedArguments,
-    getServerModuleMap(),
-    {
-      temporaryReferences,
-    }
-  )
+  const [, , args] =
+    typeof encodedArguments === 'string'
+      ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
+          temporaryReferences,
+        })
+      : await decodeReplyFromAsyncIterable<any[]>(
+          {
+            async *[Symbol.asyncIterator]() {
+              for (const entry of encodedArguments) {
+                yield entry
+              }
+
+              // The encoded arguments might contain hanging promises. In this
+              // case we don't want to reject with "Error: Connection closed.",
+              // so we intentionally keep the iterable alive. This is similar to
+              // the halting trick that we do while rendering.
+              if (outerWorkUnitStore?.type === 'prerender') {
+                await new Promise<void>((resolve) => {
+                  if (outerWorkUnitStore.renderSignal.aborted) {
+                    resolve()
+                  } else {
+                    outerWorkUnitStore.renderSignal.addEventListener(
+                      'abort',
+                      () => resolve(),
+                      { once: true }
+                    )
+                  }
+                })
+              }
+            },
+          },
+          getServerModuleMap(),
+          { temporaryReferences }
+        )
 
   // Track the timestamp when we started copmuting the result.
   const startTime = performance.timeOrigin + performance.now()
@@ -287,17 +321,12 @@ async function generateCacheEntryImpl(
 
   let timer = undefined
   const controller = new AbortController()
-  if (workStore.isStaticGeneration) {
+  if (outerWorkUnitStore?.type === 'prerender') {
     // If we're prerendering, we give you 50 seconds to fill a cache entry. Otherwise
     // we assume you stalled on hanging input and deopt. This needs to be lower than
     // just the general timeout of 60 seconds.
     timer = setTimeout(() => {
-      controller.abort(
-        new Error(
-          'Filling a cache during prerender timed out, likely because request-specific arguments such as ' +
-            'params, searchParams, cookies() or dynamic data were used inside "use cache".'
-        )
-      )
+      controller.abort(timeoutError)
     }, 50000)
   }
 
@@ -319,10 +348,19 @@ async function generateCacheEntryImpl(
           return digest
         }
 
-        // TODO: For now we're also reporting the error here, because in
-        // production, the "Server" environment will only get the obfuscated
-        // error (created by the Flight Client in the cache wrapper).
-        console.error(error)
+        if (process.env.NODE_ENV !== 'development') {
+          // TODO: For now we're also reporting the error here, because in
+          // production, the "Server" environment will only get the obfuscated
+          // error (created by the Flight Client in the cache wrapper).
+          console.error(error)
+        }
+
+        if (error === timeoutError) {
+          // The timeout error already aborted the whole stream. We don't need
+          // to also push this error into the `errors` array.
+          return timeoutError.digest
+        }
+
         errors.push(error)
       },
     }
@@ -441,6 +479,11 @@ export function cache(
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }
+
+  // Capture the timeout error here to ensure a useful stack.
+  const timeoutError = new UseCacheTimeoutError()
+  Error.captureStackTrace(timeoutError, cache)
+
   const name = fn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
@@ -463,7 +506,7 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
-      let abortHangingInputSignal: null | AbortSignal = null
+      let abortHangingInputSignal: undefined | AbortSignal
       if (workUnitStore && workUnitStore.type === 'prerender') {
         // In a prerender, we may end up with hanging Promises as inputs due them stalling
         // on connection() or because they're loading dynamic data. In that case we need to
@@ -515,18 +558,7 @@ export function cache(
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
         [buildId, id, args],
-        // Right now this is enough to cause the input to generate hanging Promises
-        // but that's really due to what is probably a React bug in decodeReply.
-        // If that's fixed we may need a different strategy. We can also just skip
-        // the serialization/cache in this scenario and pass-through raw objects.
-        abortHangingInputSignal
-          ? {
-              temporaryReferences,
-              signal: abortHangingInputSignal,
-            }
-          : {
-              temporaryReferences,
-            }
+        { temporaryReferences, signal: abortHangingInputSignal }
       )
 
       const serializedCacheKey =
@@ -656,7 +688,8 @@ export function cache(
             workUnitStore,
             clientReferenceManifest,
             encodedArguments,
-            fn
+            fn,
+            timeoutError
           )
 
           let savedCacheEntry
@@ -715,7 +748,8 @@ export function cache(
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
               encodedArguments,
-              fn
+              fn,
+              timeoutError
             )
 
             let savedCacheEntry: Promise<CacheEntry>

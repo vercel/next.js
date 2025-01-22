@@ -61,8 +61,8 @@ impl CustomTransformer for NextServerActions {
                 cache_kinds: self.cache_kinds.await?.clone_value(),
             },
             ctx.comments.clone(),
+            Default::default(),
         );
-
         program.mutate(actions);
         Ok(())
     }
