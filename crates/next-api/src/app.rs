@@ -346,80 +346,81 @@ impl AppProject {
     }
 
     #[turbo_tasks::function]
-    async fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        let transitions = [
-            (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.ecmascript_client_reference_transition()
-                    .to_resolved()
-                    .await?,
-            ),
-            (
-                "next-dynamic".into(),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
-            ),
-            (
-                "next-dynamic-client".into(),
-                ResolvedVc::upcast(
-                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
-                        .to_resolved()
-                        .await?,
+    async fn get_rsc_transitions(
+        self: Vc<Self>,
+        ecmascript_client_reference_transition: Vc<Box<dyn Transition>>,
+        ssr_transition: Vc<Box<dyn Transition>>,
+        shared_transition: Vc<Box<dyn Transition>>,
+    ) -> Result<Vc<TransitionOptions>> {
+        Ok(TransitionOptions {
+            named_transitions: [
+                (
+                    ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
+                    ecmascript_client_reference_transition.to_resolved().await?,
                 ),
-            ),
-            (
-                "next-ssr".into(),
-                ResolvedVc::upcast(self.ssr_transition().to_resolved().await?),
-            ),
-            (
-                "next-shared".into(),
-                ResolvedVc::upcast(self.shared_transition().to_resolved().await?),
-            ),
-            (
-                "next-server-utility".into(),
-                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
-            ),
-        ]
-        .into_iter()
-        .collect();
+                (
+                    "next-dynamic".into(),
+                    ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
+                ),
+                (
+                    "next-dynamic-client".into(),
+                    ResolvedVc::upcast(
+                        NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
+                            .to_resolved()
+                            .await?,
+                    ),
+                ),
+                ("next-ssr".into(), ssr_transition.to_resolved().await?),
+                ("next-shared".into(), shared_transition.to_resolved().await?),
+                (
+                    "next-server-utility".into(),
+                    ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
+                ),
+            ]
+            .into_iter()
+            .collect(),
+            transition_rules: vec![
+                // Mark as client reference (and exclude from RSC chunking) the edge from the
+                // CSS Module to the actual CSS
+                TransitionRule::new_internal(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::Internal,
+                        )),
+                        module_styles_rule_condition(),
+                    ]),
+                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
+                ),
+                // Don't wrap in marker module but change context, this is used to determine
+                // the list of CSS module classes.
+                TransitionRule::new(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::Analyze,
+                        )),
+                        module_styles_rule_condition(),
+                    ]),
+                    ResolvedVc::upcast(self.client_transition().to_resolved().await?),
+                ),
+                // Mark as client reference all regular CSS imports
+                TransitionRule::new(
+                    styles_rule_condition(),
+                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
+                ),
+            ],
+            ..Default::default()
+        }
+        .cell())
+    }
+
+    #[turbo_tasks::function]
+    async fn rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
         Ok(ModuleAssetContext::new(
-            TransitionOptions {
-                named_transitions: transitions,
-                transition_rules: vec![
-                    // Mark as client reference (and exclude from RSC chunking) the edge from the
-                    // CSS Module to the actual CSS
-                    TransitionRule::new_internal(
-                        RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
-                                CssReferenceSubType::Internal,
-                            )),
-                            module_styles_rule_condition(),
-                        ]),
-                        ResolvedVc::upcast(
-                            self.css_client_reference_transition().to_resolved().await?,
-                        ),
-                    ),
-                    // Don't wrap in marker module but change context, this is used to determine
-                    // the list of CSS module classes.
-                    TransitionRule::new(
-                        RuleCondition::all(vec![
-                            RuleCondition::ReferenceType(ReferenceType::Css(
-                                CssReferenceSubType::Analyze,
-                            )),
-                            module_styles_rule_condition(),
-                        ]),
-                        ResolvedVc::upcast(self.client_transition().to_resolved().await?),
-                    ),
-                    // Mark as client reference all regular CSS imports
-                    TransitionRule::new(
-                        styles_rule_condition(),
-                        ResolvedVc::upcast(
-                            self.css_client_reference_transition().to_resolved().await?,
-                        ),
-                    ),
-                ],
-                ..Default::default()
-            }
-            .cell(),
+            self.get_rsc_transitions(
+                self.ecmascript_client_reference_transition(),
+                Vc::upcast(self.ssr_transition()),
+                Vc::upcast(self.shared_transition()),
+            ),
             self.project().server_compile_time_info(),
             self.rsc_module_options_context(),
             self.rsc_resolve_options_context(),
@@ -429,50 +430,12 @@ impl AppProject {
 
     #[turbo_tasks::function]
     async fn edge_rsc_module_context(self: Vc<Self>) -> Result<Vc<ModuleAssetContext>> {
-        let transitions = [
-            (
-                ECMASCRIPT_CLIENT_TRANSITION_NAME.into(),
-                self.edge_ecmascript_client_reference_transition()
-                    .to_resolved()
-                    .await?,
-            ),
-            (
-                "next-dynamic".into(),
-                ResolvedVc::upcast(NextDynamicTransition::new_marker().to_resolved().await?),
-            ),
-            (
-                "next-dynamic-client".into(),
-                ResolvedVc::upcast(
-                    NextDynamicTransition::new_client(Vc::upcast(self.client_transition()))
-                        .to_resolved()
-                        .await?,
-                ),
-            ),
-            (
-                "next-ssr".into(),
-                ResolvedVc::upcast(self.edge_ssr_transition().to_resolved().await?),
-            ),
-            (
-                "next-shared".into(),
-                ResolvedVc::upcast(self.edge_shared_transition().to_resolved().await?),
-            ),
-            (
-                "next-server-utility".into(),
-                ResolvedVc::upcast(NextServerUtilityTransition::new().to_resolved().await?),
-            ),
-        ]
-        .into_iter()
-        .collect();
         Ok(ModuleAssetContext::new(
-            TransitionOptions {
-                named_transitions: transitions,
-                transition_rules: vec![TransitionRule::new(
-                    styles_rule_condition(),
-                    ResolvedVc::upcast(self.css_client_reference_transition().to_resolved().await?),
-                )],
-                ..Default::default()
-            }
-            .cell(),
+            self.get_rsc_transitions(
+                self.edge_ecmascript_client_reference_transition(),
+                Vc::upcast(self.edge_ssr_transition()),
+                Vc::upcast(self.edge_shared_transition()),
+            ),
             self.project().edge_compile_time_info(),
             self.edge_rsc_module_options_context(),
             self.edge_rsc_resolve_options_context(),
@@ -519,6 +482,7 @@ impl AppProject {
 
         Ok(ModuleAssetContext::new(
             TransitionOptions {
+                // TODO use get_rsc_transitions as well?
                 named_transitions: transitions,
                 ..Default::default()
             }
@@ -568,6 +532,7 @@ impl AppProject {
         .collect();
         Ok(ModuleAssetContext::new(
             TransitionOptions {
+                // TODO use get_rsc_transitions as well?
                 named_transitions: transitions,
                 ..Default::default()
             }
