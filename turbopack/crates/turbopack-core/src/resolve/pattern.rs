@@ -1370,24 +1370,31 @@ pub async fn read_matches(
                     if !handled.insert(str) {
                         continue;
                     }
-                    let Some((folder, file)) = split_folder_and_file(str) else {
-                        continue;
-                    };
-                    if file == "" {
+                    let (parent_path, last_segment) = split_last_segment(str);
+                    if last_segment.is_empty() {
+                        // This means we don't have a last segment, so we just have a directory
+                        let joined = if force_in_lookup_dir {
+                            lookup_dir.try_join_inside(parent_path.into()).await?
+                        } else {
+                            lookup_dir.try_join(parent_path.into()).await?
+                        };
+                        let Some(fs_path) = *joined else {
+                            continue;
+                        };
                         results.push((
                             index,
-                            PatternMatch::Directory(concat(&prefix, str).into(), lookup_dir),
+                            PatternMatch::Directory(concat(&prefix, str).into(), fs_path),
                         ));
                         continue;
                     }
-                    let entry = read_dir_results.entry(folder);
+                    let entry = read_dir_results.entry(parent_path);
                     let read_dir = match entry {
                         Entry::Occupied(e) => Some(e.into_mut()),
                         Entry::Vacant(e) => {
                             let path_option = *if force_in_lookup_dir {
-                                lookup_dir.try_join_inside(folder.into()).await?
+                                lookup_dir.try_join_inside(parent_path.into()).await?
                             } else {
-                                lookup_dir.try_join(folder.into()).await?
+                                lookup_dir.try_join(parent_path.into()).await?
                             };
                             if let Some(path) = path_option {
                                 Some(e.insert(path.read_dir().await?))
@@ -1402,7 +1409,7 @@ pub async fn read_matches(
                     let DirectoryContent::Entries(entries) = &**read_dir else {
                         continue;
                     };
-                    let Some(entry) = entries.get(file) else {
+                    let Some(entry) = entries.get(last_segment) else {
                         continue;
                     };
                     match *entry {
@@ -1438,14 +1445,13 @@ pub async fn read_matches(
                         } else {
                             lookup_dir.try_join(subpath.into()).await?
                         };
-                        let Some(fs_path) = &*joined else {
+                        let Some(fs_path) = *joined else {
                             continue;
                         };
-                        let fs_path = fs_path.resolve().await?;
                         nested.push((
                             0,
                             read_matches(
-                                fs_path,
+                                *fs_path,
                                 concat(&prefix, subpath).into(),
                                 force_in_lookup_dir,
                                 pattern,
@@ -1676,26 +1682,25 @@ fn concat(a: &str, b: &str) -> String {
     result
 }
 
-fn split_folder_and_file(path: &str) -> Option<(&str, &str)> {
-    if let Some((folder, file)) = path.rsplit_once('/') {
-        match file {
-            "" => split_folder_and_file(folder),
-            "." => split_folder_and_file(folder),
-            ".." => split_folder_and_file(folder).and_then(|(folder, file)| {
-                if file == "" {
-                    None
-                } else {
-                    split_folder_and_file(folder)
-                }
-            }),
-            _ => Some((folder, file)),
+/// Returns the parent folder and the last segment of the path. When the last segment is unknown (e.
+/// g. when using `../`) it returns the full path and an empty string.
+fn split_last_segment(path: &str) -> (&str, &str) {
+    if let Some((remaining_path, last_segment)) = path.rsplit_once('/') {
+        match last_segment {
+            "" => split_last_segment(remaining_path),
+            "." => split_last_segment(remaining_path),
+            ".." => match split_last_segment(remaining_path) {
+                (_, "") => (path, ""),
+                (parent_path, _) => split_last_segment(parent_path),
+            },
+            _ => (remaining_path, last_segment),
         }
     } else {
         match path {
-            "" => Some(("", "")),
-            "." => Some(("", "")),
-            ".." => None,
-            _ => Some(("", path)),
+            "" => ("", ""),
+            "." => ("", ""),
+            ".." => ("..", ""),
+            _ => ("", path),
         }
     }
 }
@@ -1705,7 +1710,7 @@ mod tests {
     use rstest::*;
     use turbo_rcstr::RcStr;
 
-    use super::{longest_common_prefix, longest_common_suffix, split_folder_and_file, Pattern};
+    use super::{longest_common_prefix, longest_common_suffix, split_last_segment, Pattern};
 
     #[test]
     fn longest_common_prefix_test() {
@@ -2355,32 +2360,36 @@ mod tests {
     }
 
     #[test]
-    fn test_split_folder_and_file() {
-        assert_eq!(split_folder_and_file(""), Some(("", "")));
-        assert_eq!(split_folder_and_file("a"), Some(("", "a")));
-        assert_eq!(split_folder_and_file("a/"), Some(("", "a")));
-        assert_eq!(split_folder_and_file("a/b"), Some(("a", "b")));
-        assert_eq!(split_folder_and_file("a/b/"), Some(("a", "b")));
-        assert_eq!(split_folder_and_file("a/b/c"), Some(("a/b", "c")));
-        assert_eq!(split_folder_and_file("a/b/."), Some(("a", "b")));
-        assert_eq!(split_folder_and_file("a/b/.."), Some(("", "a")));
-        assert_eq!(split_folder_and_file("a/b/c/.."), Some(("a", "b")));
-        assert_eq!(split_folder_and_file("a/b/c/../.."), Some(("", "a")));
-        assert_eq!(split_folder_and_file("a/b/c/d/../.."), Some(("a", "b")));
-        assert_eq!(split_folder_and_file("a/b/c/../d/.."), Some(("a", "b")));
-        assert_eq!(
-            split_folder_and_file("a/b/../c/d/.."),
-            Some(("a/b/..", "c"))
-        );
-        assert_eq!(split_folder_and_file("."), Some(("", "")));
-        assert_eq!(split_folder_and_file("./"), Some(("", "")));
-        assert_eq!(split_folder_and_file(".."), None);
-        assert_eq!(split_folder_and_file("../"), None);
-        assert_eq!(split_folder_and_file("./../"), None);
-        assert_eq!(split_folder_and_file("a/.."), Some(("", "")));
-        assert_eq!(split_folder_and_file("a/../"), Some(("", "")));
-        assert_eq!(split_folder_and_file("a/../.."), None);
-        assert_eq!(split_folder_and_file("a/../../"), None);
-        assert_eq!(split_folder_and_file("a/././../"), Some(("", "")));
+    fn test_split_last_segment() {
+        assert_eq!(split_last_segment(""), ("", ""));
+        assert_eq!(split_last_segment("a"), ("", "a"));
+        assert_eq!(split_last_segment("a/"), ("", "a"));
+        assert_eq!(split_last_segment("a/b"), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/"), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/c"), ("a/b", "c"));
+        assert_eq!(split_last_segment("a/b/."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/.."), ("", "a"));
+        assert_eq!(split_last_segment("a/b/c/.."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/c/../.."), ("", "a"));
+        assert_eq!(split_last_segment("a/b/c/d/../.."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/c/../d/.."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/../c/d/.."), ("a/b/..", "c"));
+        assert_eq!(split_last_segment("."), ("", ""));
+        assert_eq!(split_last_segment("./"), ("", ""));
+        assert_eq!(split_last_segment(".."), ("..", ""));
+        assert_eq!(split_last_segment("../"), ("..", ""));
+        assert_eq!(split_last_segment("./../"), ("./..", ""));
+        assert_eq!(split_last_segment("../../"), ("../..", ""));
+        assert_eq!(split_last_segment("../../."), ("../..", ""));
+        assert_eq!(split_last_segment("../.././"), ("../..", ""));
+        assert_eq!(split_last_segment("a/.."), ("", ""));
+        assert_eq!(split_last_segment("a/../"), ("", ""));
+        assert_eq!(split_last_segment("a/../.."), ("a/../..", ""));
+        assert_eq!(split_last_segment("a/../../"), ("a/../..", ""));
+        assert_eq!(split_last_segment("a/././../"), ("", ""));
+        assert_eq!(split_last_segment("../a"), ("..", "a"));
+        assert_eq!(split_last_segment("../a/"), ("..", "a"));
+        assert_eq!(split_last_segment("../../a"), ("../..", "a"));
+        assert_eq!(split_last_segment("../../a/"), ("../..", "a"));
     }
 }
