@@ -34,6 +34,8 @@ import {
   NEXT_CACHE_REVALIDATE_TAG_TOKEN_HEADER,
   NEXT_CACHE_REVALIDATED_TAGS_HEADER,
   MATCHED_PATH_HEADER,
+  RSC_SEGMENTS_DIR_SUFFIX,
+  RSC_SEGMENT_SUFFIX,
 } from '../lib/constants'
 import { FileType, fileExists } from '../lib/file-exists'
 import { findPagesDir } from '../lib/find-pages-dir'
@@ -220,6 +222,10 @@ import {
   isRelevantWarning,
   type EntryIssuesMap,
 } from '../shared/lib/turbopack/utils'
+import {
+  buildPrefetchSegmentDataRoute,
+  type PrefetchSegmentDataRoute,
+} from '../server/lib/router-utils/build-prefetch-segment-data-route'
 
 type Fallback = null | boolean | string
 
@@ -363,9 +369,10 @@ export type ManifestRoute = ManifestBuiltRoute & {
   page: string
   namedRegex?: string
   routeKeys?: { [key: string]: string }
+  prefetchSegmentDataRoutes?: PrefetchSegmentDataRoute[]
 }
 
-export type ManifestDataRoute = {
+type ManifestDataRoute = {
   page: string
   routeKeys?: { [key: string]: string }
   dataRouteRegex: string
@@ -388,6 +395,7 @@ export type RoutesManifest = {
   staticRoutes: Array<ManifestRoute>
   dynamicRoutes: Array<ManifestRoute>
   dataRoutes: Array<ManifestDataRoute>
+  prefetchSegmentDataRoutes: Array<PrefetchSegmentDataRoute>
   i18n?: {
     domains?: ReadonlyArray<{
       http?: true
@@ -407,6 +415,9 @@ export type RoutesManifest = {
     prefetchHeader: typeof NEXT_ROUTER_PREFETCH_HEADER
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
+    prefetchSegmentHeader: typeof NEXT_ROUTER_SEGMENT_PREFETCH_HEADER
+    prefetchSegmentDirSuffix: typeof RSC_SEGMENTS_DIR_SUFFIX
+    prefetchSegmentSuffix: typeof RSC_SEGMENT_SUFFIX
   }
   rewriteHeaders: {
     pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
@@ -1259,6 +1270,7 @@ export default async function build(
             dynamicRoutes,
             staticRoutes,
             dataRoutes: [],
+            prefetchSegmentDataRoutes: [],
             i18n: config.i18n || undefined,
             rsc: {
               header: RSC_HEADER,
@@ -1270,6 +1282,9 @@ export default async function build(
               contentTypeHeader: RSC_CONTENT_TYPE_HEADER,
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
+              prefetchSegmentHeader: NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+              prefetchSegmentSuffix: RSC_SEGMENT_SUFFIX,
+              prefetchSegmentDirSuffix: RSC_SEGMENTS_DIR_SUFFIX,
             },
             rewriteHeaders: {
               pathHeader: NEXT_REWRITTEN_PATH_HEADER,
@@ -2617,8 +2632,6 @@ export default async function build(
         ]).map((page) => {
           return buildDataRoute(page, buildId)
         })
-
-        // await writeManifest(routesManifestPath, routesManifest)
       }
 
       // We need to write the manifest with rewrites before build
@@ -3179,6 +3192,24 @@ export default async function build(
                   )
                 }
 
+                if (!isAppRouteHandler && metadata?.segmentPaths) {
+                  const dynamicRoute = routesManifest.dynamicRoutes.find(
+                    (r) => r.page === page
+                  )
+                  if (!dynamicRoute) {
+                    throw new Error('Dynamic route not found')
+                  }
+
+                  dynamicRoute.prefetchSegmentDataRoutes = []
+                  for (const segmentPath of metadata.segmentPaths) {
+                    const result = buildPrefetchSegmentDataRoute(
+                      route.pathname,
+                      segmentPath
+                    )
+                    dynamicRoute.prefetchSegmentDataRoutes.push(result)
+                  }
+                }
+
                 pageInfos.set(route.pathname, {
                   ...(pageInfos.get(route.pathname) as PageInfo),
                   isDynamicAppRoute: true,
@@ -3587,6 +3618,12 @@ export default async function build(
           await fs.rm(outdir, { recursive: true, force: true })
           await writeManifest(pagesManifestPath, pagesManifest)
         })
+
+        // We need to write the manifest with rewrites after build as it might
+        // have been modified.
+        await nextBuildSpan
+          .traceChild('write-routes-manifest')
+          .traceAsyncFn(() => writeManifest(routesManifestPath, routesManifest))
       }
 
       const postBuildSpinner = createSpinner('Finalizing page optimization')

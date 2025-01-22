@@ -4,7 +4,7 @@ import {
 } from '../../../../server/lib/interception-routes'
 
 // Identify /[param]/ in route string
-const TEST_ROUTE = /\/\[[^/]+?\](?=\/|$)/
+const TEST_ROUTE = /\/[^/]*\[[^/]+\][^/]*(?=\/|$)/
 
 export function isDynamicRoute(route: string): boolean {
   if (isInterceptionRouteAppPath(route)) {
