@@ -86,15 +86,23 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(match *self.inner().try_into_module().await? {
-                Some(inner) => Some(
-                    InternalCssAssetReference::new(*inner)
-                        .to_resolved()
-                        .await
-                        .map(ResolvedVc::upcast)?,
-                ),
-                None => None,
-            })
+            .chain(
+                match *self
+                    .inner(Value::new(ReferenceType::Css(
+                        CssReferenceSubType::Internal,
+                    )))
+                    .try_into_module()
+                    .await?
+                {
+                    Some(inner) => Some(
+                        InternalCssAssetReference::new(*inner)
+                            .to_resolved()
+                            .await
+                            .map(ResolvedVc::upcast)?,
+                    ),
+                    None => None,
+                },
+            )
             .collect();
 
         Ok(Vc::cell(references))
@@ -156,16 +164,16 @@ struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    fn inner(&self) -> Vc<ProcessResult> {
-        self.asset_context.process(
-            *self.source,
-            Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-        )
+    pub fn inner(&self, ty: Value<ReferenceType>) -> Vc<ProcessResult> {
+        self.asset_context
+            .process(*self.source, Value::new(ty.into_value()))
     }
 
     #[turbo_tasks::function]
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
-        let inner = self.inner().module();
+        let inner = self
+            .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
+            .module();
 
         let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
             .await?

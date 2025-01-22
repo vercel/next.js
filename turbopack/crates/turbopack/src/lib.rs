@@ -231,17 +231,12 @@ async fn apply_module_type(
         }
         ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
-        ModuleType::CssGlobal => {
-            return Ok(module_asset_context.process(
-                *source,
-                Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-            ))
-        }
         ModuleType::CssModule => ResolvedVc::upcast(
             ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
+
         ModuleType::Css { ty } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 *source,
@@ -541,6 +536,9 @@ async fn process_default_internal(
         if rule.matches(source, &path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
+                    ModuleRuleEffect::Ignore => {
+                        return Ok(ProcessResult::Ignore.cell());
+                    }
                     ModuleRuleEffect::SourceTransforms(transforms) => {
                         current_source =
                             transforms.transform(*current_source).to_resolved().await?;

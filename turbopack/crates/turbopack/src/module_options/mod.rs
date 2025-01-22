@@ -441,15 +441,11 @@ impl ModuleOptions {
             }
 
             rules.extend([
-                ModuleRule::new(
-                    RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        // Only create a global CSS asset if not `@import`ed from CSS already.
-                        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport(None),
-                        ))),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)],
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                    })],
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
@@ -465,18 +461,6 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        // Create a normal CSS asset if `@import`ed from CSS already.
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport(None),
-                        )),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
-                    })],
-                ),
-                ModuleRule::new(
-                    RuleCondition::all(vec![
                         RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         RuleCondition::ReferenceType(ReferenceType::Css(
@@ -487,14 +471,21 @@ impl ModuleOptions {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
-                ModuleRule::new_internal(
-                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
-                    })],
-                ),
+                // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                    })],
+                ),
+                // Ecmascript CSS Modules referencing the actual CSS module to list the classes
+                ModuleRule::new(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::Analyze,
+                        )),
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],

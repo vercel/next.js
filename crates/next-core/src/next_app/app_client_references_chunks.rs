@@ -104,9 +104,12 @@ pub async fn get_app_client_references_chunks(
                                     },
                                 )
                             }
-                            ClientReferenceType::CssClientReference(css_module) => {
+                            ClientReferenceType::CssClientReference(css_client_reference) => {
                                 let client_chunk_group = client_chunking_context
-                                    .root_chunk_group(*ResolvedVc::upcast(css_module), module_graph)
+                                    .root_chunk_group(
+                                        *ResolvedVc::upcast(css_client_reference),
+                                        module_graph,
+                                    )
                                     .await?;
 
                                 (
@@ -226,13 +229,11 @@ pub async fn get_app_client_references_chunks(
                         Ok(match client_reference_ty {
                             ClientReferenceType::EcmascriptClientReference(
                                 ecmascript_client_reference,
-                            ) => {
-                                let ecmascript_client_reference_ref =
-                                    ecmascript_client_reference.await?;
-                                *ResolvedVc::upcast(ecmascript_client_reference_ref.client_module)
-                            }
-                            ClientReferenceType::CssClientReference(css_module) => {
-                                *ResolvedVc::upcast(*css_module)
+                            ) => *ResolvedVc::upcast(
+                                ecmascript_client_reference.await?.client_module,
+                            ),
+                            ClientReferenceType::CssClientReference(css_client_reference) => {
+                                *ResolvedVc::upcast(*css_client_reference)
                             }
                         })
                     })
