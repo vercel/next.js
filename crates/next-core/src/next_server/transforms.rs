@@ -57,6 +57,16 @@ pub async fn get_next_server_transforms_rules(
                 vec![ModuleRuleEffect::Ignore],
             ),
         ]);
+        rules.extend([
+            // Ignore all non-module CSS references
+            ModuleRule::new(
+                RuleCondition::all(vec![
+                    RuleCondition::ResourcePathEndsWith(".css".into()),
+                    RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+                ]),
+                vec![ModuleRuleEffect::Ignore],
+            ),
+        ]);
     }
 
     if !foreign_code {
