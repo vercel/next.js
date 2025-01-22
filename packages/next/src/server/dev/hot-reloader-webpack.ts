@@ -751,6 +751,14 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
   }
 
   public async start(): Promise<void> {
+    if (process.env.NEXT_RSPACK_OTEL) {
+      console.log('next bin rspack otel')
+      await require('@rspack/core').experiments.globalTrace.register(
+        'trace',
+        'otel',
+        ''
+      )
+    }
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
@@ -1539,6 +1547,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
     }
     this.multiCompiler = undefined
+    await require('@rspack/core').experiments.globalTrace.cleanup()
   }
 
   public async getCompilationErrors(page: string) {
