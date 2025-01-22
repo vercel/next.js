@@ -147,6 +147,7 @@ impl InnerStorage {
         if let Some(i) = i {
             &mut self.map[i]
         } else {
+            self.map.reserve_exact(1);
             self.map.push(CachedDataItemStorage::new(ty));
             self.map.last_mut().unwrap()
         }
@@ -166,6 +167,7 @@ impl InnerStorage {
             i
         } else {
             let i = self.map.len();
+            self.map.reserve_exact(1);
             self.map.push(CachedDataItemStorage::new(ty));
             i
         }
@@ -191,6 +193,7 @@ impl InnerStorage {
             let result = storage.remove(key);
             if result.is_some() && storage.is_empty() {
                 self.map.swap_remove(i);
+                self.map.shrink_to_fit();
             }
             result
         })
@@ -265,6 +268,7 @@ impl InnerStorage {
             .collect::<Vec<_>>();
         if self.map[i].is_empty() {
             self.map.swap_remove(i);
+            self.map.shrink_to_fit();
         }
         Either::Right(items.into_iter())
     }
@@ -280,6 +284,7 @@ impl InnerStorage {
             map.insert(CachedDataItem::from_key_and_value(key, v));
         } else if map.is_empty() {
             self.map.swap_remove(i);
+            self.map.shrink_to_fit();
         }
     }
 
