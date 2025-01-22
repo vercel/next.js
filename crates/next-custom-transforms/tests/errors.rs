@@ -191,6 +191,7 @@ fn react_server_actions_server_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -231,6 +232,7 @@ fn react_server_actions_client_errors(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -289,6 +291,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },

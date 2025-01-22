@@ -1,5 +1,9 @@
 import type { webpack } from 'next/dist/compiled/webpack/webpack'
 import { NormalModule } from 'next/dist/compiled/webpack/webpack'
+import {
+  createUseCacheTracker,
+  type UseCacheTrackerKey,
+} from './use-cache-tracker-utils'
 
 /**
  * List of target triples next-swc native binary supports.
@@ -44,7 +48,7 @@ export type Feature =
   | 'skipTrailingSlashRedirect'
   | 'modularizeImports'
   | 'esmExternals'
-
+  | UseCacheTrackerKey
 interface FeatureUsage {
   featureName: Feature
   invocationCount: number
@@ -111,7 +115,14 @@ const BUILD_FEATURES: Array<Feature> = [
   'esmExternals',
 ]
 
+export type TelemetryLoaderContext = {
+  eliminatedPackages?: Set<string>
+  useCacheTracker?: Map<UseCacheTrackerKey, number>
+}
+
 const eliminatedPackages = new Set<string>()
+
+const useCacheTracker = createUseCacheTracker()
 
 /**
  * Determine if there is a feature of interest in the specified 'module'.
@@ -217,13 +228,20 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
         callback()
       }
     )
+
     if (compiler.options.mode === 'production' && !compiler.watchMode) {
-      compiler.hooks.compilation.tap(TelemetryPlugin.name, (compilation) => {
-        const moduleHooks = NormalModule.getCompilationHooks(compilation)
-        moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext: any) => {
-          loaderContext.eliminatedPackages = eliminatedPackages
-        })
-      })
+      compiler.hooks.thisCompilation.tap(
+        TelemetryPlugin.name,
+        (compilation) => {
+          const moduleHooks = NormalModule.getCompilationHooks(compilation)
+          moduleHooks.loader.tap(TelemetryPlugin.name, (loaderContext) => {
+            ;(loaderContext as TelemetryLoaderContext).eliminatedPackages =
+              eliminatedPackages
+            ;(loaderContext as TelemetryLoaderContext).useCacheTracker =
+              useCacheTracker
+          })
+        }
+      )
     }
   }
 
@@ -234,6 +252,10 @@ export class TelemetryPlugin implements webpack.WebpackPluginInstance {
   packagesUsedInServerSideProps(): string[] {
     return Array.from(eliminatedPackages)
   }
+
+  getUseCacheTracker(): Record<UseCacheTrackerKey, number> {
+    return Object.fromEntries(useCacheTracker)
+  }
 }
 
 export type TelemetryPluginState = {
@@ -241,4 +263,5 @@ export type TelemetryPluginState = {
   packagesUsedInServerSideProps: ReturnType<
     TelemetryPlugin['packagesUsedInServerSideProps']
   >
+  useCacheTracker: ReturnType<TelemetryPlugin['getUseCacheTracker']>
 }

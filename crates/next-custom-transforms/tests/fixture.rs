@@ -572,6 +572,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     _tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -605,6 +606,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -631,6 +633,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                         cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -933,6 +936,7 @@ fn test_source_maps(input: PathBuf) {
                         cache_kinds: FxHashSet::from_iter([]),
                     },
                     _tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
