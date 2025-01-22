@@ -7,7 +7,7 @@ import { isPrerenderInterruptedError } from './dynamic-rendering'
  */
 export function prerenderAndAbortInSequentialTasks<R>(
   prerender: () => Promise<R>,
-  abort: () => Promise<void>
+  abort: () => void
 ): Promise<R> {
   if (process.env.NEXT_RUNTIME === 'edge') {
     throw new InvariantError(
@@ -26,8 +26,7 @@ export function prerenderAndAbortInSequentialTasks<R>(
       })
       setImmediate(() => {
         abort()
-          .then(() => resolve(pendingResult))
-          .catch(() => {})
+        resolve(pendingResult)
       })
     })
   }
