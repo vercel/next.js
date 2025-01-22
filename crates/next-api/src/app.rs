@@ -64,7 +64,7 @@ use turbopack_core::{
     module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     raw_output::RawOutput,
-    reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType},
+    reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
     source::Source,
     virtual_output::VirtualOutputAsset,

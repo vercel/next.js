@@ -1,21 +1,9 @@
-use anyhow::{bail, Context, Result};
+use anyhow::{Context, Result};
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack::{
-    css::{chunk::CssChunkPlaceable, ModuleCssAsset},
-    transition::Transition,
-    ModuleAssetContext,
-};
-use turbopack_core::{
-    context::{AssetContext, ProcessResult},
-    module::Module,
-    reference_type::{CssReferenceSubType, EntryReferenceSubType, ReferenceType},
-    source::Source,
-};
+use turbopack::{css::chunk::CssChunkPlaceable, transition::Transition, ModuleAssetContext};
+use turbopack_core::{context::ProcessResult, reference_type::ReferenceType, source::Source};
 
-use crate::next_client_reference::css_client_reference::{
-    css_client_reference_module::CssClientReferenceModule,
-    css_module_client_reference_module::CssModuleClientReferenceModule,
-};
+use crate::next_client_reference::css_client_reference::css_client_reference_module::CssClientReferenceModule;
 
 #[turbo_tasks::value(shared)]
 pub struct NextCssClientReferenceTransition {

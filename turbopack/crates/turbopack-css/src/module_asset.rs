@@ -50,40 +50,14 @@ pub struct ModuleCssAsset {
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    pub async fn new(
+    pub fn new(
         source: ResolvedVc<Box<dyn Source>>,
         asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    ) -> Result<Vc<Self>> {
-        let this = Self::cell(ModuleCssAsset {
+    ) -> Vc<Self> {
+        Self::cell(ModuleCssAsset {
             source,
             asset_context,
-        });
-
-        println!(
-            "ModuleCssAsset::references {:?} {:?} {:?} {:?}",
-            this.ident().to_string().await?,
-            this.await?.asset_context.layer().await?,
-            match &*this
-                .inner(Value::new(ReferenceType::Css(
-                    CssReferenceSubType::Internal
-                )))
-                .try_into_module()
-                .await?
-            {
-                Some(v) => Some(v.ident().to_string().await?),
-                None => None,
-            },
-            match &*this
-                .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
-                .try_into_module()
-                .await?
-            {
-                Some(v) => Some(v.ident().to_string().await?),
-                None => None,
-            },
-        );
-
-        Ok(this)
+        })
     }
 }
 

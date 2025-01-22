@@ -2,8 +2,7 @@ use anyhow::Result;
 use next_custom_transforms::transforms::strip_page_exports::ExportFilter;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
-use turbopack::module_options::{ModuleRule, ModuleRuleEffect, ModuleType, RuleCondition};
-use turbopack_core::reference_type::{EntryReferenceSubType, ReferenceType};
+use turbopack::module_options::ModuleRule;
 
 use crate::{
     mode::NextMode,
