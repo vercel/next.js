@@ -3,6 +3,7 @@ import type {
   FlightRouterState,
   InitialRSCPayload,
   Segment as FlightRouterStateSegment,
+  DynamicParamTypesShort,
 } from './types'
 import type { ManifestNode } from '../../build/webpack/plugins/flight-manifest-plugin'
 
@@ -24,8 +25,10 @@ import {
   encodeChildSegmentKey,
   encodeSegment,
   ROOT_SEGMENT_KEY,
+  type EncodedSegment,
 } from './segment-value-encoding'
 import { getDigestForWellKnownError } from './create-error-handler'
+import type { FallbackRouteParams } from '../request/fallback-params'
 
 // Contains metadata about the route tree. The client must fetch this before
 // it can fetch any actual segment data.
@@ -75,7 +78,8 @@ export async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   staleTime: number,
   clientModules: ManifestNode,
-  serverConsumerManifest: any
+  serverConsumerManifest: any,
+  fallbackRouteParams: FallbackRouteParams | null
 ): Promise<Map<string, Buffer>> {
   // Traverse the router tree and generate a prefetch response for each segment.
 
@@ -117,6 +121,7 @@ export async function collectSegmentData(
     <PrefetchTreeData
       shouldAssumePartialData={shouldAssumePartialData}
       fullPageDataBuffer={fullPageDataBuffer}
+      fallbackRouteParams={fallbackRouteParams}
       serverConsumerManifest={serverConsumerManifest}
       clientModules={clientModules}
       staleTime={staleTime}
@@ -147,6 +152,7 @@ export async function collectSegmentData(
 async function PrefetchTreeData({
   shouldAssumePartialData,
   fullPageDataBuffer,
+  fallbackRouteParams,
   serverConsumerManifest,
   clientModules,
   staleTime,
@@ -156,6 +162,7 @@ async function PrefetchTreeData({
   shouldAssumePartialData: boolean
   fullPageDataBuffer: Buffer
   serverConsumerManifest: any
+  fallbackRouteParams: FallbackRouteParams | null
   clientModules: ManifestNode
   staleTime: number
   segmentTasks: Array<Promise<[string, Buffer]>>
@@ -196,6 +203,7 @@ async function PrefetchTreeData({
     flightRouterState,
     buildId,
     seedData,
+    fallbackRouteParams,
     fullPageDataBuffer,
     clientModules,
     serverConsumerManifest,
@@ -227,6 +235,7 @@ function collectSegmentDataImpl(
   route: FlightRouterState,
   buildId: string,
   seedData: CacheNodeSeedData | null,
+  fallbackRouteParams: FallbackRouteParams | null,
   fullPageDataBuffer: Buffer,
   clientModules: ManifestNode,
   serverConsumerManifest: any,
@@ -244,16 +253,23 @@ function collectSegmentDataImpl(
     const childSegment = childRoute[0]
     const childSeedData =
       seedDataChildren !== null ? seedDataChildren[parallelRouteKey] : null
+
     const childKey = encodeChildSegmentKey(
       key,
       parallelRouteKey,
-      encodeSegment(childSegment)
+      Array.isArray(childSegment) && fallbackRouteParams !== null
+        ? encodeSegmentWithPossibleFallbackParam(
+            childSegment,
+            fallbackRouteParams
+          )
+        : encodeSegment(childSegment)
     )
     const childTree = collectSegmentDataImpl(
       shouldAssumePartialData,
       childRoute,
       buildId,
       childSeedData,
+      fallbackRouteParams,
       fullPageDataBuffer,
       clientModules,
       serverConsumerManifest,
@@ -296,6 +312,35 @@ function collectSegmentDataImpl(
     slots: slotMetadata,
     isRootLayout: route[4] === true,
   }
+}
+
+function encodeSegmentWithPossibleFallbackParam(
+  segment: [string, string, DynamicParamTypesShort],
+  fallbackRouteParams: FallbackRouteParams
+): EncodedSegment {
+  const name = segment[0]
+  if (!fallbackRouteParams.has(name)) {
+    // Normal case. No matching fallback parameter.
+    return encodeSegment(segment)
+  }
+  // This segment includes a fallback parameter. During prerendering, a random
+  // placeholder value was used; however, for segment prefetches, we need the
+  // segment path to be predictable so the server can create a rewrite for it.
+  // So, replace the placeholder segment value with a "template" string,
+  // e.g. `[name]`.
+  // TODO: This will become a bit cleaner once remove route parameters from the
+  // server response, and instead add them to the segment keys on the client.
+  // Instead of a string replacement, like we do here, route params will always
+  // be encoded in separate step from the rest of the segment, not just in the
+  // case of fallback params.
+  const encodedSegment = encodeSegment(segment)
+  const lastIndex = encodedSegment.lastIndexOf('$')
+  const encodedFallbackSegment =
+    // NOTE: This is guaranteed not to clash with the rest of the segment
+    // because non-simple characters (including [ and ]) trigger a base
+    // 64 encoding.
+    encodedSegment.substring(0, lastIndex + 1) + `[${name}]`
+  return encodedFallbackSegment as EncodedSegment
 }
 
 async function renderSegmentPrefetch(
