@@ -137,7 +137,7 @@ describe('config telemetry', () => {
 
       it('detects output config for session start', async () => {
         await fs.writeFile(
-          './next.config.js',
+          path.join(appDir, 'next.config.js'),
           'module.exports = { output: "export" }'
         )
         try {
@@ -157,7 +157,7 @@ describe('config telemetry', () => {
             throw err
           }
         } finally {
-          await fs.remove('./next.config.js')
+          await fs.remove(path.join(appDir, 'next.config.js'))
         }
       })
 
