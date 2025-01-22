@@ -11404,14 +11404,31 @@ function getViewTransitionName(props, instance) {
     ? props.name
     : instance.autoName;
 }
-function getViewTransitionClassName(className, eventClassName) {
-  return null == eventClassName
-    ? className
-    : "none" === eventClassName
-      ? eventClassName
-      : null != className
-        ? className + " " + eventClassName
-        : eventClassName;
+function getClassNameByType(classByType) {
+  if (null == classByType || "string" === typeof classByType)
+    return classByType;
+  var className = null,
+    activeTypes = pendingTransitionTypes;
+  if (null !== activeTypes)
+    for (var i = 0; i < activeTypes.length; i++) {
+      var match = classByType[activeTypes[i]];
+      if (null != match) {
+        if ("none" === match) return "none";
+        className = null == className ? match : className + (" " + match);
+      }
+    }
+  return null == className ? classByType.default : className;
+}
+function getViewTransitionClassName(defaultClass, eventClass) {
+  defaultClass = getClassNameByType(defaultClass);
+  eventClass = getClassNameByType(eventClass);
+  return null == eventClass
+    ? defaultClass
+    : "none" === eventClass
+      ? eventClass
+      : null != defaultClass && "none" !== defaultClass
+        ? defaultClass + " " + eventClass
+        : eventClass;
 }
 function markUpdate(workInProgress) {
   workInProgress.flags |= 4;
@@ -12158,6 +12175,7 @@ var DefaultAsyncDispatcher = {
   pendingPassiveTransitions = null,
   pendingRecoverableErrors = null,
   pendingViewTransitionEvents = null,
+  pendingTransitionTypes = null,
   pendingSuspendedCommitReason = 0,
   nestedUpdateCount = 0,
   rootWithNestedUpdates = null;
@@ -13293,10 +13311,14 @@ function commitRoot(
     pendingEffectsRemainingLanes = didIncludeRenderPhaseUpdate;
     pendingPassiveTransitions = transitions;
     pendingRecoverableErrors = recoverableErrors;
-    pendingViewTransitionEvents = null;
     pendingEffectsRenderEndTime = completedRenderEndTime;
     pendingSuspendedCommitReason = suspendedCommitReason;
-    recoverableErrors = (lanes & 335544192) === lanes ? 10262 : 10256;
+    pendingViewTransitionEvents = null;
+    (lanes & 335544192) === lanes
+      ? ((pendingTransitionTypes = ReactSharedInternals.V),
+        (ReactSharedInternals.V = null),
+        (recoverableErrors = 10262))
+      : ((pendingTransitionTypes = null), (recoverableErrors = 10256));
     0 !== finishedWork.actualDuration ||
     0 !== (finishedWork.subtreeFlags & recoverableErrors) ||
     0 !== (finishedWork.flags & recoverableErrors)
@@ -13339,6 +13361,7 @@ function commitRoot(
     (shouldStartViewTransition &&
       startViewTransition(
         root.containerInfo,
+        pendingTransitionTypes,
         flushMutationEffects,
         flushLayoutEffects,
         flushAfterMutationEffects,
@@ -13600,13 +13623,17 @@ function flushSpawnedWork() {
       }
     }
     recoverableErrors = pendingViewTransitionEvents;
+    onRecoverableError = pendingTransitionTypes;
+    pendingTransitionTypes = null;
     if (null !== recoverableErrors)
       for (
-        pendingViewTransitionEvents = null, onRecoverableError = 0;
-        onRecoverableError < recoverableErrors.length;
-        onRecoverableError++
+        pendingViewTransitionEvents = null,
+          null === onRecoverableError && (onRecoverableError = []),
+          recoverableError = 0;
+        recoverableError < recoverableErrors.length;
+        recoverableError++
       )
-        (0, recoverableErrors[onRecoverableError])();
+        (0, recoverableErrors[recoverableError])(onRecoverableError);
     0 !== (pendingEffectsLanes & 3) && flushPendingEffects();
     ensureRootIsScheduled(root);
     suspendedCommitReason = root.pendingLanes;
@@ -16024,6 +16051,7 @@ function measureInstance(instance) {
 }
 function startViewTransition(
   rootContainer,
+  transitionTypes,
   mutationCallback,
   layoutCallback,
   afterMutationCallback,
@@ -16068,7 +16096,7 @@ function startViewTransition(
           );
         afterMutationCallback();
       },
-      types: null
+      types: transitionTypes
     });
     ownerDocument.__reactViewTransition = transition;
     transition.ready.then(spawnedWorkCallback, spawnedWorkCallback);
@@ -17805,14 +17833,14 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
 };
 var isomorphicReactPackageVersion$jscomp$inline_1947 = React.version;
 if (
-  "19.1.0-experimental-5b51a2b9-20250116" !==
+  "19.1.0-experimental-9b62ee71-20250122" !==
   isomorphicReactPackageVersion$jscomp$inline_1947
 )
   throw Error(
     formatProdErrorMessage(
       527,
       isomorphicReactPackageVersion$jscomp$inline_1947,
-      "19.1.0-experimental-5b51a2b9-20250116"
+      "19.1.0-experimental-9b62ee71-20250122"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -17834,10 +17862,10 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
 };
 var internals$jscomp$inline_2471 = {
   bundleType: 0,
-  version: "19.1.0-experimental-5b51a2b9-20250116",
+  version: "19.1.0-experimental-9b62ee71-20250122",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-experimental-5b51a2b9-20250116"
+  reconcilerVersion: "19.1.0-experimental-9b62ee71-20250122"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
   var hook$jscomp$inline_2472 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
@@ -18104,7 +18132,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-experimental-5b51a2b9-20250116";
+exports.version = "19.1.0-experimental-9b62ee71-20250122";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

@@ -1798,8 +1798,10 @@
         : ((request.status = CLOSING), (request.fatalError = error));
     }
     function serializeErrorValue(request, error) {
-      var env = (0, request.environmentName)();
+      var name = "Error",
+        env = (0, request.environmentName)();
       try {
+        name = error.name;
         var message = String(error.message);
         var stack = filterStackTrace(request, error, 0);
         var errorEnv = error.environmentName;
@@ -1812,6 +1814,7 @@
       return (
         "$Z" +
         outlineModel(request, {
+          name: name,
           message: message,
           stack: stack,
           env: env
@@ -1819,9 +1822,11 @@
       );
     }
     function emitErrorChunk(request, id, digest, error) {
-      var env = (0, request.environmentName)();
+      var name = "Error",
+        env = (0, request.environmentName)();
       try {
         if (error instanceof Error) {
+          name = error.name;
           var message = String(error.message);
           var stack = filterStackTrace(request, error, 0);
           var errorEnv = error.environmentName;
@@ -1837,7 +1842,13 @@
           "An error occurred but serializing the error message failed."),
           (stack = []);
       }
-      digest = { digest: digest, message: message, stack: stack, env: env };
+      digest = {
+        digest: digest,
+        name: name,
+        message: message,
+        stack: stack,
+        env: env
+      };
       id = id.toString(16) + ":E" + stringify(digest) + "\n";
       request.completedErrorChunks.push(id);
     }
