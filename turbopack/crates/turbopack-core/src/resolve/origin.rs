@@ -10,7 +10,7 @@ use crate::{context::AssetContext, module::OptionModule, reference_type::Referen
 
 /// A location where resolving can occur from. It carries some meta information
 /// that are needed for resolving from here.
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ResolveOrigin {
     /// The origin path where resolving starts. This is pointing to a file,
     /// since that might be needed to infer custom resolving options for that

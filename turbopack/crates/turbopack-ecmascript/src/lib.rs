@@ -254,7 +254,7 @@ pub struct EcmascriptModuleAsset {
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
@@ -263,7 +263,7 @@ pub trait EcmascriptParsable {
     fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable {
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 

@@ -97,7 +97,7 @@ pub enum StyledString {
     Strong(RcStr),
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.

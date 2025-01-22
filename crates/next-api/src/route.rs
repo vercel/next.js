@@ -43,7 +43,7 @@ pub enum Route {
     Conflict,
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Endpoint {
     fn write_to_disk(self: Vc<Self>) -> Vc<WrittenEndpoint>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
