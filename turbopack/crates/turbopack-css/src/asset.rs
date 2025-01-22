@@ -37,7 +37,7 @@ pub struct CssModuleAsset {
     source: ResolvedVc<Box<dyn Source>>,
     asset_context: ResolvedVc<Box<dyn AssetContext>>,
     import_context: Option<ResolvedVc<ImportContext>>,
-    pub ty: CssModuleAssetType,
+    ty: CssModuleAssetType,
     minify_type: MinifyType,
 }
 

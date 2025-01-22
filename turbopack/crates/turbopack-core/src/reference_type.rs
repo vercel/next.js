@@ -167,6 +167,8 @@ impl ImportContext {
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
+    /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
+    /// class name
     Compose,
     /// Reference from ModuleCssAsset to the CssModuleAsset
     Internal,
