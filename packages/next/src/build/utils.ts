@@ -1289,18 +1289,8 @@ export async function buildAppStaticPaths({
     minimalMode: ciEnvironment.hasNextSupport,
   })
 
-  const paramKeys = new Set<string>()
-
-  const staticParamKeys = new Set<string>()
-  for (const segment of segments) {
-    if (segment.param) {
-      paramKeys.add(segment.param)
-
-      if (segment.config?.dynamicParams === false) {
-        staticParamKeys.add(segment.param)
-      }
-    }
-  }
+  const regex = getRouteRegex(page)
+  const paramKeys = Object.keys(getRouteMatcher(regex)(page) || {})
 
   const afterRunner = new AfterRunner()
 
@@ -1417,7 +1407,7 @@ export async function buildAppStaticPaths({
   // Determine if all the segments have had their parameters provided. If there
   // was no dynamic parameters, then we've collected all the params.
   const hadAllParamsGenerated =
-    paramKeys.size === 0 ||
+    paramKeys.length === 0 ||
     (routeParams.length > 0 &&
       routeParams.every((params) => {
         for (const key of paramKeys) {
