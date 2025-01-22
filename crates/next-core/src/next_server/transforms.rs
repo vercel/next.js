@@ -55,38 +55,10 @@ pub async fn get_next_server_transforms_rules(
     if !matches!(context_ty, ServerContextType::AppRSC { .. }) {
         rules.extend([
             // Ignore the internal ModuleCssAsset -> CssModuleAsset references
-            // The CSS Module module is still needed for class names
+            // The CSS Module module itself is still needed for class names
             ModuleRule::new_internal(
                 RuleCondition::ResourcePathEndsWith(".module.css".into()),
                 vec![ModuleRuleEffect::Ignore],
-            ),
-            // Ignore imports to all non-module CSS files
-            // ModuleRule::new(
-            //     RuleCondition::all(vec![
-            //         RuleCondition::ResourcePathEndsWith(".css".into()),
-            //         RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".
-            // into())),     ]),
-            //     vec![ModuleRuleEffect::Ignore],
-            // ),
-            ModuleRule::new(
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                    RuleCondition::ReferenceType(ReferenceType::Entry(
-                        EntryReferenceSubType::AppClientComponent,
-                    )),
-                ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                    ty: CssModuleAssetType::Module,
-                })],
-            ),
-            ModuleRule::new(
-                RuleCondition::all(vec![
-                    RuleCondition::ResourcePathEndsWith(".module.css".into()),
-                    RuleCondition::ReferenceType(ReferenceType::Css(CssReferenceSubType::Compose)),
-                ]),
-                vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                    ty: CssModuleAssetType::Module,
-                })],
             ),
         ]);
     }
