@@ -1321,7 +1321,7 @@ export default abstract class Server<
               )
               if (
                 segmentPrefetchRSCRequest &&
-                isDynamicRoute(segmentPrefetchRSCRequest)
+                isDynamicRoute(segmentPrefetchRSCRequest, false)
               ) {
                 segmentPrefetchRSCRequest = utils.interpolateDynamicPath(
                   segmentPrefetchRSCRequest,
