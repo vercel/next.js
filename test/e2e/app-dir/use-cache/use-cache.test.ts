@@ -460,7 +460,6 @@ describe('use-cache', () => {
     expect(text).toBe('This page could not be found.')
   })
 
-  // TODO: Fails with Turbopack.
   it('should not trigger dynamic I/O error for inner "use cache" functions with client components', async () => {
     const outputIndex = next.cliOutput.length
     const browser = await next.browser('/inner-cache-with-client-component')
