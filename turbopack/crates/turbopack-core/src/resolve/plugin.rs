@@ -21,21 +21,22 @@ impl AfterResolvePluginCondition {
     pub fn new(root: ResolvedVc<FileSystemPath>, glob: ResolvedVc<Glob>) -> Vc<Self> {
         AfterResolvePluginCondition { root, glob }.cell()
     }
+}
 
-    #[turbo_tasks::function]
-    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
+impl AfterResolvePluginCondition {
+    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<bool> {
         let root = self.root.await?;
-        let glob = self.glob.await?;
 
         let path = fs_path.await?;
 
         if let Some(path) = root.get_path_to(&path) {
+            let glob = self.glob.await?;
             if glob.execute(path) {
-                return Ok(Vc::cell(true));
+                return Ok(true);
             }
         }
 
-        Ok(Vc::cell(false))
+        Ok(false)
     }
 }
 

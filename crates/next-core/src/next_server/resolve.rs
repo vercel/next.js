@@ -108,7 +108,7 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
         let predicate = self.predicate.await?;
         let must_be_external = match &*predicate {
             ExternalPredicate::AllExcept(exceptions) => {
-                if *condition(*self.root).matches(*lookup_path).await? {
+                if condition(*self.root).await?.matches(*lookup_path).await? {
                     return Ok(ResolveResultOption::none());
                 }
 
