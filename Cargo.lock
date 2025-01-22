@@ -4412,6 +4412,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbo-tasks-memory",
  "turbopack",
  "turbopack-browser",
