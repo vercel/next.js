@@ -54,7 +54,7 @@
     "strip-ansi": "^6.0.0"
   },
   "devDependencies": {
-    "@healthline/six-million": "~8.1.0",
+    "@healthline/six-million": "~8.1.4",
     "babel-eslint": "10.0.3",
     "husky": ">=7",
     "lint-staged": ">=10",
