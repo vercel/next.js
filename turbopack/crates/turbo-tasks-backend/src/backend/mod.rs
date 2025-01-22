@@ -827,15 +827,20 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             let size = self.storage.size();
             let capacity = self.storage.capacity_size();
             let tasks = self.storage.tasks();
+            let storages_len = self.storage.storages_len();
+            let storages_capacity = self.storage.storages_capacity();
             let data_len = self.storage.data_len();
             let data_capacity = self.storage.data_capacity();
             println!(
-                "Storage size {}MiB, capactiy {}MiB, {} tasks\nData size {}MiB, capacity {}MiB",
+                "Storage size {}MiB, capactiy {}MiB, {} tasks\nStorages {}M, capacity {}M, Data \
+                 entries {}M, capacity {}M",
                 size / 1024 / 1024,
                 capacity / 1024 / 1024,
                 tasks,
-                data_len / 1024 / 1024,
-                data_capacity / 1024 / 1024
+                storages_len / 1000 / 1000,
+                storages_capacity / 1000 / 1000,
+                data_len / 1000 / 1000,
+                data_capacity / 1000 / 1000
             );
             {
                 let count_histograms = self.storage.count_histogram();

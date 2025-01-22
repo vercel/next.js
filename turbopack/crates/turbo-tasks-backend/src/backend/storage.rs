@@ -150,6 +150,14 @@ impl InnerStorage {
             + self.output_dependent.len()
     }
 
+    pub fn types(&self) -> usize {
+        self.map.len()
+    }
+
+    pub fn types_capacity(&self) -> usize {
+        self.map.capacity()
+    }
+
     pub fn capacity(&self) -> usize {
         use crate::data_storage::Storage;
         self.dynamic.capacity()
@@ -583,6 +591,20 @@ impl Storage {
         self.map
             .iter()
             .map(|key_value| key_value.value().capacity())
+            .sum::<usize>()
+    }
+
+    pub fn storages_len(&self) -> usize {
+        self.map
+            .iter()
+            .map(|key_value| key_value.value().types())
+            .sum::<usize>()
+    }
+
+    pub fn storages_capacity(&self) -> usize {
+        self.map
+            .iter()
+            .map(|key_value| key_value.value().types_capacity())
             .sum::<usize>()
     }
 
