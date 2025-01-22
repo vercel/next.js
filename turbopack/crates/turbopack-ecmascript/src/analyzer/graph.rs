@@ -43,31 +43,31 @@ impl EffectsBlock {
 #[derive(Debug, Clone)]
 pub enum ConditionalKind {
     /// The blocks of an `if` statement without an `else` block.
-    If { then: EffectsBlock },
+    If { then: Box<EffectsBlock> },
     /// The blocks of an `if ... else` or `if { ... return ... } ...` statement.
     IfElse {
-        then: EffectsBlock,
-        r#else: EffectsBlock,
+        then: Box<EffectsBlock>,
+        r#else: Box<EffectsBlock>,
     },
     /// The blocks of an `if ... else` statement.
-    Else { r#else: EffectsBlock },
+    Else { r#else: Box<EffectsBlock> },
     /// The blocks of an `if { ... return ... } else { ... } ...` or `if { ... }
     /// else { ... return ... } ...` statement.
     IfElseMultiple {
-        then: Vec<EffectsBlock>,
-        r#else: Vec<EffectsBlock>,
+        then: Vec<Box<EffectsBlock>>,
+        r#else: Vec<Box<EffectsBlock>>,
     },
     /// The expressions on the right side of the `?:` operator.
     Ternary {
-        then: EffectsBlock,
-        r#else: EffectsBlock,
+        then: Box<EffectsBlock>,
+        r#else: Box<EffectsBlock>,
     },
     /// The expression on the right side of the `&&` operator.
-    And { expr: EffectsBlock },
+    And { expr: Box<EffectsBlock> },
     /// The expression on the right side of the `||` operator.
-    Or { expr: EffectsBlock },
+    Or { expr: Box<EffectsBlock> },
     /// The expression on the right side of the `??` operator.
-    NullishCoalescing { expr: EffectsBlock },
+    NullishCoalescing { expr: Box<EffectsBlock> },
 }
 
 impl ConditionalKind {
@@ -106,7 +106,7 @@ impl ConditionalKind {
 #[derive(Debug, Clone)]
 pub enum EffectArg {
     Value(JsValue),
-    Closure(JsValue, EffectsBlock),
+    Closure(JsValue, Box<EffectsBlock>),
     Spread,
 }
 
@@ -132,7 +132,7 @@ pub enum Effect {
     /// condition evaluates to some compile-time constant, we can use that
     /// to determine which effects are executed and remove the others.
     Conditional {
-        condition: JsValue,
+        condition: Box<JsValue>,
         kind: Box<ConditionalKind>,
         /// The ast path to the condition.
         ast_path: Vec<AstParentKind>,
@@ -141,7 +141,7 @@ pub enum Effect {
     },
     /// A function call or a new call of a function.
     Call {
-        func: JsValue,
+        func: Box<JsValue>,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
@@ -150,8 +150,8 @@ pub enum Effect {
     },
     /// A function call or a new call of a property of an object.
     MemberCall {
-        obj: JsValue,
-        prop: JsValue,
+        obj: Box<JsValue>,
+        prop: Box<JsValue>,
         args: Vec<EffectArg>,
         ast_path: Vec<AstParentKind>,
         span: Span,
@@ -160,8 +160,8 @@ pub enum Effect {
     },
     /// A property access.
     Member {
-        obj: JsValue,
-        prop: JsValue,
+        obj: Box<JsValue>,
+        prop: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
@@ -176,14 +176,14 @@ pub enum Effect {
     },
     /// A reference to a free var access.
     FreeVar {
-        var: JsValue,
+        var: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
         in_try: bool,
     },
     /// A typeof expression
     TypeOf {
-        arg: JsValue,
+        arg: Box<JsValue>,
         ast_path: Vec<AstParentKind>,
         span: Span,
     },
@@ -720,9 +720,9 @@ enum EarlyReturn {
         prev_effects: Vec<Effect>,
         start_ast_path: Vec<AstParentKind>,
 
-        condition: JsValue,
-        then: Option<EffectsBlock>,
-        r#else: Option<EffectsBlock>,
+        condition: Box<JsValue>,
+        then: Option<Box<EffectsBlock>>,
+        r#else: Option<Box<EffectsBlock>>,
         /// The ast path to the condition.
         condition_ast_path: Vec<AstParentKind>,
         span: Span,
@@ -1108,10 +1108,10 @@ impl Analyzer<'_> {
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
-                            EffectsBlock {
+                            Box::new(EffectsBlock {
                                 effects,
                                 range: AstPathRange::Exact(path),
-                            },
+                            }),
                         )
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);
@@ -1127,7 +1127,7 @@ impl Analyzer<'_> {
         match callee {
             Callee::Import(_) => {
                 self.add_effect(Effect::Call {
-                    func: JsValue::FreeVar(js_word!("import")),
+                    func: Box::new(JsValue::FreeVar(js_word!("import"))),
                     args,
                     ast_path: as_parent_path(ast_path),
                     span,
@@ -1137,15 +1137,15 @@ impl Analyzer<'_> {
             }
             Callee::Expr(box expr) => {
                 if let Expr::Member(MemberExpr { obj, prop, .. }) = unparen(expr) {
-                    let obj_value = self.eval_context.eval(obj);
+                    let obj_value = Box::new(self.eval_context.eval(obj));
                     let prop_value = match prop {
                         // TODO avoid clone
-                        MemberProp::Ident(i) => i.sym.clone().into(),
+                        MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
                         MemberProp::PrivateName(_) => {
                             return;
                         }
                         MemberProp::Computed(ComputedPropName { expr, .. }) => {
-                            self.eval_context.eval(expr)
+                            Box::new(self.eval_context.eval(expr))
                         }
                     };
                     self.add_effect(Effect::MemberCall {
@@ -1158,7 +1158,7 @@ impl Analyzer<'_> {
                         new,
                     });
                 } else {
-                    let fn_value = self.eval_context.eval(expr);
+                    let fn_value = Box::new(self.eval_context.eval(expr));
                     self.add_effect(Effect::Call {
                         func: fn_value,
                         args,
@@ -1170,10 +1170,11 @@ impl Analyzer<'_> {
                 }
             }
             Callee::Super(_) => self.add_effect(Effect::Call {
-                func: self
-                    .eval_context
-                    // Unwrap because `new super(..)` isn't valid anyway
-                    .eval(&Expr::Call(n.as_call().unwrap().clone())),
+                func: Box::new(
+                    self.eval_context
+                        // Unwrap because `new super(..)` isn't valid anyway
+                        .eval(&Expr::Call(n.as_call().unwrap().clone())),
+                ),
                 args,
                 ast_path: as_parent_path(ast_path),
                 span,
@@ -1188,14 +1189,16 @@ impl Analyzer<'_> {
         member_expr: &'ast MemberExpr,
         ast_path: &AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let obj_value = self.eval_context.eval(&member_expr.obj);
+        let obj_value = Box::new(self.eval_context.eval(&member_expr.obj));
         let prop_value = match &member_expr.prop {
             // TODO avoid clone
-            MemberProp::Ident(i) => i.sym.clone().into(),
+            MemberProp::Ident(i) => Box::new(i.sym.clone().into()),
             MemberProp::PrivateName(_) => {
                 return;
             }
-            MemberProp::Computed(ComputedPropName { expr, .. }) => self.eval_context.eval(expr),
+            MemberProp::Computed(ComputedPropName { expr, .. }) => {
+                Box::new(self.eval_context.eval(expr))
+            }
         };
         self.add_effect(Effect::Member {
             obj: obj_value,
@@ -1241,10 +1244,10 @@ impl Analyzer<'_> {
                     in_try,
                     early_return_condition_value,
                 } => {
-                    let block = EffectsBlock {
+                    let block = Box::new(EffectsBlock {
                         effects: take(&mut self.effects),
                         range: AstPathRange::StartAfter(start_ast_path),
-                    };
+                    });
                     self.effects = prev_effects;
                     let kind = match (then, r#else, early_return_condition_value) {
                         (None, None, false) => ConditionalKind::If { then: block },
@@ -1873,7 +1876,7 @@ impl VisitAstPath for Analyzer<'_> {
             })
         } else if is_unresolved(ident, self.eval_context.unresolved_mark) {
             self.add_effect(Effect::FreeVar {
-                var: JsValue::FreeVar(ident.sym.clone()),
+                var: Box::new(JsValue::FreeVar(ident.sym.clone())),
                 ast_path: as_parent_path(ast_path),
                 span: ident.span(),
                 in_try: is_in_try(ast_path),
@@ -1925,19 +1928,19 @@ impl VisitAstPath for Analyzer<'_> {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Cons));
             expr.cons.visit_with_ast_path(self, &mut ast_path);
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         let r#else = {
             let mut ast_path =
                 ast_path.with_guard(AstParentNodeRef::CondExpr(expr, CondExprField::Alt));
             expr.alt.visit_with_ast_path(self, &mut ast_path);
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         self.effects = prev_effects;
 
@@ -1968,10 +1971,10 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Cons));
             stmt.cons.visit_with_ast_path(self, &mut ast_path);
             then_returning = self.end_early_return_block();
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         };
         let mut else_returning = false;
         let r#else = stmt.alt.as_ref().map(|alt| {
@@ -1979,10 +1982,10 @@ impl VisitAstPath for Analyzer<'_> {
                 ast_path.with_guard(AstParentNodeRef::IfStmt(stmt, IfStmtField::Alt));
             alt.visit_with_ast_path(self, &mut ast_path);
             else_returning = self.end_early_return_block();
-            EffectsBlock {
+            Box::new(EffectsBlock {
                 effects: take(&mut self.effects),
                 range: AstPathRange::Exact(as_parent_path(&ast_path)),
-            }
+            })
         });
         self.early_return_stack = prev_early_return_stack;
         self.effects = prev_effects;
@@ -2118,7 +2121,7 @@ impl VisitAstPath for Analyzer<'_> {
         ast_path: &mut swc_core::ecma::visit::AstNodePath<'r>,
     ) {
         if n.op == UnaryOp::TypeOf {
-            let arg_value = self.eval_context.eval(&n.arg);
+            let arg_value = Box::new(self.eval_context.eval(&n.arg));
             self.add_effect(Effect::TypeOf {
                 arg: arg_value,
                 ast_path: as_parent_path(ast_path),
@@ -2137,8 +2140,8 @@ impl Analyzer<'_> {
         ast_path: &AstNodePath<AstParentNodeRef<'_>>,
         condition_ast_kind: AstParentKind,
         span: Span,
-        then: Option<EffectsBlock>,
-        r#else: Option<EffectsBlock>,
+        then: Option<Box<EffectsBlock>>,
+        r#else: Option<Box<EffectsBlock>>,
         early_return_when_true: bool,
         early_return_when_false: bool,
     ) {
@@ -2146,7 +2149,7 @@ impl Analyzer<'_> {
         {
             return;
         }
-        let condition = self.eval_context.eval(test);
+        let condition = Box::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             if let Some(mut then) = then {
                 self.effects.append(&mut then.effects);
@@ -2215,7 +2218,7 @@ impl Analyzer<'_> {
         span: Span,
         mut cond_kind: ConditionalKind,
     ) {
-        let condition = self.eval_context.eval(test);
+        let condition = Box::new(self.eval_context.eval(test));
         if condition.is_unknown() {
             match &mut cond_kind {
                 ConditionalKind::If { then } => {

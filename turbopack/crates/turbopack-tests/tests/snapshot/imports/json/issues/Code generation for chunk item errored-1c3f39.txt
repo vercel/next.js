@@ -1,0 +1,18 @@
+error - [code gen] [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json  Code generation for chunk item errored
+  An error occurred while generating the chunk item [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)
+  
+  Caused by:
+  - Unable to make a module from invalid JSON: expected `,` or `}` at line 3 column 26
+  
+  Debug info:
+  - An error occurred while generating the chunk item [project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/json/input/invalid.json (json)
+  - Execution of <JsonChunkItem as EcmascriptChunkItem>::content failed
+  - Unable to make a module from invalid JSON: expected `,` or `}` at line 3 column 26
+      at nested.?
+         1 | {
+         2 |   "nested": {
+           |                          v
+         3 +     "this-is": "invalid" // lint-staged will remove trailing commas, so here's a comment
+           |                          ^
+         4 |   }
+         5 | }

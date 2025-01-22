@@ -239,42 +239,49 @@ pub struct ServerEntries {
 
 #[turbo_tasks::function]
 pub async fn find_server_entries(entry: ResolvedVc<Box<dyn Module>>) -> Result<Vc<ServerEntries>> {
-    let entry_path = entry.ident().path().to_resolved().await?;
-    let graph = AdjacencyMap::new()
-        .skip_duplicates()
-        .visit(
-            vec![VisitClientReferenceNode {
-                state: { VisitClientReferenceNodeState::Entry { entry_path } },
-                ty: VisitClientReferenceNodeType::Internal(entry, entry.ident().to_string().await?),
-            }],
-            VisitClientReference {
-                stop_at_server_entries: true,
-            },
-        )
-        .await
-        .completed()?
-        .into_inner();
+    async move {
+        let entry_path = entry.ident().path().to_resolved().await?;
+        let graph = AdjacencyMap::new()
+            .skip_duplicates()
+            .visit(
+                vec![VisitClientReferenceNode {
+                    state: { VisitClientReferenceNodeState::Entry { entry_path } },
+                    ty: VisitClientReferenceNodeType::Internal(
+                        entry,
+                        entry.ident().to_string().await?,
+                    ),
+                }],
+                VisitClientReference {
+                    stop_at_server_entries: true,
+                },
+            )
+            .await
+            .completed()?
+            .into_inner();
 
-    let mut server_component_entries = vec![];
-    let mut server_utils = vec![];
-    for node in graph.reverse_topological() {
-        match &node.ty {
-            VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
-                server_utils.push(*server_util);
+        let mut server_component_entries = vec![];
+        let mut server_utils = vec![];
+        for node in graph.reverse_topological() {
+            match &node.ty {
+                VisitClientReferenceNodeType::ServerUtilEntry(server_util, _) => {
+                    server_utils.push(*server_util);
+                }
+                VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
+                    server_component_entries.push(*server_component);
+                }
+                VisitClientReferenceNodeType::Internal(_, _)
+                | VisitClientReferenceNodeType::ClientReference(_, _) => {}
             }
-            VisitClientReferenceNodeType::ServerComponentEntry(server_component, _) => {
-                server_component_entries.push(*server_component);
-            }
-            VisitClientReferenceNodeType::Internal(_, _)
-            | VisitClientReferenceNodeType::ClientReference(_, _) => {}
         }
-    }
 
-    Ok(ServerEntries {
-        server_component_entries,
-        server_utils,
+        Ok(ServerEntries {
+            server_component_entries,
+            server_utils,
+        }
+        .cell())
     }
-    .cell())
+    .instrument(tracing::info_span!("find server entries"))
+    .await
 }
 
 struct VisitClientReference {

@@ -19,7 +19,6 @@ use turbopack_core::{
     issue::{
         Issue, IssueDescriptionExt, IssueSeverity, IssueStage, OptionStyledString, StyledString,
     },
-    module_graph::ModuleGraph,
     reference_type::{EntryReferenceSubType, InnerAssets, ReferenceType},
     resolve::{find_context_file_or_package_key, options::ImportMapping, FindContextFileResult},
     source::Source,
@@ -109,6 +108,7 @@ pub struct PostCssTransform {
     evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
+    source_maps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -118,11 +118,13 @@ impl PostCssTransform {
         evaluate_context: ResolvedVc<Box<dyn AssetContext>>,
         execution_context: ResolvedVc<ExecutionContext>,
         config_location: PostCssConfigLocation,
+        source_maps: bool,
     ) -> Vc<Self> {
         PostCssTransform {
             evaluate_context,
             execution_context,
             config_location,
+            source_maps,
         }
         .cell()
     }
@@ -138,6 +140,7 @@ impl SourceTransform for PostCssTransform {
                 execution_context: self.execution_context,
                 config_location: self.config_location,
                 source,
+                source_map: self.source_maps,
             }
             .cell(),
         )
@@ -150,6 +153,7 @@ struct PostCssTransformedAsset {
     execution_context: ResolvedVc<ExecutionContext>,
     config_location: PostCssConfigLocation,
     source: ResolvedVc<Box<dyn Source>>,
+    source_map: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -507,6 +511,7 @@ impl PostCssTransformedAsset {
         };
         let content = content.content().to_str()?;
         let evaluate_context = self.evaluate_context;
+        let source_map = self.source_map;
 
         // This invalidates the transform when the config changes.
         let config_changed = config_changed(*evaluate_context, config_path)
@@ -531,22 +536,18 @@ impl PostCssTransformedAsset {
             "".into()
         };
 
-        let module_graph = ModuleGraph::from_module(*postcss_executor)
-            .to_resolved()
-            .await?;
-
         let config_value = evaluate_webpack_loader(WebpackLoaderContext {
             module_asset: postcss_executor,
             cwd: *project_path,
             env: *env,
             context_ident_for_issue: self.source.ident().to_resolved().await?,
             asset_context: evaluate_context,
-            module_graph,
             chunking_context: *chunking_context,
             resolve_options_context: None,
             args: vec![
                 ResolvedVc::cell(content.into()),
                 ResolvedVc::cell(css_path.into()),
+                ResolvedVc::cell(source_map.into()),
             ],
             additional_invalidation: config_changed,
         })

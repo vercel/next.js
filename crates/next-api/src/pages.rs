@@ -211,10 +211,6 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
-        for route in routes.values_mut() {
-            route.resolve().await?;
-        }
-
         Ok(Vc::cell(routes))
     }
 
@@ -629,6 +625,7 @@ impl PagesProject {
             false,
             None,
         )
+        .await?
         .first_module()
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
@@ -945,7 +942,7 @@ impl PageEndpoint {
             )) = next_dynamic_imports
             {
                 collect_next_dynamic_chunks(
-                    module_graph,
+                    self.client_module_graph(),
                     Vc::upcast(project.client_chunking_context()),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),

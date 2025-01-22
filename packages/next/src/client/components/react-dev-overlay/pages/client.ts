@@ -140,4 +140,4 @@ export function onVersionInfo(versionInfo: VersionInfo) {
 
 export { getErrorByType } from '../internal/helpers/get-error-by-type'
 export { getServerError } from '../internal/helpers/node-stack-frames'
-export { default as ReactDevOverlay } from './ReactDevOverlay'
+export { default as ReactDevOverlay } from './react-dev-overlay'

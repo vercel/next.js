@@ -127,8 +127,10 @@
             Value(
                 Constant(
                     Regex(
-                        "\\.test\\.js$",
-                        "",
+                        (
+                            "\\.test\\.js$",
+                            "",
+                        ),
                     ),
                 ),
             ),

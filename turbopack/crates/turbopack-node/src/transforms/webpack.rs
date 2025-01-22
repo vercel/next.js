@@ -8,8 +8,8 @@ use serde_json::{json, Value as JsonValue};
 use serde_with::serde_as;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    trace::TraceRawVcs, Completion, NonLocalValue, OperationValue, OperationVc, ResolvedVc,
+    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::ProcessEnv;
@@ -25,7 +25,6 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
-    module_graph::ModuleGraph,
     reference_type::{InnerAssets, ReferenceType},
     resolve::{
         options::{ConditionValue, ResolveInPackage, ResolveIntoPackage, ResolveOptions},
@@ -95,6 +94,7 @@ pub struct WebpackLoaders {
     loaders: ResolvedVc<WebpackLoaderItems>,
     rename_as: Option<RcStr>,
     resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+    source_maps: bool,
 }
 
 #[turbo_tasks::value_impl]
@@ -106,6 +106,7 @@ impl WebpackLoaders {
         loaders: ResolvedVc<WebpackLoaderItems>,
         rename_as: Option<RcStr>,
         resolve_options_context: ResolvedVc<ResolveOptionsContext>,
+        source_maps: bool,
     ) -> Vc<Self> {
         WebpackLoaders {
             evaluate_context,
@@ -113,6 +114,7 @@ impl WebpackLoaders {
             loaders,
             rename_as,
             resolve_options_context,
+            source_maps,
         }
         .cell()
     }
@@ -224,10 +226,6 @@ impl WebpackLoadersProcessedAsset {
             .to_resolved()
             .await?;
 
-        let module_graph = ModuleGraph::from_module(*webpack_loaders_executor)
-            .to_resolved()
-            .await?;
-
         let resource_fs_path = this.source.ident().path();
         let resource_fs_path_ref = resource_fs_path.await?;
         let Some(resource_path) = project_path
@@ -247,7 +245,6 @@ impl WebpackLoadersProcessedAsset {
             env,
             context_ident_for_issue: this.source.ident().to_resolved().await?,
             asset_context: evaluate_context,
-            module_graph,
             chunking_context,
             resolve_options_context: Some(transform.resolve_options_context),
             args: vec![
@@ -256,6 +253,7 @@ impl WebpackLoadersProcessedAsset {
                 ResolvedVc::cell(resource_path.to_string().into()),
                 ResolvedVc::cell(this.source.ident().query().await?.to_string().into()),
                 ResolvedVc::cell(json!(*loaders)),
+                ResolvedVc::cell(transform.source_maps.into()),
             ],
             additional_invalidation: Completion::immutable().to_resolved().await?,
         })
@@ -276,7 +274,9 @@ impl WebpackLoadersProcessedAsset {
         .context("Unable to deserializate response from webpack loaders transform operation")?;
 
         // handle SourceMap
-        let source_map = if let Some(source_map) = processed.map {
+        let source_map = if !transform.source_maps {
+            None
+        } else if let Some(source_map) = processed.map {
             SourceMap::new_from_file_content(FileContent::Content(File::from(source_map)).cell())
                 .await?
                 .map(|source_map| source_map.resolved_cell())
@@ -404,7 +404,6 @@ pub struct WebpackLoaderContext {
     pub env: ResolvedVc<Box<dyn ProcessEnv>>,
     pub context_ident_for_issue: ResolvedVc<AssetIdent>,
     pub asset_context: ResolvedVc<Box<dyn AssetContext>>,
-    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub resolve_options_context: Option<ResolvedVc<ResolveOptionsContext>>,
     pub args: Vec<ResolvedVc<JsonValue>>,
@@ -422,16 +421,15 @@ impl EvaluateContext for WebpackLoaderContext {
         let _ = compute_webpack_loader_evaluation(self, sender);
     }
 
-    fn pool(&self) -> Vc<crate::pool::NodeJsPool> {
+    fn pool(&self) -> OperationVc<crate::pool::NodeJsPool> {
         get_evaluate_pool(
-            *self.module_asset,
-            *self.cwd,
-            *self.env,
-            *self.asset_context,
-            *self.module_graph,
-            *self.chunking_context,
+            self.module_asset,
+            self.cwd,
+            self.env,
+            self.asset_context,
+            self.chunking_context,
             None,
-            *self.additional_invalidation,
+            self.additional_invalidation,
             should_debug("webpack_loader"),
             // Env vars are read untracked, since we want a more granular dependency on certain env
             // vars only. So the runtime code tracks which env vars are read and send a dependency

@@ -184,7 +184,8 @@ const transform = (
   content: string,
   name: string,
   query: string,
-  loaders: LoaderConfig[]
+  loaders: LoaderConfig[],
+  sourceMap: boolean
 ) => {
   return new Promise((resolve, reject) => {
     const resource = pathResolve(contextDir, name);
@@ -205,6 +206,7 @@ const transform = (
           },
           currentTraceSpan: new DummySpan(),
           rootContext: contextDir,
+          sourceMap,
           getOptions() {
             const entry = this.loaders[this.loaderIndex];
             return entry.options && typeof entry.options === "object"

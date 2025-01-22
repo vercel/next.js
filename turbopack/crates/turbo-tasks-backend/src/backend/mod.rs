@@ -36,12 +36,14 @@ use turbo_tasks::{
 };
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
+#[cfg(feature = "trace_task_dirty")]
+use crate::backend::operation::TaskDirtyCause;
 use crate::{
     backend::{
         operation::{
             get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
             AggregationUpdateQueue, CleanupOldEdgesOperation, ConnectChildOperation,
-            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskDirtyCause, TaskGuard,
+            ExecuteContext, ExecuteContextImpl, Operation, OutdatedEdge, TaskGuard,
         },
         persisted_storage_log::PersistedStorageLog,
         storage::{get, get_many, get_mut, get_mut_or_insert_with, iter_many, remove, Storage},
@@ -901,6 +903,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             smallvec![task_id],
+            #[cfg(feature = "trace_task_dirty")]
             TaskDirtyCause::Invalidator,
             self.execute_context(turbo_tasks),
         );
@@ -916,6 +919,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
+            #[cfg(feature = "trace_task_dirty")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
@@ -931,6 +935,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
         operation::InvalidateOperation::run(
             tasks.iter().copied().collect(),
+            #[cfg(feature = "trace_task_dirty")]
             TaskDirtyCause::Unknown,
             self.execute_context(turbo_tasks),
         );
@@ -1102,11 +1107,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let (span, future) = match task_type {
             TaskType::Cached(task_type) => match &*task_type {
                 CachedTaskType::Native { fn_type, this, arg } => (
-                    registry::get_function(*fn_type).span(task_id),
+                    registry::get_function(*fn_type).span(task_id.persistence()),
                     registry::get_function(*fn_type).execute(*this, &**arg),
                 ),
                 CachedTaskType::ResolveNative { fn_type, .. } => {
-                    let span = registry::get_function(*fn_type).resolve_span(task_id);
+                    let span = registry::get_function(*fn_type).resolve_span(task_id.persistence());
                     let turbo_tasks = turbo_tasks.pin();
                     (
                         span,
@@ -1291,7 +1296,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                                 .get(&cell.type_id)
                                 .is_none_or(|start_index| cell.index >= *start_index) =>
                         {
-                            Some(OutdatedEdge::RemovedCellDependent(task, cell.type_id))
+                            Some(OutdatedEdge::RemovedCellDependent {
+                                task_id: task,
+                                #[cfg(feature = "trace_task_dirty")]
+                                value_type_id: cell.type_id,
+                            })
                         }
                         _ => None,
                     }

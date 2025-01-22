@@ -159,7 +159,7 @@ async fn run(resource: PathBuf) -> Result<()> {
     let tt = TurboTasks::new(MemoryBackend::default());
     let task = tt.spawn_once_task(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
-        emit_op.connect().strongly_consistent().await?;
+        emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
         Ok(Vc::<()>::default())
@@ -173,8 +173,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
-    let out_vc = out_op.connect();
-    let _ = out_vc.resolve_strongly_consistent().await?;
+    let out_vc = out_op.resolve_strongly_consistent().await?;
     let captured_issues = out_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues

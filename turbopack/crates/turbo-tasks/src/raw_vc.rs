@@ -93,8 +93,11 @@ impl RawVc {
 
     pub fn is_transient(&self) -> bool {
         match self {
-            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) => task.is_transient(),
-            RawVc::LocalOutput(_, _) | RawVc::LocalCell(_, _) => true,
+            RawVc::TaskOutput(task) | RawVc::TaskCell(task, _) | RawVc::LocalOutput(task, _) => {
+                task.is_transient()
+            }
+            // TODO track the transient flag in the highest bit of the execution id
+            RawVc::LocalCell(_, _) => todo!(),
         }
     }
 
@@ -289,7 +292,7 @@ impl RawVc {
         }
     }
 
-    /// For a type that's already resolved, synchronously check if it implements a trait using the
+    /// For a cell that's already resolved, synchronously check if it implements a trait using the
     /// type information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
     pub(crate) fn resolved_has_trait(&self, trait_id: TraitTypeId) -> bool {
         match self {
@@ -297,6 +300,15 @@ impl RawVc {
                 get_value_type(cell_id.type_id).has_trait(&trait_id)
             }
             _ => unreachable!("resolved_has_trait must be called with a RawVc::TaskCell"),
+        }
+    }
+
+    /// For a cell that's already resolved, synchronously check if it is a given type using the type
+    /// information in `RawVc::TaskCell` (we don't actualy need to read the cell!).
+    pub(crate) fn resolved_is_type(&self, type_id: ValueTypeId) -> bool {
+        match self {
+            RawVc::TaskCell(_task_id, cell_id) => cell_id.type_id == type_id,
+            _ => unreachable!("resolved_is_type must be called with a RawVc::TaskCell"),
         }
     }
 }

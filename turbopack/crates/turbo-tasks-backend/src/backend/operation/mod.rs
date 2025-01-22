@@ -742,12 +742,13 @@ impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
+#[cfg(feature = "trace_task_dirty")]
+pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
         get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
-    invalidate::TaskDirtyCause,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

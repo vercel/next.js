@@ -153,7 +153,6 @@ export interface NextJsHotReloaderInterface {
   setHmrServerError(error: Error | null): void
   clearHmrServerError(): void
   start(): Promise<void>
-  stop(): Promise<void>
   send(action: HMR_ACTION_TYPES): void
   getCompilationErrors(page: string): Promise<any[]>
   onHMR(

@@ -17,6 +17,7 @@ default = []
 verify_serialization = []
 trace_aggregation_update = []
 trace_find_and_schedule = []
+trace_task_dirty = []
 lmdb = ["dep:lmdb-rkv"]
 
 [dependencies]

@@ -408,6 +408,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
             minify: z.boolean().optional(),
+            sourceMaps: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -558,6 +559,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               fullUrl: z.boolean().optional(),
               hmrRefreshes: z.boolean().optional(),
             })
+            .optional(),
+          incomingRequest: z
+            .union([
+              z.boolean(),
+              z.object({
+                ignore: z.array(z.instanceof(RegExp)),
+              }),
+            ])
             .optional(),
         }),
         z.literal(false),

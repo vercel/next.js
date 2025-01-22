@@ -55,6 +55,8 @@ pub fn log_internal_error_and_inform(err_info: &str) {
     if cfg!(debug_assertions)
         || env::var("SWC_DEBUG") == Ok("1".to_string())
         || env::var("CI").is_ok_and(|v| !v.is_empty())
+        // Next's run-tests unsets CI and sets NEXT_TEST_CI
+        || env::var("NEXT_TEST_CI").is_ok_and(|v| !v.is_empty())
     {
         eprintln!(
             "{}: An unexpected Turbopack error occurred:\n{}",
@@ -138,44 +140,46 @@ pub trait MapErr<T>: Into<Result<T, anyhow::Error>> {
 
 impl<T> MapErr<T> for Result<T, anyhow::Error> {}
 
+/// An opaque type potentially wrapping a [`dhat::Profiler`] instance. If we
+/// were not compiled with dhat support, this is an empty struct.
 #[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
-#[napi]
-pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<dhat::Profiler>>>> {
-    #[cfg(feature = "__internal_dhat-heap")]
-    {
-        println!("[dhat-heap]: Initializing heap profiler");
-        let _profiler = dhat::Profiler::new_heap();
-        return Ok(External::new(RefCell::new(Some(_profiler))));
-    }
+#[non_exhaustive]
+pub struct DhatProfilerGuard(dhat::Profiler);
 
-    #[cfg(feature = "__internal_dhat-ad-hoc")]
-    {
-        println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
-        let _profiler = dhat::Profiler::new_ad_hoc();
-        return Ok(External::new(RefCell::new(Some(_profiler))));
+/// An opaque type potentially wrapping a [`dhat::Profiler`] instance. If we
+/// were not compiled with dhat support, this is an empty struct.
+///
+/// [`dhat::Profiler`]: https://docs.rs/dhat/latest/dhat/struct.Profiler.html
+#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+#[non_exhaustive]
+pub struct DhatProfilerGuard;
+
+impl DhatProfilerGuard {
+    /// Constructs an instance if we were compiled with dhat support.
+    pub fn try_init() -> Option<Self> {
+        #[cfg(feature = "__internal_dhat-heap")]
+        {
+            println!("[dhat-heap]: Initializing heap profiler");
+            Some(Self(dhat::Profiler::new_heap()))
+        }
+        #[cfg(feature = "__internal_dhat-ad-hoc")]
+        {
+            println!("[dhat-ad-hoc]: Initializing ad-hoc profiler");
+            Some(Self(dhat::Profiler::new_ad_hoc()))
+        }
+        #[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
+        {
+            None
+        }
     }
 }
 
-#[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
-#[napi]
-pub fn teardown_heap_profiler(guard_external: External<RefCell<Option<dhat::Profiler>>>) {
-    let guard_cell = &*guard_external;
-
-    if let Some(guard) = guard_cell.take() {
+impl Drop for DhatProfilerGuard {
+    fn drop(&mut self) {
+        #[cfg(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc"))]
         println!("[dhat]: Teardown profiler");
-        drop(guard);
     }
 }
-
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
-#[napi]
-pub fn init_heap_profiler() -> napi::Result<External<RefCell<Option<u32>>>> {
-    Ok(External::new(RefCell::new(Some(0))))
-}
-
-#[cfg(not(any(feature = "__internal_dhat-heap", feature = "__internal_dhat-ad-hoc")))]
-#[napi]
-pub fn teardown_heap_profiler(_guard_external: External<RefCell<Option<u32>>>) {}
 
 /// Initialize tracing subscriber to emit traces. This configures subscribers
 /// for Trace Event Format <https://docs.google.com/document/d/1CvAClvFfyA5R-PhYUmn5OOQtYMH4h6I0nSsKchNAySU/preview>.

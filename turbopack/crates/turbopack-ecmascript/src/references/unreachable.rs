@@ -30,9 +30,7 @@ pub struct Unreachable {
     range: ResolvedVc<AstPathRange>,
 }
 
-#[turbo_tasks::value_impl]
 impl Unreachable {
-    #[turbo_tasks::function]
     pub fn new(range: ResolvedVc<AstPathRange>) -> Vc<Self> {
         Self::cell(Unreachable { range })
     }

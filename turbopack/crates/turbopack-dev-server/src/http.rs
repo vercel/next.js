@@ -84,8 +84,7 @@ pub async fn process_request_with_content_source(
     let original_path = request.uri().path().to_string();
     let request = http_request_to_source_request(request).await?;
     let result_op = get_from_source_operation(source, TransientInstance::new(request));
-    let result_vc = result_op.connect();
-    let resolved_result = result_vc.resolve_strongly_consistent().await?;
+    let resolved_result = result_op.resolve_strongly_consistent().await?;
     apply_effects(result_op).await?;
     let side_effects: AutoSet<Vc<Box<dyn ContentSourceSideEffect>>> = result_op.peek_collectibles();
     handle_issues(

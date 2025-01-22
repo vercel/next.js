@@ -328,13 +328,13 @@ impl ClientReferencesGraph {
 
                     state_map.insert(module, current_server_component);
 
-                    match module_type {
+                    Ok(match module_type {
                         Some(
                             ClientReferenceMapType::EcmascriptClientReference { .. }
                             | ClientReferenceMapType::CssClientReference { .. },
                         ) => GraphTraversalAction::Skip,
                         _ => GraphTraversalAction::Continue,
-                    }
+                    })
                 },
                 |parent_info, node, state_map| {
                     let Some((parent_node, _)) = parent_info else {
@@ -521,6 +521,7 @@ impl ReducedGraphs {
     pub async fn get_client_references_for_endpoint(
         &self,
         entry: Vc<Box<dyn Module>>,
+        has_layout_segments: bool,
     ) -> Result<Vc<ClientReferenceGraphResult>> {
         let span = tracing::info_span!("collect all client references for endpoint");
         async move {
@@ -549,14 +550,16 @@ impl ReducedGraphs {
                 result
             };
 
-            // Do this separately for now, because the graph traversal order messes up the order of
-            // the server_component_entries.
-            let ServerEntries {
-                server_utils,
-                server_component_entries,
-            } = &*find_server_entries(entry).await?;
-            result.server_utils = server_utils.clone();
-            result.server_component_entries = server_component_entries.clone();
+            if has_layout_segments {
+                // Do this separately for now, because the graph traversal order messes up the order
+                // of the server_component_entries.
+                let ServerEntries {
+                    server_utils,
+                    server_component_entries,
+                } = &*find_server_entries(entry).await?;
+                result.server_utils = server_utils.clone();
+                result.server_component_entries = server_component_entries.clone();
+            }
 
             Ok(result.cell())
         }
@@ -584,10 +587,12 @@ pub async fn get_reduced_graphs_for_endpoint(
     // TODO get rid of this function once everything inside of
     // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
     let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
-    let result_vc = result_op.connect();
-    if !is_single_page {
-        result_vc.strongly_consistent().await?;
+    let result_vc = if !is_single_page {
+        let result_vc = result_op.resolve_strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
-    }
+        *result_vc
+    } else {
+        result_op.connect()
+    };
     Ok(result_vc)
 }
