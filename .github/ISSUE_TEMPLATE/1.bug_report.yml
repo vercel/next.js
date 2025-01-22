@@ -80,7 +80,6 @@ body:
       options:
         - 'Not sure'
         - 'create-next-app'
-        - 'Developer Experience'
         - 'dynamicIO'
         - 'Lazy Loading'
         - 'Font (next/font)'
