@@ -120,13 +120,27 @@ impl Operation for CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
+                                let mut emptied_collectables = HashSet::new();
                                 for (collectible, count) in collectibles.iter_mut() {
-                                    update_count!(
+                                    if update_count!(
                                         task,
                                         Collectible {
                                             collectible: *collectible
                                         },
                                         *count
+                                    ) {
+                                        emptied_collectables.insert(collectible.collectible_type);
+                                    }
+                                }
+
+                                for ty in emptied_collectables {
+                                    let task_ids = get_many!(task, CollectiblesDependent { collectible_type, task } if collectible_type == ty => { task });
+                                    queue.push(
+                                        AggregationUpdateJob::InvalidateDueToCollectiblesChange {
+                                            task_ids,
+                                            #[cfg(feature = "trace_task_dirty")]
+                                            collectible_type: ty,
+                                        },
                                     );
                                 }
                                 queue.extend(AggregationUpdateJob::data_update(
