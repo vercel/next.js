@@ -248,18 +248,8 @@ impl TurboTasksApi for VcStorage {
 
     fn try_read_local_output(
         &self,
-        parent_task_id: TaskId,
-        local_task_id: LocalTaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_local_output_untracked(parent_task_id, local_task_id, consistency)
-    }
-
-    fn try_read_local_output_untracked(
-        &self,
         _parent_task_id: TaskId,
         _local_task_id: LocalTaskId,
-        _consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         unimplemented!()
     }
