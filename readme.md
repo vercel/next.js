@@ -40,10 +40,4 @@ Minimialist version of Next.js. Not intended for external consumption.
 
 6. **Verify** the package on the [npm page](https://www.npmjs.com/package/@healthline/next?activeTab=versions).
 
-7. **Commit & Push** version changes:
-
-   ```bash
-   git add package.json
-   git commit -m "Bump version to x.y.z"
-   git push origin master
-   ```
+7. **Commit & Push** Commit & Push Open a PR to merge version change into master
