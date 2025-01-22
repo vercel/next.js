@@ -462,13 +462,14 @@ impl ModuleOptions {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
+                // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new_internal(
-                    // Ecmascript CSS Modules referencing the actual CSS module
                     RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
+                // Ecmascript CSS Modules referencing the actual CSS module to list the classes
                 ModuleRule::new(
                     RuleCondition::all(vec![
                         RuleCondition::ReferenceType(ReferenceType::Css(

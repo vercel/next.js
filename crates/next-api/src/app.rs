@@ -102,9 +102,18 @@ pub(crate) const ECMASCRIPT_CLIENT_TRANSITION_NAME: &str = "next-ecmascript-clie
 
 fn styles_rule_condition() -> RuleCondition {
     RuleCondition::any(vec![
-        RuleCondition::ResourcePathEndsWith(".css".into()),
-        RuleCondition::ResourcePathEndsWith(".scss".into()),
-        RuleCondition::ResourcePathEndsWith(".sass".into()),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".css".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.css".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".scss".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.scss".into())),
+        ]),
+        RuleCondition::all(vec![
+            RuleCondition::ResourcePathEndsWith(".sass".into()),
+            RuleCondition::not(RuleCondition::ResourcePathEndsWith(".module.sass".into())),
+        ]),
     ])
 }
 fn module_styles_rule_condition() -> RuleCondition {
@@ -376,7 +385,21 @@ impl AppProject {
             TransitionOptions {
                 named_transitions: transitions,
                 transition_rules: vec![
-                    // CSS client reference imports
+                    // Mark as client reference (and exclude from RSC chunking) the edge from the
+                    // CSS Module to the actual CSS
+                    TransitionRule::new_internal(
+                        RuleCondition::all(vec![
+                            RuleCondition::ReferenceType(ReferenceType::Css(
+                                CssReferenceSubType::Internal,
+                            )),
+                            module_styles_rule_condition(),
+                        ]),
+                        ResolvedVc::upcast(
+                            self.css_client_reference_transition().to_resolved().await?,
+                        ),
+                    ),
+                    // Don't wrap in marker module but change context, this is used to determine
+                    // the list of CSS module classes.
                     TransitionRule::new(
                         RuleCondition::all(vec![
                             RuleCondition::ReferenceType(ReferenceType::Css(
@@ -386,14 +409,9 @@ impl AppProject {
                         ]),
                         ResolvedVc::upcast(self.client_transition().to_resolved().await?),
                     ),
-                    // CSS client reference imports
+                    // Mark as client reference all regular CSS imports
                     TransitionRule::new(
-                        RuleCondition::all(vec![
-                            RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Entry(
-                                EntryReferenceSubType::AppClientComponent,
-                            ))),
-                            styles_rule_condition(),
-                        ]),
+                        styles_rule_condition(),
                         ResolvedVc::upcast(
                             self.css_client_reference_transition().to_resolved().await?,
                         ),

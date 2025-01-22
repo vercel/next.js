@@ -36,48 +36,26 @@ impl Transition for NextCssClientReferenceTransition {
     async fn process(
         self: Vc<Self>,
         source: Vc<Box<dyn Source>>,
-        module_asset_context: Vc<ModuleAssetContext>,
-        _reference_type: Value<ReferenceType>,
+        rsc_module_asset_context: Vc<ModuleAssetContext>,
+        reference_type: Value<ReferenceType>,
     ) -> Result<Vc<ProcessResult>> {
-        let module = module_asset_context.process(
-            source,
-            Value::new(ReferenceType::Entry(
-                EntryReferenceSubType::AppClientComponent,
-            )),
-        );
+        let module =
+            self.await?
+                .client_transition
+                .process(source, rsc_module_asset_context, reference_type);
+
         let ProcessResult::Module(module) = *module.await? else {
-            bail!("expected module 1");
             return Ok(ProcessResult::Ignore.cell());
         };
 
-        let result: Vc<Box<dyn Module>> = if let Some(css_module_module) =
-            ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(module)
-        {
-            let ProcessResult::Module(client_module) = *css_module_module
-                .inner(Value::new(ReferenceType::Entry(
-                    EntryReferenceSubType::AppClientComponent,
-                )))
-                .await?
-            else {
-                bail!("expected module 2");
-                return Ok(ProcessResult::Ignore.cell());
-            };
+        let client_module = ResolvedVc::try_sidecast_sync::<Box<dyn CssChunkPlaceable>>(module)
+            .context("css client asset is not css chunk placeable")?;
 
-            let client_module =
-                ResolvedVc::try_sidecast_sync::<Box<dyn CssChunkPlaceable>>(client_module)
-                    .context("css module client asset is not css chunk placeable")?;
-
-            Vc::upcast(CssModuleClientReferenceModule::new(
-                *client_module,
-                *ResolvedVc::upcast(css_module_module),
-            ))
-        } else {
-            let client_module = ResolvedVc::try_sidecast_sync::<Box<dyn CssChunkPlaceable>>(module)
-                .context("css client asset is not css chunk placeable")?;
-
-            Vc::upcast(CssClientReferenceModule::new(*client_module))
-        };
-
-        Ok(ProcessResult::Module(result.to_resolved().await?).cell())
+        Ok(ProcessResult::Module(ResolvedVc::upcast(
+            CssClientReferenceModule::new(*client_module)
+                .to_resolved()
+                .await?,
+        ))
+        .cell())
     }
 }
