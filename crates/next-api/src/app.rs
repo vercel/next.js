@@ -82,7 +82,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::{ModuleGraphs, Project},
-    route::{AppPageRoute, Endpoint, Route, Routes, WrittenEndpoint},
+    route::{AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
@@ -1793,7 +1793,7 @@ async fn create_app_paths_manifest(
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
         let page_name = this.page.to_string();
         let span = match this.ty {
@@ -1816,19 +1816,12 @@ impl Endpoint for AppEndpoint {
                 tracing::info_span!("app endpoint metadata", name = page_name)
             }
         };
+
         async move {
             let output = self.output().await?;
-            let output_assets_op = output_assets_operation(self);
-            let output_assets = output_assets_op.connect();
-
+            let output_assets = self.output().output_assets();
             let node_root = this.app_project.project().node_root();
-
             let node_root_ref = &node_root.await?;
-
-            let _ = this
-                .app_project
-                .project()
-                .emit_all_output_assets(output_assets_op);
 
             let (server_paths, client_paths) = if this
                 .app_project
@@ -1854,7 +1847,7 @@ impl Endpoint for AppEndpoint {
             };
 
             let written_endpoint = match *output {
-                AppEndpointOutput::NodeJs { rsc_chunk, .. } => WrittenEndpoint::NodeJs {
+                AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root_ref
                         .get_path_to(&*rsc_chunk.ident().path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
@@ -1862,12 +1855,20 @@ impl Endpoint for AppEndpoint {
                     server_paths,
                     client_paths,
                 },
-                AppEndpointOutput::Edge { .. } => WrittenEndpoint::Edge {
+                AppEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
                     server_paths,
                     client_paths,
                 },
             };
-            anyhow::Ok(written_endpoint.cell())
+
+            anyhow::Ok(
+                EndpointOutput {
+                    output_assets: output_assets.to_resolved().await?,
+                    output_paths: written_endpoint.resolved_cell(),
+                    project: this.app_project.project().to_resolved().await?,
+                }
+                .cell(),
+            )
         }
         .instrument(span)
         .await
@@ -1935,11 +1936,6 @@ impl Endpoint for AppEndpoint {
 
         Ok(Vc::cell(vec![server_actions_loader]))
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn output_assets_operation(endpoint: ResolvedVc<AppEndpoint>) -> Vc<OutputAssets> {
-    endpoint.output().output_assets()
 }
 
 #[turbo_tasks::value]
