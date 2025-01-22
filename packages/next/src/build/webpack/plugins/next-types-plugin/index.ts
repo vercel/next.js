@@ -667,7 +667,7 @@ function createServerDefinitions(
     export { URLPattern } from 'next/dist/compiled/@edge-runtime/primitives/url'
     export { ImageResponse } from 'next/dist/server/web/spec-extension/image-response'
     export type { ImageResponseOptions } from 'next/dist/compiled/@vercel/og/types'
-    export { unstable_after } from 'next/dist/server/after'
+    export { after } from 'next/dist/server/after'
     export { connection } from 'next/dist/server/request/connection'
     export type { UnsafeUnwrappedSearchParams } from 'next/dist/server/request/search-params'
     export type { UnsafeUnwrappedParams } from 'next/dist/server/request/params'
