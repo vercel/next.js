@@ -2,8 +2,9 @@
 #![feature(hash_raw_entry)]
 #![feature(box_patterns)]
 
-use std::{collections::HashSet, hash::BuildHasherDefault, sync::Arc};
+use std::{hash::BuildHasherDefault, sync::Arc};
 
+use indexmap::IndexSet;
 use rustc_hash::FxHasher;
 
 use self::{reader::TraceReader, server::serve, store_container::StoreContainer};
@@ -25,7 +26,7 @@ mod viewer;
 type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
 
 fn main() {
-    let args: HashSet<String> = std::env::args().skip(1).collect();
+    let args: IndexSet<String> = std::env::args().skip(1).collect();
 
     let mut iter = args.iter();
     let arg = iter.next().expect("missing argument: trace file path");
