@@ -1670,6 +1670,40 @@ export async function copy_vendor_react(task_) {
       })
       .target(`src/compiled/react-dom${packageSuffix}/cjs`)
 
+    // Until React gives as a way to hook into preloadModule, we need to patch
+    // it here so that we can track cache reads during dynamic I/O prerendering.
+    // Tracking __next_chunk_load__ calls instead, would not be sufficient
+    // because React caches the loaded chunks in a module-scoped map, and skips
+    // the __next_chunk_load__ call if it already has a cached promise in the
+    // chunk map. This can happen when a chunk is started to be loaded during a
+    // normal dev request (no prerender), while in parallel a prerender is
+    // triggered (for dynamic validation) that needs the same chunk. In this
+    // scenario we have no chance to track this chunk loading with the prerender
+    // cache signal. This would lead to the initial prerender getting aborted
+    // too early, and then triggering a dynamic I/O error during the final
+    // prerender.
+    function patchPreloadModule({ source, isProduction }) {
+      const replacement = `const { workUnitAsyncStorage } = require("next/dist/server/app-render/work-unit-async-storage.external");
+    function preloadModule(metadata) {
+      const workUnitStore = workUnitAsyncStorage.getStore();
+      const cacheSignal = workUnitStore?.type === 'prerender' ? workUnitStore.cacheSignal : undefined;
+      const promise = _preloadModule(metadata)
+    
+      if (promise && cacheSignal) {
+        cacheSignal.beginRead();
+        return promise.finally(() => cacheSignal.endRead());
+      }
+    
+      return promise
+    }
+    function _preloadModule(metadata) {`
+
+      return source.replace(
+        'function preloadModule(metadata) {',
+        isProduction ? outdent.string(replacement) : replacement
+      )
+    }
+
     function replaceSetTimeout({
       code,
       file,
@@ -1777,10 +1811,15 @@ export async function copy_vendor_react(task_) {
             !file.base.startsWith('react-server-dom-webpack-server.browser'))
         ) {
           const source = file.data.toString()
-          let newSource = source.replace(
-            /__webpack_require__/g,
-            'globalThis.__next_require__'
-          )
+
+          let newSource = patchPreloadModule({
+            source: source.replace(
+              /__webpack_require__/g,
+              'globalThis.__next_require__'
+            ),
+            isProduction: file.base.endsWith('production.js'),
+          })
+
           if (file.base.startsWith('react-server-dom-webpack-server.edge')) {
             newSource = replaceSetTimeout({
               code: newSource,
@@ -1832,9 +1871,13 @@ export async function copy_vendor_react(task_) {
             !file.base.startsWith('react-server-dom-turbopack-server.browser'))
         ) {
           const source = file.data.toString()
-          let newSource = source
-            .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
-            .replace(/__turbopack_require__/g, 'globalThis.__next_require__')
+
+          let newSource = patchPreloadModule({
+            source: source
+              .replace(/__turbopack_load__/g, 'globalThis.__next_chunk_load__')
+              .replace(/__turbopack_require__/g, 'globalThis.__next_require__'),
+            isProduction: file.base.endsWith('production.js'),
+          })
 
           if (file.base.startsWith('react-server-dom-turbopack-server.edge')) {
             newSource = replaceSetTimeout({

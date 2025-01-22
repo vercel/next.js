@@ -1949,7 +1949,20 @@ function resolveServerReference(bundlerConfig, id) {
   return { specifier: bundlerConfig, name: id };
 }
 var asyncModuleCache = new Map();
+const { workUnitAsyncStorage } = require("next/dist/server/app-render/work-unit-async-storage.external");
 function preloadModule(metadata) {
+  const workUnitStore = workUnitAsyncStorage.getStore();
+  const cacheSignal = workUnitStore?.type === 'prerender' ? workUnitStore.cacheSignal : undefined;
+  const promise = _preloadModule(metadata)
+
+  if (promise && cacheSignal) {
+    cacheSignal.beginRead();
+    return promise.finally(() => cacheSignal.endRead());
+  }
+
+  return promise
+}
+function _preloadModule(metadata) {
   var existingPromise = asyncModuleCache.get(metadata.specifier);
   if (existingPromise)
     return "fulfilled" === existingPromise.status ? null : existingPromise;
