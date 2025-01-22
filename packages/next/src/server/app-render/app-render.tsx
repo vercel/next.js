@@ -184,6 +184,7 @@ import {
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
+import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -610,7 +611,7 @@ async function generateDynamicFlightRenderResult(
       ctx.clientReferenceManifest,
       ctx.workStore.route,
       requestStore
-    ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
+    )
   }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
@@ -1796,7 +1797,7 @@ async function renderToStream(
         clientReferenceManifest,
         workStore.route,
         requestStore
-      ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
+      )
 
       reactServerResult = new ReactServerResult(reactServerStream)
     } else {
@@ -2356,6 +2357,10 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest.clientModules,
         {
           onError: (err) => {
+            if (isUseCacheTimeoutError(err)) {
+              return err.digest
+            }
+
             if (
               finalServerController.signal.aborted &&
               isPrerenderInterruptedError(err)
@@ -2392,6 +2397,12 @@ async function spawnDynamicValidationInDev(
           {
             signal: finalClientController.signal,
             onError: (err, errorInfo) => {
+              if (isUseCacheTimeoutError(err)) {
+                dynamicValidation.dynamicErrors.push(err)
+
+                return
+              }
+
               if (
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
@@ -2427,8 +2438,11 @@ async function spawnDynamicValidationInDev(
     ) {
       // we don't have a root because the abort errored in the root. We can just ignore this error
     } else {
-      // This error is something else and should bubble up
-      throw err
+      // If an error is thrown in the root before prerendering is aborted, we
+      // don't want to rethrow it here, otherwise this would lead to a hanging
+      // response and unhandled rejection. We also don't want to log it, because
+      // it's most likely already logged as part of the normal render. So we
+      // just fall through here, to make sure `resolveValidation` is called.
     }
   }
 
