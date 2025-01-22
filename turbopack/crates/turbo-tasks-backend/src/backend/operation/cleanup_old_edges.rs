@@ -1,5 +1,6 @@
 use std::mem::take;
 
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::TaskId;
 
@@ -7,7 +8,7 @@ use turbo_tasks::TaskId;
 use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        get,
+        get, get_many,
         operation::{
             aggregation_update::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
@@ -120,7 +121,7 @@ impl Operation for CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
-                                let mut emptied_collectables = HashSet::new();
+                                let mut emptied_collectables = FxHashSet::default();
                                 for (collectible, count) in collectibles.iter_mut() {
                                     if update_count!(
                                         task,
