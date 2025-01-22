@@ -18,7 +18,7 @@ exports.init = function () {
       exports.rspack.experiments.globalTrace.register(
         'trace',
         'chrome',
-        require('path').join(process.cwd(), 'trace.json')
+        require('path').join(process.cwd(), `rspack-trace-${process.pid}.json`)
       )
 
       process.on('exit', () => {
