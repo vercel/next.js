@@ -134,6 +134,57 @@ describe('use-cache-hanging-inputs', () => {
       }, 180_000)
     })
 
+    describe('when a "use cache" function is closing over an uncached promise', () => {
+      it('should show an error toast after a timeout', async () => {
+        const outputIndex = next.cliOutput.length
+        const browser = await next.browser('/bound-args')
+
+        // The request is pending while we stall on the hanging inputs, and
+        // playwright will wait for the load even before continuing. So we don't
+        // need to wait for the "use cache" timeout of 50 seconds here.
+
+        await openRedbox(browser)
+
+        const errorDescription = await getRedboxDescription(browser)
+        const errorSource = await getRedboxSource(browser)
+
+        if (process.env.__NEXT_EXPERIMENTAL_PPR) {
+          // TODO(react-time-info): Remove this branch for PPR when the issue is
+          // resolved where the inclusion of server timings in the RSC payload
+          // makes the serialized bound args not suitable to be used as a cache
+          // key.
+
+          const expectedErrorMessagePpr =
+            'Error: Route "/bound-args": A component accessed data, headers, params, searchParams, or a short-lived cache without a Suspense boundary nor a "use cache" above it. We don\'t have the exact line number added to error messages yet but you can see which component in the stack below. See more info: https://nextjs.org/docs/messages/next-prerender-missing-suspense'
+
+          expect(errorDescription).toBe(`[ Server ] ${expectedErrorMessagePpr}`)
+
+          const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          expect(cliOutput).toContain(
+            `${expectedErrorMessagePpr}
+    at Page [Server] (<anonymous>)`
+          )
+        } else {
+          expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
+
+          // TODO(veil): This should have an error source if the source mapping works.
+          expect(errorSource).toBe(null)
+
+          const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
+          // TODO(veil): Should include properly source mapped stack frames.
+          expect(cliOutput).toContain(
+            isTurbopack
+              ? `${expectedErrorMessage}
+    at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`
+              : `${expectedErrorMessage}
+    at eval (webpack-internal:///(rsc)/./app/bound-args/page.tsx:25:97)`
+          )
+        }
+      }, 180_000)
+    })
+
     describe('when an error is thrown', () => {
       it('should show an error overlay with only one error', async () => {
         const browser = await next.browser('/error')
@@ -156,6 +207,10 @@ describe('use-cache-hanging-inputs', () => {
       const { cliOutput } = await next.build()
 
       expect(cliOutput).toInclude(expectedErrorMessage)
+
+      expect(cliOutput).toInclude(
+        'Error occurred prerendering page "/bound-args"'
+      )
 
       expect(cliOutput).toInclude(
         'Error occurred prerendering page "/search-params"'

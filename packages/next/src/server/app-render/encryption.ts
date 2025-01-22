@@ -21,12 +21,16 @@ import {
   getRenderResumeDataCache,
   workUnitAsyncStorage,
 } from './work-unit-async-storage.external'
+import { createHangingInputAbortSignal } from './dynamic-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const textEncoder = new TextEncoder()
 const textDecoder = new TextDecoder()
 
+/**
+ * Decrypt the serialized string with the action id as the salt.
+ */
 async function decodeActionBoundArg(actionId: string, arg: string) {
   const key = await getActionEncryptionKey()
   if (typeof key === 'undefined') {
@@ -81,17 +85,29 @@ async function encodeActionBoundArg(actionId: string, arg: string) {
 export async function encryptActionBoundArgs(actionId: string, args: any[]) {
   const { clientModules } = getClientReferenceManifestForRsc()
 
-  // Create an error before any asynchrounous calls, to capture the original
+  // Create an error before any asynchronous calls, to capture the original
   // call stack in case we need it when the serialization errors.
   const error = new Error()
   Error.captureStackTrace(error, encryptActionBoundArgs)
 
   let didCatchError = false
 
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  const hangingInputAbortSignal =
+    workUnitStore?.type === 'prerender'
+      ? createHangingInputAbortSignal(workUnitStore)
+      : undefined
+
   // Using Flight to serialize the args into a string.
   const serialized = await streamToString(
     renderToReadableStream(args, clientModules, {
+      signal: hangingInputAbortSignal,
       onError(err) {
+        if (hangingInputAbortSignal?.aborted) {
+          return
+        }
+
         // We're only reporting one error at a time, starting with the first.
         if (didCatchError) {
           return
@@ -103,7 +119,11 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
         // stack, because err.stack is a useless Flight Server call stack.
         error.message = err instanceof Error ? err.message : String(err)
       },
-    })
+    }),
+    // We pass the abort signal to `streamToString` so that no chunks are
+    // included that are emitted after the signal was already aborted. This
+    // ensures that we can encode hanging promises.
+    hangingInputAbortSignal
   )
 
   if (didCatchError) {
@@ -116,8 +136,6 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
 
     throw error
   }
-
-  const workUnitStore = workUnitAsyncStorage.getStore()
 
   if (!workUnitStore) {
     return encodeActionBoundArg(actionId, serialized)
@@ -151,20 +169,58 @@ export async function encryptActionBoundArgs(actionId: string, args: any[]) {
 // Decrypts the action's bound args from the encrypted string.
 export async function decryptActionBoundArgs(
   actionId: string,
-  encrypted: Promise<string>
+  encryptedPromise: Promise<string>
 ) {
+  const encrypted = await encryptedPromise
+  const workUnitStore = workUnitAsyncStorage.getStore()
+
+  let decrypted: string | undefined
+
+  if (workUnitStore) {
+    const cacheSignal =
+      workUnitStore.type === 'prerender' ? workUnitStore.cacheSignal : undefined
+
+    const prerenderResumeDataCache = getPrerenderResumeDataCache(workUnitStore)
+    const renderResumeDataCache = getRenderResumeDataCache(workUnitStore)
+
+    decrypted =
+      prerenderResumeDataCache?.decryptedBoundArgs.get(encrypted) ??
+      renderResumeDataCache?.decryptedBoundArgs.get(encrypted)
+
+    if (!decrypted) {
+      cacheSignal?.beginRead()
+      decrypted = await decodeActionBoundArg(actionId, encrypted)
+      cacheSignal?.endRead()
+      prerenderResumeDataCache?.decryptedBoundArgs.set(encrypted, decrypted)
+    }
+  } else {
+    decrypted = await decodeActionBoundArg(actionId, encrypted)
+  }
+
   const { edgeRscModuleMapping, rscModuleMapping } =
     getClientReferenceManifestForRsc()
-
-  // Decrypt the serialized string with the action id as the salt.
-  const decrypted = await decodeActionBoundArg(actionId, await encrypted)
 
   // Using Flight to deserialize the args from the string.
   const deserialized = await createFromReadableStream(
     new ReadableStream({
       start(controller) {
         controller.enqueue(textEncoder.encode(decrypted))
-        controller.close()
+
+        if (workUnitStore?.type === 'prerender') {
+          // Explicitly don't close the stream here (until prerendering is
+          // complete) so that hanging promises are not rejected.
+          if (workUnitStore.renderSignal.aborted) {
+            controller.close()
+          } else {
+            workUnitStore.renderSignal.addEventListener(
+              'abort',
+              () => controller.close(),
+              { once: true }
+            )
+          }
+        } else {
+          controller.close()
+        }
       },
     }),
     {
