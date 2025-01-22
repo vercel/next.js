@@ -4,7 +4,6 @@ This powerful synergy brings together Vercel's seamless deployment and scaling c
 
 ### Related examples
 
-
 - [AgilityCMS](/examples/cms-agilitycms)
 - [Builder.io](/examples/cms-builder-io)
 - [ButterCMS](/examples/cms-buttercms)
@@ -84,23 +83,23 @@ Visit the following URL to access the Light Modules repository:
 
 [https://github.com/magnolia-cms/magnolia-vercel-light-modules](https://github.com/magnolia-cms/magnolia-vercel-light-modules)
 
--   Download the folder `spa-lm`.
--   Locate the `light-modules` directory within your local Magnolia instance.
--   Copy the downloaded `spa-lm` folders and paste them directly into your Magnolia `light-modules` folder.
+- Download the folder `spa-lm`.
+- Locate the `light-modules` directory within your local Magnolia instance.
+- Copy the downloaded `spa-lm` folders and paste them directly into your Magnolia `light-modules` folder.
 
--   The `light-modules` directory is where Magnolia looks for custom modules, and by placing the `spa-lm` folders there, you're integrating new functionality into your Magnolia CMS.
+- The `light-modules` directory is where Magnolia looks for custom modules, and by placing the `spa-lm` folders there, you're integrating new functionality into your Magnolia CMS.
 
 ## Configure the Vercel Magnolia page
 
 The `spa-lm` light module contains template definitions that allow you to create a "Vercel Magnolia" page within your Magnolia CMS. To configure this page:
 
--   Navigate to the `spa-lm/templates/pages/` directory.
--   Open the `basic.yaml` file. This file contains the necessary configuration for your "Vercel Magnolia" page.
--   In the `basic.yaml` file, where the `baseUrl` property is defined.
+- Navigate to the `spa-lm/templates/pages/` directory.
+- Open the `basic.yaml` file. This file contains the necessary configuration for your "Vercel Magnolia" page.
+- In the `basic.yaml` file, where the `baseUrl` property is defined.
 
-    `baseUrl: http://localhost:3000`
+  `baseUrl: http://localhost:3000`
 
-    The `baseUrl` property is typically found at the top of the file around Line 4.
+  The `baseUrl` property is typically found at the top of the file around Line 4.
 
 The `baseUrl` is initially set to `http://localhost:3000`.
 This should point to the domain where your Vercel application is accessible.
@@ -119,9 +118,9 @@ In your Next.js project, the `.env` file holds crucial environment variables. A 
 
 ## Set `NEXT_PUBLIC_MGNL_HOST`
 
--   `NEXT_PUBLIC_MGNL_HOST` should be set to the URL of your accessible Magnolia instance.
--   For local development, typically use `http://localhost:8080`.
--   For the Vercel deployment, we will need to use a public URL for your Magnolia instance.
+- `NEXT_PUBLIC_MGNL_HOST` should be set to the URL of your accessible Magnolia instance.
+- For local development, typically use `http://localhost:8080`.
+- For the Vercel deployment, we will need to use a public URL for your Magnolia instance.
 
 ## Expose Your Localhost with LocalTunnel
 
@@ -130,18 +129,18 @@ Since you want to deploy to the cloud but your Magnolia instance is running on l
 1. Go to [LocalTunnel](https://theboroer.github.io/localtunnel-www/).
 2. Install LocalTunnel.
 
-    ```shell
-    npm install -g localtunnel
-    ```
+   ```shell
+   npm install -g localtunnel
+   ```
 
 3. Ensure your Magnolia instance is running, typically at `http://localhost:8080`.
 4. Run the following in your terminal to expose `localhost` to LocalTunnel.
 
-    ```shell
-    lt --port 8080 # Where `8080` is your desired port.
-    ```
+   ```shell
+   lt --port 8080 # Where `8080` is your desired port.
+   ```
 
-    LocalTunnel will provide a URL, which will be your localhost Magnolia instance accessible from anywhere. We will call this your LocalTunnel URL. Go to the LocalTunnel URL in your browser to complete the final steps.
+   LocalTunnel will provide a URL, which will be your localhost Magnolia instance accessible from anywhere. We will call this your LocalTunnel URL. Go to the LocalTunnel URL in your browser to complete the final steps.
 
 5. Complete the process by following the instructions on the LocalTunnel's website or read the [LocalTunnel Instructions](#localtunnel) section below.
 
@@ -154,7 +153,7 @@ Access your Magnolia instance on the public domain by obtaining your local IP ad
 3. Return to your LocalTunnel URL page.
 4. In the `"Endpoint IP:"` field, paste your copied IP address.
 
-    NOTE: You'll be redirected to your Magnolia instance on the public domain. It will be something like `https://chilly-zoos-rule.loca.lt` this will be used in the next section by replacing the `YOUR_LOCAL_TUNNEL_URL` value assigned to the `NEXT_PUBLIC_MGNL_HOST`.
+   NOTE: You'll be redirected to your Magnolia instance on the public domain. It will be something like `https://chilly-zoos-rule.loca.lt` this will be used in the next section by replacing the `YOUR_LOCAL_TUNNEL_URL` value assigned to the `NEXT_PUBLIC_MGNL_HOST`.
 
 5. Click "Run the Web update" on the author instance. Log in upon reaching your Magnolia instance, typically using the `superuser` account.
 
@@ -180,10 +179,10 @@ Or you can go to a GitHub repo and fork it.
 
 **Fork the Repository**:
 
--   Visit [https://github.com/magnolia-cms/magnolia-vercel-nextjs](https://github.com/magnolia-cms/magnolia-vercel-nextjs).
--   On the repository page, click the `Fork` button at the top right corner to create a fork of the repository under your GitHub account.
+- Visit [https://github.com/magnolia-cms/magnolia-vercel-nextjs](https://github.com/magnolia-cms/magnolia-vercel-nextjs).
+- On the repository page, click the `Fork` button at the top right corner to create a fork of the repository under your GitHub account.
 
--   cd `my-nextjs-project`
+- cd `my-nextjs-project`
 
 ## Step 2: Push the project to your repository
 
@@ -213,24 +212,24 @@ It will look something like this:
 
 ## Step 3: Connect Your Repository to Vercel
 
--   Log in to Vercel.
--   Import your project.
-    -   Click on “New Project”.
-    -   Choose to import a project from a Git repository.
-    -   Follow the prompts to connect Vercel to your GitHub account (_if not already connected_).
--   Set up Vercel Git integration:
-    -   Select your GitHub repository with the Next.js project.
-    -   Vercel detects that it's a Next.js project and sets up the build settings automatically.
-    -   Now you can add the environment variables for Magnolia before you deploy the project.
--   Set up environment variables:
+- Log in to Vercel.
+- Import your project.
+  - Click on “New Project”.
+  - Choose to import a project from a Git repository.
+  - Follow the prompts to connect Vercel to your GitHub account (_if not already connected_).
+- Set up Vercel Git integration:
+  - Select your GitHub repository with the Next.js project.
+  - Vercel detects that it's a Next.js project and sets up the build settings automatically.
+  - Now you can add the environment variables for Magnolia before you deploy the project.
+- Set up environment variables:
 
-    -   Click on “Environment Variables”.
-    -   Add the following environment variables:
+  - Click on “Environment Variables”.
+  - Add the following environment variables:
 
-    ```bash
-    NEXT_PUBLIC_MGNL_HOST=YOUR_LOCAL_TUNNEL_URL
-    NEXT_APP_MGNL_SITE_PATH="/vercel-demo"
-    ```
+  ```bash
+  NEXT_PUBLIC_MGNL_HOST=YOUR_LOCAL_TUNNEL_URL
+  NEXT_APP_MGNL_SITE_PATH="/vercel-demo"
+  ```
 
 Click on “Deploy”.
 
@@ -264,28 +263,27 @@ This section will walk you through the steps to add a new page in Magnolia CMS, 
 
 . **Open the Pages App**:
 
--   Navigate to the pages app within the Magnolia CMS interface.
+- Navigate to the pages app within the Magnolia CMS interface.
 
 ## Adding a New Page
 
 . **Initiate Page Creation**:
 
--   Click on the option to add a new page by clicking 'Add page' button.
+- Click on the option to add a new page by clicking 'Add page' button.
 
 . **Select the Template**:
 
--   Choose the 'Next.js SSR: Basic' template from the list of available templates. This template is designed for server-side rendered Next.js pages.
+- Choose the 'Next.js SSR: Basic' template from the list of available templates. This template is designed for server-side rendered Next.js pages.
 
 . **Name Your Page**:
 
--   Name your new page 'vercel-demo'. Ensure that it aligns with the `NEXT_APP_MGNL_SITE_PATH` environment variable set in your project.
+- Name your new page 'vercel-demo'. Ensure that it aligns with the `NEXT_APP_MGNL_SITE_PATH` environment variable set in your project.
 
 ## Customizing the Page
 
 . **Add Components to Your Page**:
 
--   After the page is created, you can start adding components.
--   Look for the green bars in the page editor, which represent areas where you can add new components.
+- After the page is created, you can start adding components.
+- Look for the green bars in the page editor, which represent areas where you can add new components.
 
 You should see the Next JS app that was deployed to Vercel in the WSYWIG editor. Now you can make changes to the page and see them reflected in the editor and on the live site.
-

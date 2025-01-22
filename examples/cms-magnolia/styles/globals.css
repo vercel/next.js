@@ -1,5 +1,9 @@
 body {
-  font-family: Helvetica Neue, Helvetica, Arial, sans-serif;
+  font-family:
+    Helvetica Neue,
+    Helvetica,
+    Arial,
+    sans-serif;
   color: #747474;
   text-align: center;
   -webkit-font-smoothing: antialiased;
@@ -40,7 +44,7 @@ img {
 }
 
 .languages span:hover,
-.languages span[data-active='true'] {
+.languages span[data-active="true"] {
   text-decoration: underline;
   cursor: pointer;
 }
@@ -73,7 +77,9 @@ footer {
 
 .expander {
   border: solid 1px #cccccc;
-  box-shadow: 0 10px 16px 0 rgba(0, 0, 0, 0.2), 0 6px 20px 0 rgba(0, 0, 0, 0.19) !important;
+  box-shadow:
+    0 10px 16px 0 rgba(0, 0, 0, 0.2),
+    0 6px 20px 0 rgba(0, 0, 0, 0.19) !important;
   vertical-align: middle;
   margin-bottom: 20px;
 }

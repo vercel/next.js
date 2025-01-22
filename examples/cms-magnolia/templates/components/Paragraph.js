@@ -1,10 +1,10 @@
-import React from 'react';
+import React from "react";
 
 export default function Paragraph(props) {
-	return (
-		<div
-			className="Paragraph"
-			dangerouslySetInnerHTML={{ __html: props.richText }}
-		/>
-	);
+  return (
+    <div
+      className="Paragraph"
+      dangerouslySetInnerHTML={{ __html: props.richText }}
+    />
+  );
 }
