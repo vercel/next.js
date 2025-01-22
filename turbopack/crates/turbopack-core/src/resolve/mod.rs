@@ -11,8 +11,8 @@ use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TaskInput,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    fxindexmap, trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, OptionVcExt, ResolvedVc,
+    TaskInput, TryJoinIterExt, Value, ValueToString, Vc,
 };
 use turbo_tasks_fs::{
     util::normalize_request, FileSystemEntryType, FileSystemPath, RealPathResult,
@@ -1539,7 +1539,7 @@ pub async fn url_resolve(
     origin: Vc<Box<dyn ResolveOrigin>>,
     request: Vc<Request>,
     reference_type: Value<ReferenceType>,
-    issue_source: Option<ResolvedVc<IssueSource>>,
+    issue_source: Option<Vc<IssueSource>>,
     is_optional: bool,
 ) -> Result<Vc<ModuleResolveResult>> {
     let resolve_options = origin.resolve_options(reference_type.clone());
@@ -2902,7 +2902,7 @@ pub async fn handle_resolve_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ModuleResolveResult>> {
     async fn is_unresolvable(result: Vc<ModuleResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
@@ -2946,7 +2946,7 @@ pub async fn handle_resolve_source_error(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     is_optional: bool,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<Vc<IssueSource>>,
 ) -> Result<Vc<ResolveResult>> {
     async fn is_unresolvable(result: Vc<ResolveResult>) -> Result<bool> {
         Ok(*result.resolve().await?.is_unresolvable().await?)
@@ -2990,7 +2990,7 @@ async fn emit_resolve_error_issue(
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
     err: anyhow::Error,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<Vc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.resolved_cell()
@@ -3004,7 +3004,7 @@ async fn emit_resolve_error_issue(
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
         error_message: Some(format!("{}", PrettyPrintError(&err))),
-        source,
+        source: source.to_resolved().await?,
     }
     .resolved_cell()
     .emit();
@@ -3017,7 +3017,7 @@ async fn emit_unresolvable_issue(
     reference_type: Value<ReferenceType>,
     request: Vc<Request>,
     resolve_options: Vc<ResolveOptions>,
-    source: Option<ResolvedVc<IssueSource>>,
+    source: Option<Vc<IssueSource>>,
 ) -> Result<()> {
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.resolved_cell()
@@ -3031,7 +3031,7 @@ async fn emit_unresolvable_issue(
         request: request.to_resolved().await?,
         resolve_options: resolve_options.to_resolved().await?,
         error_message: None,
-        source,
+        source: source.to_resolved().await?,
     }
     .resolved_cell()
     .emit();

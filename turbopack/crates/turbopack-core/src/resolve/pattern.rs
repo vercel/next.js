@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashSet, VecDeque},
+    collections::{hash_map::Entry, VecDeque},
     fmt::Display,
     mem::take,
 };
@@ -7,6 +7,7 @@ use std::{
 use anyhow::Result;
 use lazy_static::lazy_static;
 use regex::Regex;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -15,8 +16,7 @@ use turbo_tasks::{
     Vc,
 };
 use turbo_tasks_fs::{
-    util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemEntryType, FileSystemPath,
-    LinkContent, LinkType,
+    util::normalize_path, DirectoryContent, DirectoryEntry, FileSystemPath, LinkContent, LinkType,
 };
 
 #[turbo_tasks::value(shared, serialization = "auto_for_input")]
@@ -1363,86 +1363,100 @@ pub async fn read_matches(
             // Fast path: There is a finite list of possible strings that include at least
             // one path segment We will enumerate the list instead of the
             // directory
-            let mut handled = HashSet::new();
+            let mut handled = FxHashSet::default();
+            let mut read_dir_results = FxHashMap::default();
             for (index, (str, until_end)) in constants.into_iter().enumerate() {
                 if until_end {
-                    if handled.insert(str) {
-                        let fs_path = *if force_in_lookup_dir {
-                            lookup_dir.try_join_inside(str.into()).await?
+                    if !handled.insert(str) {
+                        continue;
+                    }
+                    let (parent_path, last_segment) = split_last_segment(str);
+                    if last_segment.is_empty() {
+                        // This means we don't have a last segment, so we just have a directory
+                        let joined = if force_in_lookup_dir {
+                            lookup_dir.try_join_inside(parent_path.into()).await?
                         } else {
-                            lookup_dir.try_join(str.into()).await?
+                            lookup_dir.try_join(parent_path.into()).await?
                         };
-                        if let Some(fs_path) = fs_path {
-                            // This explicit deref of `context` is necessary
-                            #[allow(clippy::explicit_auto_deref)]
-                            let should_match = !force_in_lookup_dir
-                                || fs_path.await?.is_inside_ref(&*lookup_dir.await?);
-
-                            if should_match {
-                                let len = prefix.len();
-                                prefix.push_str(str);
-                                match *fs_path.get_type().await? {
-                                    FileSystemEntryType::File => {
-                                        results.push((
-                                            index,
-                                            PatternMatch::File(prefix.clone().into(), fs_path),
-                                        ));
-                                    }
-                                    FileSystemEntryType::Directory => results.push((
-                                        index,
-                                        PatternMatch::Directory(prefix.clone().into(), fs_path),
-                                    )),
-                                    FileSystemEntryType::Symlink => {
-                                        if let LinkContent::Link { link_type, .. } =
-                                            &*fs_path.read_link().await?
-                                        {
-                                            if link_type.contains(LinkType::DIRECTORY) {
-                                                results.push((
-                                                    index,
-                                                    PatternMatch::Directory(
-                                                        prefix.clone().into(),
-                                                        fs_path,
-                                                    ),
-                                                ));
-                                            } else {
-                                                results.push((
-                                                    index,
-                                                    PatternMatch::File(
-                                                        prefix.clone().into(),
-                                                        fs_path,
-                                                    ),
-                                                ))
-                                            }
-                                        }
-                                    }
-                                    _ => {}
-                                }
-                                prefix.truncate(len);
+                        let Some(fs_path) = *joined else {
+                            continue;
+                        };
+                        results.push((
+                            index,
+                            PatternMatch::Directory(concat(&prefix, str).into(), fs_path),
+                        ));
+                        continue;
+                    }
+                    let entry = read_dir_results.entry(parent_path);
+                    let read_dir = match entry {
+                        Entry::Occupied(e) => Some(e.into_mut()),
+                        Entry::Vacant(e) => {
+                            let path_option = *if force_in_lookup_dir {
+                                lookup_dir.try_join_inside(parent_path.into()).await?
+                            } else {
+                                lookup_dir.try_join(parent_path.into()).await?
+                            };
+                            if let Some(path) = path_option {
+                                Some(e.insert(path.read_dir().await?))
+                            } else {
+                                None
                             }
                         }
+                    };
+                    let Some(read_dir) = read_dir else {
+                        continue;
+                    };
+                    let DirectoryContent::Entries(entries) = &**read_dir else {
+                        continue;
+                    };
+                    let Some(entry) = entries.get(last_segment) else {
+                        continue;
+                    };
+                    match *entry {
+                        DirectoryEntry::File(fs_path) => {
+                            results.push((
+                                index,
+                                PatternMatch::File(concat(&prefix, str).into(), fs_path),
+                            ));
+                        }
+                        DirectoryEntry::Directory(fs_path) => results.push((
+                            index,
+                            PatternMatch::Directory(concat(&prefix, str).into(), fs_path),
+                        )),
+                        DirectoryEntry::Symlink(fs_path) => {
+                            let LinkContent::Link { link_type, .. } = &*fs_path.read_link().await?
+                            else {
+                                continue;
+                            };
+                            let path = concat(&prefix, str).into();
+                            if link_type.contains(LinkType::DIRECTORY) {
+                                results.push((index, PatternMatch::Directory(path, fs_path)));
+                            } else {
+                                results.push((index, PatternMatch::File(path, fs_path)))
+                            }
+                        }
+                        _ => {}
                     }
                 } else {
                     let subpath = &str[..=str.rfind('/').unwrap()];
                     if handled.insert(subpath) {
-                        if let Some(fs_path) = &*if force_in_lookup_dir {
+                        let joined = if force_in_lookup_dir {
                             lookup_dir.try_join_inside(subpath.into()).await?
                         } else {
                             lookup_dir.try_join(subpath.into()).await?
-                        } {
-                            let fs_path = fs_path.resolve().await?;
-                            let len = prefix.len();
-                            prefix.push_str(subpath);
-                            nested.push((
-                                0,
-                                read_matches(
-                                    fs_path,
-                                    prefix.clone().into(),
-                                    force_in_lookup_dir,
-                                    pattern,
-                                ),
-                            ));
-                            prefix.truncate(len);
-                        }
+                        };
+                        let Some(fs_path) = *joined else {
+                            continue;
+                        };
+                        nested.push((
+                            0,
+                            read_matches(
+                                *fs_path,
+                                concat(&prefix, subpath).into(),
+                                force_in_lookup_dir,
+                                pattern,
+                            ),
+                        ));
                     }
                 }
             }
@@ -1661,12 +1675,42 @@ pub async fn read_matches(
     }
 }
 
+fn concat(a: &str, b: &str) -> String {
+    let mut result = String::with_capacity(a.len() + b.len());
+    result.push_str(a);
+    result.push_str(b);
+    result
+}
+
+/// Returns the parent folder and the last segment of the path. When the last segment is unknown (e.
+/// g. when using `../`) it returns the full path and an empty string.
+fn split_last_segment(path: &str) -> (&str, &str) {
+    if let Some((remaining_path, last_segment)) = path.rsplit_once('/') {
+        match last_segment {
+            "" => split_last_segment(remaining_path),
+            "." => split_last_segment(remaining_path),
+            ".." => match split_last_segment(remaining_path) {
+                (_, "") => (path, ""),
+                (parent_path, _) => split_last_segment(parent_path),
+            },
+            _ => (remaining_path, last_segment),
+        }
+    } else {
+        match path {
+            "" => ("", ""),
+            "." => ("", ""),
+            ".." => ("..", ""),
+            _ => ("", path),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use rstest::*;
     use turbo_rcstr::RcStr;
 
-    use super::{longest_common_prefix, longest_common_suffix, Pattern};
+    use super::{longest_common_prefix, longest_common_suffix, split_last_segment, Pattern};
 
     #[test]
     fn longest_common_prefix_test() {
@@ -2313,5 +2357,39 @@ mod tests {
                 .as_deref(),
             Some("@/sub/file1"),
         );
+    }
+
+    #[test]
+    fn test_split_last_segment() {
+        assert_eq!(split_last_segment(""), ("", ""));
+        assert_eq!(split_last_segment("a"), ("", "a"));
+        assert_eq!(split_last_segment("a/"), ("", "a"));
+        assert_eq!(split_last_segment("a/b"), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/"), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/c"), ("a/b", "c"));
+        assert_eq!(split_last_segment("a/b/."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/.."), ("", "a"));
+        assert_eq!(split_last_segment("a/b/c/.."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/c/../.."), ("", "a"));
+        assert_eq!(split_last_segment("a/b/c/d/../.."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/c/../d/.."), ("a", "b"));
+        assert_eq!(split_last_segment("a/b/../c/d/.."), ("a/b/..", "c"));
+        assert_eq!(split_last_segment("."), ("", ""));
+        assert_eq!(split_last_segment("./"), ("", ""));
+        assert_eq!(split_last_segment(".."), ("..", ""));
+        assert_eq!(split_last_segment("../"), ("..", ""));
+        assert_eq!(split_last_segment("./../"), ("./..", ""));
+        assert_eq!(split_last_segment("../../"), ("../..", ""));
+        assert_eq!(split_last_segment("../../."), ("../..", ""));
+        assert_eq!(split_last_segment("../.././"), ("../..", ""));
+        assert_eq!(split_last_segment("a/.."), ("", ""));
+        assert_eq!(split_last_segment("a/../"), ("", ""));
+        assert_eq!(split_last_segment("a/../.."), ("a/../..", ""));
+        assert_eq!(split_last_segment("a/../../"), ("a/../..", ""));
+        assert_eq!(split_last_segment("a/././../"), ("", ""));
+        assert_eq!(split_last_segment("../a"), ("..", "a"));
+        assert_eq!(split_last_segment("../a/"), ("..", "a"));
+        assert_eq!(split_last_segment("../../a"), ("../..", "a"));
+        assert_eq!(split_last_segment("../../a/"), ("../..", "a"));
     }
 }

@@ -284,8 +284,10 @@ impl AnalyzeEcmascriptModuleResultBuilder {
         mut self,
         track_reexport_references: bool,
     ) -> Result<Vc<AnalyzeEcmascriptModuleResult>> {
-        let bindings = EsmBindings::new(take(&mut self.bindings));
-        if !bindings.await?.bindings.is_empty() {
+        let bindings = take(&mut self.bindings);
+        let has_bindings = !bindings.is_empty();
+        if has_bindings {
+            let bindings = EsmBindings::new(bindings);
             self.add_code_gen(bindings);
         }
 
@@ -543,52 +545,54 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
         }
     }
-    // TODO This is too eagerly generating the source map. We should store a GenerateSourceMap
-    // instead and only actually generate the SourceMap when it's needed. This would allow to avoid
-    // generating the source map when a module is never included in the final bundle. It allows
-    // analysis to finish earlier which makes references available earlier which benefits
-    // parallelism. When SourceMaps are emitted it moves that generation work to the code generation
-    // phase which is more parallelizable.
-    let mut source_map_from_comment = false;
-    if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
-        let origin_path = origin.origin_path();
-        if path.ends_with(".map") {
-            let source_map_origin = origin_path.parent().join(path.into());
-            let reference = SourceMapReference::new(origin_path, source_map_origin)
-                .to_resolved()
-                .await?;
-            analysis.add_reference(reference);
-            let source_map = reference.generate_source_map();
-            analysis.set_source_map(
-                convert_to_turbopack_source_map(source_map, source_map_origin)
+    if options.extract_source_map {
+        // TODO This is too eagerly generating the source map. We should store a GenerateSourceMap
+        // instead and only actually generate the SourceMap when it's needed. This would allow to
+        // avoid generating the source map when a module is never included in the final
+        // bundle. It allows analysis to finish earlier which makes references available
+        // earlier which benefits parallelism. When SourceMaps are emitted it moves that
+        // generation work to the code generation phase which is more parallelizable.
+        let mut source_map_from_comment = false;
+        if let Some((_, path)) = paths_by_pos.into_iter().max_by_key(|&(pos, _)| pos) {
+            let origin_path = origin.origin_path();
+            if path.ends_with(".map") {
+                let source_map_origin = origin_path.parent().join(path.into());
+                let reference = SourceMapReference::new(origin_path, source_map_origin)
                     .to_resolved()
-                    .await?,
-            );
-            source_map_from_comment = true;
-        } else if path.starts_with("data:application/json;base64,") {
-            let source_map_origin = origin_path;
-            let source_map = maybe_decode_data_url(path.into());
-            analysis.set_source_map(
-                convert_to_turbopack_source_map(source_map, source_map_origin)
-                    .to_resolved()
-                    .await?,
-            );
-            source_map_from_comment = true;
+                    .await?;
+                analysis.add_reference(reference);
+                let source_map = reference.generate_source_map();
+                analysis.set_source_map(
+                    convert_to_turbopack_source_map(source_map, source_map_origin)
+                        .to_resolved()
+                        .await?,
+                );
+                source_map_from_comment = true;
+            } else if path.starts_with("data:application/json;base64,") {
+                let source_map_origin = origin_path;
+                let source_map = maybe_decode_data_url(path.into());
+                analysis.set_source_map(
+                    convert_to_turbopack_source_map(source_map, source_map_origin)
+                        .to_resolved()
+                        .await?,
+                );
+                source_map_from_comment = true;
+            }
         }
-    }
-    if !source_map_from_comment {
-        if let Some(generate_source_map) =
-            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
-        {
-            let source_map_origin = source.ident().path();
-            analysis.set_source_map(
-                convert_to_turbopack_source_map(
-                    generate_source_map.generate_source_map(),
-                    source_map_origin,
-                )
-                .to_resolved()
-                .await?,
-            );
+        if !source_map_from_comment {
+            if let Some(generate_source_map) =
+                ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
+            {
+                let source_map_origin = source.ident().path();
+                analysis.set_source_map(
+                    convert_to_turbopack_source_map(
+                        generate_source_map.generate_source_map(),
+                        source_map_origin,
+                    )
+                    .to_resolved()
+                    .await?,
+                );
+            }
         }
     }
 
@@ -603,41 +607,45 @@ pub(crate) async fn analyse_ecmascript_module_internal(
     // ast-grep-ignore: to-resolved-in-loop
     for (i, r) in eval_context.imports.references().enumerate() {
         let r = EsmAssetReference::new(
-            *origin,
+            origin,
             Request::parse(Value::new(RcStr::from(&*r.module_path).into()))
-                .resolve()
+                .to_resolved()
                 .await?,
             if let Some(issue_source) = r.issue_source {
-                issue_source.resolve().await?
+                issue_source.to_resolved().await?
             } else {
-                IssueSource::from_source_only(*source).resolve().await?
+                IssueSource::from_source_only(*source).to_resolved().await?
             },
             Value::new(r.annotations.clone()),
             match options.tree_shaking_mode {
                 Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::evaluation().resolve().await?)
+                        Some(ModulePart::evaluation().to_resolved().await?)
                     }
                     ImportedSymbol::Symbol(name) => {
-                        Some(ModulePart::export((&**name).into()).resolve().await?)
+                        Some(ModulePart::export((&**name).into()).to_resolved().await?)
                     }
                     ImportedSymbol::PartEvaluation(part_id) => {
                         evaluation_references.push(i);
-                        Some(ModulePart::internal_evaluation(*part_id).resolve().await?)
+                        Some(
+                            ModulePart::internal_evaluation(*part_id)
+                                .to_resolved()
+                                .await?,
+                        )
                     }
                     ImportedSymbol::Part(part_id) => {
-                        Some(ModulePart::internal(*part_id).resolve().await?)
+                        Some(ModulePart::internal(*part_id).to_resolved().await?)
                     }
-                    ImportedSymbol::Exports => Some(ModulePart::exports().resolve().await?),
+                    ImportedSymbol::Exports => Some(ModulePart::exports().to_resolved().await?),
                 },
                 Some(TreeShakingMode::ReexportsOnly) => match &r.imported_symbol {
                     ImportedSymbol::ModuleEvaluation => {
                         evaluation_references.push(i);
-                        Some(ModulePart::evaluation().resolve().await?)
+                        Some(ModulePart::evaluation().to_resolved().await?)
                     }
                     ImportedSymbol::Symbol(name) => {
-                        Some(ModulePart::export((&**name).into()).resolve().await?)
+                        Some(ModulePart::export((&**name).into()).to_resolved().await?)
                     }
                     ImportedSymbol::PartEvaluation(_) | ImportedSymbol::Part(_) => {
                         bail!("Internal imports doesn't exist in reexports only mode")
@@ -912,7 +920,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         match effect {
             Effect::Unreachable { start_ast_path } => {
                 analysis.add_code_gen(Unreachable::new(
-                    AstPathRange::StartAfter(start_ast_path.to_vec()).cell(),
+                    AstPathRange::StartAfter(start_ast_path.to_vec()).resolved_cell(),
                 ));
             }
             Effect::Conditional {
@@ -932,7 +940,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
 
                 macro_rules! inactive {
                     ($block:ident) => {
-                        analysis.add_code_gen(Unreachable::new($block.range.clone().cell()));
+                        analysis
+                            .add_code_gen(Unreachable::new($block.range.clone().resolved_cell()));
                     };
                 }
                 macro_rules! condition {
@@ -1226,11 +1235,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                 if r_ref.export_name.is_none() && export.is_some() {
                                     let export = export.clone().unwrap();
                                     EsmAssetReference::new(
-                                        *r_ref.origin,
-                                        *r_ref.request,
-                                        *r_ref.issue_source,
+                                        r_ref.origin,
+                                        r_ref.request,
+                                        r_ref.issue_source,
                                         Value::new(r_ref.annotations.clone()),
-                                        Some(ModulePart::export(export)),
+                                        Some(ModulePart::export(export).to_resolved().await?),
                                         r_ref.import_externals,
                                     )
                                     .to_resolved()
@@ -2371,24 +2380,35 @@ async fn handle_free_var_reference(
             export,
         } => {
             let esm_reference = EsmAssetReference::new(
-                lookup_path.map_or(*state.origin, |lookup_path| {
-                    Vc::upcast(PlainResolveOrigin::new(
-                        state.origin.asset_context(),
-                        *lookup_path,
-                    ))
-                }),
-                Request::parse(Value::new(request.clone().into())),
+                if let Some(lookup_path) = lookup_path {
+                    ResolvedVc::upcast(
+                        PlainResolveOrigin::new(state.origin.asset_context(), **lookup_path)
+                            .to_resolved()
+                            .await?,
+                    )
+                } else {
+                    state.origin
+                },
+                Request::parse(Value::new(request.clone().into()))
+                    .to_resolved()
+                    .await?,
                 IssueSource::from_swc_offsets(
                     *state.source,
                     span.lo.to_usize(),
                     span.hi.to_usize(),
-                ),
+                )
+                .to_resolved()
+                .await?,
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
-                    | Some(TreeShakingMode::ReexportsOnly) => export
-                        .as_ref()
-                        .map(|export| ModulePart::export(export.clone())),
+                    | Some(TreeShakingMode::ReexportsOnly) => {
+                        if let Some(export) = export {
+                            Some(ModulePart::export(export.clone()).to_resolved().await?)
+                        } else {
+                            None
+                        }
+                    }
                     None => None,
                 },
                 state.import_externals,
@@ -3001,7 +3021,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         export: &'ast ExportAll,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3066,7 +3086,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
 
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         self.analysis.add_code_gen(EsmModuleItem::new(path));
         export.visit_children_with_ast_path(self, ast_path);
     }
@@ -3081,7 +3101,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
                 .insert(name.clone(), EsmExport::LocalBinding(name, false));
         });
         self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+            .add_code_gen(EsmModuleItem::new(ResolvedVc::cell(as_parent_path(
+                ast_path,
+            ))));
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3095,7 +3117,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             EsmExport::LocalBinding(magic_identifier::mangle("default export").into(), false),
         );
         self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+            .add_code_gen(EsmModuleItem::new(ResolvedVc::cell(as_parent_path(
+                ast_path,
+            ))));
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3122,7 +3146,9 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
             }
         }
         self.analysis
-            .add_code_gen(EsmModuleItem::new(Vc::cell(as_parent_path(ast_path))));
+            .add_code_gen(EsmModuleItem::new(ResolvedVc::cell(as_parent_path(
+                ast_path,
+            ))));
         export.visit_children_with_ast_path(self, ast_path);
     }
 
@@ -3131,7 +3157,7 @@ impl VisitAstPath for ModuleReferencesVisitor<'_> {
         import: &'ast ImportDecl,
         ast_path: &mut AstNodePath<AstParentNodeRef<'r>>,
     ) {
-        let path = Vc::cell(as_parent_path(ast_path));
+        let path = ResolvedVc::cell(as_parent_path(ast_path));
         let src = import.src.value.to_string();
         import.visit_children_with_ast_path(self, ast_path);
         if import.type_only {

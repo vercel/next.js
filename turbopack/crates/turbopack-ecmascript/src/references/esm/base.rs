@@ -123,9 +123,7 @@ impl EsmAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
 impl EsmAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
@@ -143,7 +141,10 @@ impl EsmAssetReference {
             import_externals,
         })
     }
+}
 
+#[turbo_tasks::value_impl]
+impl EsmAssetReference {
     #[turbo_tasks::function]
     pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
@@ -188,7 +189,8 @@ impl ModuleReference for EsmAssetReference {
             Value::new(ty),
             false,
             Some(*self.issue_source),
-        );
+        )
+        .await?;
 
         if let Some(part) = self.export_name {
             let part = part.await?;

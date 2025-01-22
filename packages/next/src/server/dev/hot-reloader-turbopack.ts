@@ -850,9 +850,6 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async start() {},
-    async stop() {
-      // Not implemented yet.
-    },
     async getCompilationErrors(page) {
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)

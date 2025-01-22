@@ -38,6 +38,9 @@ impl EcmascriptBuildNodeRuntimeChunk {
 
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path().await?;
         let output_root = this.chunking_context.output_root().await?;
+        let generate_source_map = this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self));
         let runtime_path = self.ident().path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
@@ -69,12 +72,14 @@ impl EcmascriptBuildNodeRuntimeChunk {
             RuntimeType::Development => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
+                    generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
             }
             RuntimeType::Production => {
                 let runtime_code = turbopack_ecmascript_runtime::get_nodejs_runtime_code(
                     this.chunking_context.environment(),
+                    generate_source_map,
                 );
                 code.push_code(&*runtime_code.await?);
             }

@@ -106,7 +106,7 @@ impl ConditionalKind {
 #[derive(Debug, Clone)]
 pub enum EffectArg {
     Value(JsValue),
-    Closure(JsValue, EffectsBlock),
+    Closure(JsValue, Box<EffectsBlock>),
     Spread,
 }
 
@@ -1108,10 +1108,10 @@ impl Analyzer<'_> {
                         let effects = replace(&mut self.effects, old_effects);
                         EffectArg::Closure(
                             value,
-                            EffectsBlock {
+                            Box::new(EffectsBlock {
                                 effects,
                                 range: AstPathRange::Exact(path),
-                            },
+                            }),
                         )
                     } else {
                         arg.visit_with_ast_path(self, &mut ast_path);

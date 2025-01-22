@@ -76,7 +76,6 @@ import { STATIC_STALETIME_MS } from '../router-reducer/prefetch-cache-utils'
 
 export type RouteTree = {
   key: string
-  token: string | null
   segment: FlightRouterStateSegment
   slots: null | {
     [parallelRouteKey: string]: RouteTree
@@ -720,7 +719,6 @@ function convertTreePrefetchToRouteTree(
   }
   return {
     key,
-    token: prefetch.token,
     segment: prefetch.segment,
     slots,
     isRootLayout: prefetch.isRootLayout,
@@ -769,10 +767,6 @@ function convertFlightRouterStateToRouteTree(
 
   return {
     key,
-    // NOTE: Dynamic server responses do not currently include an access token.
-    // (They may in the future.) Which means this tree cannot be used to issue
-    // a per-segment prefetch.
-    token: null,
     segment: flightRouterState[0],
     slots,
     isRootLayout: flightRouterState[4] === true,
@@ -946,8 +940,7 @@ export async function fetchSegmentOnCacheMiss(
   route: FulfilledRouteCacheEntry,
   segmentCacheEntry: PendingSegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKeyPath: string,
-  accessToken: string | null
+  segmentKeyPath: string
 ): Promise<PrefetchSubtaskResult<FulfilledSegmentCacheEntry> | null> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
@@ -960,7 +953,15 @@ export async function fetchSegmentOnCacheMiss(
   try {
     const response = await fetchSegmentPrefetchResponse(
       href,
-      accessToken === '' ? segmentKeyPath : `${segmentKeyPath}.${accessToken}`,
+      segmentKeyPath === ROOT_SEGMENT_KEY
+        ? // The root segment is a special case. To simplify the server-side
+          // handling of these requests, we encode the root segment path as
+          // `_index` instead of as an empty string. This should be treated as
+          // an implementation detail and not as a stable part of the protocol.
+          // It just needs to match the equivalent logic that happens when
+          // prerendering the responses. It should not leak outside of Next.js.
+          '/_index'
+        : '/' + segmentKeyPath,
       routeKey.nextUrl
     )
     if (

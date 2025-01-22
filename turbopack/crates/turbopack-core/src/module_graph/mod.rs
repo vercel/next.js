@@ -1,5 +1,5 @@
 use std::{
-    collections::{HashMap, HashSet, VecDeque},
+    collections::{HashSet, VecDeque},
     future::Future,
     ops::Deref,
 };
@@ -9,8 +9,9 @@ use petgraph::{
     graph::{DiGraph, EdgeIndex, NodeIndex},
     visit::{Dfs, EdgeRef, IntoNodeReferences, VisitMap, Visitable},
 };
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
-use tracing::Instrument;
+use tracing::{Instrument, Span};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat,
@@ -148,7 +149,7 @@ pub struct SingleModuleGraph {
     //
     // This contains Vcs, but they are already contained in the graph, so no need to trace this.
     #[turbo_tasks(trace_ignore)]
-    modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
+    modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex>,
 
     #[turbo_tasks(trace_ignore)]
     pub entries: Vec<ResolvedVc<Box<dyn Module>>>,
@@ -162,8 +163,6 @@ impl SingleModuleGraph {
         entries: &Vec<ResolvedVc<Box<dyn Module>>>,
         visited_modules: &FxIndexMap<ResolvedVc<Box<dyn Module>>, GraphNodeIndex>,
     ) -> Result<Vc<Self>> {
-        let mut graph = DiGraph::new();
-
         let root_edges = entries
             .iter()
             .map(|e| async move {
@@ -174,15 +173,25 @@ impl SingleModuleGraph {
             .try_join()
             .await?;
 
-        let children_nodes_iter = AdjacencyMap::new()
+        let (children_nodes_iter, visited_nodes) = AdjacencyMap::new()
             .skip_duplicates()
             .visit(root_edges, SingleModuleGraphBuilder { visited_modules })
             .await
             .completed()?
-            .into_inner();
+            .into_inner_with_visited();
+        let node_count = visited_nodes.0.len();
+        drop(visited_nodes);
+
+        let mut graph = DiGraph::with_capacity(
+            node_count,
+            // From real world measurements each module has about 3-4 children
+            // If it has more this would cause an additional allocation, but that's fine
+            node_count * 4,
+        );
 
         let mut number_of_modules = 0;
-        let mut modules: HashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> = HashMap::new();
+        let mut modules: FxHashMap<ResolvedVc<Box<dyn Module>>, NodeIndex> =
+            FxHashMap::with_capacity_and_hasher(node_count, Default::default());
         {
             let _span = tracing::info_span!("build module graph").entered();
             for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
@@ -258,6 +267,8 @@ impl SingleModuleGraph {
                 }
             }
         }
+
+        graph.shrink_to_fit();
 
         Ok(SingleModuleGraph {
             graph: TracedDiGraph(graph),
@@ -1077,14 +1088,17 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
                 source_ident,
                 target_ident,
                 ..
-            } => {
-                tracing::info_span!(
-                    "chunkable reference",
-                    ty = debug(chunking_type),
-                    source = display(source_ident),
-                    target = display(target_ident)
-                )
-            }
+            } => match chunking_type {
+                ChunkingType::Parallel => Span::current(),
+                _ => {
+                    tracing::info_span!(
+                        "chunkable reference",
+                        ty = debug(chunking_type),
+                        source = display(source_ident),
+                        target = display(target_ident)
+                    )
+                }
+            },
             SingleModuleGraphBuilderNode::VisitedModule { .. } => {
                 tracing::info_span!("visited module")
             }

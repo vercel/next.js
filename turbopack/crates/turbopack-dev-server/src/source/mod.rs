@@ -485,7 +485,7 @@ pub enum RewriteType {
     ContentSource {
         /// [`ContentSource`]s from which to restart the lookup process. This _does not_ need to be
         /// the original content source.
-        source: ResolvedVc<Box<dyn ContentSource>>,
+        source: OperationVc<Box<dyn ContentSource>>,
         /// The new path and query used to lookup content. This _does not_ need
         /// to be the original path or query.
         path_and_query: RcStr,
@@ -493,7 +493,7 @@ pub enum RewriteType {
     Sources {
         /// [`GetContentSourceContent`]s from which to restart the lookup process. This _does not_
         /// need to be the original content source.
-        sources: ResolvedVc<GetContentSourceContents>,
+        sources: OperationVc<GetContentSourceContents>,
     },
 }
 
@@ -529,7 +529,7 @@ impl RewriteBuilder {
     }
 
     pub fn new_source_with_path_and_query(
-        source: ResolvedVc<Box<dyn ContentSource>>,
+        source: OperationVc<Box<dyn ContentSource>>,
         path_and_query: RcStr,
     ) -> Self {
         Self {
@@ -544,7 +544,7 @@ impl RewriteBuilder {
         }
     }
 
-    pub fn new_sources(sources: ResolvedVc<GetContentSourceContents>) -> Self {
+    pub fn new_sources(sources: OperationVc<GetContentSourceContents>) -> Self {
         Self {
             rewrite: Rewrite {
                 ty: RewriteType::Sources { sources },

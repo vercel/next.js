@@ -1,4 +1,7 @@
 import type { Meta, StoryObj } from '@storybook/react'
+import type { SupportedErrorEvent } from '../../../internal/container/Errors'
+import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
+
 import { Errors } from './errors'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
 import { ACTION_UNHANDLED_ERROR } from '../../../shared'
@@ -14,75 +17,87 @@ const meta: Meta<typeof Errors> = {
 export default meta
 type Story = StoryObj<typeof Errors>
 
+const errors: SupportedErrorEvent[] = [
+  {
+    id: 1,
+    event: {
+      type: ACTION_UNHANDLED_ERROR,
+      reason: Object.assign(new Error('First error message'), {
+        __NEXT_ERROR_CODE: 'E001',
+      }),
+      componentStackFrames: [
+        {
+          file: 'app/page.tsx',
+          component: 'Home',
+          lineNumber: 10,
+          column: 5,
+          canOpenInEditor: true,
+        },
+      ],
+      frames: [
+        {
+          file: 'app/page.tsx',
+          methodName: 'Home',
+          arguments: [],
+          lineNumber: 10,
+          column: 5,
+        },
+      ],
+    },
+  },
+  {
+    id: 2,
+    event: {
+      type: ACTION_UNHANDLED_ERROR,
+      reason: Object.assign(new Error('Second error message'), {
+        __NEXT_ERROR_CODE: 'E002',
+      }),
+      frames: [],
+    },
+  },
+  {
+    id: 3,
+    event: {
+      type: ACTION_UNHANDLED_ERROR,
+      reason: Object.assign(new Error('Third error message'), {
+        __NEXT_ERROR_CODE: 'E003',
+      }),
+      frames: [],
+    },
+  },
+  {
+    id: 4,
+    event: {
+      type: ACTION_UNHANDLED_ERROR,
+      reason: Object.assign(new Error('Fourth error message'), {
+        __NEXT_ERROR_CODE: 'E004',
+      }),
+      frames: [],
+    },
+  },
+]
+
+const readyErrors: ReadyRuntimeError[] = [
+  {
+    id: 1,
+    runtime: true,
+    error: errors[0].event.reason,
+    frames: [],
+  },
+]
+
 export const Default: Story = {
   args: {
-    isAppDir: true,
-    errors: [
-      {
-        id: 1,
-        event: {
-          type: ACTION_UNHANDLED_ERROR,
-          reason: Object.assign(new Error('First error message'), {
-            __NEXT_ERROR_CODE: 'E001',
-          }),
-          componentStackFrames: [
-            {
-              file: 'app/page.tsx',
-              component: 'Home',
-              lineNumber: 10,
-              column: 5,
-              canOpenInEditor: true,
-            },
-          ],
-          frames: [
-            {
-              file: 'app/page.tsx',
-              methodName: 'Home',
-              arguments: [],
-              lineNumber: 10,
-              column: 5,
-            },
-          ],
-        },
-      },
-      {
-        id: 2,
-        event: {
-          type: ACTION_UNHANDLED_ERROR,
-          reason: Object.assign(new Error('Second error message'), {
-            __NEXT_ERROR_CODE: 'E002',
-          }),
-          frames: [],
-        },
-      },
-      {
-        id: 3,
-        event: {
-          type: ACTION_UNHANDLED_ERROR,
-          reason: Object.assign(new Error('Third error message'), {
-            __NEXT_ERROR_CODE: 'E003',
-          }),
-          frames: [],
-        },
-      },
-      {
-        id: 4,
-        event: {
-          type: ACTION_UNHANDLED_ERROR,
-          reason: Object.assign(new Error('Fourth error message'), {
-            __NEXT_ERROR_CODE: 'E004',
-          }),
-          frames: [],
-        },
-      },
-    ],
+    errors,
+    readyErrors,
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
     },
-    initialDisplayState: 'fullscreen',
     hasStaticIndicator: true,
     isTurbopack: true,
+    debugInfo: { devtoolsFrontendUrl: undefined },
+    onClose: () => {},
   },
 }
 
@@ -96,13 +111,11 @@ export const Turbopack: Story = {
 export const Minimized: Story = {
   args: {
     ...Default.args,
-    initialDisplayState: 'minimized',
   },
 }
 
 export const WithHydrationWarning: Story = {
   args: {
-    isAppDir: true,
     errors: [
       {
         id: 1,
@@ -140,5 +153,8 @@ export const WithHydrationWarning: Story = {
         },
       },
     ],
+    readyErrors: [],
+    debugInfo: { devtoolsFrontendUrl: undefined },
+    onClose: () => {},
   },
 }

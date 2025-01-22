@@ -209,11 +209,18 @@ fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     (sub_paths_buffer, n)
 }
 
+#[turbo_tasks::function(operation)]
+fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<OutputAssetsMap> {
+    source.all_assets_map()
+}
+
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
-    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
-        let assets = self.all_assets_map().strongly_consistent().await?;
+    async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
+        let assets = all_assets_map_operation(self)
+            .read_strongly_consistent()
+            .await?;
         let mut paths = Vec::new();
         let routes = assets
             .iter()
@@ -223,7 +230,7 @@ impl ContentSource for AssetGraphContentSource {
                     BaseSegment::from_static_pathname(path).collect(),
                     RouteType::Exact,
                     Vc::upcast(AssetGraphGetContentSourceContent::new(
-                        self,
+                        *self,
                         path.clone(),
                         **asset,
                     )),

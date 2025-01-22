@@ -3,26 +3,19 @@
 import { use } from 'react'
 import { useServerInsertedHTML } from '../../client/components/navigation'
 
-// This is a SSR-only version that will wait the promise of metadata to resolve
-// and
+// We need to wait for metadata on server once it's resolved, and insert into
+// the HTML through `useServerInsertedHTML`. It will suspense in <head> during SSR.
 function ServerInsertMetadata({ promise }: { promise: Promise<any> }) {
-  let metadataToFlush: React.ReactNode = null
-  // Only inserted once to avoid multi insertion on re-renders
-  let inserted = false
-
-  promise.then((resolvedMetadata) => {
-    metadataToFlush = resolvedMetadata
-  })
+  let metadataToFlush: React.ReactNode = use(promise)
 
   useServerInsertedHTML(() => {
-    if (metadataToFlush && !inserted) {
+    if (metadataToFlush) {
       const flushing = metadataToFlush
+      // reset to null to ensure we only flush it once
       metadataToFlush = null
       return flushing
     }
   })
-
-  inserted = true
 
   return null
 }

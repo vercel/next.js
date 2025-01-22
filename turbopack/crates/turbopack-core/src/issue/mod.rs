@@ -97,7 +97,7 @@ pub enum StyledString {
     Strong(RcStr),
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait Issue {
     /// Severity allows the user to filter out unimportant issues, with Bug
     /// being the highest priority and Info being the lowest.
@@ -1043,7 +1043,7 @@ pub async fn handle_issues<T: Send>(
     operation: Option<&str>,
 ) -> Result<()> {
     let source_vc = source_op.connect();
-    let _ = source_vc.resolve_strongly_consistent().await?;
+    let _ = source_op.resolve_strongly_consistent().await?;
     let issues = source_op.peek_issues_with_path().await?;
 
     let has_fatal = issue_reporter.report_issues(

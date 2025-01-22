@@ -1547,7 +1547,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       })
     }
     this.multiCompiler = undefined
-    await require('@rspack/core').experiments.globalTrace.cleanup()
+
+    if (this.isRspack) {
+      await require('@rspack/core').experiments.globalTrace.cleanup()
+    }
   }
 
   public async getCompilationErrors(page: string) {

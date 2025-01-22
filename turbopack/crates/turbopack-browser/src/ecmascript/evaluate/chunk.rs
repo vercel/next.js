@@ -76,6 +76,9 @@ impl EcmascriptDevEvaluateChunk {
 
         let output_root = this.chunking_context.output_root().await?;
         let output_root_to_root_path = this.chunking_context.output_root_to_root_path();
+        let source_maps = this
+            .chunking_context
+            .reference_chunk_source_maps(Vc::upcast(self));
         let chunk_path_vc = self.ident().path();
         let chunk_path = chunk_path_vc.await?;
         let chunk_public_path = if let Some(path) = output_root.get_path_to(&chunk_path) {
@@ -154,6 +157,7 @@ impl EcmascriptDevEvaluateChunk {
                     chunking_context.chunk_base_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
+                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -163,6 +167,7 @@ impl EcmascriptDevEvaluateChunk {
                     chunking_context.chunk_base_path(),
                     Value::new(chunking_context.runtime_type()),
                     output_root_to_root_path,
+                    source_maps,
                 );
                 code.push_code(&*runtime_code.await?);
             }
@@ -173,7 +178,7 @@ impl EcmascriptDevEvaluateChunk {
             }
         }
 
-        if code.has_source_map() {
+        if *source_maps.await? && code.has_source_map() {
             let filename = chunk_path.file_name();
             write!(
                 code,
@@ -189,7 +194,7 @@ impl EcmascriptDevEvaluateChunk {
             this.chunking_context.await?.minify_type(),
             MinifyType::Minify
         ) {
-            return Ok(minify(chunk_path_vc, code));
+            return Ok(minify(chunk_path_vc, code, source_maps));
         }
 
         Ok(code)

@@ -32,7 +32,7 @@ use turbopack_dev_server::{
         combined::CombinedContentSource, router::PrefixedRouterContentSource,
         static_assets::StaticAssetsContentSource, ContentSource,
     },
-    DevServer, DevServerBuilder,
+    DevServer, DevServerBuilder, NonLocalSourceProvider,
 };
 use turbopack_ecmascript_runtime::RuntimeType;
 use turbopack_env::dotenv::load_env;
@@ -220,6 +220,8 @@ impl TurbopackDevServerBuilder {
                 browserslist_query.clone(),
             )
         };
+        // safety: Everything that `source` captures in its closure is a `NonLocalValue`
+        let source = unsafe { NonLocalSourceProvider::new(source) };
 
         let issue_reporter_arc = Arc::new(move || issue_provider.get_issue_reporter());
         Ok(server.serve(tasks, source, issue_reporter_arc))

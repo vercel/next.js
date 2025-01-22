@@ -47,6 +47,7 @@ import { useUntrackedPathname } from '../../navigation-untracked'
 import { getReactStitchedError } from '../../errors/stitched-error'
 import { shouldRenderRootLevelErrorOverlay } from '../../../lib/is-error-thrown-while-rendering-rsc'
 import { handleDevBuildIndicatorHmrEvents } from '../../../dev/dev-build-indicator/internal/handle-dev-build-indicator-hmr-events'
+import type { GlobalErrorComponent } from '../../error-boundary'
 
 export interface Dispatcher {
   onBuildOk(): void
@@ -538,9 +539,11 @@ function processMessage(
 export default function HotReload({
   assetPrefix,
   children,
+  globalError,
 }: {
   assetPrefix: string
-  children?: ReactNode
+  children: ReactNode
+  globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
   const [state, dispatch] = useErrorOverlayReducer()
 
@@ -724,7 +727,11 @@ export default function HotReload({
 
   if (shouldRenderErrorOverlay) {
     return (
-      <ReactDevOverlay state={state} dispatcher={dispatcher}>
+      <ReactDevOverlay
+        state={state}
+        dispatcher={dispatcher}
+        globalError={globalError}
+      >
         {children}
       </ReactDevOverlay>
     )

@@ -18,8 +18,8 @@ use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
     asset::Asset,
     chunk::{
-        availability_info::AvailabilityInfo, ChunkingContext, EvaluatableAsset, EvaluatableAssets,
-        MinifyType,
+        availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
+        EvaluatableAssets, MinifyType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -140,7 +140,7 @@ impl TurbopackBuildBuilder {
             );
 
             // Await the result to propagate any errors.
-            build_result_op.connect().strongly_consistent().await?;
+            build_result_op.read_strongly_consistent().await?;
 
             apply_effects(build_result_op).await?;
 
@@ -208,8 +208,8 @@ async fn build_internal(
     };
 
     let chunking_context: Vc<Box<dyn ChunkingContext>> = match target {
-        Target::Browser => Vc::upcast(
-            BrowserChunkingContext::builder(
+        Target::Browser => {
+            let mut builder = BrowserChunkingContext::builder(
                 project_path,
                 build_output_root,
                 ResolvedVc::cell(build_output_root_to_root_path),
@@ -229,11 +229,22 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
-            .minify_type(minify_type)
-            .build(),
-        ),
-        Target::Node => Vc::upcast(
-            NodeJsChunkingContext::builder(
+            .minify_type(minify_type);
+
+            match *node_env.await? {
+                NodeEnv::Development => {}
+                NodeEnv::Production => {
+                    builder = builder.ecmascript_chunking_config(ChunkingConfig {
+                        min_chunk_size: 20000,
+                        ..Default::default()
+                    })
+                }
+            }
+
+            Vc::upcast(builder.build())
+        }
+        Target::Node => {
+            let mut builder = NodeJsChunkingContext::builder(
                 project_path,
                 build_output_root,
                 ResolvedVc::cell(build_output_root_to_root_path),
@@ -247,9 +258,20 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
-            .minify_type(minify_type)
-            .build(),
-        ),
+            .minify_type(minify_type);
+
+            match *node_env.await? {
+                NodeEnv::Development => {}
+                NodeEnv::Production => {
+                    builder = builder.ecmascript_chunking_config(ChunkingConfig {
+                        min_chunk_size: 20000,
+                        ..Default::default()
+                    })
+                }
+            }
+
+            Vc::upcast(builder.build())
+        }
     };
 
     let compile_time_info = get_client_compile_time_info(browserslist_query, node_env);
@@ -295,6 +317,7 @@ async fn build_internal(
             let request = request_vc.await?;
             origin
                 .resolve_asset(request_vc, origin.resolve_options(ty.clone()), ty)
+                .await?
                 .first_module()
                 .await?
                 .with_context(|| {

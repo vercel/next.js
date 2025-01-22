@@ -587,10 +587,12 @@ pub async fn get_reduced_graphs_for_endpoint(
     // TODO get rid of this function once everything inside of
     // `get_reduced_graphs_for_endpoint_inner` calls `take_collectibles()` when needed
     let result_op = get_reduced_graphs_for_endpoint_inner_operation(module_graph, is_single_page);
-    let result_vc = result_op.connect();
-    if !is_single_page {
-        result_vc.strongly_consistent().await?;
+    let result_vc = if !is_single_page {
+        let result_vc = result_op.resolve_strongly_consistent().await?;
         let _issues = result_op.take_collectibles::<Box<dyn Issue>>();
-    }
+        *result_vc
+    } else {
+        result_op.connect()
+    };
     Ok(result_vc)
 }

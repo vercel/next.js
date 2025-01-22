@@ -30,9 +30,7 @@ pub struct EsmBindings {
     pub bindings: Vec<EsmBinding>,
 }
 
-#[turbo_tasks::value_impl]
 impl EsmBindings {
-    #[turbo_tasks::function]
     pub fn new(bindings: Vec<EsmBinding>) -> Vc<Self> {
         EsmBindings { bindings }.cell()
     }

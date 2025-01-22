@@ -428,70 +428,70 @@ pub enum JsValue {
     // ----------------------------
     /// An array of nested values
     Array {
-        total_nodes: usize,
+        total_nodes: u32,
         items: Vec<JsValue>,
         mutable: bool,
     },
     /// An object of nested values
     Object {
-        total_nodes: usize,
+        total_nodes: u32,
         parts: Vec<ObjectPart>,
         mutable: bool,
     },
     /// A list of alternative values
     Alternatives {
-        total_nodes: usize,
+        total_nodes: u32,
         values: Vec<JsValue>,
         logical_property: Option<LogicalProperty>,
     },
     /// A function reference. The return value might contain [JsValue::Argument]
     /// placeholders that need to be replaced when calling this function.
     /// `(total_node_count, func_ident, return_value)`
-    Function(usize, u32, Box<JsValue>),
+    Function(u32, u32, Box<JsValue>),
 
     // OPERATIONS
     // ----------------------------
     /// A string concatenation of values.
     /// `foo.${unknownVar}.js` => 'foo' + Unknown + '.js'
-    Concat(usize, Vec<JsValue>),
+    Concat(u32, Vec<JsValue>),
     /// An addition of values.
     /// This can be converted to [JsValue::Concat] if the type of the variable
     /// is string.
-    Add(usize, Vec<JsValue>),
+    Add(u32, Vec<JsValue>),
     /// Logical negation `!expr`
-    Not(usize, Box<JsValue>),
+    Not(u32, Box<JsValue>),
     /// Logical operator chain e. g. `expr && expr`
-    Logical(usize, LogicalOperator, Vec<JsValue>),
+    Logical(u32, LogicalOperator, Vec<JsValue>),
     /// Binary expression e. g. `expr == expr`
-    Binary(usize, Box<JsValue>, BinaryOperator, Box<JsValue>),
+    Binary(u32, Box<JsValue>, BinaryOperator, Box<JsValue>),
     /// A constructor call.
     /// `(total_node_count, callee, args)`
-    New(usize, Box<JsValue>, Vec<JsValue>),
+    New(u32, Box<JsValue>, Vec<JsValue>),
     /// A function call without a `this` context.
     /// `(total_node_count, callee, args)`
-    Call(usize, Box<JsValue>, Vec<JsValue>),
+    Call(u32, Box<JsValue>, Vec<JsValue>),
     /// A super call to the parent constructor.
     /// `(total_node_count, args)`
-    SuperCall(usize, Vec<JsValue>),
+    SuperCall(u32, Vec<JsValue>),
     /// A function call with a `this` context.
     /// `(total_node_count, obj, prop, args)`
-    MemberCall(usize, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
+    MemberCall(u32, Box<JsValue>, Box<JsValue>, Vec<JsValue>),
     /// A member access `obj[prop]`
     /// `(total_node_count, obj, prop)`
-    Member(usize, Box<JsValue>, Box<JsValue>),
+    Member(u32, Box<JsValue>, Box<JsValue>),
     /// A tenary operator `test ? cons : alt`
     /// `(total_node_count, test, cons, alt)`
-    Tenary(usize, Box<JsValue>, Box<JsValue>, Box<JsValue>),
+    Tenary(u32, Box<JsValue>, Box<JsValue>, Box<JsValue>),
 
     /// A for-of loop
     ///
     /// `(total_node_count, iterable)`
-    Iterated(usize, Box<JsValue>),
+    Iterated(u32, Box<JsValue>),
 
     /// A `typeof` expression.
     ///
     /// `(total_node_count, operand)`
-    TypeOf(usize, Box<JsValue>),
+    TypeOf(u32, Box<JsValue>),
 
     // PLACEHOLDERS
     // ----------------------------
@@ -775,8 +775,8 @@ fn pretty_join(
     }
 }
 
-fn total_nodes(vec: &[JsValue]) -> usize {
-    vec.iter().map(|v| v.total_nodes()).sum::<usize>()
+fn total_nodes(vec: &[JsValue]) -> u32 {
+    vec.iter().map(|v| v.total_nodes()).sum::<u32>()
 }
 
 // Private meta methods
@@ -943,7 +943,7 @@ impl JsValue {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
-                .sum::<usize>(),
+                .sum::<u32>(),
             parts: list,
             mutable: true,
         }
@@ -957,7 +957,7 @@ impl JsValue {
                     ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                     ObjectPart::Spread(s) => s.total_nodes(),
                 })
-                .sum::<usize>(),
+                .sum::<u32>(),
             parts: list,
             mutable: false,
         }
@@ -1028,7 +1028,7 @@ impl JsValue {
 
 // Methods regarding node count
 impl JsValue {
-    pub fn total_nodes(&self) -> usize {
+    pub fn total_nodes(&self) -> u32 {
         match self {
             JsValue::Constant(_)
             | JsValue::Url(_, _)
@@ -1109,7 +1109,7 @@ impl JsValue {
                         ObjectPart::KeyValue(k, v) => k.total_nodes() + v.total_nodes(),
                         ObjectPart::Spread(s) => s.total_nodes(),
                     })
-                    .sum::<usize>();
+                    .sum::<u32>();
             }
             JsValue::New(c, f, list) => {
                 *c = 1 + f.total_nodes() + total_nodes(list);
@@ -1155,7 +1155,7 @@ impl JsValue {
     #[cfg(not(debug_assertions))]
     pub fn debug_assert_total_nodes_up_to_date(&mut self) {}
 
-    pub fn ensure_node_limit(&mut self, limit: usize) {
+    pub fn ensure_node_limit(&mut self, limit: u32) {
         fn cmp_nodes(a: &JsValue, b: &JsValue) -> Ordering {
             a.total_nodes().cmp(&b.total_nodes())
         }
@@ -3292,7 +3292,7 @@ impl JsValue {
                             0 => Vec::new(),
                             1 => vec![added.into_iter().next().unwrap()],
                             _ => vec![JsValue::Add(
-                                1 + added.iter().map(|v| v.total_nodes()).sum::<usize>(),
+                                1 + added.iter().map(|v| v.total_nodes()).sum::<u32>(),
                                 added,
                             )],
                         };
@@ -3301,7 +3301,7 @@ impl JsValue {
                             concat.push(item);
                         }
                         *self = JsValue::Concat(
-                            1 + concat.iter().map(|v| v.total_nodes()).sum::<usize>(),
+                            1 + concat.iter().map(|v| v.total_nodes()).sum::<u32>(),
                             concat,
                         );
                         return;

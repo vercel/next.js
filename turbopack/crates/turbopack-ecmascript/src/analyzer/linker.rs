@@ -28,9 +28,9 @@ where
     Ok(val)
 }
 
-const LIMIT_NODE_SIZE: usize = 300;
-const LIMIT_IN_PROGRESS_NODES: usize = 1000;
-const LIMIT_LINK_STEPS: usize = 1500;
+const LIMIT_NODE_SIZE: u32 = 300;
+const LIMIT_IN_PROGRESS_NODES: u32 = 1000;
+const LIMIT_LINK_STEPS: u32 = 1500;
 
 pub(crate) async fn link_internal_iterative<'a, B, RB, F, RF>(
     graph: &'a VarGraph,

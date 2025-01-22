@@ -20,11 +20,15 @@ pub async fn get_browser_runtime_code(
     chunk_base_path: Vc<Option<RcStr>>,
     runtime_type: Value<RuntimeType>,
     output_root_to_root_path: Vc<RcStr>,
+    generate_source_map: Vc<bool>,
 ) -> Result<Vc<Code>> {
     let asset_context = get_runtime_asset_context(environment).await?;
 
-    let shared_runtime_utils_code =
-        embed_static_code(asset_context, "shared/runtime-utils.ts".into());
+    let shared_runtime_utils_code = embed_static_code(
+        asset_context,
+        "shared/runtime-utils.ts".into(),
+        generate_source_map,
+    );
 
     let mut runtime_base_code = vec!["browser/runtime/base/runtime-base.ts"];
     match *runtime_type {
@@ -96,29 +100,46 @@ pub async fn get_browser_runtime_code(
 
     code.push_code(&*shared_runtime_utils_code.await?);
     for runtime_code in runtime_base_code {
-        code.push_code(&*embed_static_code(asset_context, runtime_code.into()).await?);
+        code.push_code(
+            &*embed_static_code(asset_context, runtime_code.into(), generate_source_map).await?,
+        );
     }
 
     if *environment.supports_commonjs_externals().await? {
         code.push_code(
-            &*embed_static_code(asset_context, "shared-node/base-externals-utils.ts".into())
-                .await?,
+            &*embed_static_code(
+                asset_context,
+                "shared-node/base-externals-utils.ts".into(),
+                generate_source_map,
+            )
+            .await?,
         );
     }
     if *environment.node_externals().await? {
         code.push_code(
-            &*embed_static_code(asset_context, "shared-node/node-externals-utils.ts".into())
-                .await?,
+            &*embed_static_code(
+                asset_context,
+                "shared-node/node-externals-utils.ts".into(),
+                generate_source_map,
+            )
+            .await?,
         );
     }
     if *environment.supports_wasm().await? {
         code.push_code(
-            &*embed_static_code(asset_context, "shared-node/node-wasm-utils.ts".into()).await?,
+            &*embed_static_code(
+                asset_context,
+                "shared-node/node-wasm-utils.ts".into(),
+                generate_source_map,
+            )
+            .await?,
         );
     }
 
     for backend_code in runtime_backend_code {
-        code.push_code(&*embed_static_code(asset_context, backend_code.into()).await?);
+        code.push_code(
+            &*embed_static_code(asset_context, backend_code.into(), generate_source_map).await?,
+        );
     }
 
     // Registering chunks depends on the BACKEND variable, which is set by the

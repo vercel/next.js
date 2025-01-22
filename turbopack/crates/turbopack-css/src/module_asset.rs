@@ -394,17 +394,25 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             )?;
         }
         code += "});\n";
+        let source_map = *self
+            .chunking_context
+            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
+            .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.clone().into(),
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
-            source_map: Some(ResolvedVc::upcast(
-                generate_minimal_source_map(
-                    self.module.ident().to_string().await?.to_string(),
-                    code,
-                )
-                .await?,
-            )),
+            source_map: if source_map {
+                Some(ResolvedVc::upcast(
+                    generate_minimal_source_map(
+                        self.module.ident().to_string().await?.to_string(),
+                        code,
+                    )
+                    .await?,
+                ))
+            } else {
+                None
+            },
             ..Default::default()
         }
         .cell())

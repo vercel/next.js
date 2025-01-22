@@ -186,6 +186,22 @@ export declare function projectUpdate(
   project: { __napiType: 'Project' },
   options: NapiPartialProjectOptions
 ): Promise<void>
+/**
+ * Runs exit handlers for the project registered using the [`ExitHandler`] API.
+ *
+ * This is called by `project_shutdown`, so if you're calling that API, you shouldn't call this
+ * one.
+ */
+export declare function projectOnExit(project: {
+  __napiType: 'Project'
+}): Promise<void>
+/**
+ * Runs `project_on_exit`, and then waits for turbo_tasks to gracefully shut down.
+ *
+ * This is used in builds where it's important that we completely persist turbo-tasks to disk, but
+ * it's skipped in the development server (`project_on_exit` is used instead with a short timeout),
+ * where we prioritize fast exit and user responsiveness over all else.
+ */
 export declare function projectShutdown(project: {
   __napiType: 'Project'
 }): Promise<void>
@@ -291,10 +307,6 @@ export declare function projectGetSourceMapSync(
   project: { __napiType: 'Project' },
   filePath: string
 ): string | null
-/** Runs exit handlers for the project registered using the [`ExitHandler`] API. */
-export declare function projectOnExit(project: {
-  __napiType: 'Project'
-}): Promise<void>
 export declare function rootTaskDispose(rootTask: {
   __napiType: 'RootTask'
 }): void

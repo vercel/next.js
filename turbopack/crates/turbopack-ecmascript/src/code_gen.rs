@@ -93,7 +93,7 @@ pub trait VisitorFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,

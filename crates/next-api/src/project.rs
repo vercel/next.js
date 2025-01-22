@@ -40,7 +40,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{
         module_id_strategies::{DevModuleIdStrategy, ModuleIdStrategy},
-        ChunkingContext, EvaluatableAssets,
+        ChunkingContext, EvaluatableAssets, SourceMapsType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -273,15 +273,27 @@ impl ProjectContainer {
     }
 }
 
+#[turbo_tasks::function(operation)]
+fn project_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
+    project.project_fs()
+}
+
+#[turbo_tasks::function(operation)]
+fn output_fs_operation(project: ResolvedVc<Project>) -> Vc<DiskFileSystem> {
+    project.project_fs()
+}
+
 impl ProjectContainer {
     #[tracing::instrument(level = "info", name = "initialize project", skip_all)]
-    pub async fn initialize(self: Vc<Self>, options: ProjectOptions) -> Result<()> {
+    pub async fn initialize(self: ResolvedVc<Self>, options: ProjectOptions) -> Result<()> {
         let watch = options.watch;
 
         self.await?.options_state.set(Some(options));
 
-        let project = self.project();
-        let project_fs = project.project_fs().strongly_consistent().await?;
+        let project = self.project().to_resolved().await?;
+        let project_fs = project_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
         if watch.enable {
             project_fs
                 .start_watching_with_invalidation_reason(watch.poll_interval)
@@ -289,7 +301,9 @@ impl ProjectContainer {
         } else {
             project_fs.invalidate_with_reason();
         }
-        let output_fs = project.output_fs().strongly_consistent().await?;
+        let output_fs = output_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
         output_fs.invalidate_with_reason();
         Ok(())
     }
@@ -355,13 +369,22 @@ impl ProjectContainer {
         // TODO: Handle mode switch, should prevent mode being switched.
         let watch = new_options.watch;
 
-        let project = self.project();
-        let prev_project_fs = project.project_fs().strongly_consistent().await?;
-        let prev_output_fs = project.output_fs().strongly_consistent().await?;
+        let project = self.project().to_resolved().await?;
+        let prev_project_fs = project_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
+        let prev_output_fs = output_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
 
         this.options_state.set(Some(new_options));
-        let project_fs = project.project_fs().strongly_consistent().await?;
-        let output_fs = project.output_fs().strongly_consistent().await?;
+        let project = self.project().to_resolved().await?;
+        let project_fs = project_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
+        let output_fs = output_fs_operation(project)
+            .read_strongly_consistent()
+            .await?;
 
         if !ReadRef::ptr_eq(&prev_project_fs, &project_fs) {
             if watch.enable {
@@ -728,6 +751,11 @@ impl Project {
                 node_build_environment().to_resolved().await?,
                 next_mode.runtime_type(),
             )
+            .source_maps(if *self.next_config().turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            })
             .build(),
         );
 
@@ -868,11 +896,10 @@ impl Project {
     #[turbo_tasks::function]
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
-            let operation = whole_app_module_graph_operation(self);
-            let module_graphs = operation.connect();
-            let _ = module_graphs.resolve_strongly_consistent().await?;
-            let _ = operation.take_issues_with_path().await?;
-            Ok(module_graphs)
+            let module_graphs_op = whole_app_module_graph_operation(self);
+            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
+            let _ = module_graphs_op.take_issues_with_path().await?;
+            Ok(*module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -921,6 +948,7 @@ impl Project {
             self.next_mode(),
             self.module_id_strategy(),
             self.next_config().turbo_minify(self.next_mode()),
+            self.next_config().turbo_source_maps(),
         )
     }
 
@@ -940,6 +968,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
+                self.next_config().turbo_source_maps(),
             )
         } else {
             get_server_chunking_context(
@@ -950,6 +979,7 @@ impl Project {
                 self.server_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
+                self.next_config().turbo_source_maps(),
             )
         }
     }
@@ -970,6 +1000,7 @@ impl Project {
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
+                self.next_config().turbo_source_maps(),
             )
         } else {
             get_edge_chunking_context(
@@ -980,6 +1011,7 @@ impl Project {
                 self.edge_compile_time_info().environment(),
                 self.module_id_strategy(),
                 self.next_config().turbo_minify(self.next_mode()),
+                self.next_config().turbo_source_maps(),
             )
         }
     }

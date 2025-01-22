@@ -49,6 +49,8 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             .module_options(async_module_info);
 
         let module_type_result = *original_module.determine_module_type().await?;
+        let generate_source_map =
+            chunking_context.reference_module_source_maps(*ResolvedVc::upcast(self.module));
 
         let content = EcmascriptModuleContent::new(
             parsed,
@@ -59,6 +61,7 @@ impl EcmascriptChunkItem for EcmascriptModuleLocalsChunkItem {
             *analyze_result.local_references,
             *analyze_result.code_generation,
             *analyze_result.async_module,
+            generate_source_map,
             *analyze_result.source_map,
             exports,
             async_module_info,

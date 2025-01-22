@@ -40,7 +40,11 @@ import {
   PathParamsContext,
 } from '../../shared/lib/hooks-client-context.shared-runtime'
 import { useReducer, useUnwrapState } from './use-reducer'
-import { ErrorBoundary, type ErrorComponent } from './error-boundary'
+import {
+  ErrorBoundary,
+  type ErrorComponent,
+  type GlobalErrorComponent,
+} from './error-boundary'
 import { isBot } from '../../shared/lib/router/utils/is-bot'
 import { addBasePath } from '../add-base-path'
 import { AppRouterAnnouncer } from './app-router-announcer'
@@ -242,9 +246,11 @@ function Head({
 function Router({
   actionQueue,
   assetPrefix,
+  globalError,
 }: {
   actionQueue: AppRouterActionQueue
   assetPrefix: string
+  globalError: [GlobalErrorComponent, React.ReactNode]
 }) {
   const [state, dispatch] = useReducer(actionQueue)
   const { canonicalUrl } = useUnwrapState(state)
@@ -622,7 +628,11 @@ function Router({
     const HotReloader: typeof import('./react-dev-overlay/app/hot-reloader-client').default =
       require('./react-dev-overlay/app/hot-reloader-client').default
 
-    content = <HotReloader assetPrefix={assetPrefix}>{content}</HotReloader>
+    content = (
+      <HotReloader assetPrefix={assetPrefix} globalError={globalError}>
+        {content}
+      </HotReloader>
+    )
   }
 
   return (
@@ -654,17 +664,22 @@ export default function AppRouter({
   assetPrefix,
 }: {
   actionQueue: AppRouterActionQueue
-  globalErrorComponentAndStyles: [ErrorComponent, React.ReactNode | undefined]
+  globalErrorComponentAndStyles: [GlobalErrorComponent, React.ReactNode]
   assetPrefix: string
 }) {
   useNavFailureHandler()
 
   return (
     <ErrorBoundary
-      errorComponent={globalErrorComponent}
+      // globalErrorComponent doesn't need `reset`, we do a type cast here to fit the ErrorBoundary type
+      errorComponent={globalErrorComponent as ErrorComponent}
       errorStyles={globalErrorStyles}
     >
-      <Router actionQueue={actionQueue} assetPrefix={assetPrefix} />
+      <Router
+        actionQueue={actionQueue}
+        assetPrefix={assetPrefix}
+        globalError={[globalErrorComponent, globalErrorStyles]}
+      />
     </ErrorBoundary>
   )
 }
