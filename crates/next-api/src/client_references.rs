@@ -3,9 +3,7 @@ use std::collections::HashMap;
 use anyhow::Result;
 use next_core::{
     self,
-    next_client_reference::{
-        CssClientReferenceModule, CssModuleClientReferenceModule, EcmascriptClientReferenceModule,
-    },
+    next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_server_component::server_component_module::NextServerComponentModule,
 };
 use serde::{Deserialize, Serialize};
@@ -52,15 +50,6 @@ pub async fn map_client_references(
                 )))
             } else if let Some(client_reference_module) =
                 ResolvedVc::try_downcast_type_sync::<CssClientReferenceModule>(module)
-            {
-                Ok(Some((
-                    module,
-                    ClientReferenceMapType::CssClientReference(ResolvedVc::upcast(
-                        client_reference_module.await?.client_module,
-                    )),
-                )))
-            } else if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type_sync::<CssModuleClientReferenceModule>(module)
             {
                 Ok(Some((
                     module,

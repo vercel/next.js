@@ -1,15 +1,15 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbopack::css::chunk::CssChunkPlaceable;
 use turbopack_core::{
     asset::{Asset, AssetContent},
+    chunk::{ChunkGroupType, ChunkableModuleReference, ChunkingType, ChunkingTypeOption},
     ident::AssetIdent,
     module::Module,
-    reference::ModuleReferences,
+    reference::{ModuleReference, ModuleReferences},
+    resolve::ModuleResolveResult,
 };
-
-use crate::next_client_reference::css_client_reference::css_client_reference_reference::CssClientReference;
 
 /// A [`CssClientReferenceModule`] is a marker module used to indicate which
 /// client reference should appear in the client reference manifest.
@@ -63,5 +63,45 @@ impl Asset for CssClientReferenceModule {
     fn content(&self) -> Result<Vc<AssetContent>> {
         // The client reference asset only serves as a marker asset.
         bail!("CssClientReferenceModule has no content")
+    }
+}
+
+#[turbo_tasks::value]
+pub(crate) struct CssClientReference {
+    module: ResolvedVc<Box<dyn Module>>,
+}
+
+#[turbo_tasks::value_impl]
+impl CssClientReference {
+    #[turbo_tasks::function]
+    pub fn new(module: ResolvedVc<Box<dyn Module>>) -> Vc<Self> {
+        Self::cell(CssClientReference { module })
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ChunkableModuleReference for CssClientReference {
+    #[turbo_tasks::function]
+    fn chunking_type(&self) -> Vc<ChunkingTypeOption> {
+        Vc::cell(Some(ChunkingType::Isolated {
+            _ty: ChunkGroupType::Evaluated,
+            merge_tag: Some("client".into()),
+        }))
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ModuleReference for CssClientReference {
+    #[turbo_tasks::function]
+    fn resolve_reference(&self) -> Vc<ModuleResolveResult> {
+        ModuleResolveResult::module(self.module).cell()
+    }
+}
+
+#[turbo_tasks::value_impl]
+impl ValueToString for CssClientReference {
+    #[turbo_tasks::function]
+    fn to_string(&self) -> Vc<RcStr> {
+        Vc::cell("css client reference to client".into())
     }
 }
