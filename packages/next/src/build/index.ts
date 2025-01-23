@@ -186,18 +186,7 @@ import {
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
-import {
-  getTurbopackJsConfig,
-  handleEntrypoints,
-  type EntryIssuesMap,
-  handleRouteType,
-  handlePagesErrorRoute,
-  formatIssue,
-  isRelevantWarning,
-  isPersistentCachingEnabled,
-} from '../server/dev/turbopack-utils'
-import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
-import type { Entrypoints } from '../server/dev/turbopack/types'
+import { TurbopackManifestLoader } from '../shared/lib/turbopack/manifest-loader'
 import { buildCustomRoute } from '../lib/build-custom-route'
 import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
@@ -218,6 +207,19 @@ import {
 import { InvariantError } from '../shared/lib/invariant-error'
 import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
 import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+import {
+  handleEntrypoints,
+  handlePagesErrorRoute,
+  handleRouteType,
+} from './handle-entrypoints'
+import type { Entrypoints } from './swc/types'
+import {
+  formatIssue,
+  getTurbopackJsConfig,
+  isPersistentCachingEnabled,
+  isRelevantWarning,
+  type EntryIssuesMap,
+} from '../shared/lib/turbopack/utils'
 
 type Fallback = null | boolean | string
 
@@ -1489,7 +1491,6 @@ export default async function build(
           currentEntrypoints,
           currentEntryIssues,
           manifestLoader,
-          devRewrites: undefined,
           productionRewrites: customRoutes.rewrites,
           logErrors: false,
         })
@@ -1530,15 +1531,11 @@ export default async function build(
           for (const [page, route] of currentEntrypoints.page) {
             enqueue(() =>
               handleRouteType({
-                dev,
                 page,
-                pathname: page,
                 route,
-
                 currentEntryIssues,
                 entrypoints: currentEntrypoints,
                 manifestLoader,
-                devRewrites: undefined,
                 productionRewrites: customRoutes.rewrites,
                 logErrors: false,
               })
@@ -1550,13 +1547,10 @@ export default async function build(
           enqueue(() =>
             handleRouteType({
               page,
-              dev: false,
-              pathname: normalizeAppPath(page),
               route,
               currentEntryIssues,
               entrypoints: currentEntrypoints,
               manifestLoader,
-              devRewrites: undefined,
               productionRewrites: customRoutes.rewrites,
               logErrors: false,
             })
@@ -1565,11 +1559,9 @@ export default async function build(
 
         enqueue(() =>
           handlePagesErrorRoute({
-            dev: false,
             currentEntryIssues,
             entrypoints: currentEntrypoints,
             manifestLoader,
-            devRewrites: undefined,
             productionRewrites: customRoutes.rewrites,
             logErrors: false,
           })
