@@ -2,6 +2,7 @@ use std::mem::take;
 
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
 #[cfg(feature = "trace_task_dirty")]
@@ -12,7 +13,7 @@ use crate::{
         operation::{
             aggregation_update::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
-                AggregationUpdateQueue,
+                AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
             },
             invalidate::make_task_dirty,
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
@@ -77,7 +78,7 @@ impl Operation for CleanupOldEdgesOperation {
                     if let Some(edge) = outdated.pop() {
                         match edge {
                             OutdatedEdge::Child(child_id) => {
-                                let mut children = Vec::new();
+                                let mut children = SmallVec::new();
                                 children.push(child_id);
                                 outdated.retain(|e| match e {
                                     OutdatedEdge::Child(id) => {
@@ -104,10 +105,13 @@ impl Operation for CleanupOldEdgesOperation {
                                             task_ids: children.clone(),
                                         });
                                     }
-                                    queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
-                                        upper_ids,
-                                        lost_follower_ids: children,
-                                    });
+                                    queue.push(
+                                        InnerOfUppersLostFollowersJob {
+                                            upper_ids,
+                                            lost_follower_ids: children,
+                                        }
+                                        .into(),
+                                    );
                                 }
                             }
                             OutdatedEdge::Collectible(collectible, count) => {
