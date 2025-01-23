@@ -57,7 +57,8 @@
       "test/e2e/middleware-matcher/index.test.ts",
       "test/e2e/next-script/index.test.ts",
       "test/production/standalone-mode/**/*",
-      "test/e2e/app-dir/next-after-app-deploy/index.test.ts"
+      "test/e2e/app-dir/next-after-app-deploy/index.test.ts",
+      "test/e2e/app-dir/segment-cache/revalidation/segment-cache-revalidation.test.ts"
     ]
   }
 }
