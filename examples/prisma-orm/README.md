@@ -46,11 +46,15 @@ Create a Prisma Postgres database instance using [Prisma Data Platform](https://
 
 ### 2. Setup your `.env` file
 
-1. Create an `.env` file:
-   ```bash
-   touch .env
-   ```
-2. Update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
+You now need to configure your database connection via an environment variable.
+
+First, create an `.env` file:
+
+```bash
+touch .env
+```
+
+Then update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
    ```bash
    DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
    ```
