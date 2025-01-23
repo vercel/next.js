@@ -612,7 +612,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn has_key(&self, key: &CachedDataItemKey) -> bool {
         self.check_access(key.category());
-        self.task.has_key(key)
+        self.task.contains_key(key)
     }
 
     fn count(&self, ty: CachedDataItemType) -> usize {

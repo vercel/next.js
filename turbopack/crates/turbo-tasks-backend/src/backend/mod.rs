@@ -1,3 +1,4 @@
+mod dynamic_storage;
 mod operation;
 mod persisted_storage_log;
 mod storage;
