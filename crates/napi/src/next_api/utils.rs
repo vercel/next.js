@@ -127,6 +127,7 @@ pub fn create_turbo_tasks(
     output_path: PathBuf,
     persistent_caching: bool,
     _memory_limit: usize,
+    dependency_tracking: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let dirty_suffix = if crate::build::GIT_CLEAN
@@ -158,6 +159,7 @@ pub fn create_turbo_tasks(
                     } else {
                         turbo_tasks_backend::StorageMode::ReadWrite
                     }),
+                    dependency_tracking,
                     ..Default::default()
                 },
                 default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,

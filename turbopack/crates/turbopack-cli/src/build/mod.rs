@@ -428,6 +428,7 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
 
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
+            dependency_tracking: false,
             storage_mode: None,
             ..Default::default()
         },
