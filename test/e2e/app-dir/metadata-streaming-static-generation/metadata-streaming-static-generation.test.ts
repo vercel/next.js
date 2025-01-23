@@ -11,6 +11,7 @@ describe('app-dir - metadata-streaming-static-generation', () => {
   // We'll visit PPR tests in the new test suite.
   if (isPPREnabled) {
     it('skip ppr test', () => {})
+    return
   }
 
   if (isNextStart) {
