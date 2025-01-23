@@ -34,7 +34,7 @@ Follow these steps to quickly set up the project and start using Prisma ORM with
 
 ### 1. Create a Prisma Postgres instance
 
-Now create a Prisma Postgres database instance using [Prisma Data Platform](https://console.prisma.io):
+Create a Prisma Postgres database instance using [Prisma Data Platform](https://console.prisma.io):
 
 1. Navigate to [Prisma Data Platform](https://console.prisma.io).
 2. Click **New project** to create a new project.
