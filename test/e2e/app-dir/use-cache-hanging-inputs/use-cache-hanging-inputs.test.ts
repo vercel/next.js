@@ -41,19 +41,33 @@ describe('use-cache-hanging-inputs', () => {
 
         expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
 
-        // TODO(veil): This should have an error source if the source mapping works.
-        expect(errorSource).toBe(null)
-
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        // TODO(veil): Should include properly source mapped stack frames.
-        expect(cliOutput).toContain(
-          isTurbopack
-            ? `${expectedErrorMessage}
-    at [project]/app/search-params/page.tsx [app-rsc] (ecmascript)`
-            : `${expectedErrorMessage}
-    at eval (webpack-internal:///(rsc)/./app/search-params/page.tsx:16:97)`
-        )
+        if (isTurbopack) {
+          // TODO(veil): For Turbopack, a fix in the React Flight Client, where
+          // sourceURL is encoded, is needed for the error source and stack
+          // frames to be source mapped.
+
+          expect(errorSource).toBe(null)
+
+          expect(cliOutput).toContain(`${expectedErrorMessage}
+    at [project]/app/search-params/page.tsx [app-rsc] (ecmascript)`)
+        } else {
+          expect(errorSource).toMatchInlineSnapshot(`
+           "app/search-params/page.tsx (3:16) @ eval
+
+             1 | 'use cache'
+             2 |
+           > 3 | export default async function Page({
+               |                ^
+             4 |   searchParams,
+             5 | }: {
+             6 |   searchParams: Promise<{ n: string }>"
+          `)
+
+          expect(cliOutput).toContain(`${expectedErrorMessage}
+    at eval (app/search-params/page.tsx:3:15)`)
+        }
       }, 180_000)
     })
 
@@ -86,19 +100,33 @@ describe('use-cache-hanging-inputs', () => {
 
         expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
 
-        // TODO(veil): This should have an error source if the source mapping works.
-        expect(errorSource).toBe(null)
-
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        // TODO(veil): Should include properly source mapped stack frames.
-        expect(cliOutput).toContain(
-          isTurbopack
-            ? `${expectedErrorMessage}
-    at [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)`
-            : `${expectedErrorMessage}
-    at eval (webpack-internal:///(rsc)/./app/uncached-promise/page.tsx:26:97)`
-        )
+        if (isTurbopack) {
+          // TODO(veil): For Turbopack, a fix in the React Flight Client, where
+          // sourceURL is encoded, is needed for the error source and stack
+          // frames to be source mapped.
+
+          expect(errorSource).toBe(null)
+
+          expect(cliOutput).toContain(`${expectedErrorMessage}
+    at [project]/app/uncached-promise/page.tsx [app-rsc] (ecmascript)`)
+        } else {
+          expect(errorSource).toMatchInlineSnapshot(`
+           "app/uncached-promise/page.tsx (10:13) @ eval
+
+              8 | }
+              9 |
+           > 10 | const Foo = async ({ promise }) => {
+                |             ^
+             11 |   'use cache'
+             12 |
+             13 |   return ("
+          `)
+
+          expect(cliOutput).toContain(`${expectedErrorMessage}
+    at eval (app/uncached-promise/page.tsx:10:12)`)
+        }
       }, 180_000)
     })
 
@@ -118,19 +146,33 @@ describe('use-cache-hanging-inputs', () => {
 
         expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
 
-        // TODO(veil): This should have an error source if the source mapping works.
-        expect(errorSource).toBe(null)
-
         const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
 
-        // TODO(veil): Should include properly source mapped stack frames.
-        expect(cliOutput).toContain(
-          isTurbopack
-            ? `${expectedErrorMessage}
-    at [project]/app/uncached-promise-nested/page.tsx [app-rsc] (ecmascript)`
-            : `${expectedErrorMessage}
-    at eval (webpack-internal:///(rsc)/./app/uncached-promise-nested/page.tsx:35:97)`
-        )
+        if (isTurbopack) {
+          // TODO(veil): For Turbopack, a fix in the React Flight Client, where
+          // sourceURL is encoded, is needed for the error source and stack
+          // frames to be source mapped.
+
+          expect(errorSource).toBe(null)
+
+          expect(cliOutput).toContain(`${expectedErrorMessage}
+    at [project]/app/uncached-promise-nested/page.tsx [app-rsc] (ecmascript)`)
+        } else {
+          expect(errorSource).toMatchInlineSnapshot(`
+           "app/uncached-promise-nested/page.tsx (16:1) @ eval
+
+             14 | }
+             15 |
+           > 16 | async function indirection(promise: Promise<number>) {
+                | ^
+             17 |   'use cache'
+             18 |
+             19 |   return getCachedData(promise)"
+          `)
+
+          expect(cliOutput).toContain(`${expectedErrorMessage}
+    at eval (app/uncached-promise-nested/page.tsx:16:0)`)
+        }
       }, 180_000)
     })
 
@@ -148,6 +190,8 @@ describe('use-cache-hanging-inputs', () => {
         const errorDescription = await getRedboxDescription(browser)
         const errorSource = await getRedboxSource(browser)
 
+        const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+
         if (process.env.__NEXT_EXPERIMENTAL_PPR) {
           // TODO(react-time-info): Remove this branch for PPR when the issue is
           // resolved where the inclusion of server timings in the RSC payload
@@ -159,8 +203,6 @@ describe('use-cache-hanging-inputs', () => {
 
           expect(errorDescription).toBe(`[ Server ] ${expectedErrorMessagePpr}`)
 
-          const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
-
           expect(cliOutput).toContain(
             `${expectedErrorMessagePpr}
     at Page [Server] (<anonymous>)`
@@ -168,19 +210,31 @@ describe('use-cache-hanging-inputs', () => {
         } else {
           expect(errorDescription).toBe(`[ Cache ] ${expectedErrorMessage}`)
 
-          // TODO(veil): This should have an error source if the source mapping works.
-          expect(errorSource).toBe(null)
+          if (isTurbopack) {
+            // TODO(veil): For Turbopack, a fix in the React Flight Client, where
+            // sourceURL is encoded, is needed for the error source and stack
+            // frames to be source mapped.
 
-          const cliOutput = stripAnsi(next.cliOutput.slice(outputIndex))
+            expect(errorSource).toBe(null)
 
-          // TODO(veil): Should include properly source mapped stack frames.
-          expect(cliOutput).toContain(
-            isTurbopack
-              ? `${expectedErrorMessage}
-    at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`
-              : `${expectedErrorMessage}
-    at eval (webpack-internal:///(rsc)/./app/bound-args/page.tsx:25:97)`
-          )
+            expect(cliOutput).toContain(`${expectedErrorMessage}
+    at [project]/app/bound-args/page.tsx [app-rsc] (ecmascript)`)
+          } else {
+            expect(errorSource).toMatchInlineSnapshot(`
+             "app/bound-args/page.tsx (13:15) @ eval
+
+               11 |   const uncachedDataPromise = fetchUncachedData()
+               12 |
+             > 13 |   const Foo = async () => {
+                  |               ^
+               14 |     'use cache'
+               15 |
+               16 |     return ("
+            `)
+
+            expect(cliOutput).toContain(`${expectedErrorMessage}
+    at eval (app/bound-args/page.tsx:13:14)`)
+          }
         }
       }, 180_000)
     })
