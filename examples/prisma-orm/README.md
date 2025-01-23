@@ -51,7 +51,6 @@ Create a Prisma Postgres database instance using [Prisma Data Platform](https://
    touch .env
    ```
 2. Update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
-
    ```bash
    DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
    ```
