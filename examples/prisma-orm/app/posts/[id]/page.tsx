@@ -1,5 +1,7 @@
 import prisma from "@/lib/prisma";
 import { notFound } from "next/navigation";
+import Link from "next/link";
+import Image from "next/image";
 
 export default async function Post({
   params,
@@ -19,16 +21,32 @@ export default async function Post({
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center text-center -mt-16">
-      <article className="max-w-2xl space-y-4 font-[family-name:var(--font-geist-sans)] text-[#333333]">
-        <h1 className="text-gray-600 text-4xl font-bold mb-8">
+    <div className="min-h-screen bg-gray-100 flex flex-col items-center justify-center text-[#333333] px-4">
+      <article className="max-w-3xl space-y-4 font-[family-name:var(--font-barlow)] bg-white shadow-md p-6 rounded-lg">
+        <h1 className="text-3xl font-bold text-gray-900">
           {post.title ?? "Untitled"}
         </h1>
-        <p className="text-gray-600">by {post.author.name}</p>
-        <div className="prose prose-gray mt-8">
+        <div className="flex items-center space-x-4">
+          <Image
+            src="/avatar.png"
+            alt={post.author.name ?? "Author image"}
+            height={48}
+            width={48}
+            className="w-12 h-12 rounded-full"
+          />
+          <p className="text-gray-500 text-sm">by {post.author.name}</p>
+        </div>
+        <div className="prose prose-gray mt-4">
           {post.content || "No content available."}
         </div>
       </article>
+
+      <Link
+        href="/posts"
+        className="mt-4 text-blue-500 hover:underline font-[family-name:var(--font-barlow)]"
+      >
+        Back to Posts
+      </Link>
     </div>
   );
 }
