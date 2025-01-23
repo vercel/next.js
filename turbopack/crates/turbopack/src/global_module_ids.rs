@@ -42,6 +42,29 @@ pub async fn get_global_module_id_strategy(
             })
             .await?;
 
+        // {
+        //     let mut x = FxIndexMap::default();
+        //     for module in module_idents.iter() {
+        //         let ident = module.ident().to_resolved().await?;
+        //         let ident_str = ident.to_string().await?;
+        //         if let Some((module2, ident2)) = x.get(&ident_str) {
+        //             let module_ref =
+        //                 ResolvedVc::try_downcast_type_sync::<EcmascriptModuleAsset>(*module)
+        //                     .unwrap()
+        //                     .await?;
+        //             let module2_ref =
+        //                 ResolvedVc::try_downcast_type_sync::<EcmascriptModuleAsset>(*module2)
+        //                     .unwrap()
+        //                     .await?;
+        //             println!(
+        //                 "Duplicate module id: {:?}\n{:?} {:?} {:#?}\n{:?} {:?} {:#?}",
+        //                 ident_str, module, ident, module_ref, module2, ident2, module2_ref
+        //             );
+        //         }
+        //         x.insert(ident_str, (*module, ident));
+        //     }
+        // }
+
         let mut module_id_map = module_idents
             .chain(async_idents.into_iter())
             .map(|ident| async move {

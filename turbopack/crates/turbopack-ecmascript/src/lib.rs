@@ -252,6 +252,19 @@ pub struct EcmascriptModuleAsset {
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
+impl core::fmt::Debug for EcmascriptModuleAsset {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("EcmascriptModuleAsset")
+            .field("source", &self.source)
+            .field("asset_context", &self.asset_context)
+            .field("ty", &self.ty)
+            .field("transforms", &self.transforms)
+            .field("options", &self.options)
+            .field("compile_time_info", &self.compile_time_info)
+            .field("inner_assets", &self.inner_assets)
+            .finish()
+    }
+}
 
 #[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
