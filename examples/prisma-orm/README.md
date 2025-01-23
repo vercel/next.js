@@ -11,7 +11,9 @@ Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/c
 npx create-next-app --example prisma-orm prisma-orm-app
 ```
 
-<details><summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+<details>
+
+<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
 
 ```bash
 # Using yarn
@@ -26,68 +28,48 @@ bunx create-next-app --example prisma-orm prisma-orm-app
 
 </details>
 
-
-
 ## Getting started
 
 Follow these steps to quickly set up the project and start using Prisma ORM with Next.js.
 
-### 1. Set up environment variables
+### 1. Create a Prisma Postgres instance
 
-Create an `.env` file and add your `DATABASE_URL`:
+Now create a Prisma Postgres database instance using [Prisma Data Platform](https://console.prisma.io):
 
-```bash
-mv .env.example .env
-```
+1. Navigate to [Prisma Data Platform](https://console.prisma.io).
+2. Click **New project** to create a new project.
+3. Enter a name for your project in the **Name** field.
+4. Inside the **Prisma Postgres®** section, click **Get started**.
+5. Choose a region close to your location from the **Region** dropdown.
+6. Click **Create project** to set up your database. This redirects you to the database setup page.
+7. In the **Set up database access** section, copy the `DATABASE_URL`. You will use this in the next steps.
 
-Update the `.env` file:
+#### Setup your `.env` file
 
-```env
-DATABASE_URL="Insert your PostgreSQL database URL here"
-```
+1. Create an `.env` file:
+   ```bash
+   touch .env
+   ```
+2. Update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
 
-This example uses Prisma ORM with a PostgreSQL database. If you do not have a database, follow the steps [here](https://www.prisma.io/docs/guides/prisma-orm-with-nextjs#22-save-your-database-connection-string) to set up a [Prisma PostgreSQL](https://www.prisma.io/postgres) database.
+   ```bash
+   DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
+   ```
 
-If you're using Prisma Postgres, install the required extension:
-
-```bash
-# Using npm
-npm install @prisma/extension-accelerate
-
-# Using yarn
-yarn add @prisma/extension-accelerate
-
-# Using pnpm
-pnpm add @prisma/extension-accelerate
-
-# Using bun
-bun add @prisma/extension-accelerate
-```
-
-Then, modify the `PrismaClient` in [`lib/prisma.ts`](/lib/prisma.ts):
-
-```diff
-import { PrismaClient } from "@prisma/client";
-+ import { withAccelerate } from '@prisma/extension-accelerate';
-
-- const prisma = new PrismaClient();
-+ const prisma = new PrismaClient().$extends(withAccelerate());
-
-const globalForPrisma = global as unknown as { prisma: typeof prisma };
-
-if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
-
-export default prisma;
-```
-
-### 2. Migrate the database and generate Prisma client
+### 2. Migrate the database and generate `PrismaClient`
 
 Run the following commands to set up your database and Prisma schema:
 
 ```bash
 # Using npm
 npx prisma migrate dev --name init
+```
 
+<details>
+
+<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+
+```bash
 # Using yarn
 yarn prisma migrate dev --name init
 
@@ -98,28 +80,22 @@ pnpm prisma migrate dev --name init
 bun prisma migrate dev --name init
 ```
 
-Generate the Prisma client:
+</details>
 
-```bash
-# Using npm
-npx prisma generate
+<br/>
 
-# Using yarn
-yarn prisma generate
-
-# Using pnpm
-pnpm prisma generate
-
-# Using bun
-bun prisma generate
-```
-
-If using Prisma Postgres, generate `PrismaClient` without an engine:
+Generate `PrismaClient` without an engine:
 
 ```bash
 # Using npm
 npx prisma generate --no-engine
+```
 
+<details>
+
+<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+
+```bash
 # Using yarn
 yarn prisma generate --no-engine
 
@@ -130,12 +106,7 @@ pnpm prisma generate --no-engine
 bun prisma generate --no-engine
 ```
 
-Update the `postinstall` script in [`package.json`](/package.json):
-
-```diff
--"postinstall": "prisma generate"
-+"postinstall": "prisma generate --no-engine"
-```
+</details>
 
 ### 3. Seed the database and start the server
 
@@ -144,7 +115,13 @@ Add initial data to your database:
 ```bash
 # Using npm
 npx prisma db seed
+```
 
+<details>
+
+<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+
+```bash
 # Using yarn
 yarn prisma db seed
 
@@ -155,12 +132,22 @@ pnpm prisma db seed
 bun prisma db seed
 ```
 
+</details>
+
+<br/>
+
 Start the development server:
 
 ```bash
 # Using npm
 npm run dev
+```
 
+<details>
+
+<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+
+```bash
 # Using yarn
 yarn dev
 
@@ -170,6 +157,8 @@ pnpm run dev
 # Using bun
 bun run dev
 ```
+
+</details>
 
 ## Deployment
 
