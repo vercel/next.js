@@ -11,8 +11,10 @@ use turbo_tasks::{
     apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
     Value, Vc,
 };
+use turbo_tasks_backend::{
+    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+};
 use turbo_tasks_fs::FileSystem;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -53,8 +55,10 @@ pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
+type Backend = TurboTasksBackend<NoopBackingStorage>;
+
 pub struct TurbopackBuildBuilder {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -67,11 +71,7 @@ pub struct TurbopackBuildBuilder {
 }
 
 impl TurbopackBuildBuilder {
-    pub fn new(
-        turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-        project_dir: RcStr,
-        root_dir: RcStr,
-    ) -> Self {
+    pub fn new(turbo_tasks: Arc<TurboTasks<Backend>>, project_dir: RcStr, root_dir: RcStr) -> Self {
         TurbopackBuildBuilder {
             turbo_tasks,
             project_dir,
@@ -421,10 +421,12 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(MemoryBackend::new(
-        args.common
-            .memory_limit
-            .map_or(usize::MAX, |l| l * 1024 * 1024),
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
     ));
 
     let mut builder = TurbopackBuildBuilder::new(tt, project_dir, root_dir)

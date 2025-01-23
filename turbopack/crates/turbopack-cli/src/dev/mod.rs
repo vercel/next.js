@@ -16,9 +16,11 @@ use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
     ResolvedVc, TransientInstance, TurboTasks, UpdateInfo, Value, Vc,
 };
+use turbo_tasks_backend::{
+    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+};
 use turbo_tasks_fs::FileSystem;
 use turbo_tasks_malloc::TurboMalloc;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::evaluate_context::node_build_environment;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -50,8 +52,10 @@ use crate::{
 
 pub(crate) mod web_entry_source;
 
+type Backend = TurboTasksBackend<NoopBackingStorage>;
+
 pub struct TurbopackDevServerBuilder {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -68,7 +72,7 @@ pub struct TurbopackDevServerBuilder {
 
 impl TurbopackDevServerBuilder {
     pub fn new(
-        turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+        turbo_tasks: Arc<TurboTasks<Backend>>,
         project_dir: RcStr,
         root_dir: RcStr,
     ) -> TurbopackDevServerBuilder {
@@ -356,10 +360,12 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(MemoryBackend::new(
-        args.common
-            .memory_limit
-            .map_or(usize::MAX, |l| l * 1024 * 1024),
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
     ));
 
     let tt_clone = tt.clone();
@@ -503,7 +509,7 @@ pub async fn start_server(args: &DevArguments) -> Result<()> {
 #[cfg(feature = "profile")]
 // When profiling, exits the process when no new updates have been received for
 // a given timeout and there are no more tasks in progress.
-async fn profile_timeout<T>(tt: &TurboTasks<MemoryBackend>, future: impl Future<Output = T>) -> T {
+async fn profile_timeout<T>(tt: &TurboTasks<Backend>, future: impl Future<Output = T>) -> T {
     /// How long to wait in between updates before force-exiting the process
     /// during profiling.
     const PROFILE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -523,7 +529,7 @@ async fn profile_timeout<T>(tt: &TurboTasks<MemoryBackend>, future: impl Future<
 
 #[cfg(not(feature = "profile"))]
 fn profile_timeout<T>(
-    _tt: &TurboTasks<MemoryBackend>,
+    _tt: &TurboTasks<Backend>,
     future: impl Future<Output = T>,
 ) -> impl Future<Output = T> {
     future

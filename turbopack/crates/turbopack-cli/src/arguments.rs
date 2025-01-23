@@ -79,8 +79,8 @@ pub struct CommonArguments {
 
     /// Enable experimental garbage collection with the provided memory limit in
     /// MB.
-    #[clap(long)]
-    pub memory_limit: Option<usize>,
+    // #[clap(long)]
+    // pub memory_limit: Option<usize>,
 
     /// Target
     #[clap(long)]
