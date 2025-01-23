@@ -1,15 +1,15 @@
 import * as React from 'react'
 
-type DevToolsErrorBoundaryProps = {
+type DevOverlayErrorBoundaryProps = {
   children?: React.ReactNode
   onError: (error: Error, componentStack: string | null) => void
   isMounted?: boolean
 }
-type DevToolsErrorBoundaryState = { error: Error | null }
+type DevOverlayErrorBoundaryState = { error: Error | null }
 
-export class DevToolsErrorBoundary extends React.PureComponent<
-  DevToolsErrorBoundaryProps,
-  DevToolsErrorBoundaryState
+export class DevOverlayErrorBoundary extends React.PureComponent<
+  DevOverlayErrorBoundaryProps,
+  DevOverlayErrorBoundaryState
 > {
   state = { error: null }
 

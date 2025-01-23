@@ -35,7 +35,10 @@ describe('app dir - dynamic error trace', () => {
 
     // TODO: Show useful stack
     const normalizedStack = normalizeStackTrace(stackFramesContent)
-    expect(normalizedStack).toMatchInlineSnapshot(`""`)
+    expect(normalizedStack).toMatchInlineSnapshot(`
+     "Foo
+     app/lib.js"
+    `)
 
     const codeframe = await getRedboxSource(browser)
     expect(codeframe).toEqual(

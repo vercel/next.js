@@ -301,7 +301,8 @@ export const NextLogo = ({
                 aria-label="Open issues overlay"
                 onClick={onIssuesClick}
               >
-                {issueCount} {issueCount === 1 ? 'Issue' : 'Issues'}
+                <span data-issues-count>{issueCount}</span>{' '}
+                {issueCount === 1 ? 'Issue' : 'Issues'}
               </button>
               <button
                 data-issues-collapse

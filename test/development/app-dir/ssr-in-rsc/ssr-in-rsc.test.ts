@@ -8,6 +8,7 @@ import {
 } from 'next-test-utils'
 
 const isReactExperimental = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isNewDevOverlay = isReactExperimental
 const isReact18 = parseInt(process.env.NEXT_TEST_REACT_VERSION) === 18
 
 describe('react-dom/server in React Server environment', () => {
@@ -393,7 +394,35 @@ describe('react-dom/server in React Server environment', () => {
         }
       `)
     } else {
-      expect(redbox).toMatchInlineSnapshot(`
+      // TODO(jiwon): Remove this once we have a new dev overlay at stable.
+      if (isNewDevOverlay) {
+        expect(redbox).toMatchInlineSnapshot(`
+       {
+         "description": "Failed to compile",
+         "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
+
+       Error:   x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+          ,-[1:1]
+        1 | import * as ReactDOMServerNode from 'react-dom/server'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        2 | // Fine to drop once React is on ESM
+        3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+          \`----
+         x You're importing a component that imports react-dom/server. To fix it, render or return the content directly as a Server Component instead for perf and security.
+         | Learn more: https://nextjs.org/docs/app/building-your-application/rendering
+          ,-[3:1]
+        1 | import * as ReactDOMServerNode from 'react-dom/server'
+        2 | // Fine to drop once React is on ESM
+        3 | import ReactDOMServerNodeDefault from 'react-dom/server'
+          : ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        4 | 
+        5 | export const runtime = 'nodejs'
+          \`----",
+       }
+      `)
+      } else {
+        expect(redbox).toMatchInlineSnapshot(`
         {
           "description": "Failed to compile",
           "source": "./app/exports/app-code/react-dom-server-node-implicit/page.js
@@ -417,6 +446,7 @@ describe('react-dom/server in React Server environment', () => {
            \`----",
         }
       `)
+      }
     }
   })
 

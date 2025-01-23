@@ -286,7 +286,11 @@ export function getDefineEnv({
         }
       : undefined),
     'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      config.experimental.newDevOverlay ?? false,
+      // When `__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY` is set on CI,
+      // we need to pass it here so it can be enabled.
+      process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
+      config.experimental.newDevOverlay ||
+      false,
   }
 
   const userDefines = config.compiler?.define ?? {}

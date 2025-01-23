@@ -61,7 +61,9 @@ async function getStackFramesContent(browser) {
       const source = await getRedboxSource(browser)
 
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Page (app/rsc/page.tsx (5:6))"`
+        )
         expect(source).toMatchInlineSnapshot(`
          "app/rsc/page.tsx (5:6) @ Page
 
@@ -74,7 +76,9 @@ async function getStackFramesContent(browser) {
            8 |       ))}"
         `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Page (app/rsc/page.tsx (5:6))"`
+        )
         expect(source).toMatchInlineSnapshot(`
                  "app/rsc/page.tsx (5:6) @ Page
 
@@ -96,7 +100,9 @@ async function getStackFramesContent(browser) {
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Page (app/ssr/page.tsx (7:5))"`
+        )
         expect(source).toMatchInlineSnapshot(`
                  "app/ssr/page.tsx (7:5) @ Page
 
@@ -109,7 +115,9 @@ async function getStackFramesContent(browser) {
                    10 |       ))}"
               `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Page (app/ssr/page.tsx (7:6))"`
+        )
         expect(source).toMatchInlineSnapshot(`
                  "app/ssr/page.tsx (7:6) @ Page
 

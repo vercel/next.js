@@ -36,9 +36,7 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         .map((line, a) =>
           ~(a = line.indexOf('|'))
             ? line.substring(0, a) +
-              line
-                .substring(a + 1)
-                .replace(`^\\ {${miniLeadingSpacesLength}}`, '')
+              line.substring(a).replace(`^\\ {${miniLeadingSpacesLength}}`, '')
             : line
         )
         .join('\n')
