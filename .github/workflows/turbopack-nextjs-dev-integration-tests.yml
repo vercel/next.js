@@ -33,6 +33,9 @@ env:
   NEXT_TEST_CONTINUE_ON_ERROR: TRUE
   NEXT_E2E_TEST_TIMEOUT: 240000
   NEXT_TEST_JOB: 1
+  # TODO: LTS Version is now 22
+  NODE_MAINTENANCE_VERSION: 18.18.2
+  NODE_LTS_VERSION: 20
 
 jobs:
   # First, build next-dev and Next.js both to execute across tests.
@@ -40,7 +43,7 @@ jobs:
     name: Setup Next.js build
     uses: ./.github/workflows/setup-nextjs-build.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       version: ${{ inputs.version || 'canary' }}
 
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
@@ -70,13 +73,13 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18.18.2
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
           check-latest: true
       - uses: actions/cache/restore@v3
         id: restore-build
         with:
           path: ./*
-          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}-${{ github.run_number }}
+          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt }}-${{ github.run_number }}
           fail-on-cache-miss: true
 
       - name: Enable corepack and install yarn
@@ -121,7 +124,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 18.18.2
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
           check-latest: true
       - uses: actions/cache/restore@v3
         id: restore-build

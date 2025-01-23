@@ -9,7 +9,7 @@ on:
 env:
   NAPI_CLI_VERSION: 2.14.7
   TURBO_VERSION: 2.3.3
-  NODE_MAINTENANCE_VERSION: 18
+  NODE_MAINTENANCE_VERSION: 18.18.2
   NODE_LTS_VERSION: 20
   TEST_CONCURRENCY: 8
   # disable backtrace for test snapshots
@@ -107,7 +107,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: ${{ env.NODE_MAINTENANCE_VERSION }}
       - run: corepack enable
       - name: 'Run link checker'
         run: node ./.github/actions/validate-docs-links/dist/index.js
@@ -254,7 +254,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-dev-tests-manifest.json" TURBOPACK=1 TURBOPACK_DEV=1 NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-integration-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
@@ -279,7 +279,7 @@ jobs:
         react: ['', '18.3.1']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_TEST_MODE=start NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type production
       stepName: 'test-turbopack-production-react-${{ matrix.react }}-${{ matrix.group }}'
     secrets: inherit
@@ -295,7 +295,7 @@ jobs:
         group: [1/7, 2/7, 3/7, 4/7, 5/7, 6/7, 7/7]
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       afterBuild: RUST_BACKTRACE=0 NEXT_EXTERNAL_TESTS_FILTERS="$(pwd)/test/turbopack-build-tests-manifest.json" TURBOPACK=1 TURBOPACK_BUILD=1 node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-turbopack-production-integration-${{ matrix.group }}'
     secrets: inherit
@@ -307,6 +307,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       afterBuild: rustup target add wasm32-unknown-unknown && curl https://rustwasm.github.io/wasm-pack/installer/init.sh -sSf | sh && node ./scripts/normalize-version-bump.js && turbo run build-wasm -- --target nodejs && git checkout . && mv crates/wasm/pkg crates/wasm/pkg-nodejs && node ./scripts/setup-wasm.mjs && NEXT_TEST_MODE=start TEST_WASM=true node run-tests.js test/production/pages-dir/production/test/index.test.ts test/e2e/streaming-ssr/index.test.ts
       stepName: 'test-next-swc-wasm'
     secrets: inherit
@@ -335,7 +336,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20] # TODO: use env var like [env.NODE_MAINTENANCE_VERSION, env.NODE_LTS_VERSION]
+        node:
+          - ${{ env.NODE_MAINTENANCE_VERSION }}
+          - ${{ env.NODE_LTS_VERSION }}
 
     uses: ./.github/workflows/build_reusable.yml
     with:
@@ -548,7 +551,7 @@ jobs:
         react: ['']
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       afterBuild: NEXT_TEST_REACT_VERSION="${{ matrix.react }}" node run-tests.js --timings -g ${{ matrix.group }} -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-integration-${{ matrix.group }}-react-${{ matrix.react }}'
     secrets: inherit
@@ -577,7 +580,7 @@ jobs:
 
     uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
+      nodeVersion: ${{ env.NODE_MAINTENANCE_VERSION }}
       afterBuild: __NEXT_EXPERIMENTAL_PPR=true NEXT_EXTERNAL_TESTS_FILTERS="test/ppr-tests-manifest.json" node run-tests.js --timings -c ${TEST_CONCURRENCY} --type integration
       stepName: 'test-ppr-integration'
     secrets: inherit

@@ -13,10 +13,15 @@ on:
 
 name: Test examples
 
+env:
+  # TODO: LTS Version is now 22
+  NODE_MAINTENANCE_VERSION: 18.18.2
+  NODE_LTS_VERSION: 20
+
 jobs:
   testExamples:
     # Don't execute using cron on forks
-    if: (github.repository == 'vercel/next.js') || (inputs.is_dispatched == true)
+    if: (github.repository_owner == 'vercel') || (inputs.is_dispatched == true)
     name: Test Examples
     runs-on: ubuntu-latest
     timeout-minutes: 120
@@ -25,7 +30,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        node: [18, 20]
+        node:
+          - ${{ env.NODE_MAINTENANCE_VERSION }}
+          - ${{ env.NODE_LTS_VERSION }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -37,7 +44,7 @@ jobs:
       - name: Setup node
         uses: actions/setup-node@v4
         with:
-          node-version: 18
+          node-version: ${{ matrix.node }}
           check-latest: true
       - run: corepack enable
 
