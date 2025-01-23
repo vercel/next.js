@@ -106,7 +106,7 @@ pnpm prisma generate
 bun prisma generate
 ```
 
-If using Prisma Postgres, generate the client without an engine:
+If using Prisma Postgres, generate `PrismaClient` without an engine:
 
 ```bash
 # Using npm
