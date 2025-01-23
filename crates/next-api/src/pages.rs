@@ -86,6 +86,11 @@ pub struct PagesProject {
     project: ResolvedVc<Project>,
 }
 
+#[turbo_tasks::function]
+fn client_layer() -> Vc<RcStr> {
+    Vc::cell("client".into())
+}
+
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
@@ -312,7 +317,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         )
     }
 
@@ -351,7 +356,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         ))
     }
 
