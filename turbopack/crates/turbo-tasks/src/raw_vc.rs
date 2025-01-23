@@ -1,11 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    future::Future,
-    hash::Hash,
-    pin::Pin,
-    sync::Arc,
-    task::Poll,
-};
+use std::{fmt::Display, future::Future, pin::Pin, task::Poll};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
@@ -335,7 +328,6 @@ impl CollectiblesSource for RawVc {
 }
 
 pub struct ReadRawVcFuture {
-    turbo_tasks: Arc<dyn TurboTasksApi>,
     consistency: ReadConsistency,
     current: RawVc,
     untracked: bool,
@@ -344,9 +336,7 @@ pub struct ReadRawVcFuture {
 
 impl ReadRawVcFuture {
     pub(crate) fn new(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: false,
@@ -354,10 +344,8 @@ impl ReadRawVcFuture {
         }
     }
 
-    fn new_untracked_with_turbo_tasks(vc: RawVc, turbo_tasks: &dyn TurboTasksApi) -> Self {
-        let tt = turbo_tasks.pin();
+    fn new_untracked_with_turbo_tasks(vc: RawVc, _turbo_tasks: &dyn TurboTasksApi) -> Self {
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
@@ -366,9 +354,7 @@ impl ReadRawVcFuture {
     }
 
     fn new_untracked(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
@@ -377,9 +363,7 @@ impl ReadRawVcFuture {
     }
 
     fn new_strongly_consistent(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Strong,
             current: vc,
             untracked: false,
@@ -388,9 +372,7 @@ impl ReadRawVcFuture {
     }
 
     fn new_strongly_consistent_untracked(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Strong,
             current: vc,
             untracked: true,
@@ -403,7 +385,8 @@ impl Future for ReadRawVcFuture {
     type Output = Result<TypedCellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        self.turbo_tasks.notify_scheduled_tasks();
+        let tt = turbo_tasks();
+        tt.notify_scheduled_tasks();
         // SAFETY: we are not moving this
         let this = unsafe { self.get_unchecked_mut() };
         'outer: loop {
@@ -418,11 +401,9 @@ impl Future for ReadRawVcFuture {
             let mut listener = match this.current {
                 RawVc::TaskOutput(task) => {
                     let read_result = if this.untracked {
-                        this.turbo_tasks
-                            .try_read_task_output_untracked(task, this.consistency)
+                        tt.try_read_task_output_untracked(task, this.consistency)
                     } else {
-                        this.turbo_tasks
-                            .try_read_task_output(task, this.consistency)
+                        tt.try_read_task_output(task, this.consistency)
                     };
                     match read_result {
                         Ok(Ok(vc)) => {
@@ -439,9 +420,9 @@ impl Future for ReadRawVcFuture {
                 }
                 RawVc::TaskCell(task, index) => {
                     let read_result = if this.untracked {
-                        this.turbo_tasks.try_read_task_cell_untracked(task, index)
+                        tt.try_read_task_cell_untracked(task, index)
                     } else {
-                        this.turbo_tasks.try_read_task_cell(task, index)
+                        tt.try_read_task_cell(task, index)
                     };
                     match read_result {
                         Ok(Ok(content)) => {
@@ -454,17 +435,13 @@ impl Future for ReadRawVcFuture {
                 }
                 RawVc::LocalOutput(task_id, local_output_id) => {
                     let read_result = if this.untracked {
-                        this.turbo_tasks.try_read_local_output_untracked(
+                        tt.try_read_local_output_untracked(
                             task_id,
                             local_output_id,
                             this.consistency,
                         )
                     } else {
-                        this.turbo_tasks.try_read_local_output(
-                            task_id,
-                            local_output_id,
-                            this.consistency,
-                        )
+                        tt.try_read_local_output(task_id, local_output_id, this.consistency)
                     };
                     match read_result {
                         Ok(Ok(vc)) => {
