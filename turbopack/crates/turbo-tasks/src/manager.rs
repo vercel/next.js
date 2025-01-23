@@ -1751,7 +1751,8 @@ pub async fn run_once<T: Send + 'static>(
     // INVALIDATION: A Once task will never invalidate, therefore we don't need to
     // track a dependency
     let raw_result = read_task_output_untracked(&*tt, task_id, ReadConsistency::Eventual).await?;
-    ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(&*tt)).await?;
+    let raw_future = raw_result.into_read_untracked_with_turbo_tasks(&*tt);
+    turbo_tasks_future_scope(tt, ReadVcFuture::<Completion>::from(raw_future)).await?;
 
     Ok(rx.await?)
 }
