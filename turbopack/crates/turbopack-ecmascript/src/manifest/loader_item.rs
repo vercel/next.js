@@ -20,7 +20,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
-    utils::StringifyJs,
+    utils::{StringifyJs, StringifyModuleId},
 };
 
 #[turbo_tasks::function]
@@ -197,8 +197,8 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
                     .map(|chunk_data| EcmascriptChunkData::new(chunk_data))
                     .collect::<Vec<_>>()
             ),
-            item_id = StringifyJs(item_id),
-            dynamic_id = StringifyJs(dynamic_id),
+            item_id = StringifyModuleId(item_id),
+            dynamic_id = StringifyModuleId(dynamic_id),
         )?;
 
         Ok(EcmascriptChunkItemContent {
