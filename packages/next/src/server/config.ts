@@ -440,6 +440,13 @@ function assignDefaults(
     }
   }
 
+  // TODO(jiwon): remove once we've made new UI default
+  // Enable reactOwnerStack when newDevOverlay is enabled to have
+  // better call stack output in the new UI.
+  if (result.experimental?.newDevOverlay) {
+    result.experimental.reactOwnerStack = true
+  }
+
   warnCustomizedOption(
     result,
     'experimental.esmExternals',
