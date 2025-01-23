@@ -9,7 +9,11 @@ Run [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/c
 ```bash
 # Using npm
 npx create-next-app --example prisma-orm prisma-orm-app
+```
 
+<details><summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
+
+```bash
 # Using yarn
 yarn create next-app --example prisma-orm prisma-orm-app
 
@@ -19,6 +23,10 @@ pnpm create-next-app --example prisma-orm prisma-orm-app
 # Using bun
 bunx create-next-app --example prisma-orm prisma-orm-app
 ```
+
+</details>
+
+
 
 ## Getting started
 
