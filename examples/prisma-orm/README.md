@@ -142,8 +142,6 @@ bun prisma db seed
 
 </details>
 
-<br/>
-
 Start the development server:
 
 ```bash
