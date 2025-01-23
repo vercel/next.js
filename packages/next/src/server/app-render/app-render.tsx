@@ -316,18 +316,28 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   ]
 }
 
-function createSuspenseyMetadata(
+const EmptyMetadata = () => null
+function createDivergedMetadataComponents(
   Metadata: React.ComponentType<{}>,
   serveStreamingMetadata: boolean
-): React.ComponentType<{}> {
-  return () =>
-    serveStreamingMetadata ? (
+): {
+  StaticMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}>
+} {
+  function StreamingMetadata() {
+    if (!serveStreamingMetadata) return null
+    return (
       <React.Suspense fallback={null}>
         <Metadata />
       </React.Suspense>
-    ) : (
-      <Metadata />
     )
+  }
+  const StaticMetadata = serveStreamingMetadata ? EmptyMetadata : Metadata
+
+  return {
+    StaticMetadata,
+    StreamingMetadata,
+  }
 }
 
 /**
@@ -485,14 +495,15 @@ async function generateDynamicRSCPayload(
         serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
       })
 
-    const MetadataComponent = createSuspenseyMetadata(() => {
-      return (
-        <React.Fragment key={flightDataPathMetadataKey}>
-          {/* Adding requestId as react key to make metadata remount for each render */}
-          <MetadataTree key={requestId} />
-        </React.Fragment>
-      )
-    }, !!ctx.renderOpts.serveStreamingMetadata)
+    const { StreamingMetadata, StaticMetadata } =
+      createDivergedMetadataComponents(() => {
+        return (
+          <React.Fragment key={flightDataPathMetadataKey}>
+            {/* Adding requestId as react key to make metadata remount for each render */}
+            <MetadataTree key={requestId} />
+          </React.Fragment>
+        )
+      }, !!ctx.renderOpts.serveStreamingMetadata)
 
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -502,12 +513,15 @@ async function generateDynamicRSCPayload(
         flightRouterState,
         // For flight, render metadata inside leaf page
         rscHead: (
-          <React.Fragment key={flightDataPathViewportKey}>
-            {/* noindex needs to be blocking */}
-            <NonIndex ctx={ctx} />
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <ViewportTree key={requestId} />
-          </React.Fragment>
+          <>
+            <React.Fragment key={flightDataPathViewportKey}>
+              {/* noindex needs to be blocking */}
+              <NonIndex ctx={ctx} />
+              {/* Adding requestId as react key to make metadata remount for each render */}
+              <ViewportTree key={requestId} />
+            </React.Fragment>
+            <StaticMetadata />
+          </>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -516,7 +530,7 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
-        MetadataComponent,
+        StreamingMetadata,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -791,14 +805,15 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
-  const MetadataComponent = createSuspenseyMetadata(() => {
-    return (
-      <React.Fragment key={flightDataPathMetadataKey}>
-        {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
-        <MetadataTree />
-      </React.Fragment>
-    )
-  }, !!ctx.renderOpts.serveStreamingMetadata)
+  const { StreamingMetadata, StaticMetadata } =
+    createDivergedMetadataComponents(() => {
+      return (
+        <React.Fragment key={flightDataPathMetadataKey}>
+          {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
+          <MetadataTree />
+        </React.Fragment>
+      )
+    }, !!ctx.renderOpts.serveStreamingMetadata)
 
   const seedData = await createComponentTree({
     ctx,
@@ -813,7 +828,7 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    MetadataComponent,
+    StreamingMetadata,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -824,10 +839,13 @@ async function getRSCPayload(
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
   const initialHeadViewport = (
-    <React.Fragment key={flightDataPathViewportKey}>
-      <NonIndex ctx={ctx} />
-      <ViewportTree key={ctx.requestId} />
-    </React.Fragment>
+    <>
+      <React.Fragment key={flightDataPathViewportKey}>
+        <NonIndex ctx={ctx} />
+        <ViewportTree key={ctx.requestId} />
+      </React.Fragment>
+      <StaticMetadata />
+    </>
   )
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
@@ -916,15 +934,16 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
   })
 
-  const ErrorMetadataComponent = createSuspenseyMetadata(
-    () => (
-      <React.Fragment key={flightDataPathMetadataKey}>
-        {/* Adding requestId as react key to make metadata remount for each render */}
-        <MetadataTree key={requestId} />
-      </React.Fragment>
-    ),
-    !!ctx.renderOpts.serveStreamingMetadata
-  )
+  const { StreamingMetadata, StaticMetadata } =
+    createDivergedMetadataComponents(
+      () => (
+        <React.Fragment key={flightDataPathMetadataKey}>
+          {/* Adding requestId as react key to make metadata remount for each render */}
+          <MetadataTree key={requestId} />
+        </React.Fragment>
+      ),
+      !!ctx.renderOpts.serveStreamingMetadata
+    )
 
   const initialHeadViewport = (
     <React.Fragment key={flightDataPathViewportKey}>
@@ -934,6 +953,7 @@ async function getErrorRSCPayload(
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
+      <StaticMetadata />
     </React.Fragment>
   )
 
@@ -954,7 +974,7 @@ async function getErrorRSCPayload(
     initialTree[0],
     <html id="__next_error__">
       <head>
-        <ErrorMetadataComponent />
+        <StreamingMetadata />
       </head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
