@@ -354,7 +354,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 match (self, *key) {
                     #(
                         (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
-                            storage.remove(#storage_key).map(|value| #value_name::#variant_names { value })
+                            storage.remove(&#storage_key).map(|value| #value_name::#variant_names { value })
                         }
                     )*
                     _ => unreachable!(),
@@ -365,7 +365,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 match (self, *key) {
                     #(
                         (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
-                            storage.contains_key(#storage_key)
+                            storage.contains_key(&#storage_key)
                         }
                     )*
                     _ => unreachable!(),
@@ -376,7 +376,7 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 match (self, *key) {
                     #(
                         (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
-                            storage.get(#storage_key).map(|value| #value_ref_name::#variant_names { value })
+                            storage.get(&#storage_key).map(|value| #value_ref_name::#variant_names { value })
                         }
                     )*
                     _ => unreachable!(),
@@ -387,15 +387,15 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 match (self, *key) {
                     #(
                         (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
-                            storage.get_mut(#storage_key).map(|value| #value_ref_mut_name::#variant_names { value })
+                            storage.get_mut(&#storage_key).map(|value| #value_ref_mut_name::#variant_names { value })
                         }
                     )*
                     _ => unreachable!(),
                 }
             }
 
-            pub fn get_mut_or_insert_with(&mut self, key: &#key_name, insert_with: impl FnOnce() -> #value_name) -> #value_ref_mut_name {
-                match (self, *key) {
+            pub fn get_mut_or_insert_with(&mut self, key: #key_name, insert_with: impl FnOnce() -> #value_name) -> #value_ref_mut_name {
+                match (self, key) {
                     #(
                         (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
                             #value_ref_mut_name::#variant_names { value: storage

@@ -1,6 +1,6 @@
 use std::hash::{BuildHasherDefault, Hash};
 
-use auto_hash_map::AutoMap;
+use auto_hash_map::{map::Entry, AutoMap};
 use rustc_hash::FxHasher;
 
 pub trait Storage {
@@ -12,12 +12,16 @@ pub trait Storage {
 
     fn add(&mut self, key: Self::K, value: Self::V) -> bool;
     fn insert(&mut self, key: Self::K, value: Self::V) -> Option<Self::V>;
-    fn remove(&mut self, key: Self::K) -> Option<Self::V>;
-    fn contains_key(&self, key: Self::K) -> bool;
-    fn get(&self, key: Self::K) -> Option<&Self::V>;
-    fn get_mut(&mut self, key: Self::K) -> Option<&mut Self::V>;
+    fn remove(&mut self, key: &Self::K) -> Option<Self::V>;
+    fn contains_key(&self, key: &Self::K) -> bool;
+    fn get(&self, key: &Self::K) -> Option<&Self::V>;
+    fn get_mut(&mut self, key: &Self::K) -> Option<&mut Self::V>;
     fn get_mut_or_insert_with(&mut self, key: Self::K, f: impl FnOnce() -> Self::V)
         -> &mut Self::V;
+    fn extract_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = (Self::K, Self::V)>
+    where
+        F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l;
+    fn update(&mut self, key: Self::K, update: impl FnOnce(Option<Self::V>) -> Option<Self::V>);
     fn shrink_to_fit(&mut self);
     fn is_empty(&self) -> bool;
     fn len(&self) -> usize;
@@ -60,19 +64,19 @@ impl<V> Storage for OptionStorage<V> {
         self.value.replace(value)
     }
 
-    fn remove(&mut self, _: ()) -> Option<V> {
+    fn remove(&mut self, _: &()) -> Option<V> {
         self.value.take()
     }
 
-    fn contains_key(&self, _: ()) -> bool {
+    fn contains_key(&self, _: &()) -> bool {
         self.value.is_some()
     }
 
-    fn get(&self, _: ()) -> Option<&V> {
+    fn get(&self, _: &()) -> Option<&V> {
         self.value.as_ref()
     }
 
-    fn get_mut(&mut self, _: ()) -> Option<&mut V> {
+    fn get_mut(&mut self, _: &()) -> Option<&mut V> {
         self.value.as_mut()
     }
 
@@ -98,6 +102,22 @@ impl<V> Storage for OptionStorage<V> {
 
     fn iter(&self) -> Self::Iterator<'_> {
         self.value.as_ref().map(value_to_key_value).into_iter()
+    }
+
+    fn extract_if<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = (Self::K, Self::V)>
+    where
+        F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l,
+    {
+        if let Some(value) = self.value.as_mut() {
+            if f(&(), value) {
+                return self.value.take().map(|v| ((), v)).into_iter();
+            }
+        }
+        None.into_iter()
+    }
+
+    fn update(&mut self, _: (), update: impl FnOnce(Option<V>) -> Option<V>) {
+        self.value = update(self.value.take());
     }
 }
 
@@ -136,22 +156,22 @@ impl<K: Hash + Eq, V> Storage for AutoMapStorage<K, V> {
         self.map.insert(key, value)
     }
 
-    fn remove(&mut self, key: K) -> Option<V> {
+    fn remove(&mut self, key: &K) -> Option<V> {
         self.map
-            .remove(&key)
+            .remove(key)
             .inspect(|_| self.map.shrink_amortized())
     }
 
-    fn contains_key(&self, key: K) -> bool {
-        self.map.contains_key(&key)
+    fn contains_key(&self, key: &K) -> bool {
+        self.map.contains_key(key)
     }
 
-    fn get(&self, key: K) -> Option<&V> {
-        self.map.get(&key)
+    fn get(&self, key: &K) -> Option<&V> {
+        self.map.get(key)
     }
 
-    fn get_mut(&mut self, key: K) -> Option<&mut V> {
-        self.map.get_mut(&key)
+    fn get_mut(&mut self, key: &K) -> Option<&mut V> {
+        self.map.get_mut(key)
     }
 
     fn get_mut_or_insert_with(&mut self, key: K, f: impl FnOnce() -> V) -> &mut V {
@@ -172,5 +192,23 @@ impl<K: Hash + Eq, V> Storage for AutoMapStorage<K, V> {
 
     fn iter(&self) -> Self::Iterator<'_> {
         self.map.iter()
+    }
+
+    fn extract_if<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = (Self::K, Self::V)>
+    where
+        F: for<'a, 'b> FnMut(&'a Self::K, &'b mut Self::V) -> bool + 'l,
+    {
+        self.map.extract_if(f)
+    }
+
+    fn update(&mut self, key: K, update: impl FnOnce(Option<V>) -> Option<V>) {
+        match self.map.entry(key) {
+            Entry::Vacant(e) => {
+                if let Some(new) = update(None) {
+                    e.insert(new);
+                }
+            }
+            Entry::Occupied(e) => e.replace_entry_with(move |_, v| update(Some(v))),
+        }
     }
 }

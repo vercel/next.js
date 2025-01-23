@@ -568,6 +568,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "hashbrown 0.14.5",
  "rustc-hash 1.1.0",
  "serde",
  "smallvec",
@@ -2756,6 +2757,7 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash 0.8.11",
  "allocator-api2",
+ "serde",
 ]
 
 [[package]]

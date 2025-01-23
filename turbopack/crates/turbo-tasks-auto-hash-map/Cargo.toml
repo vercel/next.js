@@ -9,6 +9,7 @@ edition = "2021"
 workspace = true
 
 [dependencies]
+hashbrown = { workspace = true, features = ["serde"]}
 rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 smallvec = { workspace = true }

@@ -84,7 +84,7 @@ impl DynamicStorage {
 
     pub fn get_mut_or_insert_with(
         &mut self,
-        key: &CachedDataItemKey,
+        key: CachedDataItemKey,
         f: impl FnOnce() -> CachedDataItemValue,
     ) -> CachedDataItemValueRefMut<'_> {
         self.get_or_create_map_mut(key.ty())
