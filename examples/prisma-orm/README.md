@@ -81,7 +81,6 @@ bun prisma migrate dev --name init
 
 </details>
 
-<br/>
 
 
 ### 3. Seed the database and start the server
