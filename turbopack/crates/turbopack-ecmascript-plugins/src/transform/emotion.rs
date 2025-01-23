@@ -67,7 +67,7 @@ impl EmotionTransformer {
             // emotion transform.
             enabled: Some(true),
             sourcemap: config.sourcemap,
-            label_format: config.label_format.into(),
+            label_format: config.label_format.map(From::from),
             auto_label: if let Some(auto_label) = config.auto_label.as_ref() {
                 match auto_label {
                     EmotionLabelKind::Always => Some(true),
