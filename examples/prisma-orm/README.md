@@ -59,7 +59,7 @@ Then update the `.env` file by replacing the existing `DATABASE_URL` value with 
 DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
 ```
 
-### 3. Migrate the database and generate `PrismaClient`
+### 3. Migrate the database
 
 Run the following commands to set up your database and Prisma schema:
 
