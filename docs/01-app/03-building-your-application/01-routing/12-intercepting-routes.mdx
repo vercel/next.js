@@ -41,6 +41,8 @@ You can use:
 - `(..)(..)` to match segments **two levels above**
 - `(...)` to match segments from the **root** `app` directory
 
+> **Good to know:** these four are the only recognized conventions and cannot be composed together. For example `(..)(..)(..)` would **not** work. If you need to intercept routes that branch three or more levels above the one you wnat to intercept from, you’ll need to start from the root `app` directory with `(...)`.
+
 For example, you can intercept the `photo` segment from within the `feed` segment by creating a `(..)photo` directory.
 
 <Image
