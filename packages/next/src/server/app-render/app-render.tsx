@@ -230,8 +230,7 @@ interface ParseRequestHeadersOptions {
   readonly isRoutePPREnabled: boolean
 }
 
-const flightDataPathMetadataKey = 'h'
-const flightDataPathViewportKey = 'v'
+const flightDataPathHeadKey = 'h'
 
 interface ParsedRequestHeaders {
   /**
@@ -498,10 +497,8 @@ async function generateDynamicRSCPayload(
     const { StreamingMetadata, StaticMetadata } =
       createDivergedMetadataComponents(() => {
         return (
-          <React.Fragment key={flightDataPathMetadataKey}>
-            {/* Adding requestId as react key to make metadata remount for each render */}
-            <MetadataTree key={requestId} />
-          </React.Fragment>
+          // Adding requestId as react key to make metadata remount for each render
+          <MetadataTree key={requestId} />
         )
       }, !!ctx.renderOpts.serveStreamingMetadata)
 
@@ -513,15 +510,13 @@ async function generateDynamicRSCPayload(
         flightRouterState,
         // For flight, render metadata inside leaf page
         rscHead: (
-          <>
-            <React.Fragment key={flightDataPathViewportKey}>
-              {/* noindex needs to be blocking */}
-              <NonIndex ctx={ctx} />
-              {/* Adding requestId as react key to make metadata remount for each render */}
-              <ViewportTree key={requestId} />
-            </React.Fragment>
+          <React.Fragment key={flightDataPathHeadKey}>
+            {/* noindex needs to be blocking */}
+            <NonIndex ctx={ctx} />
+            {/* \Adding requestId as react key to make metadata remount for each render */}
+            <ViewportTree key={requestId} />
             <StaticMetadata />
-          </>
+          </React.Fragment>
         ),
         injectedCSS: new Set(),
         injectedJS: new Set(),
@@ -808,10 +803,8 @@ async function getRSCPayload(
   const { StreamingMetadata, StaticMetadata } =
     createDivergedMetadataComponents(() => {
       return (
-        <React.Fragment key={flightDataPathMetadataKey}>
-          {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
-          <MetadataTree />
-        </React.Fragment>
+        // Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed
+        <MetadataTree />
       )
     }, !!ctx.renderOpts.serveStreamingMetadata)
 
@@ -838,14 +831,12 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHeadViewport = (
-    <>
-      <React.Fragment key={flightDataPathViewportKey}>
-        <NonIndex ctx={ctx} />
-        <ViewportTree key={ctx.requestId} />
-      </React.Fragment>
-      <StaticMetadata />
-    </>
+  const initialHead = (
+    <React.Fragment key={flightDataPathHeadKey}>
+      <NonIndex ctx={ctx} />
+      <ViewportTree key={ctx.requestId} />
+      <StaticMetadata key={flightDataPathHeadKey} />
+    </React.Fragment>
   )
 
   const globalErrorStyles = await getGlobalErrorStyles(tree, ctx)
@@ -871,7 +862,7 @@ async function getRSCPayload(
       [
         initialTree,
         seedData,
-        [initialHeadViewport, null],
+        initialHead,
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],
@@ -937,7 +928,7 @@ async function getErrorRSCPayload(
   const { StreamingMetadata, StaticMetadata } =
     createDivergedMetadataComponents(
       () => (
-        <React.Fragment key={flightDataPathMetadataKey}>
+        <React.Fragment key={flightDataPathHeadKey}>
           {/* Adding requestId as react key to make metadata remount for each render */}
           <MetadataTree key={requestId} />
         </React.Fragment>
@@ -945,8 +936,8 @@ async function getErrorRSCPayload(
       !!ctx.renderOpts.serveStreamingMetadata
     )
 
-  const initialHeadViewport = (
-    <React.Fragment key={flightDataPathViewportKey}>
+  const initialHead = (
+    <React.Fragment key={flightDataPathHeadKey}>
       <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <ViewportTree key={requestId} />
@@ -1006,7 +997,7 @@ async function getErrorRSCPayload(
       [
         initialTree,
         seedData,
-        [initialHeadViewport, null],
+        initialHead,
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],
