@@ -31,7 +31,7 @@ use turbo_rcstr::RcStr;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
-    pub dynamic_io_enabled: bool,
+    pub use_cache_enabled: bool,
     pub hash_salt: String,
     pub cache_kinds: FxHashSet<RcStr>,
 }
@@ -104,7 +104,7 @@ enum ServerActionsErrorKind {
         span: Span,
         cache_kind: RcStr,
     },
-    UseCacheWithoutDynamicIO {
+    UseCacheWithoutExperimentalFlag {
         span: Span,
         directive: String,
     },
@@ -2684,8 +2684,8 @@ impl DirectiveVisitor<'_> {
                             location: self.location.clone(),
                         });
                     } else if self.is_allowed_position {
-                        if !self.config.dynamic_io_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                        if !self.config.use_cache_enabled {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutExperimentalFlag {
                                 span: *span,
                                 directive: value.to_string(),
                             });
@@ -3094,11 +3094,11 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 "#
             },
         ),
-        ServerActionsErrorKind::UseCacheWithoutDynamicIO { span, directive } => (
+        ServerActionsErrorKind::UseCacheWithoutExperimentalFlag { span, directive } => (
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the experimental feature flag "dynamicIO" in your Next.js config.
+                    To use "{directive}", please enable the experimental feature flag "useCache" in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

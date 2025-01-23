@@ -443,6 +443,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         newDevOverlay: z.boolean().optional(),
         streamingMetadata: z.boolean().optional(),
         htmlLimitedBots: z.instanceof(RegExp).optional(),
+        useCache: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z

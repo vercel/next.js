@@ -567,7 +567,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
@@ -601,7 +601,7 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                     &FileName::Real("/app/test.tsx".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
@@ -628,7 +628,7 @@ fn server_actions_client_fixture(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
@@ -931,7 +931,7 @@ fn test_source_maps(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter([]),
                     },

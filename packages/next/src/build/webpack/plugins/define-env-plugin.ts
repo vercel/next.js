@@ -146,6 +146,7 @@ export function getDefineEnv({
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
+  const isUseCacheEnabled = !!config.experimental.useCache
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -189,6 +190,7 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
+    'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack

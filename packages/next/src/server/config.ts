@@ -1017,6 +1017,13 @@ function assignDefaults(
     result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
   }
 
+  // "use cache" was originally implicitly enabled with the dynamicIO flag, so
+  // we transfer the value for dynamicIO to the explicit useCache flag to ensure
+  // backwards compatibility.
+  if (result.experimental.useCache === undefined) {
+    result.experimental.useCache = result.experimental.dynamicIO
+  }
+
   return result
 }
 

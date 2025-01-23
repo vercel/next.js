@@ -607,6 +607,11 @@ export interface ExperimentalConfig {
    * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * Enables the use of the `"use cache"` directive.
+   */
+  useCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -1237,6 +1242,7 @@ export const defaultConfig: NextConfig = {
     newDevOverlay: false,
     streamingMetadata: false,
     htmlLimitedBots: undefined,
+    useCache: undefined,
   },
   bundlePagesRouterDependencies: false,
 }
