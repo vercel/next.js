@@ -4956,7 +4956,7 @@ dependencies = [
  "phf",
  "phf_codegen",
  "precomputed-hash",
- "rustc-hash 2.0.0",
+ "rustc-hash 2.1.0",
  "serde",
  "smallvec",
  "static-self",
@@ -6080,9 +6080,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
+checksum = "c7fb8039b3032c191086b10f11f319a6e99e1e82889c5cc6046f515c9db1d497"
 
 [[package]]
 name = "rustc_version"
@@ -6905,15 +6905,16 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.75.1"
+version = "0.75.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "768f794e5cbf87d9ff5eb768f99247c40981c2e666cc5e22fd1eb8dfd6f6cea8"
+checksum = "c1f6e318858ba16a2ad6b70a60c3c81266096602faf1839c20c6c060bd707bf2"
 dependencies = [
  "anyhow",
  "lightningcss",
  "parcel_selectors",
  "preset_env_base",
  "serde",
+ "swc_atoms",
  "swc_common",
  "swc_css_ast",
  "swc_css_codegen",
@@ -6925,6 +6926,7 @@ dependencies = [
  "swc_ecma_ast",
  "swc_ecma_minifier",
  "swc_ecma_parser",
+ "swc_ecma_transforms_base",
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_plugin_macro",
@@ -8058,22 +8060,23 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.74.1"
+version = "0.74.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e73f5a11086b7d7e70878510e4e4be79d40b8b977f5b39cd224696ed711ddab2"
+checksum = "177c1403bd72b2e08ffbf1c13d4567fc789d69564f2e62677a434645b34bc328"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
- "fxhash",
  "once_cell",
  "radix_fmt",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "sourcemap",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
+ "swc_ecma_transforms",
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_trace_macro",
