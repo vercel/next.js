@@ -13,7 +13,7 @@ use turbopack_core::{
 use crate::async_chunk::chunk_item::AsyncLoaderChunkItem;
 
 #[turbo_tasks::function]
-pub fn async_loader_modifier() -> Vc<RcStr> {
+fn async_loader_modifier() -> Vc<RcStr> {
     Vc::cell("async loader".into())
 }
 
