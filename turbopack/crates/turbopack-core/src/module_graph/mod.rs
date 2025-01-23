@@ -29,7 +29,6 @@ use crate::{
 };
 
 pub mod chunk_group_info;
-pub mod global_module_ids;
 
 #[derive(
     Debug, Copy, Clone, Eq, PartialOrd, Ord, Hash, PartialEq, Serialize, Deserialize, TraceRawVcs,
@@ -745,13 +744,13 @@ impl ModuleGraph {
         mut visitor: impl FnMut(
             (&'_ SingleModuleGraphModuleNode, &'_ ChunkingType),
             &'_ SingleModuleGraphModuleNode,
-        ),
+        ) -> Result<()>,
     ) -> Result<()> {
         let graphs = self.get_graphs().await?;
 
         for graph in &graphs {
             let graph = &graph.graph;
-            graph.edge_references().for_each(|edge| {
+            for edge in graph.edge_references() {
                 let source = match graph.node_weight(edge.source()).unwrap() {
                     SingleModuleGraphNode::Module(node) => node,
                     SingleModuleGraphNode::VisitedModule { .. } => unreachable!(),
@@ -760,8 +759,8 @@ impl ModuleGraph {
                     SingleModuleGraphNode::Module(node) => node,
                     SingleModuleGraphNode::VisitedModule { idx } => get_node!(graphs, idx),
                 };
-                visitor((source, edge.weight()), target);
-            });
+                visitor((source, edge.weight()), target)?;
+            }
         }
 
         Ok(())

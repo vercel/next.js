@@ -34,7 +34,8 @@ use turbo_tasks::{
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack::{
-    evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
+    evaluate_context::node_build_environment, global_module_ids::get_global_module_id_strategy,
+    transition::TransitionOptions, ModuleAssetContext,
 };
 use turbopack_core::{
     changed::content_changed,
@@ -51,10 +52,7 @@ use turbopack_core::{
         StyledString,
     },
     module::{Module, Modules},
-    module_graph::{
-        global_module_ids::get_global_module_id_strategy, ModuleGraph, SingleModuleGraph,
-        VisitedModules,
-    },
+    module_graph::{ModuleGraph, SingleModuleGraph, VisitedModules},
     output::{OutputAsset, OutputAssets},
     resolve::{find_context_file, FindContextFileResult},
     source_map::OptionSourceMap,

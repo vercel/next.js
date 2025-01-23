@@ -8,6 +8,7 @@
 #![feature(arbitrary_self_types_pointers)]
 
 pub mod evaluate_context;
+pub mod global_module_ids;
 mod graph;
 pub mod module_options;
 pub mod transition;
