@@ -1,7 +1,7 @@
 import { SortDirectionEnum } from "@/utils/enum";
 import { SortIconInterface } from "@/utils/types";
 
-const SortIcon = ({ direction }: SortIconInterface) => {
+export default function SortIcon({ direction }: SortIconInterface) {
   return (
     <svg
       stroke="currentColor"
@@ -22,6 +22,4 @@ const SortIcon = ({ direction }: SortIconInterface) => {
       )}
     </svg>
   );
-};
-
-export default SortIcon;
+}

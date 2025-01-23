@@ -4,17 +4,14 @@ import Head from "next/head";
 import { useRef } from "react";
 import Carousel from "@/app/Carousel";
 
-export default function AssetDetail({
-  images,
-  assetId,
-}: {
+interface AssetDetailProps {
   images: FileObject[];
   assetId: string;
-}) {
-  let currentImageIndex = images.findIndex(
-    (data) => data.fileId === assetId,
-  );
-  
+}
+
+export default function AssetDetail({ images, assetId }: AssetDetailProps) {
+  let currentImageIndex = images.findIndex((data) => data.fileId === assetId);
+
   const imageWrapper = useRef<HTMLDivElement>(null);
   return (
     <>

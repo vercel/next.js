@@ -1,17 +1,18 @@
 import { UpdatedFileObject } from "@/utils/types";
-import { ListFileResponse } from "imagekit/dist/libs/interfaces";
 import { IKImage } from "imagekitio-next";
 import { Dispatch, SetStateAction } from "react";
 
-const Preview = ({
-  images,
-  currentIndex = 0,
-  setCurrentIndex,
-}: {
+interface PreviewProps {
   images: UpdatedFileObject[];
   currentIndex: number;
   setCurrentIndex: Dispatch<SetStateAction<number>>;
-}) => {
+}
+
+export default function Preview({
+  images,
+  currentIndex = 0,
+  setCurrentIndex,
+}: PreviewProps) {
   return (
     <div className="absolute flex bottom-10 gap-8">
       {images.map((data) => (
@@ -34,6 +35,4 @@ const Preview = ({
       ))}
     </div>
   );
-};
-
-export default Preview;
+}

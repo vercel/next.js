@@ -1,4 +1,4 @@
-const CancelIcon = () => {
+export default function CancelIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -17,6 +17,4 @@ const CancelIcon = () => {
       ></path>
     </svg>
   );
-};
-
-export default CancelIcon;
+}

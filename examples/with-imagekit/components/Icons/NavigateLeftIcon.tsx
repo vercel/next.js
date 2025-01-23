@@ -1,4 +1,4 @@
-const NavigateLeftIcon = () => {
+export default function NavigateLeftIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -17,6 +17,4 @@ const NavigateLeftIcon = () => {
       ></path>
     </svg>
   );
-};
-
-export default NavigateLeftIcon;
+}

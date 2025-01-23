@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import SortIcon from "./Icons/SortIcon";
 import { SortDirectionType, SortType } from "@/utils/types";
 
-const SortDropdown = ({
-  sortParam,
-  sortDirectionParam,
-}: {
+interface SortDropdownProps {
   sortParam?: SortType;
   sortDirectionParam?: SortDirectionType;
-}) => {
+}
+
+export default function SortDropdown({
+  sortParam,
+  sortDirectionParam,
+}: SortDropdownProps) {
   const [sortValue, setSortValue] = useState(SortEnum.CREATED);
   const [sortDirection, setSortDirection] = useState(SortDirectionEnum.DESC);
   const [openSortDropdown, setOpenSortDropDown] = useState(false);
@@ -139,6 +141,4 @@ const SortDropdown = ({
       </div>
     </div>
   );
-};
-
-export default SortDropdown;
+}

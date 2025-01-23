@@ -1,4 +1,4 @@
-const NavigateRightIcon = () => {
+export default function NavigateRightIcon() {
   return (
     <svg
       xmlns="http://www.w3.org/2000/svg"
@@ -17,6 +17,4 @@ const NavigateRightIcon = () => {
       ></path>
     </svg>
   );
-};
-
-export default NavigateRightIcon;
+}

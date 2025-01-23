@@ -1,13 +1,15 @@
 import { Dispatch, SetStateAction } from "react";
 import NavigateLeftIcon from "./Icons/NavigateLeftIcon";
 
-const NavigateLeftButton = ({
-  currentIndex = 0,
-  setCurrentIndex,
-}: {
+interface NavigateLeftButtonProps {
   currentIndex: number;
   setCurrentIndex: Dispatch<SetStateAction<number>>;
-}) => {
+}
+
+export default function NavigateLeftButton({
+  currentIndex = 0,
+  setCurrentIndex,
+}: NavigateLeftButtonProps) {
   return (
     <>
       {currentIndex !== 0 && (
@@ -17,11 +19,9 @@ const NavigateLeftButton = ({
             setCurrentIndex((prev) => prev - 1);
           }}
         >
-          <NavigateLeftIcon/>
+          <NavigateLeftIcon />
         </button>
       )}
     </>
   );
-};
-
-export default NavigateLeftButton;
+}
