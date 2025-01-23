@@ -672,7 +672,7 @@ pub async fn load_next_js_template(
     let path = virtual_next_js_template_path(project_path, path.to_string());
 
     let content = &*file_content_rope(path.read()).await?;
-    let content = content.to_str()?.to_string();
+    let content = content.to_str()?.into_owned();
 
     let parent_path = path.parent();
     let parent_path_value = &*parent_path.await?;
