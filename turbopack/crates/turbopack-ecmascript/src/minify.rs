@@ -43,7 +43,7 @@ pub async fn minify(
         let compiler = Arc::new(Compiler::new(cm.clone()));
         let fm = compiler.cm.new_source_file(
             FileName::Custom(path.path.to_string()).into(),
-            code.source_code().to_str()?.to_string(),
+            code.source_code().to_str()?.into_owned(),
         );
 
         let lexer = Lexer::new(

@@ -1291,7 +1291,7 @@ pub async fn project_get_source_for_asset(
                 bail!("Cannot find source for asset {}", file_path);
             };
 
-            Ok(Some(source_content.content().to_str()?.to_string()))
+            Ok(Some(source_content.content().to_str()?.into_owned()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
@@ -1313,7 +1313,7 @@ pub async fn project_get_source_map(
                 return Ok(None);
             };
 
-            Ok(Some(map.to_rope().await?.to_str()?.to_string()))
+            Ok(Some(map.to_rope().await?.to_str()?.into_owned()))
         })
         .await
         .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
