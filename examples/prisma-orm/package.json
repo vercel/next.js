@@ -1,0 +1,30 @@
+{
+  "private": true,
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "*",
+    "@prisma/extension-accelerate": "*",
+    "next": "latest",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@types/react": "^19",
+    "@types/react-dom": "^19",
+    "postcss": "^8",
+    "prisma": "*",
+    "tailwindcss": "^3.4.1",
+    "tsx": "^4.19.2",
+    "typescript": "^5"
+  }
+}
