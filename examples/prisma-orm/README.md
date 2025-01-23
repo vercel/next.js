@@ -55,9 +55,9 @@ touch .env
 ```
 
 Then update the `.env` file by replacing the existing `DATABASE_URL` value with the one you previously copied. It will look similar to this:
-   ```bash
-   DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
-   ```
+```bash
+DATABASE_URL="prisma+postgres://accelerate.prisma-data.net/?api_key=PRISMA_POSTGRES_API_KEY"
+```
 
 ### 2. Migrate the database and generate `PrismaClient`
 
