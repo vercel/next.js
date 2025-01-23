@@ -40,7 +40,10 @@ use crate::{
     raw_vc::{CellId, RawVc},
     registry::{self, get_function},
     serialization_invalidation::SerializationInvalidator,
-    task::{local_task::LocalTask, shared_reference::TypedSharedReference},
+    task::{
+        local_task::{LocalTask, LocalTaskType},
+        shared_reference::TypedSharedReference,
+    },
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
     util::StaticOrArc,
@@ -441,7 +444,6 @@ impl CurrentGlobalTaskState {
         }
     }
 
-    #[cfg(feature = "local_resolution")]
     fn create_local_task(&mut self, local_task: LocalTask) -> LocalTaskId {
         self.local_tasks.push(local_task);
         // generate a one-indexed id
@@ -457,7 +459,6 @@ impl CurrentGlobalTaskState {
         &self.local_tasks[(*local_task_id as usize) - 1]
     }
 
-    #[cfg(feature = "local_resolution")]
     fn get_mut_local_task(&mut self, local_task_id: LocalTaskId) -> &mut LocalTask {
         &mut self.local_tasks[(*local_task_id as usize) - 1]
     }
@@ -609,7 +610,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        let task_type = CachedTaskType::Native {
+        let task_type = CachedTaskType {
             fn_type: func,
             this: None,
             arg,
@@ -642,7 +643,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        let task_type = CachedTaskType::Native {
+        let task_type = CachedTaskType {
             fn_type: func,
             this: Some(this),
             arg,
@@ -674,37 +675,15 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        // TODO(bgw): Don't create a full turbo task if this is a function using local_cells
         if registry::get_function(func).arg_meta.is_resolved(&*arg) {
             return self.native_call(func, arg, persistence);
         }
-        let task_type = CachedTaskType::ResolveNative {
+        let task_type = LocalTaskType::ResolveNative {
             fn_type: func,
             this: None,
             arg,
         };
-        #[cfg(feature = "local_resolution")]
         return self.schedule_local_task(task_type, persistence);
-        #[cfg(not(feature = "local_resolution"))]
-        match persistence {
-            TaskPersistence::LocalCells => {
-                todo!("bgw: local tasks");
-            }
-            TaskPersistence::Transient => {
-                RawVc::TaskOutput(self.backend.get_or_create_transient_task(
-                    task_type,
-                    current_task("turbo_function calls"),
-                    self,
-                ))
-            }
-            TaskPersistence::Persistent => {
-                RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                    task_type,
-                    current_task("turbo_function calls"),
-                    self,
-                ))
-            }
-        }
     }
 
     pub fn dynamic_this_call(
@@ -717,33 +696,12 @@ impl<B: Backend + 'static> TurboTasks<B> {
         if this.is_resolved() && registry::get_function(func).arg_meta.is_resolved(&*arg) {
             return self.this_call(func, this, arg, persistence);
         }
-        let task_type = CachedTaskType::ResolveNative {
+        let task_type = LocalTaskType::ResolveNative {
             fn_type: func,
             this: Some(this),
             arg,
         };
-        #[cfg(feature = "local_resolution")]
         return self.schedule_local_task(task_type, persistence);
-        #[cfg(not(feature = "local_resolution"))]
-        return match persistence {
-            TaskPersistence::LocalCells => {
-                todo!("bgw: local tasks");
-            }
-            TaskPersistence::Transient => {
-                RawVc::TaskOutput(self.backend.get_or_create_transient_task(
-                    task_type,
-                    current_task("turbo_function calls"),
-                    self,
-                ))
-            }
-            TaskPersistence::Persistent => {
-                RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                    task_type,
-                    current_task("turbo_function calls"),
-                    self,
-                ))
-            }
-        };
     }
 
     pub fn trait_call(
@@ -769,35 +727,14 @@ impl<B: Backend + 'static> TurboTasks<B> {
         }
 
         // create a wrapper task to resolve all inputs
-        let task_type = CachedTaskType::ResolveTrait {
+        let task_type = LocalTaskType::ResolveTrait {
             trait_type,
             method_name: trait_fn_name,
             this,
             arg,
         };
 
-        #[cfg(feature = "local_resolution")]
         return self.schedule_local_task(task_type, persistence);
-        #[cfg(not(feature = "local_resolution"))]
-        return match persistence {
-            TaskPersistence::LocalCells => {
-                todo!("bgw: local tasks");
-            }
-            TaskPersistence::Transient => {
-                RawVc::TaskOutput(self.backend.get_or_create_transient_task(
-                    task_type,
-                    current_task("turbo_function calls"),
-                    self,
-                ))
-            }
-            TaskPersistence::Persistent => {
-                RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
-                    task_type,
-                    current_task("turbo_function calls"),
-                    self,
-                ))
-            }
-        };
     }
 
     #[track_caller]
@@ -892,11 +829,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         tokio::task::spawn(future);
     }
 
-    #[cfg(feature = "local_resolution")]
     fn schedule_local_task(
         &self,
-        ty: CachedTaskType,
-        // if this is a `CachedTaskType::Resolve*`, we'll spawn another task with this persistence
+        ty: LocalTaskType,
+        // if this is a `LocalTaskType::Resolve*`, we may spawn another task with this persistence,
+        // if this is a `LocalTaskType::Native`, persistence is unused (there's no caching).
         persistence: TaskPersistence,
     ) -> RawVc {
         use crate::OutputContent;
