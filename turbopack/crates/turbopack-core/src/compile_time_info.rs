@@ -138,6 +138,10 @@ impl From<serde_json::Value> for CompileTimeDefineValue {
     }
 }
 
+#[turbo_tasks::value(transparent)]
+#[derive(Debug, Clone)]
+pub struct OptionCompileTimeDefineValue(pub Option<CompileTimeDefineValue>);
+
 #[turbo_tasks::value(serialization = "auto_for_input")]
 #[derive(Debug, Clone, Hash)]
 pub enum DefineableNameSegment {
@@ -299,6 +303,13 @@ impl CompileTimeInfo {
     #[turbo_tasks::function]
     pub fn environment(&self) -> Vc<Environment> {
         *self.environment
+    }
+
+    #[turbo_tasks::function]
+    pub async fn process_env_node_env(&self) -> Result<Vc<OptionCompileTimeDefineValue>> {
+        let key: Vec<DefineableNameSegment> =
+            vec![("process".into()), ("env".into()), "NODE_ENV".into()];
+        Ok(Vc::cell(self.defines.await?.get(&key).cloned()))
     }
 }
 

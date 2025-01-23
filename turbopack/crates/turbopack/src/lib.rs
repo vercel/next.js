@@ -26,13 +26,13 @@ use graph::{aggregate, AggregatedGraph, AggregatedGraphNodeContent};
 use module_options::{ModuleOptions, ModuleOptionsContext, ModuleRuleEffect, ModuleType};
 use tracing::{field::Empty, Instrument};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{FxIndexMap, ResolvedVc, Value, ValueToString, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
     chunk::SourceMapsType,
-    compile_time_info::CompileTimeInfo,
+    compile_time_info::{CompileTimeInfo, OptionCompileTimeDefineValue},
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     issue::{module::ModuleIssue, IssueExt, StyledString},
@@ -660,7 +660,10 @@ async fn process_default_internal(
 }
 
 #[turbo_tasks::function]
-async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleAssetContext>> {
+async fn externals_tracing_module_context(
+    ty: ExternalType,
+    process_env_node_env: Vc<OptionCompileTimeDefineValue>,
+) -> Result<Vc<ModuleAssetContext>> {
     let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
         NodeJsEnvironment::default().resolved_cell(),
     )))
@@ -678,9 +681,23 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
         ..Default::default()
     };
 
+    let mut compile_time_info = CompileTimeInfo::builder(env);
+    if let Some(env) = &*process_env_node_env.await? {
+        compile_time_info = compile_time_info.defines(ResolvedVc::cell(FxIndexMap::from_iter([
+            (
+                [("process".into()), ("env".into()), "NODE_ENV".into()].into(),
+                env.clone(),
+            ),
+            (
+                [("process".into()), ("env".into()), "TURBOPACK".into()].into(),
+                "1".into(),
+            ),
+        ])));
+    }
+
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
-        CompileTimeInfo::builder(env).cell().await?,
+        compile_time_info.cell().await?,
         ModuleOptionsContext {
             ecmascript: EcmascriptOptionsContext {
                 source_maps: SourceMapsType::None,
@@ -806,7 +823,10 @@ impl AssetContext for ModuleAssetContext {
                                         .await?
                                         .enable_externals_tracing,
                                 ) {
-                                    let externals_context = externals_tracing_module_context(ty);
+                                    let externals_context = externals_tracing_module_context(
+                                        ty,
+                                        self.compile_time_info().process_env_node_env(),
+                                    );
                                     let root_origin = tracing_root.join("_".into());
 
                                     let external_result = externals_context
