@@ -1006,7 +1006,6 @@ export async function isPageStatic({
     cacheHandlers,
     distDir,
     dir,
-    dynamicIO,
     flushToDisk: isrFlushToDisk,
     cacheMaxMemorySize: maxMemoryCacheSize,
   })

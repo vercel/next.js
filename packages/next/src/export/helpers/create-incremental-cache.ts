@@ -9,7 +9,6 @@ import DefaultCacheHandler from '../../server/lib/cache-handlers/default'
 
 export async function createIncrementalCache({
   cacheHandler,
-  dynamicIO,
   cacheMaxMemorySize,
   fetchCacheKeyPrefix,
   distDir,
@@ -18,7 +17,6 @@ export async function createIncrementalCache({
   cacheHandlers,
   requestHeaders,
 }: {
-  dynamicIO: boolean
   cacheHandler?: string
   cacheMaxMemorySize?: number
   fetchCacheKeyPrefix?: string
@@ -60,7 +58,6 @@ export async function createIncrementalCache({
     dev: false,
     requestHeaders: requestHeaders || {},
     flushToDisk,
-    dynamicIO,
     maxMemoryCacheSize: cacheMaxMemorySize,
     fetchCacheKeyPrefix,
     getPrerenderManifest: () => ({

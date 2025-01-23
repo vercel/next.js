@@ -2654,12 +2654,10 @@ export default abstract class Server<
             }
 
             // TODO: adapt for putting the RDC inside the postponed data
-            // If we're in dev, and this isn't s prefetch or a server action,
+            // If we're in dev, and this isn't a prefetch or a server action,
             // we should seed the resume data cache.
-            // TODO(useCache): Do we also need to warmup if only useCache is
-            // enabled, but not dynamicIO?
             if (
-              this.nextConfig.experimental.dynamicIO &&
+              this.nextConfig.experimental.useCache &&
               this.renderOpts.dev &&
               !isPrefetchRSCRequest &&
               !isServerAction

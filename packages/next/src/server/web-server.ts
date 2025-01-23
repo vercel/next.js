@@ -79,7 +79,6 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
