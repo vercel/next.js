@@ -84,29 +84,6 @@ bun prisma migrate dev --name init
 
 <br/>
 
-Generate `PrismaClient` without an engine:
-
-```bash
-# Using npm
-npx prisma generate --no-engine
-```
-
-<details>
-
-<summary>Expand for <code>yarn</code>, <code>pnpm</code> or <code>bun</code></summary>
-
-```bash
-# Using yarn
-yarn prisma generate --no-engine
-
-# Using pnpm
-pnpm prisma generate --no-engine
-
-# Using bun
-bun prisma generate --no-engine
-```
-
-</details>
 
 ### 3. Seed the database and start the server
 
