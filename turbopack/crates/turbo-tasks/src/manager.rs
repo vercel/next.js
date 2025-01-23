@@ -594,8 +594,11 @@ impl<B: Backend + 'static> TurboTasks<B> {
         // track a dependency
         let raw_result =
             read_task_output_untracked(self, task_id, ReadConsistency::Eventual).await?;
-        ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(self))
-            .await?;
+        turbo_tasks_future_scope(
+            self.pin(),
+            ReadVcFuture::<Completion>::from(raw_result.into_read_untracked_with_turbo_tasks(self)),
+        )
+        .await?;
 
         Ok(rx.await?)
     }
