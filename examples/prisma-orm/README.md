@@ -116,7 +116,7 @@ bun prisma migrate dev --name init
 
 </details>
 
-### 5. Seed the database and start the server
+### 5. Seed the database
 
 Add initial data to your database:
 
@@ -142,6 +142,8 @@ bun prisma db seed
 
 </details>
 
+### 6. Run the app
+
 Start the development server:
 
 ```bash
@@ -165,6 +167,8 @@ bun run dev
 ```
 
 </details>
+
+Once the server is running, visit `http://localhost:3000` to start using the app.
 
 ## Deploy your own
 
