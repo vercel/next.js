@@ -426,7 +426,12 @@ export async function startServer(
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
-    if (msg && typeof msg === 'object' && msg.nextWorkerOptions && process.send) {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      msg.nextWorkerOptions &&
+      process.send
+    ) {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),
