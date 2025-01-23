@@ -27,7 +27,10 @@ export default function NewPost() {
       <h1 className="text-4xl font-bold mb-8 font-[family-name:var(--font-geist-sans)]">
         Create new post
       </h1>
-      <Form action={createPost} className="w-full max-w-3xl bg-white shadow-lg p-6 rounded-lg space-y-6">
+      <Form
+        action={createPost}
+        className="w-full max-w-3xl bg-white shadow-lg p-6 rounded-lg space-y-6"
+      >
         <div>
           <label htmlFor="title" className="block text-lg mb-2 text-gray-700">
             Title

@@ -163,6 +163,10 @@ pnpm run dev
 bun run dev
 ```
 
+## Deployment
+
+To deploy your application in [Vercel](https://vercel.com/), see [this section](https://www.prisma.io/docs/guides/prisma-orm-with-nextjs#7-deploy-your-application-to-vercel-optional) in the Prisma ORM documentation.
+
 ## Additional information
 
 - Prisma ORM supports multiple databases. Learn more about the supported databases [here](https://www.prisma.io/docs/orm/reference/supported-databases).
@@ -174,4 +178,3 @@ For more resources:
 - [Prisma Client API reference](/orm/prisma-client)
 - Join our [Discord community](https://discord.com/invite/prisma)
 - Follow us on [Twitter](https://twitter.com/prisma)
-
