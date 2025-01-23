@@ -38,7 +38,7 @@ describe('app dir', () => {
 
         await retry(async () => {
           expect(next.cliOutput.slice(cliOutputLength)).toInclude('✓ Compiled')
-        }, 10_000)
+        })
 
         // It should not have an error
         await assertNoRedbox(browser)
