@@ -6,6 +6,7 @@ use swc_core::{
     common::{
         errors::{Handler, HANDLER},
         input::StringInput,
+        pass::Repeat,
         source_map::SourceMapGenConfig,
         BytePos, FileName, Globals, LineCol, Mark, SyntaxContext, GLOBALS,
     },
@@ -13,9 +14,12 @@ use swc_core::{
         ast::{EsVersion, Program},
         lints::{config::LintConfig, rules::LintParams},
         parser::{lexer::Lexer, EsSyntax, Parser, Syntax, TsSyntax},
-        transforms::base::{
-            helpers::{Helpers, HELPERS},
-            resolver,
+        transforms::{
+            base::{
+                helpers::{Helpers, HELPERS},
+                resolver,
+            },
+            optimization::simplify::{dead_branch_remover, expr_simplifier},
         },
         visit::VisitMutWith,
     },
@@ -424,6 +428,10 @@ async fn parse_file_content(
                     Some(messages.unwrap_or_else(|| vec![String::clone(&fm.src).into()]));
                 return Ok(ParseResult::Unparseable { messages });
             }
+
+
+            parsed_program.mutate(Repeat::new(expr_simplifier(unresolved_mark, Default::default())));
+            parsed_program.mutate(dead_branch_remover(unresolved_mark, ));
 
             parsed_program.visit_mut_with(
                 &mut swc_core::ecma::transforms::base::helpers::inject_helpers(unresolved_mark),
