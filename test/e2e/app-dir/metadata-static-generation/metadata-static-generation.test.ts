@@ -1,9 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
+const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 describe('app-dir - metadata-static-generation', () => {
   const { next, isNextStart } = nextTestSetup({
     files: __dirname,
   })
+
+  // /suspenseful/dynamic will behave differently when PPR is enabled.
+  // We'll visit PPR tests in the new test suite.
+  if (isPPREnabled) {
+    it('skip ppr test', () => {})
+  }
 
   if (isNextStart) {
     // Precondition for the following tests in build mode

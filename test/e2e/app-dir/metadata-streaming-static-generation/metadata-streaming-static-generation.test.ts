@@ -1,9 +1,17 @@
 import { nextTestSetup } from 'e2e-utils'
 
+const isPPREnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+
 describe('app-dir - metadata-streaming-static-generation', () => {
   const { next, isNextDev, isNextStart } = nextTestSetup({
     files: __dirname,
   })
+
+  // /suspenseful/dynamic will behave differently when PPR is enabled.
+  // We'll visit PPR tests in the new test suite.
+  if (isPPREnabled) {
+    it('skip ppr test', () => {})
+  }
 
   if (isNextStart) {
     // Precondition for the following tests in build mode
@@ -21,6 +29,7 @@ describe('app-dir - metadata-streaming-static-generation', () => {
   }
 
   if (isNextDev) {
+    // In development it's still dynamic rendering that metadata will be inserted into body
     describe('static pages (development)', () => {
       it('should contain async generated metadata in body for simple static page', async () => {
         const $ = await next.render$('/')
