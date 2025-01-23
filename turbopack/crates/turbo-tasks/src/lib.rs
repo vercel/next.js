@@ -102,11 +102,10 @@ pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
-    dynamic_call, dynamic_this_call, emit, mark_finished, mark_session_dependent, mark_stateful,
-    prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
-    turbo_tasks, turbo_tasks_scope, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks,
-    TurboTasksApi, TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused,
-    UpdateInfo,
+    dynamic_call, emit, mark_finished, mark_session_dependent, mark_stateful, prevent_gc, run_once,
+    run_once_with_reason, spawn_blocking, spawn_thread, trait_call, turbo_tasks, turbo_tasks_scope,
+    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
+    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
 };
 pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
