@@ -551,6 +551,7 @@ export class IncrementalCache implements IncrementalCacheType {
     // we still always stash results in the cacheScope if one exists. This is because this
     // is a transient in memory cache that populates caches ahead of a dynamic render in dev mode
     // to allow the RSC debug info to have the right environment associated to it.
+    // TODO(useCache): Is this also the case if only useCache is enabled, but not dynamicIO?
     if (this.hasDynamicIO && data?.kind === CachedRouteKind.FETCH) {
       const workUnitStore = workUnitAsyncStorageInstance.getStore()
       const prerenderResumeDataCache = workUnitStore
