@@ -164,6 +164,8 @@ bun run dev
 
 To deploy your application in [Vercel](https://vercel.com/), see [this section](https://www.prisma.io/docs/guides/prisma-orm-with-nextjs#7-deploy-your-application-to-vercel-optional) in the Prisma ORM documentation.
 
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Fvercel%2Fnext.js%2Ftree%2Fcanary%2Fexamples%2Fprisma-orm&env=DATABASE_URL&envDescription=Add%20your%20PRISMA%20POSTGRES%20database%20url&project-name=prisma-orm-app&repository-name=prisma-orm)
+
 ## Additional information
 
 - Prisma ORM supports multiple databases. Learn more about the supported databases [here](https://www.prisma.io/docs/orm/reference/supported-databases).
