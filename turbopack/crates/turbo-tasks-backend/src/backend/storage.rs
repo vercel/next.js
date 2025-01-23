@@ -147,6 +147,7 @@ impl InnerStorage {
         if let Some(i) = i {
             &mut self.map[i]
         } else {
+            self.map.reserve_exact(1);
             self.map.push(CachedDataItemStorage::new(ty));
             self.map.last_mut().unwrap()
         }
@@ -158,6 +159,18 @@ impl InnerStorage {
 
     fn get_map_index(&mut self, ty: CachedDataItemType) -> Option<usize> {
         self.map.iter_mut().position(|m| m.ty() == ty)
+    }
+
+    fn get_or_create_map_index(&mut self, ty: CachedDataItemType) -> usize {
+        let i = self.map.iter().position(|m| m.ty() == ty);
+        if let Some(i) = i {
+            i
+        } else {
+            let i = self.map.len();
+            self.map.reserve_exact(1);
+            self.map.push(CachedDataItemStorage::new(ty));
+            i
+        }
     }
 
     fn get_map(&self, ty: CachedDataItemType) -> Option<&CachedDataItemStorage> {
@@ -180,6 +193,7 @@ impl InnerStorage {
             let result = storage.remove(key);
             if result.is_some() && storage.is_empty() {
                 self.map.swap_remove(i);
+                self.map.shrink_to_fit();
             }
             result
         })
@@ -254,6 +268,7 @@ impl InnerStorage {
             .collect::<Vec<_>>();
         if self.map[i].is_empty() {
             self.map.swap_remove(i);
+            self.map.shrink_to_fit();
         }
         Either::Right(items.into_iter())
     }
@@ -263,9 +278,13 @@ impl InnerStorage {
         key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
-        let map = self.get_or_create_map_mut(key.ty());
+        let i = self.get_or_create_map_index(key.ty());
+        let map = &mut self.map[i];
         if let Some(v) = update(map.remove(&key)) {
             map.insert(CachedDataItem::from_key_and_value(key, v));
+        } else if map.is_empty() {
+            self.map.swap_remove(i);
+            self.map.shrink_to_fit();
         }
     }
 
@@ -458,42 +477,6 @@ macro_rules! update {
     };
 }
 
-macro_rules! update_ucount_and_get {
-    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
-        let update = $update;
-        let mut value = 0;
-        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-            if let Some(old) = old {
-                value = old - update;
-                (value != 0).then_some(value)
-            } else {
-                None
-            }
-        });
-        value
-    }};
-    ($task:ident, $key:ident $input:tt, $update:expr) => {{
-        let update = $update;
-        let mut value = 0;
-        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-            if let Some(old) = old {
-                value = old + update;
-                (value != 0).then_some(value)
-            } else {
-                value = update;
-                (update != 0).then_some(update)
-            }
-        });
-        value
-    }};
-    ($task:ident, $key:ident, -$update:expr) => {
-        $crate::backend::storage::update_ucount_and_get!($task, $key {}, -$update)
-    };
-    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update_ucount_and_get!($task, $key {}, $update)
-    };
-}
-
 macro_rules! update_count {
     ($task:ident, $key:ident $input:tt, -$update:expr) => {{
         let update = $update;
@@ -562,4 +545,3 @@ pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
-pub(crate) use update_ucount_and_get;

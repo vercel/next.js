@@ -418,10 +418,6 @@ pub enum CachedDataItem {
         task: TaskId,
         value: i32,
     },
-    PersistentUpperCount {
-        // Only counting persistent tasks
-        value: u32,
-    },
 
     // Aggregated Data
     AggregatedDirtyContainer {
@@ -505,7 +501,6 @@ impl CachedDataItem {
             CachedDataItem::AggregationNumber { .. } => true,
             CachedDataItem::Follower { task, .. } => !task.is_transient(),
             CachedDataItem::Upper { task, .. } => !task.is_transient(),
-            CachedDataItem::PersistentUpperCount { .. } => true,
             CachedDataItem::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItem::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -563,7 +558,6 @@ impl CachedDataItem {
             | Self::Dirty { .. }
             | Self::Follower { .. }
             | Self::Upper { .. }
-            | Self::PersistentUpperCount { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
@@ -601,7 +595,6 @@ impl CachedDataItemKey {
             CachedDataItemKey::AggregationNumber { .. } => true,
             CachedDataItemKey::Follower { task, .. } => !task.is_transient(),
             CachedDataItemKey::Upper { task, .. } => !task.is_transient(),
-            CachedDataItemKey::PersistentUpperCount {} => true,
             CachedDataItemKey::AggregatedDirtyContainer { task, .. } => !task.is_transient(),
             CachedDataItemKey::AggregatedCollectible { collectible, .. } => {
                 !collectible.cell.task.is_transient()
@@ -647,7 +640,6 @@ impl CachedDataItemType {
             | Self::Dirty { .. }
             | Self::Follower { .. }
             | Self::Upper { .. }
-            | Self::PersistentUpperCount { .. }
             | Self::AggregatedDirtyContainer { .. }
             | Self::AggregatedCollectible { .. }
             | Self::AggregatedDirtyContainerCount { .. } => TaskDataCategory::Meta,
