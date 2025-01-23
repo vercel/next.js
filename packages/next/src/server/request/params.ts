@@ -447,18 +447,12 @@ function syncIODev(
   }
 }
 
-const noop = () => {}
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createParamsAccessError
+)
 
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createParamsAccessError)
-
-const warnForIncompleteEnumeration = process.env
-  .__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(
-      createIncompleteEnumerationError
-    )
+const warnForIncompleteEnumeration =
+  createDedupedByCallsiteServerErrorLoggerDev(createIncompleteEnumerationError)
 
 function createParamsAccessError(
   route: string | undefined,

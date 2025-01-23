@@ -202,11 +202,9 @@ function syncIODev(route: string | undefined, expression: string) {
   warnForSyncAccess(route, expression)
 }
 
-const noop = () => {}
-
-const warnForSyncAccess = process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS
-  ? noop
-  : createDedupedByCallsiteServerErrorLoggerDev(createDraftModeAccessError)
+const warnForSyncAccess = createDedupedByCallsiteServerErrorLoggerDev(
+  createDraftModeAccessError
+)
 
 function createDraftModeAccessError(
   route: string | undefined,

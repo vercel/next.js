@@ -269,10 +269,6 @@ export function getDefineEnv({
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
-    'process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS':
-      // Internal only so untyped to avoid discovery
-      (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
-      false,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
     ...(isNodeOrEdgeCompilation
