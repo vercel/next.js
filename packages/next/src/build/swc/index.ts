@@ -920,10 +920,7 @@ function bindingToApi(
                   transform:
                     typeof config.transform === 'string'
                       ? config.transform
-                      : Object.entries(config.transform).map(([key, value]) => [
-                          key,
-                          value,
-                        ]),
+                      : Object.entries(config.transform),
                 },
               ]
             )

@@ -530,14 +530,14 @@ async function startWatcher(opts: SetupOpts) {
 
       previousConflictingPagePaths = conflictingAppPagePaths
 
-      let clientRouterFilters: any
+      let clientRouterFilters:
+        | ReturnType<typeof createClientRouterFilter>
+        | undefined
       if (nextConfig.experimental.clientRouterFilter) {
         clientRouterFilters = createClientRouterFilter(
           Object.keys(appPaths),
           nextConfig.experimental.clientRouterFilterRedirects
-            ? ((nextConfig as any)._originalRedirects || []).filter(
-                (r: any) => !r.internal
-              )
+            ? (nextConfig._originalRedirects || []).filter((r) => !r.internal)
             : [],
           nextConfig.experimental.clientRouterFilterAllowedRate
         )
@@ -662,25 +662,26 @@ async function startWatcher(opts: SetupOpts) {
                       config.resolve?.modules?.push(resolvedBaseUrl.baseUrl)
                     }
                   }
-                }
 
-                if (jsConfig?.compilerOptions?.paths && resolvedBaseUrl) {
-                  Object.keys(plugin.paths).forEach((key) => {
-                    delete plugin.paths[key]
-                  })
-                  Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
-                  plugin.resolvedBaseUrl = resolvedBaseUrl
+                  if (jsConfig?.compilerOptions?.paths) {
+                    Object.keys(plugin.paths).forEach((key) => {
+                      delete plugin.paths[key]
+                    })
+                    Object.assign(plugin.paths, jsConfig.compilerOptions.paths)
+                    plugin.resolvedBaseUrl = resolvedBaseUrl
+                  }
                 }
               }
             })
           }
 
           if (envChange) {
-            config.plugins?.forEach((plugin: any) => {
+            config.plugins?.forEach((plugin) => {
               // we look for the DefinePlugin definitions so we can
               // update them on the active compilers
               if (
                 plugin &&
+                'definitions' in plugin &&
                 typeof plugin.definitions === 'object' &&
                 plugin.definitions.__NEXT_DEFINE_ENV
               ) {
@@ -789,9 +790,9 @@ async function startWatcher(opts: SetupOpts) {
               'before_files_rewrite',
               {
                 source: key,
-                destination: `${value.page}${
-                  value.query ? '?' : ''
-                }${qs.stringify(value.query)}`,
+                destination: value.query
+                  ? `${value.page}?${qs.stringify(value.query)}`
+                  : value.page,
               },
               opts.nextConfig.basePath,
               opts.nextConfig.experimental.caseSensitiveRoutes

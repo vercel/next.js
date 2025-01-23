@@ -38,9 +38,7 @@ function verifyTypeScriptSetup(
       enableWorkerThreads,
       maxRetries: 0,
     }
-  ) as Worker & {
-    verifyTypeScriptSetup: typeof import('../lib/verify-typescript-setup').verifyTypeScriptSetup
-  }
+  ) as Worker & typeof import('../lib/verify-typescript-setup')
 
   return typeCheckWorker
     .verifyTypeScriptSetup({
