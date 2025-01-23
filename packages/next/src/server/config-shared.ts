@@ -1234,7 +1234,14 @@ export const defaultConfig: NextConfig = {
     staticGenerationMinPagesPerWorker: 25,
     dynamicIO: false,
     inlineCss: false,
-    newDevOverlay: false,
+    // TODO: remove once we've made new UI default
+    get newDevOverlay() {
+      return (
+        // Enable reactOwnerStack when newDevOverlay is enabled to have
+        // better call stack output in the new UI.
+        Object.getOwnPropertyDescriptor(this, 'reactOwnerStack')?.value ?? false
+      )
+    },
     streamingMetadata: false,
     htmlLimitedBots: undefined,
   },
