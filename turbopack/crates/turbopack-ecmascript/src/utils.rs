@@ -90,7 +90,7 @@ impl std::fmt::Display for StringifyModuleId<'_> {
                     write!(f, "\"{n}\"")
                 }
             }
-            ModuleId::String(s) => s.fmt(f),
+            ModuleId::String(s) => StringifyJs(s).fmt(f),
         }
     }
 }
