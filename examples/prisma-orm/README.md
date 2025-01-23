@@ -44,7 +44,7 @@ Create a Prisma Postgres database instance using [Prisma Data Platform](https://
 6. Click **Create project** to set up your database. This redirects you to the database setup page.
 7. In the **Set up database access** section, copy the `DATABASE_URL`. You will use this in the next steps.
 
-#### Setup your `.env` file
+### 2. Setup your `.env` file
 
 1. Create an `.env` file:
    ```bash
