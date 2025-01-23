@@ -114,18 +114,19 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
             let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(default);
             let inline_attrs = filter_inline_attributes(&attrs[..]);
 
-            let native_function = NativeFn::new(
-                &format!("{trait_ident}::{ident}"),
-                &parse_quote! {
+            let native_function = NativeFn {
+                function_path_string: format!("{trait_ident}::{ident}"),
+                function_path: parse_quote! {
                     <Box<dyn #trait_ident> as #inline_extension_trait_ident>::#inline_function_ident
                 },
-                turbo_fn.is_method(),
-                // `inline_cells` is currently unsupported here because:
+                is_method: turbo_fn.is_method(),
+                // `local` and `local_cells` are currently unsupported here because:
                 // - The `#[turbo_tasks::function]` macro needs to be present for us to read this
-                //   argument.
+                //   argument. (This could be fixed)
                 // - This only makes sense when a default implementation is present.
-                false,
-            );
+                local: false,
+                local_cells: false,
+            };
 
             let native_function_ident = get_trait_default_impl_function_ident(trait_ident, ident);
             let native_function_ty = native_function.ty();

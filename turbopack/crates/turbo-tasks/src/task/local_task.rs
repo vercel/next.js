@@ -29,9 +29,9 @@ pub fn get_local_task_execution_spec<'a>(
             this,
             arg,
         } => {
-            debug_assert_eq!(persistence, TaskPersistence::LocalCells);
+            debug_assert_eq!(persistence, TaskPersistence::Local);
             let func = registry::get_function(*native_fn_id);
-            let span = func.span(TaskPersistence::LocalCells);
+            let span = func.span(TaskPersistence::Local);
             let entered = span.enter();
             let future = func.execute(*this, &**arg);
             drop(entered);
@@ -43,7 +43,7 @@ pub fn get_local_task_execution_spec<'a>(
             arg,
         } => {
             let func = registry::get_function(*native_fn_id);
-            let span = func.resolve_span(TaskPersistence::LocalCells);
+            let span = func.resolve_span(TaskPersistence::Local);
             let entered = span.enter();
             let future = Box::pin(LocalTaskType::run_resolve_native(
                 *native_fn_id,

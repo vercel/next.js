@@ -31,7 +31,7 @@ pub struct TurboFn<'a> {
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
     /// Should this function use `TaskPersistence::LocalCells`?
-    local_cells: bool,
+    local: bool,
 }
 
 #[derive(Debug)]
@@ -274,7 +274,7 @@ impl TurboFn<'_> {
             this,
             inputs,
             operation: args.operation.is_some(),
-            local_cells: args.local_cells.is_some(),
+            local: args.local.is_some(),
             inline_ident,
         })
     }
@@ -479,9 +479,9 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence(&self) -> impl ToTokens {
-        if self.local_cells {
+        if self.local {
             quote! {
-                turbo_tasks::TaskPersistence::LocalCells
+                turbo_tasks::TaskPersistence::Local
             }
         } else {
             quote! {
@@ -491,9 +491,9 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence_with_this(&self) -> impl ToTokens {
-        if self.local_cells {
+        if self.local {
             quote! {
-                turbo_tasks::TaskPersistence::LocalCells
+                turbo_tasks::TaskPersistence::Local
             }
         } else {
             quote! {
@@ -703,6 +703,10 @@ pub struct FunctionArguments {
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     operation: Option<Span>,
+    /// Does not run the function as a real task, and instead runs it inside the parent task using
+    /// task-local state. The function call itself will not be cached, but cells will be created on
+    /// the parent task.
+    pub local: Option<Span>,
     /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
     /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
     ///
@@ -732,23 +736,29 @@ impl Parse for FunctionArguments {
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
+                ("local", Meta::Path(_)) => {
+                    parsed_args.local = Some(meta.span());
+                }
                 ("local_cells", Meta::Path(_)) => {
-                    let span = Some(meta.span());
-                    parsed_args.local_cells = span;
+                    parsed_args.local_cells = Some(meta.span());
                 }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         or \"local_cells\"",
+                         \"local\", or \"local_cells\"",
                     ))
                 }
             }
         }
-        if let (Some(_), Some(span)) = (parsed_args.local_cells, parsed_args.operation) {
+        if let (Some(_), Some(span)) = (
+            parsed_args.local.or(parsed_args.local_cells),
+            parsed_args.operation,
+        ) {
             return Err(syn::Error::new(
                 span,
-                "\"operation\" is mutually exclusive with the \"local_cells\" option",
+                "\"operation\" is mutually exclusive with the \"local\" and \"local_cells\" \
+                 options",
             ));
         }
         Ok(parsed_args)
@@ -1023,27 +1033,14 @@ impl DefinitionContext {
 
 #[derive(Debug)]
 pub struct NativeFn {
-    function_path_string: String,
-    function_path: ExprPath,
-    is_method: bool,
-    local_cells: bool,
+    pub function_path_string: String,
+    pub function_path: ExprPath,
+    pub is_method: bool,
+    pub local: bool,
+    pub local_cells: bool,
 }
 
 impl NativeFn {
-    pub fn new(
-        function_path_string: &str,
-        function_path: &ExprPath,
-        is_method: bool,
-        local_cells: bool,
-    ) -> NativeFn {
-        NativeFn {
-            function_path_string: function_path_string.to_owned(),
-            function_path: function_path.clone(),
-            is_method,
-            local_cells,
-        }
-    }
-
     pub fn ty(&self) -> Type {
         parse_quote! { turbo_tasks::NativeFunction }
     }
@@ -1053,6 +1050,7 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            local,
             local_cells,
         } = self;
 
@@ -1068,6 +1066,7 @@ impl NativeFn {
                 turbo_tasks::NativeFunction::#constructor(
                     #function_path_string.to_owned(),
                     turbo_tasks::FunctionMeta {
+                        local: #local,
                         local_cells: #local_cells,
                     },
                     #function_path,
