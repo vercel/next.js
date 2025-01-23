@@ -1,6 +1,6 @@
 # Prisma ORM + Next.js starter
 
-This repository provides a boilerplate to quickly set up a Next.js application with Prisma ORM for database operations. It includes an easy setup process and example routes to add, view, and list posts, demonstrating basic CRUD operations with Prisma ORM.
+This repository provides a boilerplate to quickly set up a Next.js application with [Prisma Postgres](https://www.prisma.io/postgres) and [Prisma ORM](https://www.prisma.io/orm) for database operations. It includes an easy setup process and example routes to add, view, and list posts, demonstrating basic CRUD operations with Prisma ORM.
 
 ## How to use
 
