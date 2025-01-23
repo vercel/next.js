@@ -683,7 +683,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             this: None,
             arg,
         };
-        return self.schedule_local_task(task_type, persistence);
+        self.schedule_local_task(task_type, persistence)
     }
 
     pub fn dynamic_this_call(
@@ -701,7 +701,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             this: Some(this),
             arg,
         };
-        return self.schedule_local_task(task_type, persistence);
+        self.schedule_local_task(task_type, persistence)
     }
 
     pub fn trait_call(
@@ -734,7 +734,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
             arg,
         };
 
-        return self.schedule_local_task(task_type, persistence);
+        self.schedule_local_task(task_type, persistence)
     }
 
     #[track_caller]

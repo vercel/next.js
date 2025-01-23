@@ -2,7 +2,7 @@ use std::{
     borrow::Cow,
     fmt::{self, Debug, Display},
     future::Future,
-    hash::BuildHasherDefault,
+    hash::{BuildHasherDefault, Hash},
     pin::Pin,
     time::Duration,
 };
@@ -59,7 +59,7 @@ impl Debug for TransientTaskType {
 
 /// A normal task execution containing a native (rust) function. This type is passed into the
 /// backend either to execute a function or to look up a cached result.
-#[derive(Debug, Eq, Hash)]
+#[derive(Debug, Eq)]
 pub struct CachedTaskType {
     pub fn_type: FunctionId,
     pub this: Option<RawVc>,
@@ -75,8 +75,19 @@ impl CachedTaskType {
 // Manual implementation is needed because of a borrow issue with `Box<dyn Trait>`:
 // https://github.com/rust-lang/rust/issues/31740
 impl PartialEq for CachedTaskType {
+    #[expect(clippy::op_ref)]
     fn eq(&self, other: &Self) -> bool {
         self.fn_type == other.fn_type && self.this == other.this && &self.arg == &other.arg
+    }
+}
+
+// Manual implementation because we have to have a manual `PartialEq` implementation, and clippy
+// complains if we have a derived `Hash` impl, but manual `PartialEq` impl.
+impl Hash for CachedTaskType {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.fn_type.hash(state);
+        self.this.hash(state);
+        self.arg.hash(state);
     }
 }
 

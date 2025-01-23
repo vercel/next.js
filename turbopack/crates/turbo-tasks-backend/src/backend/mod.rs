@@ -866,7 +866,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             panic!(
                 "Calling transient function {} from persistent function function {} is not allowed",
                 task_type.get_name(),
-                parent_task_type.map_or_else(|| "unknown".into(), |t| t.get_name())
+                parent_task_type.map_or("unknown", |t| t.get_name())
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
