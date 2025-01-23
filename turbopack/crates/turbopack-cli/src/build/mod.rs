@@ -45,8 +45,7 @@ use crate::{
     arguments::{BuildArguments, Target},
     contexts::{get_client_asset_context, get_client_compile_time_info, NodeEnv},
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, EntryRequests,
-        NormalizedDirs,
+        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
     },
 };
 
@@ -126,14 +125,7 @@ impl TurbopackBuildBuilder {
             let build_result_op = build_internal(
                 self.project_dir.clone(),
                 self.root_dir,
-                EntryRequests(
-                    self.entry_requests
-                        .iter()
-                        .cloned()
-                        .map(EntryRequest::resolved_cell)
-                        .collect(),
-                )
-                .resolved_cell(),
+                self.entry_requests.clone(),
                 self.browserslist_query,
                 self.minify_type,
                 self.target,
@@ -177,7 +169,7 @@ impl TurbopackBuildBuilder {
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
-    entry_requests: ResolvedVc<EntryRequests>,
+    entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
     minify_type: MinifyType,
     target: Target,
@@ -285,11 +277,9 @@ async fn build_internal(
     );
 
     let entry_requests = (*entry_requests
-        .await?
-        .iter()
-        .cloned()
+        .into_iter()
         .map(|r| async move {
-            Ok(match &*r.await? {
+            Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
                     Value::new(p.clone().into()),
                     Default::default(),
