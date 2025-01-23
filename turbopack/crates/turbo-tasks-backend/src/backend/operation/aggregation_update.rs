@@ -22,9 +22,7 @@ use crate::{
     backend::{
         get_mut, get_mut_or_insert_with,
         operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
-        storage::{
-            count, get, get_many, iter_many, remove, update, update_count, update_ucount_and_get,
-        },
+        storage::{count, get, get_many, iter_many, remove, update, update_count},
         TaskDataCategory,
     },
     data::{
