@@ -1591,8 +1591,8 @@ async fn handle_before_resolve_plugins(
     options: Vc<ResolveOptions>,
 ) -> Result<Option<Vc<ResolveResult>>> {
     for plugin in &options.await?.before_resolve_plugins {
-        let condition = plugin.before_resolve_condition().await?;
-        if !condition.matches(request).await? {
+        let condition = plugin.before_resolve_condition().resolve().await?;
+        if !*condition.matches(request).await? {
             continue;
         }
 
@@ -1622,16 +1622,14 @@ async fn handle_after_resolve_plugins(
         options: Vc<ResolveOptions>,
     ) -> Result<Option<Vc<ResolveResult>>> {
         for plugin in &options.await?.plugins {
-            let after_resolve_condition = plugin.after_resolve_condition().await?;
-            if !after_resolve_condition.matches(path).await? {
-                continue;
-            }
-
-            if let Some(result) = *plugin
-                .after_resolve(path, lookup_path, reference_type.clone(), request)
-                .await?
-            {
-                return Ok(Some(*result));
+            let after_resolve_condition = plugin.after_resolve_condition().resolve().await?;
+            if *after_resolve_condition.matches(path).await? {
+                if let Some(result) = *plugin
+                    .after_resolve(path, lookup_path, reference_type.clone(), request)
+                    .await?
+                {
+                    return Ok(Some(*result));
+                }
             }
         }
         Ok(None)

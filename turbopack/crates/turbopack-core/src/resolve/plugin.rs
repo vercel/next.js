@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
@@ -21,22 +23,21 @@ impl AfterResolvePluginCondition {
     pub fn new(root: ResolvedVc<FileSystemPath>, glob: ResolvedVc<Glob>) -> Vc<Self> {
         AfterResolvePluginCondition { root, glob }.cell()
     }
-}
 
-impl AfterResolvePluginCondition {
-    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<bool> {
+    #[turbo_tasks::function]
+    pub async fn matches(&self, fs_path: Vc<FileSystemPath>) -> Result<Vc<bool>> {
         let root = self.root.await?;
+        let glob = self.glob.await?;
 
         let path = fs_path.await?;
 
         if let Some(path) = root.get_path_to(&path) {
-            let glob = self.glob.await?;
             if glob.execute(path) {
-                return Ok(true);
+                return Ok(Vc::cell(true));
             }
         }
 
-        Ok(false)
+        Ok(Vc::cell(false))
     }
 }
 
@@ -44,14 +45,14 @@ impl AfterResolvePluginCondition {
 #[turbo_tasks::value]
 pub enum BeforeResolvePluginCondition {
     Request(ResolvedVc<Glob>),
-    Modules(ResolvedVc<Vec<RcStr>>),
+    Modules(HashSet<RcStr>),
 }
 
 #[turbo_tasks::value_impl]
 impl BeforeResolvePluginCondition {
     #[turbo_tasks::function]
-    pub fn from_modules(modules: ResolvedVc<Vec<RcStr>>) -> Vc<Self> {
-        BeforeResolvePluginCondition::Modules(modules).cell()
+    pub async fn from_modules(modules: ResolvedVc<Vec<RcStr>>) -> Result<Vc<Self>> {
+        Ok(BeforeResolvePluginCondition::Modules(modules.await?.iter().cloned().collect()).cell())
     }
 
     #[turbo_tasks::function]
@@ -60,21 +61,23 @@ impl BeforeResolvePluginCondition {
     }
 }
 
+#[turbo_tasks::value_impl]
 impl BeforeResolvePluginCondition {
-    pub async fn matches(&self, request: Vc<Request>) -> Result<bool> {
-        Ok(match self {
+    #[turbo_tasks::function]
+    pub async fn matches(&self, request: Vc<Request>) -> Result<Vc<bool>> {
+        Ok(Vc::cell(match self {
             BeforeResolvePluginCondition::Request(glob) => match request.await?.request() {
                 Some(request) => glob.await?.execute(request.as_str()),
                 None => false,
             },
             BeforeResolvePluginCondition::Modules(modules) => {
                 if let Request::Module { module, .. } = &*request.await? {
-                    modules.await?.contains(module)
+                    modules.contains(module)
                 } else {
                     false
                 }
             }
-        })
+        }))
     }
 }
 
