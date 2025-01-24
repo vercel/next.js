@@ -34,7 +34,6 @@ use turbopack_core::{
     chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
-    environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
     issue::{module::ModuleIssue, IssueExt, StyledString},
     module::Module,
     output::OutputAsset,
@@ -664,14 +663,8 @@ async fn externals_tracing_module_context(
     ty: ExternalType,
     compile_time_info: Vc<CompileTimeInfo>,
 ) -> Result<Vc<ModuleAssetContext>> {
-    let env = Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
-        NodeJsEnvironment::default().resolved_cell(),
-    )))
-    .to_resolved()
-    .await?;
-
     let resolve_options = ResolveOptionsContext {
-        emulate_environment: Some(env),
+        emulate_environment: Some(compile_time_info.await?.environment),
         loose_errors: true,
         custom_conditions: match ty {
             ExternalType::CommonJs => vec!["require".into()],
