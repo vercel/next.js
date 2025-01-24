@@ -757,27 +757,28 @@ impl ReactServerComponentValidator {
             let mut possibly_invalid_exports: IndexMap<String, (InvalidExportKind, Span)> =
                 IndexMap::new();
 
-            let mut collect_invalid_export = |export_name: &str, span: &Span| match export_name {
-                "getServerSideProps" | "getStaticProps" => {
-                    possibly_invalid_exports
-                        .insert(export_name.to_string(), (InvalidExportKind::General, *span));
-                }
-                "generateMetadata" | "metadata" => {
-                    possibly_invalid_exports.insert(
-                        export_name.to_string(),
-                        (InvalidExportKind::Metadata, *span),
-                    );
-                }
-                "dynamicParams" | "dynamic" | "fetchCache" | "runtime" | "revalidate" => {
-                    if self.dynamic_io_enabled {
+            let mut collect_possibly_invalid_exports =
+                |export_name: &str, span: &Span| match export_name {
+                    "getServerSideProps" | "getStaticProps" => {
+                        possibly_invalid_exports
+                            .insert(export_name.to_string(), (InvalidExportKind::General, *span));
+                    }
+                    "generateMetadata" | "metadata" => {
                         possibly_invalid_exports.insert(
                             export_name.to_string(),
-                            (InvalidExportKind::DynamicIoSegment, *span),
+                            (InvalidExportKind::Metadata, *span),
                         );
                     }
-                }
-                _ => (),
-            };
+                    "dynamicParams" | "dynamic" | "fetchCache" | "runtime" | "revalidate" => {
+                        if self.dynamic_io_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.to_string(),
+                                (InvalidExportKind::DynamicIoSegment, *span),
+                            );
+                        }
+                    }
+                    _ => (),
+                };
 
             for export in &module.body {
                 match export {
@@ -786,10 +787,10 @@ impl ReactServerComponentValidator {
                             if let ExportSpecifier::Named(named) = specifier {
                                 match &named.orig {
                                     ModuleExportName::Ident(i) => {
-                                        collect_invalid_export(&i.sym, &named.span);
+                                        collect_possibly_invalid_exports(&i.sym, &named.span);
                                     }
                                     ModuleExportName::Str(s) => {
-                                        collect_invalid_export(&s.value, &named.span);
+                                        collect_possibly_invalid_exports(&s.value, &named.span);
                                     }
                                 }
                             }
@@ -797,12 +798,12 @@ impl ReactServerComponentValidator {
                     }
                     ModuleItem::ModuleDecl(ModuleDecl::ExportDecl(export)) => match &export.decl {
                         Decl::Fn(f) => {
-                            collect_invalid_export(&f.ident.sym, &f.ident.span);
+                            collect_possibly_invalid_exports(&f.ident.sym, &f.ident.span);
                         }
                         Decl::Var(v) => {
                             for decl in &v.decls {
                                 if let Pat::Ident(i) = &decl.name {
-                                    collect_invalid_export(&i.sym, &i.span);
+                                    collect_possibly_invalid_exports(&i.sym, &i.span);
                                 }
                             }
                         }
