@@ -16,7 +16,7 @@ struct ThreadLocalData {
 }
 
 thread_local! {
-    static EXTRA: RefCell<Option<*mut ThreadLocalData>> = RefCell::new(None);
+    static EXTRA: RefCell<Option<*mut ThreadLocalData>> = const { RefCell::new(None) };
 }
 
 pin_project! {
