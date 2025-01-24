@@ -10,7 +10,6 @@ import { useDelayedRender } from './internal/use-delayed-render'
 import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
 import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 
-// TODO: test a11y
 // TODO: add E2E tests to cover different scenarios
 
 export function DevToolsIndicator({
@@ -57,6 +56,7 @@ const ANIMATE_OUT_TIMING_FUNCTION = 'cubic-bezier(0.175, 0.885, 0.32, 1.1)'
 interface C {
   closeMenu: () => void
   selectedIndex: number
+  setSelectedIndex: Dispatch<SetStateAction<number>>
 }
 
 const Context = createContext({} as C)
@@ -89,7 +89,7 @@ function DevToolsPopover({
 
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
-  useClickOutside(menuRef, triggerRef, isMenuOpen, setIsMenuOpen)
+  useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
   const handleKeyDown = useKeydown(menuRef, selectedIndex, setSelectedIndex)
 
   function onIssuesClick() {
@@ -105,6 +105,7 @@ function DevToolsPopover({
 
   function closeMenu() {
     setIsMenuOpen(false)
+    setSelectedIndex(-1)
   }
 
   return (
@@ -213,7 +214,6 @@ function MenuItem({
   onClick?: () => void
   variant?: 'footer'
 }) {
-  const Root = href ? 'a' : 'div'
   const isInteractive =
     typeof onClick === 'function' || typeof href === 'string'
   const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
@@ -223,18 +223,24 @@ function MenuItem({
     if (isInteractive) {
       onClick?.()
       closeMenu()
+      if (href) {
+        window.open(href, '_blank', 'noopener, noreferrer')
+      }
     }
   }
 
   return (
-    <Root
-      href={href}
+    <div
       data-index={index}
       className="item"
       data-variant={variant}
       data-selected={selected}
       onClick={click}
-      onMouseEnter={isInteractive ? () => setSelectedIndex(index) : undefined}
+      onMouseEnter={
+        isInteractive && index !== undefined
+          ? () => setSelectedIndex(index)
+          : undefined
+      }
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           click()
@@ -245,13 +251,14 @@ function MenuItem({
     >
       <span className="label">{label}</span>
       <span className="value">{value}</span>
-    </Root>
+    </div>
   )
 }
 
 function IssueCount({ children }: { children: number }) {
   return (
     <span className="issueCount" data-has-issues={children > 0}>
+      <span className="indicator" />
       {children}
     </span>
   )
@@ -271,9 +278,14 @@ function HideShortcut() {
   return (
     <span className="shortcut">
       {isMac ? (
-        <kbd>⌘</kbd>
+        <kbd aria-label="Command">⌘</kbd>
       ) : (
-        <kbd style={{ width: 'fit-content', padding: '0 4px' }}>Ctrl</kbd>
+        <kbd
+          aria-label="Control"
+          style={{ width: 'fit-content', padding: '0 4px' }}
+        >
+          Ctrl
+        </kbd>
       )}
       <kbd>.</kbd>
     </span>
@@ -303,7 +315,7 @@ function useClickOutside(
   menuRef: React.RefObject<HTMLDivElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
   isMenuOpen: boolean,
-  setIsMenuOpen: Dispatch<SetStateAction<boolean>>
+  closeMenu: () => void
 ) {
   useEffect(() => {
     if (!isMenuOpen) {
@@ -327,14 +339,14 @@ function useClickOutside(
             event.clientY <= triggerRef.current.getBoundingClientRect()!.bottom
           : false)
       ) {
-        setIsMenuOpen(false)
+        closeMenu()
       }
     }
 
     // Close popover when pressing escape
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
-        setIsMenuOpen(false)
+        closeMenu()
       }
     }
 
@@ -360,14 +372,18 @@ function useKeydown(
     // An item is selected, move selection based on key direction
     if (e.key === 'ArrowDown') {
       const next = selectedIndex + 1
-      const el = menuRef.current?.querySelector(`[data-index="${next}"]`)
+      const el = menuRef.current?.querySelector(
+        `[data-index="${next}"]`
+      ) as HTMLElement
       if (el) {
         el.focus()
         setSelectedIndex(next)
       }
     } else if (e.key === 'ArrowUp') {
       const prev = selectedIndex - 1
-      const el = menuRef.current?.querySelector(`[data-index="${prev}"]`)
+      const el = menuRef.current?.querySelector(
+        `[data-index="${prev}"]`
+      ) as HTMLElement
       if (el) {
         el.focus()
         setSelectedIndex(prev)
@@ -383,7 +399,8 @@ function ExternalIcon() {
       height="16"
       viewBox="0 0 16 16"
       fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      role="img"
+      aria-label="External link"
     >
       <path
         fillRule="evenodd"

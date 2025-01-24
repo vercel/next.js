@@ -40,7 +40,7 @@ export const styles = css`
     align-items: center;
     padding: 8px 6px;
     height: 36px;
-    border-radius: var(--rounded-md);
+    border-radius: 6px;
     text-decoration: none !important;
     user-select: none;
 
@@ -75,23 +75,37 @@ export const styles = css`
   }
 
   .issueCount {
+    --color-primary: var(--color-gray-800);
+    --color-secondary: var(--color-gray-100);
     display: flex;
     flex-direction: row;
     align-items: center;
     justify-content: center;
-    gap: var(--size-1);
-    width: var(--size-5);
-    height: var(--size-5);
-    background: var(--color-gray-300);
+    gap: 8px;
+    min-width: 41px;
+    height: 24px;
+    background: var(--color-background-100);
+    border: 1px solid var(--color-gray-alpha-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-small);
+    padding: 2px;
     color: var(--color-gray-1000);
-    border-radius: var(--rounded-full);
+    border-radius: 128px;
     font-weight: 500;
-    font-size: 11px;
-    line-height: var(--size-4);
+    font-size: 13px;
+    font-variant-numeric: tabular-nums;
 
     &[data-has-issues='true'] {
-      background: var(--color-red-300);
-      color: var(--color-red-900);
+      --color-primary: var(--color-red-800);
+      --color-secondary: var(--color-red-100);
+    }
+
+    .indicator {
+      width: 8px;
+      height: 8px;
+      background: var(--color-primary);
+      box-shadow: 0 0 0 2px var(--color-secondary);
+      border-radius: 50%;
     }
   }
 

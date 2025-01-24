@@ -59,6 +59,8 @@ export function Base() {
           --shadow-2xl: 0 25px 50px -12px rgb(0 0 0 / 0.25);
           --shadow-inner: inset 0 2px 4px 0 rgb(0 0 0 / 0.05);
           --shadow-none: 0 0 #0000;
+
+          --shadow-small: 0px 2px 2px rgba(0, 0, 0, 0.04);
           --shadow-menu: 0px 1px 1px rgba(0, 0, 0, 0.02),
             0px 4px 8px -4px rgba(0, 0, 0, 0.04),
             0px 16px 24px -8px rgba(0, 0, 0, 0.06);
