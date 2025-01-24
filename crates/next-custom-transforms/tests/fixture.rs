@@ -489,9 +489,10 @@ fn react_server_components_typescript(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/react-server-components/server-graph/**/input.js")]
-fn react_server_components_server_graph_fixture(input: PathBuf) {
+#[fixture("tests/fixture/react-server-components/**/input.js")]
+fn react_server_components_fixture(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -499,7 +500,7 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
-                    is_react_server_layer: true,
+                    is_react_server_layer,
                     dynamic_io_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
@@ -512,29 +513,6 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
             module: Some(true),
             ..Default::default()
         },
-    );
-}
-
-#[fixture("tests/fixture/react-server-components/client-graph/**/input.js")]
-fn react_server_components_client_graph_fixture(input: PathBuf) {
-    use next_custom_transforms::transforms::react_server_components::{Config, Options};
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer: false,
-                    dynamic_io_enabled: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
-            )
-        },
-        &input,
-        &output,
-        Default::default(),
     );
 }
 
@@ -555,9 +533,10 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/server/**/input.js")]
-fn server_actions_server_fixture(input: PathBuf) {
+#[fixture("tests/fixture/server-actions/**/input.js")]
+fn server_actions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     test_fixture(
         syntax(),
         &|_tr| {
@@ -566,7 +545,7 @@ fn server_actions_server_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_react_server_layer: true,
+                        is_react_server_layer,
                         use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
@@ -613,36 +592,6 @@ fn next_font_with_directive_fixture(input: PathBuf) {
         &input,
         &output,
         Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/server-actions/client/**/input.js")]
-fn server_actions_client_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            (
-                resolver(Mark::new(), Mark::new(), false),
-                server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    server_actions::Config {
-                        is_react_server_layer: false,
-                        use_cache_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::default(),
-                    },
-                    _tr.comments.as_ref().clone(),
-                    Default::default(),
-                ),
-            )
-        },
-        &input,
-        &output,
-        FixtureTestConfig {
-            module: Some(true),
-            ..Default::default()
-        },
     );
 }
 
