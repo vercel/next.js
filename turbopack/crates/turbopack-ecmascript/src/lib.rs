@@ -397,7 +397,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         ))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn module_content(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,
@@ -748,7 +748,7 @@ pub struct EcmascriptModuleContent {
 #[turbo_tasks::value_impl]
 impl EcmascriptModuleContent {
     /// Creates a new [`Vc<EcmascriptModuleContent>`].
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     pub async fn new(
         parsed: ResolvedVc<ParseResult>,
         ident: ResolvedVc<AssetIdent>,

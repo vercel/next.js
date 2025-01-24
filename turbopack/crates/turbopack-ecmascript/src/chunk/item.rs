@@ -85,7 +85,7 @@ impl EcmascriptChunkItemContent {
         .cell())
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     pub async fn module_factory(&self) -> Result<Vc<Code>> {
         let mut args = vec![
             "r: __turbopack_require__",

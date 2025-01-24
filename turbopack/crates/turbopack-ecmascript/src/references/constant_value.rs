@@ -30,7 +30,7 @@ impl ConstantValue {
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for ConstantValue {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,

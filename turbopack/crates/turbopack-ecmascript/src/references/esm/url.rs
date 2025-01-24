@@ -139,7 +139,7 @@ impl CodeGenerateable for UrlAssetReference {
     │ None                          │ new URL(url, base)                                                      │ new URL(url, base)                             │ new URL(url, base)    │
     └───────────────────────────────┴─────────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────┴───────────────────────┘
     */
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         self: Vc<Self>,
         module_graph: Vc<ModuleGraph>,

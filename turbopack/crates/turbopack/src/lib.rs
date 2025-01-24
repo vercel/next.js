@@ -66,7 +66,7 @@ use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySo
 use self::transition::{Transition, TransitionOptions};
 use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
 
-#[turbo_tasks::function]
+#[turbo_tasks::function(local)]
 async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,

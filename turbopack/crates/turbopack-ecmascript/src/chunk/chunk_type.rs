@@ -79,7 +79,7 @@ impl ChunkType for EcmascriptChunkType {
         Ok(Vc::upcast(EcmascriptChunk::new(chunking_context, content)))
     }
 
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn chunk_item_size(
         &self,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,

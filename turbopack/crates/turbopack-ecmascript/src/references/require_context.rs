@@ -288,7 +288,7 @@ impl ChunkableModuleReference for RequireContextAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for RequireContextAssetReference {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         &self,
         module_graph: Vc<ModuleGraph>,

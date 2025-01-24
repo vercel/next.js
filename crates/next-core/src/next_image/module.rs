@@ -69,7 +69,7 @@ impl StructuredImageModuleType {
 
 #[turbo_tasks::value_impl]
 impl CustomModuleType for StructuredImageModuleType {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     fn create_module(
         &self,
         source: Vc<Box<dyn Source>>,

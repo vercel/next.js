@@ -143,7 +143,7 @@ impl ValueToString for ImportAssetReference {
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for ImportAssetReference {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         self: Vc<Self>,
         _context: Vc<Box<dyn ChunkingContext>>,

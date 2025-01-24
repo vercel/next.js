@@ -133,7 +133,7 @@ impl ChunkableModuleReference for CjsRequireAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireAssetReference {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         &self,
         module_graph: Vc<ModuleGraph>,
@@ -242,7 +242,7 @@ impl ChunkableModuleReference for CjsRequireResolveAssetReference {}
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireResolveAssetReference {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         &self,
         module_graph: Vc<ModuleGraph>,
@@ -305,7 +305,7 @@ pub struct CjsRequireCacheAccess {
 
 #[turbo_tasks::value_impl]
 impl CodeGenerateable for CjsRequireCacheAccess {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(local)]
     async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
