@@ -67,7 +67,7 @@ const serverBoundary = {
     if (!node.isTypeOnly && exportClause && ts.isNamedExports(exportClause)) {
       for (const e of exportClause.elements) {
         if (e.isTypeOnly) {
-          continue;
+          continue
         }
         if (!isFunctionReturningPromise(e, typeChecker, ts)) {
           diagnostics.push({
