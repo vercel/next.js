@@ -1,9 +1,9 @@
-use std::{collections::HashSet, hash::BuildHasherDefault};
-
 use anyhow::{Context, Result};
-use rustc_hash::FxHasher;
+use rustc_hash::FxHashMap;
+use smallvec::SmallVec;
 use tracing::Instrument;
-use turbo_tasks::{FxIndexMap, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{module_id_strategies::GlobalModuleIdStrategy, ChunkableModule, ChunkingType},
@@ -46,7 +46,9 @@ pub async fn get_global_module_id_strategy(
             .chain(async_idents.into_iter())
             .map(|ident| async move {
                 let ident = ident.to_resolved().await?;
-                Ok((ident, hash_xxh3_hash64(&ident.to_string().await?)))
+                let ident_str = ident.to_string().await?;
+                let hash = hash_xxh3_hash64(&ident_str);
+                Ok((ident, (ident_str, hash)))
             })
             .try_join()
             .await?
@@ -55,7 +57,13 @@ pub async fn get_global_module_id_strategy(
 
         finalize_module_ids(&mut module_id_map);
 
-        Ok(GlobalModuleIdStrategy { module_id_map }.cell())
+        Ok(GlobalModuleIdStrategy {
+            module_id_map: module_id_map
+                .into_iter()
+                .map(|(ident, (_, hash))| (ident, hash))
+                .collect(),
+        }
+        .cell())
     }
     .instrument(span)
     .await
@@ -64,7 +72,9 @@ pub async fn get_global_module_id_strategy(
 const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
 
 /// Shorten hashes and handle any collisions.
-fn finalize_module_ids(merged_module_ids: &mut FxIndexMap<ResolvedVc<AssetIdent>, u64>) {
+fn finalize_module_ids(
+    merged_module_ids: &mut FxIndexMap<ResolvedVc<AssetIdent>, (ReadRef<RcStr>, u64)>,
+) {
     // 5% fill rate, as done in Webpack
     // https://github.com/webpack/webpack/blob/27cf3e59f5f289dfc4d76b7a1df2edbc4e651589/lib/ids/IdHelpers.js#L366-L405
     let optimal_range = merged_module_ids.len() * 20;
@@ -73,16 +83,54 @@ fn finalize_module_ids(merged_module_ids: &mut FxIndexMap<ResolvedVc<AssetIdent>
         JS_MAX_SAFE_INTEGER,
     );
 
-    let mut used_ids = HashSet::with_hasher(BuildHasherDefault::<FxHasher>::default());
-    for full_hash in merged_module_ids.values_mut() {
-        let mut trimmed_hash = *full_hash % digit_mask;
-        let mut i = 1;
-        while used_ids.contains(&trimmed_hash) {
-            // If the id is already used, seek to find another available id.
-            trimmed_hash = hash_xxh3_hash64((*full_hash, i)) % digit_mask;
-            i += 1;
+    let mut used_ids =
+        FxHashMap::<u64, SmallVec<[(ResolvedVc<AssetIdent>, ReadRef<RcStr>); 1]>>::default();
+
+    // Run in multiple passes, to not depend on the order of the `merged_module_ids` (i.e. the order
+    // of imports). Hashes could still change if modules are added or removed.
+
+    // First pass, hash everything, potentially with collisions
+    for (ident, (ident_str, full_hash)) in merged_module_ids.iter_mut() {
+        let first_pass_hash = hash_xxh3_hash64(*full_hash) % digit_mask;
+        used_ids
+            .entry(first_pass_hash)
+            .or_default()
+            .push((*ident, ident_str.clone()));
+        *full_hash = first_pass_hash;
+    }
+
+    // Find conflicts
+    let mut conflicting_hashes = used_ids
+        .iter()
+        .filter(|(_, list)| (list.len() > 1))
+        .map(|(hash, _)| *hash)
+        .collect::<Vec<_>>();
+    conflicting_hashes.sort();
+
+    // Resolve conflicts
+    for hash in conflicting_hashes.into_iter() {
+        let list = used_ids.get_mut(&hash).unwrap();
+        // Take the vector but keep the (empty) entry, so that the "contains_key" check below works
+        let mut list = std::mem::take(list);
+        list.sort_by(|a, b| a.1.cmp(&b.1));
+
+        for (ident, _) in list {
+            let hash = &mut merged_module_ids.get_mut(&ident).unwrap().1;
+
+            // the original algorithm since all that runs in deterministic order now
+            let mut i = 1;
+            let mut trimmed_hash;
+            loop {
+                // If the id is already used, find the next available hash.
+                trimmed_hash = hash_xxh3_hash64((*hash, i)) % digit_mask;
+                if used_ids.contains_key(&trimmed_hash) {
+                    break;
+                }
+                i += 1;
+            }
+            // At this point, we don't care about the values anymore, just the keys
+            used_ids.insert(trimmed_hash, Default::default());
+            *hash = trimmed_hash;
         }
-        used_ids.insert(trimmed_hash);
-        *full_hash = trimmed_hash;
     }
 }
