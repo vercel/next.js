@@ -24,12 +24,12 @@ impl CustomTransformer for StyledJsxTransformer {
         program.mutate(styled_jsx::visitor::styled_jsx(
             ctx.source_map.clone(),
             // styled_jsx don't really use that in a relevant way
-            FileName::Anon,
-            styled_jsx::visitor::Config {
+            &FileName::Anon,
+            &styled_jsx::visitor::Config {
                 use_lightningcss: true,
                 browsers: self.target_browsers,
             },
-            styled_jsx::visitor::NativeConfig { process_css: None },
+            &styled_jsx::visitor::NativeConfig { process_css: None },
         ));
 
         Ok(())
