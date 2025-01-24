@@ -8061,9 +8061,9 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.74.2"
+version = "0.75.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "177c1403bd72b2e08ffbf1c13d4567fc789d69564f2e62677a434645b34bc328"
+checksum = "64ef7ba670900bf054e9fbfe779c9a8a86fe958b40b92b7ba4046919eb300cbf"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
