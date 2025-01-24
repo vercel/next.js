@@ -117,7 +117,11 @@ function DevToolsPopover({
         select(0)
         break
       case 'End':
-        select(1)
+        const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+        if (all) {
+          const lastIndex = all.length - 1
+          select(lastIndex)
+        }
         break
       default:
         break
