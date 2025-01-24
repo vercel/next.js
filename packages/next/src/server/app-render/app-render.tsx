@@ -315,7 +315,6 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   ]
 }
 
-const EmptyMetadata = () => null
 function createDivergedMetadataComponents(
   Metadata: React.ComponentType<{}>,
   serveStreamingMetadata: boolean
@@ -323,15 +322,18 @@ function createDivergedMetadataComponents(
   StaticMetadata: React.ComponentType<{}>
   StreamingMetadata: React.ComponentType<{}>
 } {
-  function StreamingMetadata() {
-    if (!serveStreamingMetadata) return null
-    return (
-      <React.Suspense fallback={null}>
-        <Metadata />
-      </React.Suspense>
-    )
-  }
-  const StaticMetadata = serveStreamingMetadata ? EmptyMetadata : Metadata
+  const EmptyMetadata = () => null
+  const StreamingMetadata: React.ComponentType<{}> = serveStreamingMetadata
+    ? () => (
+        <React.Suspense fallback={null}>
+          <Metadata />
+        </React.Suspense>
+      )
+    : EmptyMetadata
+
+  const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
+    ? EmptyMetadata
+    : Metadata
 
   return {
     StaticMetadata,
@@ -513,7 +515,7 @@ async function generateDynamicRSCPayload(
           <React.Fragment key={flightDataPathHeadKey}>
             {/* noindex needs to be blocking */}
             <NonIndex ctx={ctx} />
-            {/* \Adding requestId as react key to make metadata remount for each render */}
+            {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
             <StaticMetadata />
           </React.Fragment>
@@ -835,7 +837,7 @@ async function getRSCPayload(
     <React.Fragment key={flightDataPathHeadKey}>
       <NonIndex ctx={ctx} />
       <ViewportTree key={ctx.requestId} />
-      <StaticMetadata key={flightDataPathHeadKey} />
+      <StaticMetadata />
     </React.Fragment>
   )
 

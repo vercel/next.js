@@ -79,22 +79,22 @@ describe('app-dir - metadata-streaming-static-generation', () => {
   })
 
   describe('dynamic pages with html limited bots', () => {
-    it('should contain async generated metadata in body for simple dynamics page', async () => {
-      const $ = await next.render$('/suspenseful/dynamic', {
+    it('should contain async generated metadata in head for simple dynamics page', async () => {
+      const $ = await next.render$('/suspenseful/dynamic', undefined, {
         headers: {
           'User-Agent': 'Discordbot/2.0;',
         },
       })
-      expect($('body title').text()).toBe('suspenseful page - dynamic')
+      expect($('head title').text()).toBe('suspenseful page - dynamic')
     })
 
-    it('should contain async generated metadata in body for suspenseful dynamic page', async () => {
-      const $ = await next.render$('/slow/dynamic', {
+    it('should contain async generated metadata in head for suspenseful dynamic page', async () => {
+      const $ = await next.render$('/slow/dynamic', undefined, {
         headers: {
           'User-Agent': 'Discordbot/2.0;',
         },
       })
-      expect($('body title').text()).toBe('slow page - dynamic')
+      expect($('head title').text()).toBe('slow page - dynamic')
     })
   })
 })
