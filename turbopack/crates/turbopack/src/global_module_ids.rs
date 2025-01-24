@@ -1,5 +1,3 @@
-use std::collections::hash_map::Entry;
-
 use anyhow::{Context, Result};
 use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
@@ -85,34 +83,26 @@ fn finalize_module_ids(
         JS_MAX_SAFE_INTEGER,
     );
 
+    let mut used_ids =
+        FxHashMap::<u64, SmallVec<[(ResolvedVc<AssetIdent>, ReadRef<RcStr>); 1]>>::default();
+
     // Run in multiple passes, to not depend on the order of the `merged_module_ids` (i.e. the order
     // of imports). Hashes could still change if modules are added or removed.
 
-    // First pass: shorten hashes, potentially causing (more) collisions.
-    // used_ids contains all modules that will have to be rehashed in the next pass.
-    let mut used_ids =
-        FxHashMap::<u64, SmallVec<[(ResolvedVc<AssetIdent>, ReadRef<RcStr>); 1]>>::default();
+    // Find pass: shorten hashes, potentially causing (more) collisions
     for (ident, (ident_str, full_hash)) in merged_module_ids.iter_mut() {
         let first_pass_hash = *full_hash % digit_mask;
-        match used_ids.entry(first_pass_hash) {
-            Entry::Vacant(e) => {
-                // First module using this hash, insert empty list. But the module can keep using
-                // this hash, no need to rehash later.
-                e.insert(SmallVec::default());
-            }
-            Entry::Occupied(mut e) => {
-                // A collision, insert module so that we can rehash it later.
-                e.get_mut().push((*ident, ident_str.clone()));
-            }
-        }
-
+        used_ids
+            .entry(first_pass_hash)
+            .or_default()
+            .push((*ident, ident_str.clone()));
         *full_hash = first_pass_hash;
     }
 
     // Filter conflicts
     let mut conflicting_hashes = used_ids
         .iter()
-        .filter(|(_, list)| !list.is_empty())
+        .filter(|(_, list)| (list.len() > 1))
         .map(|(hash, _)| *hash)
         .collect::<Vec<_>>();
     conflicting_hashes.sort();
@@ -120,15 +110,15 @@ fn finalize_module_ids(
     // Second pass over the conflicts to resolve them
     for hash in conflicting_hashes.into_iter() {
         let list = used_ids.get_mut(&hash).unwrap();
-        // Take the vector but keep the (empty) entry, so that the "contains_key" check below
-        // doesn't reuse to original colliding hash.
+        // Take the vector but keep the (empty) entry, so that the "contains_key" check below works
         let mut list = std::mem::take(list);
         list.sort_by(|a, b| a.1.cmp(&b.1));
 
-        for (ident, _) in list.into_iter() {
+        // Skip the first one, one module can keep the original hash
+        for (ident, _) in list.into_iter().skip(1) {
             let hash = &mut merged_module_ids.get_mut(&ident).unwrap().1;
 
-            // The original algorithm since all that runs in deterministic order now
+            // the original algorithm since all that runs in deterministic order now
             let mut i = 1;
             let mut trimmed_hash;
             loop {
