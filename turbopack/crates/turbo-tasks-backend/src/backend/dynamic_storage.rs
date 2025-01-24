@@ -155,9 +155,8 @@ impl DynamicStorage {
     ) {
         let i = self.get_or_create_map_index(key.ty());
         let map = &mut self.map[i];
-        if let Some(v) = update(map.remove(&key)) {
-            map.insert(CachedDataItem::from_key_and_value(key, v));
-        } else if map.is_empty() {
+        map.update(key, update);
+        if map.is_empty() {
             self.map.swap_remove(i);
             self.map.shrink_to_fit();
         }

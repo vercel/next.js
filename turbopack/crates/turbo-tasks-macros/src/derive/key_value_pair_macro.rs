@@ -412,6 +412,24 @@ pub fn derive_key_value_pair(input: TokenStream) -> TokenStream {
                 }
             }
 
+            pub fn update(&mut self, key: #key_name, update: impl FnOnce(Option<#value_name>) -> Option<#value_name>) {
+                match (self, key) {
+                    #(
+                        (#storage_name::#variant_names { storage }, #key_name::#variant_names { #storage_key_pattern }) => {
+                            storage.update(#storage_key, |old| {
+                                let old = old.map(|value| #value_name::#variant_names { value });
+                                if let Some(#value_name::#variant_names { value }) = update(old) {
+                                    Some(value)
+                                } else {
+                                    None
+                                }
+                            })
+                        }
+                    )*
+                    _ => unreachable!(),
+                }
+            }
+
             pub fn shrink_to_fit(&mut self) {
                 match self {
                     #(
