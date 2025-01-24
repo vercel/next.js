@@ -97,7 +97,9 @@ describe.each(
           // TODO: Stack should start at product code. Possible React limitation.
           '\n    at Container (**)' +
           // Will just point to original file location
-          '\n  2 |'
+          process.env.__NEXT_EXPERIMENTAL_PPR
+          ? ''
+          : '\n  2 |'
       )
 
       await assertHasRedbox(browser)
