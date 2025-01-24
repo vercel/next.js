@@ -205,6 +205,12 @@ where
         }
     });
 
+    let modularize_imports = fn_pass(move |program| {
+        if let Some(config) = opts.modularize_imports.as_ref() {
+            program.mutate(modularize_imports::modularize_imports(config));
+        }
+    });
+
     (
         (
             crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
