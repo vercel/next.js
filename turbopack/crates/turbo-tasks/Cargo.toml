@@ -9,10 +9,8 @@ edition = "2021"
 bench = false
 
 [features]
-default = ["local_resolution"]
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
-local_resolution = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.

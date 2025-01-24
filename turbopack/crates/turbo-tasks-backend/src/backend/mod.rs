@@ -866,7 +866,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             panic!(
                 "Calling transient function {} from persistent function function {} is not allowed",
                 task_type.get_name(),
-                parent_task_type.map_or_else(|| "unknown".into(), |t| t.get_name())
+                parent_task_type.map_or("unknown", |t| t.get_name())
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
@@ -963,10 +963,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn try_get_function_id(&self, task_id: TaskId) -> Option<FunctionId> {
         self.lookup_task_type(task_id)
-            .and_then(|task_type| match &*task_type {
-                CachedTaskType::Native { fn_type, .. } => Some(*fn_type),
-                _ => None,
-            })
+            .map(|task_type| task_type.fn_type)
     }
 
     fn try_start_task_execution(
@@ -1105,64 +1102,13 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
 
         let (span, future) = match task_type {
-            TaskType::Cached(task_type) => match &*task_type {
-                CachedTaskType::Native { fn_type, this, arg } => (
+            TaskType::Cached(task_type) => {
+                let CachedTaskType { fn_type, this, arg } = &*task_type;
+                (
                     registry::get_function(*fn_type).span(task_id.persistence()),
                     registry::get_function(*fn_type).execute(*this, &**arg),
-                ),
-                CachedTaskType::ResolveNative { fn_type, .. } => {
-                    let span = registry::get_function(*fn_type).resolve_span(task_id.persistence());
-                    let turbo_tasks = turbo_tasks.pin();
-                    (
-                        span,
-                        Box::pin(async move {
-                            let CachedTaskType::ResolveNative { fn_type, this, arg } = &*task_type
-                            else {
-                                unreachable!()
-                            };
-                            CachedTaskType::run_resolve_native(
-                                *fn_type,
-                                *this,
-                                &**arg,
-                                task_id.persistence(),
-                                turbo_tasks,
-                            )
-                            .await
-                        }) as Pin<Box<dyn Future<Output = _> + Send + '_>>,
-                    )
-                }
-                CachedTaskType::ResolveTrait {
-                    trait_type,
-                    method_name,
-                    ..
-                } => {
-                    let span = registry::get_trait(*trait_type).resolve_span(method_name);
-                    let turbo_tasks = turbo_tasks.pin();
-                    (
-                        span,
-                        Box::pin(async move {
-                            let CachedTaskType::ResolveTrait {
-                                trait_type,
-                                method_name,
-                                this,
-                                arg,
-                            } = &*task_type
-                            else {
-                                unreachable!()
-                            };
-                            CachedTaskType::run_resolve_trait(
-                                *trait_type,
-                                method_name.clone(),
-                                *this,
-                                &**arg,
-                                task_id.persistence(),
-                                turbo_tasks,
-                            )
-                            .await
-                        }) as Pin<Box<dyn Future<Output = _> + Send + '_>>,
-                    )
-                }
-            },
+                )
+            }
             TaskType::Transient(task_type) => {
                 let task_type = task_type.clone();
                 let span = tracing::trace_span!("turbo_tasks::root_task");
