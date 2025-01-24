@@ -91,7 +91,7 @@ enum RSCErrorKind {
     NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
 }
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Copy)]
 enum NextConfigProperty {
     DynamicIo,
     UseCache,
@@ -877,7 +877,7 @@ impl ReactServerComponentValidator {
                             RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
                                 *span,
                                 export_name.clone(),
-                                property.clone(),
+                                *property,
                             ),
                         );
                     }
