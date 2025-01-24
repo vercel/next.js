@@ -137,20 +137,13 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         index: CellId,
     ) -> Result<Result<TypedCellContent, EventListener>>;
 
+    /// This does not accept a consistency argument, as you cannot control consistency of a read of
+    /// an operation owned by your own task. Strongly consistent reads are only allowed on
+    /// `OperationVc`s, which should never be local tasks.
     fn try_read_local_output(
         &self,
         parent_task_id: TaskId,
         local_task_id: LocalTaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>>;
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_local_output_untracked(
-        &self,
-        parent_task_id: TaskId,
-        local_task_id: LocalTaskId,
-        consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>>;
 
     fn read_task_collectibles(&self, task: TaskId, trait_id: TraitTypeId) -> TaskCollectiblesMap;
@@ -335,7 +328,7 @@ pub enum TaskPersistence {
     LocalCells,
 }
 
-#[derive(Clone, Copy, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ReadConsistency {
     /// The default behavior for most APIs. Reads are faster, but may return stale values, which
     /// may later trigger re-computation.
@@ -1323,26 +1316,16 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         &self,
         parent_task_id: TaskId,
         local_task_id: LocalTaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        // we don't currently support reading a local output outside of it's own task, so
-        // tracked/untracked is currently irrelevant
-        self.try_read_local_output_untracked(parent_task_id, local_task_id, consistency)
-    }
-
-    /// INVALIDATION: Be careful with this, it will not track dependencies, so
-    /// using it could break cache invalidation.
-    fn try_read_local_output_untracked(
-        &self,
-        parent_task_id: TaskId,
-        local_task_id: LocalTaskId,
-        // we don't currently support reading a local output outside of it's own task, so
-        // consistency is currently irrelevant
-        _consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         CURRENT_GLOBAL_TASK_STATE.with(|gts| {
             let gts_read = gts.read().unwrap();
+
+            // Local Vcs are local to their parent task, and do not exist outside of it. This is
+            // weakly enforced at compile time using the `NonLocalValue` marker trait. This
+            // assertion exists to handle any potential escapes that the compile-time checks cannot
+            // capture.
             gts_read.assert_task_id(parent_task_id);
+
             match gts_read.get_local_task(local_task_id) {
                 LocalTask::Scheduled { done_event } => Ok(Err(done_event.listen())),
                 LocalTask::Done { output } => Ok(Ok(output.as_read_result()?)),
@@ -2051,10 +2034,9 @@ pub(crate) async fn read_local_output(
     this: &dyn TurboTasksApi,
     parent_task_id: TaskId,
     local_task_id: LocalTaskId,
-    consistency: ReadConsistency,
 ) -> Result<RawVc> {
     loop {
-        match this.try_read_local_output(parent_task_id, local_task_id, consistency)? {
+        match this.try_read_local_output(parent_task_id, local_task_id)? {
             Ok(raw_vc) => return Ok(raw_vc),
             Err(event_listener) => event_listener.await,
         }
