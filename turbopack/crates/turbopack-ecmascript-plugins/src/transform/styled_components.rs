@@ -4,7 +4,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
     common::{comments::NoopComments, FileName},
-    ecma::{ast::Program, atoms::JsWord, visit::VisitMutWith},
+    ecma::{ast::Program, atoms::JsWord},
 };
 use turbo_tasks::{ValueDefault, Vc};
 use turbopack_ecmascript::{CustomTransformer, TransformContext};
@@ -91,7 +91,7 @@ impl StyledComponentsTransformer {
 impl CustomTransformer for StyledComponentsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
-        program.visit_mut_with(&mut styled_components::styled_components(
+        program.mutate(styled_components::styled_components(
             FileName::Real(PathBuf::from(ctx.file_path_str)).into(),
             ctx.file_name_hash,
             self.config.clone(),
