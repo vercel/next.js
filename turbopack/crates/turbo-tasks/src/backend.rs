@@ -249,14 +249,12 @@ mod ser {
             S: ser::Serializer,
         {
             let CachedTaskType { fn_type, this, arg } = self;
-            let mut s = serializer.serialize_tuple(4)?;
+            let mut s = serializer.serialize_tuple(2)?;
             s.serialize_element(&FunctionAndArg::Borrowed {
                 fn_type: *fn_type,
                 arg: &**arg,
             })?;
             s.serialize_element(this)?;
-            s.serialize_element(&())?;
-            s.serialize_element(&())?;
             s.end()
         }
     }
@@ -284,16 +282,10 @@ mod ser {
                     let this = seq
                         .next_element()?
                         .ok_or_else(|| serde::de::Error::invalid_length(1, &self))?;
-                    let () = seq
-                        .next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(2, &self))?;
-                    let () = seq
-                        .next_element()?
-                        .ok_or_else(|| serde::de::Error::invalid_length(3, &self))?;
                     Ok(CachedTaskType { fn_type, this, arg })
                 }
             }
-            deserializer.deserialize_tuple(4, Visitor)
+            deserializer.deserialize_tuple(2, Visitor)
         }
     }
 }
