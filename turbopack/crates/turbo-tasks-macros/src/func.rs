@@ -593,9 +593,9 @@ impl TurboFn<'_> {
                     let this = #converted_this;
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::dynamic_this_call(
+                        turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            this,
+                            Some(this),
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -612,6 +612,7 @@ impl TurboFn<'_> {
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
+                            None,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )

@@ -156,11 +156,7 @@ impl LocalTaskType {
             *this = this.resolve().await?;
         }
         let arg = registry::get_function(fn_id).arg_meta.resolve(arg).await?;
-        Ok(if let Some(this) = this {
-            turbo_tasks.this_call(fn_id, this, arg, persistence)
-        } else {
-            turbo_tasks.native_call(fn_id, arg, persistence)
-        })
+        Ok(turbo_tasks.native_call(fn_id, this, arg, persistence))
     }
 
     pub async fn run_resolve_trait<B: Backend + 'static>(
@@ -179,7 +175,7 @@ impl LocalTaskType {
             .arg_meta
             .resolve(arg)
             .await?;
-        Ok(turbo_tasks.dynamic_this_call(native_fn, this, arg, persistence))
+        Ok(turbo_tasks.dynamic_call(native_fn, Some(this), arg, persistence))
     }
 
     fn resolve_trait_method_from_value(

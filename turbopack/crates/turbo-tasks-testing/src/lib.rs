@@ -91,35 +91,16 @@ impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
         func: turbo_tasks::FunctionId,
+        this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(func, None, arg)
+        self.dynamic_call(func, this, arg)
     }
-
-    fn dynamic_this_call(
-        &self,
-        func: turbo_tasks::FunctionId,
-        this_arg: RawVc,
-        arg: Box<dyn MagicAny>,
-        _persistence: TaskPersistence,
-    ) -> RawVc {
-        self.dynamic_call(func, Some(this_arg), arg)
-    }
-
     fn native_call(
         &self,
         _func: turbo_tasks::FunctionId,
-        _arg: Box<dyn MagicAny>,
-        _persistence: TaskPersistence,
-    ) -> RawVc {
-        unreachable!()
-    }
-
-    fn this_call(
-        &self,
-        _func: turbo_tasks::FunctionId,
-        _this: RawVc,
+        _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
