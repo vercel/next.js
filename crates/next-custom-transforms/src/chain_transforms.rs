@@ -15,7 +15,7 @@ use swc_core::{
     ecma::{
         ast::{fn_pass, noop_pass, EsVersion, Pass},
         parser::parse_file_as_module,
-        visit::{fold_pass, visit_mut_pass},
+        visit::visit_mut_pass,
     },
 };
 
@@ -188,6 +188,23 @@ where
         None => (),
     });
 
+    let emotion = fn_pass(move |program| {
+        if let Some(config) = opts.emotion.as_ref() {
+            if !config.enabled.unwrap_or(false) {
+                return;
+            }
+            if let FileName::Real(path) = &*file.name {
+                program.mutate(swc_emotion::emotion(
+                    &config,
+                    path,
+                    file.src_hash as u32,
+                    cm,
+                    comments.clone(),
+                ));
+            }
+        }
+    });
+
     (
         (
             crate::transforms::disallow_re_export_all_in_page::disallow_re_export_all_in_page(
@@ -276,28 +293,8 @@ where
                 ),
                 _ => Either::Right(noop_pass()),
             },
-            opts.emotion
-                .as_ref()
-                .and_then(|config| {
-                    if !config.enabled.unwrap_or(false) {
-                        return None;
-                    }
-                    if let FileName::Real(path) = &*file.name {
-                        path.to_str().map(|_| {
-                            Either::Left(fold_pass(swc_emotion::EmotionTransformer::new(
-                                config.clone(),
-                                path,
-                                file.src_hash as u32,
-                                cm,
-                                comments.clone(),
-                            )))
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| Either::Right(noop_pass())),
-            modularize_imports::modularize_imports(modularize_imports_config),
+            emotion,
+            modularize_imports,
             match &opts.font_loaders {
                 Some(config) => Either::Left(next_font_loaders(config.clone())),
                 None => Either::Right(noop_pass()),
