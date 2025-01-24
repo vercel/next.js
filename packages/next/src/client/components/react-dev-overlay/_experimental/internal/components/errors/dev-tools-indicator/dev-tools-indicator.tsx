@@ -90,7 +90,53 @@ function DevToolsPopover({
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
-  const handleKeyDown = useKeydown(menuRef, selectedIndex, setSelectedIndex)
+
+  function select(index: number) {
+    const el = menuRef.current?.querySelector(
+      `[data-index="${index}"]`
+    ) as HTMLElement
+    if (el) {
+      setSelectedIndex(index)
+      el?.focus()
+    }
+  }
+
+  function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement>) {
+    e.preventDefault()
+
+    switch (e.key) {
+      case 'ArrowDown':
+        const next = selectedIndex + 1
+        select(next)
+        break
+      case 'ArrowUp':
+        const prev = selectedIndex - 1
+        select(prev)
+        break
+      case 'Home':
+        select(0)
+        break
+      case 'End':
+        select(1)
+        break
+      default:
+        break
+    }
+  }
+
+  function onTriggerKeydown(e: React.KeyboardEvent<HTMLButtonElement>) {
+    if (isMenuOpen) {
+      return
+    }
+
+    if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
+      setIsMenuOpen(true)
+      // Run on next tick, querying DOM
+      setTimeout(() => {
+        select(0)
+      })
+    }
+  }
 
   function onIssuesClick() {
     if (issueCount > 0) {
@@ -98,7 +144,7 @@ function DevToolsPopover({
     }
   }
 
-  function onLogoClick() {
+  function onTriggerClick() {
     setIsMenuOpen((prev) => !prev)
     onIssuesClick()
   }
@@ -123,7 +169,8 @@ function DevToolsPopover({
         aria-controls="nextjs-dev-tools-menu"
         aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
         issueCount={issueCount}
-        onLogoClick={onLogoClick}
+        onClick={onTriggerClick}
+        onKeyDown={onTriggerKeydown}
         onIssuesClick={onIssuesClick}
         isDevBuilding={useIsDevBuilding()}
         isDevRendering={useIsDevRendering()}
@@ -136,10 +183,10 @@ function DevToolsPopover({
           role="menu"
           dir="ltr"
           aria-orientation="vertical"
-          aria-labelledby="dev-tools-title"
+          aria-label="Next.js Dev Tools Items"
           tabIndex={-1}
           className="menu"
-          onKeyDown={handleKeyDown}
+          onKeyDown={onMenuKeydown}
           onMouseLeave={() => setSelectedIndex(-1)}
           data-rendered={rendered}
           style={
@@ -156,10 +203,6 @@ function DevToolsPopover({
               setSelectedIndex,
             }}
           >
-            <h2 id="dev-tools-title" className="sr-only">
-              Next.js Dev Tools Items
-            </h2>
-
             <div className="inner">
               <MenuItem
                 index={0}
@@ -362,35 +405,6 @@ function useClickOutside(
 }
 
 //////////////////////////////////////////////////////////////////////////////////////
-
-function useKeydown(
-  menuRef: React.RefObject<HTMLDivElement | null>,
-  selectedIndex: number,
-  setSelectedIndex: Dispatch<SetStateAction<number>>
-) {
-  return function handleKeydown(e: React.KeyboardEvent<HTMLDivElement>) {
-    // An item is selected, move selection based on key direction
-    if (e.key === 'ArrowDown') {
-      const next = selectedIndex + 1
-      const el = menuRef.current?.querySelector(
-        `[data-index="${next}"]`
-      ) as HTMLElement
-      if (el) {
-        el.focus()
-        setSelectedIndex(next)
-      }
-    } else if (e.key === 'ArrowUp') {
-      const prev = selectedIndex - 1
-      const el = menuRef.current?.querySelector(
-        `[data-index="${prev}"]`
-      ) as HTMLElement
-      if (el) {
-        el.focus()
-        setSelectedIndex(prev)
-      }
-    }
-  }
-}
 
 function ExternalIcon() {
   return (

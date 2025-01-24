@@ -6,7 +6,7 @@ interface Props extends React.ComponentProps<'button'> {
   issueCount: number
   isDevBuilding: boolean
   isDevRendering: boolean
-  onLogoClick: () => void
+  onClick: () => void
   onIssuesClick: () => void
 }
 
@@ -17,7 +17,7 @@ export const NextLogo = forwardRef(function NextLogo(
     issueCount,
     isDevBuilding,
     isDevRendering,
-    onLogoClick,
+    onClick,
     onIssuesClick,
     ...props
   }: Props,
@@ -298,7 +298,7 @@ export const NextLogo = forwardRef(function NextLogo(
           <button
             ref={mergeRefs(triggerRef, propRef)}
             data-next-mark
-            onClick={onLogoClick}
+            onClick={onClick}
             {...props}
           >
             <NextMark isLoading={isLoading} />
