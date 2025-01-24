@@ -2,5 +2,5 @@
    ,-[input.js:1:1]
  1 | export const runtime = 'edge'
    :              ^^^^^^^
- 2 | // The following route segment config are currently allowed:
+ 2 | // The following route segment configs are currently allowed:
    `----
