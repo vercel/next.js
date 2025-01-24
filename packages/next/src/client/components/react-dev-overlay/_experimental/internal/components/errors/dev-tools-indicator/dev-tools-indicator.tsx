@@ -251,7 +251,6 @@ function DevToolsPopover({
 
             <div className="footer">
               <MenuItem
-                variant="footer"
                 label="Hide Dev Tools"
                 value={<HideShortcut />}
                 onClick={hide}
@@ -270,7 +269,6 @@ function MenuItem({
   label,
   value,
   onClick,
-  variant,
   href,
   ...props
 }: {
@@ -279,7 +277,6 @@ function MenuItem({
   value: React.ReactNode
   href?: string
   onClick?: () => void
-  variant?: 'footer'
 }) {
   const isInteractive =
     typeof onClick === 'function' || typeof href === 'string'
@@ -300,7 +297,6 @@ function MenuItem({
     <div
       className="item"
       data-index={index}
-      data-variant={variant}
       data-selected={selected}
       onClick={click}
       // Needs `onMouseMove` instead of enter to work together
