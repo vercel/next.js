@@ -11,8 +11,8 @@
     "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
-    "@prisma/client": "*",
-    "@prisma/extension-accelerate": "*",
+    "@prisma/client": "latest",
+    "@prisma/extension-accelerate": "latest",
     "next": "latest",
     "react": "^19.0.0",
     "react-dom": "^19.0.0"
@@ -22,7 +22,7 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "postcss": "^8",
-    "prisma": "*",
+    "prisma": "latest",
     "tailwindcss": "^3.4.1",
     "tsx": "^4.19.2",
     "typescript": "^5"
