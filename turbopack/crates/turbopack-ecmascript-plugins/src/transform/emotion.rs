@@ -104,7 +104,7 @@ impl CustomTransformer for EmotionTransformer {
                 hasher.finish()
             };
             program.mutate(swc_emotion::emotion(
-                self.config.clone(),
+                &self.config,
                 Path::new(ctx.file_name_str),
                 hash as u32,
                 ctx.source_map.clone(),
