@@ -417,10 +417,10 @@ macro_rules! generate_inner_storage {
                 self.dynamic.get_mut_or_insert_with(key, f)
             }
 
-            pub fn iter<'l>(
-                &'l self,
+            pub fn iter(
+                &self,
                 ty: CachedDataItemType,
-            ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'l>)>
+            ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>
             {
                 use crate::data_storage::Storage;
                 $crate::generate_inner_storage_internal!(iter: self, ty: $($config)*);
