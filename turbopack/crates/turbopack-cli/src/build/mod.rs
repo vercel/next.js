@@ -11,8 +11,10 @@ use turbo_tasks::{
     apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
     Value, Vc,
 };
+use turbo_tasks_backend::{
+    noop_backing_storage, BackendOptions, NoopBackingStorage, TurboTasksBackend,
+};
 use turbo_tasks_fs::FileSystem;
-use turbo_tasks_memory::MemoryBackend;
 use turbopack_browser::BrowserChunkingContext;
 use turbopack_cli_utils::issue::{ConsoleUi, LogOptions};
 use turbopack_core::{
@@ -43,8 +45,7 @@ use crate::{
     arguments::{BuildArguments, Target},
     contexts::{get_client_asset_context, get_client_compile_time_info, NodeEnv},
     util::{
-        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, EntryRequests,
-        NormalizedDirs,
+        normalize_dirs, normalize_entries, output_fs, project_fs, EntryRequest, NormalizedDirs,
     },
 };
 
@@ -53,8 +54,10 @@ pub fn register() {
     include!(concat!(env!("OUT_DIR"), "/register.rs"));
 }
 
+type Backend = TurboTasksBackend<NoopBackingStorage>;
+
 pub struct TurbopackBuildBuilder {
-    turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
+    turbo_tasks: Arc<TurboTasks<Backend>>,
     project_dir: RcStr,
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
@@ -67,11 +70,7 @@ pub struct TurbopackBuildBuilder {
 }
 
 impl TurbopackBuildBuilder {
-    pub fn new(
-        turbo_tasks: Arc<TurboTasks<MemoryBackend>>,
-        project_dir: RcStr,
-        root_dir: RcStr,
-    ) -> Self {
+    pub fn new(turbo_tasks: Arc<TurboTasks<Backend>>, project_dir: RcStr, root_dir: RcStr) -> Self {
         TurbopackBuildBuilder {
             turbo_tasks,
             project_dir,
@@ -126,14 +125,7 @@ impl TurbopackBuildBuilder {
             let build_result_op = build_internal(
                 self.project_dir.clone(),
                 self.root_dir,
-                EntryRequests(
-                    self.entry_requests
-                        .iter()
-                        .cloned()
-                        .map(EntryRequest::resolved_cell)
-                        .collect(),
-                )
-                .resolved_cell(),
+                self.entry_requests.clone(),
                 self.browserslist_query,
                 self.minify_type,
                 self.target,
@@ -177,7 +169,7 @@ impl TurbopackBuildBuilder {
 async fn build_internal(
     project_dir: RcStr,
     root_dir: RcStr,
-    entry_requests: ResolvedVc<EntryRequests>,
+    entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
     minify_type: MinifyType,
     target: Target,
@@ -285,11 +277,9 @@ async fn build_internal(
     );
 
     let entry_requests = (*entry_requests
-        .await?
-        .iter()
-        .cloned()
+        .into_iter()
         .map(|r| async move {
-            Ok(match &*r.await? {
+            Ok(match r {
                 EntryRequest::Relative(p) => Request::relative(
                     Value::new(p.clone().into()),
                     Default::default(),
@@ -421,10 +411,12 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         root_dir,
     } = normalize_dirs(&args.common.dir, &args.common.root)?;
 
-    let tt = TurboTasks::new(MemoryBackend::new(
-        args.common
-            .memory_limit
-            .map_or(usize::MAX, |l| l * 1024 * 1024),
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
     ));
 
     let mut builder = TurbopackBuildBuilder::new(tt, project_dir, root_dir)
