@@ -89,9 +89,9 @@ fn finalize_module_ids(
     // Run in multiple passes, to not depend on the order of the `merged_module_ids` (i.e. the order
     // of imports). Hashes could still change if modules are added or removed.
 
-    // First pass, hash everything, potentially with collisions
+    // Find pass: shorten hashes, potentially causing (more) collisions
     for (ident, (ident_str, full_hash)) in merged_module_ids.iter_mut() {
-        let first_pass_hash = hash_xxh3_hash64(*full_hash) % digit_mask;
+        let first_pass_hash = *full_hash % digit_mask;
         used_ids
             .entry(first_pass_hash)
             .or_default()
@@ -99,7 +99,7 @@ fn finalize_module_ids(
         *full_hash = first_pass_hash;
     }
 
-    // Find conflicts
+    // Filter conflicts
     let mut conflicting_hashes = used_ids
         .iter()
         .filter(|(_, list)| (list.len() > 1))
@@ -107,14 +107,15 @@ fn finalize_module_ids(
         .collect::<Vec<_>>();
     conflicting_hashes.sort();
 
-    // Resolve conflicts
+    // Second pass over the conflicts to resolve them
     for hash in conflicting_hashes.into_iter() {
         let list = used_ids.get_mut(&hash).unwrap();
         // Take the vector but keep the (empty) entry, so that the "contains_key" check below works
         let mut list = std::mem::take(list);
         list.sort_by(|a, b| a.1.cmp(&b.1));
 
-        for (ident, _) in list {
+        // Skip the first one, one module can keep the original hash
+        for (ident, _) in list.into_iter().skip(1) {
             let hash = &mut merged_module_ids.get_mut(&ident).unwrap().1;
 
             // the original algorithm since all that runs in deterministic order now
@@ -129,7 +130,7 @@ fn finalize_module_ids(
                 i += 1;
             }
             // At this point, we don't care about the values anymore, just the keys
-            used_ids.insert(trimmed_hash, Default::default());
+            used_ids.entry(trimmed_hash).or_default();
             *hash = trimmed_hash;
         }
     }
