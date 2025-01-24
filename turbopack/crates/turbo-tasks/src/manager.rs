@@ -313,19 +313,15 @@ pub enum TaskPersistence {
     /// [`TransientInstance`][crate::value::TransientInstance].
     Transient,
 
-    /// Tasks that are persisted only for the lifetime of the nearest non-`LocalCells` parent
-    /// caller.
+    /// Tasks that are persisted only for the lifetime of the nearest non-`Local` parent caller.
     ///
     /// This task does not have a unique task id, and is not shared with the backend. Instead it
     /// uses the parent task's id.
     ///
-    /// Cells are allocated onto a temporary arena by default. Resolved cells inside a local task
-    /// are allocated into the parent task's cells.
-    ///
     /// This is useful for functions that have a low cache hit rate. Those functions could be
     /// converted to non-task functions, but that would break their function signature. This
     /// provides a mechanism for skipping caching without changing the function signature.
-    LocalCells,
+    Local,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -588,12 +584,13 @@ impl<B: Backend + 'static> TurboTasks<B> {
         arg: Box<dyn MagicAny>,
         persistence: TaskPersistence,
     ) -> RawVc {
-        let task_type = CachedTaskType { fn_type, this, arg };
         match persistence {
-            TaskPersistence::LocalCells => {
-                todo!("bgw: local tasks");
+            TaskPersistence::Local => {
+                let task_type = LocalTaskType::Native { fn_type, this, arg };
+                self.schedule_local_task(task_type, persistence)
             }
             TaskPersistence::Transient => {
+                let task_type = CachedTaskType { fn_type, this, arg };
                 RawVc::TaskOutput(self.backend.get_or_create_transient_task(
                     task_type,
                     current_task("turbo_function calls"),
@@ -601,6 +598,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
                 ))
             }
             TaskPersistence::Persistent => {
+                let task_type = CachedTaskType { fn_type, this, arg };
                 RawVc::TaskOutput(self.backend.get_or_create_persistent_task(
                     task_type,
                     current_task("turbo_function calls"),
