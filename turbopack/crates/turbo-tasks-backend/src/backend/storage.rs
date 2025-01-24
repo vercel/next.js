@@ -150,14 +150,6 @@ impl InnerStorage {
             + self.output_dependent.len()
     }
 
-    pub fn types(&self) -> usize {
-        self.map.len()
-    }
-
-    pub fn types_capacity(&self) -> usize {
-        self.map.capacity()
-    }
-
     pub fn capacity(&self) -> usize {
         use crate::data_storage::Storage;
         self.dynamic.capacity()
@@ -209,10 +201,18 @@ impl InnerStorage {
     }
 
     pub fn size_by_type(&self, sizes: &mut HashMap<CachedDataItemType, usize>) {
-        for storage in self.map.iter() {
-            *sizes.entry(storage.ty()).or_default() +=
-                storage.size() + size_of::<CachedDataItemStorage>();
+        use crate::data_storage::Storage;
+        for ty in self.dynamic.types() {
+            *sizes.entry(ty).or_default() += self.dynamic.size_of_type(ty);
         }
+        *sizes
+            .entry(CachedDataItemType::AggregationNumber)
+            .or_default() += self.aggregation_number.size();
+        *sizes.entry(CachedDataItemType::Output).or_default() += self.output.size();
+        *sizes.entry(CachedDataItemType::Upper).or_default() += self.upper.size();
+        *sizes
+            .entry(CachedDataItemType::OutputDependent)
+            .or_default() += self.output_dependent.size();
     }
 
     pub fn persistance_state(&self) -> &PersistanceState {
@@ -594,26 +594,12 @@ impl Storage {
             .sum::<usize>()
     }
 
-    pub fn storages_len(&self) -> usize {
-        self.map
-            .iter()
-            .map(|key_value| key_value.value().types())
-            .sum::<usize>()
-    }
-
-    pub fn storages_capacity(&self) -> usize {
-        self.map
-            .iter()
-            .map(|key_value| key_value.value().types_capacity())
-            .sum::<usize>()
-    }
-
     pub fn size(&self) -> usize {
         self.map
             .iter()
             .map(|key_value| key_value.value().size())
             .sum::<usize>()
-            + self.map.len() * size_of::<(TaskId, InnerStorage)>()
+            + self.map.len() * size_of::<(TaskId, Box<InnerStorage>, InnerStorage)>()
     }
 
     pub fn capacity_size(&self) -> usize {
@@ -621,7 +607,7 @@ impl Storage {
             .iter()
             .map(|key_value| key_value.value().capacity_size())
             .sum::<usize>()
-            + self.map.capacity() * size_of::<(TaskId, InnerStorage)>()
+            + self.map.capacity() * size_of::<(TaskId, Box<InnerStorage>, InnerStorage)>()
     }
 
     pub fn tasks(&self) -> usize {
