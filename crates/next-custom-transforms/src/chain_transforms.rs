@@ -149,13 +149,6 @@ where
         }
     };
 
-    let modularize_imports_config = match &opts.modularize_imports {
-        Some(config) => config.clone(),
-        None => modularize_imports::Config {
-            packages: std::collections::HashMap::new(),
-        },
-    };
-
     let target_browsers = opts
         .swc
         .config
@@ -164,46 +157,62 @@ where
         .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
-    let styled_jsx = fn_pass(move |program| {
-        if let Some(config) = opts.styled_jsx.to_option() {
-            program.mutate(styled_jsx::visitor::styled_jsx(
-                cm.clone(),
-                &file.name,
-                &styled_jsx::visitor::Config {
-                    use_lightningcss: config.use_lightningcss,
-                    browsers: target_browsers,
-                },
-                &styled_jsx::visitor::NativeConfig { process_css: None },
-            ))
-        }
-    });
+    let styled_jsx = {
+        let cm = cm.clone();
+        let file = file.clone();
 
-    let styled_components = fn_pass(move |program| match &opts.styled_components {
-        Some(config) => program.mutate(styled_components::styled_components(
-            &file.name,
-            file.src_hash,
-            &config,
-            NoopComments,
-        )),
-        None => (),
-    });
+        fn_pass(move |program| {
+            if let Some(config) = opts.styled_jsx.to_option() {
+                program.mutate(styled_jsx::visitor::styled_jsx(
+                    cm.clone(),
+                    &file.name,
+                    &styled_jsx::visitor::Config {
+                        use_lightningcss: config.use_lightningcss,
+                        browsers: target_browsers,
+                    },
+                    &styled_jsx::visitor::NativeConfig { process_css: None },
+                ))
+            }
+        })
+    };
 
-    let emotion = fn_pass(move |program| {
-        if let Some(config) = opts.emotion.as_ref() {
-            if !config.enabled.unwrap_or(false) {
-                return;
+    let styled_components = {
+        let file = file.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = &opts.styled_components {
+                program.mutate(styled_components::styled_components(
+                    &file.name,
+                    file.src_hash,
+                    config,
+                    NoopComments,
+                ))
             }
-            if let FileName::Real(path) = &*file.name {
-                program.mutate(swc_emotion::emotion(
-                    &config,
-                    path,
-                    file.src_hash as u32,
-                    cm,
-                    comments.clone(),
-                ));
+        })
+    };
+
+    let emotion = {
+        let cm = cm.clone();
+        let file = file.clone();
+        let comments = comments.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.emotion.as_ref() {
+                if !config.enabled.unwrap_or(false) {
+                    return;
+                }
+                if let FileName::Real(path) = &*file.name {
+                    program.mutate(swc_emotion::emotion(
+                        config,
+                        path,
+                        file.src_hash as u32,
+                        cm.clone(),
+                        comments.clone(),
+                    ));
+                }
             }
-        }
-    });
+        })
+    };
 
     let modularize_imports = fn_pass(move |program| {
         if let Some(config) = opts.modularize_imports.as_ref() {
