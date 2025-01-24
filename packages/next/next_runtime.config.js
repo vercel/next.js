@@ -97,8 +97,6 @@ const externalsMap = {
 
 const externalsRegexMap = {
   '(.*)trace/tracer$': 'next/dist/server/lib/trace/tracer',
-  '(.*)/dist/compiled/babel/(.*)': '$1/dist/compiled/babel/$1',
-  '(.*)/dist/compiled/webpack/(.*)': '$1/dist/compiled/webpack/$1',
 }
 
 const bundleTypes = {
@@ -130,6 +128,11 @@ const bundleTypes = {
 module.exports = ({ dev, turbo, bundleType, experimental }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
+      if (request.match(/next[/\\]dist[/\\]compiled[/\\](babel|webpack)/)) {
+        callback(null, 'commonjs ' + request)
+        return
+      }
+
       if (request.endsWith('.external')) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
