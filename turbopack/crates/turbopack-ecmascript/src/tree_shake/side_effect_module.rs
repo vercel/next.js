@@ -133,12 +133,13 @@ impl ChunkableModule for SideEffectsModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: Vc<Self>,
-        _module_graph: ResolvedVc<ModuleGraph>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<Box<dyn turbopack_core::chunk::ChunkItem>>> {
         Ok(Vc::upcast(
             SideEffectsModuleChunkItem {
                 module: self.to_resolved().await?,
+                module_graph,
                 chunking_context,
             }
             .cell(),

@@ -19,7 +19,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
-    utils::StringifyJs,
+    utils::{StringifyJs, StringifyModuleId},
 };
 
 #[turbo_tasks::value(shared)]
@@ -102,7 +102,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
                             }});
                         }});
                     "#,
-                    id = StringifyJs(id),
+                    id = StringifyModuleId(id),
                 }
             }
             (Some(id), false) => {
@@ -115,7 +115,7 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
                         }});
                     "#,
                     chunks = StringifyJs(&chunks_data),
-                    id = StringifyJs(id),
+                    id = StringifyModuleId(id),
                 }
             }
             (None, true) => {
