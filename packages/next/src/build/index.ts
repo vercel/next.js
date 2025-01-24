@@ -2457,7 +2457,10 @@ export default async function build(
           path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
         )
         // If there's edge routes, append the edge instrumentation hook
-        if (edgeRuntimeAppCount || edgeRuntimePagesCount) {
+        if (
+          !process.env.TURBOPACK &&
+          (edgeRuntimeAppCount || edgeRuntimePagesCount)
+        ) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
