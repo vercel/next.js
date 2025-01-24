@@ -3,7 +3,7 @@ use rustc_hash::FxHashMap;
 use smallvec::SmallVec;
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
+use turbo_tasks::{ReadRef, ResolvedVc, TryJoinIterExt, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 use turbopack_core::{
     chunk::{module_id_strategies::GlobalModuleIdStrategy, ChunkableModule, ChunkingType},
@@ -53,7 +53,7 @@ pub async fn get_global_module_id_strategy(
             .try_join()
             .await?
             .into_iter()
-            .collect::<FxIndexMap<_, _>>();
+            .collect::<FxHashMap<_, _>>();
 
         finalize_module_ids(&mut module_id_map);
 
@@ -73,7 +73,7 @@ const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
 
 /// Shorten hashes and handle any collisions.
 fn finalize_module_ids(
-    merged_module_ids: &mut FxIndexMap<ResolvedVc<AssetIdent>, (ReadRef<RcStr>, u64)>,
+    merged_module_ids: &mut FxHashMap<ResolvedVc<AssetIdent>, (ReadRef<RcStr>, u64)>,
 ) {
     // 5% fill rate, as done in Webpack
     // https://github.com/webpack/webpack/blob/27cf3e59f5f289dfc4d76b7a1df2edbc4e651589/lib/ids/IdHelpers.js#L366-L405

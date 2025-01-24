@@ -1,5 +1,6 @@
 use anyhow::{bail, Result};
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use rustc_hash::FxHashMap;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
@@ -36,7 +37,7 @@ impl ModuleIdStrategy for DevModuleIdStrategy {
 
 #[turbo_tasks::value(shared)]
 pub struct GlobalModuleIdStrategy {
-    pub module_id_map: FxIndexMap<ResolvedVc<AssetIdent>, u64>,
+    pub module_id_map: FxHashMap<ResolvedVc<AssetIdent>, u64>,
 }
 
 #[turbo_tasks::value_impl]
