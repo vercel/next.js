@@ -4476,6 +4476,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "base64 0.21.4",
+ "either",
  "futures",
  "indexmap 2.5.0",
  "indoc",
