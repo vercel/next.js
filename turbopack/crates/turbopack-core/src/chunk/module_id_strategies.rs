@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{bail, Result};
 use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
@@ -44,6 +44,10 @@ impl ModuleIdStrategy for GlobalModuleIdStrategy {
     #[turbo_tasks::function]
     async fn get_module_id(&self, ident: ResolvedVc<AssetIdent>) -> Result<Vc<ModuleId>> {
         if let Some(module_id) = self.module_id_map.get(&ident) {
+            const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+            if *module_id > JS_MAX_SAFE_INTEGER {
+                bail!("Numeric module id is too large: {}", module_id);
+            }
             return Ok(ModuleId::Number(*module_id).cell());
         }
 
