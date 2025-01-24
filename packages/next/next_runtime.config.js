@@ -1,4 +1,4 @@
-const webpack = require('@rspack/core')
+const rspack = require('@rspack/core')
 const path = require('path')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
 const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
@@ -172,11 +172,18 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       moduleIds: 'named',
       minimize: true,
       concatenateModules: true,
-      minimizer: [new webpack.SwcJsMinimizerRspackPlugin()],
+      minimizer: [
+        new rspack.SwcJsMinimizerRspackPlugin({
+          minimizerOptions: {
+            mangle:
+              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
+          },
+        }),
+      ],
     },
     plugins: [
       new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
-      new webpack.DefinePlugin({
+      new rspack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
         'this.serverOptions.experimentalTestProxy': JSON.stringify(false),
