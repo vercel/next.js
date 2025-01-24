@@ -37,6 +37,7 @@ use crate::{
     },
     id_factory::{IdFactory, IdFactoryWithReuse},
     magic_any::MagicAny,
+    native_function::FunctionMeta,
     raw_vc::{CellId, RawVc},
     registry::{self, get_function},
     serialization_invalidation::SerializationInvalidator,
@@ -48,8 +49,8 @@ use crate::{
     trait_helpers::get_trait_method,
     util::StaticOrArc,
     vc::ReadVcFuture,
-    Completion, FunctionMeta, InvalidationReason, InvalidationReasonSet, ResolvedVc,
-    SharedReference, TaskId, TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
+    Completion, InvalidationReason, InvalidationReasonSet, ResolvedVc, SharedReference, TaskId,
+    TaskIdSet, ValueTypeId, Vc, VcRead, VcValueTrait, VcValueType,
 };
 
 pub trait TurboTasksCallApi: Sync + Send {
@@ -638,6 +639,7 @@ impl<B: Backend + 'static> TurboTasks<B> {
         if let RawVc::TaskCell(_, CellId { type_id, .. }) = this {
             match get_trait_method(trait_type, type_id, trait_fn_name) {
                 Ok(native_fn) => {
+                    let arg = registry::get_function(native_fn).arg_meta.filter_owned(arg);
                     return self.dynamic_call(native_fn, Some(this), arg, persistence);
                 }
                 Err(name) => {

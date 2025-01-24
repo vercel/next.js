@@ -12,8 +12,9 @@ use rustc_hash::FxHasher;
 use crate::{
     id::{FunctionId, TraitTypeId, ValueTypeId},
     id_factory::IdFactory,
+    native_function::NativeFunction,
     no_move_vec::NoMoveVec,
-    NativeFunction, TraitType, ValueType,
+    TraitType, ValueType,
 };
 
 type FxDashMap<K, V> = DashMap<K, V, BuildHasherDefault<FxHasher>>;

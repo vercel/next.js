@@ -140,6 +140,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                     function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
                     function_path: parse_quote! { <#ty>::#inline_function_ident },
                     is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: None, // not a trait method
                     local,
                     local_cells,
                 };
@@ -252,6 +253,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
                     is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: turbo_fn.filter_trait_call_args(),
                     local,
                     local_cells,
                 };
