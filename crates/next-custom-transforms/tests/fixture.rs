@@ -475,6 +475,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                     dynamic_io_enabled: false,
+                    use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -502,6 +503,7 @@ fn react_server_components_fixture(input: PathBuf) {
                 Config::WithOptions(Options {
                     is_react_server_layer,
                     dynamic_io_enabled: false,
+                    use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
