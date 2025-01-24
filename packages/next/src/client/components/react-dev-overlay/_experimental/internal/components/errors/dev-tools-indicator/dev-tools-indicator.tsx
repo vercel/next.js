@@ -210,7 +210,6 @@ function DevToolsPopover({
           tabIndex={-1}
           className="menu"
           onKeyDown={onMenuKeydown}
-          onMouseLeave={() => setSelectedIndex(-1)}
           data-rendered={rendered}
           style={
             {
@@ -299,14 +298,19 @@ function MenuItem({
 
   return (
     <div
-      data-index={index}
       className="item"
+      data-index={index}
       data-variant={variant}
       data-selected={selected}
       onClick={click}
       onMouseEnter={
         isInteractive && index !== undefined
           ? () => setSelectedIndex(index)
+          : undefined
+      }
+      onMouseLeave={
+        isInteractive && index !== undefined
+          ? () => setSelectedIndex(-1)
           : undefined
       }
       onKeyDown={(e) => {
