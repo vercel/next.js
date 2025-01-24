@@ -2457,7 +2457,11 @@ export default async function build(
           path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
         )
         // If there's edge routes, append the edge instrumentation hook
-        if (edgeRuntimeAppCount || edgeRuntimePagesCount) {
+        // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
+        if (
+          !process.env.TURBOPACK &&
+          (edgeRuntimeAppCount || edgeRuntimePagesCount)
+        ) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
