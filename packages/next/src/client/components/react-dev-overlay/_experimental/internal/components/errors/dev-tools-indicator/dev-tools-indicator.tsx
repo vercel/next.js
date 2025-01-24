@@ -91,7 +91,16 @@ function DevToolsPopover({
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
-  function select(index: number) {
+  function select(index: number | 'last') {
+    if (index === 'last') {
+      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+      if (all) {
+        const lastIndex = all.length - 1
+        select(lastIndex)
+      }
+      return
+    }
+
     const el = menuRef.current?.querySelector(
       `[data-index="${index}"]`
     ) as HTMLElement
@@ -117,11 +126,7 @@ function DevToolsPopover({
         select(0)
         break
       case 'End':
-        const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
-        if (all) {
-          const lastIndex = all.length - 1
-          select(lastIndex)
-        }
+        select('last')
         break
       default:
         break
@@ -133,11 +138,20 @@ function DevToolsPopover({
       return
     }
 
+    // Open with first item focused
     if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
       setIsMenuOpen(true)
       // Run on next tick, querying DOM
       setTimeout(() => {
         select(0)
+      })
+    }
+
+    // Open with last item focused
+    if (e.key === 'ArrowUp') {
+      setIsMenuOpen(true)
+      setTimeout(() => {
+        select('last')
       })
     }
   }
