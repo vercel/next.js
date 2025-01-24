@@ -27,7 +27,7 @@ pub struct TurboFn<'a> {
 
     output: Type,
     this: Option<Input>,
-    inputs: Vec<Input>,
+    exposed_inputs: Vec<Input>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
     /// Should this function use `TaskPersistence::LocalCells`?
@@ -75,7 +75,7 @@ impl TurboFn<'_> {
 
         let mut raw_inputs = orig_signature.inputs.iter();
         let mut this = None;
-        let mut inputs = Vec::with_capacity(raw_inputs.len());
+        let mut exposed_inputs = Vec::with_capacity(raw_inputs.len());
 
         if let Some(possibly_receiver) = raw_inputs.next() {
             match possibly_receiver {
@@ -218,7 +218,7 @@ impl TurboFn<'_> {
                             }
                             let ident = ident.ident.clone();
 
-                            inputs.push(Input {
+                            exposed_inputs.push(Input {
                                 ident,
                                 ty: (*typed.ty).clone(),
                             });
@@ -227,7 +227,7 @@ impl TurboFn<'_> {
                         // We can't support destructuring patterns (or other kinds of patterns).
                         let ident = Ident::new("arg1", typed.pat.span());
 
-                        inputs.push(Input {
+                        exposed_inputs.push(Input {
                             ident,
                             ty: (*typed.ty).clone(),
                         });
@@ -249,7 +249,7 @@ impl TurboFn<'_> {
                         Ident::new(&format!("arg{}", i + 2), typed.pat.span())
                     };
 
-                    inputs.push(Input {
+                    exposed_inputs.push(Input {
                         ident,
                         ty: (*typed.ty).clone(),
                     });
@@ -272,7 +272,7 @@ impl TurboFn<'_> {
             ident: orig_ident,
             output,
             this,
-            inputs,
+            exposed_inputs,
             operation: args.operation.is_some(),
             local: args.local.is_some(),
             inline_ident,
@@ -286,7 +286,7 @@ impl TurboFn<'_> {
             .this
             .as_ref()
             .into_iter()
-            .chain(self.inputs.iter())
+            .chain(self.exposed_inputs.iter())
             .map(|input| {
                 FnArg::Typed(PatType {
                     attrs: Vec::new(),
@@ -348,6 +348,15 @@ impl TurboFn<'_> {
             .orig_signature
             .inputs
             .iter()
+            .filter(|arg| {
+                let FnArg::Typed(pat_type) = arg else {
+                    return true;
+                };
+                let Pat::Ident(pat_id) = &*pat_type.pat else {
+                    return true;
+                };
+                inline_inputs_identifier_filter(&pat_id.ident)
+            })
             .enumerate()
             .map(|(idx, arg)| match arg {
                 FnArg::Receiver(_) => (arg.clone(), None),
@@ -470,12 +479,18 @@ impl TurboFn<'_> {
         &self.inline_ident
     }
 
-    fn input_idents(&self) -> impl Iterator<Item = &Ident> {
-        self.inputs.iter().map(|Input { ident, .. }| ident)
+    fn inline_input_idents(&self) -> impl Iterator<Item = &Ident> {
+        self.exposed_inputs
+            .iter()
+            .map(|Input { ident, .. }| ident)
+            .filter(|id| inline_inputs_identifier_filter(id))
     }
 
     pub fn input_types(&self) -> Vec<&Type> {
-        self.inputs.iter().map(|Input { ty, .. }| ty).collect()
+        self.exposed_inputs
+            .iter()
+            .map(|Input { ty, .. }| ty)
+            .collect()
     }
 
     pub fn persistence(&self) -> impl ToTokens {
@@ -557,7 +572,7 @@ impl TurboFn<'_> {
         let ident = &self.ident;
         let output = &self.output;
         let assertions = self.get_assertions();
-        let inputs = self.input_idents();
+        let inputs = self.inline_input_idents();
         let persistence = self.persistence_with_this();
         parse_quote! {
             {
@@ -582,7 +597,7 @@ impl TurboFn<'_> {
     /// given native function.
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let inputs = self.input_idents();
+        let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
         let mut block = if let Some(converted_this) = self.converted_this() {
             let persistence = self.persistence_with_this();
@@ -1094,4 +1109,9 @@ pub fn filter_inline_attributes<'a>(
         .into_iter()
         .filter(|attr| attr.path.get_ident().is_none_or(|id| id != "doc"))
         .collect()
+}
+
+pub fn inline_inputs_identifier_filter(arg_ident: &Ident) -> bool {
+    // filter out underscore-prefixed (unused) arguments, we don't need to cache these
+    !arg_ident.to_string().starts_with('_')
 }
