@@ -13,7 +13,7 @@ use swc_core::{
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{noop_pass, EsVersion, Pass},
+        ast::{fn_pass, noop_pass, EsVersion, Pass},
         parser::parse_file_as_module,
         visit::{fold_pass, visit_mut_pass},
     },
@@ -164,19 +164,29 @@ where
         .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
-    let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
-        Either::Left(styled_jsx::visitor::styled_jsx(
-            cm.clone(),
-            (*file.name).clone(),
-            styled_jsx::visitor::Config {
-                use_lightningcss: config.use_lightningcss,
-                browsers: target_browsers,
-            },
-            styled_jsx::visitor::NativeConfig { process_css: None },
-        ))
-    } else {
-        Either::Right(noop_pass())
-    };
+    let styled_jsx = fn_pass(move |program| {
+        if let Some(config) = opts.styled_jsx.to_option() {
+            program.mutate(styled_jsx::visitor::styled_jsx(
+                cm.clone(),
+                &file.name,
+                &styled_jsx::visitor::Config {
+                    use_lightningcss: config.use_lightningcss,
+                    browsers: target_browsers,
+                },
+                &styled_jsx::visitor::NativeConfig { process_css: None },
+            ))
+        }
+    });
+
+    let styled_components = fn_pass(move |program| match &opts.styled_components {
+        Some(config) => program.mutate(styled_components::styled_components(
+            &file.name,
+            file.src_hash,
+            &config,
+            NoopComments,
+        )),
+        None => (),
+    });
 
     (
         (
@@ -195,15 +205,7 @@ where
                 _ => Either::Right(noop_pass()),
             },
             styled_jsx,
-            match &opts.styled_components {
-                Some(config) => Either::Left(styled_components::styled_components(
-                    file.name.clone(),
-                    file.src_hash,
-                    config.clone(),
-                    NoopComments,
-                )),
-                None => Either::Right(noop_pass()),
-            },
+            styled_components,
             Optional::new(
                 crate::transforms::next_ssg::next_ssg(eliminated_packages),
                 !opts.disable_next_ssg,
