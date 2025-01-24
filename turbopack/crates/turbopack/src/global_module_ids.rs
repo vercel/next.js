@@ -124,7 +124,7 @@ fn finalize_module_ids(
             loop {
                 // If the id is already used, find the next available hash.
                 trimmed_hash = hash_xxh3_hash64((*hash, i)) % digit_mask;
-                if used_ids.contains_key(&trimmed_hash) {
+                if !used_ids.contains_key(&trimmed_hash) {
                     break;
                 }
                 i += 1;
