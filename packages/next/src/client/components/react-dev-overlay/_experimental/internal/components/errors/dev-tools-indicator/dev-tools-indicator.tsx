@@ -303,16 +303,14 @@ function MenuItem({
       data-variant={variant}
       data-selected={selected}
       onClick={click}
-      onMouseEnter={
-        isInteractive && index !== undefined
-          ? () => setSelectedIndex(index)
-          : undefined
-      }
-      onMouseLeave={
-        isInteractive && index !== undefined
-          ? () => setSelectedIndex(-1)
-          : undefined
-      }
+      // Needs `onMouseMove` instead of enter to work together
+      // with keyboard and mouse input
+      onMouseMove={() => {
+        if (isInteractive && index !== undefined && selectedIndex !== index) {
+          setSelectedIndex(index)
+        }
+      }}
+      onMouseLeave={() => setSelectedIndex(-1)}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {
           click()
