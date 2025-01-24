@@ -6,12 +6,12 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
-const captureOwnerStack = (React as any).captureOwnerStack
-  ? (React as any).captureOwnerStack
+const captureOwnerStack = React.captureOwnerStack
+  ? React.captureOwnerStack
   : () => ''
 
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
-  if (typeof (React as any).captureOwnerStack !== 'function') {
+  if (typeof React.captureOwnerStack !== 'function') {
     return err
   }
   const isErrorInstance = isError(err)
