@@ -296,7 +296,7 @@ impl InnerStorage {
 }
 
 pub struct Storage {
-    map: DashMap<TaskId, InnerStorage, BuildHasherDefault<FxHasher>>,
+    map: DashMap<TaskId, Box<InnerStorage>, BuildHasherDefault<FxHasher>>,
 }
 
 impl Storage {
@@ -315,7 +315,7 @@ impl Storage {
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
-            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(InnerStorage::new()),
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(InnerStorage::new())),
         };
         StorageWriteGuard {
             inner: inner.into(),
@@ -327,7 +327,7 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, InnerStorage::new);
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(InnerStorage::new()));
         (
             StorageWriteGuard { inner: a },
             StorageWriteGuard { inner: b },
@@ -336,7 +336,7 @@ impl Storage {
 }
 
 pub struct StorageWriteGuard<'a> {
-    inner: RefMut<'a, TaskId, InnerStorage>,
+    inner: RefMut<'a, TaskId, Box<InnerStorage>>,
 }
 
 impl Deref for StorageWriteGuard<'_> {
