@@ -17,7 +17,8 @@
     ],
     "CI approved": [
       { "type": "user", "pattern": "SukkaW" },
-      { "type": "user", "pattern": "vercel-release-bot" }
+      { "type": "user", "pattern": "vercel-release-bot" },
+      { "type": "user", "pattern": "raunofreiberg" }
     ],
     "created-by: Next.js team": [
       { "type": "user", "pattern": "acdlite" },
