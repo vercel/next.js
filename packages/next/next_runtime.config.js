@@ -1,11 +1,9 @@
-const webpack = require('webpack')
+const webpack = require('@rspack/core')
 const path = require('path')
-const TerserPlugin = require('terser-webpack-plugin')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
-const EvalSourceMapDevToolPlugin = require('./webpack-plugins/eval-source-map-dev-tool-plugin')
 const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
 
-function shouldIgnorePath(modulePath) {
+function shouldIgnorePath() {
   // For consumers, everything will be considered 3rd party dependency if they use
   // the bundles we produce here.
   // In other words, this is all library code and should therefore be ignored.
@@ -130,6 +128,11 @@ const bundleTypes = {
 module.exports = ({ dev, turbo, bundleType, experimental }) => {
   const externalHandler = ({ context, request, getResolve }, callback) => {
     ;(async () => {
+      if (request.match(/next[/\\]dist[/\\]compiled[/\\](babel|webpack)/)) {
+        callback(null, 'commonjs ' + request)
+        return
+      }
+
       if (request.endsWith('.external')) {
         const resolve = getResolve()
         const resolved = await resolve(context, request)
@@ -156,7 +159,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
   return {
     entry: bundleTypes[bundleType],
     target: 'node',
-    mode: 'production',
+    mode: dev ? 'development' : 'production',
     output: {
       path: path.join(__dirname, 'dist/compiled/next-server'),
       filename: `[name]${turbo ? '-turbo' : ''}${
@@ -164,36 +167,15 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-      ? // We'll use a fork in plugins
-        false
-      : 'source-map',
+    devtool: 'source-map',
     optimization: {
       moduleIds: 'named',
       minimize: true,
       concatenateModules: true,
-      minimizer: [
-        new TerserPlugin({
-          minify: TerserPlugin.swcMinify,
-          terserOptions: {
-            compress: {
-              dead_code: true,
-              // Zero means no limit.
-              passes: 0,
-            },
-            format: {
-              preamble: '',
-            },
-            mangle:
-              dev && !process.env.NEXT_SERVER_EVAL_SOURCE_MAPS ? false : true,
-          },
-        }),
-      ],
+      minimizer: [new webpack.SwcJsMinimizerRspackPlugin()],
     },
     plugins: [
-      process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-        ? new EvalSourceMapDevToolPlugin({ shouldIgnorePath })
-        : new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
+      new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
       new webpack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),

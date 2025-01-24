@@ -1,11 +1,11 @@
-const webpack = require('webpack')
+const rspack = require('@rspack/core')
 
 module.exports = function (task) {
   // eslint-disable-next-line require-yield
-  task.plugin('webpack', {}, function* (_, options) {
+  task.plugin('rspack', {}, function* (_, options) {
     options = options || {}
 
-    const compiler = webpack(options.config)
+    const compiler = rspack(options.config)
 
     if (options.watch) {
       return compiler.watch({}, (err, stats) => {
@@ -21,15 +21,15 @@ module.exports = function (task) {
       compiler.run((err, stats) => {
         if (err || stats.hasErrors()) {
           return this.emit('plugin_error', {
-            plugin: 'taskfile-webpack',
+            plugin: 'taskfile-rspack',
             error: err?.message ?? stats.toString(),
           })
         }
 
         if (stats.hasWarnings()) {
           this.emit('plugin_warning', {
-            plugin: 'taskfile-webpack',
-            warning: `webpack compiled ${options.name} with warnings:\n${stats.toString('errors-warnings')}`,
+            plugin: 'taskfile-rspack',
+            warning: `rspack compiled ${options.name} with warnings:\n${stats.toString('errors-warnings')}`,
           })
         }
 
