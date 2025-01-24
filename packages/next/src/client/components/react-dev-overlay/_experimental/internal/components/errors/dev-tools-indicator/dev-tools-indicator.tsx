@@ -1,7 +1,13 @@
 import type { Dispatch, SetStateAction } from 'react'
 import type { OverlayState } from '../../../../../shared'
 
-import { useState, useEffect, useRef, createContext, useContext } from 'react'
+import React, {
+  useState,
+  useEffect,
+  useRef,
+  createContext,
+  useContext,
+} from 'react'
 import { Toast } from '../../toast'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
@@ -57,6 +63,7 @@ interface C {
   closeMenu: () => void
   selectedIndex: number
   setSelectedIndex: Dispatch<SetStateAction<number>>
+  register: (node: HTMLDivElement) => void
 }
 
 const Context = createContext({} as C)
@@ -78,7 +85,6 @@ function DevToolsPopover({
   const menuRef = useRef<HTMLDivElement>(null)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
   const [isMenuOpen, setIsMenuOpen] = useState(false)
-  const [selectedIndex, setSelectedIndex] = useState(-1)
 
   const { mounted, rendered } = useDelayedRender(isMenuOpen, {
     // Intentionally no fade in, makes the UI feel more immediate
@@ -87,14 +93,15 @@ function DevToolsPopover({
     exitDelay: ANIMATE_OUT_DURATION_MS,
   })
 
+  const { selectedIndex, setSelectedIndex, listRef, register } =
+    useListNavigation()
+
   // Features to make the menu accessible
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
   function select(index: number) {
-    const el = menuRef.current?.querySelector(
-      `[data-index="${index}"]`
-    ) as HTMLElement
+    const el = listRef.current[index]
     if (el) {
       setSelectedIndex(index)
       el?.focus()
@@ -103,6 +110,7 @@ function DevToolsPopover({
 
   function onMenuKeydown(e: React.KeyboardEvent<HTMLDivElement>) {
     e.preventDefault()
+    e.stopPropagation()
 
     switch (e.key) {
       case 'ArrowDown':
@@ -117,7 +125,15 @@ function DevToolsPopover({
         select(0)
         break
       case 'End':
-        select(1)
+        const lastIndex = listRef.current.length - 1
+        select(lastIndex)
+        break
+      case 'Escape':
+        closeMenu()
+        break
+      case 'Enter':
+        const el = listRef.current[selectedIndex]
+        el?.click()
         break
       default:
         break
@@ -129,11 +145,22 @@ function DevToolsPopover({
       return
     }
 
+    // Open with first item focused on ArrowDown, or Enter or Space
     if (e.key === 'ArrowDown' || e.key === 'Enter' || e.key === ' ') {
       setIsMenuOpen(true)
       // Run on next tick, querying DOM
       setTimeout(() => {
         select(0)
+      })
+    }
+
+    // Open with last item focused on ArrowUp
+    if (e.key === 'ArrowUp') {
+      setIsMenuOpen(true)
+      const lastIndex = listRef.current.length - 1
+      // Run on next tick, querying DOM
+      setTimeout(() => {
+        select(lastIndex)
       })
     }
   }
@@ -201,6 +228,7 @@ function DevToolsPopover({
               closeMenu,
               selectedIndex,
               setSelectedIndex,
+              register,
             }}
           >
             <div className="inner">
@@ -259,7 +287,8 @@ function MenuItem({
 }) {
   const isInteractive =
     typeof onClick === 'function' || typeof href === 'string'
-  const { closeMenu, selectedIndex, setSelectedIndex } = useContext(Context)
+  const { closeMenu, selectedIndex, setSelectedIndex, register } =
+    useContext(Context)
   const selected = selectedIndex === index
 
   function click() {
@@ -274,7 +303,7 @@ function MenuItem({
 
   return (
     <div
-      data-index={index}
+      ref={isInteractive ? register : undefined}
       className="item"
       data-variant={variant}
       data-selected={selected}
@@ -354,6 +383,25 @@ function useFocusTrap(
 
 //////////////////////////////////////////////////////////////////////////////////////
 
+function useListNavigation() {
+  const [selectedIndex, setSelectedIndex] = useState(-1)
+  const listRef = useRef<Array<HTMLDivElement | null>>([])
+
+  function register(node: HTMLDivElement) {
+    if (listRef.current && !listRef.current.includes(node)) {
+      listRef.current.push(node)
+      return
+    }
+    if (node) {
+      listRef.current = [node]
+    }
+  }
+
+  return { selectedIndex, setSelectedIndex, listRef, register }
+}
+
+//////////////////////////////////////////////////////////////////////////////////////
+
 function useClickOutside(
   menuRef: React.RefObject<HTMLDivElement | null>,
   triggerRef: React.RefObject<HTMLButtonElement | null>,
@@ -386,19 +434,10 @@ function useClickOutside(
       }
     }
 
-    // Close popover when pressing escape
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        closeMenu()
-      }
-    }
-
     document.addEventListener('mousedown', handleClickOutside)
-    document.addEventListener('keydown', handleKeyDown)
 
     return () => {
       document.removeEventListener('mousedown', handleClickOutside)
-      document.removeEventListener('keydown', handleKeyDown)
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen])
