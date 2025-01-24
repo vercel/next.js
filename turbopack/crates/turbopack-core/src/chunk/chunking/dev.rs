@@ -49,6 +49,8 @@ pub async fn app_vendors_split(
             ..
         } = &item;
         if module.is_none() {
+            // This happens for async module loaders.
+            // We want them to be in a separate chunk.
             chunk_group_specific_chunk_items.push(item);
         } else if is_app_code(asset_ident) {
             app_chunk_items.push(item);

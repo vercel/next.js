@@ -180,7 +180,7 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
-    let mut traced_output_assets = traced_modules
+    let mut referenced_output_assets = traced_modules
         .into_iter()
         .map(|module| async move {
             Ok(ResolvedVc::upcast(
@@ -227,14 +227,9 @@ pub async fn make_chunk_group(
         .try_join()
         .await?;
 
-    for async_loader_chunk_item in async_loader_chunk_items {
-        chunk_items.push(async_loader_chunk_item);
-    }
-    for references in async_loader_references {
-        for reference in references {
-            traced_output_assets.push(*reference);
-        }
-    }
+    chunk_items.extend(async_loader_chunk_items);
+    referenced_output_assets.reserve(async_loader_references.iter().map(|r| r.len()).sum());
+    referenced_output_assets.extend(async_loader_references.into_iter().flatten());
 
     // Pass chunk items to chunking algorithm
     let chunks = make_chunks(
@@ -242,7 +237,7 @@ pub async fn make_chunk_group(
         *chunking_context,
         Vc::cell(chunk_items),
         "".into(),
-        Vc::cell(traced_output_assets),
+        Vc::cell(referenced_output_assets),
     )
     .await?
     .clone_value();
