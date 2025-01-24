@@ -1,0 +1,30 @@
+  x "dynamicParams" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.
+   ,-[input.js:5:1]
+ 4 | export const fetchCache = 'force-no-store'
+ 5 | export const revalidate = 1
+   :              ^^^^^^^^^^
+   `----
+  x "dynamic" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.
+   ,-[input.js:5:1]
+ 4 | export const fetchCache = 'force-no-store'
+ 5 | export const revalidate = 1
+   :              ^^^^^^^^^^
+   `----
+  x "fetchCache" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.
+   ,-[input.js:5:1]
+ 4 | export const fetchCache = 'force-no-store'
+ 5 | export const revalidate = 1
+   :              ^^^^^^^^^^
+   `----
+  x "runtime" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.
+   ,-[input.js:5:1]
+ 4 | export const fetchCache = 'force-no-store'
+ 5 | export const revalidate = 1
+   :              ^^^^^^^^^^
+   `----
+  x "revalidate" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.
+   ,-[input.js:5:1]
+ 4 | export const fetchCache = 'force-no-store'
+ 5 | export const revalidate = 1
+   :              ^^^^^^^^^^
+   `----

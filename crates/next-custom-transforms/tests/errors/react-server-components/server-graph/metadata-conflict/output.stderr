@@ -1,0 +1,8 @@
+  x "metadata" and "generateMetadata" cannot be exported at the same time, please keep one of them. Read more: https://nextjs.org/docs/app/api-reference/file-conventions/metadata
+  | 
+  | 
+   ,-[input.js:3:1]
+ 2 | 
+ 3 | export function generateMetadata() {}
+   :                 ^^^^^^^^^^^^^^^^
+   `----

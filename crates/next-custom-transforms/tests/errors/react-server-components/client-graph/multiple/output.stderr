@@ -1,0 +1,17 @@
+  x You are attempting to export "getServerSideProps" from a component marked with "use client", which is disallowed. Either remove the export, or the "use client" directive. Read more: https://
+  | nextjs.org/docs/app/api-reference/directives/use-client
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | export function getServerSideProps() {}
+   :                 ^^^^^^^^^^^^^^^^^^
+   `----
+  x "getServerSideProps" is not supported in app/. Read more: https://nextjs.org/docs/app/building-your-application/data-fetching
+  | 
+  | 
+   ,-[input.js:5:1]
+ 4 | 
+ 5 | export function getServerSideProps() {}
+   :                 ^^^^^^^^^^^^^^^^^^
+   `----
