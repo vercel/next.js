@@ -182,6 +182,11 @@ export interface ExperimentalTurboOptions {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   minify?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   */
+  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -228,6 +233,14 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface IncomingRequestLoggingConfig {
+  /**
+   * A regular expression array to match incoming requests that should not be logged.
+   * You can specify multiple patterns to match incoming requests that should not be logged.
+   */
+  ignore?: RegExp[]
+}
+
 export interface LoggingConfig {
   fetches?: {
     fullUrl?: boolean
@@ -237,6 +250,12 @@ export interface LoggingConfig {
      */
     hmrRefreshes?: boolean
   }
+
+  /**
+   * If set to false, incoming request logging is disabled.
+   * You can specify a pattern to match incoming requests that should not be logged.
+   */
+  incomingRequest?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {
@@ -588,6 +607,11 @@ export interface ExperimentalConfig {
    * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * Enables the use of the `"use cache"` directive.
+   */
+  useCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -986,6 +1010,9 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
+  /**
+   * Logging configuration. Set to `false` to disable logging.
+   */
   logging?: LoggingConfig | false
 
   /**
@@ -1215,6 +1242,7 @@ export const defaultConfig: NextConfig = {
     newDevOverlay: false,
     streamingMetadata: false,
     htmlLimitedBots: undefined,
+    useCache: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

@@ -184,6 +184,7 @@ import {
 } from '../resume-data-cache/resume-data-cache'
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
+import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -229,8 +230,7 @@ interface ParseRequestHeadersOptions {
   readonly isRoutePPREnabled: boolean
 }
 
-const flightDataPathMetadataKey = 'h'
-const flightDataPathViewportKey = 'v'
+const flightDataPathHeadKey = 'h'
 
 interface ParsedRequestHeaders {
   /**
@@ -315,18 +315,30 @@ function createNotFoundLoaderTree(loaderTree: LoaderTree): LoaderTree {
   ]
 }
 
-function createSuspenseyMetadata(
+function createDivergedMetadataComponents(
   Metadata: React.ComponentType<{}>,
   serveStreamingMetadata: boolean
-): React.ComponentType<{}> {
-  return () =>
-    serveStreamingMetadata ? (
-      <React.Suspense fallback={null}>
-        <Metadata />
-      </React.Suspense>
-    ) : (
-      <Metadata />
-    )
+): {
+  StaticMetadata: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}>
+} {
+  const EmptyMetadata = () => null
+  const StreamingMetadata: React.ComponentType<{}> = serveStreamingMetadata
+    ? () => (
+        <React.Suspense fallback={null}>
+          <Metadata />
+        </React.Suspense>
+      )
+    : EmptyMetadata
+
+  const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
+    ? EmptyMetadata
+    : Metadata
+
+  return {
+    StaticMetadata,
+    StreamingMetadata,
+  }
 }
 
 /**
@@ -484,14 +496,13 @@ async function generateDynamicRSCPayload(
         serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
       })
 
-    const MetadataComponent = createSuspenseyMetadata(() => {
-      return (
-        <React.Fragment key={flightDataPathMetadataKey}>
-          {/* Adding requestId as react key to make metadata remount for each render */}
+    const { StreamingMetadata, StaticMetadata } =
+      createDivergedMetadataComponents(() => {
+        return (
+          // Adding requestId as react key to make metadata remount for each render
           <MetadataTree key={requestId} />
-        </React.Fragment>
-      )
-    }, !!ctx.renderOpts.serveStreamingMetadata)
+        )
+      }, !!ctx.renderOpts.serveStreamingMetadata)
 
     flightData = (
       await walkTreeWithFlightRouterState({
@@ -501,11 +512,12 @@ async function generateDynamicRSCPayload(
         flightRouterState,
         // For flight, render metadata inside leaf page
         rscHead: (
-          <React.Fragment key={flightDataPathViewportKey}>
+          <React.Fragment key={flightDataPathHeadKey}>
             {/* noindex needs to be blocking */}
             <NonIndex ctx={ctx} />
             {/* Adding requestId as react key to make metadata remount for each render */}
             <ViewportTree key={requestId} />
+            <StaticMetadata />
           </React.Fragment>
         ),
         injectedCSS: new Set(),
@@ -515,7 +527,7 @@ async function generateDynamicRSCPayload(
         getViewportReady,
         getMetadataReady,
         preloadCallbacks,
-        MetadataComponent,
+        StreamingMetadata,
       })
     ).map((path) => path.slice(1)) // remove the '' (root) segment
   }
@@ -610,7 +622,7 @@ async function generateDynamicFlightRenderResult(
       ctx.clientReferenceManifest,
       ctx.workStore.route,
       requestStore
-    ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
+    )
   }
 
   // For app dir, use the bundled version of Flight server renderer (renderToReadableStream)
@@ -668,6 +680,9 @@ async function warmupDevRender(
   const renderController = new AbortController()
   const prerenderController = new AbortController()
   const cacheSignal = new CacheSignal()
+
+  // TODO(useCache): Should this be a PrerenderStorePPR if dynamicIO is not
+  // enabled?
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
@@ -790,14 +805,13 @@ async function getRSCPayload(
 
   const preloadCallbacks: PreloadCallbacks = []
 
-  const MetadataComponent = createSuspenseyMetadata(() => {
-    return (
-      <React.Fragment key={flightDataPathMetadataKey}>
-        {/* Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed */}
+  const { StreamingMetadata, StaticMetadata } =
+    createDivergedMetadataComponents(() => {
+      return (
+        // Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed
         <MetadataTree />
-      </React.Fragment>
-    )
-  }, !!ctx.renderOpts.serveStreamingMetadata)
+      )
+    }, !!ctx.renderOpts.serveStreamingMetadata)
 
   const seedData = await createComponentTree({
     ctx,
@@ -812,7 +826,7 @@ async function getRSCPayload(
     missingSlots,
     preloadCallbacks,
     authInterrupts: ctx.renderOpts.experimental.authInterrupts,
-    MetadataComponent,
+    StreamingMetadata,
   })
 
   // When the `vary` response header is present with `Next-URL`, that means there's a chance
@@ -822,10 +836,11 @@ async function getRSCPayload(
   const couldBeIntercepted =
     typeof varyHeader === 'string' && varyHeader.includes(NEXT_URL)
 
-  const initialHeadViewport = (
-    <React.Fragment key={flightDataPathViewportKey}>
+  const initialHead = (
+    <React.Fragment key={flightDataPathHeadKey}>
       <NonIndex ctx={ctx} />
       <ViewportTree key={ctx.requestId} />
+      <StaticMetadata />
     </React.Fragment>
   )
 
@@ -852,7 +867,7 @@ async function getRSCPayload(
       [
         initialTree,
         seedData,
-        [initialHeadViewport, null],
+        initialHead,
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],
@@ -915,24 +930,26 @@ async function getErrorRSCPayload(
     serveStreamingMetadata: !!ctx.renderOpts.serveStreamingMetadata,
   })
 
-  const ErrorMetadataComponent = createSuspenseyMetadata(
-    () => (
-      <React.Fragment key={flightDataPathMetadataKey}>
-        {/* Adding requestId as react key to make metadata remount for each render */}
-        <MetadataTree key={requestId} />
-      </React.Fragment>
-    ),
-    !!ctx.renderOpts.serveStreamingMetadata
-  )
+  const { StreamingMetadata, StaticMetadata } =
+    createDivergedMetadataComponents(
+      () => (
+        <React.Fragment key={flightDataPathHeadKey}>
+          {/* Adding requestId as react key to make metadata remount for each render */}
+          <MetadataTree key={requestId} />
+        </React.Fragment>
+      ),
+      !!ctx.renderOpts.serveStreamingMetadata
+    )
 
-  const initialHeadViewport = (
-    <React.Fragment key={flightDataPathViewportKey}>
+  const initialHead = (
+    <React.Fragment key={flightDataPathHeadKey}>
       <NonIndex ctx={ctx} />
       {/* Adding requestId as react key to make metadata remount for each render */}
       <ViewportTree key={requestId} />
       {process.env.NODE_ENV === 'development' && (
         <meta name="next-error" content="not-found" />
       )}
+      <StaticMetadata />
     </React.Fragment>
   )
 
@@ -953,7 +970,7 @@ async function getErrorRSCPayload(
     initialTree[0],
     <html id="__next_error__">
       <head>
-        <ErrorMetadataComponent />
+        <StreamingMetadata />
       </head>
       <body>
         {process.env.NODE_ENV !== 'production' && err ? (
@@ -985,7 +1002,7 @@ async function getErrorRSCPayload(
       [
         initialTree,
         seedData,
-        [initialHeadViewport, null],
+        initialHead,
         isPossiblyPartialHead,
       ] as FlightDataPath,
     ],
@@ -1735,6 +1752,7 @@ async function renderToStream(
   let reactServerResult: null | ReactServerResult = null
 
   const setHeader = res.setHeader.bind(res)
+  const appendHeader = res.appendHeader.bind(res)
 
   try {
     if (
@@ -1795,7 +1813,7 @@ async function renderToStream(
         clientReferenceManifest,
         workStore.route,
         requestStore
-      ).catch(resolveValidation) // avoid unhandled rejections and a forever hanging promise
+      )
 
       reactServerResult = new ReactServerResult(reactServerStream)
     } else {
@@ -1904,7 +1922,7 @@ async function renderToStream(
         nonce: ctx.nonce,
         onHeaders: (headers: Headers) => {
           headers.forEach((value, key) => {
-            setHeader(key, value)
+            appendHeader(key, value)
           })
         },
         maxHeadersLength: renderOpts.reactMaxHeadersLength,
@@ -2355,6 +2373,10 @@ async function spawnDynamicValidationInDev(
         clientReferenceManifest.clientModules,
         {
           onError: (err) => {
+            if (isUseCacheTimeoutError(err)) {
+              return err.digest
+            }
+
             if (
               finalServerController.signal.aborted &&
               isPrerenderInterruptedError(err)
@@ -2391,6 +2413,12 @@ async function spawnDynamicValidationInDev(
           {
             signal: finalClientController.signal,
             onError: (err, errorInfo) => {
+              if (isUseCacheTimeoutError(err)) {
+                dynamicValidation.dynamicErrors.push(err)
+
+                return
+              }
+
               if (
                 isPrerenderInterruptedError(err) ||
                 finalClientController.signal.aborted
@@ -2426,8 +2454,11 @@ async function spawnDynamicValidationInDev(
     ) {
       // we don't have a root because the abort errored in the root. We can just ignore this error
     } else {
-      // This error is something else and should bubble up
-      throw err
+      // If an error is thrown in the root before prerendering is aborted, we
+      // don't want to rethrow it here, otherwise this would lead to a hanging
+      // response and unhandled rejection. We also don't want to log it, because
+      // it's most likely already logged as part of the normal render. So we
+      // just fall through here, to make sure `resolveValidation` is called.
     }
   }
 
@@ -2567,13 +2598,24 @@ async function prerenderToStream(
     | null
     | ReactServerPrerenderResult
     | ServerPrerenderStreamResult = null
-  const setHeader = (name: string, value: string | string[]) => {
-    res.setHeader(name, value)
-
+  const setMetadataHeader = (name: string) => {
     metadata.headers ??= {}
     metadata.headers[name] = res.getHeader(name)
-
+  }
+  const setHeader = (name: string, value: string | string[]) => {
+    res.setHeader(name, value)
+    setMetadataHeader(name)
     return res
+  }
+  const appendHeader = (name: string, value: string | string[]) => {
+    if (Array.isArray(value)) {
+      value.forEach((item) => {
+        res.appendHeader(name, item)
+      })
+    } else {
+      res.appendHeader(name, value)
+    }
+    setMetadataHeader(name)
   }
 
   let prerenderStore: PrerenderStore | null = null
@@ -2923,7 +2965,7 @@ async function prerenderToStream(
                 },
                 onHeaders: (headers: Headers) => {
                   headers.forEach((value, key) => {
-                    setHeader(key, value)
+                    appendHeader(key, value)
                   })
                 },
                 maxHeadersLength: renderOpts.reactMaxHeadersLength,
@@ -2960,7 +3002,8 @@ async function prerenderToStream(
           flightData,
           finalRenderPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
 
         if (serverIsDynamic || clientIsDynamic) {
@@ -3439,7 +3482,8 @@ async function prerenderToStream(
           flightData,
           finalClientPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
 
         const getServerInsertedHTML = makeGetServerInsertedHTML({
@@ -3541,7 +3585,7 @@ async function prerenderToStream(
           onError: htmlRendererErrorHandler,
           onHeaders: (headers: Headers) => {
             headers.forEach((value, key) => {
-              setHeader(key, value)
+              appendHeader(key, value)
             })
           },
           maxHeadersLength: renderOpts.reactMaxHeadersLength,
@@ -3571,7 +3615,8 @@ async function prerenderToStream(
           flightData,
           ssrPrerenderStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
       }
 
@@ -3763,7 +3808,8 @@ async function prerenderToStream(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
       }
 
@@ -3927,7 +3973,8 @@ async function prerenderToStream(
           flightData,
           prerenderLegacyStore,
           ComponentMod,
-          renderOpts
+          renderOpts,
+          fallbackRouteParams
         )
       }
 
@@ -4068,7 +4115,8 @@ async function collectSegmentData(
   fullPageDataBuffer: Buffer,
   prerenderStore: PrerenderStore,
   ComponentMod: AppPageModule,
-  renderOpts: RenderOpts
+  renderOpts: RenderOpts,
+  fallbackRouteParams: FallbackRouteParams | null
 ): Promise<Map<string, Buffer> | undefined> {
   // Per-segment prefetch data
   //
@@ -4126,6 +4174,7 @@ async function collectSegmentData(
     fullPageDataBuffer,
     staleTime,
     clientReferenceManifest.clientModules as ManifestNode,
-    serverConsumerManifest
+    serverConsumerManifest,
+    fallbackRouteParams
   )
 }

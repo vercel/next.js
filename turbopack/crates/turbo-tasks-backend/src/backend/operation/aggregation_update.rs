@@ -22,9 +22,7 @@ use crate::{
     backend::{
         get_mut, get_mut_or_insert_with,
         operation::{invalidate::make_task_dirty, ExecuteContext, Operation, TaskGuard},
-        storage::{
-            count, get, get_many, iter_many, remove, update, update_count, update_ucount_and_get,
-        },
+        storage::{count, get, get_many, iter_many, remove, update, update_count},
         TaskDataCategory,
     },
     data::{
@@ -203,14 +201,6 @@ impl AggregatedDataUpdate {
             for collectible in collectibles {
                 collectibles_update.push((collectible, 1));
             }
-            collectibles_update.extend(iter_many!(
-                task,
-                Collectible {
-                    collectible
-                } count => {
-                    (collectible, *count)
-                }
-            ));
         }
         if let Some(dirty) = get!(task, Dirty) {
             dirty_container_count.update_with_dirty_state(dirty);
@@ -948,10 +938,7 @@ impl AggregationUpdateQueue {
 
                     // Add the same amount of upper edges
                     if update_count!(task, Upper { task: upper_id }, count) {
-                        if !upper_id.is_transient()
-                            && update_ucount_and_get!(task, PersistentUpperCount, 1)
-                                .is_power_of_two()
-                        {
+                        if count!(task, Upper).is_power_of_two() {
                             self.push_optimize_task(task_id);
                         }
                         // When this is a new inner node, update aggregated data and
@@ -1010,10 +997,6 @@ impl AggregationUpdateQueue {
                 Ordering::Greater => {
                     #[cfg(feature = "trace_aggregation_update")]
                     let _span = trace_span!("make follower").entered();
-
-                    if !upper_id.is_transient() {
-                        update_ucount_and_get!(task, PersistentUpperCount, -1);
-                    }
 
                     let upper_ids: Vec<_> = get_uppers(&upper);
 
@@ -1168,8 +1151,6 @@ impl AggregationUpdateQueue {
             keep_upper
         });
         if !upper_ids.is_empty() {
-            update_ucount_and_get!(follower, PersistentUpperCount, -persistent_uppers);
-
             let data = AggregatedDataUpdate::from_task(&mut follower).invert();
             let followers: Vec<_> = get_followers(&follower);
             drop(follower);
@@ -1266,10 +1247,6 @@ impl AggregationUpdateQueue {
                 Some(old - 1)
             });
             if remove_upper {
-                if !upper_id.is_transient() {
-                    update_ucount_and_get!(follower, PersistentUpperCount, -1);
-                }
-
                 let data = AggregatedDataUpdate::from_task(&mut follower).invert();
                 let followers: Vec<_> = get_followers(&follower);
                 drop(follower);
@@ -1423,8 +1400,7 @@ impl AggregationUpdateQueue {
             #[cfg(feature = "trace_aggregation_update")]
             let _span = trace_span!("new inner").entered();
             if !upper_ids.is_empty() {
-                let new_count =
-                    update_ucount_and_get!(follower, PersistentUpperCount, persistent_uppers);
+                let new_count = count!(follower, Upper);
                 if (new_count - persistent_uppers).next_power_of_two()
                     != new_count.next_power_of_two()
                 {
@@ -1554,10 +1530,7 @@ impl AggregationUpdateQueue {
             for &(follower_id, _) in followers_with_aggregation_number.iter() {
                 let mut follower = ctx.task(follower_id, TaskDataCategory::Meta);
                 if update_count!(follower, Upper { task: upper_id }, 1) {
-                    if !upper_id.is_transient()
-                        && update_ucount_and_get!(follower, PersistentUpperCount, 1)
-                            .is_power_of_two()
-                    {
+                    if !upper_id.is_transient() && count!(follower, Upper).is_power_of_two() {
                         self.push_optimize_task(follower_id);
                     }
 
@@ -1723,9 +1696,7 @@ impl AggregationUpdateQueue {
             drop(upper);
             let mut follower = ctx.task(new_follower_id, TaskDataCategory::Meta);
             if update_count!(follower, Upper { task: upper_id }, 1) {
-                if !upper_id.is_transient()
-                    && update_ucount_and_get!(follower, PersistentUpperCount, 1).is_power_of_two()
-                {
+                if !upper_id.is_transient() && count!(follower, Upper).is_power_of_two() {
                     self.push_optimize_task(new_follower_id);
                 }
                 // It's a new upper
@@ -1923,9 +1894,7 @@ impl AggregationUpdateQueue {
             }
             children_count
         };
-        let upper_count = get!(task, PersistentUpperCount)
-            .copied()
-            .unwrap_or_default() as usize;
+        let upper_count = count!(task, Upper);
         if upper_count <= 1
             || upper_count.saturating_sub(1) * follower_count
                 <= max(

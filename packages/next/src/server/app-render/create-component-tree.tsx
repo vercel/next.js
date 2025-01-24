@@ -36,7 +36,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  MetadataComponent: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -72,7 +72,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
-  MetadataComponent,
+  StreamingMetadata,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -86,7 +86,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
-  MetadataComponent: React.ComponentType<{}>
+  StreamingMetadata: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -395,7 +395,7 @@ async function createComponentTreeInternal({
   // Only render metadata on the actual SSR'd segment not the `default` segment,
   // as it's used as a placeholder for navigation.
   const metadata =
-    actualSegment !== DEFAULT_SEGMENT_KEY ? <MetadataComponent /> : undefined
+    actualSegment !== DEFAULT_SEGMENT_KEY ? <StreamingMetadata /> : undefined
 
   const notFoundElement = NotFound ? (
     <>
@@ -516,7 +516,7 @@ async function createComponentTreeInternal({
             missingSlots,
             preloadCallbacks,
             authInterrupts,
-            MetadataComponent,
+            StreamingMetadata,
           })
 
           childCacheNodeSeedData = seedData

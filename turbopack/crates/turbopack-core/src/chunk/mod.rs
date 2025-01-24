@@ -25,7 +25,7 @@ use turbo_tasks_hash::DeterministicHash;
 pub use self::{
     chunking_context::{
         ChunkGroupResult, ChunkGroupType, ChunkingConfig, ChunkingConfigs, ChunkingContext,
-        ChunkingContextExt, EntryChunkGroupResult, MinifyType,
+        ChunkingContextExt, EntryChunkGroupResult, MinifyType, SourceMapsType,
     },
     data::{ChunkData, ChunkDataOption, ChunksData},
     evaluate::{EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets},
@@ -75,7 +75,7 @@ impl ModuleId {
 pub struct ModuleIds(Vec<ResolvedVc<ModuleId>>);
 
 /// A [Module] that can be converted into a [Chunk].
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait ChunkableModule: Module + Asset {
     fn as_chunk_item(
         self: Vc<Self>,

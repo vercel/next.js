@@ -20,14 +20,40 @@ export interface RequestLoggingOptions {
   readonly requestDurationInMs: number
 }
 
+/**
+ * Returns true if the incoming request should be ignored for logging.
+ */
+export function ignoreLoggingIncomingRequest(
+  request: NodeNextRequest,
+  loggingConfig: LoggingConfig | undefined
+): boolean {
+  // If it's boolean use the boolean value
+  if (typeof loggingConfig?.incomingRequest === 'boolean') {
+    return !loggingConfig.incomingRequest
+  }
+
+  // Any of the value on the chain is falsy, will not ignore the request.
+  const ignore = loggingConfig?.incomingRequest?.ignore
+
+  // If ignore is not set, don't ignore anything
+  if (!ignore) {
+    return false
+  }
+
+  // If array of RegExp, ignore if any pattern matches
+  return ignore.some((pattern) => pattern.test(request.url))
+}
+
 export function logRequests(options: RequestLoggingOptions): void {
   const { request, response, loggingConfig, requestDurationInMs } = options
 
-  logIncomingRequest({
-    request,
-    requestDurationInMs,
-    statusCode: response.statusCode,
-  })
+  if (!ignoreLoggingIncomingRequest(request, loggingConfig)) {
+    logIncomingRequest({
+      request,
+      requestDurationInMs,
+      statusCode: response.statusCode,
+    })
+  }
 
   if (request.fetchMetrics) {
     for (const fetchMetric of request.fetchMetrics) {

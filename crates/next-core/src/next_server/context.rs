@@ -14,7 +14,7 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType},
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType, SourceMapsType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -533,10 +533,20 @@ pub async fn get_server_module_options_context(
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -978,6 +988,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1005,6 +1016,11 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    })
     .module_id_strategy(module_id_strategy)
     .file_tracing(next_mode.is_production());
 
@@ -1029,6 +1045,7 @@ pub async fn get_server_chunking_context(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1048,6 +1065,11 @@ pub async fn get_server_chunking_context(
         MinifyType::Minify
     } else {
         MinifyType::NoMinify
+    })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
     })
     .module_id_strategy(module_id_strategy)
     .file_tracing(next_mode.is_production());

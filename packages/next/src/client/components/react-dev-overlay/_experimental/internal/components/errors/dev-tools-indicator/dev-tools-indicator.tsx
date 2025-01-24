@@ -151,11 +151,15 @@ function DevToolsPopover({
 
   function closeMenu() {
     setIsMenuOpen(false)
-    setSelectedIndex(-1)
+    // Avoid flashing selected state
+    setTimeout(() => {
+      setSelectedIndex(-1)
+    }, ANIMATE_OUT_DURATION_MS)
   }
 
   return (
     <Toast
+      data-nextjs-toast
       style={{
         boxShadow: 'none',
         zIndex: 2147483647,
@@ -213,6 +217,7 @@ function DevToolsPopover({
               <MenuItem
                 label="Route"
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
+                data-nextjs-route-type={isStaticRoute ? 'static' : 'dynamic'}
               />
               {isTurbopack ? (
                 <MenuItem label="Turbopack" value="Enabled" />
@@ -249,6 +254,7 @@ function MenuItem({
   onClick,
   variant,
   href,
+  ...props
 }: {
   index?: number
   label: string
@@ -291,6 +297,7 @@ function MenuItem({
       }}
       role={isInteractive ? 'menuitem' : undefined}
       tabIndex={selected ? 0 : -1}
+      {...props}
     >
       <span className="label">{label}</span>
       <span className="value">{value}</span>

@@ -4,9 +4,9 @@ import { PHASE_DEVELOPMENT_SERVER } from 'next/constants'
 import { createDefineEnv, loadBindings } from 'next/dist/build/swc'
 import type {
   Diagnostics,
-  Entrypoints,
   Issue,
   Project,
+  RawEntrypoints,
   StyledString,
   TurbopackResult,
   UpdateInfo,
@@ -329,7 +329,7 @@ describe('next.rs api', () => {
     // eslint-disable-next-line no-loop-func
     it(`should allow to write ${name} to disk`, async () => {
       const entrypointsSubscribtion = project.entrypointsSubscribe()
-      const entrypoints: TurbopackResult<Entrypoints> = (
+      const entrypoints: TurbopackResult<RawEntrypoints> = (
         await entrypointsSubscribtion.next()
       ).value
       const route = entrypoints.routes.get(path)
@@ -465,7 +465,7 @@ describe('next.rs api', () => {
         console.log('start')
         await new Promise((r) => setTimeout(r, 1000))
         const entrypointsSubscribtion = project.entrypointsSubscribe()
-        const entrypoints: TurbopackResult<Entrypoints> = (
+        const entrypoints: TurbopackResult<RawEntrypoints> = (
           await entrypointsSubscribtion.next()
         ).value
         const route = entrypoints.routes.get(path)
@@ -608,7 +608,7 @@ describe('next.rs api', () => {
     console.log('start')
     await new Promise((r) => setTimeout(r, 1000))
     const entrypointsSubscribtion = project.entrypointsSubscribe()
-    const entrypoints: TurbopackResult<Entrypoints> = (
+    const entrypoints: TurbopackResult<RawEntrypoints> = (
       await entrypointsSubscribtion.next()
     ).value
     const route = entrypoints.routes.get('/')

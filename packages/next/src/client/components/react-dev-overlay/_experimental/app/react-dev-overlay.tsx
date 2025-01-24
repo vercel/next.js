@@ -2,7 +2,7 @@ import type { OverlayState } from '../../shared'
 import type { GlobalErrorComponent } from '../../../error-boundary'
 
 import { useState } from 'react'
-import { DevToolsErrorBoundary } from './error-boundary'
+import { DevOverlayErrorBoundary } from './error-boundary'
 import { ShadowPortal } from '../internal/components/shadow-portal'
 import { Base } from '../internal/styles/base'
 import { ComponentStyles } from '../internal/styles/component-styles'
@@ -24,34 +24,35 @@ export default function ReactDevOverlay({
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
   const { readyErrors } = useErrorHook({ errors: state.errors, isAppDir: true })
 
+  const devOverlay = (
+    <ShadowPortal>
+      <CssReset />
+      <Base />
+      <Colors />
+      <ComponentStyles />
+
+      <DevToolsIndicator
+        state={state}
+        readyErrorsLength={readyErrors.length}
+        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+      />
+
+      <ErrorOverlay
+        state={state}
+        readyErrors={readyErrors}
+        isErrorOverlayOpen={isErrorOverlayOpen}
+        setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+      />
+    </ShadowPortal>
+  )
+
   return (
-    <>
-      <DevToolsErrorBoundary
-        onError={setIsErrorOverlayOpen}
-        globalError={globalError}
-      >
-        {children}
-      </DevToolsErrorBoundary>
-
-      <ShadowPortal>
-        <CssReset />
-        <Base />
-        <Colors />
-        <ComponentStyles />
-
-        <DevToolsIndicator
-          state={state}
-          readyErrorsLength={readyErrors.length}
-          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-        />
-
-        <ErrorOverlay
-          state={state}
-          readyErrors={readyErrors}
-          isErrorOverlayOpen={isErrorOverlayOpen}
-          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-        />
-      </ShadowPortal>
-    </>
+    <DevOverlayErrorBoundary
+      devOverlay={devOverlay}
+      globalError={globalError}
+      onError={setIsErrorOverlayOpen}
+    >
+      {children}
+    </DevOverlayErrorBoundary>
   )
 }

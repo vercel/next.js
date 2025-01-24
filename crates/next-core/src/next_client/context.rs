@@ -14,7 +14,10 @@ use turbopack::{
 };
 use turbopack_browser::{react_refresh::assert_can_resolve_react_refresh, BrowserChunkingContext};
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType},
+    chunk::{
+        module_id_strategies::ModuleIdStrategy, ChunkingConfig, ChunkingContext, MinifyType,
+        SourceMapsType,
+    },
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReference, FreeVarReferences,
@@ -315,6 +318,19 @@ pub async fn get_client_module_options_context(
     let module_options_context = ModuleOptionsContext {
         ecmascript: EcmascriptOptionsContext {
             enable_typeof_window_inlining: Some(TypeofWindow::Object),
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
+            ..Default::default()
+        },
+        css: CssOptionsContext {
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         preset_env_versions: Some(env),
@@ -398,7 +414,8 @@ pub async fn get_client_chunking_context(
     environment: ResolvedVc<Environment>,
     mode: Vc<NextMode>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
-    turbo_minify: Vc<bool>,
+    minify: Vc<bool>,
+    source_maps: Vc<bool>,
 ) -> Result<Vc<Box<dyn ChunkingContext>>> {
     let next_mode = mode.await?;
     let mut builder = BrowserChunkingContext::builder(
@@ -415,10 +432,15 @@ pub async fn get_client_chunking_context(
         next_mode.runtime_type(),
     )
     .chunk_base_path(asset_prefix)
-    .minify_type(if *turbo_minify.await? {
+    .minify_type(if *minify.await? {
         MinifyType::Minify
     } else {
         MinifyType::NoMinify
+    })
+    .source_maps(if *source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
     })
     .asset_base_path(asset_prefix)
     .module_id_strategy(module_id_strategy);

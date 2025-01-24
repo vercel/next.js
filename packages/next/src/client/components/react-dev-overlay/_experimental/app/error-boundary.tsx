@@ -3,13 +3,14 @@ import type { GlobalErrorComponent } from '../../../error-boundary'
 import { PureComponent } from 'react'
 import { RuntimeErrorHandler } from '../../../errors/runtime-error-handler'
 
-type DevToolsErrorBoundaryProps = {
+type DevOverlayErrorBoundaryProps = {
   children: React.ReactNode
-  onError: (value: boolean) => void
+  devOverlay: React.ReactNode
   globalError: [GlobalErrorComponent, React.ReactNode]
+  onError: (value: boolean) => void
 }
 
-type DevToolsErrorBoundaryState = {
+type DevOverlayErrorBoundaryState = {
   isReactError: boolean
   reactError: unknown
 }
@@ -37,9 +38,9 @@ function ErroredHtml({
   )
 }
 
-export class DevToolsErrorBoundary extends PureComponent<
-  DevToolsErrorBoundaryProps,
-  DevToolsErrorBoundaryState
+export class DevOverlayErrorBoundary extends PureComponent<
+  DevOverlayErrorBoundaryProps,
+  DevOverlayErrorBoundaryState
 > {
   state = { isReactError: false, reactError: null }
 
@@ -61,13 +62,18 @@ export class DevToolsErrorBoundary extends PureComponent<
   }
 
   render() {
+    const { children, globalError, devOverlay } = this.props
+    const { isReactError, reactError } = this.state
+
     const fallback = (
-      <ErroredHtml
-        globalError={this.props.globalError}
-        error={this.state.reactError}
-      />
+      <ErroredHtml globalError={globalError} error={reactError} />
     )
 
-    return this.state.isReactError ? fallback : this.props.children
+    return (
+      <>
+        {isReactError ? fallback : children}
+        {devOverlay}
+      </>
+    )
   }
 }

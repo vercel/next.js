@@ -30,6 +30,7 @@ use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 pub use turbopack_core::condition;
 use turbopack_core::{
     asset::Asset,
+    chunk::SourceMapsType,
     compile_time_info::CompileTimeInfo,
     context::{AssetContext, ProcessResult},
     environment::{Environment, ExecutionEnvironment, NodeJsEnvironment},
@@ -62,7 +63,7 @@ use turbopack_static::StaticModuleAsset;
 use turbopack_wasm::{module_asset::WebAssemblyModuleAsset, source::WebAssemblySource};
 
 use self::transition::{Transition, TransitionOptions};
-use crate::module_options::CustomModuleType;
+use crate::module_options::{CssOptionsContext, CustomModuleType, EcmascriptOptionsContext};
 
 #[turbo_tasks::function]
 async fn apply_module_type(
@@ -230,17 +231,12 @@ async fn apply_module_type(
         }
         ModuleType::Json => ResolvedVc::upcast(JsonModuleAsset::new(*source).to_resolved().await?),
         ModuleType::Raw => ResolvedVc::upcast(RawModule::new(*source).to_resolved().await?),
-        ModuleType::CssGlobal => {
-            return Ok(module_asset_context.process(
-                *source,
-                Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-            ))
-        }
         ModuleType::CssModule => ResolvedVc::upcast(
             ModuleCssAsset::new(*source, Vc::upcast(module_asset_context))
                 .to_resolved()
                 .await?,
         ),
+
         ModuleType::Css { ty } => ResolvedVc::upcast(
             CssModuleAsset::new(
                 *source,
@@ -540,6 +536,9 @@ async fn process_default_internal(
         if rule.matches(source, &path_ref, &reference_type).await? {
             for effect in rule.effects() {
                 match effect {
+                    ModuleRuleEffect::Ignore => {
+                        return Ok(ProcessResult::Ignore.cell());
+                    }
                     ModuleRuleEffect::SourceTransforms(transforms) => {
                         current_source =
                             transforms.transform(*current_source).to_resolved().await?;
@@ -681,7 +680,18 @@ async fn externals_tracing_module_context(ty: ExternalType) -> Result<Vc<ModuleA
     Ok(ModuleAssetContext::new_without_replace_externals(
         Default::default(),
         CompileTimeInfo::builder(env).cell().await?,
-        ModuleOptionsContext::default().cell(),
+        ModuleOptionsContext {
+            ecmascript: EcmascriptOptionsContext {
+                source_maps: SourceMapsType::None,
+                ..Default::default()
+            },
+            css: CssOptionsContext {
+                source_maps: SourceMapsType::None,
+                ..Default::default()
+            },
+            ..Default::default()
+        }
+        .cell(),
         resolve_options.cell(),
         Vc::cell("externals-tracing".into()),
     ))

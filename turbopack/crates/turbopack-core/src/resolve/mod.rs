@@ -1583,6 +1583,7 @@ pub async fn url_resolve(
     .await
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 async fn handle_before_resolve_plugins(
     lookup_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,
@@ -1591,7 +1592,7 @@ async fn handle_before_resolve_plugins(
 ) -> Result<Option<Vc<ResolveResult>>> {
     for plugin in &options.await?.before_resolve_plugins {
         let condition = plugin.before_resolve_condition().resolve().await?;
-        if !condition.await?.matches(request).await? {
+        if !*condition.matches(request).await? {
             continue;
         }
 
@@ -1605,6 +1606,7 @@ async fn handle_before_resolve_plugins(
     Ok(None)
 }
 
+#[tracing::instrument(level = "trace", skip_all)]
 async fn handle_after_resolve_plugins(
     lookup_path: Vc<FileSystemPath>,
     reference_type: Value<ReferenceType>,

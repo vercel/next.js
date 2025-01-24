@@ -373,7 +373,6 @@ export async function exportPages(
     fetchCacheKeyPrefix,
     distDir,
     dir,
-    dynamicIO: Boolean(nextConfig.experimental.dynamicIO),
     // skip writing to disk in minimal mode for now, pending some
     // changes to better support it
     flushToDisk: !hasNextSupport,

@@ -440,6 +440,13 @@ function assignDefaults(
     }
   }
 
+  // TODO(jiwon): remove once we've made new UI default
+  // Enable reactOwnerStack when newDevOverlay is enabled to have
+  // better call stack output in the new UI.
+  if (result.experimental?.newDevOverlay) {
+    result.experimental.reactOwnerStack = true
+  }
+
   warnCustomizedOption(
     result,
     'experimental.esmExternals',
@@ -1008,6 +1015,13 @@ function assignDefaults(
   if (!result.experimental.htmlLimitedBots) {
     // @ts-expect-error: override the htmlLimitedBots with default string, type covert: RegExp -> string
     result.experimental.htmlLimitedBots = HTML_LIMITED_BOT_UA_RE_STRING
+  }
+
+  // "use cache" was originally implicitly enabled with the dynamicIO flag, so
+  // we transfer the value for dynamicIO to the explicit useCache flag to ensure
+  // backwards compatibility.
+  if (result.experimental.useCache === undefined) {
+    result.experimental.useCache = result.experimental.dynamicIO
   }
 
   return result

@@ -6,9 +6,10 @@ describe('app-dir - metadata-streaming', () => {
     files: __dirname,
   })
 
-  it('should load the page without delayed metadata', async () => {
+  it('should delay the metadata render to body', async () => {
     const $ = await next.render$('/')
-    expect($('title').length).toBe(0)
+    expect($('head title').length).toBe(0)
+    expect($('body title').length).toBe(1)
   })
 
   it('should still load viewport meta tags even if metadata is delayed', async () => {
@@ -77,20 +78,27 @@ describe('app-dir - metadata-streaming', () => {
 
     // each metadata should be inserted only once
 
-    expect(await browser.hasElementByCssSelector('body meta')).toBe(false)
-    expect(await browser.hasElementByCssSelector('body title')).toBe(false)
+    expect(await browser.hasElementByCssSelector('head title')).toBe(false)
+
+    // only charset and viewport are rendered in head
+    expect((await browser.elementsByCss('head meta')).length).toBe(2)
+    expect((await browser.elementsByCss('body title')).length).toBe(1)
+
+    // all metadata should be rendered in body
+    expect((await browser.elementsByCss('body meta')).length).toBe(9)
   })
 
   describe('dynamic api', () => {
-    it('should only load streaming metadata on client', async () => {
+    it('should render metadata to body', async () => {
       const $ = await next.render$('/dynamic-api')
-      expect($('title').length).toBe(0)
+      expect($('head title').length).toBe(0)
+      expect($('body title').length).toBe(1)
     })
 
     it('should load the metadata in browser', async () => {
       const browser = await next.browser('/dynamic-api')
       await retry(async () => {
-        expect(await browser.elementByCss('title').text()).toMatch(
+        expect(await browser.elementByCss('body title').text()).toMatch(
           /Dynamic api \d+/
         )
       })

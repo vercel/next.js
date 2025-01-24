@@ -150,6 +150,9 @@ pub struct EcmascriptOptions {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// If true, it reads a sourceMappingURL comment from the end of the file,
+    /// reads and generates a source map.
+    pub extract_source_map: bool,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input")]
@@ -251,7 +254,7 @@ pub struct EcmascriptModuleAsset {
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait EcmascriptParsable {
     fn failsafe_parse(self: Vc<Self>) -> Result<Vc<ParseResult>>;
 
@@ -260,14 +263,16 @@ pub trait EcmascriptParsable {
     fn ty(self: Vc<Self>) -> Result<Vc<EcmascriptModuleAssetType>>;
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait EcmascriptAnalyzable {
     fn analyze(self: Vc<Self>) -> Vc<AnalyzeEcmascriptModuleResult>;
 
     /// Generates module contents without an analysis pass. This is useful for
     /// transforming code that is not a module, e.g. runtime code.
-    async fn module_content_without_analysis(self: Vc<Self>)
-        -> Result<Vc<EcmascriptModuleContent>>;
+    async fn module_content_without_analysis(
+        self: Vc<Self>,
+        generate_source_map: Vc<bool>,
+    ) -> Result<Vc<EcmascriptModuleContent>>;
 
     async fn module_content(
         self: Vc<Self>,
@@ -366,6 +371,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
     #[turbo_tasks::function]
     async fn module_content_without_analysis(
         self: Vc<Self>,
+        generate_source_map: Vc<bool>,
     ) -> Result<Vc<EcmascriptModuleContent>> {
         let this = self.await?;
 
@@ -375,6 +381,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             parsed,
             self.ident(),
             this.options.await?.specified_module_type,
+            generate_source_map,
         ))
     }
 
@@ -390,6 +397,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
         let analyze = self.analyze().await?;
 
         let module_type_result = *self.determine_module_type().await?;
+        let generate_source_map = chunking_context.reference_module_source_maps(Vc::upcast(self));
 
         Ok(EcmascriptModuleContent::new(
             *parsed,
@@ -400,6 +408,7 @@ impl EcmascriptAnalyzable for EcmascriptModuleAsset {
             *analyze.references,
             *analyze.code_generation,
             *analyze.async_module,
+            generate_source_map,
             *analyze.source_map,
             *analyze.exports,
             async_module_info,
@@ -737,7 +746,8 @@ impl EcmascriptModuleContent {
         references: Vc<ModuleReferences>,
         code_generation: Vc<CodeGenerateables>,
         async_module: Vc<OptionAsyncModule>,
-        source_map: ResolvedVc<OptionSourceMap>,
+        generate_source_map: Vc<bool>,
+        original_source_map: ResolvedVc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
@@ -783,8 +793,15 @@ impl EcmascriptModuleContent {
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
 
-        gen_content_with_code_gens(parsed, ident, specified_module_type, &code_gens, source_map)
-            .await
+        gen_content_with_code_gens(
+            parsed,
+            ident,
+            specified_module_type,
+            &code_gens,
+            generate_source_map,
+            original_source_map,
+        )
+        .await
     }
 
     /// Creates a new [`Vc<EcmascriptModuleContent>`] without an analysis pass.
@@ -793,12 +810,14 @@ impl EcmascriptModuleContent {
         parsed: Vc<ParseResult>,
         ident: Vc<AssetIdent>,
         specified_module_type: SpecifiedModuleType,
+        generate_source_map: Vc<bool>,
     ) -> Result<Vc<Self>> {
         gen_content_with_code_gens(
             parsed.to_resolved().await?,
             ident.to_resolved().await?,
             specified_module_type,
             &[],
+            generate_source_map,
             OptionSourceMap::none().to_resolved().await?,
         )
         .await
@@ -810,7 +829,8 @@ async fn gen_content_with_code_gens(
     ident: ResolvedVc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
     code_gens: &[&CodeGeneration],
-    original_src_map: ResolvedVc<OptionSourceMap>,
+    generate_source_map: Vc<bool>,
+    original_source_map: ResolvedVc<OptionSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.await?;
 
@@ -840,21 +860,34 @@ async fn gen_content_with_code_gens(
 
             let comments = comments.consumable();
 
+            let generate_source_map = *generate_source_map.await?;
+
             let mut emitter = Emitter {
                 cfg: swc_core::ecma::codegen::Config::default(),
                 cm: source_map.clone(),
                 comments: Some(&comments),
-                wr: JsWriter::new(source_map.clone(), "\n", &mut bytes, Some(&mut mappings)),
+                wr: JsWriter::new(
+                    source_map.clone(),
+                    "\n",
+                    &mut bytes,
+                    generate_source_map.then_some(&mut mappings),
+                ),
             };
 
             emitter.emit_program(&program)?;
 
-            let srcmap = ParseResultSourceMap::new(source_map.clone(), mappings, original_src_map)
-                .resolved_cell();
+            let source_map = if generate_source_map {
+                let srcmap =
+                    ParseResultSourceMap::new(source_map.clone(), mappings, original_source_map)
+                        .resolved_cell();
+                Some(ResolvedVc::upcast(srcmap))
+            } else {
+                None
+            };
 
             Ok(EcmascriptModuleContent {
                 inner_code: bytes.into(),
-                source_map: Some(ResolvedVc::upcast(srcmap)),
+                source_map,
                 is_esm: eval_context.is_esm(specified_module_type),
             }
             .cell())

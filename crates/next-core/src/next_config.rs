@@ -524,6 +524,7 @@ pub struct ExperimentalTurboConfig {
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
+    pub source_maps: Option<bool>,
     pub unstable_persistent_caching: Option<bool>,
 }
 
@@ -665,6 +666,7 @@ pub struct ExperimentalConfig {
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
+    use_cache: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -1408,6 +1410,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_use_cache(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .use_cache
+                // "use cache" was originally implicitly enabled with the
+                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // explicit useCache flag to ensure backwards compatibility.
+                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         Vc::cell(
             self.experimental
@@ -1483,6 +1497,13 @@ impl NextConfig {
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
+
+        Ok(Vc::cell(minify.unwrap_or(true)))
     }
 }
 

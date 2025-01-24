@@ -18,12 +18,12 @@ use turbo_tasks::{
     apply_effects, ReadConsistency, ReadRef, ResolvedVc, TryJoinIterExt, TurboTasks, Value,
     ValueToString, Vc,
 };
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_env::DotenvProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileSystem,
     FileSystemPath,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::{EcmascriptInputTransform, TreeShakingMode},
     module_options::{
@@ -156,10 +156,16 @@ fn test(resource: PathBuf) {
 async fn run(resource: PathBuf) -> Result<()> {
     register();
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
     let task = tt.spawn_once_task(async move {
         let emit_op = run_inner_operation(resource.to_str().unwrap().into());
-        emit_op.connect().strongly_consistent().await?;
+        emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
         Ok(Vc::<()>::default())
@@ -173,8 +179,7 @@ async fn run(resource: PathBuf) -> Result<()> {
 #[turbo_tasks::function(operation)]
 async fn run_inner_operation(resource: RcStr) -> Result<()> {
     let out_op = run_test_operation(resource);
-    let out_vc = out_op.connect();
-    let _ = out_vc.resolve_strongly_consistent().await?;
+    let out_vc = out_op.resolve_strongly_consistent().await?;
     let captured_issues = out_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues

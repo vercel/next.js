@@ -81,7 +81,6 @@ export async function loadStaticPaths({
   await createIncrementalCache({
     dir,
     distDir,
-    dynamicIO: false,
     cacheHandler,
     cacheHandlers,
     requestHeaders,

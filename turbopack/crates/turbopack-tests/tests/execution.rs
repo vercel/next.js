@@ -15,13 +15,13 @@ use turbo_tasks::{
     apply_effects, debug::ValueDebugFormat, fxindexmap, trace::TraceRawVcs, Completion,
     NonLocalValue, OperationVc, ResolvedVc, TryJoinIterExt, TurboTasks, Value, Vc,
 };
+use turbo_tasks_backend::{noop_backing_storage, BackendOptions, TurboTasksBackend};
 use turbo_tasks_bytes::stream::SingleValue;
 use turbo_tasks_env::CommandLineProcessEnv;
 use turbo_tasks_fs::{
     json::parse_json_with_source_context, util::sys_to_unix, DiskFileSystem, FileContent,
     FileSystem, FileSystemEntryType, FileSystemPath,
 };
-use turbo_tasks_memory::MemoryBackend;
 use turbopack::{
     ecmascript::TreeShakingMode,
     module_options::{EcmascriptOptionsContext, ModuleOptionsContext, TypescriptTransformOptions},
@@ -168,11 +168,17 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         std::fs::remove_dir_all(&output_path)?;
     }
 
-    let tt = TurboTasks::new(MemoryBackend::default());
+    let tt = TurboTasks::new(TurboTasksBackend::new(
+        BackendOptions {
+            storage_mode: None,
+            ..Default::default()
+        },
+        noop_backing_storage(),
+    ));
     tt.run_once(async move {
         let emit_op =
             run_inner_operation(resource.to_str().unwrap().into(), Value::new(snapshot_mode));
-        let result = emit_op.connect().strongly_consistent().await?;
+        let result = emit_op.read_strongly_consistent().await?;
         apply_effects(emit_op).await?;
 
         Ok(result.clone_value())
@@ -452,12 +458,12 @@ async fn run_test_operation(prepared_test: ResolvedVc<PreparedTest>) -> Result<V
 #[turbo_tasks::function]
 async fn snapshot_issues(
     prepared_test: Vc<PreparedTest>,
-    run_result: OperationVc<RunTestResult>,
+    run_result_op: OperationVc<RunTestResult>,
 ) -> Result<Vc<()>> {
     let PreparedTest { path, .. } = *prepared_test.await?;
-    let _ = run_result.connect().resolve_strongly_consistent().await;
+    let _ = run_result_op.resolve_strongly_consistent().await;
 
-    let captured_issues = run_result.peek_issues_with_path().await?;
+    let captured_issues = run_result_op.peek_issues_with_path().await?;
 
     let plain_issues = captured_issues
         .iter_with_shortest_path()

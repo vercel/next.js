@@ -3,7 +3,7 @@
  */
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    useCache: true,
     cacheLife: {
       frequent: {
         stale: 19,

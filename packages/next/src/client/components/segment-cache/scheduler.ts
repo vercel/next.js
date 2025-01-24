@@ -84,6 +84,14 @@ export type PrefetchTask = {
   priority: PrefetchPriority
 
   /**
+   * The phase of the task. Tasks are split into multiple phases so that their
+   * priority can be adjusted based on what kind of work they're doing.
+   * Concretely, prefetching the route tree is higher priority than prefetching
+   * segment data.
+   */
+  phase: PrefetchPhase
+
+  /**
    * Temporary state for tracking the currently running task. This is currently
    * used to track whether a task deferred some work to run background at
    * priority, but we might need it for additional state in the future.
@@ -149,6 +157,16 @@ export const enum PrefetchPriority {
   Background = 0,
 }
 
+/**
+ * Prefetch tasks are processed in two phases: first the route tree is fetched,
+ * then the segments. We use this to priortize tasks that have not yet fetched
+ * the route tree.
+ */
+const enum PrefetchPhase {
+  RouteTree = 1,
+  Segments = 0,
+}
+
 export type PrefetchSubtaskResult<T> = {
   /**
    * A promise that resolves when the network connection is closed.
@@ -190,6 +208,7 @@ export function schedulePrefetchTask(
     key,
     treeAtTimeOfPrefetch,
     priority,
+    phase: PrefetchPhase.RouteTree,
     hasBackgroundWork: false,
     includeDynamicData,
     sortId: sortIdCounter++,
@@ -359,7 +378,12 @@ function processQueueInMicrotask() {
         task = heapPeek(taskHeap)
         continue
       case PrefetchTaskExitStatus.Done:
-        if (hasBackgroundWork) {
+        if (task.phase === PrefetchPhase.RouteTree) {
+          // Finished prefetching the route tree. Proceed to prefetching
+          // the segments.
+          task.phase = PrefetchPhase.Segments
+          heapResift(taskHeap, task)
+        } else if (hasBackgroundWork) {
           // The task spawned additional background work. Reschedule the task
           // at background priority.
           task.priority = PrefetchPriority.Background
@@ -446,6 +470,10 @@ function pingRootRouteTree(
       return PrefetchTaskExitStatus.Done
     }
     case EntryStatus.Fulfilled: {
+      if (task.phase !== PrefetchPhase.Segments) {
+        // Do not prefetch segment data until we've entered the segment phase.
+        return PrefetchTaskExitStatus.Done
+      }
       // Recursively fill in the segment tree.
       if (!hasNetworkBandwidth()) {
         // Stop prefetching segments until there's more bandwidth.
@@ -513,7 +541,7 @@ function pingPPRRouteTree(
   tree: RouteTree
 ): PrefetchTaskExitStatus.InProgress | PrefetchTaskExitStatus.Done {
   const segment = readOrCreateSegmentCacheEntry(now, route, tree.key)
-  pingPerSegment(now, task, route, segment, task.key, tree.key, tree.token)
+  pingPerSegment(now, task, route, segment, task.key, tree.key)
   if (tree.slots !== null) {
     if (!hasNetworkBandwidth()) {
       // Stop prefetching segments until there's more bandwidth.
@@ -842,16 +870,8 @@ function pingPerSegment(
   route: FulfilledRouteCacheEntry,
   segment: SegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKey: string,
-  accessToken: string | null
+  segmentKey: string
 ): void {
-  if (accessToken === null) {
-    // We don't have an access token for this segment, which means we can't
-    // do a per-segment prefetch. This happens when the route tree was
-    // returned by a dynamic server response. Or if the server has decided
-    // not to grant access to this segment.
-    return
-  }
   switch (segment.status) {
     case EntryStatus.Empty:
       // Upgrade to Pending so we know there's already a request in progress
@@ -860,8 +880,7 @@ function pingPerSegment(
           route,
           upgradeToPendingSegment(segment, FetchStrategy.PPR),
           routeKey,
-          segmentKey,
-          accessToken
+          segmentKey
         )
       )
       break
@@ -887,8 +906,7 @@ function pingPerSegment(
               segment,
               route,
               routeKey,
-              segmentKey,
-              accessToken
+              segmentKey
             )
           }
           break
@@ -916,14 +934,7 @@ function pingPerSegment(
           // Because a rejected segment will definitely prevent the segment (and
           // all of its children) from rendering, we perform this revalidation
           // immediately instead of deferring it to a background task.
-          pingPPRSegmentRevalidation(
-            now,
-            segment,
-            route,
-            routeKey,
-            segmentKey,
-            accessToken
-          )
+          pingPPRSegmentRevalidation(now, segment, route, routeKey, segmentKey)
           break
         default:
           segment.fetchStrategy satisfies never
@@ -947,8 +958,7 @@ function pingPPRSegmentRevalidation(
   currentSegment: SegmentCacheEntry,
   route: FulfilledRouteCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKey: string,
-  accessToken: string | null
+  segmentKey: string
 ): void {
   const revalidatingSegment = readOrCreateRevalidatingSegmentEntry(
     now,
@@ -965,8 +975,7 @@ function pingPPRSegmentRevalidation(
             route,
             upgradeToPendingSegment(revalidatingSegment, FetchStrategy.PPR),
             routeKey,
-            segmentKey,
-            accessToken
+            segmentKey
           )
         )
       )
@@ -1077,8 +1086,15 @@ function compareQueuePriority(a: PrefetchTask, b: PrefetchTask) {
     return priorityDiff
   }
 
-  // sortId is an incrementing counter assigned to prefetches. We want to
-  // process the newest prefetches first.
+  // If the priority is the same, check which phase the prefetch is in — is it
+  // prefetching the route tree, or the segments? Route trees are prioritized.
+  const phaseDiff = b.phase - a.phase
+  if (phaseDiff !== 0) {
+    return phaseDiff
+  }
+
+  // Finally, check the insertion order. `sortId` is an incrementing counter
+  // assigned to prefetches. We want to process the newest prefetches first.
   return b.sortId - a.sortId
 }
 

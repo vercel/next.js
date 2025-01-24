@@ -793,10 +793,19 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await session.assertHasRedbox()
 
     const stack = await getStackFramesContent(browser)
-    expect(stack).toMatchInlineSnapshot(`
-     "at Array.map ()
-     at Page (pages/index.js (2:13))"
-    `)
+    if (process.env.TURBOPACK) {
+      expect(stack).toMatchInlineSnapshot(`
+       "at <unknown> (pages/index.js (3:11))
+       at Array.map ()
+       at Page (pages/index.js (2:13))"
+      `)
+    } else {
+      expect(stack).toMatchInlineSnapshot(`
+       "at eval (pages/index.js (3:11))
+       at Array.map ()
+       at Page (pages/index.js (2:13))"
+      `)
+    }
   })
 
   test('should collapse nodejs internal stack frames from stack trace', async () => {
@@ -824,9 +833,10 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox %s', () => {
     await session.assertHasRedbox()
 
     const stack = await getStackFramesContent(browser)
-    expect(stack).toMatchInlineSnapshot(
-      `"at getServerSideProps (pages/index.js (8:3))"`
-    )
+    expect(stack).toMatchInlineSnapshot(`
+     "at createURL (pages/index.js (4:3))
+     at getServerSideProps (pages/index.js (8:3))"
+    `)
 
     await toggleCollapseCallStackFrames(browser)
     const stackCollapsed = await getStackFramesContent(browser)

@@ -314,7 +314,6 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         imgOptTimeoutInSeconds: z.number().int().optional(),
         imgOptMaxInputPixels: z.number().int().optional(),
         imgOptSequentialRead: z.boolean().optional().nullable(),
-        internal_disableSyncDynamicAPIWarnings: z.boolean().optional(),
         isrFlushToDisk: z.boolean().optional(),
         largePageDataBytes: z.number().optional(),
         linkNoTouchStart: z.boolean().optional(),
@@ -408,6 +407,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
             memoryLimit: z.number().optional(),
             moduleIdStrategy: z.enum(['named', 'deterministic']).optional(),
             minify: z.boolean().optional(),
+            sourceMaps: z.boolean().optional(),
           })
           .optional(),
         optimizePackageImports: z.array(z.string()).optional(),
@@ -443,6 +443,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         newDevOverlay: z.boolean().optional(),
         streamingMetadata: z.boolean().optional(),
         htmlLimitedBots: z.instanceof(RegExp).optional(),
+        useCache: z.boolean().optional(),
       })
       .optional(),
     exportPathMap: z
@@ -558,6 +559,14 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               fullUrl: z.boolean().optional(),
               hmrRefreshes: z.boolean().optional(),
             })
+            .optional(),
+          incomingRequest: z
+            .union([
+              z.boolean(),
+              z.object({
+                ignore: z.array(z.instanceof(RegExp)),
+              }),
+            ])
             .optional(),
         }),
         z.literal(false),

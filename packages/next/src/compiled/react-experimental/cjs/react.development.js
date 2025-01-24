@@ -661,6 +661,7 @@
         A: null,
         T: null,
         S: null,
+        V: null,
         actQueue: null,
         isBatchingLegacy: !1,
         didScheduleLegacyUpdate: !1,
@@ -1166,6 +1167,13 @@
     exports.unstable_Activity = REACT_OFFSCREEN_TYPE;
     exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
     exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
+    exports.unstable_addTransitionType = function (type) {
+      var pendingTransitionTypes = ReactSharedInternals.V;
+      null === pendingTransitionTypes
+        ? (ReactSharedInternals.V = [type])
+        : -1 === pendingTransitionTypes.indexOf(type) &&
+          pendingTransitionTypes.push(type);
+    };
     exports.unstable_getCacheForType = function (resourceType) {
       var dispatcher = ReactSharedInternals.A;
       return dispatcher
@@ -1249,7 +1257,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-experimental-5b51a2b9-20250116";
+    exports.version = "19.1.0-experimental-9b62ee71-20250122";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

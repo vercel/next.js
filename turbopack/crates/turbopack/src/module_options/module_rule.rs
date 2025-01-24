@@ -73,6 +73,7 @@ pub enum ModuleRuleEffect {
         append: ResolvedVc<EcmascriptInputTransforms>,
     },
     SourceTransforms(ResolvedVc<SourceTransforms>),
+    Ignore,
 }
 
 #[turbo_tasks::value(serialization = "auto_for_input", shared)]
@@ -99,7 +100,6 @@ pub enum ModuleType {
     },
     Json,
     Raw,
-    CssGlobal,
     CssModule,
     Css {
         ty: CssModuleAssetType,
