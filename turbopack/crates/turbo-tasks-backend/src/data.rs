@@ -8,7 +8,10 @@ use turbo_tasks::{
     CellId, KeyValuePair, SessionId, TaskId, TraitTypeId, TypedSharedReference, ValueTypeId,
 };
 
-use crate::backend::TaskDataCategory;
+use crate::{
+    backend::TaskDataCategory,
+    data_storage::{AutoMapStorage, OptionStorage, Storage},
+};
 
 // this traits are needed for the transient variants of `CachedDataItem`
 // transient variants are never cloned or compared
@@ -694,6 +697,7 @@ pub enum CachedDataUpdate {
 
 #[cfg(test)]
 mod tests {
+
     #[test]
     fn test_sizes() {
         assert_eq!(std::mem::size_of::<super::CachedDataItem>(), 40);
