@@ -9546,5 +9546,5 @@
         'The server used "renderToString" which does not support Suspense. If you intended for this Suspense boundary to render the fallback content on the server consider throwing an Error somewhere within the Suspense boundary. If you intended to have the server wait for the suspended component please switch to "renderToPipeableStream" which supports Suspense on the server'
       );
     };
-    exports.version = "19.1.0-experimental-9b62ee71-20250122";
+    exports.version = "19.1.0-experimental-ae9017ce-20250122";
   })();
