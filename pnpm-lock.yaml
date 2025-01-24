@@ -1005,6 +1005,9 @@ importers:
       '@playwright/test':
         specifier: 1.41.2
         version: 1.41.2
+      '@rspack/core':
+        specifier: 1.2.2
+        version: 1.2.2(@swc/helpers@0.5.15)
       '@storybook/addon-essentials':
         specifier: ^8.4.7
         version: 8.4.7(@types/react@19.0.8)(storybook@8.4.7(prettier@3.3.3))
@@ -1025,7 +1028,7 @@ importers:
         version: 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react-webpack5':
         specifier: ^8.4.7
-        version: 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+        version: 8.4.7(@rspack/core@1.2.2(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/test':
         specifier: ^8.4.7
         version: 8.4.7(storybook@8.4.7(prettier@3.3.3))
@@ -1409,7 +1412,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 15.0.0
-        version: 15.0.0(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
+        version: 15.0.0(@rspack/core@1.2.2(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -4528,6 +4531,21 @@ packages:
       '@types/react': 19.0.8
       react: 19.1.0-canary-de1eaa26-20250124
 
+  '@module-federation/error-codes@0.8.4':
+    resolution: {integrity: sha512-55LYmrDdKb4jt+qr8qE8U3al62ZANp3FhfVaNPOaAmdTh0jHdD8M3yf5HKFlr5xVkVO4eV/F/J2NCfpbh+pEXQ==}
+
+  '@module-federation/runtime-tools@0.8.4':
+    resolution: {integrity: sha512-fjVOsItJ1u5YY6E9FnS56UDwZgqEQUrWFnouRiPtK123LUuqUI9FH4redZoKWlE1PB0ir1Z3tnqy8eFYzPO38Q==}
+
+  '@module-federation/runtime@0.8.4':
+    resolution: {integrity: sha512-yZeZ7z2Rx4gv/0E97oLTF3V6N25vglmwXGgoeju/W2YjsFvWzVtCDI7zRRb0mJhU6+jmSM8jP1DeQGbea/AiZQ==}
+
+  '@module-federation/sdk@0.8.4':
+    resolution: {integrity: sha512-waABomIjg/5m1rPDBWYG4KUhS5r7OUUY7S+avpaVIY/tkPWB3ibRDKy2dNLLAMaLKq0u+B1qIdEp4NIWkqhqpg==}
+
+  '@module-federation/webpack-bundler-runtime@0.8.4':
+    resolution: {integrity: sha512-HggROJhvHPUX7uqBD/XlajGygMNM1DG0+4OAkk8MBQe4a18QzrRNzZt6XQbRTSG4OaEoyRWhQHvYD3Yps405tQ==}
+
   '@mswjs/cookies@1.1.0':
     resolution: {integrity: sha512-0ZcCVQxifZmhwNBoQIrystCb+2sWBY2Zw8lpfJBPCHGCA/HWqehITeCRVIv4VMy8MPlaHo2w2pTHFV2pFfqKPw==}
     engines: {node: '>=18'}
@@ -4908,6 +4926,70 @@ packages:
   '@rollup/pluginutils@4.2.1':
     resolution: {integrity: sha512-iKnFXr7NkdZAIHiIWE+BX5ULi/ucVFYWD6TbAV+rZctiRTY2PL6tsIKhoIOaoskiWAkgu+VsbXgUVDNLHf+InQ==}
     engines: {node: '>= 8.0.0'}
+
+  '@rspack/binding-darwin-arm64@1.2.2':
+    resolution: {integrity: sha512-h23F8zEkXWhwMeScm0ZnN78Zh7hCDalxIWsm7bBS0eKadnlegUDwwCF8WE+8NjWr7bRzv0p3QBWlS5ufkcL4eA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@rspack/binding-darwin-x64@1.2.2':
+    resolution: {integrity: sha512-vG5s7FkEvwrGLfksyDRHwKAHUkhZt1zHZZXJQn4gZKjTBonje8ezdc7IFlDiWpC4S+oBYp73nDWkUzkGRbSdcQ==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@rspack/binding-linux-arm64-gnu@1.2.2':
+    resolution: {integrity: sha512-VykY/kiYOzO8E1nYzfJ9+gQEHxb5B6lt5wa8M6xFi5B6jEGU+OsaGskmAZB9/GFImeFDHxDPvhUalI4R9p8O2Q==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@rspack/binding-linux-arm64-musl@1.2.2':
+    resolution: {integrity: sha512-Z5vAC4wGfXi8XXZ6hs8Q06TYjr3zHf819HB4DI5i4C1eQTeKdZSyoFD0NHFG23bP4NWJffp8KhmoObcy9jBT5Q==}
+    cpu: [arm64]
+    os: [linux]
+
+  '@rspack/binding-linux-x64-gnu@1.2.2':
+    resolution: {integrity: sha512-o3pDaL+cH5EeRbDE9gZcdZpBgp5iXvYZBBhe8vZQllYgI4zN5MJEuleV7WplG3UwTXlgZg3Kht4RORSOPn96vg==}
+    cpu: [x64]
+    os: [linux]
+
+  '@rspack/binding-linux-x64-musl@1.2.2':
+    resolution: {integrity: sha512-RE3e0xe4DdchHssttKzryDwjLkbrNk/4H59TkkWeGYJcLw41tmcOZVFQUOwKLUvXWVyif/vjvV/w1SMlqB4wQg==}
+    cpu: [x64]
+    os: [linux]
+
+  '@rspack/binding-win32-arm64-msvc@1.2.2':
+    resolution: {integrity: sha512-R+PKBYn6uzTaDdVqTHvjqiJPBr5ZHg1wg5UmFDLNH9OklzVFyQh1JInSdJRb7lzfzTRz6bEkkwUFBPQK/CGScw==}
+    cpu: [arm64]
+    os: [win32]
+
+  '@rspack/binding-win32-ia32-msvc@1.2.2':
+    resolution: {integrity: sha512-dBqz3sRAGZ2f31FgzKLDvIRfq2haRP3X3XVCT0PsiMcvt7QJng+26aYYMy2THatd/nM8IwExYeitHWeiMBoruw==}
+    cpu: [ia32]
+    os: [win32]
+
+  '@rspack/binding-win32-x64-msvc@1.2.2':
+    resolution: {integrity: sha512-eeAvaN831KG553cMSHkVldyk6YQn4ujgRHov6r1wtREq7CD3/ka9LMkJUepCN85K7XtwYT0N4KpFIQyf5GTGoA==}
+    cpu: [x64]
+    os: [win32]
+
+  '@rspack/binding@1.2.2':
+    resolution: {integrity: sha512-GCZwpGFYlLTdJ2soPLwjw9z4LSZ+GdpbHNfBt3Cm/f/bAF8n6mZc7dHUqN893RFh7MPU17HNEL3fMw7XR+6pHg==}
+
+  '@rspack/core@1.2.2':
+    resolution: {integrity: sha512-EeHAmY65Uj62hSbUKesbrcWGE7jfUI887RD03G++Gj8jS4WPHEu1TFODXNOXg6pa7zyIvs2BK0Bm16Kwz8AEaQ==}
+    engines: {node: '>=16.0.0'}
+    peerDependencies:
+      '@rspack/tracing': ^1.x
+      '@swc/helpers': '>=0.5.1'
+    peerDependenciesMeta:
+      '@rspack/tracing':
+        optional: true
+      '@swc/helpers':
+        optional: true
+
+  '@rspack/lite-tapable@1.0.1':
+    resolution: {integrity: sha512-VynGOEsVw2s8TAlLf/uESfrgfrq2+rcXB1muPJYBWbsm1Oa6r5qVQhjA5ggM6z/coYPrsVMgovl3Ff7Q7OCp1w==}
+    engines: {node: '>=16.0.0'}
 
   '@rtsao/scc@1.1.0':
     resolution: {integrity: sha512-zt6OdqaDoOnJ1ZYsCYGt9YmWzDXl4vQdKTyJev62gFhRGKdx7mcT54V9KIjg+d2wi9EXsPvAPKe7i7WjfVWB8g==}
@@ -10299,6 +10381,10 @@ packages:
 
   isomorphic-fetch@2.2.1:
     resolution: {integrity: sha512-9c4TNAKYXM5PRyVcwUZrF3W09nQ+sO7+jydgs4ZGW9dhsLG2VOlISJABombdQqQRXCwuYG3sYV/puGf5rp0qmA==}
+
+  isomorphic-rslog@0.0.6:
+    resolution: {integrity: sha512-HM0q6XqQ93psDlqvuViNs/Ea3hAyGDkIdVAHlrEocjjAwGrs1fZ+EdQjS9eUPacnYB7Y8SoDdSY3H8p3ce205A==}
+    engines: {node: '>=14.17.6'}
 
   isomorphic-unfetch@3.0.0:
     resolution: {integrity: sha512-V0tmJSYfkKokZ5mgl0cmfQMTb7MLHsBMngTkbLY0eXvKqiVRRoZP04Ly+KhKrJfKtzC9E6Pp15Jo+bwh7Vi2XQ==}
@@ -19813,6 +19899,27 @@ snapshots:
       '@types/react': 19.0.8
       react: 19.1.0-canary-de1eaa26-20250124
 
+  '@module-federation/error-codes@0.8.4': {}
+
+  '@module-federation/runtime-tools@0.8.4':
+    dependencies:
+      '@module-federation/runtime': 0.8.4
+      '@module-federation/webpack-bundler-runtime': 0.8.4
+
+  '@module-federation/runtime@0.8.4':
+    dependencies:
+      '@module-federation/error-codes': 0.8.4
+      '@module-federation/sdk': 0.8.4
+
+  '@module-federation/sdk@0.8.4':
+    dependencies:
+      isomorphic-rslog: 0.0.6
+
+  '@module-federation/webpack-bundler-runtime@0.8.4':
+    dependencies:
+      '@module-federation/runtime': 0.8.4
+      '@module-federation/sdk': 0.8.4
+
   '@mswjs/cookies@1.1.0': {}
 
   '@mswjs/interceptors@0.23.0':
@@ -20322,6 +20429,56 @@ snapshots:
       estree-walker: 2.0.2
       picomatch: 2.3.1
 
+  '@rspack/binding-darwin-arm64@1.2.2':
+    optional: true
+
+  '@rspack/binding-darwin-x64@1.2.2':
+    optional: true
+
+  '@rspack/binding-linux-arm64-gnu@1.2.2':
+    optional: true
+
+  '@rspack/binding-linux-arm64-musl@1.2.2':
+    optional: true
+
+  '@rspack/binding-linux-x64-gnu@1.2.2':
+    optional: true
+
+  '@rspack/binding-linux-x64-musl@1.2.2':
+    optional: true
+
+  '@rspack/binding-win32-arm64-msvc@1.2.2':
+    optional: true
+
+  '@rspack/binding-win32-ia32-msvc@1.2.2':
+    optional: true
+
+  '@rspack/binding-win32-x64-msvc@1.2.2':
+    optional: true
+
+  '@rspack/binding@1.2.2':
+    optionalDependencies:
+      '@rspack/binding-darwin-arm64': 1.2.2
+      '@rspack/binding-darwin-x64': 1.2.2
+      '@rspack/binding-linux-arm64-gnu': 1.2.2
+      '@rspack/binding-linux-arm64-musl': 1.2.2
+      '@rspack/binding-linux-x64-gnu': 1.2.2
+      '@rspack/binding-linux-x64-musl': 1.2.2
+      '@rspack/binding-win32-arm64-msvc': 1.2.2
+      '@rspack/binding-win32-ia32-msvc': 1.2.2
+      '@rspack/binding-win32-x64-msvc': 1.2.2
+
+  '@rspack/core@1.2.2(@swc/helpers@0.5.15)':
+    dependencies:
+      '@module-federation/runtime-tools': 0.8.4
+      '@rspack/binding': 1.2.2
+      '@rspack/lite-tapable': 1.0.1
+      caniuse-lite: 1.0.30001579
+    optionalDependencies:
+      '@swc/helpers': 0.5.15
+
+  '@rspack/lite-tapable@1.0.1': {}
+
   '@rtsao/scc@1.1.0': {}
 
   '@rushstack/eslint-patch@1.10.4': {}
@@ -20468,7 +20625,7 @@ snapshots:
       react: 19.1.0-canary-de1eaa26-20250124
       react-dom: 19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124)
 
-  '@storybook/builder-webpack5@8.4.7(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
+  '@storybook/builder-webpack5@8.4.7(@rspack/core@1.2.2(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
       '@storybook/core-webpack': 8.4.7(storybook@8.4.7(prettier@3.3.3))
       '@types/node': 20.17.6
@@ -20477,10 +20634,10 @@ snapshots:
       case-sensitive-paths-webpack-plugin: 2.4.0
       cjs-module-lexer: 1.4.1
       constants-browserify: 1.0.0
-      css-loader: 6.11.0(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
+      css-loader: 6.11.0(@rspack/core@1.2.2(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       es-module-lexer: 1.5.4
       fork-ts-checker-webpack-plugin: 8.0.0(typescript@5.7.2)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
-      html-webpack-plugin: 5.6.3(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
+      html-webpack-plugin: 5.6.3(@rspack/core@1.2.2(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       magic-string: 0.30.17
       path-browserify: 1.0.1
       process: 0.11.10
@@ -20612,9 +20769,9 @@ snapshots:
       react-dom: 19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124)
       storybook: 8.4.7(prettier@3.3.3)
 
-  '@storybook/react-webpack5@8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
+  '@storybook/react-webpack5@8.4.7(@rspack/core@1.2.2(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
-      '@storybook/builder-webpack5': 8.4.7(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+      '@storybook/builder-webpack5': 8.4.7(@rspack/core@1.2.2(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/preset-react-webpack': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@types/node': 20.17.6
@@ -23401,7 +23558,7 @@ snapshots:
       postcss: 8.4.31
       postcss-selector-parser: 6.0.11
 
-  css-loader@6.11.0(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
+  css-loader@6.11.0(@rspack/core@1.2.2(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.49)
       postcss: 8.4.49
@@ -23412,6 +23569,7 @@ snapshots:
       postcss-value-parser: 4.2.0
       semver: 7.6.3
     optionalDependencies:
+      '@rspack/core': 1.2.2(@swc/helpers@0.5.15)
       webpack: 5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)
 
   css-prefers-color-scheme@6.0.3(postcss@8.4.31):
@@ -26283,7 +26441,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  html-webpack-plugin@5.6.3(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
+  html-webpack-plugin@5.6.3(@rspack/core@1.2.2(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
@@ -26291,6 +26449,7 @@ snapshots:
       pretty-error: 4.0.0
       tapable: 2.2.1
     optionalDependencies:
+      '@rspack/core': 1.2.2(@swc/helpers@0.5.15)
       webpack: 5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)
 
   htmlparser2@3.10.1:
@@ -26952,6 +27111,8 @@ snapshots:
     dependencies:
       node-fetch: 1.7.3
       whatwg-fetch: 3.0.0
+
+  isomorphic-rslog@0.0.6: {}
 
   isomorphic-unfetch@3.0.0(encoding@0.1.13):
     dependencies:
@@ -31962,10 +32123,11 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@15.0.0(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
+  sass-loader@15.0.0(@rspack/core@1.2.2(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
+      '@rspack/core': 1.2.2(@swc/helpers@0.5.15)
       sass: 1.77.8
       webpack: 5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)
 
