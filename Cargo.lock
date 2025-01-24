@@ -6887,9 +6887,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "styled_components"
-version = "0.98.1"
+version = "0.98.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54a858b16946e8b2e2d18a4888edf06d7cef3de0e59a60ad2f93ceb62ff7a43f"
+checksum = "358eebb96614cbe52a1bd2c2afee17a791351e409d9cb1ccc9b5adcb7eedc6bc"
 dependencies = [
  "Inflector",
  "once_cell",
