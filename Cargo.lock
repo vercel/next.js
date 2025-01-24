@@ -4243,9 +4243,9 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.70.1"
+version = "0.71.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7d7ecfbafc7a6aa66370d235e8e094f75f6b421a322236b5842c408c34a8219"
+checksum = "c162b3d0bd2d79bc3764d47f472d66237bc2c4614ef4a4ba63d9a79a7aafcf03"
 dependencies = [
  "convert_case",
  "handlebars",
@@ -6888,9 +6888,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "styled_components"
-version = "0.98.2"
+version = "0.99.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "358eebb96614cbe52a1bd2c2afee17a791351e409d9cb1ccc9b5adcb7eedc6bc"
+checksum = "4d34cadaadd2b145e0d19340ee7226b233ec214b4ae47d8d225c18b8671748fe"
 dependencies = [
  "Inflector",
  "once_cell",
@@ -6906,9 +6906,9 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.75.2"
+version = "0.76.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c1f6e318858ba16a2ad6b70a60c3c81266096602faf1839c20c6c060bd707bf2"
+checksum = "e4f3904ed82f85537fb9041f8609d24fc4be4b9be9457db0de24303e0b1d50ab"
 dependencies = [
  "anyhow",
  "lightningcss",
