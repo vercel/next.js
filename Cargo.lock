@@ -4531,6 +4531,7 @@ dependencies = [
  "either",
  "fxhash",
  "hex",
+ "indexmap 2.5.0",
  "indoc",
  "lazy_static",
  "modularize_imports",
