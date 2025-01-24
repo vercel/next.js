@@ -4,6 +4,7 @@ use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, Val
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     chunk::{MinifyType, SourceMapsType},
+    compile_time_info::CompileTimeInfo,
     condition::ContextCondition,
     environment::Environment,
     resolve::options::ImportMapping,
@@ -110,6 +111,13 @@ pub struct JsxTransformOptions {
 }
 
 #[turbo_tasks::value(shared)]
+#[derive(Clone, Debug)]
+pub struct ExternalsTracingOptions {
+    pub tracing_root: ResolvedVc<FileSystemPath>,
+    pub compile_time_info: ResolvedVc<CompileTimeInfo>,
+}
+
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
@@ -133,7 +141,7 @@ pub struct ModuleOptionsContext {
     ///
     /// The filepath is the directory from which the bundled files will require the externals at
     /// runtime.
-    pub enable_externals_tracing: Option<ResolvedVc<FileSystemPath>>,
+    pub enable_externals_tracing: Option<ResolvedVc<ExternalsTracingOptions>>,
 
     /// Custom rules to be applied after all default rules.
     pub module_rules: Vec<ModuleRule>,

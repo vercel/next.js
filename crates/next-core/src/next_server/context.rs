@@ -7,14 +7,15 @@ use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
-        CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
-        ModuleRule, TypeofWindow, TypescriptTransformOptions,
+        CssOptionsContext, EcmascriptOptionsContext, ExternalsTracingOptions, JsxTransformOptions,
+        ModuleOptionsContext, ModuleRule, TypeofWindow, TypescriptTransformOptions,
     },
     resolve_options_context::ResolveOptionsContext,
     transition::Transition,
 };
 use turbopack_core::{
     chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType, SourceMapsType},
+    compile_time_defines,
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
@@ -395,6 +396,26 @@ pub async fn get_server_compile_time_info(
 }
 
 #[turbo_tasks::function]
+pub async fn get_tracing_compile_time_info() -> Result<Vc<CompileTimeInfo>> {
+    CompileTimeInfo::builder(
+        Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
+            NodeJsEnvironment::default().resolved_cell(),
+        )))
+        .to_resolved()
+        .await?,
+    )
+    .defines(
+        compile_time_defines!(
+            process.env.TURBOPACK = true,
+            process.env.NODE_ENV = "production",
+        )
+        .resolved_cell(),
+    )
+    .cell()
+    .await
+}
+
+#[turbo_tasks::function]
 pub async fn get_server_module_options_context(
     project_path: ResolvedVc<FileSystemPath>,
     execution_context: ResolvedVc<ExecutionContext>,
@@ -552,7 +573,13 @@ pub async fn get_server_module_options_context(
         tree_shaking_mode: tree_shaking_mode_for_user_code,
         side_effect_free_packages: next_config.optimize_package_imports().await?.clone_value(),
         enable_externals_tracing: if next_mode.is_production() {
-            Some(project_path)
+            Some(
+                ExternalsTracingOptions {
+                    tracing_root: project_path,
+                    compile_time_info: get_tracing_compile_time_info().to_resolved().await?,
+                }
+                .resolved_cell(),
+            )
         } else {
             None
         },
