@@ -759,22 +759,20 @@ impl ReactServerComponentValidator {
 
             let mut collect_invalid_export = |export_name: &str, span: &Span| match export_name {
                 "getServerSideProps" | "getStaticProps" => {
-                    possibly_invalid_exports.insert(
-                        export_name.to_string(),
-                        (InvalidExportKind::General, span.clone()),
-                    );
+                    possibly_invalid_exports
+                        .insert(export_name.to_string(), (InvalidExportKind::General, *span));
                 }
                 "generateMetadata" | "metadata" => {
                     possibly_invalid_exports.insert(
                         export_name.to_string(),
-                        (InvalidExportKind::Metadata, span.clone()),
+                        (InvalidExportKind::Metadata, *span),
                     );
                 }
                 "dynamicParams" | "dynamic" | "fetchCache" | "runtime" | "revalidate" => {
                     if self.dynamic_io_enabled {
                         possibly_invalid_exports.insert(
                             export_name.to_string(),
-                            (InvalidExportKind::DynamicIoSegment, span.clone()),
+                            (InvalidExportKind::DynamicIoSegment, *span),
                         );
                     }
                 }
@@ -821,7 +819,7 @@ impl ReactServerComponentValidator {
                             &self.app_dir,
                             &self.filepath,
                             RSCErrorKind::NextRscErrIncompatibleDynamicIoSegment(
-                                span.clone(),
+                                *span,
                                 export_name.clone(),
                             ),
                         );
@@ -836,7 +834,7 @@ impl ReactServerComponentValidator {
                                 &self.filepath,
                                 RSCErrorKind::NextRscErrClientMetadataExport((
                                     export_name.clone(),
-                                    span.clone(),
+                                    *span,
                                 )),
                             );
                         }
@@ -847,7 +845,7 @@ impl ReactServerComponentValidator {
                         report_error(
                             &self.app_dir,
                             &self.filepath,
-                            RSCErrorKind::NextRscErrInvalidApi((export_name.clone(), span.clone())),
+                            RSCErrorKind::NextRscErrInvalidApi((export_name.clone(), *span)),
                         );
                     }
                 }
@@ -862,10 +860,7 @@ impl ReactServerComponentValidator {
                     report_error(
                         &self.app_dir,
                         &self.filepath,
-                        RSCErrorKind::NextRscErrConflictMetadataExport((
-                            span1.clone(),
-                            span2.clone(),
-                        )),
+                        RSCErrorKind::NextRscErrConflictMetadataExport((*span1, *span2)),
                     );
                 }
             }
