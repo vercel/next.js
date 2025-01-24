@@ -94,6 +94,7 @@ fn react_server_components_errors(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
     let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let dynamic_io_enabled = input.iter().any(|s| s.to_str() == Some("dynamic-io"));
+    let use_cache_enabled = input.iter().any(|s| s.to_str() == Some("use-cache"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -103,6 +104,7 @@ fn react_server_components_errors(input: PathBuf) {
                 Config::WithOptions(Options {
                     is_react_server_layer,
                     dynamic_io_enabled,
+                    use_cache_enabled,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -154,6 +156,7 @@ fn react_server_actions_errors(input: PathBuf) {
                     Config::WithOptions(Options {
                         is_react_server_layer,
                         dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                     }),
                     tr.comments.as_ref().clone(),
                     None,
@@ -213,6 +216,7 @@ fn use_cache_not_allowed(input: PathBuf) {
                     Config::WithOptions(Options {
                         is_react_server_layer: true,
                         dynamic_io_enabled: false,
+                        use_cache_enabled: false,
                     }),
                     tr.comments.as_ref().clone(),
                     None,

@@ -1,4 +1,10 @@
-use std::{collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
+use std::{
+    collections::HashMap,
+    fmt::{self, Display},
+    path::PathBuf,
+    rc::Rc,
+    sync::Arc,
+};
 
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
@@ -45,6 +51,7 @@ impl Config {
 pub struct Options {
     pub is_react_server_layer: bool,
     pub dynamic_io_enabled: bool,
+    pub use_cache_enabled: bool,
 }
 
 /// A visitor that transforms given module to use module proxy if it's a React
@@ -54,6 +61,7 @@ pub struct Options {
 struct ReactServerComponents<C: Comments> {
     is_react_server_layer: bool,
     dynamic_io_enabled: bool,
+    use_cache_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     comments: C,
@@ -80,13 +88,28 @@ enum RSCErrorKind {
     NextRscErrInvalidApi((String, Span)),
     NextRscErrDeprecatedApi((String, String, Span)),
     NextSsrDynamicFalseNotAllowed(Span),
-    NextRscErrIncompatibleDynamicIoSegment(Span, String),
+    NextRscErrIncompatibleRouteSegmentConfig(Span, String, NextConfigProperty),
+}
+
+#[derive(Clone, Debug)]
+enum NextConfigProperty {
+    DynamicIo,
+    UseCache,
+}
+
+impl Display for NextConfigProperty {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            NextConfigProperty::DynamicIo => write!(f, "experimental.dynamicIO"),
+            NextConfigProperty::UseCache => write!(f, "experimental.useCache"),
+        }
+    }
 }
 
 enum InvalidExportKind {
     General,
     Metadata,
-    DynamicIoSegment,
+    RouteSegmentConfig(NextConfigProperty),
 }
 
 impl<C: Comments> VisitMut for ReactServerComponents<C> {
@@ -97,6 +120,7 @@ impl<C: Comments> VisitMut for ReactServerComponents<C> {
         let mut validator = ReactServerComponentValidator::new(
             self.is_react_server_layer,
             self.dynamic_io_enabled,
+            self.use_cache_enabled,
             self.filepath.clone(),
             self.app_dir.clone(),
         );
@@ -318,8 +342,8 @@ fn report_error(app_dir: &Option<PathBuf>, filepath: &str, error_kind: RSCErrorK
                 .to_string(),
             vec![span],
         ),
-        RSCErrorKind::NextRscErrIncompatibleDynamicIoSegment(span, segment) => (
-            format!("Route segment config \"{}\" is not compatible with `nextConfig.experimental.dynamicIO`. Please remove it.", segment),
+        RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(span, segment, property) => (
+            format!("Route segment config \"{}\" is not compatible with `nextConfig.{}`. Please remove it.", segment, property),
             vec![span],
         ),
     };
@@ -516,6 +540,7 @@ fn collect_top_level_directives_and_imports(
 struct ReactServerComponentValidator {
     is_react_server_layer: bool,
     dynamic_io_enabled: bool,
+    use_cache_enabled: bool,
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
@@ -534,12 +559,14 @@ impl ReactServerComponentValidator {
     pub fn new(
         is_react_server_layer: bool,
         dynamic_io_enabled: bool,
+        use_cache_enabled: bool,
         filename: String,
         app_dir: Option<PathBuf>,
     ) -> Self {
         Self {
             is_react_server_layer,
             dynamic_io_enabled,
+            use_cache_enabled,
             filepath: filename,
             app_dir,
             directive_import_collection: None,
@@ -769,11 +796,39 @@ impl ReactServerComponentValidator {
                             (InvalidExportKind::Metadata, *span),
                         );
                     }
-                    "dynamicParams" | "dynamic" | "fetchCache" | "runtime" | "revalidate" => {
+                    "runtime" => {
                         if self.dynamic_io_enabled {
                             possibly_invalid_exports.insert(
                                 export_name.to_string(),
-                                (InvalidExportKind::DynamicIoSegment, *span),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::DynamicIo,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        } else if self.use_cache_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.to_string(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::UseCache,
+                                    ),
+                                    *span,
+                                ),
+                            );
+                        }
+                    }
+                    "dynamicParams" | "dynamic" | "fetchCache" | "revalidate" => {
+                        if self.dynamic_io_enabled {
+                            possibly_invalid_exports.insert(
+                                export_name.to_string(),
+                                (
+                                    InvalidExportKind::RouteSegmentConfig(
+                                        NextConfigProperty::DynamicIo,
+                                    ),
+                                    *span,
+                                ),
                             );
                         }
                     }
@@ -815,13 +870,14 @@ impl ReactServerComponentValidator {
 
             for (export_name, (kind, span)) in &possibly_invalid_exports {
                 match kind {
-                    InvalidExportKind::DynamicIoSegment => {
+                    InvalidExportKind::RouteSegmentConfig(property) => {
                         report_error(
                             &self.app_dir,
                             &self.filepath,
-                            RSCErrorKind::NextRscErrIncompatibleDynamicIoSegment(
+                            RSCErrorKind::NextRscErrIncompatibleRouteSegmentConfig(
                                 *span,
                                 export_name.clone(),
+                                property.clone(),
                             ),
                         );
                     }
@@ -985,11 +1041,21 @@ pub fn server_components_assert(
         Config::WithOptions(x) => x.dynamic_io_enabled,
         _ => false,
     };
+    let use_cache_enabled: bool = match &config {
+        Config::WithOptions(x) => x.use_cache_enabled,
+        _ => false,
+    };
     let filename = match filename {
         FileName::Custom(path) => format!("<{path}>"),
         _ => filename.to_string(),
     };
-    ReactServerComponentValidator::new(is_react_server_layer, dynamic_io_enabled, filename, app_dir)
+    ReactServerComponentValidator::new(
+        is_react_server_layer,
+        dynamic_io_enabled,
+        use_cache_enabled,
+        filename,
+        app_dir,
+    )
 }
 
 /// Runs react server component transform for the module proxy, as well as
@@ -1008,9 +1074,14 @@ pub fn server_components<C: Comments>(
         Config::WithOptions(x) => x.dynamic_io_enabled,
         _ => false,
     };
+    let use_cache_enabled: bool = match &config {
+        Config::WithOptions(x) => x.use_cache_enabled,
+        _ => false,
+    };
     visit_mut_pass(ReactServerComponents {
         is_react_server_layer,
         dynamic_io_enabled,
+        use_cache_enabled,
         comments,
         filepath: match &*filename {
             FileName::Custom(path) => format!("<{path}>"),
