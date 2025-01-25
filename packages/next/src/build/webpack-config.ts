@@ -495,7 +495,12 @@ export default async function getBaseWebpackConfig(
 
           // rspack specific options
           pnp: Boolean(process.env.pnp),
-          optimizeServerReact: Boolean(config.experimental.optimizeServerReact),
+
+          optimizeServerReact:
+            !isClient &&
+            !dev &&
+            Boolean(config.experimental.optimizeServerReact),
+
           modularizeImports: config.modularizeImports,
           decorators: Boolean(
             jsConfig?.compilerOptions?.experimentalDecorators
