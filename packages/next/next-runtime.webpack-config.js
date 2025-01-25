@@ -1,7 +1,6 @@
 const webpack = require('@rspack/core')
 const path = require('path')
 const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer')
-const EvalSourceMapDevToolPlugin = require('./webpack-plugins/eval-source-map-dev-tool-plugin')
 const DevToolsIgnoreListPlugin = require('./webpack-plugins/devtools-ignore-list-plugin')
 
 function shouldIgnorePath(modulePath) {
@@ -184,7 +183,7 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       }.runtime.${dev ? 'dev' : 'prod'}.js`,
       libraryTarget: 'commonjs2',
     },
-    devtool: process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
+    devtool: process.env.NEXT_SERVER_NO_MANGLE
       ? // We'll use a fork in plugins
         false
       : 'source-map',
@@ -192,12 +191,16 @@ module.exports = ({ dev, turbo, bundleType, experimental, ...rest }) => {
       moduleIds: 'named',
       minimize: true,
       concatenateModules: true,
-      minimizer: [new webpack.SwcJsMinimizerRspackPlugin()],
+      minimizer: [
+        new webpack.SwcJsMinimizerRspackPlugin({
+          minimizerOptions: {
+            mangle: dev || process.env.NEXT_SERVER_NO_MANGLE ? false : true,
+          },
+        }),
+      ],
     },
     plugins: [
-      process.env.NEXT_SERVER_EVAL_SOURCE_MAPS
-        ? new EvalSourceMapDevToolPlugin({ shouldIgnorePath })
-        : new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
+      new DevToolsIgnoreListPlugin({ shouldIgnorePath }),
       new webpack.DefinePlugin({
         'typeof window': JSON.stringify('undefined'),
         'process.env.NEXT_MINIMAL': JSON.stringify('true'),
