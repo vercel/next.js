@@ -1,4 +1,4 @@
-use std::{path::PathBuf, sync::Arc, thread, time::Duration};
+use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
 use napi::{
@@ -382,27 +382,21 @@ pub async fn project_new(
         persistent_caching,
         memory_limit,
     )?;
-    if !persistent_caching {
-        use std::io::Write;
-        let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
-        if let Some(stats_path) = stats_path {
-            let Some(backend) = turbo_tasks.memory_backend() else {
-                return Err(anyhow!("task statistics require a memory backend").into());
-            };
-            let task_stats = backend.task_statistics().enable().clone();
-            exit.on_exit(async move {
-                tokio::task::spawn_blocking(move || {
-                    let mut file = std::fs::File::create(&stats_path)
-                        .with_context(|| format!("failed to create or open {stats_path:?}"))?;
-                    serde_json::to_writer(&file, &task_stats)
-                        .context("failed to serialize or write task statistics")?;
-                    file.flush().context("failed to flush file")
-                })
-                .await
-                .unwrap()
-                .unwrap();
-            });
-        }
+    let stats_path = std::env::var_os("NEXT_TURBOPACK_TASK_STATISTICS");
+    if let Some(stats_path) = stats_path {
+        let task_stats = turbo_tasks.task_statistics().enable().clone();
+        exit.on_exit(async move {
+            tokio::task::spawn_blocking(move || {
+                let mut file = std::fs::File::create(&stats_path)
+                    .with_context(|| format!("failed to create or open {stats_path:?}"))?;
+                serde_json::to_writer(&file, &task_stats)
+                    .context("failed to serialize or write task statistics")?;
+                file.flush().context("failed to flush file")
+            })
+            .await
+            .unwrap()
+            .unwrap();
+        });
     }
     let options: ProjectOptions = options.into();
     let container = turbo_tasks

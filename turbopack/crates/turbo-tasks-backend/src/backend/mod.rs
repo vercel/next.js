@@ -31,6 +31,7 @@ use turbo_tasks::{
     },
     event::{Event, EventListener},
     registry,
+    task_statistics::TaskStatisticsApi,
     util::IdFactoryWithReuse,
     CellId, FunctionId, RawVc, ReadConsistency, SessionId, TaskId, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
@@ -178,6 +179,8 @@ struct TurboTasksBackendInner<B: BackingStorage> {
     idle_start_event: Event,
     idle_end_event: Event,
 
+    task_statistics: TaskStatisticsApi,
+
     backing_storage: B,
 }
 
@@ -222,6 +225,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             stopping_event: Event::new(|| "TurboTasksBackend::stopping_event".to_string()),
             idle_start_event: Event::new(|| "TurboTasksBackend::idle_start_event".to_string()),
             idle_end_event: Event::new(|| "TurboTasksBackend::idle_end_event".to_string()),
+            task_statistics: TaskStatisticsApi::default(),
             backing_storage,
         }
     }
@@ -338,6 +342,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
     fn should_track_children(&self) -> bool {
         self.options.children_tracking
+    }
+
+    fn track_cache_hit(&self, task_type: &CachedTaskType) {
+        self.task_statistics
+            .map(|stats| stats.increment_cache_hit(task_type.fn_type));
+    }
+
+    fn track_cache_miss(&self, task_type: &CachedTaskType) {
+        self.task_statistics
+            .map(|stats| stats.increment_cache_miss(task_type.fn_type));
     }
 }
 
@@ -813,10 +827,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> TaskId {
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
+            self.track_cache_hit(&task_type);
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
+        self.track_cache_miss(&task_type);
         let tx = self
             .should_restore()
             .then(|| self.backing_storage.start_read_transaction())
@@ -871,11 +887,12 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             );
         }
         if let Some(task_id) = self.task_cache.lookup_forward(&task_type) {
-            // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
+            self.track_cache_hit(&task_type);
             self.connect_child(parent_task, task_id, turbo_tasks);
             return task_id;
         }
 
+        self.track_cache_miss(&task_type);
         let task_type = Arc::new(task_type);
         let task_id = self.transient_task_id_factory.get();
         if let Err(existing_task_id) = self.task_cache.try_insert(task_type, task_id) {
@@ -883,12 +900,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             unsafe {
                 self.transient_task_id_factory.reuse(task_id);
             }
-            // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
             self.connect_child(parent_task, existing_task_id, turbo_tasks);
             return existing_task_id;
         }
 
-        // Safety: `tx` is a valid transaction from `self.backend.backing_storage`.
         self.connect_child(parent_task, task_id, turbo_tasks);
 
         task_id
@@ -1961,6 +1976,10 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
 
     fn dispose_root_task(&self, task_id: TaskId, turbo_tasks: &dyn TurboTasksBackendApi<Self>) {
         self.0.dispose_root_task(task_id, turbo_tasks);
+    }
+
+    fn task_statistics(&self) -> &TaskStatisticsApi {
+        &self.0.task_statistics
     }
 }
 
