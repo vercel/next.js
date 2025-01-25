@@ -61,6 +61,7 @@ import type { AppRouterActionQueue } from '../../shared/lib/router/action-queue'
 import { prefetch as prefetchWithSegmentCache } from '../components/segment-cache/prefetch'
 import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
 import { isRedirectError, RedirectType } from './redirect-error'
+import { prefetchReducer } from './router-reducer/reducers/prefetch-reducer'
 
 const globalMutable: {
   pendingMpaPath?: string
@@ -233,10 +234,6 @@ function Head({
   // We use `useDeferredValue` to handle switching between the prefetched and
   // final values. The second argument is returned on initial render, then it
   // re-renders with the first argument.
-  //
-  // @ts-expect-error The second argument to `useDeferredValue` is only
-  // available in the experimental builds. When its disabled, it will always
-  // return `head`.
   return useDeferredValue(head, resolvedPrefetchRsc)
 }
 
@@ -296,12 +293,16 @@ function Router({
             // Use the old prefetch implementation.
             const url = createPrefetchURL(href)
             if (url !== null) {
-              startTransition(() => {
-                dispatch({
-                  type: ACTION_PREFETCH,
-                  url,
-                  kind: options?.kind ?? PrefetchKind.FULL,
-                })
+              // The prefetch reducer doesn't actually update any state or
+              // trigger a rerender. It just writes to a mutable cache. So we
+              // shouldn't bother calling setState/dispatch; we can just re-run
+              // the reducer directly using the current state.
+              // TODO: Refactor this away from a "reducer" so it's
+              // less confusing.
+              prefetchReducer(actionQueue.state, {
+                type: ACTION_PREFETCH,
+                url,
+                kind: options?.kind ?? PrefetchKind.FULL,
               })
             }
           },

@@ -86,6 +86,10 @@ impl ArgMeta {
 
 #[derive(Debug)]
 pub struct FunctionMeta {
+    /// Does not run the function as a task, and instead runs it inside the parent task using
+    /// task-local state. The function call itself will not be cached, but cells will be created on
+    /// the parent task.
+    pub local: bool,
     /// Changes the behavior of `Vc::cell` to create local cells that are not
     /// cached across task executions. Cells can be converted to their non-local
     /// versions by calling `Vc::resolve`.
@@ -175,7 +179,7 @@ impl NativeFunction {
                     transient = true,
                 )
             }
-            TaskPersistence::LocalCells => {
+            TaskPersistence::Local => {
                 tracing::trace_span!(
                     "turbo_tasks::function",
                     name = self.name.as_str(),
@@ -197,11 +201,11 @@ impl NativeFunction {
                     transient = true,
                 )
             }
-            TaskPersistence::LocalCells => {
+            TaskPersistence::Local => {
                 tracing::trace_span!(
                     "turbo_tasks::resolve_call",
                     name = self.name.as_str(),
-                    local_cells = true,
+                    local = true,
                 )
             }
         }

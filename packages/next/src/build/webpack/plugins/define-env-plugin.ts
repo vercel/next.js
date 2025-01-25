@@ -146,6 +146,7 @@ export function getDefineEnv({
 
   const isPPREnabled = checkIsAppPPREnabled(config.experimental.ppr)
   const isDynamicIOEnabled = !!config.experimental.dynamicIO
+  const isUseCacheEnabled = !!config.experimental.useCache
 
   const defineEnv: DefineEnv = {
     // internal field to identify the plugin config
@@ -189,6 +190,7 @@ export function getDefineEnv({
     ),
     'process.env.__NEXT_PPR': isPPREnabled,
     'process.env.__NEXT_DYNAMIC_IO': isDynamicIOEnabled,
+    'process.env.__NEXT_USE_CACHE': isUseCacheEnabled,
     'process.env.NEXT_DEPLOYMENT_ID': config.deploymentId || false,
     'process.env.__NEXT_FETCH_CACHE_KEY_PREFIX': fetchCacheKeyPrefix ?? '',
     ...(isTurbopack
@@ -269,10 +271,6 @@ export function getDefineEnv({
     'process.env.__NEXT_LINK_NO_TOUCH_START':
       config.experimental.linkNoTouchStart ?? false,
     'process.env.__NEXT_ASSET_PREFIX': config.assetPrefix,
-    'process.env.__NEXT_DISABLE_SYNC_DYNAMIC_API_WARNINGS':
-      // Internal only so untyped to avoid discovery
-      (config.experimental as any).internal_disableSyncDynamicAPIWarnings ??
-      false,
     'process.env.__NEXT_EXPERIMENTAL_AUTH_INTERRUPTS':
       !!config.experimental.authInterrupts,
     ...(isNodeOrEdgeCompilation
@@ -290,7 +288,11 @@ export function getDefineEnv({
         }
       : undefined),
     'process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY':
-      config.experimental.newDevOverlay ?? false,
+      // When `__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY` is set on CI,
+      // we need to pass it here so it can be enabled.
+      process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true' ||
+      config.experimental.newDevOverlay ||
+      false,
   }
 
   const userDefines = config.compiler?.define ?? {}

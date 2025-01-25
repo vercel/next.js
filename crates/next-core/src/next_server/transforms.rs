@@ -77,7 +77,7 @@ pub async fn get_next_server_transforms_rules(
         ));
     }
 
-    let dynamic_io_enabled = *next_config.enable_dynamic_io().await?;
+    let use_cache_enabled = *next_config.enable_use_cache().await?;
     let cache_kinds = next_config.cache_kinds().to_resolved().await?;
     let mut is_app_dir = false;
 
@@ -115,7 +115,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Client,
                 encryption_key,
                 mdx_rs,
-                dynamic_io_enabled,
+                use_cache_enabled,
                 cache_kinds,
             ));
 
@@ -128,7 +128,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Server,
                 encryption_key,
                 mdx_rs,
-                dynamic_io_enabled,
+                use_cache_enabled,
                 cache_kinds,
             ));
 
@@ -141,7 +141,7 @@ pub async fn get_next_server_transforms_rules(
                 ActionsTransform::Server,
                 encryption_key,
                 mdx_rs,
-                dynamic_io_enabled,
+                use_cache_enabled,
                 cache_kinds,
             ));
 

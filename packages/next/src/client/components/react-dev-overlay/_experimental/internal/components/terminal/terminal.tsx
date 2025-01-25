@@ -100,8 +100,8 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
         >
           <span>
             <FileIcon />
-            {getFrameSource(stackFrame)} @{' '}
-            <HotlinkedText text={stackFrame.methodName} />
+            {getFrameSource(stackFrame)}
+            {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
           </span>
           <ExternalIcon width={16} height={16} />
         </p>

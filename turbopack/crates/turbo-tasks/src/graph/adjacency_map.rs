@@ -68,7 +68,7 @@ where
 
 impl<T> GraphStore for AdjacencyMap<T>
 where
-    T: Eq + Hash + Clone,
+    T: Eq + Hash + Clone + Send,
 {
     type Node = T;
     type Handle = T;

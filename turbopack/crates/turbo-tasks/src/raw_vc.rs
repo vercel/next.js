@@ -1,11 +1,4 @@
-use std::{
-    fmt::{Debug, Display},
-    future::Future,
-    hash::Hash,
-    pin::Pin,
-    sync::Arc,
-    task::Poll,
-};
+use std::{fmt::Display, future::Future, pin::Pin, task::Poll};
 
 use anyhow::Result;
 use auto_hash_map::AutoSet;
@@ -18,7 +11,7 @@ use crate::{
     id::{ExecutionId, LocalCellId, LocalTaskId},
     manager::{
         assert_execution_id, current_task, read_local_cell, read_local_output, read_task_cell,
-        read_task_output, TurboTasksApi,
+        read_task_output, with_turbo_tasks, TurboTasksApi,
     },
     registry::{self, get_value_type},
     turbo_tasks, CollectiblesSource, ReadConsistency, TaskId, TraitTypeId, ValueType, ValueTypeId,
@@ -185,10 +178,9 @@ impl RawVc {
                     }
                 }
                 RawVc::LocalOutput(task_id, local_cell_id) => {
-                    current =
-                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
-                            .await
-                            .map_err(|source| ResolveTypeError::TaskError { source })?;
+                    current = read_local_output(&*tt, task_id, local_cell_id)
+                        .await
+                        .map_err(|source| ResolveTypeError::TaskError { source })?;
                 }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
@@ -221,24 +213,22 @@ impl RawVc {
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
-        let mut lazily_notify = || {
-            if !notified {
-                tt.notify_scheduled_tasks();
-                notified = true;
-            }
-        };
         loop {
             match current {
                 RawVc::TaskOutput(task) => {
-                    lazily_notify();
+                    if !notified {
+                        tt.notify_scheduled_tasks();
+                        notified = true;
+                    }
                     current = read_task_output(&*tt, task, consistency).await?;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
                 RawVc::LocalOutput(task_id, local_cell_id) => {
-                    lazily_notify();
-                    current = read_local_output(&*tt, task_id, local_cell_id, consistency).await?;
+                    debug_assert_eq!(consistency, ReadConsistency::Eventual);
+                    current = read_local_output(&*tt, task_id, local_cell_id).await?;
                 }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
+                    debug_assert_eq!(consistency, ReadConsistency::Eventual);
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
                     let value_type = get_value_type(shared_reference.0);
                     return Ok((value_type.raw_cell)(shared_reference));
@@ -252,20 +242,10 @@ impl RawVc {
     pub(crate) async fn to_non_local(self) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
-        let mut notified = false;
-        let mut lazily_notify = || {
-            if !notified {
-                tt.notify_scheduled_tasks();
-                notified = true;
-            }
-        };
         loop {
             match current {
                 RawVc::LocalOutput(task_id, local_cell_id) => {
-                    lazily_notify();
-                    current =
-                        read_local_output(&*tt, task_id, local_cell_id, ReadConsistency::Eventual)
-                            .await?;
+                    current = read_local_output(&*tt, task_id, local_cell_id).await?;
                 }
                 RawVc::LocalCell(execution_id, local_cell_id) => {
                     let shared_reference = read_local_cell(execution_id, local_cell_id);
@@ -335,7 +315,6 @@ impl CollectiblesSource for RawVc {
 }
 
 pub struct ReadRawVcFuture {
-    turbo_tasks: Arc<dyn TurboTasksApi>,
     consistency: ReadConsistency,
     current: RawVc,
     untracked: bool,
@@ -344,9 +323,7 @@ pub struct ReadRawVcFuture {
 
 impl ReadRawVcFuture {
     pub(crate) fn new(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: false,
@@ -354,10 +331,8 @@ impl ReadRawVcFuture {
         }
     }
 
-    fn new_untracked_with_turbo_tasks(vc: RawVc, turbo_tasks: &dyn TurboTasksApi) -> Self {
-        let tt = turbo_tasks.pin();
+    fn new_untracked_with_turbo_tasks(vc: RawVc, _turbo_tasks: &dyn TurboTasksApi) -> Self {
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
@@ -366,9 +341,7 @@ impl ReadRawVcFuture {
     }
 
     fn new_untracked(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Eventual,
             current: vc,
             untracked: true,
@@ -377,9 +350,7 @@ impl ReadRawVcFuture {
     }
 
     fn new_strongly_consistent(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Strong,
             current: vc,
             untracked: false,
@@ -388,9 +359,7 @@ impl ReadRawVcFuture {
     }
 
     fn new_strongly_consistent_untracked(vc: RawVc) -> Self {
-        let tt = turbo_tasks();
         ReadRawVcFuture {
-            turbo_tasks: tt,
             consistency: ReadConsistency::Strong,
             current: vc,
             untracked: true,
@@ -403,92 +372,84 @@ impl Future for ReadRawVcFuture {
     type Output = Result<TypedCellContent>;
 
     fn poll(self: Pin<&mut Self>, cx: &mut std::task::Context<'_>) -> Poll<Self::Output> {
-        self.turbo_tasks.notify_scheduled_tasks();
-        // SAFETY: we are not moving this
-        let this = unsafe { self.get_unchecked_mut() };
-        'outer: loop {
-            if let Some(listener) = &mut this.listener {
+        with_turbo_tasks(|tt| {
+            tt.notify_scheduled_tasks();
+            // SAFETY: we are not moving this
+            let this = unsafe { self.get_unchecked_mut() };
+            'outer: loop {
+                if let Some(listener) = &mut this.listener {
+                    // SAFETY: listener is from previous pinned this
+                    let listener = unsafe { Pin::new_unchecked(listener) };
+                    if listener.poll(cx).is_pending() {
+                        return Poll::Pending;
+                    }
+                    this.listener = None;
+                }
+                let mut listener = match this.current {
+                    RawVc::TaskOutput(task) => {
+                        let read_result = if this.untracked {
+                            tt.try_read_task_output_untracked(task, this.consistency)
+                        } else {
+                            tt.try_read_task_output(task, this.consistency)
+                        };
+                        match read_result {
+                            Ok(Ok(vc)) => {
+                                // We no longer need to read strongly consistent, as any Vc returned
+                                // from the first task will be inside of the scope of the first
+                                // task. So it's already strongly
+                                // consistent.
+                                this.consistency = ReadConsistency::Eventual;
+                                this.current = vc;
+                                continue 'outer;
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                    RawVc::TaskCell(task, index) => {
+                        let read_result = if this.untracked {
+                            tt.try_read_task_cell_untracked(task, index)
+                        } else {
+                            tt.try_read_task_cell(task, index)
+                        };
+                        match read_result {
+                            Ok(Ok(content)) => {
+                                // SAFETY: Constructor ensures that T and U are binary identical
+                                return Poll::Ready(Ok(content));
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                    RawVc::LocalOutput(task_id, local_output_id) => {
+                        debug_assert_eq!(this.consistency, ReadConsistency::Eventual);
+                        let read_result = tt.try_read_local_output(task_id, local_output_id);
+                        match read_result {
+                            Ok(Ok(vc)) => {
+                                this.current = vc;
+                                continue 'outer;
+                            }
+                            Ok(Err(listener)) => listener,
+                            Err(err) => return Poll::Ready(Err(err)),
+                        }
+                    }
+                    RawVc::LocalCell(execution_id, local_cell_id) => {
+                        debug_assert_eq!(this.consistency, ReadConsistency::Eventual);
+                        return Poll::Ready(
+                            Ok(read_local_cell(execution_id, local_cell_id).into()),
+                        );
+                    }
+                };
                 // SAFETY: listener is from previous pinned this
-                let listener = unsafe { Pin::new_unchecked(listener) };
-                if listener.poll(cx).is_pending() {
-                    return Poll::Pending;
-                }
-                this.listener = None;
+                match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
+                    Poll::Ready(_) => continue,
+                    Poll::Pending => {
+                        this.listener = Some(listener);
+                        return Poll::Pending;
+                    }
+                };
             }
-            let mut listener = match this.current {
-                RawVc::TaskOutput(task) => {
-                    let read_result = if this.untracked {
-                        this.turbo_tasks
-                            .try_read_task_output_untracked(task, this.consistency)
-                    } else {
-                        this.turbo_tasks
-                            .try_read_task_output(task, this.consistency)
-                    };
-                    match read_result {
-                        Ok(Ok(vc)) => {
-                            // We no longer need to read strongly consistent, as any Vc returned
-                            // from the first task will be inside of the scope of the first task. So
-                            // it's already strongly consistent.
-                            this.consistency = ReadConsistency::Eventual;
-                            this.current = vc;
-                            continue 'outer;
-                        }
-                        Ok(Err(listener)) => listener,
-                        Err(err) => return Poll::Ready(Err(err)),
-                    }
-                }
-                RawVc::TaskCell(task, index) => {
-                    let read_result = if this.untracked {
-                        this.turbo_tasks.try_read_task_cell_untracked(task, index)
-                    } else {
-                        this.turbo_tasks.try_read_task_cell(task, index)
-                    };
-                    match read_result {
-                        Ok(Ok(content)) => {
-                            // SAFETY: Constructor ensures that T and U are binary identical
-                            return Poll::Ready(Ok(content));
-                        }
-                        Ok(Err(listener)) => listener,
-                        Err(err) => return Poll::Ready(Err(err)),
-                    }
-                }
-                RawVc::LocalOutput(task_id, local_output_id) => {
-                    let read_result = if this.untracked {
-                        this.turbo_tasks.try_read_local_output_untracked(
-                            task_id,
-                            local_output_id,
-                            this.consistency,
-                        )
-                    } else {
-                        this.turbo_tasks.try_read_local_output(
-                            task_id,
-                            local_output_id,
-                            this.consistency,
-                        )
-                    };
-                    match read_result {
-                        Ok(Ok(vc)) => {
-                            this.consistency = ReadConsistency::Eventual;
-                            this.current = vc;
-                            continue 'outer;
-                        }
-                        Ok(Err(listener)) => listener,
-                        Err(err) => return Poll::Ready(Err(err)),
-                    }
-                }
-                RawVc::LocalCell(execution_id, local_cell_id) => {
-                    return Poll::Ready(Ok(read_local_cell(execution_id, local_cell_id).into()));
-                }
-            };
-            // SAFETY: listener is from previous pinned this
-            match unsafe { Pin::new_unchecked(&mut listener) }.poll(cx) {
-                Poll::Ready(_) => continue,
-                Poll::Pending => {
-                    this.listener = Some(listener);
-                    return Poll::Pending;
-                }
-            };
-        }
+        })
     }
 }
 

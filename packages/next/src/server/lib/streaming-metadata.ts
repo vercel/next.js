@@ -18,5 +18,8 @@ export function shouldServeStreamingMetadata(
     htmlLimitedBots || HTML_LIMITED_BOT_UA_RE_STRING,
     'i'
   )
-  return !blockingMetadataUARegex.test(userAgent)
+  return (
+    // When it's static generation, userAgents are not available - do not serve streaming metadata
+    !!userAgent && !blockingMetadataUARegex.test(userAgent)
+  )
 }

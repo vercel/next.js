@@ -218,18 +218,12 @@ describe('server-side dev errors', () => {
       if (isTurbopack) {
         expect(stderrOutput).toContain(
           ' ⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at async'
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)'
         )
       } else {
         expect(stderrOutput).toStartWith(
           '⨯ ReferenceError: missingVar is not defined' +
-            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)' +
-            // Next.js internal frame. Feel free to adjust.
-            // Not ignore-listed because we're not in an isolated app and Next.js is symlinked so it's not in node_modules
-            '\n    at async'
+            '\n    at handler (../../test/integration/server-side-dev-errors/pages/api/hello.js:2:2)'
         )
       }
       expect(stderrOutput).toContain(

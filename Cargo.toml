@@ -101,10 +101,10 @@ testing = { version = "5.0.0" }
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.2.15"
-modularize_imports = { version = "0.70.1" }
-styled_components = { version = "0.98.1" }
-styled_jsx = { version = "0.75.1" }
-swc_emotion = { version = "0.74.1" }
+modularize_imports = { version = "0.71.0" }
+styled_components = { version = "0.99.0" }
+styled_jsx = { version = "0.76.0" }
+swc_emotion = { version = "0.75.0" }
 swc_relay = { version = "0.46.1" }
 
 # General Deps

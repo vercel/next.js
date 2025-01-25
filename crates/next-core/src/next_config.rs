@@ -567,7 +567,7 @@ pub enum LoaderItem {
 }
 
 #[turbo_tasks::value(operation)]
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ModuleIdStrategy {
     Named,
@@ -666,6 +666,7 @@ pub struct ExperimentalConfig {
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
+    use_cache: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -1409,6 +1410,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_use_cache(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .use_cache
+                // "use cache" was originally implicitly enabled with the
+                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // explicit useCache flag to ensure backwards compatibility.
+                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         Vc::cell(
             self.experimental
@@ -1470,11 +1483,11 @@ impl NextConfig {
             .experimental
             .turbo
             .as_ref()
-            .and_then(|t| t.module_id_strategy.as_ref())
+            .and_then(|t| t.module_id_strategy)
         else {
             return Vc::cell(None);
         };
-        Vc::cell(Some(module_id_strategy.clone()))
+        Vc::cell(Some(module_id_strategy))
     }
 
     #[turbo_tasks::function]

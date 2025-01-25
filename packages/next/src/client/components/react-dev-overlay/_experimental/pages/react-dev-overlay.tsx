@@ -6,7 +6,7 @@ import { Base } from '../internal/styles/base'
 import { ComponentStyles } from '../internal/styles/component-styles'
 import { CssReset } from '../internal/styles/css-reset'
 
-import { DevToolsErrorBoundary } from './error-boundary'
+import { DevOverlayErrorBoundary } from './error-boundary'
 import { usePagesReactDevOverlay } from '../../pages/hooks'
 import { Colors } from '../internal/styles/colors'
 import { ErrorOverlay } from '../internal/components/errors/error-overlay/error-overlay'
@@ -20,41 +20,50 @@ interface ReactDevOverlayProps {
 }
 
 export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
-  const { isMounted, state, onComponentError, hasRuntimeErrors } =
-    usePagesReactDevOverlay()
-
-  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(hasRuntimeErrors)
+  const {
+    isMounted,
+    state,
+    onComponentError,
+    hasRuntimeErrors,
+    hasBuildError,
+  } = usePagesReactDevOverlay()
 
   const { readyErrors } = useErrorHook({
     errors: state.errors,
     isAppDir: false,
   })
 
+  const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(true)
+
   return (
     <>
-      <DevToolsErrorBoundary isMounted={isMounted} onError={onComponentError}>
+      <DevOverlayErrorBoundary isMounted={isMounted} onError={onComponentError}>
         {children ?? null}
-      </DevToolsErrorBoundary>
+      </DevOverlayErrorBoundary>
 
-      <ShadowPortal>
-        <CssReset />
-        <Base />
-        <Colors />
-        <ComponentStyles />
+      {isMounted && (
+        <ShadowPortal>
+          <CssReset />
+          <Base />
+          <Colors />
+          <ComponentStyles />
 
-        <DevToolsIndicator
-          state={state}
-          readyErrorsLength={readyErrors.length}
-          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-        />
+          <DevToolsIndicator
+            state={state}
+            readyErrorsLength={readyErrors.length}
+            setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+          />
 
-        <ErrorOverlay
-          state={state}
-          readyErrors={readyErrors}
-          isErrorOverlayOpen={isErrorOverlayOpen}
-          setIsErrorOverlayOpen={setIsErrorOverlayOpen}
-        />
-      </ShadowPortal>
+          {(hasRuntimeErrors || hasBuildError) && (
+            <ErrorOverlay
+              state={state}
+              readyErrors={readyErrors}
+              isErrorOverlayOpen={isErrorOverlayOpen}
+              setIsErrorOverlayOpen={setIsErrorOverlayOpen}
+            />
+          )}
+        </ShadowPortal>
+      )}
     </>
   )
 }

@@ -731,6 +731,41 @@ impl ModuleGraph {
         Ok(())
     }
 
+    /// Traverses all edges exactly once (in an unspecified order) and calls the visitor with the
+    /// edge source and target.
+    ///
+    /// This means that target nodes can be revisited (once per incoming edge).
+    ///
+    /// * `visitor` - Called before visiting the children of a node.
+    ///    - Receives (originating &SingleModuleGraphNode, edge &ChunkingType), target
+    ///      &SingleModuleGraphNode
+    pub async fn traverse_all_edges_unordered(
+        &self,
+        mut visitor: impl FnMut(
+            (&'_ SingleModuleGraphModuleNode, &'_ ChunkingType),
+            &'_ SingleModuleGraphModuleNode,
+        ) -> Result<()>,
+    ) -> Result<()> {
+        let graphs = self.get_graphs().await?;
+
+        for graph in &graphs {
+            let graph = &graph.graph;
+            for edge in graph.edge_references() {
+                let source = match graph.node_weight(edge.source()).unwrap() {
+                    SingleModuleGraphNode::Module(node) => node,
+                    SingleModuleGraphNode::VisitedModule { .. } => unreachable!(),
+                };
+                let target = match graph.node_weight(edge.target()).unwrap() {
+                    SingleModuleGraphNode::Module(node) => node,
+                    SingleModuleGraphNode::VisitedModule { idx } => get_node!(graphs, idx),
+                };
+                visitor((source, edge.weight()), target)?;
+            }
+        }
+
+        Ok(())
+    }
+
     /// Traverses all reachable edges in topological order. The preorder visitor can be used to
     /// forward state down the graph, and to skip subgraphs
     ///

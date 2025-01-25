@@ -24,8 +24,9 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-          "at span ()
-          at Page (app/rsc/page.tsx (6:13))"
+         "at span (<anonymous> (0:0))
+         at <anonymous> (app/rsc/page.tsx (7:10))
+         at Page (app/rsc/page.tsx (6:13))"
         `)
         expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.tsx (7:10) @ <anonymous>
@@ -40,8 +41,9 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-          "at span ()
-          at Page (app/rsc/page.tsx (6:13))"
+         "at span (<anonymous> (0:0))
+         at eval (app/rsc/page.tsx (7:10))
+         at Page (app/rsc/page.tsx (6:13))"
         `)
         expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.tsx (7:10) @ eval
@@ -65,9 +67,10 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-          "at p ()
-          at Array.map ()
-          at Page (app/ssr/page.tsx (8:13))"
+         "at p (<anonymous> (0:0))
+         at <unknown> (app/ssr/page.tsx (9:9))
+         at Array.map (<anonymous> (0:0))
+         at Page (app/ssr/page.tsx (8:13))"
         `)
         expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.tsx (9:9) @ <unknown>
@@ -82,9 +85,10 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
         `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
-          "at p ()
-          at Array.map ()
-          at Page (app/ssr/page.tsx (8:13))"
+         "at p (<anonymous> (0:0))
+         at eval (app/ssr/page.tsx (9:10))
+         at Array.map (<anonymous> (0:0))
+         at Page (app/ssr/page.tsx (8:13))"
         `)
         expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.tsx (9:10) @ eval

@@ -16,7 +16,6 @@ pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
-pub mod global_module_id_strategy;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;
@@ -252,6 +251,19 @@ pub struct EcmascriptModuleAsset {
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
+}
+impl core::fmt::Debug for EcmascriptModuleAsset {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("EcmascriptModuleAsset")
+            .field("source", &self.source)
+            .field("asset_context", &self.asset_context)
+            .field("ty", &self.ty)
+            .field("transforms", &self.transforms)
+            .field("options", &self.options)
+            .field("compile_time_info", &self.compile_time_info)
+            .field("inner_assets", &self.inner_assets)
+            .finish()
+    }
 }
 
 #[turbo_tasks::value_trait]

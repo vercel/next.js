@@ -67,7 +67,7 @@ impl EmotionTransformer {
             // emotion transform.
             enabled: Some(true),
             sourcemap: config.sourcemap,
-            label_format: config.label_format.clone(),
+            label_format: config.label_format.as_deref().map(From::from),
             auto_label: if let Some(auto_label) = config.auto_label.as_ref() {
                 match auto_label {
                     EmotionLabelKind::Always => Some(true),
@@ -104,7 +104,7 @@ impl CustomTransformer for EmotionTransformer {
                 hasher.finish()
             };
             program.mutate(swc_emotion::emotion(
-                self.config.clone(),
+                &self.config,
                 Path::new(ctx.file_name_str),
                 hash as u32,
                 ctx.source_map.clone(),

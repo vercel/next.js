@@ -149,6 +149,7 @@ async function loaderTransform(
     bundleLayer,
     esm,
     cacheHandlers: nextConfig.experimental?.cacheHandlers,
+    useCacheEnabled: nextConfig.experimental?.useCache,
   })
 
   const programmaticOptions = {

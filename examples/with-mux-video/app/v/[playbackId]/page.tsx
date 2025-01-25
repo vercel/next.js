@@ -44,10 +44,6 @@ const Code = ({ children }: { children: React.ReactNode }) => (
   </code>
 );
 
-// this function communicates with no external services and relies on no Node APIs
-// it's perfect for the edge
-export const runtime = "edge";
-
 export default async function Page(props: { params: Promise<Params> }) {
   const params = await props.params;
 

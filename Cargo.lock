@@ -568,6 +568,7 @@ checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
+ "hashbrown 0.14.5",
  "rustc-hash 1.1.0",
  "serde",
  "smallvec",
@@ -2756,6 +2757,7 @@ checksum = "e5274423e17b7c9fc20b6e7e208532f9b19825d82dfd615708b70edd83df41f1"
 dependencies = [
  "ahash 0.8.11",
  "allocator-api2",
+ "serde",
 ]
 
 [[package]]
@@ -4243,9 +4245,9 @@ dependencies = [
 
 [[package]]
 name = "modularize_imports"
-version = "0.70.1"
+version = "0.71.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e7d7ecfbafc7a6aa66370d235e8e094f75f6b421a322236b5842c408c34a8219"
+checksum = "c162b3d0bd2d79bc3764d47f472d66237bc2c4614ef4a4ba63d9a79a7aafcf03"
 dependencies = [
  "convert_case",
  "handlebars",
@@ -4412,6 +4414,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbo-tasks-memory",
  "turbopack",
  "turbopack-browser",
@@ -4476,6 +4479,7 @@ dependencies = [
  "async-trait",
  "auto-hash-map",
  "base64 0.21.4",
+ "either",
  "futures",
  "indexmap 2.5.0",
  "indoc",
@@ -4530,6 +4534,7 @@ dependencies = [
  "either",
  "fxhash",
  "hex",
+ "indexmap 2.5.0",
  "indoc",
  "lazy_static",
  "modularize_imports",
@@ -4956,7 +4961,7 @@ dependencies = [
  "phf",
  "phf_codegen",
  "precomputed-hash",
- "rustc-hash 2.0.0",
+ "rustc-hash 2.1.0",
  "serde",
  "smallvec",
  "static-self",
@@ -6080,9 +6085,9 @@ checksum = "08d43f7aa6b08d49f382cde6a7982047c3426db949b1424bc4b7ec9ae12c6ce2"
 
 [[package]]
 name = "rustc-hash"
-version = "2.0.0"
+version = "2.1.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583034fd73374156e66797ed8e5b0d5690409c9226b22d87cb7f19821c05d152"
+checksum = "c7fb8039b3032c191086b10f11f319a6e99e1e82889c5cc6046f515c9db1d497"
 
 [[package]]
 name = "rustc_version"
@@ -6887,9 +6892,9 @@ checksum = "7da8b5736845d9f2fcb837ea5d9e2628564b3b043a70948a3f0b778838c5fb4f"
 
 [[package]]
 name = "styled_components"
-version = "0.98.1"
+version = "0.99.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "54a858b16946e8b2e2d18a4888edf06d7cef3de0e59a60ad2f93ceb62ff7a43f"
+checksum = "4d34cadaadd2b145e0d19340ee7226b233ec214b4ae47d8d225c18b8671748fe"
 dependencies = [
  "Inflector",
  "once_cell",
@@ -6905,15 +6910,16 @@ dependencies = [
 
 [[package]]
 name = "styled_jsx"
-version = "0.75.1"
+version = "0.76.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "768f794e5cbf87d9ff5eb768f99247c40981c2e666cc5e22fd1eb8dfd6f6cea8"
+checksum = "e4f3904ed82f85537fb9041f8609d24fc4be4b9be9457db0de24303e0b1d50ab"
 dependencies = [
  "anyhow",
  "lightningcss",
  "parcel_selectors",
  "preset_env_base",
  "serde",
+ "swc_atoms",
  "swc_common",
  "swc_css_ast",
  "swc_css_codegen",
@@ -6925,6 +6931,7 @@ dependencies = [
  "swc_ecma_ast",
  "swc_ecma_minifier",
  "swc_ecma_parser",
+ "swc_ecma_transforms_base",
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_plugin_macro",
@@ -8058,22 +8065,23 @@ dependencies = [
 
 [[package]]
 name = "swc_emotion"
-version = "0.74.1"
+version = "0.75.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e73f5a11086b7d7e70878510e4e4be79d40b8b977f5b39cd224696ed711ddab2"
+checksum = "64ef7ba670900bf054e9fbfe779c9a8a86fe958b40b92b7ba4046919eb300cbf"
 dependencies = [
  "base64 0.22.1",
  "byteorder",
- "fxhash",
  "once_cell",
  "radix_fmt",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "sourcemap",
  "swc_atoms",
  "swc_common",
  "swc_ecma_ast",
  "swc_ecma_codegen",
+ "swc_ecma_transforms",
  "swc_ecma_utils",
  "swc_ecma_visit",
  "swc_trace_macro",
@@ -9372,8 +9380,10 @@ dependencies = [
  "regex",
  "rstest",
  "rstest_reuse",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_json",
+ "smallvec",
  "tokio",
  "tracing",
  "turbo-rcstr",
@@ -9381,6 +9391,7 @@ dependencies = [
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fs",
+ "turbo-tasks-hash",
  "turbo-tasks-malloc",
  "turbo-tasks-memory",
  "turbopack-core",
@@ -9462,12 +9473,12 @@ dependencies = [
  "tracing-subscriber",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-env",
  "turbo-tasks-fetch",
  "turbo-tasks-fs",
  "turbo-tasks-malloc",
- "turbo-tasks-memory",
  "turbopack",
  "turbopack-bench",
  "turbopack-browser",
@@ -9904,11 +9915,11 @@ dependencies = [
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
+ "turbo-tasks-backend",
  "turbo-tasks-build",
  "turbo-tasks-bytes",
  "turbo-tasks-env",
  "turbo-tasks-fs",
- "turbo-tasks-memory",
  "turbopack",
  "turbopack-browser",
  "turbopack-cli-utils",

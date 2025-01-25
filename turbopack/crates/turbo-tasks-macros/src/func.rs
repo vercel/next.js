@@ -28,12 +28,10 @@ pub struct TurboFn<'a> {
     output: Type,
     this: Option<Input>,
     inputs: Vec<Input>,
-    /// Should we check that the return type contains a `NonLocalValue`?
-    non_local: Option<Span>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
     /// Should this function use `TaskPersistence::LocalCells`?
-    local_cells: bool,
+    local: bool,
 }
 
 #[derive(Debug)]
@@ -275,9 +273,8 @@ impl TurboFn<'_> {
             output,
             this,
             inputs,
-            non_local: args.non_local_return,
             operation: args.operation.is_some(),
-            local_cells: args.local_cells.is_some(),
+            local: args.local.is_some(),
             inline_ident,
         })
     }
@@ -482,9 +479,9 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence(&self) -> impl ToTokens {
-        if self.local_cells {
+        if self.local {
             quote! {
-                turbo_tasks::TaskPersistence::LocalCells
+                turbo_tasks::TaskPersistence::Local
             }
         } else {
             quote! {
@@ -494,9 +491,9 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence_with_this(&self) -> impl ToTokens {
-        if self.local_cells {
+        if self.local {
             quote! {
-                turbo_tasks::TaskPersistence::LocalCells
+                turbo_tasks::TaskPersistence::Local
             }
         } else {
             quote! {
@@ -514,13 +511,7 @@ impl TurboFn<'_> {
     }
 
     fn get_assertions(&self) -> TokenStream {
-        if let Some(span) = self.non_local {
-            let return_type = &self.output;
-            quote_spanned! {
-                span =>
-                turbo_tasks::macro_helpers::assert_returns_non_local_value::<#return_type, _>();
-            }
-        } else if self.operation {
+        if self.operation {
             let mut assertions = Vec::new();
             // theoretically we could support methods by rewriting the exposed self argument, but
             // it's not worth it, given the rarity of operations.
@@ -602,9 +593,9 @@ impl TurboFn<'_> {
                     let this = #converted_this;
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::dynamic_this_call(
+                        turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            this,
+                            Some(this),
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -621,6 +612,7 @@ impl TurboFn<'_> {
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
+                            None,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -706,24 +698,19 @@ pub struct FunctionArguments {
     /// This should only be used by the task that directly performs the IO. Tasks that transitively
     /// perform IO should not be manually annotated.
     io_markers: HashSet<IoMarker>,
-    /// Should we check that the return type contains a `NonLocalValue`?
-    ///
-    /// If there is an error due to this option being set, it should be reported to this span.
-    ///
-    /// If [`Self::local_cells`] is set, this will also be set to the same span.
-    non_local_return: Option<Span>,
     /// Should the function return an `OperationVc` instead of a `Vc`? Also ensures that all
-    /// arguments are `OperationValue`s. Mutually exclusive with the `non_local_return` and
-    /// `local_cells` flags.
+    /// arguments are `OperationValue`s. Mutually exclusive with the `local_cells` flag.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     operation: Option<Span>,
+    /// Does not run the function as a real task, and instead runs it inside the parent task using
+    /// task-local state. The function call itself will not be cached, but cells will be created on
+    /// the parent task.
+    pub local: Option<Span>,
     /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
     /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
-    ///
-    /// Setting this option will also set [`Self::non_local`] to the same span.
     pub local_cells: Option<Span>,
 }
 
@@ -746,31 +733,32 @@ impl Parse for FunctionArguments {
                 ("network", Meta::Path(_)) => {
                     parsed_args.io_markers.insert(IoMarker::Network);
                 }
-                ("non_local_return", Meta::Path(_)) => {
-                    parsed_args.non_local_return = Some(meta.span());
-                }
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
+                ("local", Meta::Path(_)) => {
+                    parsed_args.local = Some(meta.span());
+                }
                 ("local_cells", Meta::Path(_)) => {
-                    let span = Some(meta.span());
-                    parsed_args.local_cells = span;
-                    parsed_args.non_local_return = span;
+                    parsed_args.local_cells = Some(meta.span());
                 }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
-                        "unexpected token, expected one of: \"fs\", \"network\", \
-                         \"non_local_return\", \"operation\", or \"local_cells\"",
+                        "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
+                         \"local\", or \"local_cells\"",
                     ))
                 }
             }
         }
-        if let (Some(_), Some(span)) = (parsed_args.non_local_return, parsed_args.operation) {
+        if let (Some(_), Some(span)) = (
+            parsed_args.local.or(parsed_args.local_cells),
+            parsed_args.operation,
+        ) {
             return Err(syn::Error::new(
                 span,
-                "\"operation\" is mutually exclusive with \"non_local_return\" and \
-                 \"local_cells\" options",
+                "\"operation\" is mutually exclusive with the \"local\" and \"local_cells\" \
+                 options",
             ));
         }
         Ok(parsed_args)
@@ -1045,27 +1033,14 @@ impl DefinitionContext {
 
 #[derive(Debug)]
 pub struct NativeFn {
-    function_path_string: String,
-    function_path: ExprPath,
-    is_method: bool,
-    local_cells: bool,
+    pub function_path_string: String,
+    pub function_path: ExprPath,
+    pub is_method: bool,
+    pub local: bool,
+    pub local_cells: bool,
 }
 
 impl NativeFn {
-    pub fn new(
-        function_path_string: &str,
-        function_path: &ExprPath,
-        is_method: bool,
-        local_cells: bool,
-    ) -> NativeFn {
-        NativeFn {
-            function_path_string: function_path_string.to_owned(),
-            function_path: function_path.clone(),
-            is_method,
-            local_cells,
-        }
-    }
-
     pub fn ty(&self) -> Type {
         parse_quote! { turbo_tasks::NativeFunction }
     }
@@ -1075,6 +1050,7 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            local,
             local_cells,
         } = self;
 
@@ -1090,6 +1066,7 @@ impl NativeFn {
                 turbo_tasks::NativeFunction::#constructor(
                     #function_path_string.to_owned(),
                     turbo_tasks::FunctionMeta {
+                        local: #local,
                         local_cells: #local_cells,
                     },
                     #function_path,

@@ -15,6 +15,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
+either = { workspace = true }
 lazy-regex = "3.0.1"
 next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
