@@ -96,6 +96,7 @@ export function checkIsOnDemandRevalidate(
 }
 
 export const COOKIE_NAME_PRERENDER_BYPASS = `__prerender_bypass`
+export const COOKIE_NAME_PRERENDER_BYPASS_PREVIEW = `__prerender_bypass_preview`
 export const COOKIE_NAME_PRERENDER_DATA = `__next_preview_data`
 
 export const RESPONSE_LIMIT_DEFAULT = 4 * 1024 * 1024

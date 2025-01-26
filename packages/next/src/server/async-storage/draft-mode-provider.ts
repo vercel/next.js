@@ -6,7 +6,7 @@ import type { NextRequest } from '../web/spec-extension/request'
 
 import {
   COOKIE_NAME_PRERENDER_BYPASS,
-  COOKIE_NAME_PRERENDER_DATA,
+  COOKIE_NAME_PRERENDER_BYPASS_PREVIEW,
   checkIsOnDemandRevalidate,
 } from '../api-utils'
 import type { __ApiPreviewProps } from '../api-utils'
@@ -50,7 +50,9 @@ export class DraftModeProvider {
     )
 
     if (this.isEnabled) {
-      this.previewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
+      this.previewData = cookies.get(
+        COOKIE_NAME_PRERENDER_BYPASS_PREVIEW
+      )?.value
     }
 
     this._previewModeId = previewProps?.previewModeId
@@ -75,7 +77,7 @@ export class DraftModeProvider {
 
     if (previewData) {
       this._mutableCookies.set({
-        name: COOKIE_NAME_PRERENDER_DATA,
+        name: COOKIE_NAME_PRERENDER_BYPASS_PREVIEW,
         value: previewData,
         httpOnly: true,
         sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
@@ -100,11 +102,12 @@ export class DraftModeProvider {
     })
 
     this._mutableCookies.set({
-      name: COOKIE_NAME_PRERENDER_DATA,
+      name: COOKIE_NAME_PRERENDER_BYPASS_PREVIEW,
       value: '',
       httpOnly: true,
       sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
       secure: process.env.NODE_ENV !== 'development',
+      expires: new Date(0),
     })
   }
 }
