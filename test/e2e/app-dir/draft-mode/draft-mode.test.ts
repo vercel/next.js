@@ -55,6 +55,24 @@ describe('app dir - draft mode', () => {
       expect(Cookie).toBeDefined()
     })
 
+    it('should have set-cookie header with context data', async () => {
+      const res = await next.fetch(`${basePath}enable-with-context`)
+      const h = res.headers.get('set-cookie') || ''
+      const cookies = h
+        .split(',')
+        .filter((c) => c.trim().startsWith('__prerender_bypass'))
+      Cookie = cookies.map((c) => c.split(';')[0]).join('; ')
+      expect(Cookie).toBeDefined()
+      expect(cookies).toHaveLength(2)
+    })
+
+    it('should have accessible context data returned from draftmode', async () => {
+      const opts = { headers: { Cookie } }
+      const $ = await next.render$(basePath, {}, opts)
+      expect($('#mode').text()).toBe('ENABLED')
+      expect($('#context').text()).toBe('test-context')
+    })
+
     it('should have set-cookie header with redirect location', async () => {
       const res = await next.fetch(`${basePath}enable-and-redirect`, {
         redirect: 'manual',
