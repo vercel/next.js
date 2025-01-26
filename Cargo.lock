@@ -2967,7 +2967,7 @@ dependencies = [
  "httpdate",
  "itoa",
  "pin-project-lite",
- "socket2 0.5.8",
+ "socket2 0.4.9",
  "tokio",
  "tower-service",
  "tracing",
@@ -7175,9 +7175,9 @@ dependencies = [
 
 [[package]]
 name = "swc_core"
-version = "10.5.0"
+version = "10.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "13d7454c4e08ac1590e37d465826a54ff9345c4e7e139f4eadf391c36fb27e1c"
+checksum = "9a2e50df9008ca01c05c914d3970b74e6b32ae7cbafb4fb0776f6e46b6db891b"
 dependencies = [
  "binding_macros",
  "swc",
@@ -7342,9 +7342,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_ast"
-version = "5.0.2"
+version = "5.0.3"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b0f8476c5338a588dec42c3dc5eecb3192a517e88a74e1673c235ba4214167ba"
+checksum = "a05e7518b3052102506969009cabb027a88259ccde64ed675aa4ea8703b651f5"
 dependencies = [
  "bitflags 2.5.0",
  "bytecheck 0.8.0",
@@ -7647,9 +7647,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_minifier"
-version = "7.3.0"
+version = "7.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c947fce8df9670f62632ab336d48aafdcab9e2d6e2ff489fc94f7fcb541daf8b"
+checksum = "d303285f501b3f48818e896bf9c406de0639e8609ae0642628ad92d4d22bdab1"
 dependencies = [
  "arrayvec 0.7.4",
  "indexmap 2.7.1",
@@ -8028,9 +8028,9 @@ dependencies = [
 
 [[package]]
 name = "swc_ecma_utils"
-version = "7.0.3"
+version = "7.0.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f8f5bd06f238e7df2472dda5c9372bea1e56e169710260bf10de7979ef0a4bb"
+checksum = "971099632f1a9117debf5ca8451615c3014eea519e9ad31e386396b6e0ac8fb5"
 dependencies = [
  "indexmap 2.7.1",
  "num_cpus",
