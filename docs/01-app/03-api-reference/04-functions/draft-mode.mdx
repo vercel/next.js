@@ -30,11 +30,12 @@ export default async function Page() {
 
 The following methods and properties are available:
 
-| Method      | Description                                                                       |
-| ----------- | --------------------------------------------------------------------------------- |
-| `isEnabled` | A boolean value that indicates if Draft Mode is enabled.                          |
-| `enable()`  | Enables Draft Mode in a Route Handler by setting a cookie (`__prerender_bypass`). |
-| `disable()` | Disables Draft Mode in a Route Handler by deleting a cookie.                      |
+| Method        | Description                                                                       |
+| ------------- | --------------------------------------------------------------------------------- |
+| `isEnabled`   | A boolean value that indicates if Draft Mode is enabled.                          |
+| `previewData` | A string containing ad-hoc data associated with the draft mode session            |
+| `enable()`    | Enables Draft Mode in a Route Handler by setting a cookie (`__prerender_bypass`). |
+| `disable()`   | Disables Draft Mode in a Route Handler by deleting a cookie.                      |
 
 ## Good to know
 
@@ -67,6 +68,34 @@ export async function GET(request) {
   draft().enable()
   return new Response('Draft mode is enabled')
 }
+```
+
+### Enabling Draft Mode with Contextual Data
+
+To enable Draft Mode with contextual data, pass a string to the `enable()` method:
+
+```tsx filename="app/draft/route.ts" switcher
+import { draftMode } from 'next/headers'
+
+export async function GET(request: Request) {
+  const context = {
+    customerType: 'premium',
+  }
+
+  const draft = await draftMode()
+  draft().enable(JSON.stringify(context))
+  return new Response('Draft mode is enabled')
+}
+```
+
+```js filename="app/draft/route.js" switcher
+const context = {
+  customerType: 'premium',
+}
+
+const draft = await draftMode()
+draft().enable(JSON.stringify(context))
+return new Response('Draft mode is enabled')
 ```
 
 ### Disabling Draft Mode
@@ -124,6 +153,40 @@ export default async function Page() {
     <main>
       <h1>My Blog Post</h1>
       <p>Draft Mode is currently {isEnabled ? 'Enabled' : 'Disabled'}</p>
+    </main>
+  )
+}
+```
+
+### Getting Draft Mode Contextual Data
+
+You can check if Draft Mode is enabled in a Server Component with the `isEnabled` property:
+
+```tsx filename="app/page.ts" switcher
+import { draftMode } from 'next/headers'
+
+export default async function Page() {
+  const { isEnabled, previewData } = await draftMode()
+  return (
+    <main>
+      <h1>My Blog Post</h1>
+      <p>Draft Mode is currently {isEnabled ? 'Enabled' : 'Disabled'}</p>
+      <p>Preview Data: {previewData}</p>
+    </main>
+  )
+}
+```
+
+```jsx filename="app/page.js" switcher
+import { draftMode } from 'next/headers'
+
+export default async function Page() {
+  const { isEnabled, previewData } = await draftMode()
+  return (
+    <main>
+      <h1>My Blog Post</h1>
+      <p>Draft Mode is currently {isEnabled ? 'Enabled' : 'Disabled'}</p>
+      <p>Preview Data: {previewData}</p>
     </main>
   )
 }
