@@ -6,12 +6,14 @@ import type { NextRequest } from '../web/spec-extension/request'
 
 import {
   COOKIE_NAME_PRERENDER_BYPASS,
+  COOKIE_NAME_PRERENDER_DATA,
   checkIsOnDemandRevalidate,
 } from '../api-utils'
 import type { __ApiPreviewProps } from '../api-utils'
 
 export class DraftModeProvider {
   public readonly isEnabled: boolean
+  public readonly previewData: string | undefined
 
   /**
    * @internal - this declaration is stripped via `tsc --stripInternal`
@@ -47,11 +49,15 @@ export class DraftModeProvider {
             previewProps.previewModeId === 'development-id'))
     )
 
+    if (this.isEnabled) {
+      this.previewData = cookies.get(COOKIE_NAME_PRERENDER_DATA)?.value
+    }
+
     this._previewModeId = previewProps?.previewModeId
     this._mutableCookies = mutableCookies
   }
 
-  enable() {
+  enable(previewData?: string) {
     if (!this._previewModeId) {
       throw new Error(
         'Invariant: previewProps missing previewModeId this should never happen'
@@ -66,6 +72,17 @@ export class DraftModeProvider {
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
     })
+
+    if (previewData) {
+      this._mutableCookies.set({
+        name: COOKIE_NAME_PRERENDER_DATA,
+        value: previewData,
+        httpOnly: true,
+        sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+        secure: process.env.NODE_ENV !== 'development',
+        path: '/',
+      })
+    }
   }
 
   disable() {
@@ -80,6 +97,14 @@ export class DraftModeProvider {
       secure: process.env.NODE_ENV !== 'development',
       path: '/',
       expires: new Date(0),
+    })
+
+    this._mutableCookies.set({
+      name: COOKIE_NAME_PRERENDER_DATA,
+      value: '',
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV !== 'development' ? 'none' : 'lax',
+      secure: process.env.NODE_ENV !== 'development',
     })
   }
 }

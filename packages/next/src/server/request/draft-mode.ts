@@ -106,6 +106,21 @@ function createExoticDraftMode(
     enumerable: true,
     configurable: true,
   })
+
+  Object.defineProperty(promise, 'previewData', {
+    get() {
+      return instance.previewData
+    },
+    set(newValue) {
+      Object.defineProperty(promise, 'previewData', {
+        value: newValue,
+        writable: true,
+        enumerable: true,
+      })
+    },
+    enumerable: true,
+    configurable: true,
+  })
   ;(promise as any).enable = instance.enable.bind(instance)
   ;(promise as any).disable = instance.disable.bind(instance)
 
@@ -127,6 +142,23 @@ function createExoticDraftModeWithDevWarnings(
     },
     set(newValue) {
       Object.defineProperty(promise, 'isEnabled', {
+        value: newValue,
+        writable: true,
+        enumerable: true,
+      })
+    },
+    enumerable: true,
+    configurable: true,
+  })
+
+  Object.defineProperty(promise, 'previewData', {
+    get() {
+      const expression = '`draftMode().previewData`'
+      syncIODev(route, expression)
+      return instance.previewData
+    },
+    set(newValue) {
+      Object.defineProperty(promise, 'previewData', {
         value: newValue,
         writable: true,
         enumerable: true,
@@ -164,18 +196,27 @@ class DraftMode {
   constructor(provider: null | DraftModeProvider) {
     this._provider = provider
   }
+
   get isEnabled() {
     if (this._provider !== null) {
       return this._provider.isEnabled
     }
     return false
   }
-  public enable() {
-    // We we have a store we want to track dynamic data access to ensure we
+
+  get previewData() {
+    if (this._provider !== null) {
+      return this._provider.previewData
+    }
+    return undefined
+  }
+
+  public enable(previewData?: string) {
+    // We have a store we want to track dynamic data access to ensure we
     // don't statically generate routes that manipulate draft mode.
     trackDynamicDraftMode('draftMode().enable()')
     if (this._provider !== null) {
-      this._provider.enable()
+      this._provider.enable(previewData)
     }
   }
   public disable() {
