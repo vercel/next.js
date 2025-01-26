@@ -357,6 +357,9 @@ export default class NextNodeServer extends BaseServer<
   protected async runInstrumentationHookIfAvailable() {
     if (this.registeredInstrumentation) return
     this.registeredInstrumentation = true
+    if (this.nextConfig.disableInstrumentation) {
+      return
+    }
     await this.instrumentation?.register?.()
   }
 

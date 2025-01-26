@@ -1024,6 +1024,14 @@ function assignDefaults(
     result.experimental.useCache = result.experimental.dynamicIO
   }
 
+  // Handle the disableInstrumentation option
+  if (typeof result.disableInstrumentation === 'function') {
+    result.disableInstrumentation = result.disableInstrumentation({
+      dev: process.env.NODE_ENV !== 'production',
+      isServer: typeof window === 'undefined',
+    })
+  }
+
   return result
 }
 
