@@ -1,9 +1,7 @@
-use std::path::PathBuf;
-
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    common::{comments::NoopComments, FileName},
+    common::comments::NoopComments,
     ecma::{ast::Program, atoms::JsWord},
 };
 use turbo_tasks::{ValueDefault, Vc};
@@ -92,7 +90,7 @@ impl CustomTransformer for StyledComponentsTransformer {
     #[tracing::instrument(level = tracing::Level::TRACE, name = "styled_components", skip_all)]
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         program.mutate(styled_components::styled_components(
-            &FileName::Real(PathBuf::from(ctx.file_path_str)),
+            Some(ctx.file_path_str),
             ctx.file_name_hash,
             &self.config,
             NoopComments,
