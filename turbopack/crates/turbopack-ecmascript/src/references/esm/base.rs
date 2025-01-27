@@ -18,6 +18,7 @@ use turbopack_core::{
         OptionStyledString, StyledString,
     },
     module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{EcmaScriptModulesReferenceSubType, ImportWithType},
     resolve::{
@@ -122,9 +123,7 @@ impl EsmAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
 impl EsmAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
@@ -142,7 +141,10 @@ impl EsmAssetReference {
             import_externals,
         })
     }
+}
 
+#[turbo_tasks::value_impl]
+impl EsmAssetReference {
     #[turbo_tasks::function]
     pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
@@ -187,7 +189,8 @@ impl ModuleReference for EsmAssetReference {
             Value::new(ty),
             false,
             Some(*self.issue_source),
-        );
+        )
+        .await?;
 
         if let Some(part) = self.export_name {
             let part = part.await?;
@@ -251,6 +254,7 @@ impl CodeGenerateable for EsmAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = &*self.await?;
@@ -283,7 +287,7 @@ impl CodeGenerateable for EsmAssetReference {
                     }
                     ReferencedAsset::Some(asset) => {
                         let id = asset
-                            .as_chunk_item(Vc::upcast(chunking_context))
+                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                             .id()
                             .await?;
                         Some((

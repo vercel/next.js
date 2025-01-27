@@ -167,7 +167,7 @@ You can define a loader per-image with the [`loader` prop](/docs/app/api-referen
 
 ## Priority
 
-You should add the `priority` property to the image that will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered) for each page. Doing so allows Next.js to specially prioritize the image for loading (e.g. through preload tags or priority hints), leading to a meaningful boost in LCP.
+You should add the `priority` property to the image that will be the [Largest Contentful Paint (LCP) element](https://web.dev/lcp/#what-elements-are-considered) for each page. Doing so allows Next.js to [preload](https://developer.mozilla.org/en-US/docs/Web/HTML/Attributes/rel/preload) the image, leading to a meaningful boost in LCP.
 
 The LCP element is typically the largest image or text block visible within the viewport of the page. When you run `next dev`, you'll see a console warning if the LCP element is an `<Image>` without the `priority` property.
 

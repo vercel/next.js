@@ -12,6 +12,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
@@ -67,11 +68,13 @@ impl ChunkableModule for HmrEntryModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
             HmrEntryChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),
@@ -139,6 +142,7 @@ impl ChunkableModuleReference for HmrEntryModuleReference {}
 #[turbo_tasks::value]
 struct HmrEntryChunkItem {
     module: ResolvedVc<HmrEntryModule>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -176,7 +180,7 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let this = self.module.await?;
         let module = this.module;
-        let chunk_item = module.as_chunk_item(*self.chunking_context);
+        let chunk_item = module.as_chunk_item(*self.module_graph, *self.chunking_context);
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();

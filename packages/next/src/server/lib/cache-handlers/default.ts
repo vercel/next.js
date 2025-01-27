@@ -94,8 +94,7 @@ const DefaultCacheHandler: CacheHandler = {
         errorRetryCount: 0,
         size,
       })
-    } catch (err) {
-      console.error(`Error while saving cache key: ${cacheKey}`, err)
+    } catch {
       // TODO: store partial buffer with error after we retry 3 times
     } finally {
       resolvePending()

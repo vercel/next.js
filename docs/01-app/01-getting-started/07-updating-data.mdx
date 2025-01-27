@@ -38,7 +38,7 @@ export async function deletePost(formData) {}
 Server Functions can be inlined in Server Components by adding the `"use server"` directive to the top of the function body:
 
 ```tsx filename="app/page.tsx" switcher
-export async default function Page() {
+export default function Page() {
   // Server Action
   async function createPost() {
     'use server'
@@ -66,7 +66,7 @@ export default function Page() {
 
 It's not possible to define Server Functions in Client Components. However, you can invoke them in Client Components by importing them from a file that has the `"use server"` directive at the top of it:
 
-```tsx filename="app/actions.ts" switcher
+```ts filename="app/actions.ts" switcher
 'use server'
 
 export async function createPost() {}
@@ -139,7 +139,7 @@ export function Form() {
 }
 ```
 
-```tsx filename="app/actions.ts" switcher
+```ts filename="app/actions.ts" switcher
 'use server'
 
 export async function createPost(formData: FormData) {
@@ -151,7 +151,7 @@ export async function createPost(formData: FormData) {
 }
 ```
 
-```jsx filename="app/actions.js" switcher
+```js filename="app/actions.js" switcher
 'use server'
 
 export async function createPost(formData) {
@@ -189,6 +189,9 @@ export default function LikeButton({ initialLikes }: { initialLikes: number }) {
       >
         Like
       </button>
+    </>
+  )
+}
 ```
 
 ```jsx filename="app/like-button.js" switcher

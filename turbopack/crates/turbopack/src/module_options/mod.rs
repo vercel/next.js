@@ -14,6 +14,7 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
 use turbopack_core::{
+    chunk::SourceMapsType,
     reference_type::{CssReferenceSubType, ReferenceType, UrlReferenceSubType},
     resolve::options::{ImportMap, ImportMapping},
 };
@@ -79,11 +80,17 @@ impl ModuleOptions {
                     import_externals,
                     esm_url_rewrite_behavior,
                     ref enable_typeof_window_inlining,
+                    source_maps: ecmascript_source_maps,
                     ..
                 },
             enable_mdx,
             enable_mdx_rs,
-            css: CssOptionsContext { enable_raw_css, .. },
+            css:
+                CssOptionsContext {
+                    enable_raw_css,
+                    source_maps: css_source_maps,
+                    ..
+                },
             ref enable_postcss_transform,
             ref enable_webpack_loaders,
             preset_env_versions,
@@ -133,6 +140,7 @@ impl ModuleOptions {
             import_externals,
             ignore_dynamic_requests,
             refresh,
+            extract_source_map: matches!(ecmascript_source_maps, SourceMapsType::Full),
             ..Default::default()
         };
         let ecmascript_options_vc = ecmascript_options.resolved_cell();
@@ -423,6 +431,7 @@ impl ModuleOptions {
                                 ),
                                 *execution_context,
                                 options.config_location,
+                                matches!(css_source_maps, SourceMapsType::Full),
                             )
                             .to_resolved()
                             .await?,
@@ -432,15 +441,11 @@ impl ModuleOptions {
             }
 
             rules.extend([
-                ModuleRule::new(
-                    RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        // Only create a global CSS asset if not `@import`ed from CSS already.
-                        RuleCondition::not(RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport(None),
-                        ))),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::CssGlobal)],
+                ModuleRule::new_all(
+                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Default,
+                    })],
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
@@ -456,18 +461,6 @@ impl ModuleOptions {
                 ),
                 ModuleRule::new(
                     RuleCondition::all(vec![
-                        RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                        // Create a normal CSS asset if `@import`ed from CSS already.
-                        RuleCondition::ReferenceType(ReferenceType::Css(
-                            CssReferenceSubType::AtImport(None),
-                        )),
-                    ]),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
-                    })],
-                ),
-                ModuleRule::new(
-                    RuleCondition::all(vec![
                         RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
                         // Create a normal CSS asset if `@import`ed from CSS already.
                         RuleCondition::ReferenceType(ReferenceType::Css(
@@ -478,14 +471,21 @@ impl ModuleOptions {
                         ty: CssModuleAssetType::Module,
                     })],
                 ),
-                ModuleRule::new_internal(
-                    RuleCondition::ResourcePathEndsWith(".css".to_string()),
-                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
-                        ty: CssModuleAssetType::Default,
-                    })],
-                ),
+                // Ecmascript CSS Modules referencing the actual CSS module to include it
                 ModuleRule::new_internal(
                     RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
+                        ty: CssModuleAssetType::Module,
+                    })],
+                ),
+                // Ecmascript CSS Modules referencing the actual CSS module to list the classes
+                ModuleRule::new(
+                    RuleCondition::all(vec![
+                        RuleCondition::ReferenceType(ReferenceType::Css(
+                            CssReferenceSubType::Analyze,
+                        )),
+                        RuleCondition::ResourcePathEndsWith(".module.css".to_string()),
+                    ]),
                     vec![ModuleRuleEffect::ModuleType(ModuleType::Css {
                         ty: CssModuleAssetType::Module,
                     })],
@@ -575,6 +575,7 @@ impl ModuleOptions {
                                 *rule.loaders,
                                 rule.rename_as.clone(),
                                 resolve_options_context,
+                                matches!(ecmascript_source_maps, SourceMapsType::Full),
                             )
                             .to_resolved()
                             .await?,

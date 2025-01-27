@@ -8,6 +8,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssets,
     reference::{ModuleReferences, SingleOutputAssetReference},
 };
@@ -34,6 +35,7 @@ fn modifier() -> Vc<RcStr> {
 #[turbo_tasks::value(shared)]
 pub struct ManifestAsyncModule {
     pub inner: ResolvedVc<Box<dyn ChunkableModule>>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     pub availability_info: AvailabilityInfo,
 }
@@ -43,11 +45,13 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub async fn new(
         module: ResolvedVc<Box<dyn ChunkableModule>>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
         availability_info: Value<AvailabilityInfo>,
     ) -> Vc<Self> {
         Self::cell(ManifestAsyncModule {
             inner: module,
+            module_graph,
             chunking_context,
             availability_info: availability_info.into_value(),
         })
@@ -57,6 +61,7 @@ impl ManifestAsyncModule {
     pub(super) fn chunks(&self) -> Vc<OutputAssets> {
         self.chunking_context.chunk_group_assets(
             *ResolvedVc::upcast(self.inner),
+            *self.module_graph,
             Value::new(self.availability_info),
         )
     }
@@ -64,23 +69,16 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub async fn manifest_chunks(self: Vc<Self>) -> Result<Vc<OutputAssets>> {
         let this = self.await?;
-        if let Some(chunk_items) = this.availability_info.available_chunk_items() {
-            if chunk_items
-                .get(
-                    this.inner
-                        .as_chunk_item(*ResolvedVc::upcast(this.chunking_context))
-                        .resolve()
-                        .await?,
-                )
-                .await?
-                .is_some()
-            {
+        if let Some(chunk_items) = this.availability_info.available_modules() {
+            if chunk_items.get(*this.inner).await?.is_some() {
                 return Ok(Vc::cell(vec![]));
             }
         }
-        Ok(this
-            .chunking_context
-            .chunk_group_assets(Vc::upcast(self), Value::new(this.availability_info)))
+        Ok(this.chunking_context.chunk_group_assets(
+            Vc::upcast(self),
+            *this.module_graph,
+            Value::new(this.availability_info),
+        ))
     }
 
     #[turbo_tasks::function]
@@ -91,7 +89,7 @@ impl ManifestAsyncModule {
     #[turbo_tasks::function]
     pub async fn content_ident(&self) -> Result<Vc<AssetIdent>> {
         let mut ident = self.inner.ident();
-        if let Some(available_modules) = self.availability_info.available_chunk_items() {
+        if let Some(available_modules) = self.availability_info.available_modules() {
             ident =
                 ident.with_modifier(Vc::cell(available_modules.hash().await?.to_string().into()));
         }
@@ -149,6 +147,7 @@ impl ChunkableModule for ManifestAsyncModule {
     #[turbo_tasks::function]
     async fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(

@@ -976,6 +976,10 @@ describe('app-dir static/dynamic handling', () => {
          "prerendered-not-found/first.rsc",
          "prerendered-not-found/second.html",
          "prerendered-not-found/second.rsc",
+         "prerendered-not-found/segment-revalidate.html",
+         "prerendered-not-found/segment-revalidate.rsc",
+         "prerendered-not-found/segment-revalidate/page.js",
+         "prerendered-not-found/segment-revalidate/page_client-reference-manifest.js",
          "react-fetch-deduping-edge/page.js",
          "react-fetch-deduping-edge/page_client-reference-manifest.js",
          "react-fetch-deduping-node/page.js",
@@ -2007,6 +2011,30 @@ describe('app-dir static/dynamic handling', () => {
            ],
            "initialRevalidateSeconds": false,
            "srcRoute": "/prerendered-not-found/[slug]",
+         },
+         "/prerendered-not-found/segment-revalidate": {
+           "allowHeader": [
+             "host",
+             "x-matched-path",
+             "x-prerender-revalidate",
+             "x-prerender-revalidate-if-generated",
+             "x-next-revalidated-tags",
+             "x-next-revalidate-tag-token",
+           ],
+           "dataRoute": "/prerendered-not-found/segment-revalidate.rsc",
+           "experimentalBypassFor": [
+             {
+               "key": "Next-Action",
+               "type": "header",
+             },
+             {
+               "key": "content-type",
+               "type": "header",
+               "value": "multipart/form-data;.*",
+             },
+           ],
+           "initialRevalidateSeconds": 3,
+           "srcRoute": "/prerendered-not-found/segment-revalidate",
          },
          "/route-handler/no-store-force-static": {
            "allowHeader": [

@@ -141,10 +141,10 @@ impl Introspectable for ConditionalContentSource {
             [
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.activator)
                     .await?
-                    .map(|i| (activator_key(), *i)),
+                    .map(|i| (activator_key(), i)),
                 ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.action)
                     .await?
-                    .map(|i| (action_key(), *i)),
+                    .map(|i| (action_key(), i)),
             ]
             .into_iter()
             .flatten()

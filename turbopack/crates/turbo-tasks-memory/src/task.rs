@@ -773,7 +773,7 @@ impl Task {
                     arg,
                 } => {
                     let func = registry::get_function(*native_fn_id);
-                    let span = func.span(self.id);
+                    let span = func.span(self.id.persistence());
                     let entered = span.enter();
                     let future = func.execute(*this, &**arg);
                     drop(entered);
@@ -785,7 +785,7 @@ impl Task {
                     arg,
                 } => {
                     let func = registry::get_function(*native_fn_id);
-                    let span = func.resolve_span(self.id);
+                    let span = func.resolve_span(self.id.persistence());
                     let entered = span.enter();
                     let future = Box::pin(CachedTaskType::run_resolve_native(
                         *native_fn_id,

@@ -15,6 +15,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     issue::IssueSource,
+    module_graph::ModuleGraph,
     output::OutputAsset,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
@@ -55,13 +56,14 @@ impl UrlAssetReference {
     #[turbo_tasks::function]
     async fn get_referenced_asset(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
         if let Some(module) = *self.resolve_reference().first_module().await? {
             if let Some(chunkable) =
                 ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
             {
-                let chunk_item = chunkable.as_chunk_item(chunking_context);
+                let chunk_item = chunkable.as_chunk_item(module_graph, chunking_context);
                 if let Some(embeddable) =
                     Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(chunk_item).await?
                 {
@@ -117,6 +119,7 @@ impl ValueToString for UrlAssetReference {
 #[turbo_tasks::function]
 pub async fn resolve_url_reference(
     url: Vc<UrlAssetReference>,
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
 ) -> Result<Vc<Option<RcStr>>> {
     let this = url.await?;
@@ -128,7 +131,10 @@ pub async fn resolve_url_reference(
     );
     let context_path = chunk_path.parent().await?;
 
-    if let ReferencedAsset::Some(asset) = &*url.get_referenced_asset(chunking_context).await? {
+    if let ReferencedAsset::Some(asset) = &*url
+        .get_referenced_asset(module_graph, chunking_context)
+        .await?
+    {
         // TODO(WEB-662) This is not the correct way to get the path of the asset.
         // `asset` is on module-level, but we need the output-level asset instead.
         let path = asset.ident().path().await?;

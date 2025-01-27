@@ -14,11 +14,7 @@ use crate::func::{
 };
 
 pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
-    let ValueTraitArguments {
-        debug,
-        local,
-        operation,
-    } = parse_macro_input!(args as ValueTraitArguments);
+    let ValueTraitArguments { debug, operation } = parse_macro_input!(args as ValueTraitArguments);
 
     let item = parse_macro_input!(input as ItemTrait);
 
@@ -197,12 +193,11 @@ pub fn value_trait(args: TokenStream, input: TokenStream) -> TokenStream {
         quote! {}
     };
 
-    let mut extended_supertraits = vec![quote!(::std::marker::Send), quote!(::std::marker::Sync)];
-    if !local {
-        extended_supertraits.push(quote! {
-            turbo_tasks::NonLocalValue
-        });
-    }
+    let mut extended_supertraits = vec![
+        quote!(::std::marker::Send),
+        quote!(::std::marker::Sync),
+        quote!(turbo_tasks::NonLocalValue),
+    ];
     if let Some(span) = operation {
         extended_supertraits.push(quote_spanned! {
             span => turbo_tasks::OperationValue

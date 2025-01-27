@@ -1,6 +1,6 @@
 name: Report an issue with an example
 description: Report an issue with one of our Next.js examples.
-labels: ['examples']
+type: Examples
 body:
   - type: markdown
     attributes:

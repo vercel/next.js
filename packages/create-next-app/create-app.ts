@@ -36,6 +36,7 @@ export async function createApp({
   importAlias,
   skipInstall,
   empty,
+  api,
   turbopack,
   disableGit,
 }: {
@@ -51,6 +52,7 @@ export async function createApp({
   importAlias: string
   skipInstall: boolean
   empty: boolean
+  api?: boolean
   turbopack: boolean
   disableGit?: boolean
 }): Promise<void> {
@@ -224,7 +226,7 @@ export async function createApp({
     await installTemplate({
       appName,
       root,
-      template,
+      template: api ? 'app-api' : template,
       mode,
       packageManager,
       isOnline,

@@ -9,7 +9,7 @@
             [
                 Constant(
                     Str(
-                        Word(
+                        Atom(
                             "a",
                         ),
                     ),
@@ -42,7 +42,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "a",
                                 ),
                             ),
@@ -57,7 +57,7 @@
                     [
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "b",
                                 ),
                             ),
@@ -106,7 +106,7 @@
                         StrictEqual,
                         Constant(
                             Str(
-                                Word(
+                                Atom(
                                     "edge",
                                 ),
                             ),
@@ -114,14 +114,14 @@
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "next/dist/compiled/@vercel/og/index.edge.js",
                             ),
                         ),
                     ),
                     Constant(
                         Str(
-                            Word(
+                            Atom(
                                 "next/dist/compiled/@vercel/og/index.node.js",
                             ),
                         ),

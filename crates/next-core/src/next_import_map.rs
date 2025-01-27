@@ -120,6 +120,7 @@ pub async fn get_next_client_import_map(
             let react_flavor = if *next_config.enable_ppr().await?
                 || *next_config.enable_taint().await?
                 || *next_config.enable_react_owner_stack().await?
+                || *next_config.enable_view_transition().await?
             {
                 "-experimental"
             } else {
@@ -719,7 +720,8 @@ async fn rsc_aliases(
     let ppr = *next_config.enable_ppr().await?;
     let taint = *next_config.enable_taint().await?;
     let react_owner_stack = *next_config.enable_react_owner_stack().await?;
-    let react_channel = if ppr || taint || react_owner_stack {
+    let view_transition = *next_config.enable_view_transition().await?;
+    let react_channel = if ppr || taint || react_owner_stack || view_transition {
         "-experimental"
     } else {
         ""

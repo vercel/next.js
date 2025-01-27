@@ -7,6 +7,7 @@ use turbopack_core::{
         ChunkItemExt, ChunkableModule, ChunkableModuleReference, ChunkingContext,
         ChunkingTypeOption,
     },
+    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::ModuleResolveResult,
 };
@@ -65,13 +66,14 @@ impl CodeGenerateable for EsmModuleIdAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
         if let ReferencedAsset::Some(asset) = &*self.inner.get_referenced_asset().await? {
             let id = asset
-                .as_chunk_item(Vc::upcast(chunking_context))
+                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                 .id()
                 .await?;
             let id = module_id_to_lit(&id);

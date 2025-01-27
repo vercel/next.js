@@ -4,6 +4,7 @@ use std::{
 };
 
 use once_cell::sync::Lazy;
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
@@ -176,6 +177,10 @@ pub(crate) struct ImportMap {
     ///
     /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
     attributes: HashMap<BytePos, ImportAttributes>,
+
+    /// The module specifiers of star imports that are accessed dynamically and should be imported
+    /// as a whole.
+    full_star_imports: FxHashSet<JsWord>,
 }
 
 /// Represents a collection of [webpack-style "magic comments"][magic] that override import
@@ -305,13 +310,106 @@ impl ImportMap {
     ) -> Self {
         let mut data = ImportMap::default();
 
-        m.visit_with(&mut Analyzer {
+        // We have to analyze imports first to determine if a star import is dynamic.
+        // We can't do this in the visitor because import may (and likely) comes before usages, and
+        // a method invoked after visitor will not work because we need to preserve the import
+        // order.
+
+        if let Program::Module(m) = m {
+            let mut candidates = FxIndexMap::default();
+
+            // Imports are hoisted to the top of the module.
+            // So we have to collect all imports first.
+            m.body.iter().for_each(|stmt| {
+                if let ModuleItem::ModuleDecl(ModuleDecl::Import(import)) = stmt {
+                    for s in &import.specifiers {
+                        if let ImportSpecifier::Namespace(s) = s {
+                            candidates.insert(s.local.to_id(), import.src.value.clone());
+                        }
+                    }
+                }
+            });
+
+            let mut analyzer = StarImportAnalyzer {
+                candidates,
+                full_star_imports: &mut data.full_star_imports,
+            };
+            m.visit_with(&mut analyzer);
+        }
+
+        let mut analyzer = Analyzer {
             data: &mut data,
             source,
             comments,
-        });
+        };
+        m.visit_with(&mut analyzer);
 
         data
+    }
+
+    pub(crate) fn should_import_all(&self, esm_reference_index: usize) -> bool {
+        let r = &self.references[esm_reference_index];
+
+        self.full_star_imports.contains(&r.module_path)
+    }
+}
+
+struct StarImportAnalyzer<'a> {
+    /// The local identifiers of the star imports
+    candidates: FxIndexMap<Id, JsWord>,
+    full_star_imports: &'a mut FxHashSet<JsWord>,
+}
+
+impl Visit for StarImportAnalyzer<'_> {
+    fn visit_expr(&mut self, node: &Expr) {
+        if let Expr::Ident(i) = node {
+            if let Some(module_path) = self.candidates.get(&i.to_id()) {
+                self.full_star_imports.insert(module_path.clone());
+                return;
+            }
+        }
+
+        node.visit_children_with(self);
+    }
+
+    fn visit_import_decl(&mut self, _: &ImportDecl) {}
+
+    fn visit_member_expr(&mut self, node: &MemberExpr) {
+        match &node.prop {
+            MemberProp::Ident(..) | MemberProp::PrivateName(..) => {
+                if node.obj.is_ident() {
+                    return;
+                }
+                // We can skip `visit_expr(obj)` because it's not a dynamic access
+                node.obj.visit_children_with(self);
+            }
+            MemberProp::Computed(..) => {
+                node.obj.visit_with(self);
+                node.prop.visit_with(self);
+            }
+        }
+    }
+
+    fn visit_pat(&mut self, pat: &Pat) {
+        if let Pat::Ident(i) = pat {
+            if let Some(module_path) = self.candidates.get(&i.to_id()) {
+                self.full_star_imports.insert(module_path.clone());
+                return;
+            }
+        }
+
+        pat.visit_children_with(self);
+    }
+
+    fn visit_simple_assign_target(&mut self, node: &SimpleAssignTarget) {
+        if let SimpleAssignTarget::Ident(i) = node {
+            if let Some(module_path) = self.candidates.get(&i.to_id()) {
+                self.full_star_imports.insert(module_path.clone());
+                return;
+            }
+        }
+
+        node.visit_children_with(self);
     }
 }
 

@@ -470,7 +470,7 @@ describe('Valid Nested CSS Module Usage from within node_modules', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:#ff0}.example_subClass__m6Tyy{background:blue}"`
+            `".other2_other2__dYPgz{color:red}.other3_other3__7hgUE{color:violet}.other_className__OA8dV{background:red;color:yellow}.example_subClass__m6Tyy{background:blue}"`
           )
         }
       })
@@ -528,7 +528,7 @@ describe('CSS Module Composes Usage (Basic)', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".index_className__jjcZ1{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            `".index_className__jjcZ1{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
           )
         }
       })
@@ -584,7 +584,7 @@ describe('CSS Module Composes Usage (External)', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".other_className__eZV4M{background:red;color:#ff0}.index_subClass__eDzaW{background:blue}"`
+            `".other_className__eZV4M{background:red;color:yellow}.index_subClass__eDzaW{background:blue}"`
           )
         }
       })
@@ -648,7 +648,7 @@ describe('Dynamic Route CSS Module Usage', () => {
         } else {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
-          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:red}"`)
+          ).toMatchInlineSnapshot(`"._post__home__yRmHz{background:#f00}"`)
         }
       })
     }
@@ -717,7 +717,7 @@ describe('Catch-all Route CSS Module Usage', () => {
           expect(
             cssContent.replace(/\/\*.*?\*\//g, '').trim()
           ).toMatchInlineSnapshot(
-            `".___post__home__e4zfx{background:red}.__55css_home__r8Rnq{color:green}"`
+            `".___post__home__e4zfx{background:#f00}.__55css_home__r8Rnq{color:green}"`
           )
         }
       })

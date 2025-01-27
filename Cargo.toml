@@ -91,21 +91,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "5.0.4", features = [
+swc_core = { version = "10.5.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
-testing = { version = "4.0.0" }
+testing = { version = "5.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
 browserslist-rs = { version = "0.16.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
-mdxjs = "0.2.13"
-modularize_imports = { version = "0.68.30" }
-styled_components = { version = "0.96.28" }
-styled_jsx = { version = "0.73.40" }
-swc_emotion = { version = "0.72.28" }
-swc_relay = { version = "0.44.30" }
+mdxjs = "0.2.15"
+modularize_imports = { version = "0.71.0" }
+styled_components = { version = "0.99.0" }
+styled_jsx = { version = "0.76.0" }
+swc_emotion = { version = "0.75.0" }
+swc_relay = { version = "0.46.1" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -132,7 +132,7 @@ chrono = "0.4.23"
 clap = { version = "4.5.2", features = ["derive"] }
 concurrent-queue = "2.5.0"
 console = "0.15.5"
-console-subscriber = "0.1.8"
+console-subscriber = "0.4.1"
 criterion = "0.5.1"
 crossbeam-channel = "0.5.8"
 dashmap = "6.1.0"
@@ -151,12 +151,12 @@ indoc = "2.0.0"
 itertools = "0.10.5"
 lazy_static = "1.4.0"
 log = "0.4.17"
-lightningcss = { version = "1.0.0-alpha.61", features = [
+lightningcss = { version = "1.0.0-alpha.63", features = [
   "serde",
   "visitor",
   "into_owned",
 ] }
-lightningcss-napi = { version = "0.4.0", default-features = false, features = [
+lightningcss-napi = { version = "0.4.3", default-features = false, features = [
   "visitor"
 ]}
 markdown = "1.0.0-alpha.18"
@@ -165,7 +165,7 @@ nohash-hasher = "0.2.0"
 notify = "6.1.1"
 once_cell = "1.17.1"
 owo-colors = "3.5.0"
-parcel_selectors = "0.28.0"
+parcel_selectors = "0.28.1"
 parking_lot = "0.12.1"
 pathdiff = "0.2.1"
 petgraph = "0.6.3"
@@ -219,3 +219,8 @@ webbrowser = "0.8.7"
 
 [patch.crates-io]
 sourcemap = { git = "https://github.com/wbinnssmith/rust-sourcemap", branch = "wbinnssmith/ignore-list" }
+# Remove this once https://github.com/wasmerio/wasmer/pull/5333 is merged and released
+wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
+wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
+wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
+wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }

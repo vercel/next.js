@@ -20,7 +20,7 @@ import { isAbortError } from '../../pipe-readable'
 import { getHostname } from '../../../shared/lib/get-hostname'
 import { getRedirectStatus } from '../../../lib/redirect-status'
 import { normalizeRepeatedSlashes } from '../../../shared/lib/utils'
-import { relativizeURL } from '../../../shared/lib/router/utils/relativize-url'
+import { getRelativeURL } from '../../../shared/lib/router/utils/relativize-url'
 import { addPathPrefix } from '../../../shared/lib/router/utils/add-path-prefix'
 import { pathHasPrefix } from '../../../shared/lib/router/utils/path-has-prefix'
 import { detectDomainLocale } from '../../../shared/lib/i18n/detect-domain-locale'
@@ -36,10 +36,16 @@ import {
   prepareDestination,
 } from '../../../shared/lib/router/utils/prepare-destination'
 import type { TLSSocket } from 'tls'
-import { NEXT_ROUTER_STATE_TREE_HEADER } from '../../../client/components/app-router-headers'
+import {
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
+  NEXT_ROUTER_STATE_TREE_HEADER,
+  RSC_HEADER,
+} from '../../../client/components/app-router-headers'
 import { getSelectedParams } from '../../../client/components/router-reducer/compute-changed-path'
 import { isInterceptionRouteRewrite } from '../../../lib/generate-interception-routes-rewrites'
 import { parseAndValidateFlightRouterState } from '../../app-render/parse-and-validate-flight-router-state'
+import { parseUrl } from '../../../shared/lib/router/utils/parse-url'
 
 const debug = setupDebug('next:router-server:resolve-routes')
 
@@ -599,24 +605,16 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['x-middleware-rewrite']) {
               const value = middlewareHeaders['x-middleware-rewrite'] as string
-              const rel = relativizeURL(value, initUrl)
-              resHeaders['x-middleware-rewrite'] = rel
+              const destination = getRelativeURL(value, initUrl)
+              resHeaders['x-middleware-rewrite'] = destination
 
-              const query = parsedUrl.query
-              parsedUrl = url.parse(rel, true)
+              parsedUrl = url.parse(destination, true)
 
               if (parsedUrl.protocol) {
                 return {
                   parsedUrl,
                   resHeaders,
                   finished: true,
-                }
-              }
-
-              // keep internal query state
-              for (const key of Object.keys(query)) {
-                if (key.startsWith('_next') || key.startsWith('__next')) {
-                  parsedUrl.query[key] = query[key]
                 }
               }
 
@@ -634,7 +632,7 @@ export function getResolveRoutes(
 
             if (middlewareHeaders['location']) {
               const value = middlewareHeaders['location'] as string
-              const rel = relativizeURL(value, initUrl)
+              const rel = getRelativeURL(value, initUrl)
               resHeaders['location'] = rel
               parsedUrl = url.parse(rel, true)
 
@@ -735,6 +733,12 @@ export function getResolveRoutes(
             // so we'll just use the params from the route matcher
           }
 
+          // We extract the search params of the destination so we can set it on
+          // the response headers. We don't want to use the following
+          // `parsedDestination` as the query object is mutated.
+          const { search: destinationSearch, pathname: destinationPathname } =
+            parseUrl(route.destination)
+
           const { parsedDestination } = prepareDestination({
             appendParamsToQuery: true,
             destination: route.destination,
@@ -747,6 +751,22 @@ export function getResolveRoutes(
               // @ts-expect-error custom ParsedUrl
               parsedUrl: parsedDestination,
               finished: true,
+            }
+          }
+
+          // Set the rewrite headers only if this is a RSC request.
+          if (req.headers[RSC_HEADER.toLowerCase()] === '1') {
+            // We set the rewritten path and query headers on the response now
+            // that we know that the it's not an external rewrite.
+            if (parsedUrl.pathname !== destinationPathname) {
+              res.setHeader(NEXT_REWRITTEN_PATH_HEADER, destinationPathname)
+            }
+            if (destinationSearch) {
+              res.setHeader(
+                NEXT_REWRITTEN_QUERY_HEADER,
+                // remove the leading ? from the search
+                destinationSearch.slice(1)
+              )
             }
           }
 

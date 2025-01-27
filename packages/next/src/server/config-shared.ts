@@ -21,6 +21,11 @@ export type NextConfigComplete = Required<NextConfig> & {
   configOrigin?: string
   configFile?: string
   configFileName: string
+  // override NextConfigComplete.experimental.htmlLimitedBots to string
+  // because it's not defined in NextConfigComplete.experimental
+  experimental: Omit<ExperimentalConfig, 'htmlLimitedBots'> & {
+    htmlLimitedBots: string | undefined
+  }
 }
 
 export type I18NDomains = readonly DomainLocale[]
@@ -177,6 +182,11 @@ export interface ExperimentalTurboOptions {
    * Enable minification. Defaults to true in build mode and false in dev mode.
    */
   minify?: boolean
+
+  /**
+   * Enable source maps. Defaults to true.
+   */
+  sourceMaps?: boolean
 }
 
 export interface WebpackConfigContext {
@@ -223,6 +233,14 @@ export interface ReactCompilerOptions {
   panicThreshold?: 'ALL_ERRORS' | 'CRITICAL_ERRORS' | 'NONE'
 }
 
+export interface IncomingRequestLoggingConfig {
+  /**
+   * A regular expression array to match incoming requests that should not be logged.
+   * You can specify multiple patterns to match incoming requests that should not be logged.
+   */
+  ignore?: RegExp[]
+}
+
 export interface LoggingConfig {
   fetches?: {
     fullUrl?: boolean
@@ -232,6 +250,12 @@ export interface LoggingConfig {
      */
     hmrRefreshes?: boolean
   }
+
+  /**
+   * If set to false, incoming request logging is disabled.
+   * You can specify a pattern to match incoming requests that should not be logged.
+   */
+  incomingRequest?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {
@@ -496,6 +520,11 @@ export interface ExperimentalConfig {
   useEarlyImport?: boolean
 
   /**
+   * Enables view transitions by using the {@link https://github.com/facebook/react/pull/31975 unstable_ViewTransition} Component.
+   */
+  viewTransition?: boolean
+
+  /**
    * Enables `fetch` requests to be proxied to the experimental test proxy server
    */
   testProxy?: boolean
@@ -567,6 +596,22 @@ export interface ExperimentalConfig {
    * Enables the new dev overlay.
    */
   newDevOverlay?: boolean
+
+  /**
+   * When enabled will cause async metadata calls to stream rather than block the render.
+   */
+  streamingMetadata?: boolean
+
+  /**
+   * User Agent of bots that can handle streaming metadata.
+   * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
+   */
+  htmlLimitedBots?: RegExp
+
+  /**
+   * Enables the use of the `"use cache"` directive.
+   */
+  useCache?: boolean
 }
 
 export type ExportPathMap = {
@@ -965,6 +1010,9 @@ export interface NextConfig extends Record<string, any> {
     }
   >
 
+  /**
+   * Logging configuration. Set to `false` to disable logging.
+   */
   logging?: LoggingConfig | false
 
   /**
@@ -1178,6 +1226,7 @@ export const defaultConfig: NextConfig = {
     webpackMemoryOptimizations: false,
     optimizeServerReact: true,
     useEarlyImport: false,
+    viewTransition: false,
     staleTimes: {
       dynamic: 0,
       static: 300,
@@ -1191,6 +1240,9 @@ export const defaultConfig: NextConfig = {
     dynamicIO: false,
     inlineCss: false,
     newDevOverlay: false,
+    streamingMetadata: false,
+    htmlLimitedBots: undefined,
+    useCache: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

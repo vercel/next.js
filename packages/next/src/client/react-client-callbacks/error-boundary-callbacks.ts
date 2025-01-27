@@ -1,8 +1,8 @@
 // This file is only used in app router due to the specific error state handling.
 
 import type { HydrationOptions } from 'react-dom/client'
-import { getReactStitchedError } from '../components/react-dev-overlay/internal/helpers/stitched-error'
-import { handleClientError } from '../components/react-dev-overlay/internal/helpers/use-error-handler'
+import { getReactStitchedError } from '../components/errors/stitched-error'
+import { handleClientError } from '../components/errors/use-error-handler'
 import { isNextRouterError } from '../components/is-next-router-error'
 import { isBailoutToCSRError } from '../../shared/lib/lazy-dynamic/bailout-to-csr'
 import { reportGlobalError } from './report-global-error'

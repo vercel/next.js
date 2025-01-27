@@ -186,11 +186,12 @@ fn react_server_actions_server_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -226,11 +227,12 @@ fn react_server_actions_client_errors(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: false,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -284,11 +286,12 @@ fn use_cache_not_allowed(input: PathBuf) {
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: false,
+                        use_cache_enabled: false,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },

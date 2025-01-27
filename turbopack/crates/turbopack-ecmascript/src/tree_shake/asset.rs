@@ -8,6 +8,7 @@ use turbopack_core::{
     context::AssetContext,
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences, SingleModuleReference},
     resolve::{origin::ResolveOrigin, ModulePart},
 };
@@ -65,18 +66,23 @@ impl EcmascriptAnalyzable for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
-    fn module_content_without_analysis(&self) -> Vc<EcmascriptModuleContent> {
-        self.full_module.module_content_without_analysis()
+    fn module_content_without_analysis(
+        &self,
+        generate_source_map: Vc<bool>,
+    ) -> Vc<EcmascriptModuleContent> {
+        self.full_module
+            .module_content_without_analysis(generate_source_map)
     }
 
     #[turbo_tasks::function]
     fn module_content(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<EcmascriptModuleContent> {
         self.full_module
-            .module_content(chunking_context, async_module_info)
+            .module_content(module_graph, chunking_context, async_module_info)
     }
 }
 
@@ -275,6 +281,11 @@ impl Module for EcmascriptModulePartAsset {
     }
 
     #[turbo_tasks::function]
+    fn is_self_async(self: Vc<Self>) -> Vc<bool> {
+        self.is_async_module()
+    }
+
+    #[turbo_tasks::function]
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         let split_data = split_module(*self.full_module).await?;
 
@@ -373,11 +384,13 @@ impl ChunkableModule for EcmascriptModulePartAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             EcmascriptModulePartChunkItem {
                 module: self,
+                module_graph,
                 chunking_context,
             }
             .cell(),

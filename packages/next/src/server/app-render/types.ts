@@ -177,7 +177,7 @@ export interface RenderOptsPartial {
   assetPrefix?: string
   crossOrigin?: '' | 'anonymous' | 'use-credentials' | undefined
   nextFontManifest?: DeepReadonly<NextFontManifest>
-  isBot?: boolean
+  serveStreamingMetadata?: boolean
   incrementalCache?: import('../lib/incremental-cache').IncrementalCache
   cacheLifeProfiles?: {
     [profile: string]: import('../use-cache/cache-life').CacheLife
@@ -215,6 +215,8 @@ export interface RenderOptsPartial {
     clientSegmentCache: boolean
     inlineCss: boolean
     authInterrupts: boolean
+    streamingMetadata: boolean
+    htmlLimitedBots: string | undefined
   }
   postponed?: string
 

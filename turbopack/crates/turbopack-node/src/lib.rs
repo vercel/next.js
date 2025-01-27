@@ -20,6 +20,7 @@ use turbopack_core::{
     changed::content_changed,
     chunk::{ChunkingContext, ChunkingContextExt, EvaluatableAssets},
     module::Module,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets, OutputAssetsSet},
     source_map::GenerateSourceMap,
     virtual_output::VirtualOutputAsset,
@@ -67,12 +68,12 @@ struct SeparatedAssets {
 /// "internal" subgraph.
 #[turbo_tasks::function]
 async fn internal_assets(
-    intermediate_asset: Vc<Box<dyn OutputAsset>>,
-    intermediate_output_path: Vc<FileSystemPath>,
+    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<OutputAssetsSet>> {
     Ok(
-        *separate_assets(intermediate_asset, intermediate_output_path)
-            .strongly_consistent()
+        *separate_assets_operation(intermediate_asset, intermediate_output_path)
+            .read_strongly_consistent()
             .await?
             .internal_assets,
     )
@@ -111,25 +112,25 @@ pub async fn external_asset_entrypoints(
     module: Vc<Box<dyn Module>>,
     runtime_entries: Vc<EvaluatableAssets>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
-    intermediate_output_path: Vc<FileSystemPath>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<OutputAssetsSet>> {
-    Ok(*separate_assets(
+    Ok(*separate_assets_operation(
         get_intermediate_asset(chunking_context, module, runtime_entries)
-            .resolve()
+            .to_resolved()
             .await?,
         intermediate_output_path,
     )
-    .strongly_consistent()
+    .read_strongly_consistent()
     .await?
     .external_asset_entrypoints)
 }
 
 /// Splits the asset graph into "internal" assets and boundaries to "external"
 /// assets.
-#[turbo_tasks::function]
-async fn separate_assets(
+#[turbo_tasks::function(operation)]
+async fn separate_assets_operation(
     intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
-    intermediate_output_path: Vc<FileSystemPath>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
 ) -> Result<Vc<SeparatedAssets>> {
     let intermediate_output_path = &*intermediate_output_path.await?;
     #[derive(PartialEq, Eq, Hash, Clone, Copy)]
@@ -207,25 +208,25 @@ fn emit_package_json(dir: Vc<FileSystemPath>) -> Vc<()> {
 }
 
 /// Creates a node.js renderer pool for an entrypoint.
-#[turbo_tasks::function]
-pub async fn get_renderer_pool(
-    cwd: Vc<FileSystemPath>,
-    env: Vc<Box<dyn ProcessEnv>>,
-    intermediate_asset: Vc<Box<dyn OutputAsset>>,
-    intermediate_output_path: Vc<FileSystemPath>,
+#[turbo_tasks::function(operation)]
+pub async fn get_renderer_pool_operation(
+    cwd: ResolvedVc<FileSystemPath>,
+    env: ResolvedVc<Box<dyn ProcessEnv>>,
+    intermediate_asset: ResolvedVc<Box<dyn OutputAsset>>,
+    intermediate_output_path: ResolvedVc<FileSystemPath>,
     output_root: ResolvedVc<FileSystemPath>,
     project_dir: ResolvedVc<FileSystemPath>,
     debug: bool,
 ) -> Result<Vc<NodeJsPool>> {
-    emit_package_json(intermediate_output_path).await?;
+    emit_package_json(*intermediate_output_path).await?;
 
-    let _ = emit(intermediate_asset, *output_root).resolve().await?;
+    let _ = emit(*intermediate_asset, *output_root).resolve().await?;
     let assets_for_source_mapping =
-        internal_assets_for_source_mapping(intermediate_asset, *output_root);
+        internal_assets_for_source_mapping(*intermediate_asset, *output_root);
 
     let entrypoint = intermediate_asset.ident().path();
 
-    let Some(cwd) = to_sys_path(cwd).await? else {
+    let Some(cwd) = to_sys_path(*cwd).await? else {
         bail!(
             "can only render from a disk filesystem, but `cwd = {}`",
             cwd.to_string().await?
@@ -238,7 +239,7 @@ pub async fn get_renderer_pool(
         );
     };
     // Invalidate pool when code content changes
-    content_changed(Vc::upcast(intermediate_asset)).await?;
+    content_changed(*ResolvedVc::upcast(intermediate_asset)).await?;
 
     Ok(NodeJsPool::new(
         cwd,
@@ -267,6 +268,7 @@ pub fn get_intermediate_asset(
     Vc::upcast(chunking_context.root_entry_chunk_group_asset(
         chunking_context.chunk_path(main_entry.ident(), ".js".into()),
         main_entry,
+        ModuleGraph::from_module(main_entry),
         OutputAssets::empty(),
         other_entries,
     ))

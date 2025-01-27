@@ -79,7 +79,6 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
@@ -165,7 +164,9 @@ export default class NextWebServer extends BaseServer<
       pathname = normalizedPage
 
       if (isDynamicRoute(pathname)) {
-        const routeRegex = getNamedRouteRegex(pathname, false)
+        const routeRegex = getNamedRouteRegex(pathname, {
+          prefixRouteKeys: false,
+        })
         const dynamicRouteMatcher = getRouteMatcher(routeRegex)
         const defaultRouteMatches = dynamicRouteMatcher(
           pathname

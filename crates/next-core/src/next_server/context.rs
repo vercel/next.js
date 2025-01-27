@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexMap, ResolvedVc, Value, Vc};
 use turbo_tasks_env::{EnvMap, ProcessEnv};
-use turbo_tasks_fs::{FileSystem, FileSystemPath};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack::{
     module_options::{
         CssOptionsContext, EcmascriptOptionsContext, JsxTransformOptions, ModuleOptionsContext,
@@ -14,12 +14,11 @@ use turbopack::{
     transition::Transition,
 };
 use turbopack_core::{
-    chunk::{module_id_strategies::ModuleIdStrategy, MinifyType},
+    chunk::{module_id_strategies::ModuleIdStrategy, ChunkingConfig, MinifyType, SourceMapsType},
     compile_time_info::{
         CompileTimeDefineValue, CompileTimeDefines, CompileTimeInfo, DefineableNameSegment,
         FreeVarReferences,
     },
-    condition::ContextCondition,
     environment::{
         Environment, ExecutionEnvironment, NodeJsEnvironment, NodeJsVersion, RuntimeVersions,
     },
@@ -41,7 +40,6 @@ use super::{
     transforms::{get_next_server_internal_transforms_rules, get_next_server_transforms_rules},
 };
 use crate::{
-    embed_js::next_js_fs,
     mode::NextMode,
     next_build::get_postcss_package_mapping,
     next_client::RuntimeEntries,
@@ -71,8 +69,8 @@ use crate::{
         get_typescript_transform_options,
     },
     util::{
-        foreign_code_context_condition, get_transpiled_packages, load_next_js_templateon,
-        NextRuntime,
+        foreign_code_context_condition, get_transpiled_packages, internal_assets_conditions,
+        load_next_js_templateon, NextRuntime,
     },
 };
 
@@ -396,21 +394,6 @@ pub async fn get_server_compile_time_info(
     .await
 }
 
-/// Determins if the module is an internal asset (i.e overlay, fallback) coming
-/// from the embedded FS, don't apply user defined transforms.
-///
-/// [TODO] turbopack specific embed fs should be handled by internals of
-/// turbopack itself and user config should not try to leak this. However,
-/// currently we apply few transform options subject to next.js's configuration
-/// even if it's embedded assets.
-fn internal_assets_conditions() -> ContextCondition {
-    ContextCondition::any(vec![
-        ContextCondition::InPath(next_js_fs().root()),
-        ContextCondition::InPath(turbopack_ecmascript_runtime::embed_fs().root()),
-        ContextCondition::InPath(turbopack_node::embed_js::embed_fs().root()),
-    ])
-}
-
 #[turbo_tasks::function]
 pub async fn get_server_module_options_context(
     project_path: ResolvedVc<FileSystemPath>,
@@ -419,14 +402,27 @@ pub async fn get_server_module_options_context(
     mode: Vc<NextMode>,
     next_config: Vc<NextConfig>,
     next_runtime: NextRuntime,
+    encryption_key: ResolvedVc<RcStr>,
 ) -> Result<Vc<ModuleOptionsContext>> {
     let next_mode = mode.await?;
-    let mut next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, false, next_runtime)
-            .await?;
-    let mut foreign_next_server_rules =
-        get_next_server_transforms_rules(next_config, ty.into_value(), mode, true, next_runtime)
-            .await?;
+    let mut next_server_rules = get_next_server_transforms_rules(
+        next_config,
+        ty.into_value(),
+        mode,
+        false,
+        next_runtime,
+        encryption_key,
+    )
+    .await?;
+    let mut foreign_next_server_rules = get_next_server_transforms_rules(
+        next_config,
+        ty.into_value(),
+        mode,
+        true,
+        next_runtime,
+        encryption_key,
+    )
+    .await?;
     let mut internal_custom_rules = get_next_server_internal_transforms_rules(
         ty.into_value(),
         next_config.mdx_rs().await?.is_some(),
@@ -537,10 +533,20 @@ pub async fn get_server_module_options_context(
             enable_typeof_window_inlining: Some(TypeofWindow::Undefined),
             import_externals: *next_config.import_externals().await?,
             ignore_dynamic_requests: true,
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         execution_context: Some(execution_context),
         css: CssOptionsContext {
+            source_maps: if *next_config.turbo_source_maps().await? {
+                SourceMapsType::Full
+            } else {
+                SourceMapsType::None
+            },
             ..Default::default()
         },
         tree_shaking_mode: tree_shaking_mode_for_user_code,
@@ -635,7 +641,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -700,7 +706,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -776,7 +782,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -851,7 +857,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -948,7 +954,7 @@ pub async fn get_server_module_options_context(
                         foreign_code_module_options_context.resolved_cell(),
                     ),
                     (
-                        internal_assets_conditions(),
+                        internal_assets_conditions().await?,
                         internal_module_options_context.resolved_cell(),
                     ),
                 ],
@@ -982,6 +988,7 @@ pub async fn get_server_chunking_context_with_client_assets(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1009,12 +1016,23 @@ pub async fn get_server_chunking_context_with_client_assets(
     } else {
         MinifyType::NoMinify
     })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    })
     .module_id_strategy(module_id_strategy)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris();
+    } else {
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {
+            min_chunk_size: 20000,
+            ..Default::default()
+        })
     }
+
     Ok(builder.build())
 }
 
@@ -1027,6 +1045,7 @@ pub async fn get_server_chunking_context(
     environment: ResolvedVc<Environment>,
     module_id_strategy: ResolvedVc<Box<dyn ModuleIdStrategy>>,
     turbo_minify: Vc<bool>,
+    turbo_source_maps: Vc<bool>,
 ) -> Result<Vc<NodeJsChunkingContext>> {
     let next_mode = mode.await?;
     // TODO(alexkirsz) This should return a trait that can be implemented by the
@@ -1047,11 +1066,21 @@ pub async fn get_server_chunking_context(
     } else {
         MinifyType::NoMinify
     })
+    .source_maps(if *turbo_source_maps.await? {
+        SourceMapsType::Full
+    } else {
+        SourceMapsType::None
+    })
     .module_id_strategy(module_id_strategy)
     .file_tracing(next_mode.is_production());
 
     if next_mode.is_development() {
         builder = builder.use_file_source_map_uris()
+    } else {
+        builder = builder.ecmascript_chunking_config(ChunkingConfig {
+            min_chunk_size: 20000,
+            ..Default::default()
+        })
     }
 
     Ok(builder.build())

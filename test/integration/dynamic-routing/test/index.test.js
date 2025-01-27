@@ -1509,6 +1509,10 @@ function runTests({ dev }) {
             },
           },
         ],
+        rewriteHeaders: {
+          pathHeader: 'x-nextjs-rewritten-path',
+          queryHeader: 'x-nextjs-rewritten-query',
+        },
         rsc: {
           header: 'RSC',
           contentTypeHeader: 'text/x-component',

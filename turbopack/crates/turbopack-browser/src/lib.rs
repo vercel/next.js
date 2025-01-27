@@ -1,3 +1,4 @@
+#![feature(async_closure)]
 #![feature(iter_intersperse)]
 #![feature(int_roundings)]
 #![feature(arbitrary_self_types)]

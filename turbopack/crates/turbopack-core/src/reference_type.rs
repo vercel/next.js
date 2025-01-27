@@ -167,13 +167,13 @@ impl ImportContext {
 #[derive(Debug, Clone, Hash)]
 pub enum CssReferenceSubType {
     AtImport(Option<ResolvedVc<ImportContext>>),
+    /// Reference from ModuleCssAsset to an imported ModuleCssAsset for retrieving the composed
+    /// class name
     Compose,
-    /// Reference from any asset to a CSS-parseable asset.
-    ///
-    /// This marks the boundary between non-CSS and CSS assets. The Next.js App
-    /// Router implementation uses this to inject client references in-between
-    /// Global/Module CSS assets and the underlying CSS assets.
+    /// Reference from ModuleCssAsset to the CssModuleAsset
     Internal,
+    /// Used for generating the list of classes in a ModuleCssAsset
+    Analyze,
     Custom(u8),
     Undefined,
 }

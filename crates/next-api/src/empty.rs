@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::{Completion, Vc};
 use turbopack_core::module::Modules;
 
-use crate::route::{Endpoint, WrittenEndpoint};
+use crate::route::{Endpoint, EndpointOutput};
 
 #[turbo_tasks::value]
 pub struct EmptyEndpoint;
@@ -18,8 +18,8 @@ impl EmptyEndpoint {
 #[turbo_tasks::value_impl]
 impl Endpoint for EmptyEndpoint {
     #[turbo_tasks::function]
-    fn write_to_disk(self: Vc<Self>) -> Result<Vc<WrittenEndpoint>> {
-        bail!("Empty endpoint can't be written to disk")
+    fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
+        bail!("Empty endpoint can't have output")
     }
 
     #[turbo_tasks::function]

@@ -30,7 +30,7 @@ use crate::{
         all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, WrittenEndpoint},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
 };
 
 #[turbo_tasks::value]
@@ -109,6 +109,8 @@ impl InstrumentationEndpoint {
 
         let module = self.core_modules().await?.edge_entry_module;
 
+        let module_graph = this.project.module_graph(*module);
+
         let mut evaluatable_assets = get_server_runtime_entries(
             Value::new(ServerContextType::Instrumentation {
                 app_dir: this.app_dir,
@@ -137,6 +139,7 @@ impl InstrumentationEndpoint {
         let edge_files = edge_chunking_context.evaluated_chunk_group_assets(
             module.ident(),
             Vc::cell(evaluatable_assets),
+            module_graph,
             Value::new(AvailabilityInfo::Root),
         );
 
@@ -150,6 +153,7 @@ impl InstrumentationEndpoint {
         let chunking_context = this.project.server_chunking_context(false);
 
         let userland_module = self.core_modules().await?.userland_module;
+        let module_graph = this.project.module_graph(*userland_module);
 
         let Some(module) = ResolvedVc::try_downcast(userland_module).await? else {
             bail!("Entry module must be evaluatable");
@@ -170,6 +174,7 @@ impl InstrumentationEndpoint {
                     this.project.next_mode(),
                 )
                 .resolve_entries(*this.asset_context),
+                module_graph,
                 OutputAssets::empty(),
                 Value::new(AvailabilityInfo::Root),
             )
@@ -244,18 +249,11 @@ struct InstrumentationCoreModules {
 #[turbo_tasks::value_impl]
 impl Endpoint for InstrumentationEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("instrumentation endpoint");
         async move {
             let this = self.await?;
-            let output_assets_op = output_assets_operation(self);
-            let output_assets = output_assets_op.connect();
-            let _ = output_assets.resolve().await?;
-            let _ = this
-                .project
-                .emit_all_output_assets(output_assets_op)
-                .resolve()
-                .await?;
+            let output_assets = self.output_assets();
 
             let server_paths = if this.project.next_mode().await?.is_development() {
                 let node_root = this.project.node_root();
@@ -266,9 +264,14 @@ impl Endpoint for InstrumentationEndpoint {
                 vec![]
             };
 
-            Ok(WrittenEndpoint::Edge {
-                server_paths,
-                client_paths: vec![],
+            Ok(EndpointOutput {
+                output_assets: output_assets.to_resolved().await?,
+                output_paths: EndpointOutputPaths::Edge {
+                    server_paths,
+                    client_paths: vec![],
+                }
+                .resolved_cell(),
+                project: this.project,
             }
             .cell())
         }
@@ -294,9 +297,4 @@ impl Endpoint for InstrumentationEndpoint {
             core_modules.edge_entry_module,
         ]))
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn output_assets_operation(endpoint: ResolvedVc<InstrumentationEndpoint>) -> Vc<OutputAssets> {
-    endpoint.output_assets()
 }

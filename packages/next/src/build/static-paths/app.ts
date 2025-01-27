@@ -304,7 +304,6 @@ export async function buildAppStaticPaths({
   const incrementalCache = await createIncrementalCache({
     dir,
     distDir,
-    dynamicIO,
     cacheHandler,
     cacheHandlers,
     requestHeaders,

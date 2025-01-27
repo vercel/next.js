@@ -25,20 +25,6 @@ export class AppBuildManifestPlugin {
   }
 
   public apply(compiler: any) {
-    compiler.hooks.compilation.tap(
-      PLUGIN_NAME,
-      (compilation: any, { normalModuleFactory }: any) => {
-        compilation.dependencyFactories.set(
-          webpack.dependencies.ModuleDependency,
-          normalModuleFactory
-        )
-        compilation.dependencyTemplates.set(
-          webpack.dependencies.ModuleDependency,
-          new webpack.dependencies.NullDependency.Template()
-        )
-      }
-    )
-
     compiler.hooks.make.tap(PLUGIN_NAME, (compilation: any) => {
       compilation.hooks.processAssets.tap(
         {

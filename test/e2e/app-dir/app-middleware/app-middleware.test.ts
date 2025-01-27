@@ -123,6 +123,13 @@ describe('app-dir with middleware', () => {
     })
   })
 
+  it('retains a link response header from the middleware', async () => {
+    const res = await next.fetch('/preloads')
+    expect(res.headers.get('link')).toContain(
+      '<https://example.com/page>; rel="alternate"; hreflang="en"'
+    )
+  })
+
   it('should be possible to modify cookies & read them in an RSC in a single request', async () => {
     const browser = await next.browser('/rsc-cookies')
 

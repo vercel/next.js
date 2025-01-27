@@ -9,6 +9,7 @@ use turbopack_core::{
     },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     output::OutputAssets,
 };
 
@@ -24,6 +25,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct WorkerLoaderChunkItem {
     pub module: ResolvedVc<WorkerLoaderModule>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -54,6 +56,7 @@ impl WorkerLoaderChunkItem {
             )
             .with_modifier(worker_modifier()),
             EvaluatableAssets::empty().with_entry(*evaluatable),
+            *self.module_graph,
             Value::new(AvailabilityInfo::Root),
         ))
     }

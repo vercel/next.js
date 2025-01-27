@@ -1134,19 +1134,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/app-dir/app/flying-shuttle.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
-        "should output updated trace files should hard navigate on chunk load failure",
-        "should output updated trace files should have file hashes in trace files",
-        "should output updated trace files should only rebuild a changed app and pages route correctly",
-        "should output updated trace files should only rebuild just a changed app route correctly",
-        "should output updated trace files should only rebuild just a changed pages route correctly"
-      ],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/e2e/app-dir/app/index.test.ts": {
       "passed": [
         "app dir - basic <Link /> should allow linking from app page to pages page",
@@ -5133,15 +5120,6 @@
         "instrumentation-hook-rsc instrumentation should not overlap with a instrumentation page",
         "instrumentation-hook-rsc instrumentation should run the edge instrumentation compiled version with the edge runtime",
         "instrumentation-hook-rsc instrumentation should run the instrumentation hook"
-      ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
-    "test/e2e/instrumentation-hook/flying-shuttle/flying-shuttle.test.ts": {
-      "passed": [
-        "instrumentation-hook - flying-shuttle should only register without errors"
       ],
       "failed": [],
       "pending": [],

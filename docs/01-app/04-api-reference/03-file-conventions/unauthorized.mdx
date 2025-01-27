@@ -66,7 +66,7 @@ export default async function DashboardPage() {
 
 ```jsx filename="app/dashboard/page.js" switcher
 import { verifySession } from '@/app/lib/dal'
-import { unauthorized } from 'next/server'
+import { unauthorized } from 'next/navigation'
 
 export default async function DashboardPage() {
   const session = await verifySession()

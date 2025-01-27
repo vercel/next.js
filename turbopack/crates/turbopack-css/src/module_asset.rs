@@ -14,6 +14,7 @@ use turbopack_core::{
     ident::AssetIdent,
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     reference_type::{CssReferenceSubType, ReferenceType},
     resolve::{origin::ResolveOrigin, parse::Request},
@@ -85,15 +86,23 @@ impl Module for ModuleCssAsset {
             .await?
             .iter()
             .copied()
-            .chain(match *self.inner().try_into_module().await? {
-                Some(inner) => Some(
-                    InternalCssAssetReference::new(*inner)
-                        .to_resolved()
-                        .await
-                        .map(ResolvedVc::upcast)?,
-                ),
-                None => None,
-            })
+            .chain(
+                match *self
+                    .inner(Value::new(ReferenceType::Css(
+                        CssReferenceSubType::Internal,
+                    )))
+                    .try_into_module()
+                    .await?
+                {
+                    Some(inner) => Some(
+                        InternalCssAssetReference::new(*inner)
+                            .to_resolved()
+                            .await
+                            .map(ResolvedVc::upcast)?,
+                    ),
+                    None => None,
+                },
+            )
             .collect();
 
         Ok(Vc::cell(references))
@@ -155,16 +164,16 @@ struct ModuleCssClasses(FxIndexMap<String, Vec<ModuleCssClass>>);
 #[turbo_tasks::value_impl]
 impl ModuleCssAsset {
     #[turbo_tasks::function]
-    fn inner(&self) -> Vc<ProcessResult> {
-        self.asset_context.process(
-            *self.source,
-            Value::new(ReferenceType::Css(CssReferenceSubType::Internal)),
-        )
+    pub fn inner(&self, ty: Value<ReferenceType>) -> Vc<ProcessResult> {
+        self.asset_context
+            .process(*self.source, Value::new(ty.into_value()))
     }
 
     #[turbo_tasks::function]
     async fn classes(self: Vc<Self>) -> Result<Vc<ModuleCssClasses>> {
-        let inner = self.inner().module();
+        let inner = self
+            .inner(Value::new(ReferenceType::Css(CssReferenceSubType::Analyze)))
+            .module();
 
         let inner = Vc::try_resolve_sidecast::<Box<dyn ProcessCss>>(inner)
             .await?
@@ -241,11 +250,13 @@ impl ChunkableModule for ModuleCssAsset {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             ModuleChunkItem {
                 chunking_context,
+                module_graph,
                 module: self,
             }
             .cell(),
@@ -277,6 +288,7 @@ impl ResolveOrigin for ModuleCssAsset {
 #[turbo_tasks::value]
 struct ModuleChunkItem {
     module: ResolvedVc<ModuleCssAsset>,
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -366,7 +378,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                             ResolvedVc::upcast(css_module);
 
                         let module_id = placeable
-                            .as_chunk_item(Vc::upcast(*self.chunking_context))
+                            .as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context))
                             .id()
                             .await?;
                         let module_id = StringifyJs(&*module_id);
@@ -390,17 +402,25 @@ impl EcmascriptChunkItem for ModuleChunkItem {
             )?;
         }
         code += "});\n";
+        let source_map = *self
+            .chunking_context
+            .reference_module_source_maps(*ResolvedVc::upcast(self.module))
+            .await?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.clone().into(),
             // We generate a minimal map for runtime code so that the filename is
             // displayed in dev tools.
-            source_map: Some(ResolvedVc::upcast(
-                generate_minimal_source_map(
-                    self.module.ident().to_string().await?.to_string(),
-                    code,
-                )
-                .await?,
-            )),
+            source_map: if source_map {
+                Some(ResolvedVc::upcast(
+                    generate_minimal_source_map(
+                        self.module.ident().to_string().await?.to_string(),
+                        code,
+                    )
+                    .await?,
+                ))
+            } else {
+                None
+            },
             ..Default::default()
         }
         .cell())

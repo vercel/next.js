@@ -209,11 +209,18 @@ fn get_sub_paths(sub_path: &str) -> ([RcStr; 3], usize) {
     (sub_paths_buffer, n)
 }
 
+#[turbo_tasks::function(operation)]
+fn all_assets_map_operation(source: ResolvedVc<AssetGraphContentSource>) -> Vc<OutputAssetsMap> {
+    source.all_assets_map()
+}
+
 #[turbo_tasks::value_impl]
 impl ContentSource for AssetGraphContentSource {
     #[turbo_tasks::function]
-    async fn get_routes(self: Vc<Self>) -> Result<Vc<RouteTree>> {
-        let assets = self.all_assets_map().strongly_consistent().await?;
+    async fn get_routes(self: ResolvedVc<Self>) -> Result<Vc<RouteTree>> {
+        let assets = all_assets_map_operation(self)
+            .read_strongly_consistent()
+            .await?;
         let mut paths = Vec::new();
         let routes = assets
             .iter()
@@ -223,7 +230,7 @@ impl ContentSource for AssetGraphContentSource {
                     BaseSegment::from_static_pathname(path).collect(),
                     RouteType::Exact,
                     Vc::upcast(AssetGraphGetContentSourceContent::new(
-                        self,
+                        *self,
                         path.clone(),
                         **asset,
                     )),
@@ -322,30 +329,41 @@ impl Introspectable for AssetGraphContentSource {
         let expanded_key = ResolvedVc::cell("expanded".into());
 
         let root_assets = this.root_assets.await?;
-        let root_asset_children = root_assets.iter().map(|&asset| {
-            (
-                key,
-                IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset)),
-            )
-        });
+        let root_asset_children = root_assets
+            .iter()
+            .map(|&asset| async move {
+                Ok((
+                    key,
+                    IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset))
+                        .to_resolved()
+                        .await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         let expanded_assets = self.all_assets_map().await?;
         let expanded_asset_children = expanded_assets
             .values()
             .filter(|&a| !root_assets.contains(a))
-            .map(|&asset| {
-                (
+            .map(|&asset| async move {
+                Ok((
                     inner_key,
-                    IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset)),
-                )
-            });
+                    IntrospectableOutputAsset::new(*ResolvedVc::upcast(asset))
+                        .to_resolved()
+                        .await?,
+                ))
+            })
+            .try_join()
+            .await?;
 
         Ok(Vc::cell(
             root_asset_children
+                .into_iter()
                 .chain(expanded_asset_children)
                 .chain(once((
                     expanded_key,
-                    Vc::upcast(FullyExpaned(self.to_resolved().await?).cell()),
+                    ResolvedVc::upcast(FullyExpanded(self.to_resolved().await?).resolved_cell()),
                 )))
                 .collect(),
         ))
@@ -353,18 +371,18 @@ impl Introspectable for AssetGraphContentSource {
 }
 
 #[turbo_tasks::function]
-fn fully_expaned_introspectable_type() -> Vc<RcStr> {
+fn fully_expanded_introspectable_type() -> Vc<RcStr> {
     Vc::cell("fully expanded asset graph content source".into())
 }
 
 #[turbo_tasks::value]
-struct FullyExpaned(ResolvedVc<AssetGraphContentSource>);
+struct FullyExpanded(ResolvedVc<AssetGraphContentSource>);
 
 #[turbo_tasks::value_impl]
-impl Introspectable for FullyExpaned {
+impl Introspectable for FullyExpanded {
     #[turbo_tasks::function]
     fn ty(&self) -> Vc<RcStr> {
-        fully_expaned_introspectable_type()
+        fully_expanded_introspectable_type()
     }
 
     #[turbo_tasks::function]
@@ -381,7 +399,12 @@ impl Introspectable for FullyExpaned {
             expand(&*source.root_assets.await?, &*source.root_path.await?, None).await?;
         let children = expanded_assets
             .iter()
-            .map(|(_k, &v)| (key, IntrospectableOutputAsset::new(*v)))
+            .map(|(_k, &v)| async move {
+                Ok((key, IntrospectableOutputAsset::new(*v).to_resolved().await?))
+            })
+            .try_join()
+            .await?
+            .into_iter()
             .collect();
 
         Ok(Vc::cell(children))

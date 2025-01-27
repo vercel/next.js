@@ -123,7 +123,7 @@ impl BeforeResolvePlugin for NextFontLocalResolvePlugin {
                             .emit();
 
                             return Ok(ResolveResultOption::some(
-                                ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+                                ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
                                     format!("Font file not found: Can't resolve {}'", font_path)
                                         .into(),
                                 )))

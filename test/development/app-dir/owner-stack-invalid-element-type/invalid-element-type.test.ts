@@ -8,9 +8,7 @@ import {
 } from 'next-test-utils'
 
 // TODO: When owner stack is enabled by default, remove the condition and only keep one test
-const isOwnerStackEnabled =
-  process.env.TEST_OWNER_STACK !== 'false' ||
-  process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
+const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
 
 ;(isOwnerStackEnabled ? describe.skip : describe)(
   'app-dir - invalid-element-type',
@@ -27,7 +25,9 @@ const isOwnerStackEnabled =
 
       const stackFramesContent = await getStackFramesContent(browser)
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at BrowserOnly (app/browser/browser-only.js (8:7))"`
+        )
         expect(source).toMatchInlineSnapshot(`
           "app/browser/browser-only.js (8:7) @ BrowserOnly
 
@@ -40,7 +40,9 @@ const isOwnerStackEnabled =
             11 | }"
         `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at BrowserOnly (app/browser/browser-only.js (8:8))"`
+        )
         expect(source).toMatchInlineSnapshot(`
          "app/browser/browser-only.js (8:8) @ BrowserOnly
 
@@ -63,7 +65,9 @@ const isOwnerStackEnabled =
       const source = await getRedboxSource(browser)
 
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Inner (app/rsc/page.js (5:11))"`
+        )
         expect(source).toMatchInlineSnapshot(`
           "app/rsc/page.js (5:11) @ Inner
 
@@ -76,7 +80,9 @@ const isOwnerStackEnabled =
             8 | export default function Page() {"
         `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Inner (app/rsc/page.js (5:11))"`
+        )
         expect(source).toMatchInlineSnapshot(`
          "app/rsc/page.js (5:11) @ Inner
 
@@ -99,7 +105,9 @@ const isOwnerStackEnabled =
       const stackFramesContent = await getStackFramesContent(browser)
       const source = await getRedboxSource(browser)
       if (process.env.TURBOPACK) {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Inner (app/ssr/page.js (7:10))"`
+        )
         expect(source).toMatchInlineSnapshot(`
           "app/ssr/page.js (7:10) @ Inner
 
@@ -112,7 +120,9 @@ const isOwnerStackEnabled =
             10 | export default function Page() {"
         `)
       } else {
-        expect(stackFramesContent).toMatchInlineSnapshot(`""`)
+        expect(stackFramesContent).toMatchInlineSnapshot(
+          `"at Inner (app/ssr/page.js (7:11))"`
+        )
         expect(source).toMatchInlineSnapshot(`
          "app/ssr/page.js (7:11) @ Inner
 

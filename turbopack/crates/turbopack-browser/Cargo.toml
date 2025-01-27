@@ -22,6 +22,7 @@ workspace = true
 anyhow = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_qs = { workspace = true }

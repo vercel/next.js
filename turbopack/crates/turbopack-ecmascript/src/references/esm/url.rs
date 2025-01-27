@@ -12,6 +12,7 @@ use turbopack_core::{
     },
     environment::Rendering,
     issue::IssueSource,
+    module_graph::ModuleGraph,
     reference::ModuleReference,
     reference_type::{ReferenceType, UrlReferenceSubType},
     resolve::{
@@ -141,6 +142,7 @@ impl CodeGenerateable for UrlAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let this = self.await?;
@@ -163,7 +165,7 @@ impl CodeGenerateable for UrlAssetReference {
                         // We rewrite the first `new URL()` arguments to be a require() of the chunk
                         // item, which exports the static asset path to the linked file.
                         let id = asset
-                            .as_chunk_item(Vc::upcast(chunking_context))
+                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                             .id()
                             .await?;
 
@@ -229,7 +231,7 @@ impl CodeGenerateable for UrlAssetReference {
                         // We rewrite the first `new URL()` arguments to be a require() of the
                         // chunk item, which returns the asset path as its exports.
                         let id = asset
-                            .as_chunk_item(Vc::upcast(chunking_context))
+                            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                             .id()
                             .await?;
 

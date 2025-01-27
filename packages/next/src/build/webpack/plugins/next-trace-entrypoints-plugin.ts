@@ -1,10 +1,8 @@
 import nodePath from 'path'
-import crypto from 'crypto'
 import type { Span } from '../../../trace'
 import { spans } from './profiling-plugin'
 import isError from '../../../lib/is-error'
 import { nodeFileTrace } from 'next/dist/compiled/@vercel/nft'
-import type { SWCLoaderOptions } from '../loaders/next-swc-loader'
 import type { NodeFileTraceReasons } from 'next/dist/compiled/@vercel/nft'
 import {
   CLIENT_REFERENCE_MANIFEST,
@@ -21,7 +19,7 @@ import picomatch from 'next/dist/compiled/picomatch'
 import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { getPageFilePath } from '../../entries'
 import { resolveExternal } from '../../handle-externals'
-import { isMetadataRoute } from '../../../lib/metadata/is-metadata-route'
+import { isStaticMetadataRoute } from '../../../lib/metadata/is-metadata-route'
 
 const PLUGIN_NAME = 'TraceEntryPointsPlugin'
 export const TRACE_IGNORES = [
@@ -118,16 +116,13 @@ export interface BuildTraceContext {
     outputPath: string
     depModArray: string[]
     entryNameMap: Record<string, string>
+    absolutePathByEntryName: Record<string, string>
   }
   chunksTrace?: {
     action: TurbotraceAction
     outputPath: string
     entryNameFilesMap: Record<string, Array<string>>
   }
-}
-
-export function getHash(content: string | Buffer): string {
-  return crypto.createHash('sha1').update(content).digest('hex')
 }
 
 export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
@@ -142,12 +137,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
   private entryTraces: Map<string, Map<string, { bundled: boolean }>>
   private traceIgnores: string[]
   private esmExternals?: NextConfigComplete['experimental']['esmExternals']
-  private traceHashes: Map<string, string>
   private compilerType: CompilerNameValues
-  private swcLoaderConfig: {
-    loader: string
-    options: SWCLoaderOptions
-  }
 
   constructor({
     rootDir,
@@ -159,7 +149,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     traceIgnores,
     esmExternals,
     outputFileTracingRoot,
-    swcLoaderConfig,
   }: {
     rootDir: string
     compilerType: CompilerNameValues
@@ -170,7 +159,6 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     traceIgnores?: string[]
     outputFileTracingRoot?: string
     esmExternals?: NextConfigComplete['experimental']['esmExternals']
-    swcLoaderConfig: TraceEntryPointsPlugin['swcLoaderConfig']
   }) {
     this.rootDir = rootDir
     this.appDir = appDir
@@ -181,9 +169,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
     this.traceIgnores = traceIgnores || []
     this.tracingRoot = outputFileTracingRoot || rootDir
     this.optOutBundlingPackages = optOutBundlingPackages
-    this.traceHashes = new Map()
     this.compilerType = compilerType
-    this.swcLoaderConfig = swcLoaderConfig
   }
 
   // Here we output all traced assets and webpack chunks to a
@@ -257,12 +243,21 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
           nodePath.join(outputPath, `${outputPrefix}${entrypoint.name}.js`)
         )
 
-        if (entrypoint.name.startsWith('app/')) {
-          // Include the client reference manifest for pages and route handlers,
-          // excluding metadata route handlers.
-          const clientManifestsForEntrypoint = isMetadataRoute(entrypoint.name)
-            ? null
-            : nodePath.join(
+        if (entrypoint.name.startsWith('app/') && this.appDir) {
+          const appDirRelativeEntryPath =
+            this.buildTraceContext.entriesTrace?.absolutePathByEntryName[
+              entrypoint.name
+            ]?.replace(this.appDir, '')
+
+          const entryIsStaticMetadataRoute =
+            appDirRelativeEntryPath &&
+            isStaticMetadataRoute(appDirRelativeEntryPath)
+
+          // Include the client reference manifest in the trace, but not for
+          // static metadata routes, for which we don't generate those.
+          if (!entryIsStaticMetadataRoute) {
+            entryFiles.add(
+              nodePath.join(
                 outputPath,
                 outputPrefix,
                 entrypoint.name.replace(/%5F/g, '_') +
@@ -270,9 +265,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                   CLIENT_REFERENCE_MANIFEST +
                   '.js'
               )
-
-          if (clientManifestsForEntrypoint !== null) {
-            entryFiles.add(clientManifestsForEntrypoint)
+            )
           }
         }
 
@@ -334,6 +327,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
             const entryNameMap = new Map<string, string>()
             const entryModMap = new Map<string, any>()
             const additionalEntries = new Map<string, Map<string, any>>()
+            const absolutePathByEntryName = new Map<string, string>()
 
             const depModMap = new Map<string, any>()
 
@@ -375,6 +369,7 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
                           ) {
                             entryModMap.set(absolutePath, entryMod)
                             entryNameMap.set(absolutePath, name)
+                            absolutePathByEntryName.set(name, absolutePath)
                           }
                         }
 
@@ -460,6 +455,9 @@ export class TraceEntryPointsPlugin implements webpack.WebpackPluginInstance {
               appDir: this.rootDir,
               depModArray: Array.from(depModMap.keys()),
               entryNameMap: Object.fromEntries(entryNameMap),
+              absolutePathByEntryName: Object.fromEntries(
+                absolutePathByEntryName
+              ),
               outputPath: compilation.outputOptions.path!,
             }
 

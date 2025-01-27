@@ -77,3 +77,35 @@ async fn test_into_future() -> Result<()> {
     })
     .await
 }
+
+#[tokio::test]
+async fn test_sidecast() -> Result<()> {
+    run(&REGISTRATION, || async {
+        let concrete_value = ImplementsAandB.resolved_cell();
+        let as_a = ResolvedVc::upcast::<Box<dyn TraitA>>(concrete_value);
+        let as_b = ResolvedVc::try_sidecast_sync::<Box<dyn TraitB>>(as_a);
+        assert!(as_b.is_some());
+        let as_c = ResolvedVc::try_sidecast_sync::<Box<dyn TraitC>>(as_a);
+        assert!(as_c.is_none());
+        Ok(())
+    })
+    .await
+}
+
+#[turbo_tasks::value_trait]
+trait TraitA {}
+
+#[turbo_tasks::value_trait]
+trait TraitB {}
+
+#[turbo_tasks::value_trait]
+trait TraitC {}
+
+#[turbo_tasks::value]
+struct ImplementsAandB;
+
+#[turbo_tasks::value_impl]
+impl TraitA for ImplementsAandB {}
+
+#[turbo_tasks::value_impl]
+impl TraitB for ImplementsAandB {}

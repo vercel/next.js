@@ -10,7 +10,7 @@ related:
     - app/api-reference/file-conventions/loading
 ---
 
-This page will walk you through how you can fetch data in [Server Components](#server-components) and [Client Components](#client-components). As well as how to to [stream](#streaming) content that depends on data.
+This page will walk you through how you can fetch data in [Server Components](#server-components) and [Client Components](#client-components). As well as how to [stream](#streaming) content that depends on data.
 
 ## Fetching data
 
@@ -141,11 +141,11 @@ export default function Posts({
 }: {
   posts: Promise<{ id: string; title: string }[]>
 }) {
-  const posts = use(posts)
+  const allPosts = use(posts)
 
   return (
     <ul>
-      {posts.map((post) => (
+      {allPosts.map((post) => (
         <li key={post.id}>{post.title}</li>
       ))}
     </ul>

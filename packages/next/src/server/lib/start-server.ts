@@ -34,6 +34,7 @@ import { isPostpone } from './router-utils/is-postpone'
 import { isIPv6 } from './is-ipv6'
 import { AsyncCallbackSet } from './async-callback-set'
 import type { NextServer } from '../next'
+import type { ConfiguredExperimentalFeature } from '../config'
 
 const debug = setupDebug('next:start-server')
 let startServerSpan: Span | undefined
@@ -270,17 +271,17 @@ export async function startServer(
 
       // Only load env and config in dev to for logging purposes
       let envInfo: string[] | undefined
-      let expFeatureInfo: string[] | undefined
+      let experimentalFeatures: ConfiguredExperimentalFeature[] | undefined
       if (isDev) {
         const startServerInfo = await getStartServerInfo(dir, isDev)
         envInfo = startServerInfo.envInfo
-        expFeatureInfo = startServerInfo.expFeatureInfo
+        experimentalFeatures = startServerInfo.experimentalFeatures
       }
       logStartInfo({
         networkUrl,
         appUrl,
         envInfo,
-        expFeatureInfo,
+        experimentalFeatures,
         maxExperimentalFeatures: 3,
       })
 
@@ -425,7 +426,12 @@ export async function startServer(
 
 if (process.env.NEXT_PRIVATE_WORKER && process.send) {
   process.addListener('message', async (msg: any) => {
-    if (msg && typeof msg && msg.nextWorkerOptions && process.send) {
+    if (
+      msg &&
+      typeof msg === 'object' &&
+      msg.nextWorkerOptions &&
+      process.send
+    ) {
       startServerSpan = trace('start-dev-server', undefined, {
         cpus: String(os.cpus().length),
         platform: os.platform(),

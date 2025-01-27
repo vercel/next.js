@@ -196,7 +196,9 @@ export function getUtils({
   let defaultRouteMatches: ParsedUrlQuery | undefined
 
   if (pageIsDynamic) {
-    defaultRouteRegex = getNamedRouteRegex(page, false)
+    defaultRouteRegex = getNamedRouteRegex(page, {
+      prefixRouteKeys: false,
+    })
     dynamicRouteMatcher = getRouteMatcher(defaultRouteRegex)
     defaultRouteMatches = dynamicRouteMatcher(page) as ParsedUrlQuery
   }

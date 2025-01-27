@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, EvaluatableAssets},
     code_builder::{Code, CodeBuilder},
     ident::AssetIdent,
+    module_graph::ModuleGraph,
     output::{OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
 };
@@ -23,10 +24,11 @@ use crate::NodeJsChunkingContext;
 #[turbo_tasks::value(shared)]
 pub(crate) struct EcmascriptBuildNodeEntryChunk {
     path: ResolvedVc<FileSystemPath>,
-    chunking_context: ResolvedVc<NodeJsChunkingContext>,
     other_chunks: ResolvedVc<OutputAssets>,
     evaluatable_assets: ResolvedVc<EvaluatableAssets>,
     exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+    module_graph: ResolvedVc<ModuleGraph>,
+    chunking_context: ResolvedVc<NodeJsChunkingContext>,
 }
 
 #[turbo_tasks::value_impl]
@@ -35,17 +37,19 @@ impl EcmascriptBuildNodeEntryChunk {
     #[turbo_tasks::function]
     pub fn new(
         path: ResolvedVc<FileSystemPath>,
-        chunking_context: ResolvedVc<NodeJsChunkingContext>,
         other_chunks: ResolvedVc<OutputAssets>,
         evaluatable_assets: ResolvedVc<EvaluatableAssets>,
         exported_module: ResolvedVc<Box<dyn EcmascriptChunkPlaceable>>,
+        module_graph: ResolvedVc<ModuleGraph>,
+        chunking_context: ResolvedVc<NodeJsChunkingContext>,
     ) -> Vc<Self> {
         EcmascriptBuildNodeEntryChunk {
             path,
-            chunking_context,
             other_chunks,
             evaluatable_assets,
             exported_module,
+            module_graph,
+            chunking_context,
         }
         .cell()
     }
@@ -113,7 +117,7 @@ impl EcmascriptBuildNodeEntryChunk {
                     .await?
             {
                 let runtime_module_id = placeable
-                    .as_chunk_item(Vc::upcast(*this.chunking_context))
+                    .as_chunk_item(*this.module_graph, Vc::upcast(*this.chunking_context))
                     .id()
                     .await?;
 
@@ -129,7 +133,7 @@ impl EcmascriptBuildNodeEntryChunk {
 
         let runtime_module_id = this
             .exported_module
-            .as_chunk_item(Vc::upcast(*this.chunking_context))
+            .as_chunk_item(*this.module_graph, Vc::upcast(*this.chunking_context))
             .id()
             .await?;
 

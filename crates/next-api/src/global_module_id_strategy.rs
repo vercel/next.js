@@ -31,14 +31,12 @@ impl GlobalModuleIdStrategyBuilder {
         preprocessed_module_ids.push(preprocess_module_ids(*entrypoints.pages_document_endpoint));
 
         if let Some(middleware) = &entrypoints.middleware {
-            preprocessed_module_ids.push(preprocess_module_ids(middleware.endpoint));
+            preprocessed_module_ids.push(preprocess_module_ids(*middleware.endpoint));
         }
 
         if let Some(instrumentation) = &entrypoints.instrumentation {
-            let node_js = instrumentation.node_js;
-            let edge = instrumentation.edge;
-            preprocessed_module_ids.push(preprocess_module_ids(node_js));
-            preprocessed_module_ids.push(preprocess_module_ids(edge));
+            preprocessed_module_ids.push(preprocess_module_ids(*instrumentation.node_js));
+            preprocessed_module_ids.push(preprocess_module_ids(*instrumentation.edge));
         }
 
         for (_, route) in entrypoints.routes.iter() {
@@ -56,9 +54,9 @@ impl GlobalModuleIdStrategyBuilder {
                 Route::AppPage(page_routes) => {
                     for page_route in page_routes {
                         preprocessed_module_ids
-                            .push(preprocess_module_ids(page_route.html_endpoint));
+                            .push(preprocess_module_ids(*page_route.html_endpoint));
                         preprocessed_module_ids
-                            .push(preprocess_module_ids(page_route.rsc_endpoint));
+                            .push(preprocess_module_ids(*page_route.rsc_endpoint));
                     }
                 }
                 Route::AppRoute {

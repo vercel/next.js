@@ -17,7 +17,6 @@ use std::{
 };
 
 use anyhow::Result;
-use auto_hash_map::AutoSet;
 use serde::{Deserialize, Serialize};
 
 pub use self::{
@@ -35,7 +34,7 @@ use crate::{
     manager::{create_local_cell, try_get_function_meta},
     registry,
     trace::{TraceRawVcs, TraceRawVcsContext},
-    CellId, CollectiblesSource, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
+    CellId, RawVc, ResolveTypeError, SharedReference, ShrinkToFit,
 };
 
 /// A "Value Cell" (`Vc` for short) is a reference to a memoized computation result stored on the
@@ -425,11 +424,6 @@ impl<T> Vc<T>
 where
     T: ?Sized,
 {
-    /// Connects the operation pointed to by this `Vc` to the current task.
-    pub fn connect(vc: Self) {
-        vc.node.connect()
-    }
-
     /// Returns a debug identifier for this `Vc`.
     pub async fn debug_identifier(vc: Self) -> Result<String> {
         let resolved = vc.resolve().await?;
@@ -504,16 +498,8 @@ where
         self.node.is_local()
     }
 
-    /// Resolve the reference until it points to a cell directly in a strongly
-    /// consistent way.
-    ///
-    /// Resolving will wait for task execution to be finished, so that the
-    /// returned Vc points to a cell that stores a value.
-    ///
-    /// Resolving is necessary to compare identities of Vcs.
-    ///
-    /// This is async and will rethrow any fatal error that happened during task
-    /// execution.
+    /// Do not use this: Use [`OperationVc::resolve_strongly_consistent`] instead.
+    #[cfg(feature = "non_operation_vc_strongly_consistent")]
     pub async fn resolve_strongly_consistent(self) -> Result<Self> {
         Ok(Self {
             node: self.node.resolve_strongly_consistent().await?,
@@ -587,19 +573,6 @@ where
     }
 }
 
-impl<T> CollectiblesSource for Vc<T>
-where
-    T: ?Sized,
-{
-    fn take_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.take_collectibles()
-    }
-
-    fn peek_collectibles<Vt: VcValueTrait>(self) -> AutoSet<Vc<Vt>> {
-        self.node.peek_collectibles()
-    }
-}
-
 impl<T> From<RawVc> for Vc<T>
 where
     T: ?Sized,
@@ -658,8 +631,8 @@ impl<T> Vc<T>
 where
     T: VcValueType,
 {
-    /// Returns a strongly consistent read of the value. This ensures that all
-    /// internal tasks are finished before the read is returned.
+    /// Do not use this: Use [`OperationVc::read_strongly_consistent`] instead.
+    #[cfg(feature = "non_operation_vc_strongly_consistent")]
     #[must_use]
     pub fn strongly_consistent(self) -> ReadVcFuture<T> {
         self.node.into_strongly_consistent_read().into()
@@ -681,5 +654,25 @@ where
 {
     fn default() -> Self {
         T::value_default()
+    }
+}
+
+pub trait OptionVcExt<T>
+where
+    T: VcValueType,
+{
+    fn to_resolved(self) -> impl Future<Output = Result<Option<ResolvedVc<T>>>> + Send;
+}
+
+impl<T> OptionVcExt<T> for Option<Vc<T>>
+where
+    T: VcValueType,
+{
+    async fn to_resolved(self) -> Result<Option<ResolvedVc<T>>> {
+        if let Some(vc) = self {
+            Ok(Some(vc.to_resolved().await?))
+        } else {
+            Ok(None)
+        }
     }
 }
