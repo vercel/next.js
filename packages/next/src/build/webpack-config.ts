@@ -304,13 +304,13 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack.EntryObject
     isDevFallback?: boolean
-    pagesDir?: string
+    pagesDir: string | undefined
     reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
-    appDir?: string
+    appDir: string | undefined
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
     jsConfig: any
