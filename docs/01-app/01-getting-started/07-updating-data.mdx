@@ -1,7 +1,7 @@
 ---
-title: How to mutate data
-nav_title: Mutating Data
-description: Learn how to mutate data in your Next.js application.
+title: How to update data
+nav_title: Updating Data
+description: Learn how to update data in your Next.js application.
 related:
   title: API Reference
   description: Learn more about the features mentioned in this page by reading the API Reference.
@@ -11,7 +11,7 @@ related:
     - app/api-reference/functions/redirect
 ---
 
-You can mutate data in Next.js using React's [Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
+You can update data in Next.js using React's [Server Functions](https://react.dev/reference/rsc/server-functions). This page will go through how you can [create](#creating-server-functions) and [invoke](#invoking-server-functions) Server Functions.
 
 ## Creating Server Functions
 
@@ -42,7 +42,7 @@ export default function Page() {
   // Server Action
   async function createPost() {
     'use server'
-    // Mutate data
+    // Update data
     // ...
 
   return <></>
@@ -54,7 +54,7 @@ export default function Page() {
   // Server Action
   async function createPost() {
     'use server'
-    // Mutate data
+    // Update data
     // ...
   }
 
@@ -146,7 +146,7 @@ export async function createPost(formData: FormData) {
   const title = formData.get('title')
   const content = formData.get('content')
 
-  // Mutate data
+  // Update data
   // Revalidate cache
 }
 ```
@@ -158,7 +158,7 @@ export async function createPost(formData) {
   const title = formData.get('title')
   const content = formData.get('content')
 
-  // Mutate data
+  // Update data
   // Revalidate cache
 }
 ```
@@ -261,7 +261,7 @@ export function Button() {
 
 ### Revalidating the cache
 
-After performing a mutation, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
+After performing an update, you can revalidate the Next.js cache and show the updated data by calling [`revalidatePath`](/docs/app/api-reference/functions/revalidatePath) or [`revalidateTag`](/docs/app/api-reference/functions/revalidateTag) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
@@ -269,7 +269,7 @@ After performing a mutation, you can revalidate the Next.js cache and show the u
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData: FormData) {
-  // Mutate data
+  // Update data
   // ...
 
   revalidatePath('/posts')
@@ -282,7 +282,7 @@ export async function createPost(formData: FormData) {
 import { revalidatePath } from 'next/cache'
 
 export async function createPost(formData) {
-  // Mutate data
+  // Update data
   // ...
   revalidatePath('/posts')
 }
@@ -290,7 +290,7 @@ export async function createPost(formData) {
 
 ### Redirecting
 
-You may want to redirect the user to a different page after performing a mutation. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function:
+You may want to redirect the user to a different page after performing an update. You can do this by calling [`redirect`](/docs/app/api-reference/functions/redirect) within the Server Function:
 
 ```ts filename="app/lib/actions.ts" switcher
 'use server'
@@ -298,7 +298,7 @@ You may want to redirect the user to a different page after performing a mutatio
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData: FormData) {
-  // Mutate data
+  // Update data
   // ...
 
   redirect('/posts')
@@ -311,7 +311,7 @@ export async function createPost(formData: FormData) {
 import { redirect } from 'next/navigation'
 
 export async function createPost(formData) {
-  // Mutate data
+  // Update data
   // ...
 
   redirect('/posts')
