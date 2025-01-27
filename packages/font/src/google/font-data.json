@@ -10692,6 +10692,11 @@
     ],
     "subsets": ["latin", "latin-ext", "tibetan"]
   },
+  "Noto Serif Todhri": {
+    "weights": ["400"],
+    "styles": ["normal"],
+    "subsets": ["latin", "latin-ext", "todhri"]
+  },
   "Noto Serif Toto": {
     "weights": ["400", "500", "600", "700", "variable"],
     "styles": ["normal"],
