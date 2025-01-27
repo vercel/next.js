@@ -14,7 +14,7 @@ use swc_core::{
             text_writer::{self, JsWriter, WriteJs},
             Emitter,
         },
-        minifier::option::{ExtraOptions, MangleOptions, MinifyOptions},
+        minifier::option::{CompressOptions, ExtraOptions, MangleOptions, MinifyOptions},
         parser::{lexer::Lexer, Parser, StringInput, Syntax},
         transforms::base::fixer::paren_remover,
     },
@@ -85,7 +85,12 @@ pub async fn minify(
                         Some(&comments),
                         None,
                         &MinifyOptions {
-                            compress: Some(Default::default()),
+                            compress: Some(CompressOptions {
+                                // Only run 2 passes, this is a tradeoff between performance and
+                                // compression size. Default is 3 passes.
+                                passes: 2,
+                                ..Default::default()
+                            }),
                             mangle: Some(MangleOptions {
                                 reserved: vec!["AbortSignal".into()],
                                 ..Default::default()
