@@ -1595,4 +1595,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         })
       })
   }
+
+  public close() {}
 }

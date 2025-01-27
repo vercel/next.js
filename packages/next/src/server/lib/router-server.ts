@@ -751,5 +751,12 @@ export async function initialize(opts: {
     }
   }
 
-  return { requestHandler, upgradeHandler, server: handlers.server }
+  return {
+    requestHandler,
+    upgradeHandler,
+    server: handlers.server,
+    closeUpgraded() {
+      developmentBundler?.hotReloader?.close()
+    },
+  }
 }

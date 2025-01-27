@@ -1059,6 +1059,12 @@ export async function createHotReloaderTurbopack(
           }
         })
     },
+    close() {
+      for (const wsClient of clients) {
+        // it's okay to not cleanly close these websocket connections, this is dev
+        wsClient.terminate()
+      }
+    },
   }
 
   handleEntrypointsSubscription().catch((err) => {
