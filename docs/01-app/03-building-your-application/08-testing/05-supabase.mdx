@@ -1,0 +1,251 @@
+# Setting up Supabase for Testing in Next.js 14 App Router
+
+Supabase is an excellent choice for adding a backend-as-a-service to your Next.js application. While it's straightforward to integrate, testing Supabase-connected logic in a structured and efficient manner requires some extra care. This guide will show you how to set up Supabase for testing with Jest and provide examples for database cleaning strategies, aligning with practices used in frameworks like Rails.
+
+---
+
+## Why Set Up Supabase for Testing?
+
+When writing tests for Supabase-backed applications, two common challenges emerge:
+
+1. **Database State Isolation:** Tests should not depend on the leftover state from previous tests.
+2. **Speed and Reliability:** Cleaning the database efficiently ensures tests run quickly and consistently.
+
+To solve these challenges, we'll build utilities for:
+
+- Creating a test-specific Supabase client.
+- Cleaning the database before and after tests.
+
+---
+
+## Step 1: Setting Up a Test Supabase Client
+
+First, create a test Supabase client using your Supabase service role key. This key allows unrestricted access to all tables and is suitable for testing purposes. Never use it in the client-side code of your application.
+
+```typescript
+// tests/utils/create_test_supabase_client.ts
+
+import { createClient } from "@supabase/supabase-js";
+import { Database } from "@/types/supabase";
+
+const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+const supabaseServiceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+
+if (!supabaseUrl) {
+  throw new Error("NEXT_PUBLIC_SUPABASE_URL is not set");
+}
+if (!supabaseServiceRoleKey) {
+  throw new Error("SUPABASE_SERVICE_ROLE_KEY is not set");
+}
+
+// Export the test client
+export const testSupabaseClient = createClient<Database>(
+  supabaseUrl,
+  supabaseServiceRoleKey
+);
+```
+
+**Why is this important?** The test Supabase client ensures tests operate in a controlled environment, independent of production keys or clients.
+
+---
+
+## Step 2: Loading Environment Variables for Testing
+
+To manage different environments (e.g., local testing, CI), you can use `dotenvx` to load environment variables dynamically. Here's how you can configure your test script to load the appropriate environment file.
+
+### Example `package.json` Test Script
+
+```json
+{
+  "scripts": {
+    "test": "dotenvx run -f .env.test.local -- jest --runInBand",
+    "test:ci": "dotenvx run -f .env.ci -- jest --runInBand"
+  }
+}
+```
+
+- **`.env.test.local`**: Used for local testing. It might include database credentials for a local or test database.
+- **`.env.ci`**: Used for Continuous Integration (CI) environments, often with credentials for a dedicated CI database.
+
+When running the tests, the `dotenvx` command ensures that the appropriate `.env` file is loaded before `jest` is executed. For example:
+
+```bash
+npm run test
+```
+
+This command will load `.env.test.local` and execute the Jest test suite.
+
+---
+
+## Step 3: Cleaning the Database Between Tests
+
+Next, create a utility to clean your test database using a custom Supabase SQL function. This function truncates all relevant tables to reset the database state.
+
+```typescript
+// tests/utils/clean_test_database.ts
+
+import { SupabaseClient } from "@supabase/supabase-js";
+import { Database } from "@/types/supabase";
+
+/**
+ * Truncate multiple tables to reset the database state.
+ * @param supabase - The Supabase client instance.
+ */
+export async function cleanTestDatabase(
+  supabase: SupabaseClient<Database, "public">
+) {
+  const tables = [
+    "orders",
+    "customers",
+    "products",
+    "subscriptions",
+    "users",
+  ].join(", ");
+
+  const { error } = await supabase.rpc("truncate_tables", {
+    tables_array: tables,
+  });
+
+  if (error) {
+    console.error("Error cleaning database:", error);
+    throw error;
+  }
+}
+```
+
+### Example `truncate_tables` Function in SQL
+
+```sql
+CREATE OR REPLACE FUNCTION public.truncate_tables(tables_array TEXT)
+RETURNS VOID AS $$
+BEGIN
+  EXECUTE 'TRUNCATE ' || tables_array || ' RESTART IDENTITY CASCADE';
+END;
+$$ LANGUAGE plpgsql;
+```
+
+---
+
+## Step 4: Writing a Test Suite with Database Cleaning
+
+Here’s an example test suite that:
+
+1. Cleans the database before and after each test.
+2. Uses the test Supabase client to interact with the database.
+
+```typescript
+// tests/core/get_customer_by_email.test.ts
+
+import { describe, it, expect, beforeAll, afterAll } from "@jest/globals";
+import { cleanTestDatabase } from "@/tests/utils/clean_test_database";
+import { testSupabaseClient } from "@/tests/utils/create_test_supabase_client";
+import { createAndInsertTestCustomer } from "@/tests/utils/test_data_factories";
+import { getCustomerByEmail } from "@/lib/core/get_customer_by_email";
+
+describe("getCustomerByEmail", () => {
+  beforeAll(async () => {
+    await cleanTestDatabase(testSupabaseClient);
+  });
+
+  afterAll(async () => {
+    await cleanTestDatabase(testSupabaseClient);
+  });
+
+  it("returns the customer by email", async () => {
+    const customer = await createAndInsertTestCustomer({
+      email: "test@example.com",
+      name: "Test User",
+    });
+
+    const result = await getCustomerByEmail({
+      email: customer.email,
+      supabase: testSupabaseClient,
+    });
+
+    expect(result).toEqual({ name: "Test User", email: "test@example.com" });
+  });
+
+  it("returns null if no customer is found", async () => {
+    const result = await getCustomerByEmail({
+      email: "non-existent@example.com",
+      supabase: testSupabaseClient,
+    });
+
+    expect(result).toBeNull();
+  });
+
+  it("throws an error if database query fails", async () => {
+    const mockQueryFunction = async () => ({
+      data: null,
+      error: new Error("Database connection failed"),
+    });
+
+    await expect(
+      getCustomerByEmail({
+        email: "test@example.com",
+        supabase: testSupabaseClient,
+        queryFunction: mockQueryFunction,
+      })
+    ).rejects.toThrow("Database connection failed");
+  });
+});
+```
+
+---
+
+## Step 5: Optimizing Database Cleaning for Speed
+
+While cleaning the database before and after every test ensures state isolation, it can be overkill for certain test cases. You can optimize performance by grouping related tests and cleaning the database selectively.
+
+### Example with Tagged Test Groups
+
+```typescript
+describe("Database-Dependent Tests", () => {
+  beforeAll(async () => {
+    await cleanTestDatabase(testSupabaseClient);
+  });
+
+  afterAll(async () => {
+    await cleanTestDatabase(testSupabaseClient);
+  });
+
+  it("Test A", async () => {
+    // Test logic...
+  });
+
+  it("Test B", async () => {
+    // Test logic...
+  });
+});
+
+describe("Non-Database Tests", () => {
+  it("Test C", async () => {
+    // Does not rely on the database.
+  });
+});
+```
+
+---
+
+## Running the Test Suite
+
+With your `package.json` scripts configured, you can run tests for different environments as follows:
+
+- **Local Testing:**
+
+  ```bash
+  npm run test
+  ```
+
+- **CI Testing:**
+  ```bash
+  npm run test:ci
+  ```
+
+Both commands will load the correct `.env` files, ensuring the test environment matches the intended setup.
+
+---
+
+## Conclusion
+
+By setting up a test-specific Supabase client, leveraging `dotenvx` for environment management, and implementing a robust database cleaning strategy, you can ensure your tests are reliable and maintainable. This approach can be adapted for any SaaS application, enabling robust testing for backend-connected logic. With the modular utilities outlined here, you’re ready to scale your Next.js testing confidently.
