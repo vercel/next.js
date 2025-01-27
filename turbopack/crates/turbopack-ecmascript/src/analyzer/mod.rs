@@ -4035,8 +4035,14 @@ mod tests {
                 let top_level_mark = Mark::new();
                 m.visit_mut_with(&mut resolver(unresolved_mark, top_level_mark, false));
 
-                let eval_context =
-                    EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
+                let eval_context = EvalContext::new(
+                    &m,
+                    unresolved_mark,
+                    top_level_mark,
+                    Default::default(),
+                    Some(&comments),
+                    None,
+                );
 
                 let mut var_graph = create_graph(&m, &eval_context);
 
