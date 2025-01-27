@@ -134,4 +134,10 @@ pub struct BuildArguments {
     /// Don't minify build output.
     #[clap(long)]
     pub no_minify: bool,
+
+    /// Drop the `TurboTasks` object upon exit. By default we intentionally leak this memory, as
+    /// we're about to exit the process anyways, but that can cause issues with valgrind or other
+    /// leak detectors.
+    #[clap(long, hide = true)]
+    pub force_memory_cleanup: bool,
 }

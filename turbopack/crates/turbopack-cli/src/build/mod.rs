@@ -462,7 +462,12 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     }
 
     builder.build().await?;
-    forget(tt);
+
+    // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
+    // ton of drop calls.
+    if !args.force_memory_cleanup {
+        forget(tt);
+    }
 
     Ok(())
 }
