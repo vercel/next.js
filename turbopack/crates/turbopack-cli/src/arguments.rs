@@ -127,6 +127,10 @@ pub struct BuildArguments {
     #[clap(flatten)]
     pub common: CommonArguments,
 
+    /// Don't generate sourcemaps.
+    #[clap(long)]
+    pub no_sourcemap: bool,
+
     /// Don't minify build output.
     #[clap(long)]
     pub no_minify: bool,

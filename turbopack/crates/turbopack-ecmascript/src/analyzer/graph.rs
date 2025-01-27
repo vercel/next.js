@@ -262,6 +262,7 @@ impl VarGraph {
 
 /// You should use same [Mark] for this function and
 /// [swc_ecma_transforms_base::resolver::resolver_with_mark]
+#[tracing::instrument(level = "info", skip_all)]
 pub fn create_graph(m: &Program, eval_context: &EvalContext) -> VarGraph {
     let mut graph = VarGraph {
         values: Default::default(),
