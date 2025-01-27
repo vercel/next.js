@@ -71,7 +71,7 @@ async fn apply_module_type(
     source: ResolvedVc<Box<dyn Source>>,
     module_asset_context: Vc<ModuleAssetContext>,
     module_type: Vc<ModuleType>,
-    part: Option<Vc<ModulePart>>,
+    part: Option<ModulePart>,
     inner_assets: Option<ResolvedVc<InnerAssets>>,
     css_import_context: Option<Vc<ImportContext>>,
     runtime_code: bool,
@@ -139,25 +139,21 @@ async fn apply_module_type(
                 ResolvedVc::upcast(builder.build().to_resolved().await?)
             } else {
                 let module = builder.build().resolve().await?;
-                let part_ref = if let Some(part) = part {
-                    Some((part.await?, part))
-                } else {
-                    None
-                };
-                if let Some((part, _)) = part_ref {
-                    if let ModulePart::Evaluation | ModulePart::InternalEvaluation(..) = &*part {
-                        // Skip the evaluation part if the module is marked as side effect free.
-                        let side_effect_free_packages = module_asset_context
-                            .side_effect_free_packages()
-                            .resolve()
-                            .await?;
+                if matches!(
+                    &part,
+                    Some(ModulePart::Evaluation | ModulePart::InternalEvaluation(..))
+                ) {
+                    // Skip the evaluation part if the module is marked as side effect free.
+                    let side_effect_free_packages = module_asset_context
+                        .side_effect_free_packages()
+                        .resolve()
+                        .await?;
 
-                        if *module
-                            .is_marked_as_side_effect_free(side_effect_free_packages)
-                            .await?
-                        {
-                            return Ok(ProcessResult::Ignore.cell());
-                        }
+                    if *module
+                        .is_marked_as_side_effect_free(side_effect_free_packages)
+                        .await?
+                    {
+                        return Ok(ProcessResult::Ignore.cell());
                     }
                 }
 
@@ -171,7 +167,7 @@ async fn apply_module_type(
                     }
                     Some(TreeShakingMode::ReexportsOnly) => {
                         if let Some(part) = part {
-                            match *part.await? {
+                            match part {
                                 ModulePart::Evaluation => {
                                     if *module.get_exports().needs_facade().await? {
                                         Vc::upcast(EcmascriptModuleFacadeModule::new(
@@ -279,10 +275,10 @@ async fn apply_module_type(
 #[turbo_tasks::function]
 async fn apply_reexport_tree_shaking(
     module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
-    part: Vc<ModulePart>,
+    part: ModulePart,
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
-    if let ModulePart::Export(export) = *part.await? {
+    if let ModulePart::Export(export) = &part {
         let export = export.await?;
         let FollowExportsResult {
             module: final_module,
@@ -502,9 +498,9 @@ async fn process_default_internal(
     );
 
     let reference_type = reference_type.into_value();
-    let part: Option<Vc<ModulePart>> = match &reference_type {
+    let part: Option<ModulePart> = match &reference_type {
         ReferenceType::EcmaScriptModules(EcmaScriptModulesReferenceSubType::ImportPart(part)) => {
-            Some(**part)
+            Some(part.clone())
         }
         _ => None,
     };

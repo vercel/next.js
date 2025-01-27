@@ -24,7 +24,7 @@ pub struct AssetIdent {
     /// The modifiers of this asset (e.g. `client chunks`)
     pub modifiers: Vec<ResolvedVc<RcStr>>,
     /// The parts of the asset that are (ECMAScript) modules
-    pub parts: Vec<ResolvedVc<ModulePart>>,
+    pub parts: Vec<ModulePart>,
     /// The asset layer the asset was created from.
     pub layer: Option<ResolvedVc<RcStr>>,
 }
@@ -103,7 +103,7 @@ impl ValueToString for AssetIdent {
                 let part = part.to_string().await?;
                 // facade is not included in ident as switching between facade and non-facade
                 // shouldn't change the ident
-                if part.as_str() != "facade" {
+                if part != "facade" {
                     write!(s, " <{}>", part)?;
                 }
             }
@@ -149,7 +149,7 @@ impl AssetIdent {
     }
 
     #[turbo_tasks::function]
-    pub fn with_part(&self, part: ResolvedVc<ModulePart>) -> Vc<Self> {
+    pub fn with_part(&self, part: ModulePart) -> Vc<Self> {
         let mut this = self.clone();
         this.parts.push(part);
         Self::new(Value::new(this))
@@ -262,7 +262,7 @@ impl AssetIdent {
         }
         for part in parts.iter() {
             4_u8.deterministic_hash(&mut hasher);
-            match &*part.await? {
+            match part {
                 ModulePart::Evaluation => {
                     1_u8.deterministic_hash(&mut hasher);
                 }

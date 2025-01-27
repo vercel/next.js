@@ -379,12 +379,10 @@ pub(crate) enum Key {
     Exports,
 }
 
-/// Converts [Vc<ModulePart>] to the index.
-async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> {
-    let part = part.await?;
-
+/// Converts [ModulePart] to the index.
+async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
-    let key = match &*part {
+    let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
         ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
         ModulePart::Exports => Key::Exports,
@@ -413,7 +411,7 @@ async fn get_part_id(result: &SplitResult, part: Vc<ModulePart>) -> Result<u32> 
     }
 
     // This is required to handle `export * from 'foo'`
-    if let ModulePart::Export(..) = &*part {
+    if let ModulePart::Export(..) = part {
         if let Some(&v) = entrypoints.get(&Key::Exports) {
             return Ok(v);
         }
@@ -611,7 +609,7 @@ pub(super) async fn split(
 #[turbo_tasks::function]
 pub(crate) async fn part_of_module(
     split_data: Vc<SplitResult>,
-    part: Vc<ModulePart>,
+    part: ModulePart,
 ) -> Result<Vc<ParseResult>> {
     let split_data = split_data.await?;
 
@@ -626,7 +624,7 @@ pub(crate) async fn part_of_module(
         } => {
             debug_assert_ne!(modules.len(), 0, "modules.len() == 0");
 
-            if matches!(&*part.await?, ModulePart::Facade) {
+            if part == ModulePart::Facade {
                 if let ParseResult::Ok {
                     comments,
                     eval_context,
@@ -718,7 +716,7 @@ pub(crate) async fn part_of_module(
                 }
             }
 
-            let part_id = get_part_id(&split_data, part).await?;
+            let part_id = get_part_id(&split_data, &part).await?;
 
             if part_id as usize >= modules.len() {
                 bail!(

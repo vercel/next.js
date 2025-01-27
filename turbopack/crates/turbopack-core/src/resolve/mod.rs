@@ -3052,7 +3052,9 @@ async fn error_severity(resolve_options: Vc<ResolveOptions>) -> Result<ResolvedV
 /// ModulePart represents a part of a module.
 ///
 /// Currently this is used only for ESMs.
-#[turbo_tasks::value]
+#[derive(
+    Serialize, Deserialize, Debug, Clone, PartialEq, Eq, Hash, TraceRawVcs, TaskInput, NonLocalValue,
+)]
 pub enum ModulePart {
     /// Represents the side effects of a module. This part is evaluated even if
     /// all exports are unused.
@@ -3079,76 +3081,70 @@ pub enum ModulePart {
     Facade,
 }
 
-#[turbo_tasks::value_impl]
 impl ModulePart {
-    #[turbo_tasks::function]
-    pub fn evaluation() -> Vc<Self> {
-        ModulePart::Evaluation.cell()
+    pub fn evaluation() -> Self {
+        ModulePart::Evaluation
     }
-    #[turbo_tasks::function]
-    pub fn export(export: RcStr) -> Vc<Self> {
-        ModulePart::Export(ResolvedVc::cell(export)).cell()
+
+    pub fn export(export: RcStr) -> Self {
+        ModulePart::Export(ResolvedVc::cell(export))
     }
-    #[turbo_tasks::function]
-    pub fn renamed_export(original_export: RcStr, export: RcStr) -> Vc<Self> {
+
+    pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
         ModulePart::RenamedExport {
             original_export: ResolvedVc::cell(original_export),
             export: ResolvedVc::cell(export),
         }
-        .cell()
     }
-    #[turbo_tasks::function]
-    pub fn renamed_namespace(export: RcStr) -> Vc<Self> {
+
+    pub fn renamed_namespace(export: RcStr) -> Self {
         ModulePart::RenamedNamespace {
             export: ResolvedVc::cell(export),
         }
-        .cell()
     }
-    #[turbo_tasks::function]
-    pub fn internal(id: u32) -> Vc<Self> {
-        ModulePart::Internal(id).cell()
+
+    pub fn internal(id: u32) -> Self {
+        ModulePart::Internal(id)
     }
-    #[turbo_tasks::function]
-    pub fn internal_evaluation(id: u32) -> Vc<Self> {
-        ModulePart::InternalEvaluation(id).cell()
+
+    pub fn internal_evaluation(id: u32) -> Self {
+        ModulePart::InternalEvaluation(id)
     }
-    #[turbo_tasks::function]
-    pub fn locals() -> Vc<Self> {
-        ModulePart::Locals.cell()
+
+    pub fn locals() -> Self {
+        ModulePart::Locals
     }
-    #[turbo_tasks::function]
-    pub fn exports() -> Vc<Self> {
-        ModulePart::Exports.cell()
+
+    pub fn exports() -> Self {
+        ModulePart::Exports
     }
-    #[turbo_tasks::function]
-    pub fn facade() -> Vc<Self> {
-        ModulePart::Facade.cell()
+
+    pub fn facade() -> Self {
+        ModulePart::Facade
     }
 }
 
-#[turbo_tasks::value_impl]
-impl ValueToString for ModulePart {
-    #[turbo_tasks::function]
-    async fn to_string(&self) -> Result<Vc<RcStr>> {
-        Ok(Vc::cell(match self {
-            ModulePart::Evaluation => "module evaluation".into(),
-            ModulePart::Export(export) => format!("export {}", export.await?).into(),
+impl ModulePart {
+    pub async fn to_string(&self) -> Result<Cow<'_, str>> {
+        Ok(match self {
+            ModulePart::Evaluation => Cow::Borrowed("module evaluation"),
+            ModulePart::Export(export) => Cow::Owned(format!("export {}", export.await?)),
             ModulePart::RenamedExport {
                 original_export,
                 export,
             } => {
                 let original_export = original_export.await?;
                 let export = export.await?;
-                format!("export {} as {}", original_export, export).into()
+                Cow::Owned(format!("export {} as {}", original_export, export))
             }
             ModulePart::RenamedNamespace { export } => {
-                format!("export * as {}", export.await?).into()
+                Cow::Owned(format!("export * as {}", export.await?))
             }
-            ModulePart::Internal(id) => format!("internal part {}", id).into(),
-            ModulePart::InternalEvaluation(id) => format!("internal part {}", id).into(),
-            ModulePart::Locals => "locals".into(),
-            ModulePart::Exports => "exports".into(),
-            ModulePart::Facade => "facade".into(),
-        }))
+            ModulePart::Internal(id) => Cow::Owned(format!("internal part {}", id)),
+            ModulePart::InternalEvaluation(id) => Cow::Owned(format!("internal part {}", id)),
+            ModulePart::Locals => Cow::Borrowed("locals"),
+            ModulePart::Exports => Cow::Borrowed("exports"),
+            ModulePart::Facade => Cow::Borrowed("facade"),
+        })
     }
 }
