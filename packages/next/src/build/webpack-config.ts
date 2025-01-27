@@ -1944,6 +1944,14 @@ export default async function getBaseWebpackConfig(
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
         ).TelemetryPlugin(new Map()),
+      dev &&
+        config.experimental?.slowModuleDetectionWebpack &&
+        new (
+          require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
+        ).default({
+          compilerType,
+          ...config.experimental.slowModuleDetectionWebpack,
+        }),
     ].filter(Boolean as any as ExcludesFalse),
   }
 

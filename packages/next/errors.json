@@ -626,5 +626,12 @@
   "625": "Server Actions are not supported with static export.\\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features",
   "626": "Intercepting routes are not supported with static export.\\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features",
   "627": "cacheLife() is only available with the experimental.useCache config.",
-  "628": "cacheTag() is only available with the experimental.useCache config."
+  "628": "cacheTag() is only available with the experimental.useCache config.",
+  "629": "[SlowModuleDetectionPlugin] Cannot record additional build times: The analysis has already been finalized.",
+  "630": "[SlowModuleDetectionPlugin] Cannot regenerate dependency graph: The graph has already been generated.",
+  "631": "[SlowModuleDetectionPlugin] Circular dependency detected in module graph.",
+  "632": "[SlowModuleDetectionPlugin] Cannot generate performance report: The module analysis has not been finalized.",
+  "633": "Unable to identify module: The module is missing a required debugId. This may indicate a problem with webpack's internal module tracking.",
+  "634": "[SlowModuleDetectionPlugin] Module analyzer initialization error: The analyzer was not properly initialized.",
+  "635": "[SlowModuleDetectionPlugin] Module build timing error: Unable to find the start time for a module build."
 }
