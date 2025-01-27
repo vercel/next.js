@@ -10,8 +10,8 @@ use napi::{
 };
 use serde::Serialize;
 use turbo_tasks::{
-    backend::Backend, task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef,
-    TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
+    task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef, TaskId,
+    TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc,
 };
 use turbo_tasks_backend::{
     default_backing_storage, noop_backing_storage, DefaultBackingStorage, NoopBackingStorage,
@@ -118,10 +118,8 @@ impl NextTurboTasks {
 
     pub fn task_statistics(&self) -> &TaskStatisticsApi {
         match self {
-            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.backend().task_statistics(),
-            NextTurboTasks::PersistentCaching(turbo_tasks) => {
-                turbo_tasks.backend().task_statistics()
-            }
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.task_statistics(),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.task_statistics(),
         }
     }
 }

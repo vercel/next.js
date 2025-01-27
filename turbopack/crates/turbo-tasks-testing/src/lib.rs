@@ -295,6 +295,10 @@ impl TurboTasksApi for VcStorage {
         unimplemented!()
     }
 
+    fn task_statistics(&self) -> &turbo_tasks::task_statistics::TaskStatisticsApi {
+        unimplemented!()
+    }
+
     fn stop_and_wait(&self) -> std::pin::Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
         Box::pin(async {})
     }
