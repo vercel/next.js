@@ -252,7 +252,7 @@
     "wait-port": "0.2.2",
     "webpack": "5.96.1",
     "webpack-bundle-analyzer": "4.7.0",
-    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-4058b123-20250122053616",
+    "@rspack/core": "npm:@rspack-canary/core@1.2.0-canary-b167889b-20250127233501",
     "whatwg-fetch": "3.0.0",
     "ws": "8.2.3",
     "yargs": "16.2.0"
