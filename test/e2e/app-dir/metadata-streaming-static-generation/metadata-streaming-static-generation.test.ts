@@ -7,15 +7,10 @@ describe('app-dir - metadata-streaming-static-generation', () => {
     files: __dirname,
   })
 
-  // /suspenseful/dynamic will behave differently when PPR is enabled.
-  // We'll visit PPR tests in the new test suite.
-  if (isPPREnabled) {
-    it('skip ppr test', () => {})
-    return
-  }
-
-  if (isNextStart) {
-    // Precondition for the following tests in build mode
+  if (isNextStart && !isPPREnabled) {
+    // Precondition for the following tests in build mode.
+    // This test is only useful for non-PPR mode as in PPR mode those routes
+    // are all listed in the prerender manifest.
     it('should generate all pages static', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
@@ -79,6 +74,13 @@ describe('app-dir - metadata-streaming-static-generation', () => {
   })
 
   describe('dynamic pages with html limited bots', () => {
+    // TODO: dealing with bots in PPR mode
+    // Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering
+    if (isPPREnabled) {
+      it('skip ppr test', () => {})
+      return
+    }
+
     it('should contain async generated metadata in head for simple dynamics page', async () => {
       const $ = await next.render$('/suspenseful/dynamic', undefined, {
         headers: {

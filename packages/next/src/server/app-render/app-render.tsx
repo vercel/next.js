@@ -185,6 +185,7 @@ import {
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
+import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -322,13 +323,11 @@ function createDivergedMetadataComponents(
   StaticMetadata: React.ComponentType<{}>
   StreamingMetadata: React.ComponentType<{}>
 } {
-  const EmptyMetadata = () => null
+  function EmptyMetadata() {
+    return null
+  }
   const StreamingMetadata: React.ComponentType<{}> = serveStreamingMetadata
-    ? () => (
-        <React.Suspense fallback={null}>
-          <Metadata />
-        </React.Suspense>
-      )
+    ? Metadata
     : EmptyMetadata
 
   const StaticMetadata: React.ComponentType<{}> = serveStreamingMetadata
@@ -1017,11 +1016,13 @@ function App<T>({
   clientReferenceManifest,
   nonce,
   ServerInsertedHTMLProvider,
+  ServerInsertedMetadataProvider,
 }: {
   reactServerStream: BinaryStreamOf<T>
   preinitScripts: () => void
   clientReferenceManifest: NonNullable<RenderOpts['clientReferenceManifest']>
   ServerInsertedHTMLProvider: React.ComponentType<{ children: JSX.Element }>
+  ServerInsertedMetadataProvider: React.ComponentType<{ children: JSX.Element }>
   nonce?: string
 }): JSX.Element {
   preinitScripts()
@@ -1057,13 +1058,15 @@ function App<T>({
         nonce,
       }}
     >
-      <ServerInsertedHTMLProvider>
-        <AppRouter
-          actionQueue={actionQueue}
-          globalErrorComponentAndStyles={response.G}
-          assetPrefix={response.p}
-        />
-      </ServerInsertedHTMLProvider>
+      <ServerInsertedMetadataProvider>
+        <ServerInsertedHTMLProvider>
+          <AppRouter
+            actionQueue={actionQueue}
+            globalErrorComponentAndStyles={response.G}
+            assetPrefix={response.p}
+          />
+        </ServerInsertedHTMLProvider>
+      </ServerInsertedMetadataProvider>
     </HeadManagerContext.Provider>
   )
 }
@@ -1677,6 +1680,8 @@ async function renderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
+  const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
+    createServerInsertedMetadata()
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -1874,6 +1879,7 @@ async function renderToStream(
             preinitScripts={preinitScripts}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
             nonce={ctx.nonce}
           />,
           postponed,
@@ -1897,6 +1903,7 @@ async function renderToStream(
             formState
           ),
           getServerInsertedHTML,
+          getServerInsertedMetadata,
         })
       }
     }
@@ -1913,6 +1920,7 @@ async function renderToStream(
         preinitScripts={preinitScripts}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+        ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
         nonce={ctx.nonce}
       />,
       {
@@ -1963,6 +1971,7 @@ async function renderToStream(
       ),
       isStaticGeneration: generateStaticHTML,
       getServerInsertedHTML,
+      getServerInsertedMetadata,
       validateRootLayout,
     })
   } catch (err) {
@@ -2108,6 +2117,7 @@ async function renderToStream(
           basePath: renderOpts.basePath,
           tracingMetadata: tracingMetadata,
         }),
+        getServerInsertedMetadata,
         validateRootLayout,
       })
     } catch (finalErr: any) {
@@ -2246,6 +2256,7 @@ async function spawnDynamicValidationInDev(
   }
 
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
+  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata()
   const nonce = '1'
 
   if (initialServerStream) {
@@ -2265,6 +2276,7 @@ async function spawnDynamicValidationInDev(
         preinitScripts={() => {}}
         clientReferenceManifest={clientReferenceManifest}
         ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+        ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
         nonce={nonce}
       />,
       {
@@ -2404,6 +2416,7 @@ async function spawnDynamicValidationInDev(
             preinitScripts={() => {}}
             clientReferenceManifest={clientReferenceManifest}
             ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+            ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
             nonce={ctx.nonce}
           />,
           {
@@ -2520,6 +2533,8 @@ async function prerenderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
+  const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
+    createServerInsertedMetadata()
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -2774,6 +2789,9 @@ async function prerenderToStream(
                   preinitScripts={preinitScripts}
                   clientReferenceManifest={clientReferenceManifest}
                   ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                  ServerInsertedMetadataProvider={
+                    ServerInsertedMetadataProvider
+                  }
                   nonce={ctx.nonce}
                 />,
                 {
@@ -2931,6 +2949,7 @@ async function prerenderToStream(
                 preinitScripts={preinitScripts}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
                 nonce={ctx.nonce}
               />,
               {
@@ -3022,6 +3041,7 @@ async function prerenderToStream(
             ssrErrors: allCapturedErrors,
             stream: await continueDynamicPrerender(prelude, {
               getServerInsertedHTML,
+              getServerInsertedMetadata,
             }),
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
@@ -3058,6 +3078,7 @@ async function prerenderToStream(
                 preinitScripts={() => {}}
                 clientReferenceManifest={clientReferenceManifest}
                 ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
                 nonce={ctx.nonce}
               />,
               JSON.parse(JSON.stringify(postponed)),
@@ -3082,6 +3103,7 @@ async function prerenderToStream(
                 formState
               ),
               getServerInsertedHTML,
+              getServerInsertedMetadata,
             }),
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
@@ -3243,6 +3265,7 @@ async function prerenderToStream(
               preinitScripts={preinitScripts}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
               nonce={ctx.nonce}
             />,
             {
@@ -3395,6 +3418,9 @@ async function prerenderToStream(
                   preinitScripts={preinitScripts}
                   clientReferenceManifest={clientReferenceManifest}
                   ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+                  ServerInsertedMetadataProvider={
+                    ServerInsertedMetadataProvider
+                  }
                   nonce={ctx.nonce}
                 />,
                 {
@@ -3501,6 +3527,7 @@ async function prerenderToStream(
             ),
             isStaticGeneration: true,
             getServerInsertedHTML,
+            getServerInsertedMetadata,
             validateRootLayout,
           }),
           dynamicAccess: consumeDynamicAccess(
@@ -3574,6 +3601,7 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
           nonce={ctx.nonce}
         />,
         {
@@ -3654,6 +3682,7 @@ async function prerenderToStream(
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
+            getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3673,6 +3702,7 @@ async function prerenderToStream(
           ssrErrors: allCapturedErrors,
           stream: await continueDynamicPrerender(prelude, {
             getServerInsertedHTML,
+            getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3707,6 +3737,7 @@ async function prerenderToStream(
               preinitScripts={() => {}}
               clientReferenceManifest={clientReferenceManifest}
               ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+              ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
               nonce={ctx.nonce}
             />,
             JSON.parse(JSON.stringify(postponed)),
@@ -3731,6 +3762,7 @@ async function prerenderToStream(
               formState
             ),
             getServerInsertedHTML,
+            getServerInsertedMetadata,
           }),
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
@@ -3783,6 +3815,7 @@ async function prerenderToStream(
           preinitScripts={preinitScripts}
           clientReferenceManifest={clientReferenceManifest}
           ServerInsertedHTMLProvider={ServerInsertedHTMLProvider}
+          ServerInsertedMetadataProvider={ServerInsertedMetadataProvider}
           nonce={ctx.nonce}
         />,
         {
@@ -3826,6 +3859,7 @@ async function prerenderToStream(
           ),
           isStaticGeneration: true,
           getServerInsertedHTML,
+          getServerInsertedMetadata,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -4000,6 +4034,7 @@ async function prerenderToStream(
             basePath: renderOpts.basePath,
             tracingMetadata: tracingMetadata,
           }),
+          getServerInsertedMetadata,
           validateRootLayout,
         }),
         dynamicAccess: null,
