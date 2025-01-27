@@ -1,4 +1,4 @@
-use std::{io::Write, sync::Arc};
+use std::{borrow::Cow, io::Write, sync::Arc};
 
 use anyhow::{bail, Context, Result};
 use swc_core::{
@@ -33,7 +33,7 @@ pub fn minify(path: &FileSystemPath, code: &Code, source_maps: bool, mangle: boo
     let (src, mut src_map_buf) = {
         let fm = cm.new_source_file(
             FileName::Custom(path.path.to_string()).into(),
-            code.source_code().to_str()?.into_owned(),
+            code_str.into_owned(),
         );
 
         let lexer = Lexer::new(
