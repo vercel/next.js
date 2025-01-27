@@ -432,8 +432,6 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     let tt = TurboTasks::new(TurboTasksBackend::new(
         BackendOptions {
             storage_mode: None,
-            // children_tracking: false,
-            // dependency_tracking: false,
             ..Default::default()
         },
         noop_backing_storage(),
