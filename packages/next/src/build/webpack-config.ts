@@ -1950,7 +1950,7 @@ export default async function getBaseWebpackConfig(
           require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
         ).default({
           compilerType,
-          ...config.experimental.slowModuleDetection,
+          ...config.experimental?.slowModuleDetection,
         }),
     ].filter(Boolean as any as ExcludesFalse),
   }

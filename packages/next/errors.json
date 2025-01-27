@@ -627,8 +627,8 @@
   "626": "Intercepting routes are not supported with static export.\\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features",
   "627": "cacheLife() is only available with the experimental.useCache config.",
   "628": "cacheTag() is only available with the experimental.useCache config.",
-  "629": "Invariant: Module is recorded after the report is generated. This is a Next.js internal bug.",
-  "630": "Invariant: Module is missing a required debugId. This is a Next.js internal bug.",
-  "631": "Invariant: Unable to find the start time for a module build. This is a Next.js internal bug.",
-  "632": "Invariant: Circular dependency detected in module graph. This is a Next.js internal bug."
+  "629": "Invariant (SlowModuleDetectionPlugin): Unable to find the start time for a module build. This is a Next.js internal bug.",
+  "630": "Invariant (SlowModuleDetectionPlugin): Module is recorded after the report is generated. This is a Next.js internal bug.",
+  "631": "Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.",
+  "632": "Invariant (SlowModuleDetectionPlugin): Module is missing a required debugId. This is a Next.js internal bug."
 }

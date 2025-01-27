@@ -446,8 +446,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         useCache: z.boolean().optional(),
         slowModuleDetection: z
           .object({
-            slowModuleThresholdMs: z.number().optional(),
-            pathTruncationLength: z.number().optional(),
+            slowModuleThresholdMs: z.number().int(),
           })
           .optional(),
       })

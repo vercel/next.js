@@ -621,13 +621,7 @@ export interface ExperimentalConfig {
      * Time threshold in milliseconds for considering a module "slow".
      * Modules taking longer than this to build will be reported.
      */
-    slowModuleThresholdMs?: number
-
-    /**
-     * Maximum length for displayed module paths in the build report.
-     * Longer paths will be truncated.
-     */
-    pathTruncationLength?: number
+    slowModuleThresholdMs: number
   }
 }
 

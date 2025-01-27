@@ -35,7 +35,6 @@ test/**/next-env.d.ts
 test/tmp/**
 test/.trace
 test/traces
-test/development/slow-module-detection/pages/slowModule.js
 
 # Editors
 **/.idea

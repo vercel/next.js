@@ -10,26 +10,18 @@ const TreeSymbols = {
   BRANCH: '├─ ',
 } as const
 
-const DEFAULT_SLOW_MODULE_THRESHOLD_MS = 500
-
-const DEFAULT_PATH_TRUNCATION_LENGTH = 100
+const PATH_TRUNCATION_LENGTH = 100
 
 // Matches node_modules paths, including pnpm-style paths
 const NODE_MODULES_PATH_PATTERN = /node_modules(?:\/\.pnpm)?\/(.*)/
 
 interface ModuleBuildTimeAnalyzerOptions {
   compilerType: CompilerNameValues
-  slowModuleThresholdMs?: number
-  pathTruncationLength?: number
+  slowModuleThresholdMs: number
 }
 
 const getModuleIdentifier = (module: Module): string => {
   const debugId = module.debugId
-  if (!debugId) {
-    throw new Error(
-      `Invariant: Module is missing a required debugId. This is a Next.js internal bug.`
-    )
-  }
   return String(debugId)
 }
 
@@ -53,6 +45,22 @@ const getModuleDisplayName = (module: Module): string | undefined => {
   return displayPath
 }
 
+// Truncates long paths by preserving the beginning and end portions while adding ellipsis in the middle
+// Example (with PATH_TRUNCATION_LENGTH = 100):
+//   Input:  "/very/long/path/node_modules/.pnpm/some-package@1.0.0/node_modules/deep/nested/file/that/goes/on/for/quite/some/time.js"
+//   Output: "/very/long/path/node_modules/.pnpm/...ested/file/that/goes/on/for/quite/some/time.js"
+function truncatePath(path: string): string {
+  if (path.length <= PATH_TRUNCATION_LENGTH) return path
+
+  // Take the first third of the max length from the start
+  const startSegment = path.slice(0, PATH_TRUNCATION_LENGTH / 3)
+
+  // Take the last two-thirds of the max length from the end
+  const endSegment = path.slice((-PATH_TRUNCATION_LENGTH * 2) / 3)
+
+  return `${startSegment}...${endSegment}`
+}
+
 /**
  * Analyzes module build times and creates a dependency tree of slow modules.
  * Uses a graph data structure to track module relationships:
@@ -67,19 +75,15 @@ class ModuleBuildTimeAnalyzer {
   private moduleChildren = new Map<Module, Map<string, Module>>()
   private isFinalized = false
   private slowModuleThresholdMs: number
-  private pathTruncationLength: number
 
   constructor(private options: ModuleBuildTimeAnalyzerOptions) {
-    this.slowModuleThresholdMs =
-      options.slowModuleThresholdMs ?? DEFAULT_SLOW_MODULE_THRESHOLD_MS
-    this.pathTruncationLength =
-      options.pathTruncationLength ?? DEFAULT_PATH_TRUNCATION_LENGTH
+    this.slowModuleThresholdMs = options.slowModuleThresholdMs
   }
 
   recordModuleBuildTime(module: Module, duration: number) {
     if (this.isFinalized) {
       throw new Error(
-        `Invariant: Module is recorded after the report is generated. This is a Next.js internal bug.`
+        `Invariant (SlowModuleDetectionPlugin): Module is recorded after the report is generated. This is a Next.js internal bug.`
       )
     }
 
@@ -116,7 +120,7 @@ class ModuleBuildTimeAnalyzer {
         if (!issuerModule) break
         if (visitedModules.has(issuerModule)) {
           throw new Error(
-            `Invariant: Circular dependency detected in module graph. This is a Next.js internal bug.`
+            `Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.`
           )
         }
         chain.push(issuerModule)
@@ -162,17 +166,6 @@ class ModuleBuildTimeAnalyzer {
     const rootModules = [...this.modules.values()].filter(
       (node) => !this.moduleParents.has(node)
     )
-
-    // Truncates long paths by keeping start and end portions
-    const truncatePath = (
-      path: string,
-      maxLength = this.pathTruncationLength
-    ): string => {
-      if (path.length <= maxLength) return path
-      const startSegment = path.slice(0, maxLength / 3)
-      const endSegment = path.slice((-maxLength * 2) / 3)
-      return `${startSegment}...${endSegment}`
-    }
 
     const formatModuleNode = (node: Module, depth: number): string => {
       const moduleName = getModuleDisplayName(node) || ''
@@ -241,7 +234,7 @@ export default class SlowModuleDetectionPlugin {
         const startTime = moduleBuildStartTimes.get(module)
         if (!startTime) {
           throw new Error(
-            `Invariant: Unable to find the start time for a module build. This is a Next.js internal bug.`
+            `Invariant (SlowModuleDetectionPlugin): Unable to find the start time for a module build. This is a Next.js internal bug.`
           )
         }
         analyzer.recordModuleBuildTime(module, performance.now() - startTime)
