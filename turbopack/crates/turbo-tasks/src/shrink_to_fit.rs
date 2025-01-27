@@ -66,23 +66,13 @@ impl<T> ShrinkToFit for BinaryHeap<T> {
     }
 }
 
-// indexmap 2.x reduces some of these type bounds, but we're still on 1.9.3
-impl<K, V, S> ShrinkToFit for IndexMap<K, V, S>
-where
-    K: Hash + Eq,
-    S: BuildHasher,
-{
+impl<K, V, S> ShrinkToFit for IndexMap<K, V, S> {
     fn shrink_to_fit(&mut self) {
         IndexMap::shrink_to_fit(self);
     }
 }
 
-// indexmap 2.x reduces some of these type bounds, but we're still on 1.9.3
-impl<T, S> ShrinkToFit for IndexSet<T, S>
-where
-    T: Hash + Eq,
-    S: BuildHasher,
-{
+impl<T, S> ShrinkToFit for IndexSet<T, S> {
     fn shrink_to_fit(&mut self) {
         IndexSet::shrink_to_fit(self);
     }

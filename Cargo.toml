@@ -145,7 +145,7 @@ futures-retry = "0.6.0"
 hashbrown = "0.14.5"
 httpmock = { version = "0.6.8", default-features = false }
 image = { version = "0.25.0", default-features = false }
-indexmap = "2.5.0"
+indexmap = "2.7.1"
 indicatif = "0.17.3"
 indoc = "2.0.0"
 itertools = "0.10.5"
