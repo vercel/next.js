@@ -10,7 +10,8 @@ use turbo_tasks::{
     TryJoinIterExt, Vc,
 };
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingType},
+    chunk::{AsyncModuleInfo, ChunkableModuleReference, ChunkingContext, ChunkingType},
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ExternalType,
 };
@@ -102,6 +103,8 @@ impl AsyncModule {
         &self,
         async_module_info: Vc<AsyncModuleInfo>,
         references: Vc<ModuleReferences>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<AsyncModuleIdents>> {
         let async_module_info = async_module_info.await?;
 
@@ -115,7 +118,9 @@ impl AsyncModule {
                 Ok(match &*referenced_asset {
                     ReferencedAsset::External(_, ExternalType::EcmaScriptModule) => {
                         if self.import_externals {
-                            referenced_asset.get_ident().await?
+                            referenced_asset
+                                .get_ident(module_graph, chunking_context)
+                                .await?
                         } else {
                             None
                         }
@@ -125,7 +130,9 @@ impl AsyncModule {
                             .referenced_async_modules
                             .contains(&ResolvedVc::upcast(*placeable))
                         {
-                            referenced_asset.get_ident().await?
+                            referenced_asset
+                                .get_ident(module_graph, chunking_context)
+                                .await?
                         } else {
                             None
                         }
@@ -189,9 +196,18 @@ impl AsyncModule {
         self: Vc<Self>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
         references: Vc<ModuleReferences>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         if let Some(async_module_info) = async_module_info {
-            let async_idents = self.get_async_idents(async_module_info, references).await?;
+            let async_idents = self
+                .get_async_idents(
+                    async_module_info,
+                    references,
+                    module_graph,
+                    chunking_context,
+                )
+                .await?;
 
             if !async_idents.is_empty() {
                 let idents = async_idents
