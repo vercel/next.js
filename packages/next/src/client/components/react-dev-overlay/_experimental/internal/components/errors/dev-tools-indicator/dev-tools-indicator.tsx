@@ -191,6 +191,7 @@ function DevToolsPopover({
         aria-expanded={isMenuOpen}
         aria-controls="nextjs-dev-tools-menu"
         aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
+        data-nextjs-dev-tools-button
         issueCount={issueCount}
         onClick={onTriggerClick}
         onKeyDown={onTriggerKeydown}
