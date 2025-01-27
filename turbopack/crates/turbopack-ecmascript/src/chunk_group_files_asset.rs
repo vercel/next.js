@@ -189,7 +189,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
             .collect();
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({:#});\n",
+                "__turbopack_context__.v({:#});\n",
                 StringifyJs(&chunks_paths)
             )
             .into(),

@@ -58,7 +58,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
             // `__import_unsupported` and necessary functions.
             let code = formatdoc! {
               r#"
-              __turbopack_export_namespace__(__import_unsupported(`{module}`));
+              __turbopack_context__.n(__import_unsupported(`{module}`));
               "#
             };
             let content = AssetContent::file(File::from(code).into());

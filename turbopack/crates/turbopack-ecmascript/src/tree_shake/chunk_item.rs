@@ -168,7 +168,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
             code.push_bytes(
                 format!(
-                    "{}__turbopack_import__({});\n",
+                    "{}__turbopack_context__.i({});\n",
                     if need_await { "await " } else { "" },
                     StringifyModuleId(
                         &*side_effect
@@ -183,7 +183,7 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
 
         code.push_bytes(
             format!(
-                "__turbopack_export_namespace__(__turbopack_import__({}));\n",
+                "__turbopack_context__.n(__turbopack_context__.i({}));\n",
                 StringifyModuleId(
                     &*module
                         .resolved_as

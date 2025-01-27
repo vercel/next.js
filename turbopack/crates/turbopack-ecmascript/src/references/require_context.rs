@@ -203,7 +203,7 @@ impl RequireContextMap {
 }
 
 /// A reference for `require.context()`, will replace it with an inlined map
-/// wrapped in `__turbopack_module_context__`;
+/// wrapped in `__turbopack_context__.f`;
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct RequireContextAssetReference {
@@ -305,7 +305,7 @@ impl CodeGenerateable for RequireContextAssetReference {
         visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Call(_) = expr {
                 *expr = quote!(
-                    "__turbopack_module_context__(__turbopack_require__($id))" as Expr,
+                    "__turbopack_context__.f(__turbopack_context__.r($id))" as Expr,
                     id: Expr = module_id_to_lit(&module_id)
                 );
             }
@@ -482,7 +482,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
         }
 
         let expr = quote_expr!(
-            "__turbopack_export_value__($obj);",
+            "__turbopack_context__.v($obj);",
             obj: Expr = Expr::Object(context_map),
         );
 

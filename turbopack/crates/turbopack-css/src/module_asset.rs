@@ -328,7 +328,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         let classes = self.module.classes().await?;
 
-        let mut code = "__turbopack_export_value__({\n".to_string();
+        let mut code = "__turbopack_context__.v({\n".to_string();
         for (export_name, class_names) in &*classes {
             let mut exported_class_names = Vec::with_capacity(class_names.len());
 
@@ -384,7 +384,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         let module_id = StringifyJs(&*module_id);
                         let original_name = StringifyJs(&original_name);
                         exported_class_names.push(format! {
-                            "__turbopack_import__({module_id})[{original_name}]"
+                            "__turbopack_context__.i({module_id})[{original_name}]"
                         });
                     }
                     ModuleCssClass::Local { name: class_name }

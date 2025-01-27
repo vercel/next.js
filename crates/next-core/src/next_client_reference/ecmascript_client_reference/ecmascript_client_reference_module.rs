@@ -136,7 +136,7 @@ impl EcmascriptClientReferenceModule {
                 r#"
                     const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
 
-                    __turbopack_export_namespace__(createClientModuleProxy({server_module_path}));
+                    __turbopack_context__.n(createClientModuleProxy({server_module_path}));
                 "#,
                 server_module_path = StringifyJs(server_module_path)
             )?;

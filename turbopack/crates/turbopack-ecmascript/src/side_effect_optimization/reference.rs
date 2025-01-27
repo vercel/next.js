@@ -134,7 +134,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         Ok(CodeGeneration::hoisted_stmt(
             ident.clone().into(),
             quote!(
-                "var $name = __turbopack_import__($id);" as Stmt,
+                "var $name = __turbopack_context__.i($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
                 id: Expr = module_id_to_lit(&id),
             ),

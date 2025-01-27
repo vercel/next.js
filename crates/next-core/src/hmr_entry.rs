@@ -184,7 +184,7 @@ impl EcmascriptChunkItem for HmrEntryChunkItem {
         let id = self.chunking_context.chunk_item_id(chunk_item).await?;
 
         let mut code = RopeBuilder::default();
-        writeln!(code, "__turbopack_require__({});", StringifyJs(&id))?;
+        writeln!(code, "__turbopack_context__.r({});", StringifyJs(&id))?;
         Ok(EcmascriptChunkItemContent {
             inner_code: code.build(),
             options: EcmascriptChunkItemOptions {

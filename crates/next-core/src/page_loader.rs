@@ -160,7 +160,7 @@ impl OutputAsset for PageLoaderAsset {
         }
 
         // We don't need to strip the client relative prefix, because we won't be using
-        // these reference paths with `__turbopack_load__`.
+        // these reference paths with `__turbopack_context__.l`.
         for chunk_data in &*self.chunks_data(FileSystemPathOption::none()).await? {
             references.extend(chunk_data.references().await?.iter().copied());
         }

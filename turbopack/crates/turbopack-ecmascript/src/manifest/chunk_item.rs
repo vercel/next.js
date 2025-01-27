@@ -17,9 +17,9 @@ use crate::{
     utils::StringifyJs,
 };
 
-/// The ManifestChunkItem generates a __turbopack_load__ call for every chunk
+/// The ManifestChunkItem generates a __turbopack_context__.l call for every chunk
 /// necessary to load the real asset. Once all the loads resolve, it is safe to
-/// __turbopack_import__ the actual module that was dynamically imported.
+/// __turbopack_context__.i the actual module that was dynamically imported.
 #[turbo_tasks::value(shared)]
 pub(super) struct ManifestChunkItem {
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
@@ -52,7 +52,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({:#});
+                __turbopack_context__.v({:#});
             "#,
             StringifyJs(&chunks_data)
         };

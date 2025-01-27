@@ -90,8 +90,8 @@ pub async fn get_app_page_entry(
         fxindexmap! {
             "tree" => loader_tree_code,
             "pages" => StringifyJs(&pages).to_string().into(),
-            "__next_app_require__" => "__turbopack_require__".into(),
-            "__next_app_load_chunk__" => " __turbopack_load__".into(),
+            "__next_app_require__" => "__turbopack_context__.r".into(),
+            "__next_app_load_chunk__" => " __turbopack_context__.l".into(),
         },
         fxindexmap! {},
     )

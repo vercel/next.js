@@ -1374,9 +1374,9 @@ async fn compile_time_info_for_module_type(
 
     let mut free_var_references = free_var_references.await?.clone_value();
     let (typeof_exports, typeof_module, require) = if is_esm {
-        ("undefined", "undefined", "__turbopack_require_stub__")
+        ("undefined", "undefined", "__turbopack_context__.z")
     } else {
-        ("object", "object", "__turbopack_require_real__")
+        ("object", "object", "__turbopack_context__.t")
     };
     free_var_references
         .entry(vec![
@@ -3416,11 +3416,11 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
                 self.cjs = true;
                 self.found = true;
             }
-            if &*i.sym == "__turbopack_export_value__" {
+            if &*i.sym == "__turbopack_context__.v" {
                 self.value = true;
                 self.found = true;
             }
-            if &*i.sym == "__turbopack_export_namespace__" {
+            if &*i.sym == "__turbopack_context__.n" {
                 self.namespace = true;
                 self.found = true;
             }

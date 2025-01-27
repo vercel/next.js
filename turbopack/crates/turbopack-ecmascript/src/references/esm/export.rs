@@ -511,7 +511,7 @@ impl CodeGenerateable for EsmExports {
             .await?;
 
             dynamic_exports.push(quote_expr!(
-                "__turbopack_dynamic__($arg)",
+                "__turbopack_context__.j($arg)",
                 arg: Expr = Ident::new(ident.into(), DUMMY_SP, Default::default()).into()
             ));
         }
@@ -627,15 +627,15 @@ impl CodeGenerateable for EsmExports {
 
         Ok(CodeGeneration::new(
             vec![],
-            [dynamic_stmt
-                .clone()
-                .map(|stmt| CodeGenerationHoistedStmt::new("__turbopack_dynamic__".into(), stmt))]
+            [dynamic_stmt.clone().map(|stmt| {
+                CodeGenerationHoistedStmt::new("__turbopack_context__.j".into(), stmt)
+            })]
             .into_iter()
             .flatten()
             .collect(),
             vec![CodeGenerationHoistedStmt::new(
-                "__turbopack_esm__".into(),
-                quote!("__turbopack_esm__($getters);" as Stmt,
+                "__turbopack_context__.s".into(),
+                quote!("__turbopack_context__.s($getters);" as Stmt,
                     getters: Expr = getters.clone()
                 ),
             )],

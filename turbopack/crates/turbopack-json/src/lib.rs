@@ -132,8 +132,7 @@ impl EcmascriptChunkItem for JsonChunkItem {
         match &*data {
             FileJsonContent::Content(data) => {
                 let js_str_content = serde_json::to_string(&data.to_string())?;
-                let inner_code =
-                    format!("__turbopack_export_value__(JSON.parse({js_str_content}));");
+                let inner_code = format!("__turbopack_context__.v(JSON.parse({js_str_content}));");
 
                 Ok(EcmascriptChunkItemContent {
                     inner_code: inner_code.into(),

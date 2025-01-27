@@ -196,7 +196,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                         ResolvedElement::Expr(quote!("module" as Expr))
                     }
                     AmdDefineDependencyElement::Require => {
-                        ResolvedElement::Expr(quote!("__turbopack_require__" as Expr))
+                        ResolvedElement::Expr(quote!("__turbopack_context__.r" as Expr))
                     }
                 })
             })
@@ -226,10 +226,10 @@ enum ResolvedElement {
 
 /// Transforms `define([dep1, dep2], factory)` into:
 /// ```js
-/// __turbopack_export_value__(
+/// __turbopack_context__.v(
 ///   factory(
-///     __turbopack_require__(dep1),
-///     __turbopack_require__(dep2),
+///     __turbopack_context__.r(dep1),
+///     __turbopack_context__.r(dep2),
 ///   ),
 /// );
 /// ```
@@ -261,7 +261,7 @@ fn transform_amd_factory(
     match factory_type {
         AmdDefineFactoryType::Unknown => {
             // ((f, r = typeof f !== "function" ? f : f([...])) => r !== undefined &&
-            // __turbopack_export_value__(r))(...)
+            // __turbopack_context__.v(r))(...)
             let f = private_ident!("f");
             let call_f = Expr::Call(CallExpr {
                 args: deps,
@@ -283,9 +283,9 @@ fn transform_amd_factory(
             });
         }
         AmdDefineFactoryType::Function => {
-            // (r => r !== undefined && __turbopack_export_value__(r))(...([...]))
+            // (r => r !== undefined && __turbopack_context__.v(r))(...([...]))
             *callee = Callee::Expr(quote_expr!(
-                "r => r !== undefined && __turbopack_export_value__(r)"
+                "r => r !== undefined && __turbopack_context__.v(r)"
             ));
             args.push(ExprOrSpread {
                 expr: Box::new(Expr::Call(CallExpr {
@@ -297,8 +297,8 @@ fn transform_amd_factory(
             });
         }
         AmdDefineFactoryType::Value => {
-            // __turbopack_export_value__(...)
-            *callee = Callee::Expr(quote_expr!("__turbopack_export_value__"));
+            // __turbopack_context__.v(...)
+            *callee = Callee::Expr(quote_expr!("__turbopack_context__.v"));
             args.push(ExprOrSpread {
                 expr: factory,
                 spread: None,

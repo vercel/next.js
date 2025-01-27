@@ -156,11 +156,8 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
         };
 
         Ok(EcmascriptChunkItemContent {
-            inner_code: format!(
-                "__turbopack_export_value__({path});",
-                path = StringifyJs(path)
-            )
-            .into(),
+            inner_code: format!("__turbopack_context__.v({path});", path = StringifyJs(path))
+                .into(),
             ..Default::default()
         }
         .into())

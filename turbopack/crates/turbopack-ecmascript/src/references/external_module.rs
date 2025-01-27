@@ -87,13 +87,13 @@ impl CachedExternalModule {
         if self.external_type == CachedExternalType::EcmaScriptViaImport {
             writeln!(
                 code,
-                "const mod = await __turbopack_external_import__({});",
+                "const mod = await __turbopack_context__.y({});",
                 StringifyJs(&self.request)
             )?;
         } else {
             writeln!(
                 code,
-                "const mod = __turbopack_external_require__({}, () => require({}));",
+                "const mod = __turbopack_context__.x({}, () => require({}));",
                 StringifyJs(&self.request),
                 StringifyJs(&self.request)
             )?;
@@ -104,7 +104,7 @@ impl CachedExternalModule {
         if self.external_type == CachedExternalType::CommonJs {
             writeln!(code, "module.exports = mod;")?;
         } else {
-            writeln!(code, "__turbopack_export_namespace__(mod);")?;
+            writeln!(code, "__turbopack_context__.n(mod);")?;
         }
 
         Ok(EcmascriptModuleContent {

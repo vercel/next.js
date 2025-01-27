@@ -133,9 +133,9 @@ impl CodeGenerateable for UrlAssetReference {
     ┌───────────────────────────────┬─────────────────────────────────────────────────────────────────────────┬────────────────────────────────────────────────┬───────────────────────┐
     │  UrlRewriteBehavior\RefAsset  │                         ReferencedAsset::Some()                         │           ReferencedAsset::External            │ ReferencedAsset::None │
     ├───────────────────────────────┼─────────────────────────────────────────────────────────────────────────┼────────────────────────────────────────────────┼───────────────────────┤
-    │ Relative                      │ __turbopack_relative_url__(__turbopack_require__(urlId))                │ __turbopack_relative_url__(url)                │ new URL(url, base)    │
-    │ Full(RenderingClient::Client) │ new URL(__turbopack_require__(urlId), location.origin)                  │ new URL(url, location.origin)                  │ new URL(url, base)    │
-    │ Full(RenderingClient::..)     │ new URL(__turbopack_resolve_module_id_path__(urlId))                    │ new URL(url, base)                             │ new URL(url, base)    │
+    │ Relative                      │ __turbopack_context__.U(__turbopack_context__.r(urlId))                │ __turbopack_context__.U(url)                │ new URL(url, base)    │
+    │ Full(RenderingClient::Client) │ new URL(__turbopack_context__.r(urlId), location.origin)                  │ new URL(url, location.origin)                  │ new URL(url, base)    │
+    │ Full(RenderingClient::..)     │ new URL(__turbopack_context__.R(urlId))                    │ new URL(url, base)                             │ new URL(url, base)    │
     │ None                          │ new URL(url, base)                                                      │ new URL(url, base)                             │ new URL(url, base)    │
     └───────────────────────────────┴─────────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────┴───────────────────────┘
     */
@@ -157,7 +157,7 @@ impl CodeGenerateable for UrlAssetReference {
                 // if the referenced url is in the module graph of turbopack, replace it into
                 // the chunk item will be emitted into output path to point the
                 // static asset path. for the `new URL()` call, replace it into
-                // pseudo url object `__turbopack_relative_url__`
+                // pseudo url object `__turbopack_context__.U`
                 // which is injected by turbopack's runtime to resolve into the relative path
                 // omitting the base.
                 match &*referenced_asset {
@@ -178,7 +178,7 @@ impl CodeGenerateable for UrlAssetReference {
 
                             if should_rewrite_to_relative {
                                 *new_expr = quote!(
-                                    "new __turbopack_relative_url__(__turbopack_require__($id))" as Expr,
+                                    "new __turbopack_context__.U(__turbopack_context__.r($id))" as Expr,
                                     id: Expr = module_id_to_lit(&id),
                                 );
                             }
@@ -195,7 +195,7 @@ impl CodeGenerateable for UrlAssetReference {
 
                             if should_rewrite_to_relative {
                                 *new_expr = quote!(
-                                    "new __turbopack_relative_url__($id)" as Expr,
+                                    "new __turbopack_context__.U($id)" as Expr,
                                     id: Expr = request.as_str().into(),
                                 );
                             }
@@ -238,19 +238,19 @@ impl CodeGenerateable for UrlAssetReference {
                         // If there's a rewrite to the base url, then the current rendering
                         // environment should able to resolve the asset path
                         // (asset_url) from the base. Wrap the module id
-                        // with __turbopack_require__ which returns the asset_url.
+                        // with __turbopack_context__.r which returns the asset_url.
                         //
                         // Otherwise, the envioronment should provide an absolute path to the actual
                         // output asset; delegate those calculation to the
-                        // runtime fn __turbopack_resolve_module_id_path__.
+                        // runtime fn __turbopack_context__.R.
                         let url_segment_resolver = if rewrite_url_base.is_some() {
                             quote!(
-                                "__turbopack_require__($id)" as Expr,
+                                "__turbopack_context__.r($id)" as Expr,
                                 id: Expr = module_id_to_lit(&id),
                             )
                         } else {
                             quote!(
-                                "__turbopack_resolve_module_id_path__($id)" as Expr,
+                                "__turbopack_context__.R($id)" as Expr,
                                 id: Expr = module_id_to_lit(&id),
                             )
                         };
@@ -265,7 +265,7 @@ impl CodeGenerateable for UrlAssetReference {
                                     if let Some(rewrite) = &rewrite_url_base {
                                         *expr = rewrite.clone();
                                     } else {
-                                        // If rewrite for the base doesn't exists, means __turbopack_resolve_module_id_path__
+                                        // If rewrite for the base doesn't exists, means __turbopack_context__.R
                                         // should resolve the full path correctly and there shouldn't be a base.
                                         args.remove(1);
                                     }

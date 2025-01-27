@@ -316,7 +316,7 @@ impl CodeGenerateable for CjsRequireCacheAccess {
         let path = &self.path.await?;
         visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Member(_) = expr {
-                *expr = Expr::Ident(Ident::new("__turbopack_cache__".into(), DUMMY_SP, Default::default()));
+                *expr = Expr::Ident(Ident::new("__turbopack_context__.c".into(), DUMMY_SP, Default::default()));
             } else {
                 unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
             }

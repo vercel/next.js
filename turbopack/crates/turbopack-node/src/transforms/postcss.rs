@@ -381,7 +381,7 @@ pub(crate) async fn config_loader_source(
             // https://github.com/nodejs/node/issues/31710
             // convert it to a file:// URL, which works on all platforms
             const configUrl = pathToFileURL(configPath).toString();
-            const mod = await __turbopack_external_import__(configUrl);
+            const mod = await __turbopack_context__.y(configUrl);
 
             export default mod.default ?? mod;
         "#,

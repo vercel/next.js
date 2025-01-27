@@ -149,7 +149,7 @@ impl EcmascriptChunkItem for NextDynamicEntryChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"
-                    __turbopack_export_namespace__(__turbopack_import__({}));
+                    __turbopack_context__.n(__turbopack_context__.i({}));
                 "#,
                 StringifyJs(&module_id),
             )

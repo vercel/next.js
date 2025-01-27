@@ -167,7 +167,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({path});",
+                "__turbopack_context__.v({path});",
                 path = StringifyJs(
                     &self
                         .chunking_context

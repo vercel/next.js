@@ -57,7 +57,7 @@ impl CodeGenerateable for ImportMetaBinding {
             |path| {
                 let formatted = encode_path(path.trim_start_matches("./")).to_string();
                 quote!(
-                    "`file://${__turbopack_resolve_absolute_path__($formatted)}`" as Expr,
+                    "`file://${__turbopack_context__.P($formatted)}`" as Expr,
                     formatted: Expr = formatted.into()
                 )
             },
