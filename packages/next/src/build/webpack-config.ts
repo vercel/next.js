@@ -1945,12 +1945,12 @@ export default async function getBaseWebpackConfig(
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
         ).TelemetryPlugin(new Map()),
       dev &&
-        config.experimental?.slowModuleDetectionWebpack &&
+        config.experimental?.slowModuleDetection &&
         new (
           require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
         ).default({
           compilerType,
-          ...config.experimental.slowModuleDetectionWebpack,
+          ...config.experimental.slowModuleDetection,
         }),
     ].filter(Boolean as any as ExcludesFalse),
   }

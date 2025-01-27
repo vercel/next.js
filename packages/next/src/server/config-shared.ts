@@ -614,9 +614,9 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * Configuration options for the slow module detection webpack plugin.
+   * When enabled, will detect and report slow modules in the dev build in the terminal.
    */
-  slowModuleDetectionWebpack?: {
+  slowModuleDetection?: {
     /**
      * Time threshold in milliseconds for considering a module "slow".
      * Modules taking longer than this to build will be reported.
@@ -1260,7 +1260,7 @@ export const defaultConfig: NextConfig = {
     streamingMetadata: false,
     htmlLimitedBots: undefined,
     useCache: undefined,
-    slowModuleDetectionWebpack: undefined,
+    slowModuleDetection: undefined,
   },
   bundlePagesRouterDependencies: false,
 }
