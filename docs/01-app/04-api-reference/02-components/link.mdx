@@ -696,6 +696,8 @@ If the child of `Link` is a custom component that wraps an `<a>` tag, you must a
 </PagesOnly>
 
 ```tsx filename="components/nav-link.tsx" switcher
+'use client'
+
 import Link from 'next/link'
 import styled from 'styled-components'
 
@@ -716,6 +718,8 @@ export default NavLink
 ```
 
 ```jsx filename="components/nav-link.js" switcher
+'use client'
+
 import Link from 'next/link'
 import styled from 'styled-components'
 
