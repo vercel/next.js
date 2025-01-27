@@ -151,8 +151,7 @@ function dispatchAction(
     // Mark the pending action as discarded (so the state is never applied) and start the navigation action immediately.
     actionQueue.pending.discarded = true
 
-    // Mark this action as the last in the queue
-    actionQueue.last = newAction
+    newAction.next = actionQueue.pending.next
 
     // if the pending action was a server action, mark the queue as needing a refresh once events are processed
     if (actionQueue.pending.payload.type === ACTION_SERVER_ACTION) {
