@@ -1,3 +1,9 @@
+---
+title: Setting up Supabase for Testing
+nav_title: Supabase
+description: Learn how to set up Supabase for testing with Next.js and Jest.
+---
+
 # Setting up Supabase for Testing in Next.js 14 App Router
 
 Supabase is an excellent choice for adding a backend-as-a-service to your Next.js application. While it's straightforward to integrate, testing Supabase-connected logic in a structured and efficient manner requires some extra care. This guide will show you how to set up Supabase for testing with Jest and provide examples for database cleaning strategies, aligning with practices used in frameworks like Rails.
@@ -128,7 +134,7 @@ $$ LANGUAGE plpgsql;
 
 ## Step 4: Writing a Test Suite with Database Cleaning
 
-Here’s an example test suite that:
+Here's an example test suite that:
 
 1. Cleans the database before and after each test.
 2. Uses the test Supabase client to interact with the database.
@@ -248,4 +254,16 @@ Both commands will load the correct `.env` files, ensuring the test environment 
 
 ## Conclusion
 
-By setting up a test-specific Supabase client, leveraging `dotenvx` for environment management, and implementing a robust database cleaning strategy, you can ensure your tests are reliable and maintainable. This approach can be adapted for any SaaS application, enabling robust testing for backend-connected logic. With the modular utilities outlined here, you’re ready to scale your Next.js testing confidently.
+By setting up a test-specific Supabase client, leveraging `dotenvx` for environment management, and implementing a robust database cleaning strategy, you can ensure your tests are reliable and maintainable. This approach can be adapted for any SaaS application, enabling robust testing for backend-connected logic. With the modular utilities outlined here, you're ready to scale your Next.js testing confidently.
+
+
+---
+
+## Additional Resources
+
+For further reading, you may find these resources helpful:
+
+- [Supabase Docs](https://supabase.com/docs)
+- [Jest Docs](https://jestjs.io/docs/getting-started)
+- [Next.js Testing Guide](https://nextjs.org/docs/app/building-your-application/testing)
+- [Next.js with Supabase Example](https://github.com/vercel/next.js/tree/canary/examples/with-supabase)
