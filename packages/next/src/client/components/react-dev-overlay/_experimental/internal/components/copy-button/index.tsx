@@ -252,10 +252,6 @@ export const COPY_BUTTON_STYLES = css`
   .nextjs-data-runtime-error-copy-button--initial:hover {
     cursor: pointer;
   }
-  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
-    opacity: 0.3;
-    cursor: not-allowed;
-  }
   .nextjs-data-runtime-error-copy-button--error,
   .nextjs-data-runtime-error-copy-button--error:hover {
     color: var(--color-ansi-red);

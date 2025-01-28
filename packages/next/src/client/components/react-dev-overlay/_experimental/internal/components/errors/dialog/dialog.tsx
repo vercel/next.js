@@ -27,10 +27,12 @@ export function ErrorOverlayDialog({
 
 export const DIALOG_STYLES = css`
   .error-overlay-dialog {
+    -webkit-font-smoothing: antialiased;
     background: var(--color-background-100);
-    border: 1px solid var(--color-gray-400);
+    background-clip: padding-box;
+    border: 1px solid var(--color-gray-alpha-400);
     border-radius: var(--rounded-xl);
-    box-shadow: var(--shadow-md);
+    box-shadow: var(--shadow-menu);
   }
 
   .nextjs-error-overlay-dialog-turbopack-background {

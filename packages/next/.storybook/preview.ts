@@ -19,7 +19,7 @@ const preview: Preview = {
         { name: 'background-100-dark', value: '#0a0a0a' },
         { name: 'background-200-dark', value: '#000000' },
       ],
-      default: 'backdrop',
+      default: 'background-200-light',
     },
   },
   globals: {

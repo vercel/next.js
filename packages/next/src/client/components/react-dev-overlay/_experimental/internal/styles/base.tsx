@@ -74,6 +74,9 @@ export function Base() {
             0px 4px 8px -4px rgba(0, 0, 0, 0.04),
             0px 16px 24px -8px rgba(0, 0, 0, 0.06);
 
+          --focus-color: var(--color-blue-800);
+          --focus-ring: 2px solid var(--focus-color);
+
           --rounded-none: 0px;
           --rounded-sm: 0.125rem; /* 2px */
           --rounded-md: 0.25rem; /* 4px */

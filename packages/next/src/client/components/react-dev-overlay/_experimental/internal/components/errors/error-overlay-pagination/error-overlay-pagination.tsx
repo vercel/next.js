@@ -160,6 +160,7 @@ export function ErrorOverlayPagination({
 
 export const styles = css`
   .error-overlay-pagination {
+    -webkit-font-smoothing: antialiased;
     display: flex;
     justify-content: center;
     align-items: center;
@@ -167,9 +168,9 @@ export const styles = css`
     padding: 4px;
     gap: 8px;
     background: var(--color-background-100);
-    box-shadow: var(--shadow-sm);
-
-    border: 1px solid var(--color-gray-400);
+    background-clip: padding-box;
+    box-shadow: var(--shadow-small);
+    border: 1px solid var(--color-gray-alpha-400);
     border-radius: var(--rounded-full);
   }
 
