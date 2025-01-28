@@ -5,7 +5,7 @@ use turbo_tasks::{backend::CachedTaskType, SessionId, TaskId};
 
 use crate::{
     backend::{AnyOperation, TaskDataCategory},
-    data::{CachedDataItem, CachedDataUpdate},
+    data::CachedDataItem,
     utils::chunked_vec::ChunkedVec,
 };
 
@@ -22,8 +22,7 @@ pub trait BackingStorage: 'static + Send + Sync {
         session_id: SessionId,
         operations: Vec<Arc<AnyOperation>>,
         task_cache_updates: Vec<ChunkedVec<(Arc<CachedTaskType>, TaskId)>>,
-        meta_updates: Vec<ChunkedVec<CachedDataUpdate>>,
-        data_updates: Vec<ChunkedVec<CachedDataUpdate>>,
+        tasks: Vec<Vec<(TaskId, Option<(Vec<CachedDataItem>, Vec<CachedDataItem>)>)>>,
     ) -> Result<()>;
     fn start_read_transaction(&self) -> Option<Self::ReadTransaction<'_>>;
     /// # Safety
