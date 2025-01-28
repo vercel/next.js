@@ -117,7 +117,7 @@ describe('create-next-app prompts', () => {
           projectFilesShouldExist({
             cwd,
             projectName,
-            files: ['tailwind.config.ts'],
+            files: ['postcss.config.mjs'],
           })
           resolve()
         })
@@ -196,7 +196,7 @@ describe('create-next-app prompts', () => {
               'app',
               'eslint.config.mjs',
               'package.json',
-              'tailwind.config.ts',
+              'postcss.config.mjs',
               'tsconfig.json',
             ],
           })
