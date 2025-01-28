@@ -44,19 +44,37 @@ const getModuleDisplayName = (module: Module): string | undefined => {
   return displayPath
 }
 
-// Truncates long paths by preserving the beginning and end portions while adding ellipsis in the middle
-// Example (with PATH_TRUNCATION_LENGTH = 100):
-//   Input:  "/very/long/path/node_modules/.pnpm/some-package@1.0.0/node_modules/deep/nested/file/that/goes/on/for/quite/some/time.js"
-//   Output: "/very/long/path/node_modules/.pnpm/...ested/file/that/goes/on/for/quite/some/time.js"
+/**
+ * Truncates a given path to a maximum length defined by PATH_TRUNCATION_LENGTH.
+ * If the path exceeds this length, it will be truncated in the middle and replaced with '...'.
+ *
+ * @param {string} path - The file path to be truncated.
+ * @returns {string} - The truncated path if it exceeds the maximum length, otherwise the original path.
+ *
+ * @example
+ * // Given a path shorter than the truncation length
+ * truncatePath('src/components/Button.js');
+ * // Returns: 'src/components/Button.js'
+ *
+ * @example
+ * // Given a path longer than the truncation length
+ * truncatePath('/Users/username/projects/my-app/src/components/Button.js');
+ * // Returns: '/Users/username/proj...components/Button.js'
+ */
 function truncatePath(path: string): string {
+  // If the path length is within the limit, return it as is
   if (path.length <= PATH_TRUNCATION_LENGTH) return path
 
-  // Take the first third of the max length from the start
-  const startSegment = path.slice(0, PATH_TRUNCATION_LENGTH / 3)
+  // Calculate the available length for the start and end segments after accounting for '...'
+  const availableLength = PATH_TRUNCATION_LENGTH - 3
+  const startSegmentLength = Math.ceil(availableLength / 2)
+  const endSegmentLength = Math.floor(availableLength / 2)
 
-  // Take the last two-thirds of the max length from the end
-  const endSegment = path.slice((-PATH_TRUNCATION_LENGTH * 2) / 3)
+  // Extract the start and end segments of the path
+  const startSegment = path.slice(0, startSegmentLength)
+  const endSegment = path.slice(-endSegmentLength)
 
+  // Return the truncated path with '...' in the middle
   return `${startSegment}...${endSegment}`
 }
 
