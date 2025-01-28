@@ -2,7 +2,7 @@ import * as React from 'react'
 
 export function useOnClickOutside(
   el: Node | null,
-  excludes: string[],
+  cssSelectorsToExclude: string[],
   handler: ((e: MouseEvent | TouchEvent) => void) | undefined
 ) {
   React.useEffect(() => {
@@ -16,8 +16,12 @@ export function useOnClickOutside(
         return
       }
 
-      // Do nothing if clicking on an element that is excluded attribute(s)
-      if (excludes.some((exclude) => (e.target as Element).closest(exclude))) {
+      if (
+        // Do nothing if clicking on an element that is excluded by the CSS selector(s)
+        cssSelectorsToExclude.some((cssSelector) =>
+          (e.target as Element).closest(cssSelector)
+        )
+      ) {
         return
       }
 
@@ -33,5 +37,5 @@ export function useOnClickOutside(
       root.removeEventListener('mouseup', listener as EventListener)
       root.removeEventListener('touchend', listener as EventListener)
     }
-  }, [handler, el, excludes])
+  }, [handler, el, cssSelectorsToExclude])
 }

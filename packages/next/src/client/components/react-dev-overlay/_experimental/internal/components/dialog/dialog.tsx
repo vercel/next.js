@@ -10,6 +10,12 @@ export type DialogProps = {
   onClose?: () => void
 }
 
+const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
+  '[data-next-mark]',
+  '[data-issues-open]',
+  '#nextjs-dev-tools-menu',
+]
+
 const Dialog: React.FC<DialogProps> = function Dialog({
   children,
   type,
@@ -26,12 +32,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
-  const excludes = [
-    '[data-next-mark]',
-    '[data-issues-open]',
-    '#nextjs-dev-tools-menu',
-  ]
-  useOnClickOutside(dialog, excludes, (e) => {
+  useOnClickOutside(dialog, CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE, (e) => {
     e.preventDefault()
     return onClose?.()
   })
