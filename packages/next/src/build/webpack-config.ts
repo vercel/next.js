@@ -814,10 +814,21 @@ export default async function getBaseWebpackConfig(
   const shouldEnableSlowModuleDetection =
     !!config.experimental.slowModuleDetection && dev
 
+  const getParallelism = () => {
+    const override = Number(process.env.NEXT_WEBPACK_PARALLELISM)
+    if (shouldEnableSlowModuleDetection) {
+      if (override) {
+        console.warn(
+          'NEXT_WEBPACK_PARALLELISM is specified but will be ignored due to experimental.slowModuleDetection being enabled.'
+        )
+      }
+      return 1
+    }
+    return override || undefined
+  }
+
   let webpackConfig: webpack.Configuration = {
-    parallelism: shouldEnableSlowModuleDetection
-      ? 1
-      : Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    parallelism: getParallelism(),
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
