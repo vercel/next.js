@@ -1,10 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { SupportedErrorEvent } from '../../../internal/container/Errors'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 
 import { Errors } from './errors'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
-import { ACTION_UNHANDLED_ERROR } from '../../../shared'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,
@@ -17,84 +15,96 @@ const meta: Meta<typeof Errors> = {
 export default meta
 type Story = StoryObj<typeof Errors>
 
-const errors: SupportedErrorEvent[] = [
+const readyErrors: ReadyRuntimeError[] = [
   {
     id: 1,
-    event: {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: Object.assign(new Error('First error message'), {
-        __NEXT_ERROR_CODE: 'E001',
-      }),
-      componentStackFrames: [
-        {
-          file: 'app/page.tsx',
-          component: 'Home',
-          lineNumber: 10,
-          column: 5,
-          canOpenInEditor: true,
-        },
-      ],
-      frames: [
-        {
+    runtime: true,
+    error: new Error('First error message'),
+    frames: [
+      {
+        error: true,
+        reason: 'First error message',
+        external: false,
+        ignored: false,
+        sourceStackFrame: {
           file: 'app/page.tsx',
           methodName: 'Home',
           arguments: [],
           lineNumber: 10,
           column: 5,
         },
-      ],
-    },
+      },
+    ],
   },
   {
     id: 2,
-    event: {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: Object.assign(new Error('Second error message'), {
-        __NEXT_ERROR_CODE: 'E002',
-      }),
-      frames: [],
-    },
+    runtime: true,
+    error: new Error('Second error message'),
+    frames: [
+      {
+        error: true,
+        reason: 'Second error message',
+        external: false,
+        ignored: false,
+        sourceStackFrame: {
+          file: 'app/page.tsx',
+          methodName: 'Home',
+          arguments: [],
+          lineNumber: 10,
+          column: 5,
+        },
+      },
+    ],
   },
   {
     id: 3,
-    event: {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: Object.assign(new Error('Third error message'), {
-        __NEXT_ERROR_CODE: 'E003',
-      }),
-      frames: [],
-    },
+    runtime: true,
+    error: new Error('Third error message'),
+    frames: [
+      {
+        error: true,
+        reason: 'Third error message',
+        external: false,
+        ignored: false,
+        sourceStackFrame: {
+          file: 'app/page.tsx',
+          methodName: 'Home',
+          arguments: [],
+          lineNumber: 10,
+          column: 5,
+        },
+      },
+    ],
   },
   {
     id: 4,
-    event: {
-      type: ACTION_UNHANDLED_ERROR,
-      reason: Object.assign(new Error('Fourth error message'), {
-        __NEXT_ERROR_CODE: 'E004',
-      }),
-      frames: [],
-    },
-  },
-]
-
-const readyErrors: ReadyRuntimeError[] = [
-  {
-    id: 1,
     runtime: true,
-    error: errors[0].event.reason,
-    frames: [],
+    error: new Error('Fourth error message'),
+    frames: [
+      {
+        error: true,
+        reason: 'Fourth error message',
+        external: false,
+        ignored: false,
+        sourceStackFrame: {
+          file: 'app/page.tsx',
+          methodName: 'Home',
+          arguments: [],
+          lineNumber: 10,
+          column: 5,
+        },
+      },
+    ],
   },
 ]
 
 export const Default: Story = {
   args: {
-    errors,
     readyErrors,
     versionInfo: {
       installed: '15.0.0',
       staleness: 'fresh',
     },
-    hasStaticIndicator: true,
     isTurbopack: true,
     debugInfo: { devtoolsFrontendUrl: undefined },
     onClose: () => {},
@@ -116,44 +126,55 @@ export const Minimized: Story = {
 
 export const WithHydrationWarning: Story = {
   args: {
-    errors: [
+    readyErrors: [
       {
         id: 1,
-        event: {
-          type: ACTION_UNHANDLED_ERROR,
-          reason: Object.assign(new Error('Hydration error'), {
-            details: {
-              warning: [
-                'Text content does not match server-rendered HTML: "%s" !== "%s"',
-                'Server Content',
-                'Client Content',
-              ],
-              reactOutputComponentDiff: `<MyComponent>
+        runtime: true,
+        error: Object.assign(new Error('Hydration error'), {
+          details: {
+            warning: [
+              'Text content does not match server-rendered HTML: "%s" !== "%s"',
+              'Server Content',
+              'Client Content',
+            ],
+            reactOutputComponentDiff: `<MyComponent>
   <ParentComponent>
     <div>
 -     <p> hello world </p>
 +     <div> hello world </div>`,
+          },
+          componentStackFrames: [
+            {
+              component: 'MyComponent',
+              file: 'app/page.tsx',
+              lineNumber: 10,
+              columnNumber: 5,
             },
-            componentStackFrames: [
-              {
-                component: 'MyComponent',
-                file: 'app/page.tsx',
-                lineNumber: 10,
-                columnNumber: 5,
-              },
-              {
-                component: 'ParentComponent',
-                file: 'app/layout.tsx',
-                lineNumber: 20,
-                columnNumber: 3,
-              },
-            ],
-          }),
-          frames: [],
-        },
+            {
+              component: 'ParentComponent',
+              file: 'app/layout.tsx',
+              lineNumber: 20,
+              columnNumber: 3,
+            },
+          ],
+        }),
+        frames: [
+          {
+            error: true,
+            reason: 'First error message',
+            external: false,
+            ignored: false,
+            sourceStackFrame: {
+              file: 'app/page.tsx',
+              methodName: 'Home',
+              arguments: [],
+              lineNumber: 10,
+              column: 5,
+            },
+          },
+        ],
       },
     ],
-    readyErrors: [],
     debugInfo: { devtoolsFrontendUrl: undefined },
     onClose: () => {},
   },
