@@ -475,7 +475,13 @@ export async function exportPages(
               `Failed to build ${pageKey} (attempt ${attempt + 1} of ${maxAttempts}). Retrying again shortly.`
             )
           }
-          await new Promise((r) => setTimeout(r, Math.random() * 500))
+
+          // Exponential backoff with random jitter to avoid thundering herd on retries
+          const baseDelay = 500 // 500ms
+          const maxDelay = 2000 // 2 seconds
+          const delay = Math.min(baseDelay * Math.pow(2, attempt), maxDelay)
+          const jitter = Math.random() * 0.3 * delay // Add up to 30% random jitter
+          await new Promise((r) => setTimeout(r, delay + jitter))
         }
       }
 
