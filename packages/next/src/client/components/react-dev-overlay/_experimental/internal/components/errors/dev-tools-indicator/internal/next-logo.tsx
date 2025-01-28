@@ -7,8 +7,8 @@ interface Props extends React.ComponentProps<'button'> {
   issueCount: number
   isDevBuilding: boolean
   isDevRendering: boolean
-  onClick: () => void
-  onIssuesClick: () => void
+  onTriggerClick: () => void
+  openErrorOverlay: () => void
 }
 
 const SIZE = 36
@@ -18,8 +18,8 @@ export const NextLogo = forwardRef(function NextLogo(
     issueCount,
     isDevBuilding,
     isDevRendering,
-    onClick,
-    onIssuesClick,
+    onTriggerClick,
+    openErrorOverlay,
     ...props
   }: Props,
   propRef: React.Ref<HTMLButtonElement>
@@ -32,7 +32,7 @@ export const NextLogo = forwardRef(function NextLogo(
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
-
+  console.log({ isErrorExpanded })
   return (
     <div
       data-next-badge-root
@@ -287,7 +287,7 @@ export const NextLogo = forwardRef(function NextLogo(
           <button
             ref={mergeRefs(triggerRef, propRef)}
             data-next-mark
-            onClick={onClick}
+            onClick={onTriggerClick}
             {...props}
           >
             <NextMark isLoading={isLoading} />
@@ -297,7 +297,7 @@ export const NextLogo = forwardRef(function NextLogo(
               <button
                 data-issues-open
                 aria-label="Open issues overlay"
-                onClick={onIssuesClick}
+                onClick={openErrorOverlay}
               >
                 <span data-issues-count>{issueCount}</span>{' '}
                 {issueCount === 1 ? 'Issue' : 'Issues'}
