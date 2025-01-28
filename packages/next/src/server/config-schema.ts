@@ -444,6 +444,11 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
         streamingMetadata: z.boolean().optional(),
         htmlLimitedBots: z.instanceof(RegExp).optional(),
         useCache: z.boolean().optional(),
+        slowModuleDetection: z
+          .object({
+            buildTimeThresholdMs: z.number().int(),
+          })
+          .optional(),
       })
       .optional(),
     exportPathMap: z
