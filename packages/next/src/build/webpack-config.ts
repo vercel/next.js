@@ -811,8 +811,13 @@ export default async function getBaseWebpackConfig(
 
   const builtinModules = require('module').builtinModules
 
+  const shouldEnableSlowModuleDetection =
+    !!config.experimental.slowModuleDetection && dev
+
   let webpackConfig: webpack.Configuration = {
-    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    parallelism: shouldEnableSlowModuleDetection
+      ? 1
+      : Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
@@ -1944,13 +1949,12 @@ export default async function getBaseWebpackConfig(
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
         ).TelemetryPlugin(new Map()),
-      dev &&
-        config.experimental?.slowModuleDetection &&
+      shouldEnableSlowModuleDetection &&
         new (
           require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
         ).default({
           compilerType,
-          ...config.experimental?.slowModuleDetection,
+          ...config.experimental.slowModuleDetection!,
         }),
     ].filter(Boolean as any as ExcludesFalse),
   }
