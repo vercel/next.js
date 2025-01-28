@@ -9,14 +9,14 @@ const TreeSymbols = {
   BRANCH: '├─ ',
 } as const
 
-const PATH_TRUNCATION_LENGTH = 100
+const PATH_TRUNCATION_LENGTH = 120
 
 // Matches node_modules paths, including pnpm-style paths
 const NODE_MODULES_PATH_PATTERN = /node_modules(?:\/\.pnpm)?\/(.*)/
 
 interface ModuleBuildTimeAnalyzerOptions {
   compilerType: CompilerNameValues
-  slowModuleThresholdMs: number
+  buildTimeThresholdMs: number
 }
 
 const getModuleIdentifier = (module: Module): string => {
@@ -45,28 +45,15 @@ const getModuleDisplayName = (module: Module): string | undefined => {
 }
 
 /**
- * Truncates a given path to a maximum length defined by PATH_TRUNCATION_LENGTH.
- * If the path exceeds this length, it will be truncated in the middle and replaced with '...'.
- *
- * @param {string} path - The file path to be truncated.
- * @returns {string} - The truncated path if it exceeds the maximum length, otherwise the original path.
- *
- * @example
- * // Given a path shorter than the truncation length
- * truncatePath('src/components/Button.js');
- * // Returns: 'src/components/Button.js'
- *
- * @example
- * // Given a path longer than the truncation length
- * truncatePath('/Users/username/projects/my-app/src/components/Button.js');
- * // Returns: '/Users/username/proj...components/Button.js'
+ * Truncates a path to a maximum length. If the path exceeds this length,
+ * it will be truncated in the middle and replaced with '...'.
  */
-function truncatePath(path: string): string {
+function truncatePath(path: string, maxLength: number): string {
   // If the path length is within the limit, return it as is
-  if (path.length <= PATH_TRUNCATION_LENGTH) return path
+  if (path.length <= maxLength) return path
 
   // Calculate the available length for the start and end segments after accounting for '...'
-  const availableLength = PATH_TRUNCATION_LENGTH - 3
+  const availableLength = maxLength - 3
   const startSegmentLength = Math.ceil(availableLength / 2)
   const endSegmentLength = Math.floor(availableLength / 2)
 
@@ -84,11 +71,11 @@ class ModuleBuildTimeAnalyzer {
   private moduleParents = new Map<Module, Module>()
   private moduleChildren = new Map<Module, Map<string, Module>>()
   private isFinalized = false
-  private slowModuleThresholdMs: number
+  private buildTimeThresholdMs: number
   private moduleBuildTimes = new WeakMap<Module, number>()
 
   constructor(private options: ModuleBuildTimeAnalyzerOptions) {
-    this.slowModuleThresholdMs = options.slowModuleThresholdMs
+    this.buildTimeThresholdMs = options.buildTimeThresholdMs
   }
 
   recordModuleBuildTime(module: Module, duration: number) {
@@ -100,7 +87,7 @@ class ModuleBuildTimeAnalyzer {
       )
     }
 
-    if (duration < this.slowModuleThresholdMs) {
+    if (duration < this.buildTimeThresholdMs) {
       return // Skip fast modules
     }
 
@@ -179,25 +166,24 @@ class ModuleBuildTimeAnalyzer {
     const formatModuleNode = (node: Module, depth: number): string => {
       const moduleName = getModuleDisplayName(node) || ''
 
-      // Skip internal/unnamed modules but continue processing their children
-      // This keeps the report focused on meaningful source files and node_modules
       if (!moduleName) {
         return formatChildModules(node, depth)
       }
 
+      const prefix =
+        ' ' + TreeSymbols.VERTICAL_LINE.repeat(depth) + TreeSymbols.BRANCH
+
+      const moduleText = blue(
+        truncatePath(moduleName, PATH_TRUNCATION_LENGTH - prefix.length)
+      )
+
       const buildTimeMs = this.moduleBuildTimes.get(node)
-
-      const duration =
-        buildTimeMs && buildTimeMs > 0
-          ? yellow(` (${Math.ceil(buildTimeMs)}ms)`)
-          : ''
-
-      const indentation = ' ' + TreeSymbols.VERTICAL_LINE.repeat(depth)
-      const moduleText = blue(truncatePath(moduleName))
+      const duration = buildTimeMs
+        ? yellow(` (${Math.ceil(buildTimeMs)}ms)`)
+        : ''
 
       return (
-        indentation +
-        TreeSymbols.BRANCH +
+        prefix +
         moduleText +
         duration +
         '\n' +

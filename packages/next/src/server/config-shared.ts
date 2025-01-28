@@ -614,14 +614,15 @@ export interface ExperimentalConfig {
   useCache?: boolean
 
   /**
-   * When enabled, will detect and report slow modules in the dev build in the terminal.
+   * Enables detection and reporting of slow modules during development builds.
+   * Enabling this may impact build performance to ensure accurate measurements.
    */
   slowModuleDetection?: {
     /**
-     * Time threshold in milliseconds for considering a module "slow".
-     * Modules taking longer than this to build will be reported.
+     * The time threshold in milliseconds for identifying slow modules.
+     * Modules taking longer than this build time threshold will be reported.
      */
-    slowModuleThresholdMs: number
+    buildTimeThresholdMs: number
   }
 }
 

@@ -1,7 +1,7 @@
 module.exports = {
   experimental: {
     slowModuleDetection: {
-      slowModuleThresholdMs: 50,
+      buildTimeThresholdMs: 50,
     },
   },
 }
