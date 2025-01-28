@@ -1,10 +1,7 @@
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashSet},
-    ops::ControlFlow,
-};
+use std::{borrow::Cow, collections::BTreeMap, ops::ControlFlow};
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
@@ -16,8 +13,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, ValueToString,
-    Vc,
+    trace::TraceRawVcs, FxIndexMap, FxIndexSet, NonLocalValue, ResolvedVc, TryFlatJoinIterExt,
+    ValueToString, Vc,
 };
 use turbo_tasks_fs::glob::Glob;
 use turbopack_core::{
@@ -338,9 +335,9 @@ pub struct ExpandStarResult {
 pub async fn expand_star_exports(
     root_module: Vc<Box<dyn EcmascriptChunkPlaceable>>,
 ) -> Result<Vc<ExpandStarResult>> {
-    let mut set = HashSet::new();
+    let mut set = FxIndexSet::default();
     let mut has_dynamic_exports = false;
-    let mut checked_modules = HashSet::new();
+    let mut checked_modules = FxHashSet::default();
     checked_modules.insert(root_module);
     let mut queue = vec![(root_module, root_module.get_exports())];
     while let Some((asset, exports)) = queue.pop() {
