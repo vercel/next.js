@@ -298,7 +298,7 @@ Our current recommendation for JSON-LD is to render structured data as a `<scrip
 
 ```tsx filename="app/products/[id]/page.tsx" switcher
 export default async function Page({ params }) {
-  const product = await getProduct(params.id)
+  const product = await getProduct((await params).id)
 
   const jsonLd = {
     '@context': 'https://schema.org',
@@ -323,7 +323,7 @@ export default async function Page({ params }) {
 
 ```jsx filename="app/products/[id]/page.js" switcher
 export default async function Page({ params }) {
-  const product = await getProduct(params.id)
+  const product = await getProduct((await params).id)
 
   const jsonLd = {
     '@context': 'https://schema.org',
