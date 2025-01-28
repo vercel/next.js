@@ -106,7 +106,7 @@ export function useErrorHook({
     // will be displayed. Since build error and root layout
     // missing tags won't be dismissed until resolved, the
     // total number of errors may be fixed to their length.
-    totalErrorsLength: rootLayoutMissingTags?.length
+    totalErrorCount: rootLayoutMissingTags?.length
       ? rootLayoutMissingTags.length
       : !!buildError
         ? 1
