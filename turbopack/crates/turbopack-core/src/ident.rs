@@ -100,10 +100,9 @@ impl ValueToString for AssetIdent {
 
         if !self.parts.is_empty() {
             for part in self.parts.iter() {
-                let part = part.to_string().await?;
-                // facade is not included in ident as switching between facade and non-facade
-                // shouldn't change the ident
-                if part != "facade" {
+                if !matches!(part, ModulePart::Facade) {
+                    // facade is not included in ident as switching between facade and non-facade
+                    // shouldn't change the ident
                     write!(s, " <{}>", part)?;
                 }
             }
