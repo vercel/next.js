@@ -1,14 +1,15 @@
 use std::{cmp::max, num::NonZeroU32};
 
 use rustc_hash::FxHashSet;
+use smallvec::SmallVec;
 use turbo_tasks::TaskId;
 
 use crate::{
     backend::{
         get,
         operation::{
-            get_uppers, is_aggregating_node, is_root_node, AggregationUpdateJob,
-            AggregationUpdateQueue, TaskGuard,
+            aggregation_update::InnerOfUppersHasNewFollowersJob, get_uppers, is_aggregating_node,
+            is_root_node, AggregationUpdateJob, AggregationUpdateQueue, TaskGuard,
         },
     },
     data::CachedDataItem,
@@ -73,17 +74,20 @@ pub fn connect_children(
         });
     }
 
-    let new_follower_ids: Vec<_> = new_children.iter().copied().collect();
+    let new_follower_ids: SmallVec<_> = new_children.iter().copied().collect();
 
     let aggregating_node = is_aggregating_node(parent_aggregation);
     let upper_ids = (!aggregating_node).then(|| get_uppers(&*parent_task));
 
     if let Some(upper_ids) = upper_ids {
         if !upper_ids.is_empty() {
-            queue.push(AggregationUpdateJob::InnerOfUppersHasNewFollowers {
-                upper_ids,
-                new_follower_ids: new_follower_ids.clone(),
-            });
+            queue.push(
+                InnerOfUppersHasNewFollowersJob {
+                    upper_ids,
+                    new_follower_ids: new_follower_ids.clone(),
+                }
+                .into(),
+            );
         }
     } else {
         queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
