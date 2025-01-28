@@ -7,6 +7,7 @@ pub mod dynamic_expression;
 pub mod esm;
 pub mod external_module;
 pub mod ident;
+pub mod member;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
@@ -138,6 +139,7 @@ use crate::{
         dynamic_expression::DynamicExpression,
         esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
         ident::IdentReplacement,
+        member::MemberReplacement,
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
@@ -1407,6 +1409,23 @@ async fn compile_time_info_for_module_type(
         .entry(vec![DefineableNameSegment::Name("require".into())])
         .or_insert(FreeVarReference::Ident(require.into()));
 
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name(
+            "__turbopack_load__".into(),
+        )])
+        .or_insert(FreeVarReference::Member(
+            "__turbopack_context__".into(),
+            "l".into(),
+        ));
+    free_var_references
+        .entry(vec![DefineableNameSegment::Name(
+            "__turbopack_require__".into(),
+        )])
+        .or_insert(FreeVarReference::Member(
+            "__turbopack_context__".into(),
+            "r".into(),
+        ));
+
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
         defines: compile_time_info.defines,
@@ -2436,6 +2455,13 @@ async fn handle_free_var_reference(
         }
         FreeVarReference::Ident(value) => {
             analysis.add_code_gen(IdentReplacement::new(
+                value.clone(),
+                Vc::cell(ast_path.to_vec()),
+            ));
+        }
+        FreeVarReference::Member(key, value) => {
+            analysis.add_code_gen(MemberReplacement::new(
+                key.clone(),
                 value.clone(),
                 Vc::cell(ast_path.to_vec()),
             ));
