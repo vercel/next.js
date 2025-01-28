@@ -32,7 +32,6 @@ export const NextLogo = forwardRef(function NextLogo(
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
-  console.log({ isErrorExpanded })
   return (
     <div
       data-next-badge-root
