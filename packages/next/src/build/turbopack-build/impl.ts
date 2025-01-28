@@ -20,6 +20,8 @@ import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loa
 import { createProgress } from '../progress'
 import * as Log from '../output/log'
 import { promises as fs } from 'fs'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import loadConfig from '../../server/config'
 
 const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
 
@@ -297,4 +299,19 @@ export async function turbopackBuild(): Promise<{
     buildTraceContext: undefined,
     shutdownPromise,
   }
+}
+
+export async function workerMain(workerData: {
+  buildContext: typeof NextBuildContext
+}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+  // setup new build context from the serialized data passed from the parent
+  Object.assign(NextBuildContext, workerData.buildContext)
+
+  /// load the config because it's not serializable
+  NextBuildContext.config = await loadConfig(
+    PHASE_PRODUCTION_BUILD,
+    NextBuildContext.dir!
+  )
+
+  return turbopackBuild()
 }

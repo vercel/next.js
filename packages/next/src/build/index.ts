@@ -1389,7 +1389,7 @@ export default async function build(
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
-          } = await turbopackBuild(false)
+          } = await turbopackBuild(true)
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
