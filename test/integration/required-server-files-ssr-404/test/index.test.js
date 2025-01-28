@@ -395,6 +395,62 @@ describe('Required Server Files', () => {
         expect(data5.params).toEqual({})
         expect(isNaN(data5.random)).toBe(false)
         expect(data5.random).not.toBe(data.random)
+
+        const html6 = await renderViaHTTP(
+          appPort,
+          '/catch-all/[[...rest]]',
+          { nxtPrest: 'frank' },
+          {
+            headers: {
+              'x-matched-path': '/catch-all/[[...rest]]',
+            },
+          }
+        )
+        const $6 = cheerio.load(html6)
+        const data6 = JSON.parse($6('#props').text())
+
+        expect($6('#catch-all').text()).toBe('optional catch-all page')
+        expect(data6.params).toEqual({ rest: ['frank'] })
+        expect(isNaN(data6.random)).toBe(false)
+        expect(data6.random).not.toBe(data.random)
+      })
+
+      describe('partial optional catch-all route', () => {
+        it.each([
+          {
+            path: '/partial-catch-all/hello.com',
+            query: { nxtPdomain: 'hello.com' },
+            expected: { domain: 'hello.com' },
+          },
+          {
+            path: '/partial-catch-all/hello.com/hello',
+            query: { nxtPdomain: 'hello.com', nxtPrest: 'hello' },
+            expected: { domain: 'hello.com', rest: ['hello'] },
+          },
+          {
+            path: '/partial-catch-all/hello.com/hello/world',
+            query: { nxtPdomain: 'hello.com', nxtPrest: 'hello/world' },
+            expected: { domain: 'hello.com', rest: ['hello', 'world'] },
+          },
+        ])('should render $path', async ({ query, expected }) => {
+          const html = await renderViaHTTP(
+            appPort,
+            '/partial-catch-all/[domain]/[[...rest]]',
+            query,
+            {
+              headers: {
+                'x-matched-path': '/partial-catch-all/[domain]/[[...rest]]',
+              },
+            }
+          )
+
+          const $ = cheerio.load(html)
+          const data = JSON.parse($('#props').text())
+
+          expect($('#catch-all').text()).toBe('partial optional catch-all page')
+          expect(data.params).toEqual(expected)
+          expect(data.hello).toBe('world')
+        })
       })
 
       it('should return data correctly with x-matched-path for optional catch-all route', async () => {
