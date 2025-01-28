@@ -26,7 +26,12 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
-  useOnClickOutside(dialog, (e) => {
+  const excludes = [
+    '[data-next-mark]',
+    '[data-issues-open]',
+    '#nextjs-dev-tools-menu',
+  ]
+  useOnClickOutside(dialog, excludes, (e) => {
     e.preventDefault()
     return onClose?.()
   })

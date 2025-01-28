@@ -2,6 +2,7 @@ import * as React from 'react'
 
 export function useOnClickOutside(
   el: Node | null,
+  excludes: string[],
   handler: ((e: MouseEvent | TouchEvent) => void) | undefined
 ) {
   React.useEffect(() => {
@@ -15,17 +16,22 @@ export function useOnClickOutside(
         return
       }
 
+      // Do nothing if clicking on an element that is excluded attribute(s)
+      if (excludes.some((exclude) => (e.target as Element).closest(exclude))) {
+        return
+      }
+
       handler(e)
     }
 
     const root = el.getRootNode()
-    root.addEventListener('mousedown', listener as EventListener)
-    root.addEventListener('touchstart', listener as EventListener, {
+    root.addEventListener('mouseup', listener as EventListener)
+    root.addEventListener('touchend', listener as EventListener, {
       passive: false,
     })
     return function () {
-      root.removeEventListener('mousedown', listener as EventListener)
-      root.removeEventListener('touchstart', listener as EventListener)
+      root.removeEventListener('mouseup', listener as EventListener)
+      root.removeEventListener('touchend', listener as EventListener)
     }
-  }, [handler, el])
+  }, [handler, el, excludes])
 }
