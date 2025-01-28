@@ -384,7 +384,7 @@ async fn get_part_id(result: &SplitResult, part: &ModulePart) -> Result<u32> {
     // TODO implement ModulePart::Facade
     let key = match part {
         ModulePart::Evaluation => Key::ModuleEvaluation,
-        ModulePart::Export(export) => Key::Export(export.await?.as_str().into()),
+        ModulePart::Export(export) => Key::Export(export.clone()),
         ModulePart::Exports => Key::Exports,
         ModulePart::Internal(part_id) | ModulePart::InternalEvaluation(part_id) => {
             return Ok(*part_id)

@@ -268,19 +268,19 @@ impl AssetIdent {
                 }
                 ModulePart::Export(export) => {
                     2_u8.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedExport {
                     original_export,
                     export,
                 } => {
                     3_u8.deterministic_hash(&mut hasher);
-                    original_export.await?.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
+                    original_export.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::RenamedNamespace { export } => {
                     4_u8.deterministic_hash(&mut hasher);
-                    export.await?.deterministic_hash(&mut hasher);
+                    export.deterministic_hash(&mut hasher);
                 }
                 ModulePart::Internal(id) => {
                     5_u8.deterministic_hash(&mut hasher);

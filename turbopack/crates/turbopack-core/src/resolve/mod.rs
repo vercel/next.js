@@ -3060,14 +3060,14 @@ pub enum ModulePart {
     /// all exports are unused.
     Evaluation,
     /// Represents an export of a module.
-    Export(ResolvedVc<RcStr>),
+    Export(RcStr),
     /// Represents a renamed export of a module.
     RenamedExport {
-        original_export: ResolvedVc<RcStr>,
-        export: ResolvedVc<RcStr>,
+        original_export: RcStr,
+        export: RcStr,
     },
     /// Represents a namespace object of a module exported as named export.
-    RenamedNamespace { export: ResolvedVc<RcStr> },
+    RenamedNamespace { export: RcStr },
     /// A pointer to a specific part.
     Internal(u32),
     /// A pointer to a specific part, but with evaluation.
@@ -3087,20 +3087,18 @@ impl ModulePart {
     }
 
     pub fn export(export: RcStr) -> Self {
-        ModulePart::Export(ResolvedVc::cell(export))
+        ModulePart::Export(export)
     }
 
     pub fn renamed_export(original_export: RcStr, export: RcStr) -> Self {
         ModulePart::RenamedExport {
-            original_export: ResolvedVc::cell(original_export),
-            export: ResolvedVc::cell(export),
+            original_export,
+            export,
         }
     }
 
     pub fn renamed_namespace(export: RcStr) -> Self {
-        ModulePart::RenamedNamespace {
-            export: ResolvedVc::cell(export),
-        }
+        ModulePart::RenamedNamespace { export }
     }
 
     pub fn internal(id: u32) -> Self {
@@ -3124,27 +3122,23 @@ impl ModulePart {
     }
 }
 
-impl ModulePart {
-    pub async fn to_string(&self) -> Result<Cow<'_, str>> {
-        Ok(match self {
-            ModulePart::Evaluation => Cow::Borrowed("module evaluation"),
-            ModulePart::Export(export) => Cow::Owned(format!("export {}", export.await?)),
+impl Display for ModulePart {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ModulePart::Evaluation => f.write_str("module evaluation"),
+            ModulePart::Export(export) => write!(f, "export {}", export),
             ModulePart::RenamedExport {
                 original_export,
                 export,
-            } => {
-                let original_export = original_export.await?;
-                let export = export.await?;
-                Cow::Owned(format!("export {} as {}", original_export, export))
-            }
+            } => write!(f, "export {} as {}", original_export, export),
             ModulePart::RenamedNamespace { export } => {
-                Cow::Owned(format!("export * as {}", export.await?))
+                write!(f, "export * as {}", export)
             }
-            ModulePart::Internal(id) => Cow::Owned(format!("internal part {}", id)),
-            ModulePart::InternalEvaluation(id) => Cow::Owned(format!("internal part {}", id)),
-            ModulePart::Locals => Cow::Borrowed("locals"),
-            ModulePart::Exports => Cow::Borrowed("exports"),
-            ModulePart::Facade => Cow::Borrowed("facade"),
-        })
+            ModulePart::Internal(id) => write!(f, "internal part {}", id),
+            ModulePart::InternalEvaluation(id) => write!(f, "internal part {}", id),
+            ModulePart::Locals => f.write_str("locals"),
+            ModulePart::Exports => f.write_str("exports"),
+            ModulePart::Facade => f.write_str("facade"),
+        }
     }
 }

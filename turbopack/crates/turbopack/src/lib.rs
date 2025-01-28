@@ -208,7 +208,7 @@ async fn apply_module_type(
                                 _ => bail!(
                                     "Invalid module part \"{}\" for reexports only tree shaking \
                                      mode",
-                                    part.to_string().await?
+                                    part
                                 ),
                             }
                         } else if *module.get_exports().needs_facade().await? {
@@ -279,31 +279,24 @@ async fn apply_reexport_tree_shaking(
     side_effect_free_packages: Vc<Glob>,
 ) -> Result<Vc<Box<dyn Module>>> {
     if let ModulePart::Export(export) = &part {
-        let export = export.await?;
         let FollowExportsResult {
             module: final_module,
             export_name: new_export,
             ..
-        } = &*follow_reexports(
-            module,
-            export.clone_value(),
-            side_effect_free_packages,
-            false,
-        )
-        .await?;
+        } = &*follow_reexports(module, export.clone(), side_effect_free_packages, false).await?;
         let module = if let Some(new_export) = new_export {
             if *new_export == *export {
                 Vc::upcast(**final_module)
             } else {
                 Vc::upcast(EcmascriptModuleFacadeModule::new(
                     **final_module,
-                    ModulePart::renamed_export(new_export.clone(), export.clone_value()),
+                    ModulePart::renamed_export(new_export.clone(), export.clone()),
                 ))
             }
         } else {
             Vc::upcast(EcmascriptModuleFacadeModule::new(
                 **final_module,
-                ModulePart::renamed_namespace(export.clone_value()),
+                ModulePart::renamed_namespace(export.clone()),
             ))
         };
         return Ok(module);

@@ -57,7 +57,7 @@ impl ValueToString for EcmascriptModulePartReference {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(match &self.part {
-            Some(part) => Vc::cell(part.to_string().await?.into()),
+            Some(part) => Vc::cell(part.to_string().into()),
             None => Vc::cell("module".into()),
         })
     }
@@ -89,8 +89,8 @@ impl ModuleReference for EcmascriptModulePartReference {
                 | ModulePart::Internal(..)
                 | ModulePart::InternalEvaluation(..) => {
                     bail!(
-                        "Unexpected ModulePart {} for EcmascriptModulePartReference",
-                        part.to_string().await?
+                        "Unexpected ModulePart \"{}\" for EcmascriptModulePartReference",
+                        part
                     );
                 }
             }

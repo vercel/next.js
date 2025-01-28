@@ -132,14 +132,12 @@ impl EcmascriptModulePartAsset {
 
         // We follow reexports here
         if let ModulePart::Export(export) = part {
-            let export_name = export.await?.clone_value();
-
             // If a local binding or reexport with the same name exists, we stop here.
             // Side effects of the barrel file are preserved.
-            if entrypoints.contains_key(&Key::Export(export_name.clone())) {
+            if entrypoints.contains_key(&Key::Export(export.clone())) {
                 return Ok(Vc::upcast(EcmascriptModulePartAsset::new(
                     module,
-                    part.clone(),
+                    ModulePart::Export(export),
                 )));
             }
 
@@ -153,7 +151,7 @@ impl EcmascriptModulePartAsset {
                 result,
             } = &*follow_reexports_with_side_effects(
                 source_module,
-                export_name.clone(),
+                export.clone(),
                 side_effect_free_packages,
             )
             .await?;
@@ -165,13 +163,13 @@ impl EcmascriptModulePartAsset {
             } = &*result.await?;
 
             let final_module = if let Some(new_export) = new_export {
-                if *new_export == export_name {
+                if *new_export == export {
                     *final_module
                 } else {
                     ResolvedVc::upcast(
                         EcmascriptModuleFacadeModule::new(
                             **final_module,
-                            ModulePart::renamed_export(new_export.clone(), export_name.clone()),
+                            ModulePart::renamed_export(new_export.clone(), export.clone()),
                         )
                         .to_resolved()
                         .await?,
@@ -181,7 +179,7 @@ impl EcmascriptModulePartAsset {
                 ResolvedVc::upcast(
                     EcmascriptModuleFacadeModule::new(
                         **final_module,
-                        ModulePart::renamed_namespace(export_name.clone()),
+                        ModulePart::renamed_namespace(export.clone()),
                     )
                     .to_resolved()
                     .await?,
@@ -194,7 +192,7 @@ impl EcmascriptModulePartAsset {
 
             let side_effects_module = SideEffectsModule::new(
                 module,
-                part.clone(),
+                ModulePart::Export(export),
                 *final_module,
                 side_effects.iter().map(|v| **v).collect(),
             );
