@@ -92,6 +92,8 @@ class ModuleBuildTimeAnalyzer {
   }
 
   recordModuleBuildTime(module: Module, duration: number) {
+    // Webpack guarantees that no more modules will be built after finishModules hook is called,
+    // where we generate the report. This check is just a defensive measure.
     if (this.isFinalized) {
       throw new Error(
         `Invariant (SlowModuleDetectionPlugin): Module is recorded after the report is generated. This is a Next.js internal bug.`
@@ -117,54 +119,50 @@ class ModuleBuildTimeAnalyzer {
    */
   private prepareReport(compilation: Compilation) {
     for (const module of this.pendingModules) {
-      // Track visited modules to detect circular dependencies
-      const chain: Module[] = []
-      const visitedModules = new Set<Module>()
-      let currentModule = module
+      const chain = new Set<Module>()
 
-      chain.push(currentModule)
-      visitedModules.add(currentModule)
+      // Walk up the module graph until we hit a root module (no issuer) to populate the chain
+      {
+        let currentModule = module
+        chain.add(currentModule)
+        while (true) {
+          const issuerModule = compilation.moduleGraph.getIssuer(currentModule)
+          if (!issuerModule) break
+          if (chain.has(issuerModule)) {
+            throw new Error(
+              `Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.`
+            )
+          }
+          chain.add(issuerModule)
+          currentModule = issuerModule
+        }
+      }
 
-      // Walk up the module graph until we hit a root module (no issuer)
-      while (true) {
-        const issuerModule = compilation.moduleGraph.getIssuer(currentModule)
-        if (!issuerModule) break
-        if (visitedModules.has(issuerModule)) {
-          throw new Error(
-            `Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.`
+      // Add all visited modules to our graph and create parent-child relationships
+      let previousModule: Module | null = null
+      for (const currentModule of chain) {
+        const moduleId = getModuleIdentifier(currentModule)
+        if (!this.modules.has(moduleId)) {
+          this.modules.set(moduleId, currentModule)
+        }
+
+        if (previousModule) {
+          this.moduleParents.set(previousModule, currentModule)
+
+          let parentChildren = this.moduleChildren.get(currentModule)
+          if (!parentChildren) {
+            parentChildren = new Map()
+            this.moduleChildren.set(currentModule, parentChildren)
+          }
+          parentChildren.set(
+            getModuleIdentifier(previousModule),
+            previousModule
           )
         }
-        chain.push(issuerModule)
-        visitedModules.add(issuerModule)
-        currentModule = issuerModule
-      }
 
-      // Add all modules in the chain to our graph
-      const modulesInChain: Module[] = []
-      for (const moduleInChain of chain) {
-        const moduleId = getModuleIdentifier(moduleInChain)
-        if (!this.modules.has(moduleId)) {
-          this.modules.set(moduleId, moduleInChain)
-        }
-        modulesInChain.push(moduleInChain)
-      }
-
-      // Create parent-child relationships between adjacent modules in the chain
-      for (let i = 0; i < modulesInChain.length - 1; i++) {
-        const child = modulesInChain[i]
-        const parent = modulesInChain[i + 1]
-
-        this.moduleParents.set(child, parent)
-
-        let parentChildren = this.moduleChildren.get(parent)
-        if (!parentChildren) {
-          parentChildren = new Map()
-          this.moduleChildren.set(parent, parentChildren)
-        }
-        parentChildren.set(getModuleIdentifier(child), child)
+        previousModule = currentModule
       }
     }
-
     this.isFinalized = true
   }
 
@@ -181,6 +179,8 @@ class ModuleBuildTimeAnalyzer {
     const formatModuleNode = (node: Module, depth: number): string => {
       const moduleName = getModuleDisplayName(node) || ''
 
+      // Skip internal/unnamed modules but continue processing their children
+      // This keeps the report focused on meaningful source files and node_modules
       if (!moduleName) {
         return formatChildModules(node, depth)
       }
