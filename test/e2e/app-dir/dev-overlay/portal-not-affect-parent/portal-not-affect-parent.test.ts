@@ -18,7 +18,7 @@ describe('dev-overlay - portal-not-affect-parent', () => {
     // at the end of the <body> and the x will be 200.
 
     // Before: <#div1 100> <#div2 100> <nextjs-portal 100>
-    // After: <#div1 100> [space-between 100] <#div2 100>
+    // After: <#div1 100> [space-between 100] <#div2 100> <nextjs-portal 0>
     expect(rect.x).toBe(200)
   })
 })
