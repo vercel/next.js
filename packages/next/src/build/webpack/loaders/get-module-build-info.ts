@@ -16,7 +16,6 @@ export type ModuleBuildInfo = {
   importLocByPath?: Map<string, any>
   rootDir?: string
   rsc?: RSCMeta
-  slowModuleDetectionTiming?: number
 }
 
 /**

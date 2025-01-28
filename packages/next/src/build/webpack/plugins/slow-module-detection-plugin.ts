@@ -1,6 +1,5 @@
 import type { Compiler, Module, Compilation } from 'webpack'
 import type { CompilerNameValues } from '../../../shared/lib/constants'
-import { getModuleBuildInfo } from '../loaders/get-module-build-info'
 import { yellow, green, blue } from '../../../lib/picocolors'
 
 const PLUGIN_NAME = 'SlowModuleDetectionPlugin'
@@ -61,13 +60,6 @@ function truncatePath(path: string): string {
   return `${startSegment}...${endSegment}`
 }
 
-/**
- * Analyzes module build times and creates a dependency tree of slow modules.
- * Uses a graph data structure to track module relationships:
- * - pendingModules: List of modules that exceeded the slow threshold
- * - modules: Map of all modules by ID that are either slow or ancestors of slow modules
- * - moduleParents/moduleChildren: Bidirectional edges between modules
- */
 class ModuleBuildTimeAnalyzer {
   private pendingModules: Module[] = []
   private modules = new Map<string, Module>()
@@ -75,6 +67,7 @@ class ModuleBuildTimeAnalyzer {
   private moduleChildren = new Map<Module, Map<string, Module>>()
   private isFinalized = false
   private slowModuleThresholdMs: number
+  private moduleBuildTimes = new WeakMap<Module, number>()
 
   constructor(private options: ModuleBuildTimeAnalyzerOptions) {
     this.slowModuleThresholdMs = options.slowModuleThresholdMs
@@ -91,7 +84,7 @@ class ModuleBuildTimeAnalyzer {
       return // Skip fast modules
     }
 
-    getModuleBuildInfo(module).slowModuleDetectionTiming = duration
+    this.moduleBuildTimes.set(module, duration)
     this.pendingModules.push(module)
   }
 
@@ -174,8 +167,7 @@ class ModuleBuildTimeAnalyzer {
         return formatChildModules(node, depth)
       }
 
-      const buildInfo = getModuleBuildInfo(node)
-      const buildTimeMs = buildInfo.slowModuleDetectionTiming
+      const buildTimeMs = this.moduleBuildTimes.get(node)
 
       const duration =
         buildTimeMs && buildTimeMs > 0
