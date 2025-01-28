@@ -15,6 +15,32 @@ const meta: Meta<typeof Errors> = {
 export default meta
 type Story = StoryObj<typeof Errors>
 
+const originalCodeFrame = (message: string) => {
+  return `\u001b[0m \u001b[90m 1 \u001b[39m \u001b[36mexport\u001b[39m \u001b[36mdefault\u001b[39m \u001b[36mfunction\u001b[39m \u001b[33mHome\u001b[39m() {\u001b[0m
+\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 2 \u001b[39m   \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'${message}'\u001b[39m)\u001b[0m
+\u001b[0m \u001b[90m   \u001b[39m         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m
+\u001b[0m \u001b[90m 3 \u001b[39m   \u001b[36mreturn\u001b[39m \u001b[33m<\u001b[39m\u001b[33mdiv\u001b[39m\u001b[33m>\u001b[39m\u001b[33mHello\u001b[39m \u001b[33mWorld\u001b[39m\u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mdiv\u001b[39m\u001b[33m>\u001b[39m\u001b[0m
+\u001b[0m \u001b[90m 4 \u001b[39m }\u001b[0m
+\u001b[0m \u001b[90m 5 \u001b[39m\u001b[0m`
+}
+
+const sourceStackFrame = {
+  file: 'app/page.tsx',
+  methodName: 'Home',
+  arguments: [],
+  lineNumber: 2,
+  column: 9,
+}
+
+const originalStackFrame = {
+  file: 'app/page.tsx',
+  methodName: 'Home',
+  arguments: [],
+  lineNumber: 2,
+  column: 9,
+  ignored: false,
+}
+
 const readyErrors: ReadyRuntimeError[] = [
   {
     id: 1,
@@ -26,27 +52,9 @@ const readyErrors: ReadyRuntimeError[] = [
         reason: 'First error message',
         external: false,
         ignored: false,
-        sourceStackFrame: {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-        },
-        originalStackFrame: {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-          ignored: false,
-        },
-        originalCodeFrame: `\u001b[0m \u001b[90m 1 \u001b[39m \u001b[36mexport\u001b[39m \u001b[36mdefault\u001b[39m \u001b[36mfunction\u001b[39m \u001b[33mHome\u001b[39m() {\u001b[0m
-\u001b[0m\u001b[31m\u001b[1m>\u001b[22m\u001b[39m\u001b[90m 2 \u001b[39m   \u001b[36mthrow\u001b[39m \u001b[36mnew\u001b[39m \u001b[33mError\u001b[39m(\u001b[32m'boom'\u001b[39m)\u001b[0m
-\u001b[0m \u001b[90m   \u001b[39m         \u001b[31m\u001b[1m^\u001b[22m\u001b[39m\u001b[0m
-\u001b[0m \u001b[90m 3 \u001b[39m   \u001b[36mreturn\u001b[39m \u001b[33m<\u001b[39m\u001b[33mdiv\u001b[39m\u001b[33m>\u001b[39m\u001b[33mHello\u001b[39m \u001b[33mWorld\u001b[39m\u001b[33m<\u001b[39m\u001b[33m/\u001b[39m\u001b[33mdiv\u001b[39m\u001b[33m>\u001b[39m\u001b[0m
-\u001b[0m \u001b[90m 4 \u001b[39m }\u001b[0m
-\u001b[0m \u001b[90m 5 \u001b[39m\u001b[0m`,
+        sourceStackFrame,
+        originalStackFrame,
+        originalCodeFrame: originalCodeFrame('First error message'),
       },
     ],
   },
@@ -60,13 +68,9 @@ const readyErrors: ReadyRuntimeError[] = [
         reason: 'Second error message',
         external: false,
         ignored: false,
-        sourceStackFrame: {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-        },
+        sourceStackFrame,
+        originalStackFrame,
+        originalCodeFrame: originalCodeFrame('Second error message'),
       },
     ],
   },
@@ -80,13 +84,9 @@ const readyErrors: ReadyRuntimeError[] = [
         reason: 'Third error message',
         external: false,
         ignored: false,
-        sourceStackFrame: {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-        },
+        sourceStackFrame,
+        originalStackFrame,
+        originalCodeFrame: originalCodeFrame('Third error message'),
       },
     ],
   },
@@ -100,13 +100,9 @@ const readyErrors: ReadyRuntimeError[] = [
         reason: 'Fourth error message',
         external: false,
         ignored: false,
-        sourceStackFrame: {
-          file: 'app/page.tsx',
-          methodName: 'Home',
-          arguments: [],
-          lineNumber: 10,
-          column: 5,
-        },
+        sourceStackFrame,
+        originalStackFrame,
+        originalCodeFrame: originalCodeFrame('Fourth error message'),
       },
     ],
   },
@@ -119,8 +115,8 @@ export const Default: Story = {
       installed: '15.0.0',
       staleness: 'fresh',
     },
-    isTurbopack: true,
     debugInfo: { devtoolsFrontendUrl: undefined },
+    isTurbopack: false,
     onClose: () => {},
   },
 }
