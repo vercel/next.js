@@ -1,5 +1,6 @@
 import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
 import type {
+  OverlayState,
   UnhandledErrorAction,
   UnhandledRejectionAction,
 } from '../../../../shared'
@@ -33,12 +34,14 @@ function getErrorSignature(ev: SupportedErrorEvent): string {
 }
 
 export function useErrorHook({
-  errors,
+  state,
   isAppDir,
 }: {
-  errors: SupportedErrorEvent[]
+  state: OverlayState
   isAppDir: boolean
 }) {
+  const { errors, rootLayoutMissingTags, buildError } = state
+
   const [lookups, setLookups] = useState<{
     [eventId: string]: ReadyRuntimeError
   }>({})
@@ -99,5 +102,14 @@ export function useErrorHook({
 
   return {
     readyErrors,
+    // Total number of errors are based on the priority that
+    // will be displayed. Since build error and root layout
+    // missing tags won't be dismissed until resolved, the
+    // total number of errors may be fixed to their length.
+    totalErrorsLength: rootLayoutMissingTags?.length
+      ? rootLayoutMissingTags.length
+      : !!buildError
+        ? 1
+        : errors.length,
   }
 }

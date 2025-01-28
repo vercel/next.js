@@ -14,11 +14,11 @@ import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 
 export function DevToolsIndicator({
   state,
-  readyErrorsLength,
+  errorsLength,
   setIsErrorOverlayOpen,
 }: {
   state: OverlayState
-  readyErrorsLength: number
+  errorsLength: number
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
@@ -36,7 +36,7 @@ export function DevToolsIndicator({
     isDevToolsIndicatorOpen && (
       <DevToolsPopover
         semver={state.versionInfo.installed}
-        issueCount={readyErrorsLength}
+        issueCount={errorsLength}
         isStaticRoute={state.staticIndicator}
         hide={() => {
           setIsDevToolsIndicatorOpen(false)
