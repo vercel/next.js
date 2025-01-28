@@ -22,6 +22,7 @@ import * as Log from '../output/log'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
+import { hasCustomExportOutput } from '../../export/utils'
 
 const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
 
@@ -313,5 +314,13 @@ export async function workerMain(workerData: {
     NextBuildContext.dir!
   )
 
-  return turbopackBuild()
+  // Matches handling in build/index.ts
+  // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
+  // Ensures the `config.distDir` option is matched.
+  if (hasCustomExportOutput(NextBuildContext.config)) {
+    NextBuildContext.config.distDir = '.next'
+  }
+
+  const result = await turbopackBuild()
+  return result
 }
