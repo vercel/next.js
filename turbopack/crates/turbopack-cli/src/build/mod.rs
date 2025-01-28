@@ -7,7 +7,6 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
-use tracing::Instrument;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
@@ -169,10 +168,8 @@ impl TurbopackBuildBuilder {
             Ok(Default::default())
         });
 
-        let span: tracing::Span = tracing::info_span!("Building project");
         self.turbo_tasks
             .wait_task_completion(task, ReadConsistency::Strong)
-            .instrument(span)
             .await?;
 
         Ok(())
