@@ -121,8 +121,8 @@ importers:
         specifier: 1.5.10
         version: 1.5.10
       '@rspack/core':
-        specifier: npm:@rspack-canary/core@1.2.0-canary-b167889b-20250127233501
-        version: '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15)'
+        specifier: npm:@rspack-canary/core@1.2.0-canary-5a432020-20250128071538
+        version: '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15)'
       '@svgr/webpack':
         specifier: 5.5.0
         version: 5.5.0
@@ -863,8 +863,8 @@ importers:
         specifier: 15.2.0-canary.26
         version: link:../next-env
       '@rspack/core':
-        specifier: npm:@rspack-canary/core@1.2.0-canary-b167889b-20250127233501
-        version: '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15)'
+        specifier: npm:@rspack-canary/core@1.2.0-canary-5a432020-20250128071538
+        version: '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15)'
       '@rspack/plugin-react-refresh':
         specifier: 1.0.1
         version: 1.0.1(react-refresh@0.12.0)
@@ -1037,7 +1037,7 @@ importers:
         version: 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react-webpack5':
         specifier: ^8.4.7
-        version: 8.4.7(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+        version: 8.4.7(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/test':
         specifier: ^8.4.7
         version: 8.4.7(storybook@8.4.7(prettier@3.3.3))
@@ -1421,7 +1421,7 @@ importers:
         version: 0.13.4
       sass-loader:
         specifier: 15.0.0
-        version: 15.0.0(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
+        version: 15.0.0(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       schema-utils2:
         specifier: npm:schema-utils@2.7.1
         version: schema-utils@2.7.1
@@ -4936,56 +4936,56 @@ packages:
     resolution: {integrity: sha512-iKnFXr7NkdZAIHiIWE+BX5ULi/ucVFYWD6TbAV+rZctiRTY2PL6tsIKhoIOaoskiWAkgu+VsbXgUVDNLHf+InQ==}
     engines: {node: '>= 8.0.0'}
 
-  '@rspack-canary/binding-darwin-arm64@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-Q5fWIYRvXPDouvNdd/1prTlGHTZskRG1PlocFhUXJWUX+l0d4Gr6Xn3HYEmMb1nJibPNN0FwcpYVZ6VLl3tD6Q==}
+  '@rspack-canary/binding-darwin-arm64@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-43kd6KDtp+gDdNf6Qx0FgAoCAQD+Wp43G8d8X4dvFwh/QmAQd9Zcw7Ab+ZjTh4Okxl22j4qpwSrF4UN9bzb3yg==}
     cpu: [arm64]
     os: [darwin]
 
-  '@rspack-canary/binding-darwin-x64@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-yJSUZ7SJGEPLHYPEcnjC9G+T9HqaRsykya4I5c08N7NhwQUXBGvu2FnRqVBi+fa/hzyo9zuaN7atuhSH3FgWxQ==}
+  '@rspack-canary/binding-darwin-x64@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-X7/1CXIneM4m+5ZW+fv1j+HE/hz12nIbS/Ldcz83LNGSyZVaZ3s9xcshPmkAd0p4qgRL/okJm2Y9GnTsVWaP1w==}
     cpu: [x64]
     os: [darwin]
 
-  '@rspack-canary/binding-linux-arm64-gnu@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-UdWzIa+VFGQf77oIAP4Y5UD2tUcVX/8xtR8t1nNdwjkcPopaDKB06anoFEt9frndRitkZwv8kb/JkUZJKh0rPA==}
+  '@rspack-canary/binding-linux-arm64-gnu@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-/28OliXUY4bqFHW4oUzd7VWYp6jwVUwHHBg1Ny7Nf1tgrleDJ/tC/HAxctHR4GBtANONibWCCdCx5bUerNm4Bw==}
     cpu: [arm64]
     os: [linux]
 
-  '@rspack-canary/binding-linux-arm64-musl@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-lL9canMzVKy0m0QzSEm4Wd307jVkl0+wSZNedPdAn3SEcpJgGzFAx3z7SLPO9er+WoWucTw4087ykzrtBHoujg==}
+  '@rspack-canary/binding-linux-arm64-musl@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-kg5PR7JisZ+30XFa0HTqOJLvylrmojeRKPfwLFMrXbHBRkLND2UOP3ncjmi6eTpNWW92IYr3Gf/xa57Jd51aNA==}
     cpu: [arm64]
     os: [linux]
 
-  '@rspack-canary/binding-linux-x64-gnu@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-BO1iUFm6yLfmnqo3aCyWoUfdqwX/RZrmEzDgXNp5nn9U+VvjHXUxMEBMbEvH432IZPcI28eTGwBXN2F1plUTHQ==}
+  '@rspack-canary/binding-linux-x64-gnu@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-rna71XfICMYFqR5gMQSlt7WOUgTHd3ZvlExvuNUw30F3ZSfaOvnausX/FpSLDwmUTHWSwWUzCR4cs3NfagNP4g==}
     cpu: [x64]
     os: [linux]
 
-  '@rspack-canary/binding-linux-x64-musl@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-WKZebovhcTX3FwSiVuXsQCUTkDCG1aXIIjB7PFHJVjvwb6ZmGy6N223pk18Rw8bT61IckB6oiqAGIWkFoxcbPg==}
+  '@rspack-canary/binding-linux-x64-musl@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-amUMwBv9Ts43axefPpStR7xkLFxnrxW2/2UpLHzu96pA4VVmkVLyViEsk3e+DMW/WGS/GN71Kol5/0xG3+ijMw==}
     cpu: [x64]
     os: [linux]
 
-  '@rspack-canary/binding-win32-arm64-msvc@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-H/2G4HLACnrFEcoCIySKnmHdVnLDejBeTpiieKG6J84T8V6fpUrz+5AehGo/5jvwr+Ra+k+6g0Va50wOyqxFWA==}
+  '@rspack-canary/binding-win32-arm64-msvc@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-diF7AO1RRcBgbNMTmGmR/kxZzbPiwXgXmnpNSAkLU+XWyVGSYdMOZQ9cOOMtIsagPqbbpTzh0641yWTUMyMzUQ==}
     cpu: [arm64]
     os: [win32]
 
-  '@rspack-canary/binding-win32-ia32-msvc@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-5SDpdPiJja+Jc335yXHF1/ltLtWO5xanRAYHqdryCwaMW4H/Nu4NsfRfomNA1vVPf7nv0mKe2vDrHpmEIMUJpA==}
+  '@rspack-canary/binding-win32-ia32-msvc@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-8/2b1n4ZIfA1MnXq9XbHkM/VCgWFhf/EoFrGT3p2hFrh0+sE0460oscRxHrry4e4k2hV5Q8WjDKJ2rR0mDg/6A==}
     cpu: [ia32]
     os: [win32]
 
-  '@rspack-canary/binding-win32-x64-msvc@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-zP8kKNik/d7zEj+h5VTssyhuFFij11wAE00BwxK/Pdi4DkbejM4BTu4jFORUqoAifFKYdP1egQ7D6MI6Or4nbg==}
+  '@rspack-canary/binding-win32-x64-msvc@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-zSc4HvlXjL4ht73tY93OXhnaBdz4BDRDFBO7wvahlR/PGqP+veY0QiszEXylOf0JHBAAhiRk/r/3Z5ogxyNeEw==}
     cpu: [x64]
     os: [win32]
 
-  '@rspack-canary/binding@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-lLhLKgE+I8YKj3GueT4wEHj2arVTZ9wbTv/RcgF5TgKq1eco2+gtFEQgSFOUhtXqG6LtsQn87KY9Xj3DqBBI6g==}
+  '@rspack-canary/binding@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-ctpajBjHeFUv6hwk2GBPnREIb19xvfUreDqPqKbDaFSDHw8rJ5hA0x6fN/f2OVWReuqNGulzh+wQ/CGb9I5vYA==}
 
-  '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501':
-    resolution: {integrity: sha512-JDPNnh1+BT6WMo5z/RbNLw8Kuj81vU6cHfTy19tMzfueROz82dnmSF43cIGNEyWTYxFQqPHExc+W1wIXojMr5Q==}
+  '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538':
+    resolution: {integrity: sha512-nlC7kau3GL8kUzQWOgRYy6F4jWUbuYRZzTyLxN85ol0O56ASXfFAKuWSq1OjUVc9gLFor1hLUZ1xkyYVOhBz9A==}
     engines: {node: '>=16.0.0'}
     peerDependencies:
       '@rspack/tracing': ^1.x
@@ -20429,49 +20429,49 @@ snapshots:
       estree-walker: 2.0.2
       picomatch: 2.3.1
 
-  '@rspack-canary/binding-darwin-arm64@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-darwin-arm64@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-darwin-x64@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-darwin-x64@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-linux-arm64-gnu@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-linux-arm64-gnu@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-linux-arm64-musl@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-linux-arm64-musl@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-linux-x64-gnu@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-linux-x64-gnu@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-linux-x64-musl@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-linux-x64-musl@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-win32-arm64-msvc@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-win32-arm64-msvc@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-win32-ia32-msvc@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-win32-ia32-msvc@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding-win32-x64-msvc@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding-win32-x64-msvc@1.2.0-canary-5a432020-20250128071538':
     optional: true
 
-  '@rspack-canary/binding@1.2.0-canary-b167889b-20250127233501':
+  '@rspack-canary/binding@1.2.0-canary-5a432020-20250128071538':
     optionalDependencies:
-      '@rspack/binding-darwin-arm64': '@rspack-canary/binding-darwin-arm64@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-darwin-x64': '@rspack-canary/binding-darwin-x64@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-linux-arm64-gnu': '@rspack-canary/binding-linux-arm64-gnu@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-linux-arm64-musl': '@rspack-canary/binding-linux-arm64-musl@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-linux-x64-gnu': '@rspack-canary/binding-linux-x64-gnu@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-linux-x64-musl': '@rspack-canary/binding-linux-x64-musl@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-win32-arm64-msvc': '@rspack-canary/binding-win32-arm64-msvc@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-win32-ia32-msvc': '@rspack-canary/binding-win32-ia32-msvc@1.2.0-canary-b167889b-20250127233501'
-      '@rspack/binding-win32-x64-msvc': '@rspack-canary/binding-win32-x64-msvc@1.2.0-canary-b167889b-20250127233501'
+      '@rspack/binding-darwin-arm64': '@rspack-canary/binding-darwin-arm64@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-darwin-x64': '@rspack-canary/binding-darwin-x64@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-linux-arm64-gnu': '@rspack-canary/binding-linux-arm64-gnu@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-linux-arm64-musl': '@rspack-canary/binding-linux-arm64-musl@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-linux-x64-gnu': '@rspack-canary/binding-linux-x64-gnu@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-linux-x64-musl': '@rspack-canary/binding-linux-x64-musl@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-win32-arm64-msvc': '@rspack-canary/binding-win32-arm64-msvc@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-win32-ia32-msvc': '@rspack-canary/binding-win32-ia32-msvc@1.2.0-canary-5a432020-20250128071538'
+      '@rspack/binding-win32-x64-msvc': '@rspack-canary/binding-win32-x64-msvc@1.2.0-canary-5a432020-20250128071538'
 
-  '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15)':
+  '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15)':
     dependencies:
       '@module-federation/runtime-tools': 0.8.4
-      '@rspack/binding': '@rspack-canary/binding@1.2.0-canary-b167889b-20250127233501'
+      '@rspack/binding': '@rspack-canary/binding@1.2.0-canary-5a432020-20250128071538'
       '@rspack/lite-tapable': 1.0.1
       caniuse-lite: 1.0.30001579
     optionalDependencies:
@@ -20632,7 +20632,7 @@ snapshots:
       react: 19.1.0-canary-de1eaa26-20250124
       react-dom: 19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124)
 
-  '@storybook/builder-webpack5@8.4.7(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
+  '@storybook/builder-webpack5@8.4.7(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
       '@storybook/core-webpack': 8.4.7(storybook@8.4.7(prettier@3.3.3))
       '@types/node': 20.17.6
@@ -20641,10 +20641,10 @@ snapshots:
       case-sensitive-paths-webpack-plugin: 2.4.0
       cjs-module-lexer: 1.4.1
       constants-browserify: 1.0.0
-      css-loader: 6.11.0(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
+      css-loader: 6.11.0(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       es-module-lexer: 1.5.4
       fork-ts-checker-webpack-plugin: 8.0.0(typescript@5.7.2)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
-      html-webpack-plugin: 5.6.3(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
+      html-webpack-plugin: 5.6.3(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
       magic-string: 0.30.17
       path-browserify: 1.0.1
       process: 0.11.10
@@ -20776,9 +20776,9 @@ snapshots:
       react-dom: 19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124)
       storybook: 8.4.7(prettier@3.3.3)
 
-  '@storybook/react-webpack5@8.4.7(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
+  '@storybook/react-webpack5@8.4.7(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)':
     dependencies:
-      '@storybook/builder-webpack5': 8.4.7(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
+      '@storybook/builder-webpack5': 8.4.7(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/preset-react-webpack': 8.4.7(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@storybook/react': 8.4.7(patch_hash=3vtnbaj5dhujyrhznezprlo624)(@storybook/test@8.4.7(storybook@8.4.7(prettier@3.3.3)))(react-dom@19.1.0-canary-de1eaa26-20250124(react@19.1.0-canary-de1eaa26-20250124))(react@19.1.0-canary-de1eaa26-20250124)(storybook@8.4.7(prettier@3.3.3))(typescript@5.7.2)
       '@types/node': 20.17.6
@@ -23565,7 +23565,7 @@ snapshots:
       postcss: 8.4.31
       postcss-selector-parser: 6.0.11
 
-  css-loader@6.11.0(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
+  css-loader@6.11.0(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
     dependencies:
       icss-utils: 5.1.0(postcss@8.4.49)
       postcss: 8.4.49
@@ -23576,7 +23576,7 @@ snapshots:
       postcss-value-parser: 4.2.0
       semver: 7.6.3
     optionalDependencies:
-      '@rspack/core': '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15)'
+      '@rspack/core': '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15)'
       webpack: 5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)
 
   css-prefers-color-scheme@6.0.3(postcss@8.4.31):
@@ -26452,7 +26452,7 @@ snapshots:
     transitivePeerDependencies:
       - supports-color
 
-  html-webpack-plugin@5.6.3(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
+  html-webpack-plugin@5.6.3(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
     dependencies:
       '@types/html-minifier-terser': 6.1.0
       html-minifier-terser: 6.1.0
@@ -26460,7 +26460,7 @@ snapshots:
       pretty-error: 4.0.0
       tapable: 2.2.1
     optionalDependencies:
-      '@rspack/core': '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15)'
+      '@rspack/core': '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15)'
       webpack: 5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)
 
   htmlparser2@3.10.1:
@@ -32123,11 +32123,11 @@ snapshots:
 
   safer-buffer@2.1.2: {}
 
-  sass-loader@15.0.0(@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
+  sass-loader@15.0.0(@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15))(sass@1.77.8)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)):
     dependencies:
       neo-async: 2.6.2
     optionalDependencies:
-      '@rspack/core': '@rspack-canary/core@1.2.0-canary-b167889b-20250127233501(@swc/helpers@0.5.15)'
+      '@rspack/core': '@rspack-canary/core@1.2.0-canary-5a432020-20250128071538(@swc/helpers@0.5.15)'
       sass: 1.77.8
       webpack: 5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1)
 
