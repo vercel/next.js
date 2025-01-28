@@ -76,10 +76,10 @@ export interface SWCLoaderOptions {
 // for to force transpiling a `node_module`
 const FORCE_TRANSPILE_CONDITIONS =
   /next\/font|next\/dynamic|use server|use client|use cache/
-// same as above, but including `import(...)`.
+// same as above, but including `import(...)` and references to webpack builtins that trigger module loading
 // (note the optional whitespace: `import  (...)` is also syntactically valid)
 const FORCE_TRANSPILE_CONDITIONS_WITH_IMPORT = new RegExp(
-  String.raw`(?:${FORCE_TRANSPILE_CONDITIONS.source})|import\s*\(`
+  String.raw`(?:${FORCE_TRANSPILE_CONDITIONS.source})|import\s*\(|__webpack_load__|__webpack_require__`
 )
 
 async function loaderTransform(

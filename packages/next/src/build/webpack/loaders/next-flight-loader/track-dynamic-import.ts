@@ -1,1 +1,4 @@
-export { trackDynamicImport } from '../../../../server/app-render/module-loading/track-dynamic-import'
+export {
+  trackDynamicImport,
+  trackAsyncFunction,
+} from '../../../../server/app-render/module-loading/track-dynamic-import'
