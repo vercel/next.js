@@ -1,5 +1,4 @@
 use std::{
-    borrow::Cow,
     cell::UnsafeCell,
     fs::File,
     io::Write,
@@ -20,7 +19,7 @@ use thread_local::ThreadLocal;
 
 use crate::{
     collector::Collector, collector_entry::CollectorEntry, constants::MAX_MEDIUM_VALUE_SIZE,
-    key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder,
+    key::StoreKey, static_sorted_file_builder::StaticSortedFileBuilder, ValueBuffer,
 };
 
 /// The thread local state of a `WriteBatch`.
@@ -107,11 +106,11 @@ impl<K: StoreKey + Send + Sync, const FAMILIES: usize> WriteBatch<K, FAMILIES> {
     }
 
     /// Puts a key-value pair into the write batch.
-    pub fn put(&self, family: usize, key: K, value: Cow<'_, [u8]>) -> Result<()> {
+    pub fn put(&self, family: usize, key: K, value: ValueBuffer<'_>) -> Result<()> {
         let state = self.thread_local_state();
         let collector = self.collector_mut(state, family)?;
         if value.len() <= MAX_MEDIUM_VALUE_SIZE {
-            collector.put(key, value.into_owned());
+            collector.put(key, value);
         } else {
             let (blob, file) = self.create_blob(&value)?;
             collector.put_blob(key, blob);

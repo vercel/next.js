@@ -4,6 +4,7 @@ use crate::{
         DATA_THRESHOLD_PER_INITIAL_FILE, MAX_ENTRIES_PER_INITIAL_FILE, MAX_SMALL_VALUE_SIZE,
     },
     key::{hash_key, StoreKey},
+    ValueBuffer,
 };
 
 /// A collector accumulates entries that should be eventually written to a file. It keeps track of
@@ -36,15 +37,19 @@ impl<K: StoreKey> Collector<K> {
     }
 
     /// Adds a normal key-value pair to the collector.
-    pub fn put(&mut self, key: K, value: Vec<u8>) {
+    pub fn put(&mut self, key: K, value: ValueBuffer) {
         let key = EntryKey {
             hash: hash_key(&key),
             data: key,
         };
         let value = if value.len() > MAX_SMALL_VALUE_SIZE {
-            CollectorEntryValue::Medium { value }
+            CollectorEntryValue::Medium {
+                value: value.into_vec(),
+            }
         } else {
-            CollectorEntryValue::Small { value }
+            CollectorEntryValue::Small {
+                value: value.into_small_vec(),
+            }
         };
         self.total_key_size += key.len();
         self.total_value_size += value.len();

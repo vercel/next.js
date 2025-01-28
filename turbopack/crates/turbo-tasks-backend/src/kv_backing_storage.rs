@@ -1,14 +1,10 @@
-use std::{
-    borrow::{Borrow, Cow},
-    cmp::max,
-    collections::hash_map::Entry,
-    sync::Arc,
-};
+use std::{borrow::Borrow, cmp::max, collections::hash_map::Entry, sync::Arc};
 
 use anyhow::{anyhow, Context, Result};
 use rayon::iter::{IndexedParallelIterator, IntoParallelIterator, ParallelIterator};
 use rustc_hash::FxHashMap;
 use serde::{ser::SerializeSeq, Serialize};
+use smallvec::SmallVec;
 use tracing::Span;
 use turbo_tasks::{backend::CachedTaskType, turbo_tasks_scope, KeyValuePair, SessionId, TaskId};
 
@@ -20,12 +16,39 @@ use crate::{
         key_value_database::{KeySpace, KeyValueDatabase},
         write_batch::{
             BaseWriteBatch, ConcurrentWriteBatch, SerialWriteBatch, WriteBatch, WriteBatchRef,
+            WriteBuffer,
         },
     },
     utils::chunked_vec::ChunkedVec,
 };
 
 const POT_CONFIG: pot::Config = pot::Config::new().compatibility(pot::Compatibility::V4);
+
+fn pot_serialize_small_vec<T: Serialize>(value: &T) -> pot::Result<SmallVec<[u8; 16]>> {
+    struct SmallVecWrite<'l>(&'l mut SmallVec<[u8; 16]>);
+    impl<'l> std::io::Write for SmallVecWrite<'l> {
+        #[inline]
+        fn write(&mut self, buf: &[u8]) -> std::io::Result<usize> {
+            self.0.extend_from_slice(buf);
+            Ok(buf.len())
+        }
+
+        #[inline]
+        fn write_all(&mut self, buf: &[u8]) -> std::io::Result<()> {
+            self.0.extend_from_slice(buf);
+            Ok(())
+        }
+
+        #[inline]
+        fn flush(&mut self) -> std::io::Result<()> {
+            Ok(())
+        }
+    }
+
+    let mut output = SmallVec::new();
+    POT_CONFIG.serialize_into(value, SmallVecWrite(&mut output))?;
+    Ok(output)
+}
 
 fn pot_ser_symbol_map() -> pot::ser::SymbolMap {
     pot::ser::SymbolMap::new().with_compatibility(pot::Compatibility::V4)
@@ -191,8 +214,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                                     batch
                                         .put(
                                             KeySpace::ForwardTaskCache,
-                                            Cow::Borrowed(&task_type_bytes),
-                                            Cow::Borrowed(&task_id.to_le_bytes()),
+                                            WriteBuffer::Borrowed(&task_type_bytes),
+                                            WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                         )
                                         .with_context(|| {
                                             anyhow!(
@@ -203,8 +226,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                                     batch
                                         .put(
                                             KeySpace::ReverseTaskCache,
-                                            Cow::Borrowed(IntKey::new(task_id).as_ref()),
-                                            Cow::Borrowed(&task_type_bytes),
+                                            WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
+                                            WriteBuffer::Borrowed(&task_type_bytes),
                                         )
                                         .with_context(|| {
                                             anyhow!(
@@ -279,8 +302,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                             batch
                                 .put(
                                     KeySpace::ForwardTaskCache,
-                                    Cow::Borrowed(&task_type_bytes),
-                                    Cow::Borrowed(&task_id.to_le_bytes()),
+                                    WriteBuffer::Borrowed(&task_type_bytes),
+                                    WriteBuffer::Borrowed(&task_id.to_le_bytes()),
                                 )
                                 .with_context(|| {
                                     anyhow!("Unable to write task cache {task_type:?} => {task_id}")
@@ -288,8 +311,8 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                             batch
                                 .put(
                                     KeySpace::ReverseTaskCache,
-                                    Cow::Borrowed(IntKey::new(task_id).as_ref()),
-                                    Cow::Borrowed(&task_type_bytes),
+                                    WriteBuffer::Borrowed(IntKey::new(task_id).as_ref()),
+                                    WriteBuffer::Borrowed(&task_type_bytes),
                                 )
                                 .with_context(|| {
                                     anyhow!("Unable to write task cache {task_id} => {task_type:?}")
@@ -325,7 +348,7 @@ impl<T: KeyValueDatabase + Send + Sync + 'static> BackingStorage
                         batch
                             .put(
                                 key_space,
-                                Cow::Borrowed(IntKey::new(*task_id).as_ref()),
+                                WriteBuffer::Borrowed(IntKey::new(*task_id).as_ref()),
                                 value.into(),
                             )
                             .with_context(|| anyhow!("Unable to write data items for {task_id}"))?;
@@ -473,8 +496,8 @@ where
         batch
             .put(
                 KeySpace::Infra,
-                Cow::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
-                Cow::Borrowed(&next_task_id.to_le_bytes()),
+                WriteBuffer::Borrowed(IntKey::new(META_KEY_NEXT_FREE_TASK_ID).as_ref()),
+                WriteBuffer::Borrowed(&next_task_id.to_le_bytes()),
             )
             .with_context(|| anyhow!("Unable to write next free task id"))?;
     }
@@ -483,22 +506,21 @@ where
         batch
             .put(
                 KeySpace::Infra,
-                Cow::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
-                Cow::Borrowed(&session_id.to_le_bytes()),
+                WriteBuffer::Borrowed(IntKey::new(META_KEY_SESSION_ID).as_ref()),
+                WriteBuffer::Borrowed(&session_id.to_le_bytes()),
             )
             .with_context(|| anyhow!("Unable to write next session id"))?;
     }
     {
         let _span =
             tracing::trace_span!("update operations", operations = operations.len()).entered();
-        let operations = POT_CONFIG
-            .serialize(&operations)
+        let operations = pot_serialize_small_vec(&operations)
             .with_context(|| anyhow!("Unable to serialize operations"))?;
         batch
             .put(
                 KeySpace::Infra,
-                Cow::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
-                operations.into(),
+                WriteBuffer::Borrowed(IntKey::new(META_KEY_OPERATIONS).as_ref()),
+                WriteBuffer::SmallVec(operations),
             )
             .with_context(|| anyhow!("Unable to write operations"))?;
     }
@@ -527,7 +549,7 @@ fn serialize_task_type(
     Ok(())
 }
 
-type SerializedTasks = Vec<Vec<(TaskId, Vec<u8>)>>;
+type SerializedTasks = Vec<Vec<(TaskId, WriteBuffer<'static>)>>;
 type TaskUpdates =
     FxHashMap<CachedDataItemKey, (Option<CachedDataItemValue>, Option<CachedDataItemValue>)>;
 
@@ -712,12 +734,12 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
                     if let Some(batch) = batch {
                         batch.put(
                             key_space,
-                            Cow::Borrowed(IntKey::new(*task).as_ref()),
-                            Cow::Owned(value),
+                            WriteBuffer::Borrowed(IntKey::new(*task).as_ref()),
+                            WriteBuffer::SmallVec(value),
                         )?;
                     } else {
                         // Store the new task data
-                        tasks.push((task, value));
+                        tasks.push((task, WriteBuffer::SmallVec(value)));
                     }
                 }
 
@@ -728,9 +750,9 @@ fn process_task_data<'a, B: ConcurrentWriteBatch<'a> + Send + Sync>(
         .collect::<Result<Vec<_>>>()
 }
 
-fn serialize(task: TaskId, data: &mut TaskUpdates) -> Result<Vec<u8>> {
+fn serialize(task: TaskId, data: &mut TaskUpdates) -> Result<SmallVec<[u8; 16]>> {
     Ok(
-        match POT_CONFIG.serialize(&SerializeLikeVecOfCachedDataItem(data)) {
+        match pot_serialize_small_vec(&SerializeLikeVecOfCachedDataItem(data)) {
             #[cfg(not(feature = "verify_serialization"))]
             Ok(value) => value,
             _ => {
@@ -782,11 +804,9 @@ fn serialize(task: TaskId, data: &mut TaskUpdates) -> Result<Vec<u8>> {
                 });
                 error?;
 
-                POT_CONFIG
-                    .serialize(&SerializeLikeVecOfCachedDataItem(data))
-                    .with_context(|| {
-                        anyhow!("Unable to serialize data items for {task}: {data:#?}")
-                    })?
+                pot_serialize_small_vec(&SerializeLikeVecOfCachedDataItem(data)).with_context(
+                    || anyhow!("Unable to serialize data items for {task}: {data:#?}"),
+                )?
             }
         },
     )
