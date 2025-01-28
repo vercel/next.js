@@ -223,8 +223,8 @@ export const installTemplate = async ({
   if (tailwind) {
     packageJson.devDependencies = {
       ...packageJson.devDependencies,
-      postcss: "^8",
-      tailwindcss: "^3.4.1",
+      "@tailwindcss/postcss": "^4",
+      tailwindcss: "^4",
     };
   }
 
