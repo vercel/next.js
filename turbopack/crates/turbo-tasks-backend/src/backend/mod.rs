@@ -1134,6 +1134,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         stateful: bool,
         turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
     ) -> bool {
+        let _span = tracing::trace_span!("task execution completed").entered();
         let mut ctx = self.execute_context(turbo_tasks);
         let mut task = ctx.task(task_id, TaskDataCategory::All);
         let Some(in_progress) = get_mut!(task, InProgress) else {
