@@ -163,6 +163,10 @@ impl DynamicStorage {
         }
     }
 
+    pub fn len(&self) -> usize {
+        self.map.iter().map(|m| m.len()).sum()
+    }
+
     pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
         if let Some(map) = self.get_map_mut(ty) {
             map.shrink_to_fit();

@@ -6,6 +6,7 @@ use std::{
 };
 
 use bitfield::*;
+use rayon::iter::{IndexedParallelIterator, IntoParallelRefIterator, ParallelIterator};
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
@@ -159,6 +160,15 @@ impl InnerStorageSnapshot {
                     CachedDataItemValueRef::OutputDependent { value },
                 )
             }))
+    }
+
+    pub fn len(&self) -> usize {
+        use crate::data_storage::Storage;
+        self.dynamic.len()
+            + self.aggregation_number.len()
+            + self.output.len()
+            + self.upper.len()
+            + self.output_dependent.len()
     }
 }
 
@@ -542,6 +552,15 @@ impl InnerStorage {
                 )
             }))
     }
+
+    pub fn len(&self) -> usize {
+        use crate::data_storage::Storage;
+        self.dynamic.len()
+            + self.aggregation_number.len()
+            + self.output.len()
+            + self.upper.len()
+            + self.output_dependent.len()
+    }
 }
 
 enum ModifiedState {
@@ -586,83 +605,89 @@ impl Storage {
     /// the results. Ends snapshot mode afterwards.
     /// preprocess is potentially called within a lock, so it should be fast.
     /// process is called outside of locks, so it could do more expensive operations.
-    pub fn take_snapshot<T, R>(
+    pub fn take_snapshot<T, R: Send>(
         &self,
-        preprocess: impl for<'a> Fn(TaskId, &'a InnerStorage) -> T,
-        process: impl Fn(TaskId, T) -> R,
-        process_snapshot: impl for<'a> Fn(TaskId, Box<InnerStorageSnapshot>) -> R,
+        preprocess: impl for<'a> Fn(TaskId, &'a InnerStorage) -> T + Sync,
+        process: impl Fn(TaskId, T) -> R + Sync,
+        process_snapshot: impl for<'a> Fn(TaskId, Box<InnerStorageSnapshot>) -> R + Sync,
     ) -> Vec<Vec<R>> {
         if !self.snapshot_mode() {
             self.start_snapshot();
         }
 
-        let mut result = Vec::with_capacity(self.modified.shards().len());
-        for shard in self.modified.shards() {
-            let mut unprocessed: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
-            let mut modified: Vec<TaskId> = Vec::new();
-            {
-                // Take the snapshots from the modified map
-                let guard = shard.write();
-                // Safety: guard must outlive the iterator.
-                for bucket in unsafe { guard.iter() } {
-                    // Safety: the guard guarantees that the bucket is not removed and the ptr is
-                    // valid.
-                    let (key, shared_value) = unsafe { bucket.as_mut() };
-                    let modified_state = shared_value.get_mut();
-                    match modified_state {
-                        ModifiedState::Modified => {
-                            modified.push(*key);
-                        }
-                        ModifiedState::Snapshot(snapshot) => {
-                            if let Some(snapshot) = snapshot.take() {
-                                unprocessed.push((*key, snapshot));
+        let result = self
+            .modified
+            .shards()
+            .par_iter()
+            .with_max_len(1)
+            .map(|shard| {
+                let mut unprocessed: Vec<(TaskId, Box<InnerStorageSnapshot>)> = Vec::new();
+                let mut modified: Vec<TaskId> = Vec::new();
+                {
+                    // Take the snapshots from the modified map
+                    let guard = shard.write();
+                    // Safety: guard must outlive the iterator.
+                    for bucket in unsafe { guard.iter() } {
+                        // Safety: the guard guarantees that the bucket is not removed and the ptr
+                        // is valid.
+                        let (key, shared_value) = unsafe { bucket.as_mut() };
+                        let modified_state = shared_value.get_mut();
+                        match modified_state {
+                            ModifiedState::Modified => {
+                                modified.push(*key);
+                            }
+                            ModifiedState::Snapshot(snapshot) => {
+                                if let Some(snapshot) = snapshot.take() {
+                                    unprocessed.push((*key, snapshot));
+                                }
                             }
                         }
                     }
+                    // Safety: guard must outlive the iterator.
+                    drop(guard);
                 }
-                // Safety: guard must outlive the iterator.
-                drop(guard);
-            }
 
-            let mut processed: Vec<R> = Vec::with_capacity(unprocessed.len() + modified.len());
+                let mut processed: Vec<R> = Vec::with_capacity(unprocessed.len() + modified.len());
 
-            // Try to take snapshots from the modified items
-            swap_retain(&mut modified, |&mut key| {
-                let inner = self.map.get(&key).unwrap();
-                if !inner.state().snapshot() {
-                    let preprocessed = preprocess(key, &inner);
-                    drop(inner);
-                    processed.push(process(key, preprocessed));
-                    false
-                } else {
-                    // It was modified in the meantime, so we need to look at the modified map again
-                    true
-                }
-            });
+                // Try to take snapshots from the modified items
+                swap_retain(&mut modified, |&mut key| {
+                    let inner = self.map.get(&key).unwrap();
+                    if !inner.state().snapshot() {
+                        let preprocessed = preprocess(key, &inner);
+                        drop(inner);
+                        processed.push(process(key, preprocessed));
+                        false
+                    } else {
+                        // It was modified in the meantime, so we need to look at the modified map
+                        // again
+                        true
+                    }
+                });
 
-            // Serialize the snapshots taken so far
-            for (key, snapshot) in unprocessed {
-                processed.push(process_snapshot(key, snapshot));
-            }
-
-            // Take snapshots from the modified map
-            for key in modified {
-                let maybe_snapshot = {
-                    let mut modified_state = self.modified.get_mut(&key).unwrap();
-                    let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
-                        unreachable!("The snapshot bit was set, so it must be in Snapshot state");
-                    };
-                    snapshot.take()
-                };
-                if let Some(snapshot) = maybe_snapshot {
+                // Serialize the snapshots taken so far
+                for (key, snapshot) in unprocessed {
                     processed.push(process_snapshot(key, snapshot));
                 }
-            }
 
-            if !processed.is_empty() {
-                result.push(processed);
-            }
-        }
+                // Take snapshots from the modified map
+                for key in modified {
+                    let maybe_snapshot = {
+                        let mut modified_state = self.modified.get_mut(&key).unwrap();
+                        let ModifiedState::Snapshot(snapshot) = &mut *modified_state else {
+                            unreachable!(
+                                "The snapshot bit was set, so it must be in Snapshot state"
+                            );
+                        };
+                        snapshot.take()
+                    };
+                    if let Some(snapshot) = maybe_snapshot {
+                        processed.push(process_snapshot(key, snapshot));
+                    }
+                }
+
+                processed
+            })
+            .collect::<Vec<_>>();
 
         self.end_snapshot();
 
@@ -709,10 +734,14 @@ impl Storage {
             .store(false, std::sync::atomic::Ordering::Release);
 
         // We can change all the snapshots to modified now.
+        let mut full_snapsnots = 0;
         let mut removed_snapshots = Vec::new();
         for mut item in self.modified.iter_mut() {
             match item.value() {
-                ModifiedState::Snapshot(_) => {
+                ModifiedState::Snapshot(s) => {
+                    if s.is_some() {
+                        full_snapsnots += 1;
+                    }
                     removed_snapshots.push(*item.key());
                     *item.value_mut() = ModifiedState::Modified;
                 }
@@ -722,7 +751,11 @@ impl Storage {
                 }
             }
         }
-        println!("removed snapshots: {:?}", removed_snapshots.len());
+        println!(
+            "removed snapshots: {:?} ({} with data)",
+            removed_snapshots.len(),
+            full_snapsnots
+        );
 
         // And update the flags
         for key in removed_snapshots {
