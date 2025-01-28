@@ -23,6 +23,8 @@ import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
 import { hasCustomExportOutput } from '../../export/utils'
+import { Telemetry } from '../../telemetry/storage'
+import { setGlobal } from '../../trace'
 
 const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
 
@@ -320,6 +322,12 @@ export async function workerMain(workerData: {
   if (hasCustomExportOutput(NextBuildContext.config)) {
     NextBuildContext.config.distDir = '.next'
   }
+
+  // Clone the telemetry for worker
+  const telemetry = new Telemetry({
+    distDir: NextBuildContext.config.distDir,
+  })
+  setGlobal('telemetry', telemetry)
 
   const result = await turbopackBuild()
   return result
