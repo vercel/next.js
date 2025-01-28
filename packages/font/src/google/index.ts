@@ -17891,6 +17891,18 @@ export declare function Noto_Serif_Tibetan<
   adjustFontFallback?: boolean
   subsets?: Array<'latin' | 'latin-ext' | 'tibetan'>
 }): T extends undefined ? NextFont : NextFontWithVariable
+export declare function Noto_Serif_Todhri<
+  T extends CssVariable | undefined = undefined,
+>(options: {
+  weight: '400' | Array<'400'>
+  style?: 'normal' | Array<'normal'>
+  display?: Display
+  variable?: T
+  preload?: boolean
+  fallback?: string[]
+  adjustFontFallback?: boolean
+  subsets?: Array<'latin' | 'latin-ext' | 'todhri'>
+}): T extends undefined ? NextFont : NextFontWithVariable
 export declare function Noto_Serif_Toto<
   T extends CssVariable | undefined = undefined,
 >(options?: {
