@@ -37,6 +37,8 @@ pub const LEAF_NUMBER: u32 = 16;
 const MAX_COUNT_BEFORE_YIELD: usize = 1000;
 const MAX_UPPERS_FOLLOWER_PRODUCT: usize = 31;
 
+type TaskIdVec = SmallVec<[TaskId; 4]>;
+
 /// Returns true, when a node is aggregating its children and a partial subgraph.
 pub fn is_aggregating_node(aggregation_number: u32) -> bool {
     aggregation_number >= LEAF_NUMBER
@@ -51,7 +53,7 @@ pub fn is_root_node(aggregation_number: u32) -> bool {
 fn get_followers_with_aggregation_number(
     task: &impl TaskGuard,
     aggregation_number: u32,
-) -> SmallVec<[TaskId; 4]> {
+) -> TaskIdVec {
     if is_aggregating_node(aggregation_number) {
         get_many!(task, Follower { task } count if *count > 0 => task)
     } else {
@@ -61,13 +63,13 @@ fn get_followers_with_aggregation_number(
 
 /// Returns a list of tasks that are considered as "following" the task. The current tasks is not
 /// aggregating over the follower tasks and they should be aggregated by all upper tasks.
-fn get_followers(task: &impl TaskGuard) -> SmallVec<[TaskId; 4]> {
+fn get_followers(task: &impl TaskGuard) -> TaskIdVec {
     get_followers_with_aggregation_number(task, get_aggregation_number(task))
 }
 
 /// Returns a list of tasks that are considered as "upper" tasks of the task. The upper tasks are
 /// aggregating over the task.
-pub fn get_uppers(task: &impl TaskGuard) -> SmallVec<[TaskId; 4]> {
+pub fn get_uppers(task: &impl TaskGuard) -> TaskIdVec {
     get_many!(task, Upper { task } count if *count > 0 => task)
 }
 
@@ -85,8 +87,8 @@ pub fn get_aggregation_number(task: &impl TaskGuard) -> u32 {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InnerOfUppersHasNewFollowersJob {
-    pub upper_ids: SmallVec<[TaskId; 4]>,
-    pub new_follower_ids: SmallVec<[TaskId; 4]>,
+    pub upper_ids: TaskIdVec,
+    pub new_follower_ids: TaskIdVec,
 }
 
 impl From<InnerOfUppersHasNewFollowersJob> for AggregationUpdateJob {
@@ -97,8 +99,8 @@ impl From<InnerOfUppersHasNewFollowersJob> for AggregationUpdateJob {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct InnerOfUppersLostFollowersJob {
-    pub upper_ids: SmallVec<[TaskId; 4]>,
-    pub lost_follower_ids: SmallVec<[TaskId; 4]>,
+    pub upper_ids: TaskIdVec,
+    pub lost_follower_ids: TaskIdVec,
 }
 
 impl From<InnerOfUppersLostFollowersJob> for AggregationUpdateJob {
@@ -109,7 +111,7 @@ impl From<InnerOfUppersLostFollowersJob> for AggregationUpdateJob {
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AggregatedDataUpdateJob {
-    pub upper_ids: SmallVec<[TaskId; 4]>,
+    pub upper_ids: TaskIdVec,
     pub update: AggregatedDataUpdate,
 }
 
@@ -136,19 +138,19 @@ pub enum AggregationUpdateJob {
     },
     /// Notifies multiple upper tasks that one of its inner tasks has a new follower.
     InnerOfUppersHasNewFollower {
-        upper_ids: SmallVec<[TaskId; 4]>,
+        upper_ids: TaskIdVec,
         new_follower_id: TaskId,
     },
     /// Notifies an upper task that one of its inner tasks has new followers.
     InnerOfUpperHasNewFollowers {
         upper_id: TaskId,
-        new_follower_ids: SmallVec<[TaskId; 4]>,
+        new_follower_ids: TaskIdVec,
     },
     /// Notifies multiple upper tasks that one of its inner tasks has new followers.
     InnerOfUppersHasNewFollowers(Box<InnerOfUppersHasNewFollowersJob>),
     /// Notifies multiple upper tasks that one of its inner tasks has lost a follower.
     InnerOfUppersLostFollower {
-        upper_ids: SmallVec<[TaskId; 4]>,
+        upper_ids: TaskIdVec,
         lost_follower_id: TaskId,
     },
     /// Notifies multiple upper tasks that one of its inner tasks has lost followers.
@@ -156,24 +158,24 @@ pub enum AggregationUpdateJob {
     /// Notifies an upper task that one of its inner tasks has lost followers.
     InnerOfUpperLostFollowers {
         upper_id: TaskId,
-        lost_follower_ids: SmallVec<[TaskId; 4]>,
+        lost_follower_ids: TaskIdVec,
     },
     /// Notifies an upper task about changed data from an inner task.
     AggregatedDataUpdate(Box<AggregatedDataUpdateJob>),
     /// Invalidates tasks that are dependent on a collectible type.
     InvalidateDueToCollectiblesChange {
-        task_ids: SmallVec<[TaskId; 4]>,
+        task_ids: TaskIdVec,
         #[cfg(feature = "trace_task_dirty")]
         collectible_type: turbo_tasks::TraitTypeId,
     },
     /// Increases the active counter of the task
     IncreaseActiveCount { task: TaskId },
     /// Increases the active counters of the tasks
-    IncreaseActiveCounts { task_ids: SmallVec<[TaskId; 4]> },
+    IncreaseActiveCounts { task_ids: TaskIdVec },
     /// Decreases the active counter of the task
     DecreaseActiveCount { task: TaskId },
     /// Decreases the active counters of the tasks
-    DecreaseActiveCounts { task_ids: SmallVec<[TaskId; 4]> },
+    DecreaseActiveCounts { task_ids: TaskIdVec },
     /// Balances the edges of the graph. This checks if the graph invariant is still met for this
     /// edge and coverts a upper edge to a follower edge or vice versa. Balancing might triggers
     /// more changes to the structure.
@@ -358,7 +360,7 @@ impl AggregatedDataUpdate {
             );
             if added || removed {
                 let ty = collectible.collectible_type;
-                let dependent: SmallVec<[TaskId; 4]> = get_many!(
+                let dependent: TaskIdVec = get_many!(
                     task,
                     CollectiblesDependent {
                         collectible_type,
@@ -1146,7 +1148,7 @@ impl AggregationUpdateQueue {
 
     fn aggregated_data_update(
         &mut self,
-        upper_ids: SmallVec<[TaskId; 4]>,
+        upper_ids: TaskIdVec,
         ctx: &mut impl ExecuteContext,
         update: AggregatedDataUpdate,
     ) {
@@ -1172,7 +1174,7 @@ impl AggregationUpdateQueue {
         &mut self,
         ctx: &mut impl ExecuteContext,
         lost_follower_id: TaskId,
-        mut upper_ids: SmallVec<[TaskId; 4]>,
+        mut upper_ids: TaskIdVec,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span = trace_span!("lost follower (n uppers)", uppers = upper_ids.len()).entered();
@@ -1275,7 +1277,7 @@ impl AggregationUpdateQueue {
     fn inner_of_upper_lost_followers(
         &mut self,
         ctx: &mut impl ExecuteContext,
-        mut lost_follower_ids: SmallVec<[TaskId; 4]>,
+        mut lost_follower_ids: TaskIdVec,
         upper_id: TaskId,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
@@ -1374,7 +1376,7 @@ impl AggregationUpdateQueue {
         &mut self,
         ctx: &mut impl ExecuteContext,
         new_follower_id: TaskId,
-        mut upper_ids: SmallVec<[TaskId; 4]>,
+        mut upper_ids: TaskIdVec,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
         let _span =
@@ -1523,7 +1525,7 @@ impl AggregationUpdateQueue {
     fn inner_of_upper_has_new_followers(
         &mut self,
         ctx: &mut impl ExecuteContext,
-        new_follower_ids: SmallVec<[TaskId; 4]>,
+        new_follower_ids: TaskIdVec,
         upper_id: TaskId,
     ) {
         #[cfg(feature = "trace_aggregation_update")]
