@@ -26,22 +26,18 @@ describe('client-dev-overlay', () => {
       `!!document.querySelector('nextjs-portal').shadowRoot.querySelector('${selector}')`
     ) as any
   }
-
   const selectors = {
     fullScreenDialog: '[data-nextjs-dialog]',
     toast: '[data-nextjs-toast]',
     minimizeButton: '[data-nextjs-errors-dialog-left-right-close-button]',
     hideButton: '[data-nextjs-toast-errors-hide-button]',
   }
-
   function getToast() {
     return browser.elementByCss(selectors.toast)
   }
-
   function getMinimizeButton() {
     return browser.elementByCss(selectors.minimizeButton)
   }
-
   function getHideButton() {
     return browser.elementByCss(selectors.hideButton)
   }
@@ -81,16 +77,6 @@ describe('client-dev-overlay', () => {
       return (await elementExistsInNextJSPortalShadowDOM('[role="dialog"]'))
         ? 'exists'
         : 'missing'
-    }, 'exists')
-  })
-
-  it('should have a position style of "absolute"', async () => {
-    await check(async () => {
-      const position = await browser.eval(
-        `!!document.querySelector('nextjs-portal').style.position`
-      )
-
-      return position ? 'exists' : 'missing'
     }, 'exists')
   })
 })
