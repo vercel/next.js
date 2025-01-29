@@ -9665,7 +9665,6 @@ dependencies = [
  "async-trait",
  "criterion",
  "either",
- "futures",
  "indexmap 2.7.1",
  "indoc",
  "lazy_static",

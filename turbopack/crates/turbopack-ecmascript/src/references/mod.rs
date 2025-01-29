@@ -2299,25 +2299,21 @@ async fn handle_member(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    let mut obj_cache: Option<JsValue> = None;
-    macro_rules! get_obj {
-        () => {
-            if let Some(obj) = &obj_cache {
-                obj
-            } else {
-                // obj_cache = Some(link_obj.await?);
-                obj_cache.as_ref().unwrap()
-            }
-        };
-    }
-
     if let Some(prop) = prop.as_str() {
         let prop_seg = DefineableNameSegment::Name(prop.into());
         let compile_time_info = state.compile_time_info.await?;
         let free_var_references = compile_time_info.free_var_references.individual().await?;
 
-        if let Some(references) = free_var_references.get(&prop_seg) {
-            let obj = get_obj!();
+        let (references, is_cache) = (free_var_references.get(&prop_seg), prop == "cache");
+        // This isn't pretty, but we cannot await the future twice in the two branches below.
+        let obj = if references.is_some() || is_cache {
+            Some(link_obj.await?)
+        } else {
+            None
+        };
+
+        if let Some(references) = references {
+            let obj = obj.as_ref().unwrap();
             if obj.get_defineable_name_len().is_some() {
                 for (name, value) in references {
                     let it = name.iter().map(Cow::Borrowed).rev();
@@ -2337,10 +2333,12 @@ async fn handle_member(
             }
         }
 
-        if let (JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }), "cache") =
-            (get_obj!(), prop)
-        {
-            analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+        if is_cache {
+            if let JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }) =
+                obj.as_ref().unwrap()
+            {
+                analysis.add_code_gen(CjsRequireCacheAccess::new(ast_path.to_vec().into()));
+            }
         }
     }
 
