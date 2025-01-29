@@ -16,6 +16,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 either = { workspace = true }
+futures = { workspace = true }
 indexmap = { workspace = true }
 indoc = { workspace = true }
 lazy_static = { workspace = true }

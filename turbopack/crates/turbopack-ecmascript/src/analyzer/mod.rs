@@ -1929,53 +1929,6 @@ impl JsValue {
         }
     }
 
-    /// Returns any matching defined replacement that matches this value.
-    ///
-    /// Optionally when passed a VarGraph, verifies that the first segment was not reassigned.
-    ///
-    /// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
-    /// `self` is just `foo`.
-    pub fn match_free_var_reference<'a, T>(
-        &self,
-        var_graph: Option<&VarGraph>,
-        free_var_references: &'a FxIndexMap<Vec<DefineableNameSegment>, T>,
-        prefix_self: &Option<DefineableNameSegment>,
-    ) -> Option<&'a T> {
-        if let Some(def_name_len) = self.get_defineable_name_len() {
-            for (name, value) in free_var_references.iter() {
-                if name.len() != def_name_len + (prefix_self.is_some() as usize) {
-                    continue;
-                }
-                let mut name_rev_it = name.iter().map(Cow::Borrowed).rev();
-                if let Some(prefix_self) = prefix_self {
-                    if name_rev_it.next().unwrap().as_ref() != prefix_self {
-                        continue;
-                    }
-                }
-
-                if name_rev_it.eq(self.iter_defineable_name_rev()) {
-                    if let Some(var_graph) = var_graph {
-                        if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
-                            let first_str: &str = first_str;
-                            if var_graph
-                                .free_var_ids
-                                .get(&first_str.into())
-                                .is_some_and(|id| var_graph.values.contains_key(id))
-                            {
-                                // `typeof foo...` but `foo` was reassigned
-                                return None;
-                            }
-                        }
-                    }
-
-                    return Some(value);
-                }
-            }
-        }
-
-        None
-    }
-
     /// Returns any matching defined replacement that matches this value. Optionally also prefixes
     /// `self` with `prefix`, e.g. to be able to match `typeof foo` if `self` is just `foo`.
     pub fn match_define<'a, T>(
@@ -2001,6 +1954,93 @@ impl JsValue {
 
         None
     }
+}
+
+/// Returns any matching defined replacement that matches this value.
+///
+/// Optionally when passed a VarGraph, verifies that the first segment was not reassigned.
+///
+/// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
+/// `self` is just `foo`.
+pub fn match_free_var_reference<'a, T>(
+    obj: &JsValue,
+    var_graph: Option<&VarGraph>,
+    free_var_references: &'a FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, T>,
+    >,
+    prop: &DefineableNameSegment,
+) -> Option<&'a T> {
+    if obj.get_defineable_name_len().is_some() {
+        if let Some(references) = free_var_references.get(prop) {
+            for (name, value) in references {
+                let name_rev_it = name.iter().map(Cow::Borrowed).rev();
+                if name_rev_it.eq(obj.iter_defineable_name_rev()) {
+                    if let Some(var_graph) = var_graph {
+                        if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                            let first_str: &str = first_str;
+                            if var_graph
+                                .free_var_ids
+                                .get(&first_str.into())
+                                .is_some_and(|id| var_graph.values.contains_key(id))
+                            {
+                                // `typeof foo...` but `foo` was reassigned
+                                return None;
+                            }
+                        }
+                    }
+
+                    return Some(value);
+                }
+            }
+        }
+    }
+
+    None
+}
+
+/// Returns any matching defined replacement that matches this value.
+///
+/// Optionally when passed a VarGraph, verifies that the first segment was not reassigned.
+///
+/// Optionally also prefixes `self` with `prefix`, e.g. to be able to match `typeof foo` if
+/// `self` is just `foo`.
+pub async fn match_free_var_reference_lazy<'a, T>(
+    link_obj: impl AsyncFnOnce() -> Result<JsValue>,
+    var_graph: Option<&VarGraph>,
+    free_var_references: &'a FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, T>,
+    >,
+    prop: &DefineableNameSegment,
+) -> Result<Option<&'a T>> {
+    if let Some(references) = free_var_references.get(prop) {
+        let obj = link_obj().await?;
+        if obj.get_defineable_name_len().is_some() {
+            for (name, value) in references {
+                let name_rev_it = name.iter().map(Cow::Borrowed).rev();
+                if name_rev_it.eq(obj.iter_defineable_name_rev()) {
+                    if let Some(var_graph) = var_graph {
+                        if let DefineableNameSegment::Name(first_str) = name.first().unwrap() {
+                            let first_str: &str = first_str;
+                            if var_graph
+                                .free_var_ids
+                                .get(&first_str.into())
+                                .is_some_and(|id| var_graph.values.contains_key(id))
+                            {
+                                // `typeof foo...` but `foo` was reassigned
+                                return Ok(None);
+                            }
+                        }
+                    }
+
+                    return Ok(Some(value));
+                }
+            }
+        }
+    }
+
+    Ok(None)
 }
 
 pub struct DefineableNameIter<'a> {
