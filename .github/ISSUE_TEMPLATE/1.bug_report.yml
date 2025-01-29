@@ -106,6 +106,7 @@ body:
         - 'React'
         - 'Redirects'
         - 'Route Groups'
+        - 'Route Handlers'
         - 'Runtime'
         - 'Script (next/script)'
         - 'Server Actions'
