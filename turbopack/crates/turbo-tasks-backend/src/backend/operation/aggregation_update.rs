@@ -589,7 +589,20 @@ impl AggregationUpdateQueue {
 
     /// Returns true, when the queue is empty.
     pub fn is_empty(&self) -> bool {
-        self.jobs.is_empty()
+        let Self {
+            jobs,
+            number_updates,
+            find_and_schedule,
+            balance_queue,
+            optimize_queue,
+            done_find_and_schedule: _,
+            done_number_updates: _,
+        } = self;
+        jobs.is_empty()
+            && number_updates.is_empty()
+            && find_and_schedule.is_empty()
+            && balance_queue.is_empty()
+            && optimize_queue.is_empty()
     }
 
     /// Pushes a job to the queue.
