@@ -209,7 +209,7 @@ impl RawVc {
         self.resolve_inner(ReadConsistency::Strong).await
     }
 
-    async fn resolve_inner(self, consistency: ReadConsistency) -> Result<RawVc> {
+    async fn resolve_inner(self, mut consistency: ReadConsistency) -> Result<RawVc> {
         let tt = turbo_tasks();
         let mut current = self;
         let mut notified = false;
@@ -221,6 +221,10 @@ impl RawVc {
                         notified = true;
                     }
                     current = read_task_output(&*tt, task, consistency).await?;
+                    // We no longer need to read strongly consistent, as any Vc returned
+                    // from the first task will be inside of the scope of the first
+                    // task. So it's already strongly consistent.
+                    consistency = ReadConsistency::Eventual;
                 }
                 RawVc::TaskCell(_, _) => return Ok(current),
                 RawVc::LocalOutput(task_id, local_cell_id) => {
@@ -396,8 +400,7 @@ impl Future for ReadRawVcFuture {
                             Ok(Ok(vc)) => {
                                 // We no longer need to read strongly consistent, as any Vc returned
                                 // from the first task will be inside of the scope of the first
-                                // task. So it's already strongly
-                                // consistent.
+                                // task. So it's already strongly consistent.
                                 this.consistency = ReadConsistency::Eventual;
                                 this.current = vc;
                                 continue 'outer;
