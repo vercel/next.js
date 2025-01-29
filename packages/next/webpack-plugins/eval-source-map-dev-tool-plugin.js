@@ -4,21 +4,21 @@
 
   Forked to add support for `ignoreList`.
   Keep in sync with packages/next/webpack-plugins/eval-source-map-dev-tool-plugin.js
-*/
-import {
-  type webpack,
-  type SourceMapDevToolPluginOptions,
-  ConcatenatedModule,
-  makePathsAbsolute,
-  ModuleFilenameHelpers,
-  NormalModule,
-  RuntimeGlobals,
-  SourceMapDevToolModuleOptionsPlugin,
-} from 'next/dist/compiled/webpack/webpack'
-import type { RawSourceMap } from 'next/dist/compiled/source-map'
+  */
+// eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
+const ConcatenatedModule = require('webpack/lib/optimize/ConcatenatedModule')
+// eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
+const { makePathsAbsolute } = require('webpack/lib/util/identifier')
+// eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
+const ModuleFilenameHelpers = require('webpack/lib/ModuleFilenameHelpers')
+// eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
+const NormalModule = require('webpack/lib/NormalModule')
+// eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
+const RuntimeGlobals = require('webpack/lib/RuntimeGlobals')
+// eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
+const SourceMapDevToolModuleOptionsPlugin = require('webpack/lib/SourceMapDevToolModuleOptionsPlugin')
 
-const cache = new WeakMap<webpack.sources.Source, webpack.sources.Source>()
-
+const cache = new WeakMap()
 const devtoolWarningMessage = `/*
  * ATTENTION: An "eval-source-map" devtool has been used.
  * This devtool is neither made for production nor for readable output files.
@@ -30,33 +30,21 @@ const devtoolWarningMessage = `/*
 `
 
 // @ts-expect-error -- can't compare `string` with `number` in `version`Ï
-interface SourceMap extends RawSourceMap {
-  ignoreList?: number[]
-  version: number
-}
-
-export interface EvalSourceMapDevToolPluginOptions
-  extends SourceMapDevToolPluginOptions {
-  // Fork
-  shouldIgnorePath?: (modulePath: string) => boolean
-}
 
 // Fork of webpack's EvalSourceMapDevToolPlugin with support for adding `ignoreList`.
 // https://github.com/webpack/webpack/blob/e237b580e2bda705c5ab39973f786f7c5a7026bc/lib/EvalSourceMapDevToolPlugin.js#L37
-export default class EvalSourceMapDevToolPlugin {
-  sourceMapComment: string
-  moduleFilenameTemplate: NonNullable<
-    EvalSourceMapDevToolPluginOptions['moduleFilenameTemplate']
-  >
-  namespace: NonNullable<EvalSourceMapDevToolPluginOptions['namespace']>
-  options: EvalSourceMapDevToolPluginOptions
-  shouldIgnorePath: (modulePath: string) => boolean
+module.exports = class EvalSourceMapDevToolPlugin {
+  sourceMapComment
+  moduleFilenameTemplate
+  namespace
+  options
+  shouldIgnorePath
 
   /**
    * @param {SourceMapDevToolPluginOptions|string} inputOptions Options object
    */
-  constructor(inputOptions: EvalSourceMapDevToolPluginOptions) {
-    let options: EvalSourceMapDevToolPluginOptions
+  constructor(inputOptions) {
+    let options
     if (typeof inputOptions === 'string') {
       options = {
         append: inputOptions,
@@ -82,24 +70,20 @@ export default class EvalSourceMapDevToolPlugin {
    * Apply the plugin
    * @param compiler the compiler instance
    */
-  apply(compiler: webpack.Compiler): void {
+  apply(compiler) {
     const options = this.options
     compiler.hooks.compilation.tap(
       'NextJSEvalSourceMapDevToolPlugin',
       (compilation) => {
         const { JavascriptModulesPlugin } = compiler.webpack.javascript
         const { RawSource, ConcatSource } = compiler.webpack.sources
-
         const devtoolWarning = new RawSource(devtoolWarningMessage)
-
         const hooks = JavascriptModulesPlugin.getCompilationHooks(compilation)
-
         new SourceMapDevToolModuleOptionsPlugin(options).apply(compilation)
         const matchModule = ModuleFilenameHelpers.matchObject.bind(
           ModuleFilenameHelpers,
           options
         )
-
         hooks.renderModuleContent.tap(
           'NextJSEvalSourceMapDevToolPlugin',
           (source, m, { chunk, runtimeTemplate, chunkGraph }) => {
@@ -107,14 +91,10 @@ export default class EvalSourceMapDevToolPlugin {
             if (cachedSource !== undefined) {
               return cachedSource
             }
-
-            const result = (
-              r: webpack.sources.Source
-            ): webpack.sources.Source => {
+            const result = (r) => {
               cache.set(source, r)
               return r
             }
-
             if (m instanceof NormalModule) {
               const module = m
               if (!matchModule(module.resource)) {
@@ -133,18 +113,17 @@ export default class EvalSourceMapDevToolPlugin {
             } else {
               return result(source)
             }
-
             const namespace = compilation.getPath(this.namespace, {
               chunk,
             })
-            let sourceMap: SourceMap
+            let sourceMap
             let content
             if (source.sourceAndMap) {
               const sourceAndMap = source.sourceAndMap(options)
-              sourceMap = sourceAndMap.map as SourceMap
+              sourceMap = sourceAndMap.map
               content = sourceAndMap.source
             } else {
-              sourceMap = source.map(options) as SourceMap
+              sourceMap = source.map(options)
               content = source.source()
             }
             if (!sourceMap) {
@@ -152,8 +131,10 @@ export default class EvalSourceMapDevToolPlugin {
             }
 
             // Clone (flat) the sourcemap to ensure that the mutations below do not persist.
-            sourceMap = { ...sourceMap }
-            const context = compiler.options.context!
+            sourceMap = {
+              ...sourceMap,
+            }
+            const context = compiler.options.context
             const root = compiler.root
             const modules = sourceMap.sources.map((sourceMapSource) => {
               if (!sourceMapSource.startsWith('webpack://'))
@@ -176,7 +157,7 @@ export default class EvalSourceMapDevToolPlugin {
                 {
                   requestShortener: runtimeTemplate.requestShortener,
                   chunkGraph,
-                  hashFunction: compilation.outputOptions.hashFunction!,
+                  hashFunction: compilation.outputOptions.hashFunction,
                 }
               )
             )
@@ -198,31 +179,16 @@ export default class EvalSourceMapDevToolPlugin {
               sourceMap.sourcesContent = undefined
             }
             sourceMap.sourceRoot = options.sourceRoot || ''
-            const moduleId =
-              /** @type {ModuleId} */
-              chunkGraph.getModuleId(m)
+            const moduleId = /** @type {ModuleId} */ chunkGraph.getModuleId(m)
             if (moduleId) {
               sourceMap.file =
                 typeof moduleId === 'number' ? `${moduleId}.js` : moduleId
             }
-
-            const footer = `${this.sourceMapComment.replace(
-              /\[url\]/g,
-              `data:application/json;charset=utf-8;base64,${Buffer.from(
-                JSON.stringify(sourceMap),
-                'utf8'
-              ).toString('base64')}`
-            )}\n//# sourceURL=webpack-internal:///${moduleId}\n` // workaround for chrome bug
+            const footer = `${this.sourceMapComment.replace(/\[url\]/g, `data:application/json;charset=utf-8;base64,${Buffer.from(JSON.stringify(sourceMap), 'utf8').toString('base64')}`)}\n//# sourceURL=webpack-internal:///${moduleId}\n` // workaround for chrome bug
 
             return result(
               new RawSource(
-                `eval(${
-                  compilation.outputOptions.trustedTypes
-                    ? `${RuntimeGlobals.createScript}(${JSON.stringify(
-                        content + footer
-                      )})`
-                    : JSON.stringify(content + footer)
-                });`
+                `eval(${compilation.outputOptions.trustedTypes ? `${RuntimeGlobals.createScript}(${JSON.stringify(content + footer)})` : JSON.stringify(content + footer)});`
               )
             )
           }

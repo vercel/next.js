@@ -80,7 +80,7 @@
     "next": "./dist/bin/next"
   },
   "scripts": {
-    "dev": "cross-env NEXT_SERVER_NO_MANGLE=1 taskr",
+    "dev": "taskr",
     "release": "taskr release",
     "build": "pnpm release",
     "prepublishOnly": "cd ../../ && turbo run build",
