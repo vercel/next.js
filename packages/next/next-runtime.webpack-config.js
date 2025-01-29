@@ -139,11 +139,7 @@ module.exports = ({ dev, turbo, bundleType, experimental }) => {
         return
       }
 
-      if (
-        request.match(
-          /(server\/image-optimizer|experimental\/testmode|react-dev-overlay)/
-        )
-      ) {
+      if (request.match(/(server\/image-optimizer|experimental\/testmode)/)) {
         callback(null, 'commonjs ' + request)
         return
       }
