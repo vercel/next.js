@@ -102,8 +102,10 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    if get!(task, Activeness).is_some_and(|a| a.active_counter > 0)
-                                    {
+                                    let has_active_count = get!(task, Activeness)
+                                        .is_some_and(|a| a.active_counter > 0);
+                                    drop(task);
+                                    if has_active_count {
                                         // TODO combine both operations to avoid the clone
                                         queue.push(AggregationUpdateJob::DecreaseActiveCounts {
                                             task_ids: children.clone(),
