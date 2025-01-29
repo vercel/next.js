@@ -1230,34 +1230,14 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
-                    let obj_count = obj.total_nodes();
-                    let prop_count = prop.total_nodes();
-                    let s = tracing::info_span!(
-                        "link_value obj",
-                        depth = obj_count,
-                        obj = %obj,
-                        value = tracing::field::Empty
-                    );
                     let obj = analysis_state
-                        .link_value(*obj.clone(), ImportAttributes::empty_ref())
-                        .instrument(s.clone())
+                        .link_value(*obj, ImportAttributes::empty_ref())
                         .await?;
-                    s.record("value", obj.to_string());
-
-                    let s = tracing::info_span!(
-                        "link_value prop",
-                        depth = prop_count,
-                        prop = %prop,
-                        value = tracing::field::Empty
-                    );
                     let prop = analysis_state
-                        .link_value(*prop.clone(), ImportAttributes::empty_ref())
-                        .instrument(s.clone())
+                        .link_value(*prop, ImportAttributes::empty_ref())
                         .await?;
-                    s.record("value", prop.to_string());
 
                     handle_member(&ast_path, obj, prop, span, &analysis_state, &mut analysis)
-                        .instrument(tracing::info_span!("handle_member"))
                         .await?;
                 }
                 Effect::ImportedBinding {
