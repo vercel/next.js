@@ -97,7 +97,7 @@ body:
         - 'Metadata'
         - 'Middleware'
         - 'Module Resolution'
-        - 'Output (export/standalone)'
+        - 'Output'
         - 'Package Managers'
         - 'Pages Router'
         - 'Parallel & Intercepting Routes'
