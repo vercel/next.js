@@ -180,6 +180,7 @@ export const styles = css`
     font-size: var(--size-font-small);
     font-weight: 500;
     line-height: 16px;
+    font-variant-numeric: tabular-nums;
   }
 
   .error-overlay-pagination-button {

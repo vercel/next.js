@@ -31,23 +31,25 @@ export function CallStack({ frames }: CallStackProps) {
 
   return (
     <div className="error-overlay-call-stack-container">
-      <div className="error-overlay-call-stack-header">
-        <p className="error-overlay-call-stack-title">
-          Call Stack{' '}
-          <span className="error-overlay-call-stack-count">
-            {frames.length}
-          </span>
-        </p>
-        {ignoreListLength > 0 && (
-          <button
-            data-expand-ignore-button={isIgnoreListOpen}
-            className="error-overlay-call-stack-ignored-list-toggle-button"
-            onClick={() => setIsIgnoreListOpen(!isIgnoreListOpen)}
-          >
-            {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignore-listed Frames`}
-            <ChevronUpDown />
-          </button>
-        )}
+      <div className="scroll">
+        <div className="error-overlay-call-stack-header">
+          <p className="error-overlay-call-stack-title">
+            Call Stack{' '}
+            <span className="error-overlay-call-stack-count">
+              {frames.length}
+            </span>
+          </p>
+          {ignoreListLength > 0 && (
+            <button
+              data-expand-ignore-button={isIgnoreListOpen}
+              className="error-overlay-call-stack-ignored-list-toggle-button"
+              onClick={() => setIsIgnoreListOpen(!isIgnoreListOpen)}
+            >
+              {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignored Frames`}
+              <ChevronUpDown />
+            </button>
+          )}
+        </div>
       </div>
       {filteredFrames.map((frame, frameIndex) => (
         <CallStackFrame
@@ -82,6 +84,7 @@ export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
     border-top: 1px solid var(--color-gray-400);
     padding: var(--size-4) var(--size-3);
+    // overflow-y: auto;
   }
 
   .error-overlay-call-stack-header {
@@ -113,9 +116,8 @@ export const CALL_STACK_STYLES = css`
     justify-content: center;
     align-items: center;
 
-    width: var(--size-5);
-    height: var(--size-5);
-    padding: var(--size-0_5) var(--size-1_5);
+    width: 20px;
+    height: 20px;
     gap: var(--size-1);
 
     color: var(--color-gray-1000);
@@ -130,12 +132,18 @@ export const CALL_STACK_STYLES = css`
 
   .error-overlay-call-stack-ignored-list-toggle-button {
     all: unset;
+    display: flex;
+    align-items: center;
+    gap: 6px;
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
     line-height: var(--size-5);
+    border-radius: 3px;
+    padding: 2px;
+    margin: -2px;
 
     &:focus {
-      outline: none;
+      outline: var(--focus-ring);
     }
   }
 `

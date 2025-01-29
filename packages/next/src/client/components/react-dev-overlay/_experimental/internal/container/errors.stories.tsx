@@ -41,21 +41,58 @@ const originalStackFrame = {
   ignored: false,
 }
 
+const frame = {
+  originalStackFrame: {
+    file: './app/page.tsx',
+    methodName: 'MyComponent',
+    arguments: [],
+    lineNumber: 10,
+    column: 5,
+    ignored: false,
+  },
+  sourceStackFrame: {
+    file: './app/page.tsx',
+    methodName: 'MyComponent',
+    arguments: [],
+    lineNumber: 10,
+    column: 5,
+  },
+  originalCodeFrame: 'export default function MyComponent() {',
+  error: false,
+  reason: null,
+  external: false,
+  ignored: false,
+}
+
+const ignoredFrame = {
+  ...frame,
+  ignored: true,
+}
+
 const readyErrors: ReadyRuntimeError[] = [
   {
     id: 1,
     runtime: true,
     error: new Error('First error message'),
     frames: [
+      frame,
       {
-        error: true,
-        reason: 'First error message',
-        external: false,
-        ignored: false,
-        sourceStackFrame,
-        originalStackFrame,
-        originalCodeFrame: originalCodeFrame('First error message'),
+        ...frame,
+        originalStackFrame: {
+          ...frame.originalStackFrame,
+          methodName: 'ParentComponent',
+          lineNumber: 5,
+        },
       },
+      {
+        ...frame,
+        originalStackFrame: {
+          ...frame.originalStackFrame,
+          methodName: 'GrandparentComponent',
+          lineNumber: 1,
+        },
+      },
+      ...Array(5).fill(ignoredFrame),
     ],
   },
   {

@@ -98,7 +98,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
           tabIndex={1}
           title="Click to open in your editor"
         >
-          <span>
+          <span className="terminal-source">
             <FileIcon />
             {getFrameSource(stackFrame)}
             {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
@@ -153,6 +153,11 @@ export const TERMINAL_STYLES = css`
   .terminal-header {
     border-top: 1px solid var(--color-gray-400);
     border-bottom: 1px solid var(--color-gray-400);
+  }
+
+  .terminal-source {
+    display: flex;
+    align-items: center;
   }
 
   [data-nextjs-terminal]::selection,

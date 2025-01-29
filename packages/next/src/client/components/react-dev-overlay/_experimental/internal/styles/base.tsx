@@ -32,7 +32,7 @@ export function Base() {
 
           --color-background: white;
           --color-font: #757575;
-          --color-backdrop: rgba(17, 17, 17, 0.2);
+          --color-backdrop: rgba(250, 250, 250, 0.8);
           --color-border-shadow: rgba(0, 0, 0, 0.145);
 
           --color-title-color: #1f1f1f;

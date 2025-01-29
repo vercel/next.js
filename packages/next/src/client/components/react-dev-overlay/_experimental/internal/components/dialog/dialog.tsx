@@ -21,6 +21,8 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   type,
   className,
   onClose,
+  'aria-labelledby': ariaLabelledBy,
+  'aria-describedby': ariaDescribedBy,
   ...props
 }) {
   const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
@@ -86,12 +88,13 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       data-nextjs-dialog
       tabIndex={-1}
       role={role}
-      aria-labelledby={props['aria-labelledby']}
-      aria-describedby={props['aria-describedby']}
+      aria-labelledby={ariaLabelledBy}
+      aria-describedby={ariaDescribedBy}
       aria-modal="true"
       className={className}
+      {...props}
     >
-      {children}
+      <div data-nextjs-dialog-container>{children}</div>
     </div>
   )
 }

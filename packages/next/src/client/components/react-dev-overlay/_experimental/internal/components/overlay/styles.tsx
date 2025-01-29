@@ -30,6 +30,7 @@ const styles = css`
     bottom: 0;
     left: 0;
     background-color: var(--color-backdrop);
+    backdrop-filter: blur(10px);
     pointer-events: all;
     z-index: -1;
   }
