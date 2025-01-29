@@ -255,7 +255,7 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
     let children: React.ReactNode
 
     const {
-      href: hrefProp,
+      href: unfilteredHrefProp,
       as: asProp,
       children: childrenProp,
       prefetch: prefetchProp = null,
@@ -270,6 +270,8 @@ const Link = React.forwardRef<HTMLAnchorElement, LinkPropsReal>(
       legacyBehavior = false,
       ...restProps
     } = props
+
+    const hrefProp = unfilteredHrefProp ?? ''
 
     children = childrenProp
 
