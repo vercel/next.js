@@ -612,6 +612,18 @@ export interface ExperimentalConfig {
    * Enables the use of the `"use cache"` directive.
    */
   useCache?: boolean
+
+  /**
+   * Enables detection and reporting of slow modules during development builds.
+   * Enabling this may impact build performance to ensure accurate measurements.
+   */
+  slowModuleDetection?: {
+    /**
+     * The time threshold in milliseconds for identifying slow modules.
+     * Modules taking longer than this build time threshold will be reported.
+     */
+    buildTimeThresholdMs: number
+  }
 }
 
 export type ExportPathMap = {
@@ -1243,6 +1255,7 @@ export const defaultConfig: NextConfig = {
     streamingMetadata: false,
     htmlLimitedBots: undefined,
     useCache: undefined,
+    slowModuleDetection: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

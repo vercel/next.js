@@ -14,11 +14,11 @@ import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
 
 export function DevToolsIndicator({
   state,
-  readyErrorsLength,
+  errorCount,
   setIsErrorOverlayOpen,
 }: {
   state: OverlayState
-  readyErrorsLength: number
+  errorCount: number
   setIsErrorOverlayOpen: Dispatch<SetStateAction<boolean>>
 }) {
   const [isDevToolsIndicatorOpen, setIsDevToolsIndicatorOpen] = useState(true)
@@ -36,7 +36,7 @@ export function DevToolsIndicator({
     isDevToolsIndicatorOpen && (
       <DevToolsPopover
         semver={state.versionInfo.installed}
-        issueCount={readyErrorsLength}
+        issueCount={errorCount}
         isStaticRoute={state.staticIndicator}
         hide={() => {
           setIsDevToolsIndicatorOpen(false)
@@ -157,7 +157,7 @@ function DevToolsPopover({
     }
   }
 
-  function onIssuesClick() {
+  function openErrorOverlay() {
     if (issueCount > 0) {
       setIsErrorOverlayOpen(true)
     }
@@ -165,7 +165,6 @@ function DevToolsPopover({
 
   function onTriggerClick() {
     setIsMenuOpen((prev) => !prev)
-    onIssuesClick()
   }
 
   function closeMenu() {
@@ -193,9 +192,9 @@ function DevToolsPopover({
         aria-label={`${isMenuOpen ? 'Close' : 'Open'} Next.js Dev Tools`}
         data-nextjs-dev-tools-button
         issueCount={issueCount}
-        onClick={onTriggerClick}
+        onTriggerClick={onTriggerClick}
         onKeyDown={onTriggerKeydown}
-        onIssuesClick={onIssuesClick}
+        openErrorOverlay={openErrorOverlay}
         isDevBuilding={useIsDevBuilding()}
         isDevRendering={useIsDevRendering()}
       />
@@ -231,7 +230,7 @@ function DevToolsPopover({
                 index={0}
                 label="Issues"
                 value={<IssueCount>{issueCount}</IssueCount>}
-                onClick={onIssuesClick}
+                onClick={openErrorOverlay}
               />
               <MenuItem
                 label="Route"

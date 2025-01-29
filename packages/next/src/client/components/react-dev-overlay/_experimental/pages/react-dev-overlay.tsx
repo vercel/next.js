@@ -28,8 +28,8 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
     hasBuildError,
   } = usePagesReactDevOverlay()
 
-  const { readyErrors } = useErrorHook({
-    errors: state.errors,
+  const { readyErrors, totalErrorCount } = useErrorHook({
+    state,
     isAppDir: false,
   })
 
@@ -50,7 +50,7 @@ export default function ReactDevOverlay({ children }: ReactDevOverlayProps) {
 
           <DevToolsIndicator
             state={state}
-            readyErrorsLength={readyErrors.length}
+            errorCount={totalErrorCount}
             setIsErrorOverlayOpen={setIsErrorOverlayOpen}
           />
 

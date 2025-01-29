@@ -22,7 +22,10 @@ export default function ReactDevOverlay({
   children: React.ReactNode
 }) {
   const [isErrorOverlayOpen, setIsErrorOverlayOpen] = useState(false)
-  const { readyErrors } = useErrorHook({ errors: state.errors, isAppDir: true })
+  const { readyErrors, totalErrorCount } = useErrorHook({
+    state,
+    isAppDir: true,
+  })
 
   const devOverlay = (
     <ShadowPortal>
@@ -33,7 +36,7 @@ export default function ReactDevOverlay({
 
       <DevToolsIndicator
         state={state}
-        readyErrorsLength={readyErrors.length}
+        errorCount={totalErrorCount}
         setIsErrorOverlayOpen={setIsErrorOverlayOpen}
       />
 

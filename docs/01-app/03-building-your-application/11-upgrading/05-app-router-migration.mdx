@@ -748,7 +748,7 @@ export async function generateStaticParams() {
 }
 
 async function getPost(params) {
-  const res = await fetch(`https://.../posts/${params.id}`)
+  const res = await fetch(`https://.../posts/${(await params).id}`)
   const post = await res.json()
 
   return post
