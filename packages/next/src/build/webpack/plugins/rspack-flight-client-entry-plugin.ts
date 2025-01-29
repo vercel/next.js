@@ -5,13 +5,12 @@ import {
   EntryTypes,
   getEntryKey,
 } from '../../../server/dev/on-demand-entry-handler'
-import {
-  COMPILER_NAMES,
-} from '../../../shared/lib/constants'
+import { COMPILER_NAMES } from '../../../shared/lib/constants'
 
 import { getProxiedPluginState } from '../../build-context'
 import { PAGE_TYPES } from '../../../lib/page-types'
 
+// @ts-ignore
 import { FlightClientEntryPlugin } from '@rspack/core'
 
 type Actions = {
@@ -34,9 +33,9 @@ export type ActionManifest = {
 }
 
 export interface ModuleInfo {
-    moduleId: string | number
-    async: boolean
-  }
+  moduleId: string | number
+  async: boolean
+}
 
 const pluginState = getProxiedPluginState({
   // A map to track "action" -> "list of bundles".
@@ -80,14 +79,14 @@ export class RspackFlightClientEntryPlugin {
         entryName,
         absolutePagePath,
         clientBrowserLoader,
-      }) => {
+      }: any) => {
         console.log(
-          "shouldInvalidateCb", 
+          'shouldInvalidateCb',
           bundlePath,
           entryName,
           absolutePagePath,
           clientBrowserLoader
-        );
+        )
         let shouldInvalidate = false
         const compiler = this.compiler!
 
@@ -135,21 +134,30 @@ export class RspackFlightClientEntryPlugin {
           invalidator.invalidate([COMPILER_NAMES.client])
         }
       },
-      stateCb: (state) => {
-        Object.assign(pluginState.serverActions, state.serverActions);
-        Object.assign(pluginState.serverActionModules, state.serverActionModules);
-        Object.assign(pluginState.edgeServerActionModules, state.edgeServerActionModules);
-        Object.assign(pluginState.ssrModules, state.ssrModules);
-        Object.assign(pluginState.edgeSsrModules, state.edgeSsrModules);
-        Object.assign(pluginState.rscModules, state.rscModules);
-        Object.assign(pluginState.edgeRscModules, state.edgeRscModules);
-        Object.assign(pluginState.injectedClientEntries, state.injectedClientEntries);
+      stateCb: (state: any) => {
+        Object.assign(pluginState.serverActions, state.serverActions)
+        Object.assign(
+          pluginState.serverActionModules,
+          state.serverActionModules
+        )
+        Object.assign(
+          pluginState.edgeServerActionModules,
+          state.edgeServerActionModules
+        )
+        Object.assign(pluginState.ssrModules, state.ssrModules)
+        Object.assign(pluginState.edgeSsrModules, state.edgeSsrModules)
+        Object.assign(pluginState.rscModules, state.rscModules)
+        Object.assign(pluginState.edgeRscModules, state.edgeRscModules)
+        Object.assign(
+          pluginState.injectedClientEntries,
+          state.injectedClientEntries
+        )
       },
     })
   }
 
   apply(compiler: Compiler) {
-    this.compiler = compiler;
+    this.compiler = compiler
     this.plugin.apply(compiler)
   }
 }
