@@ -1,8 +1,116 @@
----
-title: Pages Router
-description: Before Next.js 13, the Pages Router was the main way to create routes in Next.js with an intuitive file-system router.
----
+import { Check } from "lucide-react";
 
-Before Next.js 13, the Pages Router was the main way to create routes in Next.js. It used an intuitive file-system router to map each file to a route. The Pages Router is still supported in newer versions of Next.js, but we recommend migrating to the new [App Router](/docs/app) to leverage React's latest features.
+const packages = [
+  {
+    id: 1,
+    coins: 100,
+    bonus: 0,
+    price: "$0.99",
+  },
+  {
+    id: 2,
+    coins: 500,
+    bonus: 50,
+    price: "$4.99",
+  },
+  {
+    id: 3,
+    coins: 1000,
+    bonus: 200,
+    price: "$9.99",
+  },
+  {
+    id: 4,
+    coins: 2000,
+    bonus: 500,
+    price: "$19.99",
+  },
+];
 
-Use this section of the documentation for existing applications that use the Pages Router.
+function CoinPackages() {
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      {packages.map((pkg) => (
+        <div
+          key={pkg.id}
+          className="bg-white border border-gray-200 rounded-lg p-6 hover:shadow-lg transition-shadow"
+        >
+          <h3 className="text-2xl font-bold text-center">
+            {pkg.coins} Coins
+          </h3>
+          {pkg.bonus > 0 && (
+            <p className="text-sm text-center text-gray-500 mt-2">
+              + {pkg.bonus} Bonus
+            </p>
+          )}
+          <p className="text-xl font-semibold text-center mt-4">{pkg.price}</p>
+          <button className="w-full bg-[#FE2C55] text-white py-2 rounded-md mt-6 hover:bg-opacity-90 transition-colors">
+            Buy Now
+          </button>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function PaymentMethods() {
+  return (
+    <div className="mt-12">
+      <h2 className="text-xl font-semibold mb-4">Payment Methods</h2>
+      <div className="flex space-x-4">
+        <div className="flex items-center justify-center bg-gray-100 p-4 rounded-lg">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/b/b7/MasterCard_Logo.svg"
+            alt="Mastercard"
+            className="h-8"
+          />
+        </div>
+        <div className="flex items-center justify-center bg-gray-100 p-4 rounded-lg">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/5/5e/Visa_Inc._logo.svg"
+            alt="Visa"
+            className="h-8"
+          />
+        </div>
+        <div className="flex items-center justify-center bg-gray-100 p-4 rounded-lg">
+          <img
+            src="https://upload.wikimedia.org/wikipedia/commons/b/b5/PayPal.svg"
+            alt="PayPal"
+            className="h-8"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TermsAndConditions() {
+  return (
+    <div className="mt-12 text-sm text-gray-600">
+      <p>
+        By purchasing coins, you agree to our{" "}
+        <a href="#" className="text-[#FE2C55] hover:underline">
+          Terms of Service
+        </a>{" "}
+        and{" "}
+        <a href="#" className="text-[#FE2C55] hover:underline">
+          Privacy Policy
+        </a>
+        .
+      </p>
+    </div>
+  );
+}
+
+export default function CoinPage() {
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <main className="container mx-auto px-4 py-8">
+        <h1 className="text-3xl font-bold mb-8">Buy Coins</h1>
+        <CoinPackages />
+        <PaymentMethods />
+        <TermsAndConditions />
+      </main>
+    </div>
+  );
+}
