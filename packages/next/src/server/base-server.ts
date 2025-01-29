@@ -1182,7 +1182,8 @@ export default abstract class Server<
             let params: ParsedUrlQuery | false = {}
 
             let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query
+              parsedUrl.query,
+              false
             )
 
             // for prerendered ISR paths we attempt parsing the route
@@ -1196,7 +1197,7 @@ export default abstract class Server<
               let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
 
               if (matcherParams) {
-                utils.normalizeDynamicRouteParams(matcherParams)
+                utils.normalizeDynamicRouteParams(matcherParams, false)
                 Object.assign(paramsResult.params, matcherParams)
                 paramsResult.hasValidParams = true
               }
@@ -1218,8 +1219,10 @@ export default abstract class Server<
               let matcherParams = utils.dynamicRouteMatcher?.(matchedPath)
 
               if (matcherParams) {
-                const curParamsResult =
-                  utils.normalizeDynamicRouteParams(matcherParams)
+                const curParamsResult = utils.normalizeDynamicRouteParams(
+                  matcherParams,
+                  false
+                )
 
                 if (curParamsResult.hasValidParams) {
                   Object.assign(params, matcherParams)
@@ -1237,17 +1240,36 @@ export default abstract class Server<
               typeof routeMatchesHeader === 'string' &&
               routeMatchesHeader &&
               isDynamicRoute(matchedPath) &&
-              (Object.keys(params).length === 0 || !paramsResult.hasValidParams)
+              !paramsResult.hasValidParams
             ) {
               const routeMatches =
                 utils.getParamsFromRouteMatches(routeMatchesHeader)
 
               if (routeMatches) {
-                paramsResult = utils.normalizeDynamicRouteParams(routeMatches)
+                paramsResult = utils.normalizeDynamicRouteParams(
+                  routeMatches,
+                  true
+                )
 
                 if (paramsResult.hasValidParams) {
                   params = paramsResult.params
                 }
+              }
+            }
+
+            // If this is a postponed request, then we need to parse the params
+            // from the query params if we couldn't parse them before.
+            if (
+              getRequestMeta(req, 'postponed') &&
+              !paramsResult.hasValidParams
+            ) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                parsedUrl.query,
+                true
+              )
+
+              if (paramsResult.hasValidParams) {
+                params = paramsResult.params
               }
             }
 
@@ -1256,7 +1278,8 @@ export default abstract class Server<
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
               !paramsResult.hasValidParams &&
-              !utils.normalizeDynamicRouteParams({ ...params }).hasValidParams
+              !utils.normalizeDynamicRouteParams({ ...params }, true)
+                .hasValidParams
             ) {
               params = utils.defaultRouteMatches
 

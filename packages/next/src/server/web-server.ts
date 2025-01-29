@@ -174,7 +174,8 @@ export default class NextWebServer extends BaseServer<
         const paramsResult = normalizeDynamicRouteParams(
           query,
           routeRegex,
-          defaultRouteMatches
+          defaultRouteMatches,
+          false
         )
         const normalizedParams = paramsResult.hasValidParams
           ? paramsResult.params
