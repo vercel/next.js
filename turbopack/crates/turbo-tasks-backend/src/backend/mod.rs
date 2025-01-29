@@ -1162,6 +1162,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             task.add_new(CachedDataItem::InProgress {
                 value: InProgressState::Scheduled { done_event },
             });
+            drop(task);
 
             // All `new_children` are currently hold active with an active count and we need to undo
             // that.
