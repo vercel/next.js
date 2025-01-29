@@ -83,7 +83,7 @@ export class EdgeRouteModuleWrapper {
 
     const { params } = utils.normalizeDynamicRouteParams(
       searchParamsToUrlQuery(request.nextUrl.searchParams),
-      true
+      false
     )
 
     const waitUntil = evt.waitUntil.bind(evt)

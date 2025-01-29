@@ -1257,12 +1257,9 @@ export default abstract class Server<
               }
             }
 
-            // If this is a postponed request, then we need to parse the params
-            // from the query params if we couldn't parse them before.
-            if (
-              getRequestMeta(req, 'postponed') &&
-              !paramsResult.hasValidParams
-            ) {
+            // Try to parse the params from the query if we couldn't parse them
+            // from the route matches but ignore missing optional params.
+            if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
                 parsedUrl.query,
                 true
