@@ -135,8 +135,8 @@ ${JSON.stringify(ref)},
       }
 
       if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-        const rscModuleInformationJson = JSON.stringify(buildInfo.rsc);
-        esmSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`;
+        const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+        esmSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
       }
 
       return this.callback(null, esmSource, sourceMap)
@@ -147,8 +147,8 @@ const { createProxy } = require("${MODULE_PROXY_PATH}")
 module.exports = createProxy(${stringifiedResourceKey})
 `
       if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-        const rscModuleInformationJson = JSON.stringify(buildInfo.rsc);
-        cjsSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`;
+        const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+        cjsSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
       }
 
       return this.callback(null, cjsSource, sourceMap)
@@ -169,8 +169,8 @@ module.exports = createProxy(${stringifiedResourceKey})
   )
 
   if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc);
-    replacedSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`;
+    const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+    replacedSource += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
   }
 
   this.callback(null, replacedSource, sourceMap)

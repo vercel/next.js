@@ -31,10 +31,10 @@ const flightClientModuleLoader: webpack.LoaderDefinitionFunction =
     }
 
     if (process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN) {
-      const rscModuleInformationJson = JSON.stringify(buildInfo.rsc);
-      source += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`;
+      const rscModuleInformationJson = JSON.stringify(buildInfo.rsc)
+      source += `\n/* __rspack_internal_rsc_module_information_do_not_use__ ${rscModuleInformationJson} */`
     }
-    
+
     return this.callback(null, source, sourceMap)
   }
 
