@@ -131,6 +131,8 @@ pub fn custom_before_pass<'a, C>(
 where
     C: Clone + Comments + 'a,
 {
+    let file_path_str = file.name.to_string();
+
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
 
@@ -182,7 +184,7 @@ where
         fn_pass(move |program| {
             if let Some(config) = &opts.styled_components {
                 program.mutate(styled_components::styled_components(
-                    &file.name,
+                    Some(&file_path_str),
                     file.src_hash,
                     config,
                     NoopComments,

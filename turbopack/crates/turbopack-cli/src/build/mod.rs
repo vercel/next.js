@@ -1,6 +1,7 @@
 use std::{
     collections::HashSet,
     env::current_dir,
+    mem::forget,
     path::{PathBuf, MAIN_SEPARATOR},
     sync::Arc,
 };
@@ -21,7 +22,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkingConfig, ChunkingContext, EvaluatableAsset,
-        EvaluatableAssets, MinifyType,
+        EvaluatableAssets, MinifyType, SourceMapsType,
     },
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment, NodeJsEnvironment},
     ident::AssetIdent,
@@ -65,6 +66,7 @@ pub struct TurbopackBuildBuilder {
     log_level: IssueSeverity,
     show_all: bool,
     log_detail: bool,
+    source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
 }
@@ -76,10 +78,13 @@ impl TurbopackBuildBuilder {
             project_dir,
             root_dir,
             entry_requests: vec![],
-            browserslist_query: "chrome 64, edge 79, firefox 67, opera 51, safari 12".into(),
+            browserslist_query: "last 1 Chrome versions, last 1 Firefox versions, last 1 Safari \
+                                 versions, last 1 Edge versions"
+                .into(),
             log_level: IssueSeverity::Warning,
             show_all: false,
             log_detail: false,
+            source_maps_type: SourceMapsType::Full,
             minify_type: MinifyType::Minify,
             target: Target::Node,
         }
@@ -110,6 +115,11 @@ impl TurbopackBuildBuilder {
         self
     }
 
+    pub fn source_maps_type(mut self, source_maps_type: SourceMapsType) -> Self {
+        self.source_maps_type = source_maps_type;
+        self
+    }
+
     pub fn minify_type(mut self, minify_type: MinifyType) -> Self {
         self.minify_type = minify_type;
         self
@@ -127,6 +137,7 @@ impl TurbopackBuildBuilder {
                 self.root_dir,
                 self.entry_requests.clone(),
                 self.browserslist_query,
+                self.source_maps_type,
                 self.minify_type,
                 self.target,
             );
@@ -171,6 +182,7 @@ async fn build_internal(
     root_dir: RcStr,
     entry_requests: Vec<EntryRequest>,
     browserslist_query: RcStr,
+    source_maps_type: SourceMapsType,
     minify_type: MinifyType,
     target: Target,
 ) -> Result<Vc<()>> {
@@ -221,6 +233,7 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
+            .source_maps(source_maps_type)
             .minify_type(minify_type);
 
             match *node_env.await? {
@@ -250,6 +263,7 @@ async fn build_internal(
                 .await?,
                 runtime_type,
             )
+            .source_maps(source_maps_type)
             .minify_type(minify_type);
 
             match *node_env.await? {
@@ -274,6 +288,7 @@ async fn build_internal(
         execution_context,
         compile_time_info,
         node_env,
+        source_maps_type,
     );
 
     let entry_requests = (*entry_requests
@@ -419,13 +434,18 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
         noop_backing_storage(),
     ));
 
-    let mut builder = TurbopackBuildBuilder::new(tt, project_dir, root_dir)
+    let mut builder = TurbopackBuildBuilder::new(tt.clone(), project_dir, root_dir)
         .log_detail(args.common.log_detail)
         .log_level(
             args.common
                 .log_level
                 .map_or_else(|| IssueSeverity::Warning, |l| l.0),
         )
+        .source_maps_type(if args.no_sourcemap {
+            SourceMapsType::None
+        } else {
+            SourceMapsType::Full
+        })
         .minify_type(if args.no_minify {
             MinifyType::NoMinify
         } else {
@@ -439,6 +459,12 @@ pub async fn build(args: &BuildArguments) -> Result<()> {
     }
 
     builder.build().await?;
+
+    // Intentionally leak this `Arc`. Otherwise we'll waste time during process exit performing a
+    // ton of drop calls.
+    if !args.force_memory_cleanup {
+        forget(tt);
+    }
 
     Ok(())
 }

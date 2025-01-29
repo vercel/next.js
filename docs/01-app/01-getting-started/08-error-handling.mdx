@@ -1,6 +1,6 @@
 ---
 title: How to handle errors
-nav_title: Error handling
+nav_title: Error Handling
 description: Learn how to display expected errors and handle uncaught exceptions.
 related:
   title: API Reference
@@ -151,8 +151,8 @@ You can call the [`notFound`](/docs/app/api-reference/functions/not-found) funct
 ```tsx filename="app/blog/[slug]/page.tsx" switcher
 import { getPostBySlug } from '@/lib/posts'
 
-export default function Page({ params }: { params: { slug: string } }) {
-  const post = getPostBySlug(params.slug)
+export default async function Page({ params }: { params: { slug: string } }) {
+  const post = getPostBySlug((await params).slug)
 
   if (!post) {
     notFound()
@@ -165,8 +165,8 @@ export default function Page({ params }: { params: { slug: string } }) {
 ```jsx filename="app/blog/[slug]/page.js" switcher
 import { getPostBySlug } from '@/lib/posts'
 
-export default function Page({ params }) {
-  const post = getPostBySlug(params.slug)
+export default async function Page({ params }) {
+  const post = getPostBySlug((await params).slug)
 
   if (!post) {
     notFound()

@@ -316,6 +316,7 @@ async fn source(
         env,
         eager_compile,
         NodeEnv::Development.cell(),
+        Default::default(),
         browserslist_query,
     )
     .to_resolved()

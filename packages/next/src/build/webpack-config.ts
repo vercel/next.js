@@ -311,13 +311,13 @@ export default async function getBaseWebpackConfig(
     dev?: boolean
     entrypoints: webpack.EntryObject
     isDevFallback?: boolean
-    pagesDir?: string
+    pagesDir: string | undefined
     reactProductionProfiling?: boolean
     rewrites: CustomRoutes['rewrites']
     originalRewrites: CustomRoutes['rewrites'] | undefined
     originalRedirects: CustomRoutes['redirects'] | undefined
     runWebpackSpan: Span
-    appDir?: string
+    appDir: string | undefined
     middlewareMatchers?: MiddlewareMatcher[]
     noMangling?: boolean
     jsConfig: any
@@ -342,9 +342,10 @@ export default async function getBaseWebpackConfig(
 
   const isRspack = Boolean(process.env.NEXT_RSPACK)
 
-const FlightClientEntryPlugin = isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
-  ? RspackFlightClientEntryPlugin
-  : NextFlightClientEntryPlugin;
+  const FlightClientEntryPlugin =
+    isRspack && process.env.BUILTIN_FLIGHT_CLIENT_ENTRY_PLUGIN
+      ? RspackFlightClientEntryPlugin
+      : NextFlightClientEntryPlugin
 
   // If the current compilation is aimed at server-side code instead of client-side code.
   const isNodeOrEdgeCompilation = isNodeServer || isEdgeServer
@@ -879,8 +880,24 @@ const FlightClientEntryPlugin = isRspack && process.env.BUILTIN_FLIGHT_CLIENT_EN
 
   const builtinModules = require('module').builtinModules
 
+  const shouldEnableSlowModuleDetection =
+    !!config.experimental.slowModuleDetection && dev
+
+  const getParallelism = () => {
+    const override = Number(process.env.NEXT_WEBPACK_PARALLELISM)
+    if (shouldEnableSlowModuleDetection) {
+      if (override) {
+        console.warn(
+          'NEXT_WEBPACK_PARALLELISM is specified but will be ignored due to experimental.slowModuleDetection being enabled.'
+        )
+      }
+      return 1
+    }
+    return override || undefined
+  }
+
   let webpackConfig: webpack.Configuration = {
-    parallelism: Number(process.env.NEXT_WEBPACK_PARALLELISM) || undefined,
+    parallelism: getParallelism(),
     ...(isNodeServer ? { externalsPresets: { node: true } } : {}),
     // @ts-ignore
     externals:
@@ -2052,6 +2069,13 @@ const FlightClientEntryPlugin = isRspack && process.env.BUILTIN_FLIGHT_CLIENT_EN
         new (
           require('./webpack/plugins/telemetry-plugin/telemetry-plugin') as typeof import('./webpack/plugins/telemetry-plugin/telemetry-plugin')
         ).TelemetryPlugin(new Map()),
+      shouldEnableSlowModuleDetection &&
+        new (
+          require('./webpack/plugins/slow-module-detection-plugin') as typeof import('./webpack/plugins/slow-module-detection-plugin')
+        ).default({
+          compilerType,
+          ...config.experimental.slowModuleDetection!,
+        }),
     ].filter(Boolean as any as ExcludesFalse),
   }
 

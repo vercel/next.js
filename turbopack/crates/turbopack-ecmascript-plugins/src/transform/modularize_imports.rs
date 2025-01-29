@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
 use modularize_imports::{modularize_imports, Config, PackageConfig};
@@ -30,7 +32,7 @@ impl ModularizeImportsTransformer {
                     .map(|(k, v)| {
                         (
                             k.clone(),
-                            PackageConfig {
+                            Arc::new(PackageConfig {
                                 transform: modularize_imports::Transform::String(
                                     v.transform.clone(),
                                 ),
@@ -38,7 +40,7 @@ impl ModularizeImportsTransformer {
                                 skip_default_conversion: v.skip_default_conversion,
                                 handle_default_import: false,
                                 handle_namespace_import: false,
-                            },
+                            }),
                         )
                     })
                     .collect(),
