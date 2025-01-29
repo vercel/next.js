@@ -91,21 +91,21 @@ turbopack-trace-utils = { path = "turbopack/crates/turbopack-trace-utils" }
 turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
-swc_core = { version = "10.5.0", features = [
+swc_core = { version = "12.0.0", features = [
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }
 testing = { version = "5.0.0" }
 
 # Keep consistent with preset_env_base through swc_core
-browserslist-rs = { version = "0.16.0" }
+browserslist-rs = { version = "0.17.0" }
 miette = { version = "5.10.0", features = ["fancy"] }
 mdxjs = "0.2.15"
-modularize_imports = { version = "0.72.0" }
-styled_components = { version = "0.100.1" }
-styled_jsx = { version = "0.76.0" }
-swc_emotion = { version = "0.76.0" }
-swc_relay = { version = "0.46.1" }
+modularize_imports = { version = "0.74.0" }
+styled_components = { version = "0.102.0" }
+styled_jsx = { version = "0.78.0" }
+swc_emotion = { version = "0.78.0" }
+swc_relay = { version = "0.48.0" }
 
 # General Deps
 chromiumoxide = { version = "0.5.4", features = [
@@ -224,3 +224,6 @@ wasmer = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-cache = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-compiler-cranelift = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
 wasmer-wasix = { git = "https://github.com/kdy1/wasmer", branch = "build-deps" }
+
+# Remove this once https://github.com/wooorm/mdxjs-rs/pull/62 is merged and released
+mdxjs = { git="https://github.com/kdy1/mdxjs-rs.git", branch="swc-core-11" }

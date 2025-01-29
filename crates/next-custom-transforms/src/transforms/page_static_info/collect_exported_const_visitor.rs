@@ -37,6 +37,7 @@ impl CollectExportedConstVisitor {
                 unresolved_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
                 is_unresolved_ref_safe: false,
                 in_strict: false,
+                remaining_depth: 4,
             },
         }
     }
@@ -61,7 +62,7 @@ impl Visit for CollectExportedConstVisitor {
                         {
                             let id = id.sym.as_ref();
                             if let Some(prop) = self.properties.get_mut(id) {
-                                *prop = extract_value(&self.expr_ctx, init, id.to_string());
+                                *prop = extract_value(self.expr_ctx, init, id.to_string());
                             };
                         }
                     }
@@ -74,7 +75,7 @@ impl Visit for CollectExportedConstVisitor {
 }
 
 /// Coerece the actual value of the given ast node.
-fn extract_value(ctx: &ExprCtx, init: &Expr, id: String) -> Option<Const> {
+fn extract_value(ctx: ExprCtx, init: &Expr, id: String) -> Option<Const> {
     match init {
         init if init.is_undefined(ctx) => Some(Const::Value(Value::Null)),
         Expr::Ident(ident) => Some(Const::Unsupported(format!(
