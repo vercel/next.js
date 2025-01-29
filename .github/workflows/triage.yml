@@ -17,7 +17,7 @@ jobs:
     name: Nissuer
     runs-on: ubuntu-latest
     steps:
-      - uses: balazsorban44/nissuer@1.10.0
+      - uses: balazsorban44/nissuer@1.11.0
         with:
           label-area-prefix: ''
           label-area-match: 'name'
@@ -36,4 +36,5 @@ jobs:
           reproduction-link-section: '### Link to the code that reproduces this issue(.*)### To Reproduce'
           reproduction-invalid-label: 'invalid link'
           reproduction-issue-labels: 'bug,'
+          comment-unhelpful-ignore-labels: 'stale,'
           comment-unhelpful-weight: 0.5
