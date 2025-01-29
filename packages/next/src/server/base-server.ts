@@ -1237,13 +1237,16 @@ export default abstract class Server<
               typeof routeMatchesHeader === 'string' &&
               routeMatchesHeader &&
               isDynamicRoute(matchedPath) &&
-              (Object.keys(params).length === 0 || !paramsResult.hasValidParams)
+              !paramsResult.hasValidParams
             ) {
               const routeMatches =
                 utils.getParamsFromRouteMatches(routeMatchesHeader)
 
               if (routeMatches) {
-                paramsResult = utils.normalizeDynamicRouteParams(routeMatches)
+                paramsResult = utils.normalizeDynamicRouteParams(
+                  routeMatches,
+                  true
+                )
 
                 if (paramsResult.hasValidParams) {
                   params = paramsResult.params
@@ -1256,7 +1259,8 @@ export default abstract class Server<
               utils.defaultRouteMatches &&
               normalizedUrlPath === srcPathname &&
               !paramsResult.hasValidParams &&
-              !utils.normalizeDynamicRouteParams({ ...params }).hasValidParams
+              !utils.normalizeDynamicRouteParams({ ...params }, true)
+                .hasValidParams
             ) {
               params = utils.defaultRouteMatches
 
@@ -1272,7 +1276,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, [
+            utils.normalizeVercelUrl(req, true, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])

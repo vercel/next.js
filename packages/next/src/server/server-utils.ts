@@ -24,34 +24,36 @@ import { normalizeNextQueryParam } from './web/utils'
 
 export function normalizeVercelUrl(
   req: BaseNextRequest,
-  paramKeys: string[],
-  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex> | undefined
+  trustQuery: boolean,
+  paramKeys?: string[],
+  pageIsDynamic?: boolean,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined
 ) {
-  if (!defaultRouteRegex) return
-
   // make sure to normalize req.url on Vercel to strip dynamic params
   // from the query which are added during routing
-  const _parsedUrl = parseUrl(req.url!, true)
-  delete (_parsedUrl as any).search
+  if (pageIsDynamic && trustQuery && defaultRouteRegex) {
+    const _parsedUrl = parseUrl(req.url!, true)
+    delete (_parsedUrl as any).search
 
-  for (const key of Object.keys(_parsedUrl.query)) {
-    const isNextQueryPrefix =
-      key !== NEXT_QUERY_PARAM_PREFIX && key.startsWith(NEXT_QUERY_PARAM_PREFIX)
+    for (const key of Object.keys(_parsedUrl.query)) {
+      const isNextQueryPrefix =
+        key !== NEXT_QUERY_PARAM_PREFIX &&
+        key.startsWith(NEXT_QUERY_PARAM_PREFIX)
 
-    const isNextInterceptionMarkerPrefix =
-      key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
-      key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
+      const isNextInterceptionMarkerPrefix =
+        key !== NEXT_INTERCEPTION_MARKER_PREFIX &&
+        key.startsWith(NEXT_INTERCEPTION_MARKER_PREFIX)
 
-    if (
-      isNextQueryPrefix ||
-      isNextInterceptionMarkerPrefix ||
-      (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
-    ) {
-      delete _parsedUrl.query[key]
+      if (
+        isNextQueryPrefix ||
+        isNextInterceptionMarkerPrefix ||
+        (paramKeys || Object.keys(defaultRouteRegex.groups)).includes(key)
+      ) {
+        delete _parsedUrl.query[key]
+      }
     }
+    req.url = formatUrl(_parsedUrl)
   }
-
-  req.url = formatUrl(_parsedUrl)
 }
 
 export function interpolateDynamicPath(
@@ -88,10 +90,13 @@ export function interpolateDynamicPath(
 
 export function normalizeDynamicRouteParams(
   params: ParsedUrlQuery,
-  defaultRouteRegex: ReturnType<typeof getNamedRouteRegex>,
-  defaultRouteMatches: ParsedUrlQuery
+  ignoreOptional?: boolean,
+  defaultRouteRegex?: ReturnType<typeof getNamedRouteRegex> | undefined,
+  defaultRouteMatches?: ParsedUrlQuery | undefined
 ) {
   let hasValidParams = true
+  if (!defaultRouteRegex) return { params, hasValidParams: false }
+
   params = Object.keys(defaultRouteRegex.groups).reduce((prev, key) => {
     let value: string | string[] | undefined = params[key]
 
@@ -121,7 +126,10 @@ export function normalizeDynamicRouteParams(
         })
       : value?.includes(defaultValue as string)
 
-    if (isDefaultValue || (typeof value === 'undefined' && !isOptional)) {
+    if (
+      isDefaultValue ||
+      (typeof value === 'undefined' && !(isOptional && ignoreOptional))
+    ) {
       hasValidParams = false
     }
 
@@ -367,19 +375,28 @@ export function getUtils({
     dynamicRouteMatcher,
     defaultRouteMatches,
     getParamsFromRouteMatches,
-    normalizeDynamicRouteParams: (params: ParsedUrlQuery) => {
-      if (!defaultRouteRegex || !defaultRouteMatches) {
-        return { params, hasValidParams: false }
-      }
-
-      return normalizeDynamicRouteParams(
+    normalizeDynamicRouteParams: (
+      params: ParsedUrlQuery,
+      ignoreOptional?: boolean
+    ) =>
+      normalizeDynamicRouteParams(
         params,
+        ignoreOptional,
         defaultRouteRegex,
         defaultRouteMatches
-      )
-    },
-    normalizeVercelUrl: (req: BaseNextRequest, paramKeys: string[]) =>
-      normalizeVercelUrl(req, paramKeys, defaultRouteRegex),
+      ),
+    normalizeVercelUrl: (
+      req: BaseNextRequest,
+      trustQuery: boolean,
+      paramKeys?: string[]
+    ) =>
+      normalizeVercelUrl(
+        req,
+        trustQuery,
+        paramKeys,
+        pageIsDynamic,
+        defaultRouteRegex
+      ),
     interpolateDynamicPath: (
       pathname: string,
       params: Record<string, undefined | string | string[]>
