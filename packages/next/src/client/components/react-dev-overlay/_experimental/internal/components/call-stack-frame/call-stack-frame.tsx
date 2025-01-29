@@ -86,6 +86,7 @@ export const CALL_STACK_FRAME_STYLES = css`
     margin-bottom: var(--size-1);
 
     border-radius: var(--rounded-lg);
+    transition: background 100ms ease-out;
 
     &:not(:disabled):hover {
       background: var(--color-gray-alpha-100);
@@ -97,7 +98,7 @@ export const CALL_STACK_FRAME_STYLES = css`
     }
 
     &:focus {
-      outline: none;
+      outline: var(--focus-ring);
     }
   }
 
@@ -107,6 +108,7 @@ export const CALL_STACK_FRAME_STYLES = css`
     gap: var(--size-1);
 
     margin-bottom: var(--size-1);
+    font-family: var(--font-stack-monospace);
 
     color: var(--color-gray-1000);
     font-size: var(--size-font-small);

@@ -9,7 +9,6 @@ import {
   ErrorOverlayToolbar,
   styles as toolbarStyles,
 } from '../error-overlay-toolbar/error-overlay-toolbar'
-import { ErrorOverlayBottomStacks } from '../error-overlay-bottom-stacks/error-overlay-bottom-stacks'
 import { ErrorOverlayFooter } from '../error-overlay-footer/error-overlay-footer'
 import { noop as css } from '../../../helpers/noop-template'
 import {
@@ -70,7 +69,12 @@ export function ErrorOverlayLayout({
 }: ErrorOverlayLayoutProps) {
   return (
     <ErrorOverlayOverlay fixed={isBuildError}>
-      <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
+      <ErrorOverlayDialog
+        onClose={onClose}
+        isTurbopack={isTurbopack}
+        count={readyErrors?.length ?? 0}
+        activeIdx={activeIdx ?? 0}
+      >
         <DialogContent>
           <ErrorOverlayFloatingHeader
             readyErrors={readyErrors}
@@ -98,10 +102,6 @@ export function ErrorOverlayLayout({
             <ErrorOverlayFooter
               footerMessage={footerMessage}
               errorCode={errorCode}
-            />
-            <ErrorOverlayBottomStacks
-              errorsCount={readyErrors?.length ?? 0}
-              activeIdx={activeIdx ?? 0}
             />
           </DialogFooter>
         </DialogContent>

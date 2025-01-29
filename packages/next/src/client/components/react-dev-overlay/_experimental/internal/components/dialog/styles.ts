@@ -10,7 +10,11 @@ const styles = css`
     margin-right: auto;
     margin-left: auto;
     outline: none;
+  }
+
+  [data-nextjs-dialog-container] {
     overflow-y: hidden;
+    border-radius: inherit;
   }
 
   @media (max-height: 812px) {
