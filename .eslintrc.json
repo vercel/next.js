@@ -162,7 +162,7 @@
       "files": ["packages/**"],
       "excludedFiles": [
         "packages/next/taskfile*.js",
-        "packages/next/next_runtime.config.js"
+        "packages/next/next-runtime.webpack-config.js"
       ],
       "rules": {
         "no-shadow": ["error", { "builtinGlobals": false }],
