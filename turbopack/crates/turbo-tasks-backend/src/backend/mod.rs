@@ -1235,7 +1235,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Filter actual new children
         for old_child in iter_many!(task, Child { task } => task) {
-            if !new_children.remove(&old_child) {
+            if !has_children || !new_children.remove(&old_child) {
                 old_edges.push(OutdatedEdge::Child(old_child));
             }
         }
