@@ -4083,9 +4083,15 @@ mod tests {
                     let large = large_marker.exists();
 
                     if !large {
-                        NormalizedOutput::from(format!("{:#?}", named_values))
-                            .compare_to_file(&graph_snapshot_path)
-                            .unwrap();
+                        NormalizedOutput::from(format!(
+                            "{:#?}",
+                            named_values
+                                .iter()
+                                .map(|(name, (_, value))| (name, value))
+                                .collect::<Vec<_>>()
+                        ))
+                        .compare_to_file(&graph_snapshot_path)
+                        .unwrap();
                     }
                     NormalizedOutput::from(explain_all(
                         named_values.iter().map(|(name, (_, value))| (name, value)),
