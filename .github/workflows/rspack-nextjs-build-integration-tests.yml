@@ -99,7 +99,7 @@ jobs:
           name: test-reports-start-${{ matrix.group }}
           if-no-files-found: 'error'
           path: |
-            test/turbopack-test-junit-report
+            test/rspack-test-junit-report
 
   test-integration-production:
     name: Next.js integration test (Integration)
