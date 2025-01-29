@@ -1330,12 +1330,9 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
-    if (this.minimalMode) {
-      return null
-    } else {
-      const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
-      return manifest
-    }
+    if (this.minimalMode) return null
+    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
+    return manifest
   }
 
   /** Returns the middleware routing item if there is one. */

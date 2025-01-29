@@ -1,7 +1,7 @@
 // Source: https://github.com/mondaychen/devtools-ignore-webpack-plugin/blob/e35ce41d9606a92a455ef247f509a1c2ccab5778/src/index.ts
 
 // eslint-disable-next-line import/no-extraneous-dependencies -- this is a dev-only file
-const webpack = require('@rspack/core')
+const webpack = require('webpack')
 
 // Following the naming conventions from
 // https://tc39.es/source-map/#source-map-format
@@ -28,12 +28,12 @@ module.exports = class DevToolsIgnorePlugin {
     }
   }
   apply(compiler) {
-    const { RawSource } = webpack.sources
+    const { RawSource } = compiler.webpack.sources
     compiler.hooks.compilation.tap(PLUGIN_NAME, (compilation) => {
       compilation.hooks.processAssets.tap(
         {
           name: PLUGIN_NAME,
-          stage: compilation.PROCESS_ASSETS_STAGE_DEV_TOOLING,
+          stage: webpack.Compilation.PROCESS_ASSETS_STAGE_DEV_TOOLING,
           additionalAssets: true,
         },
         (assets) => {
