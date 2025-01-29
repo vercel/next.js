@@ -1229,7 +1229,9 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let has_children = !new_children.is_empty();
 
         // Prepare all new children
-        prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+        if has_children {
+            prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+        }
 
         // Filter actual new children
         for old_child in iter_many!(task, Child { task } => task) {
