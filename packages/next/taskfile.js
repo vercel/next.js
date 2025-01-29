@@ -247,6 +247,14 @@ export async function ncc_node_fetch(task, opts) {
     .source(relative(__dirname, require.resolve('node-fetch')))
     .ncc({ packageName: 'node-fetch', externals })
     .target('src/compiled/node-fetch')
+
+  const clientFile = join(__dirname, 'src/compiled/node-fetch/index.js')
+  const content = await fs.readFile(clientFile, 'utf8')
+  // punycode/ uses external punycode library and not the node internal one
+  await fs.writeFile(
+    clientFile,
+    content.replace(/punycode/g, 'punycode/')
+  )
 }
 
 externals['anser'] = 'next/dist/compiled/anser'
