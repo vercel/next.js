@@ -1643,6 +1643,23 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         }
     }
 
+    fn set_own_task_aggregation_number(
+        &self,
+        task: TaskId,
+        aggregation_number: u32,
+        turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>,
+    ) {
+        let mut ctx = self.execute_context(turbo_tasks);
+        AggregationUpdateQueue::run(
+            AggregationUpdateJob::UpdateAggregationNumber {
+                task_id: task,
+                base_aggregation_number: aggregation_number,
+                distance: None,
+            },
+            &mut ctx,
+        );
+    }
+
     fn connect_task(
         &self,
         task: TaskId,
@@ -1932,6 +1949,16 @@ impl<B: BackingStorage> Backend for TurboTasksBackend<B> {
         turbo_tasks: &dyn TurboTasksBackendApi<Self>,
     ) {
         self.0.mark_own_task_as_finished(task_id, turbo_tasks);
+    }
+
+    fn set_own_task_aggregation_number(
+        &self,
+        task: TaskId,
+        aggregation_number: u32,
+        turbo_tasks: &dyn TurboTasksBackendApi<Self>,
+    ) {
+        self.0
+            .set_own_task_aggregation_number(task, aggregation_number, turbo_tasks);
     }
 
     fn mark_own_task_as_session_dependent(
