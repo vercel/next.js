@@ -173,6 +173,7 @@ export default class NextWebServer extends BaseServer<
         ) as NextParsedUrlQuery
         const paramsResult = normalizeDynamicRouteParams(
           query,
+          false,
           routeRegex,
           defaultRouteMatches
         )
@@ -185,7 +186,13 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeVercelUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
+        normalizeVercelUrl(
+          req,
+          true,
+          Object.keys(routeRegex.routeKeys),
+          true,
+          routeRegex
+        )
       }
     }
 
