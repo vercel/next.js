@@ -20,6 +20,11 @@ import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loa
 import { createProgress } from '../progress'
 import * as Log from '../output/log'
 import { promises as fs } from 'fs'
+import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
+import loadConfig from '../../server/config'
+import { hasCustomExportOutput } from '../../export/utils'
+import { Telemetry } from '../../telemetry/storage'
+import { setGlobal } from '../../trace'
 
 const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
 
@@ -297,4 +302,33 @@ export async function turbopackBuild(): Promise<{
     buildTraceContext: undefined,
     shutdownPromise,
   }
+}
+
+export async function workerMain(workerData: {
+  buildContext: typeof NextBuildContext
+}): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
+  // setup new build context from the serialized data passed from the parent
+  Object.assign(NextBuildContext, workerData.buildContext)
+
+  /// load the config because it's not serializable
+  NextBuildContext.config = await loadConfig(
+    PHASE_PRODUCTION_BUILD,
+    NextBuildContext.dir!
+  )
+
+  // Matches handling in build/index.ts
+  // https://github.com/vercel/next.js/blob/84f347fc86f4efc4ec9f13615c215e4b9fb6f8f0/packages/next/src/build/index.ts#L815-L818
+  // Ensures the `config.distDir` option is matched.
+  if (hasCustomExportOutput(NextBuildContext.config)) {
+    NextBuildContext.config.distDir = '.next'
+  }
+
+  // Clone the telemetry for worker
+  const telemetry = new Telemetry({
+    distDir: NextBuildContext.config.distDir,
+  })
+  setGlobal('telemetry', telemetry)
+
+  const result = await turbopackBuild()
+  return result
 }
