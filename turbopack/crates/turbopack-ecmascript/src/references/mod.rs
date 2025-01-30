@@ -118,7 +118,7 @@ use crate::{
         builtin::early_replace_builtin,
         graph::{ConditionalKind, EffectArg, EvalContext, VarGraph},
         imports::{ImportAnnotations, ImportAttributes, ImportedSymbol, Reexport},
-        match_free_var_reference, parse_require_context,
+        parse_require_context,
         top_level_await::has_top_level_await,
         ConstantNumber, ConstantString, JsValueUrlKind, RequireContextValue,
     },
@@ -2352,8 +2352,7 @@ async fn handle_typeof(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if let Some(value) = match_free_var_reference(
-        &arg,
+    if let Some(value) = arg.match_free_var_reference(
         Some(state.var_graph),
         &*state
             .compile_time_info
@@ -2726,8 +2725,7 @@ async fn value_visitor_inner(
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
         if let JsValue::TypeOf(_, arg) = &v {
-            if let Some(value) = match_free_var_reference(
-                arg,
+            if let Some(value) = arg.match_free_var_reference(
                 Some(var_graph),
                 &*compile_time_info.free_var_references.individual().await?,
                 &DefineableNameSegment::TypeOf,
