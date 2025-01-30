@@ -1230,6 +1230,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                     span,
                     in_try: _,
                 } => {
+                    // Intentionally not awaited because `handle_member` reads this only when neeed.
                     let obj = analysis_state.link_value(*obj, ImportAttributes::empty_ref());
 
                     let prop = analysis_state
