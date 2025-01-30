@@ -62,6 +62,7 @@ use turbopack_core::{
     },
     environment::Rendering,
     error::PrettyPrintError,
+    free_var_references_into,
     issue::{analyze::AnalyzeIssue, IssueExt, IssueSeverity, IssueSource, StyledString},
     module::Module,
     reference::{ModuleReference, ModuleReferences, SourceMapReference},
@@ -1366,6 +1367,29 @@ pub(crate) async fn analyse_ecmascript_module_internal(
         .await
 }
 
+const TUBROPACK_RUNTIME_FUNCTIONS: [(&str, &str); 20] = [
+    ("__turbopack_require__", "r"),
+    ("__turbopack_module_context__", "f"),
+    ("__turbopack_import__", "i"),
+    ("__turbopack_esm__", "s"),
+    ("__turbopack_export_value__", "v"),
+    ("__turbopack_export_namespace__", "n"),
+    ("__turbopack_cache__", "c"),
+    ("__turbopack_modules__", "M"),
+    ("__turbopack_load__", "l"),
+    ("__turbopack_dynamic__", "j"),
+    ("__turbopack_resolve_absolute_path__", "P"),
+    ("__turbopack_relative_url__", "U"),
+    ("__turbopack_resolve_module_id_path__", "R"),
+    ("__turbopack_worker_blob_url__", "b"),
+    ("__turbopack_async_module__", "a"),
+    ("__turbopack_external_require__", "x"),
+    ("__turbopack_external_import__", "y"),
+    ("__turbopack_refresh__", "k"),
+    ("__turbopack_require_stub__", "z"),
+    ("__turbopack_require_real__", "t"),
+];
+
 #[turbo_tasks::function]
 async fn compile_time_info_for_module_type(
     compile_time_info: Vc<CompileTimeInfo>,
@@ -1409,22 +1433,16 @@ async fn compile_time_info_for_module_type(
         .entry(vec![DefineableNameSegment::Name("require".into())])
         .or_insert(FreeVarReference::Ident(require.into()));
 
-    free_var_references
-        .entry(vec![DefineableNameSegment::Name(
-            "__turbopack_load__".into(),
-        )])
-        .or_insert(FreeVarReference::Member(
-            "__turbopack_context__".into(),
-            "l".into(),
-        ));
-    free_var_references
-        .entry(vec![DefineableNameSegment::Name(
-            "__turbopack_require__".into(),
-        )])
-        .or_insert(FreeVarReference::Member(
-            "__turbopack_context__".into(),
-            "r".into(),
-        ));
+    free_var_references.extend(
+        TUBROPACK_RUNTIME_FUNCTIONS
+            .into_iter()
+            .map(|(name, shortcut)| {
+                (
+                    vec![DefineableNameSegment::Name(name.into())],
+                    FreeVarReference::Member("__turbopack_context__".into(), shortcut.into()),
+                )
+            }),
+    );
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
