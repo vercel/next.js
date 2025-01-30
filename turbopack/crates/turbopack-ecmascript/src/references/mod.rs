@@ -2281,9 +2281,10 @@ async fn handle_member(
         let compile_time_info = state.compile_time_info.await?;
         let free_var_references = compile_time_info.free_var_references.individual().await?;
 
-        let (references, is_cache) = (free_var_references.get(&prop_seg), prop == "cache");
+        let references = free_var_references.get(&prop_seg);
+        let is_prop_cache = prop == "cache";
         // This isn't pretty, but we cannot await the future twice in the two branches below.
-        let obj = if references.is_some() || is_cache {
+        let obj = if references.is_some() || is_prop_cache {
             Some(link_obj.await?)
         } else {
             None
@@ -2310,7 +2311,7 @@ async fn handle_member(
             }
         }
 
-        if is_cache {
+        if is_prop_cache {
             if let JsValue::WellKnownFunction(WellKnownFunctionKind::Require { .. }) =
                 obj.as_ref().unwrap()
             {
