@@ -2292,8 +2292,12 @@ async fn handle_member(
 
         if let Some(references) = references {
             let obj = obj.as_ref().unwrap();
-            if obj.get_defineable_name_len().is_some() {
+            if let Some(def_name_len) = obj.get_defineable_name_len() {
                 for (name, value) in references {
+                    if name.len() != def_name_len {
+                        continue;
+                    }
+
                     let it = name.iter().map(Cow::Borrowed).rev();
                     if it.eq(obj.iter_defineable_name_rev())
                         && handle_free_var_reference(
@@ -2353,12 +2357,16 @@ async fn handle_free_var(
     state: &AnalysisState<'_>,
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
-    if var.get_defineable_name_len().is_some() {
+    if let Some(def_name_len) = var.get_defineable_name_len() {
         let compile_time_info = state.compile_time_info.await?;
         let free_var_references = compile_time_info.free_var_references.individual().await?;
         let first = var.iter_defineable_name_rev().next().unwrap();
         if let Some(references) = free_var_references.get(&*first) {
             for (name, value) in references {
+                if name.len() + 1 != def_name_len {
+                    continue;
+                }
+
                 let it = name.iter().map(Cow::Borrowed).rev();
                 if it.eq(var.iter_defineable_name_rev().skip(1)) {
                     handle_free_var_reference(ast_path, &*value.await?, span, state, analysis)

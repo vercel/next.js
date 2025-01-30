@@ -1943,9 +1943,13 @@ impl JsValue {
         >,
         prop: &DefineableNameSegment,
     ) -> Option<&'a T> {
-        if self.get_defineable_name_len().is_some() {
+        if let Some(def_name_len) = self.get_defineable_name_len() {
             if let Some(references) = free_var_references.get(prop) {
                 for (name, value) in references {
+                    if name.len() != def_name_len {
+                        continue;
+                    }
+
                     let name_rev_it = name.iter().map(Cow::Borrowed).rev();
                     if name_rev_it.eq(self.iter_defineable_name_rev()) {
                         if let Some(var_graph) = var_graph {
