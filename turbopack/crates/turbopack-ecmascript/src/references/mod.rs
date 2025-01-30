@@ -49,11 +49,14 @@ use swc_core::{
 };
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexSet, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc};
+use turbo_tasks::{
+    FxIndexMap, FxIndexSet, ReadRef, ResolvedVc, TryJoinIterExt, Upcast, Value, ValueToString, Vc,
+};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     compile_time_info::{
         CompileTimeInfo, DefineableNameSegment, FreeVarReference, FreeVarReferences,
+        FreeVarReferencesIndividual,
     },
     environment::Rendering,
     error::PrettyPrintError,
@@ -323,6 +326,7 @@ struct AnalysisState<'a> {
     import_externals: bool,
     ignore_dynamic_requests: bool,
     url_rewrite_behavior: Option<UrlRewriteBehavior>,
+    free_var_references: ReadRef<FreeVarReferencesIndividual>,
 }
 
 impl AnalysisState<'_> {
@@ -337,6 +341,7 @@ impl AnalysisState<'_> {
                     *self.origin,
                     value,
                     *self.compile_time_info,
+                    &self.free_var_references,
                     self.var_graph,
                     attributes,
                 )
@@ -906,6 +911,11 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             import_externals: options.import_externals,
             ignore_dynamic_requests: options.ignore_dynamic_requests,
             url_rewrite_behavior: options.url_rewrite_behavior,
+            free_var_references: compile_time_info
+                .await?
+                .free_var_references
+                .individual()
+                .await?,
         };
 
         enum Action {
@@ -2278,11 +2288,10 @@ async fn handle_member(
 ) -> Result<()> {
     if let Some(prop) = prop.as_str() {
         let prop_seg = DefineableNameSegment::Name(prop.into());
-        let compile_time_info = state.compile_time_info.await?;
-        let free_var_references = compile_time_info.free_var_references.individual().await?;
 
-        let references = free_var_references.get(&prop_seg);
+        let references = state.free_var_references.get(&prop_seg);
         let is_prop_cache = prop == "cache";
+
         // This isn't pretty, but we cannot await the future twice in the two branches below.
         let obj = if references.is_some() || is_prop_cache {
             Some(link_obj.await?)
@@ -2358,10 +2367,8 @@ async fn handle_free_var(
     analysis: &mut AnalyzeEcmascriptModuleResultBuilder,
 ) -> Result<()> {
     if let Some(def_name_len) = var.get_defineable_name_len() {
-        let compile_time_info = state.compile_time_info.await?;
-        let free_var_references = compile_time_info.free_var_references.individual().await?;
         let first = var.iter_defineable_name_rev().next().unwrap();
-        if let Some(references) = free_var_references.get(&*first) {
+        if let Some(references) = state.free_var_references.get(&*first) {
             for (name, value) in references {
                 if name.len() + 1 != def_name_len {
                     continue;
@@ -2690,11 +2697,22 @@ async fn value_visitor(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    free_var_references: &FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
-    let (mut v, modified) =
-        value_visitor_inner(origin, v, compile_time_info, var_graph, attributes).await?;
+    let (mut v, modified) = value_visitor_inner(
+        origin,
+        v,
+        compile_time_info,
+        free_var_references,
+        var_graph,
+        attributes,
+    )
+    .await?;
     v.normalize_shallow();
     Ok((v, modified))
 }
@@ -2703,6 +2721,10 @@ async fn value_visitor_inner(
     origin: Vc<Box<dyn ResolveOrigin>>,
     v: JsValue,
     compile_time_info: Vc<CompileTimeInfo>,
+    free_var_references: &FxIndexMap<
+        DefineableNameSegment,
+        FxIndexMap<Vec<DefineableNameSegment>, ResolvedVc<FreeVarReference>>,
+    >,
     var_graph: &VarGraph,
     attributes: &ImportAttributes,
 ) -> Result<(JsValue, bool)> {
@@ -2713,7 +2735,7 @@ async fn value_visitor_inner(
         if let JsValue::TypeOf(_, arg) = &v {
             if let Some(value) = arg.match_free_var_reference(
                 Some(var_graph),
-                &*compile_time_info.free_var_references.individual().await?,
+                free_var_references,
                 &DefineableNameSegment::TypeOf,
             ) {
                 return Ok(((&*value.await?).into(), true));
