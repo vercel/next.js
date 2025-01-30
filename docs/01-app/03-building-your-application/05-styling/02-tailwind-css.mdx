@@ -66,9 +66,7 @@ You do not need to modify `postcss.config.js`.
 Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/app/building-your-application/styling/css#global-styles) in your application, for example:
 
 ```css filename="app/globals.css"
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 ```
 
 Inside the [root layout](/docs/app/building-your-application/routing/layouts-and-templates#root-layout-required) (`app/layout.tsx`), import the `globals.css` stylesheet to apply the styles to every route in your application.
@@ -140,9 +138,7 @@ export default function Page() {
 Add the [Tailwind CSS directives](https://tailwindcss.com/docs/functions-and-directives#directives) that Tailwind will use to inject its generated styles to a [Global Stylesheet](/docs/pages/building-your-application/styling/css#global-styles) in your application, for example:
 
 ```css filename="styles/globals.css"
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import tailwindcss;
 ```
 
 Inside the [custom app file](/docs/pages/building-your-application/routing/custom-app) (`pages/_app.js`), import the `globals.css` stylesheet to apply the styles to every route in your application.
