@@ -6,6 +6,15 @@ export function Base() {
     <style>
       {css`
         :host {
+          ${
+            // Although the style applied to the shadow host is isolated,
+            // the element that attached the shadow host (i.e. `nextjs-portal`)
+            // is still affected by the parent's style (e.g. `body`). This may
+            // occur style conflicts like `display: flex`, with other children
+            // elements therefore give the shadow host an absolute position.
+            'position: absolute;'
+          }
+
           --size-gap-half: 4px;
           --size-gap: 8px;
           --size-gap-double: 16px;

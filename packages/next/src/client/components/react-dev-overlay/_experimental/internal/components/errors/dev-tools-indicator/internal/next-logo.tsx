@@ -1,25 +1,29 @@
-import { useEffect, useRef, useState } from 'react'
+import { forwardRef, useEffect, useRef, useState } from 'react'
 import { noop as css } from '../../../../../../internal/helpers/noop-template'
+import mergeRefs from '../../../../helpers/merge-refs'
 import { useMinimumLoadingTimeMultiple } from './use-minimum-loading-time-multiple'
 
 interface Props extends React.ComponentProps<'button'> {
   issueCount: number
   isDevBuilding: boolean
   isDevRendering: boolean
-  onLogoClick: () => void
-  onIssuesClick: () => void
+  onTriggerClick: () => void
+  openErrorOverlay: () => void
 }
 
 const SIZE = 36
 
-export const NextLogo = ({
-  issueCount,
-  isDevBuilding,
-  isDevRendering,
-  onLogoClick,
-  onIssuesClick,
-  ...props
-}: Props) => {
+export const NextLogo = forwardRef(function NextLogo(
+  {
+    issueCount,
+    isDevBuilding,
+    isDevRendering,
+    onTriggerClick,
+    openErrorOverlay,
+    ...props
+  }: Props,
+  propRef: React.Ref<HTMLButtonElement>
+) {
   const hasError = issueCount > 0
   const [isErrorExpanded, setIsErrorExpanded] = useState(hasError)
   const triggerRef = useRef<HTMLButtonElement | null>(null)
@@ -28,13 +32,6 @@ export const NextLogo = ({
   const isLoading = useMinimumLoadingTimeMultiple(
     isDevBuilding || isDevRendering
   )
-
-  useEffect(() => {
-    if (hasError) {
-      setIsErrorExpanded(true)
-    }
-  }, [hasError])
-
   return (
     <div
       data-next-badge-root
@@ -90,7 +87,7 @@ export const NextLogo = ({
               box-shadow var(--duration) var(--timing),
               background 150ms ease;
 
-            &:active:not([data-error='true']) {
+            &:active[data-error='false'] {
               scale: 0.95;
             }
 
@@ -287,9 +284,9 @@ export const NextLogo = ({
         <div ref={ref}>
           {/* Children */}
           <button
-            ref={triggerRef}
+            ref={mergeRefs(triggerRef, propRef)}
             data-next-mark
-            onClick={onLogoClick}
+            onClick={onTriggerClick}
             {...props}
           >
             <NextMark isLoading={isLoading} />
@@ -299,7 +296,7 @@ export const NextLogo = ({
               <button
                 data-issues-open
                 aria-label="Open issues overlay"
-                onClick={onIssuesClick}
+                onClick={openErrorOverlay}
               >
                 <span data-issues-count>{issueCount}</span>{' '}
                 {issueCount === 1 ? 'Issue' : 'Issues'}
@@ -322,7 +319,7 @@ export const NextLogo = ({
       <div aria-hidden data-dot />
     </div>
   )
-}
+})
 
 function useMeasureWidth(ref: React.RefObject<HTMLDivElement | null>) {
   const [width, setWidth] = useState<number>(0)

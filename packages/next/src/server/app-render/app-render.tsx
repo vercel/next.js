@@ -1038,9 +1038,9 @@ function App<T>({
   const initialState = createInitialRouterState({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
-    // location and initialParallelRoutes are not initialized in the SSR render
-    // they are set to an empty map and window.location, respectively during hydration
-    initialParallelRoutes: null!,
+    initialParallelRoutes: new Map(),
+    // location is not initialized in the SSR render
+    // it's set to window.location during hydration
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,
@@ -1096,9 +1096,9 @@ function AppWithoutContext<T>({
   const initialState = createInitialRouterState({
     initialFlightData: response.f,
     initialCanonicalUrlParts: response.c,
-    // location and initialParallelRoutes are not initialized in the SSR render
-    // they are set to an empty map and window.location, respectively during hydration
-    initialParallelRoutes: null!,
+    initialParallelRoutes: new Map(),
+    // location is not initialized in the SSR render
+    // it's set to window.location during hydration
     location: null,
     couldBeIntercepted: response.i,
     postponed: response.s,

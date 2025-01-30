@@ -57,7 +57,7 @@ const state: OverlayState = {
 
 export const NoErrors: Story = {
   args: {
-    readyErrorsLength: 0,
+    errorCount: 0,
     state,
     setIsErrorOverlayOpen: () => {},
   },
@@ -65,7 +65,7 @@ export const NoErrors: Story = {
 
 export const SingleError: Story = {
   args: {
-    readyErrorsLength: 1,
+    errorCount: 1,
     state,
     setIsErrorOverlayOpen: () => {},
   },
@@ -73,7 +73,7 @@ export const SingleError: Story = {
 
 export const MultipleErrors: Story = {
   args: {
-    readyErrorsLength: 3,
+    errorCount: 3,
     state,
     setIsErrorOverlayOpen: () => {},
   },
@@ -81,7 +81,7 @@ export const MultipleErrors: Story = {
 
 export const WithStaticIndicator: Story = {
   args: {
-    readyErrorsLength: 3,
+    errorCount: 3,
     state: {
       ...state,
       staticIndicator: true,

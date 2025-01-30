@@ -5,8 +5,9 @@ import { noop as css } from '../../../../helpers/noop-template'
 
 interface ErrorFeedbackProps {
   errorCode: string
+  className?: string
 }
-export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
+export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
   const [votedMap, setVotedMap] = useState<Record<string, boolean>>({})
   const voted = votedMap[errorCode]
   const hasVoted = voted !== undefined
@@ -41,7 +42,11 @@ export function ErrorFeedback({ errorCode }: ErrorFeedbackProps) {
   )
 
   return (
-    <div className="error-feedback" role="region" aria-label="Error feedback">
+    <div
+      className={`error-feedback${className ? ` ${className}` : ''}`}
+      role="region"
+      aria-label="Error feedback"
+    >
       {hasVoted ? (
         <p className="error-feedback-thanks" role="status" aria-live="polite">
           Thanks for your feedback!

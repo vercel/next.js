@@ -210,6 +210,11 @@ impl BrowserChunkingContext {
     }
 
     /// Returns the minify type.
+    pub fn source_maps_type(&self) -> SourceMapsType {
+        self.source_maps_type
+    }
+
+    /// Returns the minify type.
     pub fn minify_type(&self) -> MinifyType {
         self.minify_type
     }
