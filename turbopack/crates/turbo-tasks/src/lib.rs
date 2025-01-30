@@ -107,7 +107,6 @@ pub use manager::{
     CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
     TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
 };
-pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;

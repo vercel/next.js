@@ -6,13 +6,14 @@ pub use once_cell::sync::{Lazy, OnceCell};
 pub use serde;
 pub use tracing;
 
-pub use super::{
-    magic_any::MagicAny,
-    manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
-};
 use crate::{
     debug::ValueDebugFormatString, shrink_to_fit::ShrinkToFit, task::TaskOutput, NonLocalValue,
     RawVc, TaskInput, TaskPersistence, Vc,
+};
+pub use crate::{
+    magic_any::MagicAny,
+    manager::{find_cell_by_type, notify_scheduled_tasks, spawn_detached_for_testing},
+    native_function::{downcast_args_owned, downcast_args_ref, FunctionMeta, NativeFunction},
 };
 
 #[inline(never)]
