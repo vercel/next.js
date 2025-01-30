@@ -175,7 +175,7 @@ export const NextLogo = forwardRef(function NextLogo(
             width: fit-content;
             height: 100%;
             display: flex;
-            gap: 8px;
+            gap: 2px;
             align-items: center;
             margin: 0;
             line-height: 36px;
