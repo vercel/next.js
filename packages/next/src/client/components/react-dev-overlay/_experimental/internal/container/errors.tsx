@@ -72,7 +72,6 @@ function ErrorDescription({
 }
 
 export function Errors({
-  errors,
   readyErrors,
   debugInfo,
   versionInfo,
