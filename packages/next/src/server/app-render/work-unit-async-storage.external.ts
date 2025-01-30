@@ -161,6 +161,8 @@ export type UseCacheStore = {
   explicitStale: undefined | number // client expiration time
   tags: null | string[]
   readonly hmrRefreshHash: string | undefined
+  readonly isHmrRefresh: boolean
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
 } & PhasePartial
 
 export type UnstableCacheStore = {

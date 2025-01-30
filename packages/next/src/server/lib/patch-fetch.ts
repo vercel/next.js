@@ -15,10 +15,7 @@ import { markCurrentScopeAsDynamic } from '../app-render/dynamic-rendering'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
 import type { FetchMetric } from '../base-http'
 import { createDedupeFetch } from './dedupe-fetch'
-import type {
-  WorkUnitAsyncStorage,
-  RequestStore,
-} from '../app-render/work-unit-async-storage.external'
+import type { WorkUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 import {
   CachedRouteKind,
   IncrementalCacheKind,
@@ -537,14 +534,15 @@ export function createPatchedFetcher(
         let cacheKey: string | undefined
         const { incrementalCache } = workStore
 
-        const requestStore: undefined | RequestStore =
-          workUnitStore !== undefined && workUnitStore.type === 'request'
+        const useCacheOrRequestStore =
+          workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
             ? workUnitStore
             : undefined
 
         if (
           incrementalCache &&
-          (isCacheableRevalidate || requestStore?.serverComponentsHmrCache)
+          (isCacheableRevalidate ||
+            useCacheOrRequestStore?.serverComponentsHmrCache)
         ) {
           try {
             cacheKey = await incrementalCache.generateCacheKey(
@@ -631,7 +629,7 @@ export function createPatchedFetcher(
                 incrementalCache &&
                 cacheKey &&
                 (isCacheableRevalidate ||
-                  requestStore?.serverComponentsHmrCache)
+                  useCacheOrRequestStore?.serverComponentsHmrCache)
               ) {
                 const normalizedRevalidate =
                   finalRevalidate >= INFINITE_CACHE
@@ -701,7 +699,7 @@ export function createPatchedFetcher(
                         url: cloned1.url,
                       }
 
-                      requestStore?.serverComponentsHmrCache?.set(
+                      useCacheOrRequestStore?.serverComponentsHmrCache?.set(
                         cacheKey,
                         fetchedData
                       )
@@ -752,14 +750,12 @@ export function createPatchedFetcher(
         if (cacheKey && incrementalCache) {
           let cachedFetchData: CachedFetchData | undefined
 
-          // TODO: The serverComponentsHmrCache should also be available and
-          // utilized if the workUnitStore is a UseCacheStore.
           if (
-            requestStore?.isHmrRefresh &&
-            requestStore.serverComponentsHmrCache
+            useCacheOrRequestStore?.isHmrRefresh &&
+            useCacheOrRequestStore.serverComponentsHmrCache
           ) {
             cachedFetchData =
-              requestStore.serverComponentsHmrCache.get(cacheKey)
+              useCacheOrRequestStore.serverComponentsHmrCache.get(cacheKey)
 
             isHmrRefreshCache = true
           }

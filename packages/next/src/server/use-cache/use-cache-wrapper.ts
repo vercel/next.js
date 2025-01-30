@@ -131,6 +131,12 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
+  const useCacheOrRequestStore =
+    outerWorkUnitStore?.type === 'request' ||
+    outerWorkUnitStore?.type === 'cache'
+      ? outerWorkUnitStore
+      : undefined
+
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -148,6 +154,8 @@ function generateCacheEntryWithCacheContext(
     explicitStale: undefined,
     tags: null,
     hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
+    isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
+    serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
   }
 
   return workUnitAsyncStorage.run(
