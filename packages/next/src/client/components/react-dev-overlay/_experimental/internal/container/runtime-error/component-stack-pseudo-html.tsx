@@ -375,6 +375,9 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
       outline: none;
     }
   }
+  [data-nextjs-container-errors-pseudo-html--diff] {
+    width: fit-content;
+  }
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
     background: var(--color-green-300);
   }
