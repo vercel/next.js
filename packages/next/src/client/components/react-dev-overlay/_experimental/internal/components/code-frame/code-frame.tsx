@@ -52,8 +52,6 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
     })
   }, [formattedFrame])
 
-  console.log(decoded)
-
   const open = useOpenInEditor({
     file: stackFrame.file,
     lineNumber: stackFrame.lineNumber,
