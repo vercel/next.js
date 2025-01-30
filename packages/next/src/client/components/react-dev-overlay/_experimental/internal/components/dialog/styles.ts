@@ -73,7 +73,6 @@ const styles = css`
     width: 100%;
     /* We make this element absolute to fix it to the bottom during the height transition */
     position: absolute;
-    /* Offset for border */
     bottom: 0;
     height: var(--next-dialog-footer-height);
     border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
