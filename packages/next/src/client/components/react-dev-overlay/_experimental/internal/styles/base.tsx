@@ -78,6 +78,7 @@ export function Base() {
           --focus-ring: 2px solid var(--focus-color);
 
           --timing-swift: cubic-bezier(0.23, 0.88, 0.26, 0.92);
+          --timing-overlay: cubic-bezier(0.175, 0.885, 0.32, 1.1);
 
           --rounded-none: 0px;
           --rounded-sm: 0.125rem; /* 2px */

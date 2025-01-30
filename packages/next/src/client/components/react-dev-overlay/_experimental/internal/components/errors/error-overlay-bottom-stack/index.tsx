@@ -26,7 +26,7 @@ export function ErrorOverlayBottomStack({
   }
 
   return (
-    <div aria-hidden className="stackRoot">
+    <div aria-hidden className="error-overlay-bottom-stack">
       <div className="stack" data-stack-count={stackCount}>
         <div className="layer layer1">1</div>
         <div className="layer layer2">2</div>
@@ -57,10 +57,10 @@ export const styles = css`
     z-index: -1;
   }
 
-  .stackRoot {
+  .error-overlay-bottom-stack {
     width: 100%;
     position: absolute;
-    bottom: 0;
+    bottom: -1px;
   }
 
   .stack {
