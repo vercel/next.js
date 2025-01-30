@@ -16,7 +16,7 @@ use next_api::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions, WatchOptions,
     },
-    route::{Endpoint, Route},
+    route::Endpoint,
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,

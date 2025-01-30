@@ -2997,7 +2997,6 @@ async fn emit_resolve_error_issue(
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.resolved_cell()
     } else {
-        bail!("3002 resolve failure");
         IssueSeverity::Error.resolved_cell()
     };
     ResolvingIssue {
@@ -3025,7 +3024,6 @@ async fn emit_unresolvable_issue(
     let severity = if is_optional || resolve_options.await?.loose_errors {
         IssueSeverity::Warning.resolved_cell()
     } else {
-        bail!("3030 unresolvable failure");
         IssueSeverity::Error.resolved_cell()
     };
     ResolvingIssue {

@@ -66,7 +66,7 @@ use turbopack_node::execution_context::ExecutionContext;
 use turbopack_nodejs::NodeJsChunkingContext;
 
 use crate::{
-    app::{self, AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
+    app::{AppProject, OptionAppProject, ECMASCRIPT_CLIENT_TRANSITION_NAME},
     build,
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
