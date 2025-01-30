@@ -31,25 +31,23 @@ export function CallStack({ frames }: CallStackProps) {
 
   return (
     <div className="error-overlay-call-stack-container">
-      <div className="scroll">
-        <div className="error-overlay-call-stack-header">
-          <p className="error-overlay-call-stack-title">
-            Call Stack{' '}
-            <span className="error-overlay-call-stack-count">
-              {frames.length}
-            </span>
-          </p>
-          {ignoreListLength > 0 && (
-            <button
-              data-expand-ignore-button={isIgnoreListOpen}
-              className="error-overlay-call-stack-ignored-list-toggle-button"
-              onClick={() => setIsIgnoreListOpen(!isIgnoreListOpen)}
-            >
-              {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignored Frames`}
-              <ChevronUpDown />
-            </button>
-          )}
-        </div>
+      <div className="error-overlay-call-stack-header">
+        <p className="error-overlay-call-stack-title">
+          Call Stack{' '}
+          <span className="error-overlay-call-stack-count">
+            {frames.length}
+          </span>
+        </p>
+        {ignoreListLength > 0 && (
+          <button
+            data-expand-ignore-button={isIgnoreListOpen}
+            className="error-overlay-call-stack-ignored-list-toggle-button"
+            onClick={() => setIsIgnoreListOpen(!isIgnoreListOpen)}
+          >
+            {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignored Frames`}
+            <ChevronUpDown />
+          </button>
+        )}
       </div>
       {filteredFrames.map((frame, frameIndex) => (
         <CallStackFrame

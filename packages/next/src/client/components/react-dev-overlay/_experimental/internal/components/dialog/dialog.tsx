@@ -97,14 +97,12 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       aria-modal="true"
       className={className}
       {...props}
-      // [x] dont animate on initial load
-      // [x] no duplicate dom
-      // [x] responds to overflow growth
+      // [x] Don't animate on initial load
+      // [x] No duplicate elements
+      // [x] Responds to content growth
       style={{
         height,
-        ...(!pristine && {
-          transition: 'height 250ms var(--timing-swift)',
-        }),
+        transition: pristine ? undefined : 'height 250ms var(--timing-swift)',
       }}
     >
       <div ref={ref}>{children}</div>

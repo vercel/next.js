@@ -53,6 +53,7 @@ export const DIALOG_STYLES = css`
     );
     position: absolute;
     inset: 0;
+    pointer-events: none;
     border-radius: var(--next-dialog-radius);
     padding: var(--size);
     background: var(--gradient);
