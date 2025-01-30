@@ -6,9 +6,9 @@ import { Toast } from '../../toast'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useDelayedRender } from './internal/use-delayed-render'
 import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
 import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
+import { useDelayedRender } from '../../../hooks/use-delayed-render'
 
 // TODO: add E2E tests to cover different scenarios
 

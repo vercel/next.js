@@ -34,10 +34,14 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
+
   useOnClickOutside(dialog, CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE, (e) => {
     e.preventDefault()
     return onClose?.()
   })
+
+  const ref = React.useRef<HTMLDivElement | null>(null)
+  const [height, pristine] = useMeasureHeight(ref)
 
   // Make HTMLElements with `role=link` accessible to be triggered by the
   // keyboard, i.e. [Enter].
@@ -93,10 +97,53 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       aria-modal="true"
       className={className}
       {...props}
+      // [x] dont animate on initial load
+      // [x] no duplicate dom
+      // [x] responds to overflow growth
+      style={{
+        height,
+        ...(!pristine && {
+          transition: 'height 250ms var(--timing-swift)',
+        }),
+      }}
     >
-      <div data-nextjs-dialog-container>{children}</div>
+      <div ref={ref}>{children}</div>
     </div>
   )
 }
 
 export { Dialog }
+
+function useMeasureHeight(
+  ref: React.RefObject<HTMLDivElement | null>
+): [number, boolean] {
+  const [pristine, setPristine] = React.useState<boolean>(true)
+  const [height, setHeight] = React.useState<number>(0)
+
+  React.useEffect(() => {
+    const el = ref.current
+
+    if (!el) {
+      return
+    }
+
+    const observer = new ResizeObserver(() => {
+      const { height: h } = el.getBoundingClientRect()
+      setHeight((prevHeight) => {
+        if (prevHeight !== 0) {
+          setPristine(false)
+        }
+        return h
+      })
+    })
+
+    observer.observe(el)
+    return () => {
+      observer.disconnect()
+      setPristine(true)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  return [height, pristine]
+}

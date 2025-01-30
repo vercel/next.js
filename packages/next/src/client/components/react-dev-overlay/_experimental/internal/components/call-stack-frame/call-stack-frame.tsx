@@ -9,7 +9,8 @@ import { noop as css } from '../../helpers/noop-template'
 
 export const CallStackFrame: React.FC<{
   frame: OriginalStackFrame
-}> = function CallStackFrame({ frame }) {
+  index: number
+}> = function CallStackFrame({ frame, index }) {
   // TODO: ability to expand resolved frames
   // TODO: render error or external indicator
 
@@ -40,11 +41,17 @@ export const CallStackFrame: React.FC<{
     <div
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-ignored={!hasSource}
+      data-animate={frame.ignored}
       onClick={hasSource ? open : undefined}
       role="button"
       tabIndex={0}
       aria-label={hasSource ? 'Click to open in your editor' : undefined}
       title={hasSource ? 'Click to open in your editor' : undefined}
+      style={
+        {
+          '--index': index,
+        } as React.CSSProperties
+      }
     >
       <span
         data-nextjs-frame-expanded={!frame.ignored}
@@ -88,6 +95,12 @@ export const CALL_STACK_FRAME_STYLES = css`
     border-radius: var(--rounded-lg);
     transition: background 100ms ease-out;
 
+    &[data-animate='true'] {
+      opacity: 0;
+      animation: fadeIn 200ms var(--timing-swift) forwards
+        calc(var(--index) * 25ms);
+    }
+
     &:not(:disabled):hover {
       background: var(--color-gray-alpha-100);
       cursor: pointer;
@@ -97,7 +110,7 @@ export const CALL_STACK_FRAME_STYLES = css`
       background: var(--color-gray-alpha-200);
     }
 
-    &:focus {
+    &:focus-visible {
       outline: var(--focus-ring);
     }
   }
@@ -120,5 +133,11 @@ export const CALL_STACK_FRAME_STYLES = css`
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
     line-height: var(--size-5);
+  }
+
+  @keyframes fadeIn {
+    to {
+      opacity: 1;
+    }
   }
 `

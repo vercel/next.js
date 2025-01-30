@@ -2,19 +2,19 @@ import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
   [data-nextjs-dialog] {
+    --next-dialog-radius: var(--rounded-xl);
+    --next-dialog-footer-height: 48px;
+    --next-dialog-max-width: 960px;
     display: flex;
     flex-direction: column;
 
     width: 100%;
     max-height: calc(100% - 56px);
+    max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
     outline: none;
-  }
-
-  [data-nextjs-dialog-container] {
-    overflow-y: hidden;
-    border-radius: inherit;
+    overflow: hidden;
   }
 
   @media (max-height: 812px) {
@@ -25,19 +25,19 @@ const styles = css`
 
   @media (min-width: 576px) {
     [data-nextjs-dialog] {
-      max-width: 540px;
+      --next-dialog-max-width: 540px;
     }
   }
 
   @media (min-width: 768px) {
     [data-nextjs-dialog] {
-      max-width: 720px;
+      --next-dialog-max-width: 720px;
     }
   }
 
   @media (min-width: 992px) {
     [data-nextjs-dialog] {
-      max-width: 960px;
+      --next-dialog-max-width: 960px;
     }
   }
 
@@ -49,13 +49,34 @@ const styles = css`
     display: flex;
     flex-direction: column;
   }
+
+  [data-nextjs-dialog-body] {
+    // BAD when no footer
+  }
+
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
     padding: var(--size-4);
   }
+
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
     position: relative;
     flex: 1 1 auto;
+  }
+
+  [data-nextjs-dialog-footer] {
+    width: 100%;
+    /* We make this element absolute to fix it to the bottom during the height animation */
+    position: absolute;
+    /* Offset for border */
+    bottom: 0;
+    height: var(--next-dialog-footer-height);
+    border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
+    overflow: hidden;
+
+    > * {
+      height: 100%;
+    }
   }
 `
 
