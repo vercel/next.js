@@ -1064,6 +1064,7 @@ export async function createHotReloaderTurbopack(
         // it's okay to not cleanly close these websocket connections, this is dev
         wsClient.terminate()
       }
+      clients.clear()
     },
   }
 
