@@ -182,4 +182,5 @@ export interface NextJsHotReloaderInterface {
     definition: RouteDefinition | undefined
     url?: string
   }): Promise<void>
+  close(): void
 }
