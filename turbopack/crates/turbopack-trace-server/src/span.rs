@@ -5,13 +5,15 @@ use std::{
 
 use rustc_hash::FxHashMap;
 
+use crate::timestamp::Timestamp;
+
 pub type SpanIndex = NonZeroUsize;
 
 pub struct Span {
     // These values won't change after creation:
     pub parent: Option<SpanIndex>,
     pub depth: u32,
-    pub start: u64,
+    pub start: Timestamp,
     pub category: String,
     pub name: String,
     pub args: Vec<(String, String)>,
@@ -46,16 +48,16 @@ pub struct SpanTimeData {
     pub ignore_self_time: bool,
 
     // This might change during writing:
-    pub self_end: u64,
+    pub self_end: Timestamp,
 
     // These values are computed automatically:
-    pub self_time: u64,
+    pub self_time: Timestamp,
 
     // These values are computed when accessed (and maybe deleted during writing):
-    pub end: OnceLock<u64>,
-    pub total_time: OnceLock<u64>,
-    pub corrected_self_time: OnceLock<u64>,
-    pub corrected_total_time: OnceLock<u64>,
+    pub end: OnceLock<Timestamp>,
+    pub total_time: OnceLock<Timestamp>,
+    pub corrected_self_time: OnceLock<Timestamp>,
+    pub corrected_total_time: OnceLock<Timestamp>,
 }
 
 #[derive(Default)]
@@ -99,7 +101,7 @@ impl Span {
 
 #[derive(Copy, Clone, PartialEq, Eq)]
 pub enum SpanEvent {
-    SelfTime { start: u64, end: u64 },
+    SelfTime { start: Timestamp, end: Timestamp },
     Child { index: SpanIndex },
 }
 
@@ -108,7 +110,7 @@ pub enum SpanGraphEvent {
     // TODO(sokra) use events instead of children for visualizing span graphs
     #[allow(dead_code)]
     SelfTime {
-        duration: u64,
+        duration: Timestamp,
     },
     Child {
         child: Arc<SpanGraph>,
@@ -123,19 +125,19 @@ pub struct SpanGraph {
     // These values are computed when accessed:
     pub max_depth: OnceLock<u32>,
     pub events: OnceLock<Vec<SpanGraphEvent>>,
-    pub self_time: OnceLock<u64>,
+    pub self_time: OnceLock<Timestamp>,
     pub self_allocations: OnceLock<u64>,
     pub self_deallocations: OnceLock<u64>,
     pub self_persistent_allocations: OnceLock<u64>,
     pub self_allocation_count: OnceLock<u64>,
-    pub total_time: OnceLock<u64>,
+    pub total_time: OnceLock<Timestamp>,
     pub total_allocations: OnceLock<u64>,
     pub total_deallocations: OnceLock<u64>,
     pub total_persistent_allocations: OnceLock<u64>,
     pub total_allocation_count: OnceLock<u64>,
     pub total_span_count: OnceLock<u64>,
-    pub corrected_self_time: OnceLock<u64>,
-    pub corrected_total_time: OnceLock<u64>,
+    pub corrected_self_time: OnceLock<Timestamp>,
+    pub corrected_total_time: OnceLock<Timestamp>,
     pub bottom_up: OnceLock<Vec<Arc<SpanBottomUp>>>,
 }
 
@@ -148,8 +150,8 @@ pub struct SpanBottomUp {
     // These values are computed when accessed:
     pub max_depth: OnceLock<u32>,
     pub events: OnceLock<Vec<SpanGraphEvent>>,
-    pub self_time: OnceLock<u64>,
-    pub corrected_self_time: OnceLock<u64>,
+    pub self_time: OnceLock<Timestamp>,
+    pub corrected_self_time: OnceLock<Timestamp>,
     pub self_allocations: OnceLock<u64>,
     pub self_deallocations: OnceLock<u64>,
     pub self_persistent_allocations: OnceLock<u64>,

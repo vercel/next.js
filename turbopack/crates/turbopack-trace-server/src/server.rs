@@ -11,6 +11,7 @@ use tungstenite::{accept, Message};
 use crate::{
     store::SpanId,
     store_container::StoreContainer,
+    timestamp::Timestamp,
     u64_string,
     viewer::{Update, ViewLineUpdate, ViewMode, Viewer},
 };
@@ -32,10 +33,10 @@ pub enum ServerToClientMessage {
         #[serde(with = "u64_string")]
         id: SpanId,
         is_graph: bool,
-        start: u64,
-        end: u64,
-        duration: u64,
-        cpu: u64,
+        start: Timestamp,
+        end: Timestamp,
+        duration: Timestamp,
+        cpu: Timestamp,
         allocations: u64,
         deallocations: u64,
         allocation_count: u64,
@@ -74,8 +75,8 @@ pub enum ClientToServerMessage {
 #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct SpanViewEvent {
-    pub start: u64,
-    pub duration: u64,
+    pub start: Timestamp,
+    pub duration: Timestamp,
     pub name: String,
     pub id: Option<SpanId>,
 }
@@ -312,10 +313,10 @@ fn handle_connection(
                                 ServerToClientMessage::QueryResult {
                                     id,
                                     is_graph: false,
-                                    start: 0,
-                                    end: 0,
-                                    duration: 0,
-                                    cpu: 0,
+                                    start: Timestamp::ZERO,
+                                    end: Timestamp::ZERO,
+                                    duration: Timestamp::ZERO,
+                                    cpu: Timestamp::ZERO,
                                     allocations: 0,
                                     deallocations: 0,
                                     allocation_count: 0,
