@@ -48,7 +48,7 @@ export type RequestStore = {
   readonly mutableCookies: ResponseCookies
   readonly userspaceMutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
-  readonly hmrRefreshHash?: string
+  readonly isHmrRefresh?: boolean
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
   readonly implicitTags: string[]
@@ -243,4 +243,14 @@ export function getRenderResumeDataCache(
   }
 
   return null
+}
+
+export function getHmrRefreshHash(
+  workUnitStore: WorkUnitStore
+): string | undefined {
+  return workUnitStore.type === 'cache'
+    ? workUnitStore.hmrRefreshHash
+    : workUnitStore.type === 'request'
+      ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
+      : undefined
 }

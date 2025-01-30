@@ -20,6 +20,7 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  getHmrRefreshHash,
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
@@ -130,12 +131,6 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
-  const hmrRefreshHash =
-    outerWorkUnitStore?.type === 'request' ||
-    outerWorkUnitStore?.type === 'cache'
-      ? outerWorkUnitStore.hmrRefreshHash
-      : undefined
-
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -152,7 +147,7 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: null,
-    hmrRefreshHash,
+    hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
   }
 
   return workUnitAsyncStorage.run(
@@ -529,10 +524,7 @@ export function cache(
       // components have been edited. This is a very coarse approach. But it's
       // also only a temporary solution until Action IDs are unique per
       // implementation. Remove this once Action IDs hash the implementation.
-      const hmrRefreshHash =
-        workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
-          ? workUnitStore.hmrRefreshHash
-          : undefined
+      const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
 
       const hangingInputAbortSignal =
         workUnitStore?.type === 'prerender'

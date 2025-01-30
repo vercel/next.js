@@ -21,7 +21,7 @@ function hmrRefreshReducerImpl(
   state: ReadonlyReducerState,
   action: HmrRefreshAction
 ): ReducerState {
-  const { origin, hash } = action
+  const { origin } = action
   const mutable: Mutable = {}
   const href = state.canonicalUrl
 
@@ -37,7 +37,7 @@ function hmrRefreshReducerImpl(
   cache.lazyData = fetchServerResponse(new URL(href, origin), {
     flightRouterState: [state.tree[0], state.tree[1], state.tree[2], 'refetch'],
     nextUrl: includeNextUrl ? state.nextUrl : null,
-    hmrRefreshHash: hash,
+    isHmrRefresh: true,
   })
 
   return cache.lazyData.then(

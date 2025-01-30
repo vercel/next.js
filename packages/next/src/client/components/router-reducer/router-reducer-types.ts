@@ -58,7 +58,6 @@ export interface RefreshAction {
 export interface HmrRefreshAction {
   type: typeof ACTION_HMR_REFRESH
   origin: Location['origin']
-  hash: string
 }
 
 export type ServerActionDispatcher = (

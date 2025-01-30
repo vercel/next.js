@@ -243,7 +243,7 @@ interface ParsedRequestHeaders {
   readonly isPrefetchRequest: boolean
   readonly isRouteTreePrefetchRequest: boolean
   readonly isDevWarmupRequest: boolean
-  readonly hmrRefreshHash: string | undefined
+  readonly isHmrRefresh: boolean
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
 }
@@ -259,14 +259,8 @@ function parseRequestHeaders(
     isDevWarmupRequest ||
     headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
-  const hmrRefreshHeader = headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()]
-
-  const hmrRefreshHash =
-    typeof hmrRefreshHeader === 'string'
-      ? hmrRefreshHeader
-      : Array.isArray(hmrRefreshHeader)
-        ? hmrRefreshHeader.join('-')
-        : undefined
+  const isHmrRefresh =
+    headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()] !== undefined
 
   // dev warmup requests are treated as prefetch RSC requests
   const isRSCRequest =
@@ -296,7 +290,7 @@ function parseRequestHeaders(
     flightRouterState,
     isPrefetchRequest,
     isRouteTreePrefetchRequest,
-    hmrRefreshHash,
+    isHmrRefresh,
     isRSCRequest,
     isDevWarmupRequest,
     nonce,
@@ -1258,7 +1252,7 @@ async function renderToHTMLOrFlightImpl(
     isPrefetchRequest,
     isRSCRequest,
     isDevWarmupRequest,
-    hmrRefreshHash,
+    isHmrRefresh,
     nonce,
   } = parsedRequestHeaders
 
@@ -1438,7 +1432,7 @@ async function renderToHTMLOrFlightImpl(
       implicitTags,
       renderOpts.onUpdateCookies,
       renderOpts.previewProps,
-      hmrRefreshHash,
+      isHmrRefresh,
       serverComponentsHmrCache,
       renderResumeDataCache
     )

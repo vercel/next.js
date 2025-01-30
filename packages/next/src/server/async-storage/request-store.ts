@@ -64,7 +64,7 @@ type RequestContext = RequestResponsePair & {
   }
   phase: RequestStore['phase']
   renderOpts?: WrapperRenderOpts
-  hmrRefreshHash?: string
+  isHmrRefresh?: boolean
   serverComponentsHmrCache?: ServerComponentsHmrCache
   implicitTags?: string[] | undefined
 }
@@ -109,7 +109,7 @@ export function createRequestStoreForRender(
   implicitTags: RequestContext['implicitTags'],
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   previewProps: WrapperRenderOpts['previewProps'],
-  hmrRefreshHash: RequestContext['hmrRefreshHash'],
+  isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache'],
   renderResumeDataCache: RenderResumeDataCache | undefined
 ): RequestStore {
@@ -123,7 +123,7 @@ export function createRequestStoreForRender(
     onUpdateCookies,
     renderResumeDataCache,
     previewProps,
-    hmrRefreshHash,
+    isHmrRefresh,
     serverComponentsHmrCache
   )
 }
@@ -145,7 +145,7 @@ export function createRequestStoreForAPI(
     onUpdateCookies,
     undefined,
     previewProps,
-    undefined,
+    false,
     undefined
   )
 }
@@ -159,7 +159,7 @@ function createRequestStoreImpl(
   onUpdateCookies: RenderOpts['onUpdateCookies'],
   renderResumeDataCache: RenderResumeDataCache | undefined,
   previewProps: WrapperRenderOpts['previewProps'],
-  hmrRefreshHash: RequestContext['hmrRefreshHash'],
+  isHmrRefresh: RequestContext['isHmrRefresh'],
   serverComponentsHmrCache: RequestContext['serverComponentsHmrCache']
 ): RequestStore {
   function defaultOnUpdateCookies(cookies: string[]) {
@@ -248,7 +248,7 @@ function createRequestStoreImpl(
       return cache.draftMode
     },
     renderResumeDataCache: renderResumeDataCache ?? null,
-    hmrRefreshHash,
+    isHmrRefresh,
     serverComponentsHmrCache:
       serverComponentsHmrCache ||
       (globalThis as any).__serverComponentsHmrCache,
