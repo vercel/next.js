@@ -176,7 +176,6 @@ import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
 import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
-import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -451,12 +450,10 @@ export default abstract class Server<
   protected readonly normalizers: {
     readonly rsc: RSCPathnameNormalizer | undefined
     readonly prefetchRSC: PrefetchRSCPathnameNormalizer | undefined
-    readonly segmentPrefetchRSC: SegmentPrefixRSCPathnameNormalizer | undefined
     readonly data: NextDataPathnameNormalizer | undefined
   }
 
   private readonly isAppPPREnabled: boolean
-  private readonly isAppSegmentPrefetchEnabled: boolean
 
   /**
    * This is used to persist cache scopes across
@@ -532,10 +529,6 @@ export default abstract class Server<
       this.enabledDirectories.app &&
       checkIsAppPPREnabled(this.nextConfig.experimental.ppr)
 
-    this.isAppSegmentPrefetchEnabled =
-      this.enabledDirectories.app &&
-      this.nextConfig.experimental.clientSegmentCache === true
-
     this.normalizers = {
       // We should normalize the pathname from the RSC prefix only in minimal
       // mode as otherwise that route is not exposed external to the server as
@@ -547,10 +540,6 @@ export default abstract class Server<
       prefetchRSC:
         this.isAppPPREnabled && this.minimalMode
           ? new PrefetchRSCPathnameNormalizer()
-          : undefined,
-      segmentPrefetchRSC:
-        this.isAppSegmentPrefetchEnabled && this.minimalMode
-          ? new SegmentPrefixRSCPathnameNormalizer()
           : undefined,
       data: this.enabledDirectories.pages
         ? new NextDataPathnameNormalizer(this.buildId)
@@ -648,25 +637,7 @@ export default abstract class Server<
   ) => {
     if (!parsedUrl.pathname) return false
 
-    if (this.normalizers.segmentPrefetchRSC?.match(parsedUrl.pathname)) {
-      const result = this.normalizers.segmentPrefetchRSC.extract(
-        parsedUrl.pathname
-      )
-      if (!result) return false
-
-      const { originalPathname, segmentPath } = result
-      parsedUrl.pathname = originalPathname
-
-      // Mark the request as a router prefetch request.
-      req.headers[RSC_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] = '1'
-      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
-        segmentPath
-
-      addRequestMeta(req, 'isRSCRequest', true)
-      addRequestMeta(req, 'isPrefetchRSCRequest', true)
-      addRequestMeta(req, 'segmentPrefetchRSCRequest', segmentPath)
-    } else if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
+    if (this.normalizers.prefetchRSC?.match(parsedUrl.pathname)) {
       parsedUrl.pathname = this.normalizers.prefetchRSC.normalize(
         parsedUrl.pathname,
         true
@@ -700,16 +671,6 @@ export default abstract class Server<
 
       if (req.headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] === '1') {
         addRequestMeta(req, 'isPrefetchRSCRequest', true)
-
-        const segmentPrefetchRSCRequest =
-          req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()]
-        if (typeof segmentPrefetchRSCRequest === 'string') {
-          addRequestMeta(
-            req,
-            'segmentPrefetchRSCRequest',
-            segmentPrefetchRSCRequest
-          )
-        }
       }
     } else {
       // Otherwise just return without doing anything.
@@ -1311,31 +1272,6 @@ export default abstract class Server<
             if (params) {
               matchedPath = utils.interpolateDynamicPath(srcPathname, params)
               req.url = utils.interpolateDynamicPath(req.url!, params)
-
-              // If the request is for a segment prefetch, we need to update the
-              // segment prefetch request path to include the interpolated
-              // params.
-              let segmentPrefetchRSCRequest = getRequestMeta(
-                req,
-                'segmentPrefetchRSCRequest'
-              )
-              if (
-                segmentPrefetchRSCRequest &&
-                isDynamicRoute(segmentPrefetchRSCRequest, false)
-              ) {
-                segmentPrefetchRSCRequest = utils.interpolateDynamicPath(
-                  segmentPrefetchRSCRequest,
-                  params
-                )
-
-                req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()] =
-                  segmentPrefetchRSCRequest
-                addRequestMeta(
-                  req,
-                  'segmentPrefetchRSCRequest',
-                  segmentPrefetchRSCRequest
-                )
-              }
             }
           }
 
@@ -1587,12 +1523,6 @@ export default abstract class Server<
 
     if (this.normalizers.data) {
       normalizers.push(this.normalizers.data)
-    }
-
-    // We have to put the segment prefetch normalizer before the RSC normalizer
-    // because the RSC normalizer will match the prefetch RSC routes too.
-    if (this.normalizers.segmentPrefetchRSC) {
-      normalizers.push(this.normalizers.segmentPrefetchRSC)
     }
 
     // We have to put the prefetch normalizer before the RSC normalizer
@@ -2193,10 +2123,8 @@ export default abstract class Server<
     // need to transfer it to the request meta because it's only read
     // within this function; the static segment data should have already been
     // generated, so we will always either return a static response or a 404.
-    const segmentPrefetchHeader = getRequestMeta(
-      req,
-      'segmentPrefetchRSCRequest'
-    )
+    const segmentPrefetchHeader =
+      req.headers[NEXT_ROUTER_SEGMENT_PREFETCH_HEADER.toLowerCase()]
 
     // we need to ensure the status code if /404 is visited directly
     if (is404Page && !isNextDataRequest && !isRSCRequest) {
@@ -3226,7 +3154,7 @@ export default abstract class Server<
 
     const { value: cachedData } = cacheEntry
 
-    if (typeof segmentPrefetchHeader === 'string') {
+    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
       // This is a prefetch request issued by the client Segment Cache. These
       // should never reach the application layer (lambda). We should either
       // respond from the cache (HIT) or respond with 204 No Content (MISS).
