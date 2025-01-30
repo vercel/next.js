@@ -1,33 +1,52 @@
 import type { OriginalStackFrame } from '../../../helpers/stack-frame'
-import { useMemo, useState } from 'react'
+import { useRef, useState } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'
+import { useMeasureHeight } from '../../../hooks/use-measure-height'
 
-type CallStackProps = {
+interface CallStackProps {
   frames: OriginalStackFrame[]
 }
 
 export function CallStack({ frames }: CallStackProps) {
+  const ignoreListRef = useRef<HTMLDivElement | null>(null)
+  const initialDialogHeight = useRef<number>(NaN)
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
+  const [ignoreListHeight] = useMeasureHeight(ignoreListRef)
 
-  const { filteredFrames, ignoreListLength } = useMemo(() => {
-    const filtered = []
-    let ignoredLength = 0
+  const visibleFrames = frames.filter((frame) => !frame.ignored)
+  const ignoredFrames = frames.filter((frame) => frame.ignored)
+  const ignoreListLength = ignoredFrames.length
 
-    for (const frame of frames) {
-      if (isIgnoreListOpen || !frame.ignored) {
-        filtered.push(frame)
-      }
-      if (frame.ignored) {
-        ignoredLength++
-      }
+  function onToggleIgnoreList() {
+    // This is not great but we are avoiding passing refs down several levels deep
+    const root = document.querySelector('nextjs-portal')?.shadowRoot
+    const dialog = root?.querySelector(
+      '[data-nextjs-dialog-sizer]'
+    ) as HTMLElement
+
+    if (!dialog) {
+      return
     }
 
-    return {
-      filteredFrames: filtered,
-      ignoreListLength: ignoredLength,
+    const { height: currentHeight } = dialog?.getBoundingClientRect()
+
+    if (!initialDialogHeight.current) {
+      initialDialogHeight.current = currentHeight
     }
-  }, [frames, isIgnoreListOpen])
+
+    if (isIgnoreListOpen) {
+      function onTransitionEnd() {
+        setIsIgnoreListOpen(false)
+        dialog.removeEventListener('transitionend', onTransitionEnd)
+      }
+      dialog.style.height = `${initialDialogHeight.current}px`
+      dialog.addEventListener('transitionend', onTransitionEnd)
+    } else {
+      dialog.style.height = `${initialDialogHeight.current + ignoreListHeight}px`
+      setIsIgnoreListOpen(!isIgnoreListOpen)
+    }
+  }
 
   return (
     <div className="error-overlay-call-stack-container">
@@ -42,20 +61,44 @@ export function CallStack({ frames }: CallStackProps) {
           <button
             data-expand-ignore-button={isIgnoreListOpen}
             className="error-overlay-call-stack-ignored-list-toggle-button"
-            onClick={() => setIsIgnoreListOpen(!isIgnoreListOpen)}
+            onClick={onToggleIgnoreList}
           >
             {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignored Frames`}
             <ChevronUpDown />
           </button>
         )}
       </div>
-      {filteredFrames.map((frame, frameIndex) => (
+
+      {visibleFrames.map((frame, frameIndex) => (
         <CallStackFrame
           key={`call-stack-leading-${frameIndex}`}
           frame={frame}
           index={frameIndex}
         />
       ))}
+
+      <div
+        style={{
+          display: isIgnoreListOpen ? 'block' : 'none',
+        }}
+      >
+        <div ref={ignoreListRef}>
+          {ignoredFrames.map((frame, frameIndex) => (
+            <CallStackFrame
+              key={`call-stack-ignored-${frameIndex}`}
+              frame={frame}
+              index={frameIndex}
+            />
+          ))}
+        </div>
+      </div>
+
+      <div
+        className="blur"
+        style={{
+          translate: `0 -32px`,
+        }}
+      />
     </div>
   )
 }
@@ -85,6 +128,7 @@ export const CALL_STACK_STYLES = css`
     padding: var(--size-4) var(--size-3);
     /* To optically align last item */
     padding-bottom: 8px;
+    position: relative;
   }
 
   .error-overlay-call-stack-header {
@@ -149,5 +193,19 @@ export const CALL_STACK_STYLES = css`
     &:focus {
       outline: var(--focus-ring);
     }
+  }
+
+  .blur {
+    // -webkit-mask-image: linear-gradient(to top, #000 20%, transparent);
+    // mask-image: linear-gradient(to top, #000 20%, transparent);
+    -webkit-backdrop-filter: blur(5px);
+    backdrop-filter: blur(5px);
+    width: 100%;
+    height: 40px;
+    bottom: 0;
+    outline: 1px solid red;
+    pointer-events: none;
+    position: absolute;
+    transition: translate 250ms var(--timing-swift);
   }
 `
