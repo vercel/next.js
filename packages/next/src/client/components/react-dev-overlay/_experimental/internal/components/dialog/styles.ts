@@ -50,8 +50,9 @@ const styles = css`
     flex-direction: column;
   }
 
-  [data-nextjs-dialog-body] {
-    // BAD when no footer
+  /* Account for the footer height, when present */
+  [data-nextjs-dialog-body]:has(~ [data-nextjs-dialog-footer]) {
+    margin-bottom: calc(var(--next-dialog-footer-height) + 2px);
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
@@ -66,7 +67,7 @@ const styles = css`
 
   [data-nextjs-dialog-footer] {
     width: 100%;
-    /* We make this element absolute to fix it to the bottom during the height animation */
+    /* We make this element absolute to fix it to the bottom during the height transition */
     position: absolute;
     /* Offset for border */
     bottom: 0;
