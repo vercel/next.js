@@ -3437,10 +3437,12 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
                 self.cjs = true;
                 self.found = true;
             }
+            // TODO these are members now
             if &*i.sym == "__turbopack_export_value__" {
                 self.value = true;
                 self.found = true;
             }
+            // TODO these are members now
             if &*i.sym == "__turbopack_export_namespace__" {
                 self.namespace = true;
                 self.found = true;

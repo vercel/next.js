@@ -41,7 +41,7 @@ use crate::{
         pattern_mapping::{PatternMapping, ResolveType},
         AstPath,
     },
-    runtime_functions::{TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE},
     utils::module_id_to_lit,
     CodeGenerateable, EcmascriptChunkPlaceable,
 };
@@ -485,7 +485,8 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
         }
 
         let expr = quote_expr!(
-            "{TURBOPACK_EXPORT_VALUE}($obj);",
+            "$turbopack_export_value($obj);",
+            turbopack_export_value: Expr = TURBOPACK_EXPORT_VALUE.into(),
             obj: Expr = Expr::Object(context_map),
         );
 

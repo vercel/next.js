@@ -32,7 +32,8 @@ use super::util::{request_to_string, throw_module_not_found_expr};
 use crate::{
     references::util::throw_module_not_found_error_expr,
     runtime_functions::{
-        TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT, TURBOPACK_REQUIRE,
+        TURBOPACK_EXTERNAL_IMPORT, TURBOPACK_EXTERNAL_REQUIRE, TURBOPACK_IMPORT,
+        TURBOPACK_MODULE_CONTEXT, TURBOPACK_REQUIRE,
     },
     utils::module_id_to_lit,
 };
@@ -168,7 +169,8 @@ impl SinglePatternMapping {
                         args: vec![ExprOrSpread {
                             spread: None,
                             expr: quote_expr!(
-                                "() => __turbopack_external_require__($arg, () => require($arg), true)",
+                                "() => $turbopack_external_require($arg, () => require($arg), true)",
+                                turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                                 arg: Expr = key_expr.into_owned()
                             ),
                         }],
@@ -182,7 +184,8 @@ impl SinglePatternMapping {
                 args: vec![ExprOrSpread {
                     spread: None,
                     expr: quote_expr!(
-                        "() => __turbopack_external_require__($arg, () => require($arg), true)",
+                        "() => $turbopack_external_require($arg, () => require($arg), true)",
+                        turbopack_external_require: Expr = TURBOPACK_EXTERNAL_REQUIRE.into(),
                         arg: Expr = key_expr.into_owned()
                     ),
                 }],
@@ -212,7 +215,8 @@ impl SinglePatternMapping {
                 args: vec![ExprOrSpread {
                     spread: None,
                     expr: quote_expr!(
-                        "() => __turbopack_import__($arg)",
+                        "() => $turbopack_import($arg)",
+                        turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                         arg: Expr = self.create_id(key_expr)
                     ),
                 }],
@@ -263,7 +267,8 @@ impl PatternMapping {
             PatternMapping::Map(map) => {
                 let map = create_context_map(map, &key_expr, ImportMode::Require);
 
-                quote!("__turbopack_module_context__($map).resolve($key)" as Expr,
+                quote!("$turbopack_module_context($map).resolve($key)" as Expr,
+                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
                     map: Expr = map,
                     key: Expr = key_expr
                 )
@@ -277,7 +282,8 @@ impl PatternMapping {
             PatternMapping::Map(map) => {
                 let map = create_context_map(map, &key_expr, ImportMode::Require);
 
-                quote!("__turbopack_module_context__($map)($key)" as Expr,
+                quote!("$turbopack_module_context($map)($key)" as Expr,
+                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
                     map: Expr = map,
                     key: Expr = key_expr
                 )
@@ -292,7 +298,8 @@ impl PatternMapping {
                 let map =
                     create_context_map(map, &key_expr, ImportMode::Import { import_externals });
 
-                quote!("__turbopack_module_context__($map).import($key)" as Expr,
+                quote!("$turbopack_module_context($map).import($key)" as Expr,
+                    turbopack_module_context: Expr = TURBOPACK_MODULE_CONTEXT.into(),
                     map: Expr = map,
                     key: Expr = key_expr
                 )
