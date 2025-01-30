@@ -57,6 +57,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
           <button
             aria-label="Mark as helpful"
             onClick={() => handleFeedback(true)}
+            data-testid="feedback-button-helpful"
             className={`feedback-button ${voted === true ? 'voted' : ''}`}
             type="button"
           >
@@ -65,6 +66,7 @@ export function ErrorFeedback({ errorCode, className }: ErrorFeedbackProps) {
           <button
             aria-label="Mark as not helpful"
             onClick={() => handleFeedback(false)}
+            data-testid="feedback-button-not-helpful"
             className={`feedback-button ${voted === false ? 'voted' : ''}`}
             type="button"
           >

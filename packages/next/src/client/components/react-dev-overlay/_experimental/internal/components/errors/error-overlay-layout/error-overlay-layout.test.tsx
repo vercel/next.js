@@ -3,6 +3,7 @@
  */
 /* eslint-disable import/no-extraneous-dependencies */
 import { render, screen, fireEvent, act } from '@testing-library/react'
+import type { Screen } from '@testing-library/react'
 import { ErrorOverlayLayout } from './error-overlay-layout'
 import '@testing-library/jest-dom'
 
@@ -28,6 +29,12 @@ const renderTestComponent = () => {
     </ErrorOverlayLayout>
   )
 }
+
+const getHelpfulButton = (screen_: Screen) =>
+  screen_.getByTestId('feedback-button-helpful')
+
+const getNotHelpfulButton = (screen_: Screen) =>
+  screen_.getByTestId('feedback-button-not-helpful')
 
 describe('ErrorOverlayLayout Component', () => {
   beforeEach(() => {
@@ -63,12 +70,8 @@ describe('ErrorOverlayLayout Component', () => {
   test('voting buttons have aria-hidden icons', () => {
     renderTestComponent()
 
-    const helpfulButton = screen.getByRole('button', {
-      name: 'Mark as helpful',
-    })
-    const notHelpfulButton = screen.getByRole('button', {
-      name: 'Mark as not helpful',
-    })
+    const helpfulButton = getHelpfulButton(screen)
+    const notHelpfulButton = getNotHelpfulButton(screen)
 
     expect(helpfulButton.querySelector('svg')).toHaveAttribute(
       'aria-hidden',
@@ -88,7 +91,7 @@ describe('ErrorOverlayLayout Component', () => {
     ).not.toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: 'Mark as helpful' }))
+      fireEvent.click(getHelpfulButton(screen))
     })
 
     expect(fetch).toHaveBeenCalledWith(
@@ -106,9 +109,7 @@ describe('ErrorOverlayLayout Component', () => {
     ).not.toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(
-        screen.getByRole('button', { name: 'Mark as not helpful' })
-      )
+      fireEvent.click(getNotHelpfulButton(screen))
     })
 
     expect(fetch).toHaveBeenCalledWith(
