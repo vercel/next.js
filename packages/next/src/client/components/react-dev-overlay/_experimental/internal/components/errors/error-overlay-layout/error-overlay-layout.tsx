@@ -68,6 +68,7 @@ export function ErrorOverlayLayout({
   setActiveIndex,
   footerMessage,
   isTurbopack,
+  dialogRef,
 }: ErrorOverlayLayoutProps) {
   const { rendered, transitionDurationMs } = useErrorContext()
 
@@ -81,7 +82,11 @@ export function ErrorOverlayLayout({
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
       <div data-nextjs-dialog-root {...animationProps}>
-        <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
+        <ErrorOverlayDialog
+          dialogRef={dialogRef}
+          onClose={onClose}
+          isTurbopack={isTurbopack}
+        >
           <DialogContent>
             <ErrorOverlayFloatingHeader
               readyErrors={readyErrors}

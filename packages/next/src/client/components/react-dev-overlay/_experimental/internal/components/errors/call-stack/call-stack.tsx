@@ -1,5 +1,5 @@
 import type { OriginalStackFrame } from '../../../helpers/stack-frame'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'
 
@@ -7,7 +7,7 @@ type CallStackProps = {
   frames: OriginalStackFrame[]
 }
 
-export function CallStack({ frames }: CallStackProps) {
+export function CallStack({ frames, dialogRef }: CallStackProps) {
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
 
   const { filteredFrames, ignoreListLength } = useMemo(() => {
@@ -24,10 +24,33 @@ export function CallStack({ frames }: CallStackProps) {
     }
 
     return {
-      filteredFrames: filtered,
+      filteredFrames: frames.filter((frame) => !frame.ignored),
       ignoreListLength: ignoredLength,
     }
   }, [frames, isIgnoreListOpen])
+
+  const ignoredFrames = useMemo(() => {
+    return frames.filter((frame) => frame.ignored)
+  }, [frames])
+
+  // listen to onTransitionEnd
+  useEffect(() => {
+    const el = dialogRef.current
+
+    if (!el) {
+      return
+    }
+
+    function onTransitionEnd() {
+      console.log('END')
+    }
+
+    el.addEventListener('transitionend', onTransitionEnd)
+
+    return () => {
+      el.removeEventListener('transitionend', onTransitionEnd)
+    }
+  }, [])
 
   return (
     <div className="error-overlay-call-stack-container">
@@ -56,6 +79,14 @@ export function CallStack({ frames }: CallStackProps) {
           index={frameIndex}
         />
       ))}
+      {isIgnoreListOpen &&
+        ignoredFrames.map((frame, frameIndex) => (
+          <CallStackFrame
+            key={`call-stack-ignored-${frameIndex}`}
+            frame={frame}
+            index={frameIndex}
+          />
+        ))}
     </div>
   )
 }

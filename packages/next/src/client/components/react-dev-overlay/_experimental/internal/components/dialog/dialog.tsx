@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
+import mergeRefs from '../../helpers/merge-refs'
 
 export type DialogProps = {
   children?: React.ReactNode
@@ -21,11 +22,12 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   type,
   className,
   onClose,
+  dialogRef,
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
   ...props
 }) {
-  const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
+  const rootRef = React.useRef<HTMLDivElement | null>(null)
   const [role, setRole] = React.useState<string | undefined>(
     typeof document !== 'undefined' && document.hasFocus()
       ? 'dialog'
@@ -35,23 +37,23 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   const ref = React.useRef<HTMLDivElement | null>(null)
   const [height, pristine] = useMeasureHeight(ref)
 
-  const onDialog = React.useCallback((node: HTMLDivElement | null) => {
-    setDialog(node)
-  }, [])
-
-  useOnClickOutside(dialog, CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE, (e) => {
-    e.preventDefault()
-    return onClose?.()
-  })
+  useOnClickOutside(
+    rootRef.current,
+    CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE,
+    (e) => {
+      e.preventDefault()
+      return onClose?.()
+    }
+  )
 
   // Make HTMLElements with `role=link` accessible to be triggered by the
   // keyboard, i.e. [Enter].
   React.useEffect(() => {
-    if (dialog == null) {
+    if (rootRef.current == null) {
       return
     }
 
-    const root = dialog.getRootNode()
+    const root = rootRef.current.getRootNode()
     // Always true, but we do this for TypeScript:
     if (!(root instanceof ShadowRoot)) {
       return
@@ -85,27 +87,27 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('blur', handleFocus)
     }
-  }, [dialog])
+  }, [])
 
   React.useEffect(() => {
-    const root = dialog?.getRootNode()
+    const root = rootRef.current?.getRootNode()
     const activeElement =
       root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
 
     // Trap focus within the dialog
-    dialog?.focus()
+    rootRef.current?.focus()
 
     return () => {
       // Blur first to avoid getting stuck, in case `activeElement` is missing
-      dialog?.blur()
+      rootRef.current?.blur()
       // Restore focus to the previously active element
       activeElement?.focus()
     }
-  }, [dialog])
+  }, [])
 
   return (
     <div
-      ref={onDialog}
+      ref={dialogRef}
       data-nextjs-dialog
       tabIndex={1}
       role={role}

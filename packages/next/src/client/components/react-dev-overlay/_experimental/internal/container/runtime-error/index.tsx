@@ -8,7 +8,7 @@ import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
-export function RuntimeError({ error }: RuntimeErrorProps) {
+export function RuntimeError({ error, dialogRef }: RuntimeErrorProps) {
   const { firstFrame } = useMemo(() => {
     const firstFirstPartyFrameIndex = error.frames.findIndex(
       (entry) =>
@@ -31,7 +31,9 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         />
       )}
 
-      {error.frames.length > 0 && <CallStack frames={error.frames} />}
+      {error.frames.length > 0 && (
+        <CallStack dialogRef={dialogRef} frames={error.frames} />
+      )}
     </>
   )
 }

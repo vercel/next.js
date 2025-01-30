@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
@@ -137,8 +137,11 @@ export function Errors({
     ? 'This error happened while generating the page. Any console logs will be displayed in the terminal window.'
     : undefined
 
+  const dialogRef = useRef<HTMLDivElement>(null)
+
   return (
     <ErrorOverlayLayout
+      dialogRef={dialogRef}
       errorCode={errorCode}
       errorType={
         isServerError
@@ -193,7 +196,11 @@ export function Errors({
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
         />
       ) : null}
-      <RuntimeError key={activeError.id.toString()} error={activeError} />
+      <RuntimeError
+        dialogRef={dialogRef}
+        key={activeError.id.toString()}
+        error={activeError}
+      />
     </ErrorOverlayLayout>
   )
 }

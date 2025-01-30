@@ -52,7 +52,7 @@ export const CallStackFrame: React.FC<{
     <div
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-ignored={!hasSource}
-      data-animate={frame.ignored}
+      // data-animate={frame.ignored}
       {...props}
       style={
         {
