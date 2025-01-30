@@ -3,7 +3,6 @@
  */
 /* eslint-disable import/no-extraneous-dependencies */
 import { render, screen, fireEvent, act } from '@testing-library/react'
-import type { Screen } from '@testing-library/react'
 import { ErrorOverlayLayout } from './error-overlay-layout'
 import '@testing-library/jest-dom'
 
@@ -13,6 +12,12 @@ jest.mock('../../../components/overlay/maintain--tab-focus', () => ({
   default: jest.fn(() => ({
     disengage: jest.fn(),
   })),
+}))
+
+global.ResizeObserver = jest.fn().mockImplementation(() => ({
+  observe: jest.fn(),
+  unobserve: jest.fn(),
+  disconnect: jest.fn(),
 }))
 
 const renderTestComponent = () => {
@@ -29,12 +34,6 @@ const renderTestComponent = () => {
     </ErrorOverlayLayout>
   )
 }
-
-const getHelpfulButton = (screen_: Screen) =>
-  screen_.getByTestId('feedback-button-helpful')
-
-const getNotHelpfulButton = (screen_: Screen) =>
-  screen_.getByTestId('feedback-button-not-helpful')
 
 describe('ErrorOverlayLayout Component', () => {
   beforeEach(() => {
@@ -70,8 +69,12 @@ describe('ErrorOverlayLayout Component', () => {
   test('voting buttons have aria-hidden icons', () => {
     renderTestComponent()
 
-    const helpfulButton = getHelpfulButton(screen)
-    const notHelpfulButton = getNotHelpfulButton(screen)
+    const helpfulButton = screen.getByRole('button', {
+      name: 'Mark as helpful',
+    })
+    const notHelpfulButton = screen.getByRole('button', {
+      name: 'Mark as not helpful',
+    })
 
     expect(helpfulButton.querySelector('svg')).toHaveAttribute(
       'aria-hidden',
@@ -91,7 +94,7 @@ describe('ErrorOverlayLayout Component', () => {
     ).not.toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(getHelpfulButton(screen))
+      fireEvent.click(screen.getByRole('button', { name: 'Mark as helpful' }))
     })
 
     expect(fetch).toHaveBeenCalledWith(
@@ -109,7 +112,9 @@ describe('ErrorOverlayLayout Component', () => {
     ).not.toBeInTheDocument()
 
     await act(async () => {
-      fireEvent.click(getNotHelpfulButton(screen))
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Mark as not helpful' })
+      )
     })
 
     expect(fetch).toHaveBeenCalledWith(
