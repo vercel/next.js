@@ -33,8 +33,19 @@ export const CallStackFrame: React.FC<{
   // Formatted file source could be empty. e.g. <anonymous> will be formatted to empty string,
   // we'll skip rendering the frame in this case.
   const fileSource = getFrameSource(f)
+
   if (!fileSource) {
     return null
+  }
+
+  const props = {
+    ...(hasSource && {
+      role: 'button',
+      tabIndex: 0,
+      'aria-label': 'Click to open in your editor',
+      title: 'Click to open in your editor',
+      onClick: open,
+    }),
   }
 
   return (
@@ -42,11 +53,7 @@ export const CallStackFrame: React.FC<{
       data-nextjs-call-stack-frame
       data-nextjs-call-stack-frame-ignored={!hasSource}
       data-animate={frame.ignored}
-      onClick={hasSource ? open : undefined}
-      role="button"
-      tabIndex={0}
-      aria-label={hasSource ? 'Click to open in your editor' : undefined}
-      title={hasSource ? 'Click to open in your editor' : undefined}
+      {...props}
       style={
         {
           '--index': index,
@@ -101,12 +108,12 @@ export const CALL_STACK_FRAME_STYLES = css`
         calc(var(--index) * 25ms);
     }
 
-    &:not(:disabled):hover {
+    &:not(:disabled)[role='button']:hover {
       background: var(--color-gray-alpha-100);
       cursor: pointer;
     }
 
-    &:not(:disabled):active {
+    &:not(:disabled)[role='button']:active {
       background: var(--color-gray-alpha-200);
     }
 
