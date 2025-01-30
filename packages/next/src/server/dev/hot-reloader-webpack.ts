@@ -1444,7 +1444,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               this.send({
                 action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
                 data: [page],
-                hash: stats.hash,
               })
             }
           }
@@ -1455,7 +1454,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
               this.send({
                 action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
                 data: [page],
-                hash: stats.hash,
               })
             }
           }
