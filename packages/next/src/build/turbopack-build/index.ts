@@ -11,7 +11,7 @@ async function turbopackBuildWithWorker() {
 
   try {
     const worker = new Worker(path.join(__dirname, 'impl.js'), {
-      exposedMethods: ['workerMain'],
+      exposedMethods: ['workerMain', 'waitForShutdown'],
       numWorkers: 1,
       maxRetries: 0,
       forkOptions: {
@@ -27,8 +27,11 @@ async function turbopackBuildWithWorker() {
       buildContext: prunedBuildContext,
     })
 
-    // destroy worker so it's not sticking around using memory
-    await worker.end()
+    // destroy worker when Turbopack has shutdown so it's not sticking around using memory
+    // We need to wait for shutdown to make sure persistent cache is flushed
+    result.shutdownPromise = worker.waitForShutdown().then(() => {
+      worker.end()
+    })
 
     return result
   } catch (err: any) {
