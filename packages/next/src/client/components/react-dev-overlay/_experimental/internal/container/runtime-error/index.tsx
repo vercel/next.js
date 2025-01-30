@@ -32,7 +32,7 @@ export function RuntimeError({ error, dialogRef }: RuntimeErrorProps) {
       )}
 
       {error.frames.length > 0 && (
-        <CallStack dialogRef={dialogRef} frames={error.frames} />
+        <CallStack  frames={error.frames} />
       )}
     </>
   )

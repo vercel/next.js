@@ -7,7 +7,7 @@ type CallStackProps = {
   frames: OriginalStackFrame[]
 }
 
-export function CallStack({ frames, dialogRef }: CallStackProps) {
+export function CallStack({ frames }: CallStackProps) {
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
 
   const { filteredFrames, ignoreListLength } = useMemo(() => {

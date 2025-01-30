@@ -137,11 +137,9 @@ export function Errors({
     ? 'This error happened while generating the page. Any console logs will be displayed in the terminal window.'
     : undefined
 
-  const dialogRef = useRef<HTMLDivElement>(null)
 
   return (
     <ErrorOverlayLayout
-      dialogRef={dialogRef}
       errorCode={errorCode}
       errorType={
         isServerError
@@ -197,7 +195,6 @@ export function Errors({
         />
       ) : null}
       <RuntimeError
-        dialogRef={dialogRef}
         key={activeError.id.toString()}
         error={activeError}
       />
