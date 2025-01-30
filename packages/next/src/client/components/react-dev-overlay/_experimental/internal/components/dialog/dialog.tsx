@@ -1,5 +1,6 @@
 import * as React from 'react'
 import { useOnClickOutside } from '../../hooks/use-on-click-outside'
+import { useMeasureHeight } from '../../hooks/use-measure-height'
 
 export type DialogProps = {
   children?: React.ReactNode
@@ -137,37 +138,3 @@ const Dialog: React.FC<DialogProps> = function Dialog({
 }
 
 export { Dialog }
-
-function useMeasureHeight(
-  ref: React.RefObject<HTMLDivElement | null>
-): [number, boolean] {
-  const [pristine, setPristine] = React.useState<boolean>(true)
-  const [height, setHeight] = React.useState<number>(0)
-
-  React.useEffect(() => {
-    const el = ref.current
-
-    if (!el) {
-      return
-    }
-
-    const observer = new ResizeObserver(() => {
-      const { height: h } = el.getBoundingClientRect()
-      setHeight((prevHeight) => {
-        if (prevHeight !== 0) {
-          setPristine(false)
-        }
-        return h
-      })
-    })
-
-    observer.observe(el)
-    return () => {
-      observer.disconnect()
-      setPristine(true)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
-
-  return [height, pristine]
-}
