@@ -97,15 +97,19 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       aria-modal="true"
       className={className}
       {...props}
-      // [x] Don't animate on initial load
-      // [x] No duplicate elements
-      // [x] Responds to content growth
-      style={{
-        height,
-        transition: pristine ? undefined : 'height 250ms var(--timing-swift)',
-      }}
     >
-      <div ref={ref}>{children}</div>
+      <div
+        data-nextjs-dialog-sizer
+        // [x] Don't animate on initial load
+        // [x] No duplicate elements
+        // [x] Responds to content growth
+        style={{
+          height,
+          transition: pristine ? undefined : 'height 250ms var(--timing-swift)',
+        }}
+      >
+        <div ref={ref}>{children}</div>
+      </div>
     </div>
   )
 }

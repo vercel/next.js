@@ -14,7 +14,12 @@ const styles = css`
     margin-right: auto;
     margin-left: auto;
     outline: none;
+  }
+
+  /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
+  [data-nextjs-dialog-sizer] {
     overflow: hidden;
+    border-radius: inherit;
   }
 
   @media (max-height: 812px) {

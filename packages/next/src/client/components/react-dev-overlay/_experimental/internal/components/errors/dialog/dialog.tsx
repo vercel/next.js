@@ -42,25 +42,27 @@ export const DIALOG_STYLES = css`
     }
   }
 
-  .turbo::after {
-    content: '';
-    --size: 1px;
-    --gradient: linear-gradient(
-      to right top,
-      transparent 75%,
-      var(--color-turbopack-border-blue) 87.5%,
-      var(--color-turbopack-border-red) 100%
-    );
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    border-radius: var(--next-dialog-radius);
-    padding: var(--size);
-    background: var(--gradient);
-    mask:
-      linear-gradient(black, black) content-box,
-      linear-gradient(black, black);
-    -webkit-mask-composite: xor;
-    mask-composite: exclude;
+  .turbo {
+    &:after {
+      content: '';
+      --size: 1px;
+      --gradient: linear-gradient(
+        to right top,
+        transparent 75%,
+        var(--color-turbopack-border-blue) 87.5%,
+        var(--color-turbopack-border-red) 100%
+      );
+      position: absolute;
+      inset: -1px;
+      pointer-events: none;
+      border-radius: var(--next-dialog-radius);
+      padding: var(--size);
+      background: var(--gradient);
+      mask:
+        linear-gradient(black, black) content-box,
+        linear-gradient(black, black);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
   }
 `
