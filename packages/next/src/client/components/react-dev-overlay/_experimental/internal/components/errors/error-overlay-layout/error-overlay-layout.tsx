@@ -32,6 +32,7 @@ import {
 import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
+import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -69,12 +70,7 @@ export function ErrorOverlayLayout({
 }: ErrorOverlayLayoutProps) {
   return (
     <ErrorOverlayOverlay fixed={isBuildError}>
-      <ErrorOverlayDialog
-        onClose={onClose}
-        isTurbopack={isTurbopack}
-        count={readyErrors?.length ?? 0}
-        activeIdx={activeIdx ?? 0}
-      >
+      <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
         <DialogContent>
           <ErrorOverlayFloatingHeader
             readyErrors={readyErrors}
@@ -98,12 +94,19 @@ export function ErrorOverlayLayout({
 
           <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
 
-          <DialogFooter>
-            <ErrorOverlayFooter
-              footerMessage={footerMessage}
-              errorCode={errorCode}
-            />
-          </DialogFooter>
+          {(footerMessage || errorCode) && (
+            <DialogFooter>
+              <ErrorOverlayFooter
+                footerMessage={footerMessage}
+                errorCode={errorCode}
+              />
+            </DialogFooter>
+          )}
+
+          <ErrorOverlayBottomStack
+            count={readyErrors?.length ?? 0}
+            activeIdx={activeIdx ?? 0}
+          />
         </DialogContent>
       </ErrorOverlayDialog>
     </ErrorOverlayOverlay>

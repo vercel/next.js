@@ -72,6 +72,7 @@ function ErrorDescription({
 }
 
 export function Errors({
+  errors,
   readyErrors,
   debugInfo,
   versionInfo,
@@ -204,12 +205,12 @@ export const styles = css`
   }
   p.nextjs__container_errors__link {
     color: var(--color-red-900);
-    font-weight: 500;
+    font-weight: 600;
     font-size: 15px;
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-weight: 500;
+    font-weight: 600;
     font-size: 15px;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {

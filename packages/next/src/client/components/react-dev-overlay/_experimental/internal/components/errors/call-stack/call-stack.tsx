@@ -55,6 +55,7 @@ export function CallStack({ frames }: CallStackProps) {
         <CallStackFrame
           key={`call-stack-leading-${frameIndex}`}
           frame={frame}
+          index={frameIndex}
         />
       ))}
     </div>
@@ -84,7 +85,8 @@ export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
     border-top: 1px solid var(--color-gray-400);
     padding: var(--size-4) var(--size-3);
-    // overflow-y: auto;
+    /* To optically align last item */
+    padding-bottom: 8px;
   }
 
   .error-overlay-call-stack-header {
@@ -93,7 +95,6 @@ export const CALL_STACK_STYLES = css`
     align-items: center;
 
     margin-bottom: var(--size-3);
-
     padding: 0 var(--size-2);
   }
 
@@ -138,9 +139,14 @@ export const CALL_STACK_STYLES = css`
     color: var(--color-gray-900);
     font-size: var(--size-font-small);
     line-height: var(--size-5);
-    border-radius: 3px;
-    padding: 2px;
-    margin: -2px;
+    border-radius: 6px;
+    padding: 4px 6px;
+    margin-right: -6px;
+    transition: background 150ms ease;
+
+    &:hover {
+      background: var(--color-gray-100);
+    }
 
     &:focus {
       outline: var(--focus-ring);

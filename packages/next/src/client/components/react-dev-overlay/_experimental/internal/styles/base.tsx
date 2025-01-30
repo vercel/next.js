@@ -77,6 +77,8 @@ export function Base() {
           --focus-color: var(--color-blue-800);
           --focus-ring: 2px solid var(--focus-color);
 
+          --timing-swift: cubic-bezier(0.23, 0.88, 0.26, 0.92);
+
           --rounded-none: 0px;
           --rounded-sm: 0.125rem; /* 2px */
           --rounded-md: 0.25rem; /* 4px */
@@ -118,7 +120,7 @@ export function Base() {
           :host {
             --color-background: rgb(28, 28, 30);
             --color-font: white;
-            --color-backdrop: rgb(44, 44, 46);
+            --color-backdrop: rgb(0, 0, 0, 0.8);
             --color-border-shadow: rgba(255, 255, 255, 0.145);
 
             --color-title-color: #fafafa;

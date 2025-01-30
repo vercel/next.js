@@ -37,20 +37,18 @@ export const styles = css`
 
   .error-feedback {
     margin-left: auto;
-  }
 
-  .error-overlay-footer p {
-    color: var(--color-gray-900);
-    margin: 0;
-    font-size: 14px;
-    font-weight: 500;
-    line-height: 20px;
+    p {
+      font-size: 14px;
+      font-weight: 500;
+      margin: 0;
+    }
   }
 
   .error-overlay-footer-message {
     color: var(--color-gray-900);
     margin: 0;
-    font-size: var(--size-font-small);
+    font-size: 14px;
     font-weight: 400;
     line-height: var(--size-font-big);
   }

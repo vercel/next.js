@@ -47,17 +47,6 @@ export const styles = css`
     transform: translateY(calc(-1 * var(--size-10_5)));
 
     outline: none;
-
-    @media (min-width: 576px) {
-      max-width: 540px;
-    }
-
-    @media (min-width: 768px) {
-      max-width: 720px;
-    }
-
-    @media (min-width: 992px) {
-      max-width: 960px;
-    }
+    max-width: var(--next-dialog-max-width);
   }
 `
