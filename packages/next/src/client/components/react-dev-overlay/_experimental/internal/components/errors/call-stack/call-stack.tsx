@@ -92,13 +92,6 @@ export function CallStack({ frames }: CallStackProps) {
           ))}
         </div>
       </div>
-
-      <div
-        className="blur"
-        style={{
-          translate: `0 -32px`,
-        }}
-      />
     </div>
   )
 }
@@ -193,19 +186,5 @@ export const CALL_STACK_STYLES = css`
     &:focus {
       outline: var(--focus-ring);
     }
-  }
-
-  .blur {
-    // -webkit-mask-image: linear-gradient(to top, #000 20%, transparent);
-    // mask-image: linear-gradient(to top, #000 20%, transparent);
-    -webkit-backdrop-filter: blur(5px);
-    backdrop-filter: blur(5px);
-    width: 100%;
-    height: 40px;
-    bottom: 0;
-    outline: 1px solid red;
-    pointer-events: none;
-    position: absolute;
-    transition: translate 250ms var(--timing-swift);
   }
 `
