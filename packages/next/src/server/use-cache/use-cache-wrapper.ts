@@ -526,9 +526,9 @@ export function cache(
 
       // In dev mode, when the HMR refresh hash is set, we include it in the
       // cache key. This ensures that cache entries are not reused when server
-      // components have been edited. This is a very coarse approach. Ideally
-      // we'd only change cache keys for the caches that are included in the
-      // edited module (or, even better, function), directly or transitively.
+      // components have been edited. This is a very coarse approach. But it's
+      // also only a temporary solution until Action IDs are unique per
+      // implementation. Remove this once Action IDs hash the implementation.
       const hmrRefreshHash =
         workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
           ? workUnitStore.hmrRefreshHash
