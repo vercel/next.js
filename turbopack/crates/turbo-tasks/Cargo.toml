@@ -26,7 +26,7 @@ auto-hash-map = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
-erased-serde = "0.3.20"
+erased-serde = { workspace = true }
 event-listener = "2.5.3"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
