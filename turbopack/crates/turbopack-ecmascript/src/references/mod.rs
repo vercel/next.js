@@ -2725,9 +2725,9 @@ async fn value_visitor_inner(
     // This check is just an optimization
     if v.get_defineable_name_len().is_some() {
         let compile_time_info = compile_time_info.await?;
-        if let JsValue::TypeOf(..) = v {
+        if let JsValue::TypeOf(_, arg) = &v {
             if let Some(value) = match_free_var_reference(
-                &v,
+                arg,
                 Some(var_graph),
                 &*compile_time_info.free_var_references.individual().await?,
                 &DefineableNameSegment::TypeOf,
