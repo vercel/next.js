@@ -12,6 +12,7 @@ use turbopack_core::{
     },
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::runtime_functions::TURBOPACK_EXPORT_NAMESPACE;
 use turbopack_node::execution_context::ExecutionContext;
 
 /// Intercepts requests for the given request to `unsupported` error messages
@@ -58,7 +59,7 @@ impl ImportMappingReplacement for NextEdgeUnsupportedModuleReplacer {
             // `__import_unsupported` and necessary functions.
             let code = formatdoc! {
               r#"
-              __turbopack_context__.n(__import_unsupported(`{module}`));
+              {TURBOPACK_EXPORT_NAMESPACE}(__import_unsupported(`{module}`));
               "#
             };
             let content = AssetContent::file(File::from(code).into());

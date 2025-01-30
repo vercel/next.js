@@ -26,6 +26,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_NAMESPACE,
     utils::StringifyJs,
 };
 
@@ -136,7 +137,7 @@ impl EcmascriptClientReferenceModule {
                 r#"
                     const {{ createClientModuleProxy }} = require("react-server-dom-turbopack/server.edge");
 
-                    __turbopack_context__.n(createClientModuleProxy({server_module_path}));
+                    {TURBOPACK_EXPORT_NAMESPACE}(createClientModuleProxy({server_module_path}));
                 "#,
                 server_module_path = StringifyJs(server_module_path)
             )?;

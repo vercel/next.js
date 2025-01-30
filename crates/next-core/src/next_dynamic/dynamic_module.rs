@@ -18,6 +18,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkType, EcmascriptExports,
     },
     references::esm::{EsmExport, EsmExports},
+    runtime_functions::{TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_IMPORT},
     utils::StringifyJs,
 };
 
@@ -149,7 +150,7 @@ impl EcmascriptChunkItem for NextDynamicEntryChunkItem {
         Ok(EcmascriptChunkItemContent {
             inner_code: formatdoc!(
                 r#"
-                    __turbopack_context__.n(__turbopack_context__.i({}));
+                    {TURBOPACK_EXPORT_NAMESPACE}({TURBOPACK_IMPORT}({}));
                 "#,
                 StringifyJs(&module_id),
             )
