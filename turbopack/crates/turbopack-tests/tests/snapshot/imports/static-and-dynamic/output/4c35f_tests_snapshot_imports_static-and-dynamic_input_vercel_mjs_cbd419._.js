@@ -4,9 +4,9 @@
 
 var { g: global, d: __dirname } = __turbopack_context__;
 {
-__turbopack_context__.v((__turbopack_import__) => {
+__turbopack_context__.v((parentImport) => {
     return Promise.resolve().then(() => {
-        return __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs [test] (ecmascript)");
+        return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/static-and-dynamic/input/vercel.mjs [test] (ecmascript)");
     });
 });
 }}),

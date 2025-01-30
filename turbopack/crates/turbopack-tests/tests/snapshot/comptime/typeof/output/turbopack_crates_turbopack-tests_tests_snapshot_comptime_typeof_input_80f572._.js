@@ -15,7 +15,7 @@ console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
 console.log("typeof module", ("TURBOPACK compile-time value", "object"));
 console.log("typeof exports", ("TURBOPACK compile-time value", "object"));
 // CJS, should be real require
-console.log(("TURBOPACK ident replacement", __turbopack_context__.t));
+console.log(("TURBOPACK member replacement", __turbopack_context__.t));
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/dep.js [test] (ecmascript)": (function(__turbopack_context__) {
 
@@ -41,7 +41,7 @@ console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
 console.log("typeof module", ("TURBOPACK compile-time value", "undefined"));
 console.log("typeof exports", ("TURBOPACK compile-time value", "undefined"));
 // ESM, should be require stub
-console.log(("TURBOPACK ident replacement", __turbopack_context__.z));
+console.log(("TURBOPACK member replacement", __turbopack_context__.z));
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/esm-specified.mjs [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";
@@ -60,7 +60,7 @@ console.log("typeof import.meta", ("TURBOPACK compile-time value", "object"));
 console.log("typeof module", ("TURBOPACK compile-time value", "undefined"));
 console.log("typeof exports", ("TURBOPACK compile-time value", "undefined"));
 // ESM, should be require stub
-console.log(("TURBOPACK ident replacement", __turbopack_context__.z));
+console.log(("TURBOPACK member replacement", __turbopack_context__.z));
 }}),
 "[project]/turbopack/crates/turbopack-tests/tests/snapshot/comptime/typeof/input/index.js [test] (ecmascript)": ((__turbopack_context__) => {
 "use strict";

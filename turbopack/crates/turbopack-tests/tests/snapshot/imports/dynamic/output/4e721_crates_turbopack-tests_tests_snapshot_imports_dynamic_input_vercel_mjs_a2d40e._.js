@@ -4,11 +4,11 @@
 
 var { g: global, d: __dirname } = __turbopack_context__;
 {
-__turbopack_context__.v((__turbopack_import__) => {
+__turbopack_context__.v((parentImport) => {
     return Promise.all([
   "output/4e721_crates_turbopack-tests_tests_snapshot_imports_dynamic_input_vercel_mjs_7f2965._.js"
 ].map((chunk) => __turbopack_context__.l(chunk))).then(() => {
-        return __turbopack_import__("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.mjs [test] (ecmascript)");
+        return parentImport("[project]/turbopack/crates/turbopack-tests/tests/snapshot/imports/dynamic/input/vercel.mjs [test] (ecmascript)");
     });
 });
 }}),

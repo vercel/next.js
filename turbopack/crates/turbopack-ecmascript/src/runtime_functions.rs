@@ -9,8 +9,8 @@ pub struct TurbopackRuntimeFunctionShortcut {
 }
 
 impl TurbopackRuntimeFunctionShortcut {
-    pub const fn new(shortcut: &'static str, full: &'static str) -> Self {
-        Self { shortcut, full }
+    pub const fn new(full: &'static str, shortcut: &'static str) -> Self {
+        Self { full, shortcut }
     }
 }
 

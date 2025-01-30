@@ -20,6 +20,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::TURBOPACK_REQUIRE,
     worker_chunk::module::WorkerLoaderModule,
 };
 
@@ -140,7 +141,8 @@ impl CodeGenerateable for WorkerAssetReference {
                         Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = quote_expr!(
-                                "{TURBOPACK_REQUIRE}($item_id)",
+                                "$turbopack_require($item_id)",
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 item_id: Expr = item_id
                             );
 
