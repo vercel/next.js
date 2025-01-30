@@ -106,7 +106,7 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
           <ExternalIcon width={16} height={16} />
         </p>
       </div>
-      <pre className="terminal-content">
+      <pre>
         {decoded.map((entry, index) => (
           <span
             key={`terminal-entry-${index}`}
@@ -150,7 +150,7 @@ export const TERMINAL_STYLES = css`
     line-height: 16px;
   }
 
-  .terminal-content {
+  [data-nextjs-terminal] pre {
     white-space: pre-wrap;
   }
 
