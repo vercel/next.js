@@ -1,7 +1,7 @@
 use anyhow::Result;
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
-    ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
+    common::util::take::Take,
+    ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
 use turbo_rcstr::RcStr;
@@ -20,6 +20,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::TURBOPACK_CACHE,
 };
 
 #[turbo_tasks::value]
@@ -316,7 +317,7 @@ impl CodeGenerateable for CjsRequireCacheAccess {
         let path = &self.path.await?;
         visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Member(_) = expr {
-                *expr = Expr::Ident(Ident::new("__turbopack_context__.c".into(), DUMMY_SP, Default::default()));
+                *expr = TURBOPACK_CACHE.into();
             } else {
                 unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
             }

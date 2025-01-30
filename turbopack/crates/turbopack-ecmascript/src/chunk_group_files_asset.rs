@@ -24,6 +24,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -189,7 +190,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
             .collect();
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_context__.v({:#});\n",
+                "{TURBOPACK_EXPORT_VALUE}({:#});\n",
                 StringifyJs(&chunks_paths)
             )
             .into(),

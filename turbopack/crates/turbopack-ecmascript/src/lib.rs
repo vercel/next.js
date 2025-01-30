@@ -143,8 +143,8 @@ pub struct EcmascriptOptions {
     /// This allows to construct url depends on the different building context,
     /// e.g. SSR, CSR, or Node.js.
     pub url_rewrite_behavior: Option<UrlRewriteBehavior>,
-    /// External imports should used `__turbopack_context__.i` instead of
-    /// `__turbopack_context__.r` and become async module references.
+    /// External imports should used `__turbopack_import__` instead of
+    /// `__turbopack_require__` and become async module references.
     pub import_externals: bool,
     /// Ignore very dynamic requests which doesn't have any static known part.
     /// If false, they will reference the whole directory. If true, they won't

@@ -140,7 +140,7 @@ impl CodeGenerateable for WorkerAssetReference {
                         Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = quote_expr!(
-                                "__turbopack_context__.r($item_id)",
+                                "{TURBOPACK_REQUIRE}($item_id)",
                                 item_id: Expr = item_id
                             );
 

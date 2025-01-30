@@ -5,7 +5,7 @@ console.log(R.pipe('a', 'b', 'c'));
 
 
 it('should import only pipe.js', () => {
-  const modules = Object.keys(__turbopack_context__.M);
+  const modules = Object.keys(__turbopack_modules__);
   expect(modules).toContainEqual(
     expect.stringMatching(/input\/node_modules\/ramda\/pipe/)
   );

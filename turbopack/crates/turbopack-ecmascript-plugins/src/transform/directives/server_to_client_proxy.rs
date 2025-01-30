@@ -33,7 +33,7 @@ pub fn create_proxy_module(transition_name: &str, target_import: &str) -> Progra
                 phase: Default::default(),
             })),
             ModuleItem::Stmt(quote!(
-                "__turbopack_context__.n($proxy);" as Stmt,
+                "__turbopack_export_namespace__($proxy);" as Stmt,
                 proxy = ident,
             )),
         ],
@@ -58,7 +58,7 @@ pub fn create_error_proxy_module(error_proxy_module: &str) -> Program {
                 phase: Default::default(),
             })),
             ModuleItem::Stmt(quote!(
-                "__turbopack_context__.n($proxy);" as Stmt,
+                "__turbopack_export_namespace__($proxy);" as Stmt,
                 proxy = ident,
             )),
         ],

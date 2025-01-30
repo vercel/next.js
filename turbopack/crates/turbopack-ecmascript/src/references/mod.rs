@@ -144,7 +144,9 @@ use crate::{
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
     },
-    runtime_functions::TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS,
+    runtime_functions::{
+        TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
+    },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::{module_value_to_well_known_object, AstPathRange},
     EcmascriptInputTransforms, EcmascriptModuleAsset, EcmascriptParsable, SpecifiedModuleType,
@@ -1377,9 +1379,9 @@ async fn compile_time_info_for_module_type(
 
     let mut free_var_references = free_var_references.await?.clone_value();
     let (typeof_exports, typeof_module, require) = if is_esm {
-        ("undefined", "undefined", "__turbopack_context__.z")
+        ("undefined", "undefined", TURBOPACK_REQUIRE_STUB)
     } else {
-        ("object", "object", "__turbopack_context__.t")
+        ("object", "object", TURBOPACK_REQUIRE_REAL)
     };
     free_var_references
         .entry(vec![
@@ -1408,13 +1410,13 @@ async fn compile_time_info_for_module_type(
         .or_insert("function".into());
     free_var_references
         .entry(vec![DefineableNameSegment::Name("require".into())])
-        .or_insert(FreeVarReference::Ident(require.into()));
+        .or_insert(require.into());
 
     free_var_references.extend(TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
         |(name, shortcut)| {
             (
                 vec![DefineableNameSegment::Name(name.into())],
-                FreeVarReference::Member("__turbopack_context__".into(), shortcut.into()),
+                shortcut.into(),
             )
         },
     ));
@@ -3435,11 +3437,11 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
                 self.cjs = true;
                 self.found = true;
             }
-            if &*i.sym == "__turbopack_context__.v" {
+            if &*i.sym == "__turbopack_export_value__" {
                 self.value = true;
                 self.found = true;
             }
-            if &*i.sym == "__turbopack_context__.n" {
+            if &*i.sym == "__turbopack_export_namespace__" {
                 self.namespace = true;
                 self.found = true;
             }

@@ -29,6 +29,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
 
 #[turbo_tasks::value]
@@ -196,7 +197,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                         ResolvedElement::Expr(quote!("module" as Expr))
                     }
                     AmdDefineDependencyElement::Require => {
-                        ResolvedElement::Expr(quote!("__turbopack_context__.r" as Expr))
+                        ResolvedElement::Expr(TURBOPACK_REQUIRE.into())
                     }
                 })
             })
@@ -226,10 +227,10 @@ enum ResolvedElement {
 
 /// Transforms `define([dep1, dep2], factory)` into:
 /// ```js
-/// __turbopack_context__.v(
+/// __turbopack_export_value__(
 ///   factory(
-///     __turbopack_context__.r(dep1),
-///     __turbopack_context__.r(dep2),
+///     __turbopack_require__(dep1),
+///     __turbopack_require__(dep2),
 ///   ),
 /// );
 /// ```
@@ -261,7 +262,7 @@ fn transform_amd_factory(
     match factory_type {
         AmdDefineFactoryType::Unknown => {
             // ((f, r = typeof f !== "function" ? f : f([...])) => r !== undefined &&
-            // __turbopack_context__.v(r))(...)
+            // __turbopack_export_value__(r))(...)
             let f = private_ident!("f");
             let call_f = Expr::Call(CallExpr {
                 args: deps,
@@ -271,7 +272,7 @@ fn transform_amd_factory(
             });
             *callee = Callee::Expr(quote_expr!(
                 "($f1, r = typeof $f2 !== \"function\" ? $f3 : $call_f) => r !== undefined && \
-                 __turbopack_export_value(r)",
+                 __turbopack_export_value__(r)",
                 f1 = f.clone(),
                 f2 = f.clone(),
                 f3 = f,
@@ -283,9 +284,9 @@ fn transform_amd_factory(
             });
         }
         AmdDefineFactoryType::Function => {
-            // (r => r !== undefined && __turbopack_context__.v(r))(...([...]))
+            // (r => r !== undefined && __turbopack_export_value__(r))(...([...]))
             *callee = Callee::Expr(quote_expr!(
-                "r => r !== undefined && __turbopack_context__.v(r)"
+                "r => r !== undefined && __turbopack_export_value__(r)"
             ));
             args.push(ExprOrSpread {
                 expr: Box::new(Expr::Call(CallExpr {
@@ -297,8 +298,8 @@ fn transform_amd_factory(
             });
         }
         AmdDefineFactoryType::Value => {
-            // __turbopack_context__.v(...)
-            *callee = Callee::Expr(quote_expr!("__turbopack_context__.v"));
+            // __turbopack_export_value__(...)
+            *callee = Callee::Expr(Box::new(TURBOPACK_EXPORT_VALUE.into()));
             args.push(ExprOrSpread {
                 expr: factory,
                 spread: None,

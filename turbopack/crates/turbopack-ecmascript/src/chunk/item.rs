@@ -178,7 +178,7 @@ pub struct EcmascriptChunkItemOptions {
     /// stub (for ESM)
     pub stub_require: bool,
     /// Whether this chunk item's module factory should include a
-    /// `__turbopack_context__.x` argument.
+    /// `__turbopack_external_require__` argument.
     pub externals: bool,
     /// Whether this chunk item's module is async (either has a top level await
     /// or is importing async modules).
