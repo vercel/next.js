@@ -1,19 +1,29 @@
 import { noop as css } from '../../helpers/noop-template'
 
 const styles = css`
-  [data-nextjs-dialog] {
+  [data-nextjs-dialog-root] {
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-footer-height: 48px;
     --next-dialog-max-width: 960px;
+
     display: flex;
     flex-direction: column;
-
     width: 100%;
     max-height: calc(100% - 56px);
     max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
     outline: none;
+    scale: 0.98;
+    opacity: 0;
+    transition-property: scale, opacity;
+    transition-duration: var(--transition-duration);
+    transition-timing-function: var(--timing-overlay);
+
+    &[data-rendered='true'] {
+      opacity: 1;
+      scale: 1;
+    }
   }
 
   /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */
@@ -22,28 +32,14 @@ const styles = css`
     border-radius: inherit;
   }
 
-  @media (max-height: 812px) {
-    [data-nextjs-dialog-overlay] {
-      max-height: calc(100% - 15px);
-    }
+  [data-nextjs-dialog-backdrop] {
+    opacity: 0;
+    transition: opacity var(--transition-duration) var(--timing-overlay);
   }
 
-  @media (min-width: 576px) {
-    [data-nextjs-dialog] {
-      --next-dialog-max-width: 540px;
-    }
-  }
-
-  @media (min-width: 768px) {
-    [data-nextjs-dialog] {
-      --next-dialog-max-width: 720px;
-    }
-  }
-
-  @media (min-width: 992px) {
-    [data-nextjs-dialog] {
-      --next-dialog-max-width: 960px;
-    }
+  [data-nextjs-dialog-overlay][data-rendered='true']
+    [data-nextjs-dialog-backdrop] {
+    opacity: 1;
   }
 
   [data-nextjs-dialog-content] {
@@ -82,6 +78,30 @@ const styles = css`
 
     > * {
       height: 100%;
+    }
+  }
+
+  @media (max-height: 812px) {
+    [data-nextjs-dialog-overlay] {
+      max-height: calc(100% - 15px);
+    }
+  }
+
+  @media (min-width: 576px) {
+    [data-nextjs-dialog-root] {
+      --next-dialog-max-width: 540px;
+    }
+  }
+
+  @media (min-width: 768px) {
+    [data-nextjs-dialog-root] {
+      --next-dialog-max-width: 720px;
+    }
+  }
+
+  @media (min-width: 992px) {
+    [data-nextjs-dialog-root] {
+      --next-dialog-max-width: 960px;
     }
   }
 `

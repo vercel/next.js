@@ -33,6 +33,7 @@ import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
+import { useErrorContext } from '../error-overlay/error-overlay'
 
 type ErrorOverlayLayoutProps = {
   errorMessage: ErrorMessageType
@@ -68,47 +69,58 @@ export function ErrorOverlayLayout({
   footerMessage,
   isTurbopack,
 }: ErrorOverlayLayoutProps) {
+  const { rendered, transitionDurationMs } = useErrorContext()
+
+  const animationProps = {
+    'data-rendered': rendered,
+    style: {
+      '--transition-duration': `${transitionDurationMs}ms`,
+    } as React.CSSProperties,
+  }
+
   return (
-    <ErrorOverlayOverlay fixed={isBuildError}>
-      <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
-        <DialogContent>
-          <ErrorOverlayFloatingHeader
-            readyErrors={readyErrors}
-            activeIdx={activeIdx}
-            setActiveIndex={setActiveIndex}
-            versionInfo={versionInfo}
-            isTurbopack={isTurbopack}
-          />
+    <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
+      <div data-nextjs-dialog-root {...animationProps}>
+        <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
+          <DialogContent>
+            <ErrorOverlayFloatingHeader
+              readyErrors={readyErrors}
+              activeIdx={activeIdx}
+              setActiveIndex={setActiveIndex}
+              versionInfo={versionInfo}
+              isTurbopack={isTurbopack}
+            />
 
-          <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
-            <div
-              className="nextjs__container_errors__error_title"
-              // allow assertion in tests before error rating is implemented
-              data-nextjs-error-code={errorCode}
-            >
-              <ErrorTypeLabel errorType={errorType} />
-              <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
-            </div>
-            <ErrorMessage errorMessage={errorMessage} />
-          </ErrorOverlayDialogHeader>
+            <ErrorOverlayDialogHeader isTurbopack={isTurbopack}>
+              <div
+                className="nextjs__container_errors__error_title"
+                // allow assertion in tests before error rating is implemented
+                data-nextjs-error-code={errorCode}
+              >
+                <ErrorTypeLabel errorType={errorType} />
+                <ErrorOverlayToolbar error={error} debugInfo={debugInfo} />
+              </div>
+              <ErrorMessage errorMessage={errorMessage} />
+            </ErrorOverlayDialogHeader>
 
-          <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
+            <ErrorOverlayDialogBody>{children}</ErrorOverlayDialogBody>
 
-          {(footerMessage || errorCode) && (
-            <DialogFooter>
-              <ErrorOverlayFooter
-                footerMessage={footerMessage}
-                errorCode={errorCode}
-              />
-            </DialogFooter>
-          )}
+            {(footerMessage || errorCode) && (
+              <DialogFooter>
+                <ErrorOverlayFooter
+                  footerMessage={footerMessage}
+                  errorCode={errorCode}
+                />
+              </DialogFooter>
+            )}
 
-          <ErrorOverlayBottomStack
-            count={readyErrors?.length ?? 0}
-            activeIdx={activeIdx ?? 0}
-          />
-        </DialogContent>
-      </ErrorOverlayDialog>
+            <ErrorOverlayBottomStack
+              count={readyErrors?.length ?? 0}
+              activeIdx={activeIdx ?? 0}
+            />
+          </DialogContent>
+        </ErrorOverlayDialog>
+      </div>
     </ErrorOverlayOverlay>
   )
 }
