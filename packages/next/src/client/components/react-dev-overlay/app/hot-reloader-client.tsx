@@ -481,6 +481,7 @@ function processMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
+          hash: obj.hash,
         })
       )
       if (RuntimeErrorHandler.hadRuntimeError) {
@@ -489,7 +490,7 @@ function processMessage(
         return window.location.reload()
       }
       startTransition(() => {
-        router.hmrRefresh()
+        router.hmrRefresh(obj.hash)
         dispatcher.onRefresh()
       })
 
@@ -516,7 +517,7 @@ function processMessage(
     case HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE:
     case HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE: {
       // TODO-APP: potentially only refresh if the currently viewed page was added/removed.
-      return router.hmrRefresh()
+      return router.hmrRefresh(obj.hash)
     }
     case HMR_ACTIONS_SENT_TO_BROWSER.SERVER_ERROR: {
       const { errorJSON } = obj

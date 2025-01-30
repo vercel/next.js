@@ -42,7 +42,7 @@ export interface FetchServerResponseOptions {
   readonly flightRouterState: FlightRouterState
   readonly nextUrl: string | null
   readonly prefetchKind?: PrefetchKind
-  readonly isHmrRefresh?: boolean
+  readonly hmrRefreshHash?: string
 }
 
 export type FetchServerResponseResult = {
@@ -61,7 +61,7 @@ export type RequestHeaders = {
   [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
-  [NEXT_HMR_REFRESH_HEADER]?: '1'
+  [NEXT_HMR_REFRESH_HEADER]?: string
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
 }
@@ -141,8 +141,8 @@ export async function fetchServerResponse(
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
-  if (process.env.NODE_ENV === 'development' && options.isHmrRefresh) {
-    headers[NEXT_HMR_REFRESH_HEADER] = '1'
+  if (process.env.NODE_ENV === 'development' && options.hmrRefreshHash) {
+    headers[NEXT_HMR_REFRESH_HEADER] = options.hmrRefreshHash
   }
 
   if (nextUrl) {

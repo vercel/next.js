@@ -67,11 +67,13 @@ interface BuiltAction {
 interface AddedPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE
   data: [page: string | null]
+  hash: string
 }
 
 interface RemovedPageAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE
   data: [page: string | null]
+  hash: string
 }
 
 export interface ReloadPageAction {
@@ -81,6 +83,7 @@ export interface ReloadPageAction {
 
 interface ServerComponentChangesAction {
   action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES
+  hash: string
 }
 
 interface MiddlewareChangesAction {

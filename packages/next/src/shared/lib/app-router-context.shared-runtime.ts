@@ -133,7 +133,7 @@ export interface AppRouterInstance {
    * Refresh the current page. Use in development only.
    * @internal
    */
-  hmrRefresh(): void
+  hmrRefresh(hash: string): void
   /**
    * Navigate to the provided href.
    * Pushes a new history entry.

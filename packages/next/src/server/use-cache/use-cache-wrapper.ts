@@ -43,6 +43,13 @@ import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 
+type CacheKeyParts = [
+  buildId: string,
+  hmrRefreshHash: string | undefined,
+  id: string,
+  args: unknown[],
+]
+
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -123,6 +130,12 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
+  const hmrRefreshHash =
+    outerWorkUnitStore?.type === 'request' ||
+    outerWorkUnitStore?.type === 'cache'
+      ? outerWorkUnitStore.hmrRefreshHash
+      : undefined
+
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -139,7 +152,9 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: null,
+    hmrRefreshHash,
   }
+
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
@@ -278,7 +293,7 @@ async function generateCacheEntryImpl(
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , args] =
+  const cacheKeyParts =
     typeof encodedArguments === 'string'
       ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
           temporaryReferences,
@@ -312,6 +327,8 @@ async function generateCacheEntryImpl(
           getServerModuleMap(),
           { temporaryReferences }
         )
+
+  const [, , , args] = cacheKeyParts as CacheKeyParts
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
@@ -507,6 +524,16 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
+      // In dev mode, when the HMR refresh hash is set, we include it in the
+      // cache key. This ensures that cache entries are not reused when server
+      // components have been edited. This is a very coarse approach. Ideally
+      // we'd only change cache keys for the caches that are included in the
+      // edited module (or, even better, function), directly or transitively.
+      const hmrRefreshHash =
+        workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
+          ? workUnitStore.hmrRefreshHash
+          : undefined
+
       const hangingInputAbortSignal =
         workUnitStore?.type === 'prerender'
           ? createHangingInputAbortSignal(workUnitStore)
@@ -538,17 +565,18 @@ export function cache(
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
-      const encodedArguments: FormData | string = await encodeReply(
-        [buildId, id, args],
+      const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
+      const encodedCacheKeyParts: FormData | string = await encodeReply(
+        cacheKeyParts,
         { temporaryReferences, signal: hangingInputAbortSignal }
       )
 
       const serializedCacheKey =
-        typeof encodedArguments === 'string'
+        typeof encodedCacheKeyParts === 'string'
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
-            encodedArguments
-          : await encodeFormData(encodedArguments)
+            encodedCacheKeyParts
+          : await encodeFormData(encodedCacheKeyParts)
 
       let stream: undefined | ReadableStream = undefined
 
@@ -669,7 +697,7 @@ export function cache(
             workStore,
             workUnitStore,
             clientReferenceManifest,
-            encodedArguments,
+            encodedCacheKeyParts,
             fn,
             timeoutError
           )
@@ -729,7 +757,7 @@ export function cache(
               workStore,
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
-              encodedArguments,
+              encodedCacheKeyParts,
               fn,
               timeoutError
             )

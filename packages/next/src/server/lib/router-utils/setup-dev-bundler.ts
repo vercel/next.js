@@ -863,6 +863,7 @@ async function startWatcher(opts: SetupOpts) {
             hotReloader.send({
               action: HMR_ACTIONS_SENT_TO_BROWSER.ADDED_PAGE,
               data: [route],
+              hash: 'TODO',
             })
           })
 
@@ -870,6 +871,7 @@ async function startWatcher(opts: SetupOpts) {
             hotReloader.send({
               action: HMR_ACTIONS_SENT_TO_BROWSER.REMOVED_PAGE,
               data: [route],
+              hash: 'TODO',
             })
           })
         }

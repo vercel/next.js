@@ -48,7 +48,7 @@ export type RequestStore = {
   readonly mutableCookies: ResponseCookies
   readonly userspaceMutableCookies: ResponseCookies
   readonly draftMode: DraftModeProvider
-  readonly isHmrRefresh?: boolean
+  readonly hmrRefreshHash?: string
   readonly serverComponentsHmrCache?: ServerComponentsHmrCache
 
   readonly implicitTags: string[]
@@ -160,6 +160,7 @@ export type UseCacheStore = {
   explicitExpire: undefined | number // server expiration time
   explicitStale: undefined | number // client expiration time
   tags: null | string[]
+  readonly hmrRefreshHash: string | undefined
 } & PhasePartial
 
 export type UnstableCacheStore = {

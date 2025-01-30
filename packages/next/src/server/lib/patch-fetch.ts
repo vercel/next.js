@@ -752,8 +752,10 @@ export function createPatchedFetcher(
         if (cacheKey && incrementalCache) {
           let cachedFetchData: CachedFetchData | undefined
 
+          // TODO: The serverComponentsHmrCache should also be available and
+          // utilized if the workUnitStore is a UseCacheStore.
           if (
-            requestStore?.isHmrRefresh &&
+            requestStore?.hmrRefreshHash !== undefined &&
             requestStore.serverComponentsHmrCache
           ) {
             cachedFetchData =

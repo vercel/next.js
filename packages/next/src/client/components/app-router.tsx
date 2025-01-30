@@ -324,7 +324,7 @@ function Router({
           })
         })
       },
-      hmrRefresh: () => {
+      hmrRefresh: (hash) => {
         if (process.env.NODE_ENV !== 'development') {
           throw new Error(
             'hmrRefresh can only be used in development mode. Please use refresh instead.'
@@ -334,6 +334,7 @@ function Router({
             dispatch({
               type: ACTION_HMR_REFRESH,
               origin: window.location.origin,
+              hash,
             })
           })
         }
