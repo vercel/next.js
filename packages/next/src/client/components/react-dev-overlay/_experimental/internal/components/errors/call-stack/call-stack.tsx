@@ -33,9 +33,16 @@ export function CallStack({ frames, dialogRef }: CallStackProps) {
     return frames.filter((frame) => frame.ignored)
   }, [frames])
 
+  function getDialogNode() {
+    const root = document.querySelector('nextjs-portal')
+    if (root) {
+      return root.querySelector('[data-nextjs-dialog-sizer]')
+    }
+  }
+
   // listen to onTransitionEnd
   useEffect(() => {
-    const el = dialogRef.current
+    const el = getDialogNode()
 
     if (!el) {
       return
