@@ -38,11 +38,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
-          SCRIPT: test/build-turbopack-dev-tests-manifest.js
+          SCRIPT: test/build-rspack-dev-tests-manifest.js
           PR_TITLE: Update Rspack development test manifest
           PR_BODY: This auto-generated PR updates the development integration test manifest used when testing Rspack.
   update_build_manifest:
-    name: Update and upload Turbopack production test manifest
+    name: Update and upload Rspack production test manifest
     if: github.repository_owner == 'vercel'
     runs-on: ubuntu-latest
     steps:
@@ -71,6 +71,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GH_TOKEN_PULL_REQUESTS }}
           BRANCH_NAME: rspack-manifest
-          SCRIPT: test/build-turbopack-build-tests-manifest.js
+          SCRIPT: test/build-rspack-build-tests-manifest.js
           PR_TITLE: Update Rspack production test manifest
           PR_BODY: This auto-generated PR updates the production integration test manifest used when testing Rspack.
