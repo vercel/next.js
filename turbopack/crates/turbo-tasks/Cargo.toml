@@ -27,7 +27,7 @@ concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
 erased-serde = { workspace = true }
-event-listener = "2.5.3"
+event-listener = "5.4.0"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"
