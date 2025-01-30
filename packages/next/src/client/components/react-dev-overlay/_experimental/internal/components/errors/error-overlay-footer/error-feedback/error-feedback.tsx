@@ -88,6 +88,7 @@ export const styles = css`
     align-items: center;
     gap: var(--size-gap);
     white-space: nowrap;
+    color: var(--color-gray-900);
   }
 
   .error-feedback-thanks {
