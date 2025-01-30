@@ -96,6 +96,8 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     dialog?.focus()
 
     return () => {
+      // Blur first to avoid getting stuck, in case `activeElement` is missing
+      dialog?.blur()
       // Restore focus to the previously active element
       activeElement?.focus()
     }
