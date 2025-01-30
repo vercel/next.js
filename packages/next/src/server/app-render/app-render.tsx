@@ -46,8 +46,7 @@ import {
 } from '../stream-utils/node-web-streams-helper'
 import { stripInternalQueries } from '../internal-utils'
 import {
-  NEXT_HMR_REFRESH_HASH_CURRENT_HEADER,
-  NEXT_HMR_REFRESH_HASH_PREVIOUS_HEADER,
+  NEXT_HMR_REFRESH_HEADER,
   NEXT_ROUTER_PREFETCH_HEADER,
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
@@ -244,10 +243,7 @@ interface ParsedRequestHeaders {
   readonly isPrefetchRequest: boolean
   readonly isRouteTreePrefetchRequest: boolean
   readonly isDevWarmupRequest: boolean
-  readonly hmrRefreshHashes: readonly [
-    current: string | undefined,
-    previous: string | undefined,
-  ]
+  readonly hmrRefreshHash: string | undefined
   readonly isRSCRequest: boolean
   readonly nonce: string | undefined
 }
@@ -263,14 +259,14 @@ function parseRequestHeaders(
     isDevWarmupRequest ||
     headers[NEXT_ROUTER_PREFETCH_HEADER.toLowerCase()] !== undefined
 
-  const hmrRefreshHashes = [
-    headers[NEXT_HMR_REFRESH_HASH_CURRENT_HEADER.toLowerCase()] as
-      | string
-      | undefined,
-    headers[NEXT_HMR_REFRESH_HASH_PREVIOUS_HEADER.toLowerCase()] as
-      | string
-      | undefined,
-  ] as const
+  const hmrRefreshHeader = headers[NEXT_HMR_REFRESH_HEADER.toLowerCase()]
+
+  const hmrRefreshHash =
+    typeof hmrRefreshHeader === 'string'
+      ? hmrRefreshHeader
+      : Array.isArray(hmrRefreshHeader)
+        ? hmrRefreshHeader.join('-')
+        : undefined
 
   // dev warmup requests are treated as prefetch RSC requests
   const isRSCRequest =
@@ -300,7 +296,7 @@ function parseRequestHeaders(
     flightRouterState,
     isPrefetchRequest,
     isRouteTreePrefetchRequest,
-    hmrRefreshHashes,
+    hmrRefreshHash,
     isRSCRequest,
     isDevWarmupRequest,
     nonce,
@@ -1262,7 +1258,7 @@ async function renderToHTMLOrFlightImpl(
     isPrefetchRequest,
     isRSCRequest,
     isDevWarmupRequest,
-    hmrRefreshHashes,
+    hmrRefreshHash,
     nonce,
   } = parsedRequestHeaders
 
@@ -1442,7 +1438,7 @@ async function renderToHTMLOrFlightImpl(
       implicitTags,
       renderOpts.onUpdateCookies,
       renderOpts.previewProps,
-      hmrRefreshHashes,
+      hmrRefreshHash,
       serverComponentsHmrCache,
       renderResumeDataCache
     )

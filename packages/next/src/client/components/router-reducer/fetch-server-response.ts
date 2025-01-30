@@ -24,8 +24,7 @@ import {
   NEXT_URL,
   RSC_HEADER,
   RSC_CONTENT_TYPE_HEADER,
-  NEXT_HMR_REFRESH_HASH_CURRENT_HEADER,
-  NEXT_HMR_REFRESH_HASH_PREVIOUS_HEADER,
+  NEXT_HMR_REFRESH_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_STALE_TIME_HEADER,
 } from '../app-router-headers'
@@ -62,13 +61,10 @@ export type RequestHeaders = {
   [NEXT_ROUTER_PREFETCH_HEADER]?: '1'
   [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]?: string
   'x-deployment-id'?: string
-  [NEXT_HMR_REFRESH_HASH_CURRENT_HEADER]?: string
-  [NEXT_HMR_REFRESH_HASH_PREVIOUS_HEADER]?: string
+  [NEXT_HMR_REFRESH_HEADER]?: string
   // A header that is only added in test mode to assert on fetch priority
   'Next-Test-Fetch-Priority'?: RequestInit['priority']
 }
-
-const HMR_REFRESH_HASH_SESSION_STORAGE_KEY = '__next_hmr_refresh_hash__'
 
 export function urlToUrlWithoutFlightMarker(url: string): URL {
   const urlWithoutFlightParameters = new URL(url, location.origin)
@@ -145,38 +141,8 @@ export async function fetchServerResponse(
     headers[NEXT_ROUTER_PREFETCH_HEADER] = '1'
   }
 
-  if (process.env.NODE_ENV === 'development') {
-    if (options.hmrRefreshHash) {
-      // When the current HMR refresh hash is passed in, we send it as a header
-      // to the server so that
-      // 1) the request is identified by the server as an HMR refresh request
-      //    (e.g. to enable the server components HMR cache), and
-      // 2) it can be included in cache keys for "use cache" cache entries.
-      headers[NEXT_HMR_REFRESH_HASH_CURRENT_HEADER] = options.hmrRefreshHash
-
-      try {
-        sessionStorage.setItem(
-          HMR_REFRESH_HASH_SESSION_STORAGE_KEY,
-          options.hmrRefreshHash
-        )
-      } catch {}
-    } else {
-      // Otherwise we send the previous HMR refresh hash, if present. This
-      // ensures that, when the page is reloaded, the server can retrieve cache
-      // entries that include the hash from the previous HMR refresh request in
-      // their cache key. This is a separate header than the one above, because
-      // we do not want to mark this request as an HMR refresh.
-      try {
-        const previousHmrRefreshHash = sessionStorage.getItem(
-          HMR_REFRESH_HASH_SESSION_STORAGE_KEY
-        )
-
-        if (previousHmrRefreshHash) {
-          headers[NEXT_HMR_REFRESH_HASH_PREVIOUS_HEADER] =
-            previousHmrRefreshHash
-        }
-      } catch {}
-    }
+  if (process.env.NODE_ENV === 'development' && options.hmrRefreshHash) {
+    headers[NEXT_HMR_REFRESH_HEADER] = options.hmrRefreshHash
   }
 
   if (nextUrl) {

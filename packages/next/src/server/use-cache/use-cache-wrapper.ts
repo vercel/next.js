@@ -130,10 +130,10 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
-  const hmrRefreshHashes =
+  const hmrRefreshHash =
     outerWorkUnitStore?.type === 'request' ||
     outerWorkUnitStore?.type === 'cache'
-      ? outerWorkUnitStore.hmrRefreshHashes
+      ? outerWorkUnitStore.hmrRefreshHash
       : undefined
 
   // Initialize the Store for this Cache entry.
@@ -152,7 +152,7 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: null,
-    hmrRefreshHashes,
+    hmrRefreshHash,
   }
 
   return workUnitAsyncStorage.run(
@@ -529,25 +529,10 @@ export function cache(
       // components have been edited. This is a very coarse approach. But it's
       // also only a temporary solution until Action IDs are unique per
       // implementation. Remove this once Action IDs hash the implementation.
-      let hmrRefreshHash: string | undefined
-
-      if (workUnitStore?.type === 'request') {
-        console.log('COOKIE!', workUnitStore.cookies.get('test'))
-      }
-      const hmrRefreshHashes =
+      const hmrRefreshHash =
         workUnitStore?.type === 'request' || workUnitStore?.type === 'cache'
-          ? workUnitStore.hmrRefreshHashes
+          ? workUnitStore.hmrRefreshHash
           : undefined
-
-      if (hmrRefreshHashes) {
-        const [current, previous] = hmrRefreshHashes
-        // If the current hash is present, it means that this is an HMR refresh
-        // request, so we want to ignore previous cache entries and create new
-        // ones, to avoid showing stale content. Otherwise, if the previous hash
-        // is present, we want to use that one to ensure existing cache entries
-        // are retrieved when the page is reloaded after an HMR refresh.
-        hmrRefreshHash = current ?? previous
-      }
 
       const hangingInputAbortSignal =
         workUnitStore?.type === 'prerender'

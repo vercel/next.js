@@ -755,7 +755,7 @@ export function createPatchedFetcher(
           // TODO: The serverComponentsHmrCache should also be available and
           // utilized if the workUnitStore is a UseCacheStore.
           if (
-            requestStore?.hmrRefreshHashes?.[0] !== undefined &&
+            requestStore?.hmrRefreshHash !== undefined &&
             requestStore.serverComponentsHmrCache
           ) {
             cachedFetchData =
