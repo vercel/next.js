@@ -31,6 +31,10 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       ? 'dialog'
       : undefined
   )
+
+  const ref = React.useRef<HTMLDivElement | null>(null)
+  const [height, pristine] = useMeasureHeight(ref)
+
   const onDialog = React.useCallback((node: HTMLDivElement | null) => {
     setDialog(node)
   }, [])
@@ -39,9 +43,6 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     e.preventDefault()
     return onClose?.()
   })
-
-  const ref = React.useRef<HTMLDivElement | null>(null)
-  const [height, pristine] = useMeasureHeight(ref)
 
   // Make HTMLElements with `role=link` accessible to be triggered by the
   // keyboard, i.e. [Enter].
@@ -86,16 +87,35 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     }
   }, [dialog])
 
+  React.useEffect(() => {
+    const root = dialog?.getRootNode()
+    const activeElement =
+      root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
+
+    // Trap focus within the dialog
+    dialog?.focus()
+
+    return () => {
+      // Restore focus to the previously active element
+      activeElement?.focus()
+    }
+  }, [dialog])
+
   return (
     <div
       ref={onDialog}
       data-nextjs-dialog
-      tabIndex={-1}
+      tabIndex={1}
       role={role}
       aria-labelledby={ariaLabelledBy}
       aria-describedby={ariaDescribedBy}
       aria-modal="true"
       className={className}
+      onKeyDown={(e) => {
+        if (e.key === 'Escape') {
+          onClose?.()
+        }
+      }}
       {...props}
     >
       <div

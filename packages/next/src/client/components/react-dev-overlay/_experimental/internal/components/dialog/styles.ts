@@ -13,7 +13,6 @@ const styles = css`
     max-width: var(--next-dialog-max-width);
     margin-right: auto;
     margin-left: auto;
-    outline: none;
     scale: 0.98;
     opacity: 0;
     transition-property: scale, opacity;
@@ -24,6 +23,10 @@ const styles = css`
       opacity: 1;
       scale: 1;
     }
+  }
+
+  [data-nextjs-dialog] {
+    outline: none;
   }
 
   /* Place overflow: hidden on this so we can break out from [data-nextjs-dialog] */

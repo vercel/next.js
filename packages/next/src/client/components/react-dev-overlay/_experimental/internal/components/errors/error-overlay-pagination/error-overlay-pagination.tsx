@@ -34,7 +34,6 @@ export function ErrorOverlayPagination({
 
   const buttonLeft = useRef<HTMLButtonElement | null>(null)
   const buttonRight = useRef<HTMLButtonElement | null>(null)
-  const buttonClose = useRef<HTMLButtonElement | null>(null)
 
   const [nav, setNav] = useState<HTMLElement | null>(null)
   const onNav = useCallback((el: HTMLElement) => {
@@ -64,18 +63,6 @@ export function ErrorOverlayPagination({
           buttonRight.current.focus()
         }
         handleNext && handleNext()
-      } else if (e.key === 'Escape') {
-        e.preventDefault()
-        e.stopPropagation()
-        if (root instanceof ShadowRoot) {
-          const a = root.activeElement
-          if (a && a !== buttonClose.current && a instanceof HTMLElement) {
-            a.blur()
-            return
-          }
-        }
-
-        close?.()
       }
     }
 
