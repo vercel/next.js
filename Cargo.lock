@@ -9072,6 +9072,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "new_debug_unreachable",
  "serde",
  "triomphe 0.1.12",
