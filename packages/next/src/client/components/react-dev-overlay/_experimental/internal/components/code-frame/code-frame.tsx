@@ -100,11 +100,6 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
 
 export const CODE_FRAME_STYLES = css`
   [data-nextjs-codeframe] {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-    flex: 1 0 0;
-
     background-color: var(--color-background-200);
     overflow: hidden;
     color: var(--color-gray-1000);
