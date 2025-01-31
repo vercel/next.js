@@ -370,7 +370,16 @@ function useFocusTrap(
     if (isMenuOpen) {
       menuRef.current?.focus()
     } else {
-      triggerRef.current?.focus()
+      const root = triggerRef.current?.getRootNode()
+      const activeElement =
+        root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
+
+      // Only restore focus if the focus was previously on the menu.
+      // This avoids us accidentally focusing on mount when the
+      // user could want to interact with their own app instead.
+      if (menuRef.current?.contains(activeElement)) {
+        triggerRef.current?.focus()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen])
