@@ -458,4 +458,22 @@ describe('use-cache', () => {
     const text = await browser.elementByCss('h2').text()
     expect(text).toBe('This page could not be found.')
   })
+
+  if (isNextDev) {
+    it('should not have unhandled rejection of Request data promises when use cache is enabled without dynamicIO', async () => {
+      await next.render('/unhandled-promise-regression')
+      // We assert both to better defend against changes in error messaging invalidating this test silently.
+      // They are today asserting the same thing
+      expect(next.cliOutput).not.toContain(
+        'During prerendering, `cookies()` rejects when the prerender is complete.'
+      )
+      expect(next.cliOutput).not.toContain(
+        'During prerendering, `headers()` rejects when the prerender is complete.'
+      )
+      expect(next.cliOutput).not.toContain(
+        'During prerendering, `connection()` rejects when the prerender is complete.'
+      )
+      expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
+    })
+  }
 })
