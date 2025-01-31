@@ -9,6 +9,7 @@ export type DialogProps = {
   'aria-describedby': string
   className?: string
   onClose?: () => void
+  dialogResizerRef?: React.RefObject<HTMLDivElement>
 }
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [
@@ -24,6 +25,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
   onClose,
   'aria-labelledby': ariaLabelledBy,
   'aria-describedby': ariaDescribedBy,
+  dialogResizerRef,
   ...props
 }) {
   const [dialog, setDialog] = React.useState<HTMLDivElement | null>(null)
@@ -98,6 +100,7 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       {...props}
     >
       <div
+        ref={dialogResizerRef}
         data-nextjs-dialog-sizer
         // [x] Don't animate on initial load
         // [x] No duplicate elements

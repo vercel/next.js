@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useRef } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
@@ -78,6 +78,8 @@ export function Errors({
   isTurbopack,
   onClose,
 }: ErrorsProps) {
+  const dialogResizerRef = useRef<HTMLDivElement | null>(null)
+
   useEffect(() => {
     // Close the error overlay when pressing escape
     function handleKeyDown(event: KeyboardEvent) {
@@ -159,6 +161,7 @@ export function Errors({
       footerMessage={footerMessage}
       versionInfo={versionInfo}
       isTurbopack={isTurbopack}
+      dialogResizerRef={dialogResizerRef}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
@@ -193,7 +196,11 @@ export function Errors({
           reactOutputComponentDiff={errorDetails.reactOutputComponentDiff}
         />
       ) : null}
-      <RuntimeError key={activeError.id.toString()} error={activeError} />
+      <RuntimeError
+        key={activeError.id.toString()}
+        error={activeError}
+        dialogResizerRef={dialogResizerRef}
+      />
     </ErrorOverlayLayout>
   )
 }
