@@ -168,7 +168,7 @@ impl RequireContextMap {
         dir: Vc<FileSystemPath>,
         recursive: bool,
         filter: Vc<Regex>,
-        issue_source: Option<ResolvedVc<IssueSource>>,
+        issue_source: Option<IssueSource>,
         is_optional: bool,
     ) -> Result<Vc<Self>> {
         let origin_path = &*origin.origin_path().parent().await?;
@@ -182,7 +182,7 @@ impl RequireContextMap {
                 let request = Request::parse(Value::new(origin_relative.clone().into()))
                     .to_resolved()
                     .await?;
-                let result = cjs_resolve(origin, *request, issue_source.map(|v| *v), is_optional)
+                let result = cjs_resolve(origin, *request, issue_source.clone(), is_optional)
                     .to_resolved()
                     .await?;
 
@@ -213,7 +213,7 @@ pub struct RequireContextAssetReference {
     pub include_subdirs: bool,
 
     pub path: ResolvedVc<AstPath>,
-    pub issue_source: Option<ResolvedVc<IssueSource>>,
+    pub issue_source: Option<IssueSource>,
     pub in_try: bool,
 }
 
@@ -227,7 +227,7 @@ impl RequireContextAssetReference {
         include_subdirs: bool,
         filter: Vc<Regex>,
         path: ResolvedVc<AstPath>,
-        issue_source: Option<ResolvedVc<IssueSource>>,
+        issue_source: Option<IssueSource>,
         in_try: bool,
     ) -> Result<Vc<Self>> {
         let map = RequireContextMap::generate(
@@ -235,7 +235,7 @@ impl RequireContextAssetReference {
             origin.origin_path().parent().join(dir.clone()),
             include_subdirs,
             filter,
-            issue_source.map(|v| *v),
+            issue_source.clone(),
             in_try,
         )
         .to_resolved()

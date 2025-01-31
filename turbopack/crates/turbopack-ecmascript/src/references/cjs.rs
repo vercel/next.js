@@ -33,7 +33,7 @@ use crate::{
 pub struct CjsAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -43,7 +43,7 @@ impl CjsAssetReference {
     pub async fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Result<Vc<Self>> {
         Ok(Self::cell(CjsAssetReference {
@@ -62,7 +62,7 @@ impl ModuleReference for CjsAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -87,7 +87,7 @@ pub struct CjsRequireAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -98,7 +98,7 @@ impl CjsRequireAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireAssetReference {
@@ -118,7 +118,7 @@ impl ModuleReference for CjsRequireAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -153,7 +153,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             cjs_resolve(
                 *self.origin,
                 *self.request,
-                Some(*self.issue_source),
+                Some(self.issue_source.clone()),
                 self.in_try,
             ),
             ResolveType::ChunkItem,
@@ -196,7 +196,7 @@ pub struct CjsRequireResolveAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
     pub path: ResolvedVc<AstPath>,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub issue_source: IssueSource,
     pub in_try: bool,
 }
 
@@ -207,7 +207,7 @@ impl CjsRequireResolveAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(CjsRequireResolveAssetReference {
@@ -227,7 +227,7 @@ impl ModuleReference for CjsRequireResolveAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -262,7 +262,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             cjs_resolve(
                 *self.origin,
                 *self.request,
-                Some(*self.issue_source),
+                Some(self.issue_source.clone()),
                 self.in_try,
             ),
             ResolveType::ChunkItem,

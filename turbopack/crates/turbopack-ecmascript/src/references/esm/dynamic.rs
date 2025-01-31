@@ -36,7 +36,7 @@ pub struct EsmAsyncAssetReference {
     pub request: ResolvedVc<Request>,
     pub path: ResolvedVc<AstPath>,
     pub annotations: ImportAnnotations,
-    pub issue_source: ResolvedVc<IssueSource>,
+    pub issue_source: IssueSource,
     pub in_try: bool,
     pub import_externals: bool,
 }
@@ -58,7 +58,7 @@ impl EsmAsyncAssetReference {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
         path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         annotations: Value<ImportAnnotations>,
         in_try: bool,
         import_externals: bool,
@@ -84,7 +84,7 @@ impl ModuleReference for EsmAsyncAssetReference {
             *self.request,
             Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
             self.in_try,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
         )
         .await
     }
@@ -126,7 +126,7 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                 *self.request,
                 Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
                 self.in_try,
-                Some(*self.issue_source),
+                Some(self.issue_source.clone()),
             )
             .await?,
             if matches!(
