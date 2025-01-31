@@ -957,9 +957,6 @@ importers:
       '@capsizecss/metrics':
         specifier: 3.4.0
         version: 3.4.0
-      '@chromatic-com/storybook':
-        specifier: ^3.2.2
-        version: 3.2.2(react@19.1.0-canary-37906d4d-20250127)(storybook@8.4.7(prettier@3.3.3))
       '@edge-runtime/cookies':
         specifier: 6.0.0
         version: 6.0.0
@@ -1011,9 +1008,6 @@ importers:
       '@storybook/addon-interactions':
         specifier: ^8.4.7
         version: 8.4.7(storybook@8.4.7(prettier@3.3.3))
-      '@storybook/addon-onboarding':
-        specifier: ^8.4.7
-        version: 8.4.7(react@19.1.0-canary-37906d4d-20250127)(storybook@8.4.7(prettier@3.3.3))
       '@storybook/addon-webpack5-compiler-swc':
         specifier: ^1.0.5
         version: 1.0.5(@swc/helpers@0.5.15)(webpack@5.96.1(@swc/core@1.9.3(@swc/helpers@0.5.15))(esbuild@0.23.1))
@@ -3343,12 +3337,6 @@ packages:
   '@capsizecss/metrics@3.4.0':
     resolution: {integrity: sha512-hIn8MAHxLvwyUh6ZvLQHDt2GPShBz6+gxBs1JTD9GleBkht1AZvtCFo0adr7bQvYYuQzUJeKi69zqlAwgKMHNA==}
 
-  '@chromatic-com/storybook@3.2.2':
-    resolution: {integrity: sha512-xmXt/GW0hAPbzNTrxYuVo43Adrtjue4DeVrsoIIEeJdGaPNNeNf+DHMlJKOBdlHmCnFUoe9R/0mLM9zUp5bKWw==}
-    engines: {node: '>=16.0.0', yarn: '>=1.22.18'}
-    peerDependencies:
-      storybook: ^8.2.0 || ^8.3.0-0 || ^8.4.0-0 || ^8.5.0-0 || ^8.6.0-0
-
   '@csstools/postcss-color-function@1.1.0':
     resolution: {integrity: sha512-5D5ND/mZWcQoSfYnSPsXtuiFxhzmhxt6pcjrFLJyldj+p0ZN2vvRpYNX+lahFTtMhAYOa2WmkdGINr0yP0CvGA==}
     engines: {node: ^12 || ^14 || >=16}
@@ -4983,11 +4971,6 @@ packages:
 
   '@storybook/addon-measure@8.4.7':
     resolution: {integrity: sha512-QfvqYWDSI5F68mKvafEmZic3SMiK7zZM8VA0kTXx55hF/+vx61Mm0HccApUT96xCXIgmwQwDvn9gS4TkX81Dmw==}
-    peerDependencies:
-      storybook: ^8.4.7
-
-  '@storybook/addon-onboarding@8.4.7':
-    resolution: {integrity: sha512-FdC2NV60VNYeMxf6DVe0qV9ucSBAzMh1//C0Qqwq8CcjthMbmKlVZ7DqbVsbIHKnFaSCaUC88eR5olAfMaauCQ==}
     peerDependencies:
       storybook: ^8.4.7
 
@@ -6969,18 +6952,6 @@ packages:
     resolution: {integrity: sha512-+IxzY9BZOQd/XuYPRmrvEVjF/nqj5kgT4kEq7VofrDoM1MxoRjEWkrCC3EtLi59TVawxTAn+orJwFQcrqEN1+g==}
     engines: {node: '>=18'}
 
-  chromatic@11.20.2:
-    resolution: {integrity: sha512-c+M3HVl5Y60c7ipGTZTyeWzWubRW70YsJ7PPDpO1D735ib8+Lu3yGF90j61pvgkXGngpkTPHZyBw83lcu2JMxA==}
-    hasBin: true
-    peerDependencies:
-      '@chromatic-com/cypress': ^0.*.* || ^1.0.0
-      '@chromatic-com/playwright': ^0.*.* || ^1.0.0
-    peerDependenciesMeta:
-      '@chromatic-com/cypress':
-        optional: true
-      '@chromatic-com/playwright':
-        optional: true
-
   chrome-trace-event@1.0.2:
     resolution: {integrity: sha512-9e/zx1jw7B4CO+c/RXoCsfg/x1AfUBioy4owYH0bJprEYAx5hRFLRhWBqHAG57D0ZM4H7vxbP7bPe0VwhQRYDQ==}
     engines: {node: '>=6.0'}
@@ -8941,10 +8912,6 @@ packages:
   filelist@1.0.4:
     resolution: {integrity: sha512-w1cEuf3S+DrLCQL7ET6kz+gmlJdbq9J7yXCSjK/OZCPA+qEN1WyF4ZAf0YYJa4/shHJra2t/d/r8SV4Ji+x+8Q==}
 
-  filesize@10.1.6:
-    resolution: {integrity: sha512-sJslQKU2uM33qH5nqewAwVB2QgR6w1aMNsYUp3aN5rMRyXEwJGmZvaWzeJFNTOXWlHQyBFCWrdj3fV/fsTOX8w==}
-    engines: {node: '>= 10.4.0'}
-
   filesize@6.1.0:
     resolution: {integrity: sha512-LpCHtPQ3sFx67z+uh2HnSyWSLLu5Jxo21795uRDuar/EOuYWXib5EmPaGIBuSnRqH2IODiKA2k5re/K9OnN/Yg==}
     engines: {node: '>= 0.4.0'}
@@ -10677,9 +10644,6 @@ packages:
 
   jsonfile@6.0.1:
     resolution: {integrity: sha512-jR2b5v7d2vIOust+w3wtFKZIfpC2pnRmFAhAC/BuweZFQR8qZzxH1OyrQ10HmdVYiXWkYUqPVsz91cG7EL2FBg==}
-
-  jsonfile@6.1.0:
-    resolution: {integrity: sha512-5dgndWOriYSm5cnYaJNhalLNDKOqFwyDB/rr1E9ZsGciGvKPs8R2xYGCacuf3z6K1YKDz182fd+fY3cn3pMqXQ==}
 
   jsonparse@1.3.1:
     resolution: {integrity: sha512-POQXvpdL69+CluYsillJ7SUhKvytYjW9vG/GKpnf+xP8UWgYEM/RaMzHHofbALDiKbbP1W8UEYmgGl39WkPZsg==}
@@ -13483,12 +13447,6 @@ packages:
     resolution: {integrity: sha512-y3bGgqKj3QBdxLbLkomlohkvsA8gdAiUQlSBJnBhfn+BPxg4bc62d8TcBW15wavDfgexCgccckhcZvywyQYPOw==}
     hasBin: true
 
-  react-confetti@6.1.0:
-    resolution: {integrity: sha512-7Ypx4vz0+g8ECVxr88W9zhcQpbeujJAVqL14ZnXJ3I23mOI9/oBVTQ3dkJhUmB0D6XOtCZEM6N0Gm9PMngkORw==}
-    engines: {node: '>=10.18'}
-    peerDependencies:
-      react: 19.1.0-canary-37906d4d-20250127
-
   react-docgen-typescript@2.2.2:
     resolution: {integrity: sha512-tvg2ZtOpOi6QDwsb3GZhOjDkkX0h8Z2gipvTg6OVMUyoYoURhEiRNePT8NZItTVCDh39JJHnLdfCOkzoLbFnTg==}
     peerDependencies:
@@ -15211,9 +15169,6 @@ packages:
   turbo@2.3.3:
     resolution: {integrity: sha512-DUHWQAcC8BTiUZDRzAYGvpSpGLiaOQPfYXlCieQbwUvmml/LRGIe3raKdrOPOoiX0DYlzxs2nH6BoWJoZrj8hA==}
     hasBin: true
-
-  tween-functions@1.2.0:
-    resolution: {integrity: sha512-PZBtLYcCLtEcjL14Fzb1gSxPBeL7nWvGhO5ZFPGqziCcr8uvHp0NDmdjBchp6KHL+tExcg0m3NISmKxhU394dA==}
 
   tweetnacl@0.14.5:
     resolution: {integrity: sha512-KXXFFdAbFXY4geFIwoyNK+f5Z1b7swfXABfL7HXCmoIWMKU3dmS26672A4EeQtDzLKy7SXmfBu51JolvEKwtGA==}
@@ -18175,19 +18130,6 @@ snapshots:
 
   '@capsizecss/metrics@3.4.0': {}
 
-  '@chromatic-com/storybook@3.2.2(react@19.1.0-canary-37906d4d-20250127)(storybook@8.4.7(prettier@3.3.3))':
-    dependencies:
-      chromatic: 11.20.2
-      filesize: 10.1.6
-      jsonfile: 6.1.0
-      react-confetti: 6.1.0(react@19.1.0-canary-37906d4d-20250127)
-      storybook: 8.4.7(prettier@3.3.3)
-      strip-ansi: 7.1.0
-    transitivePeerDependencies:
-      - '@chromatic-com/cypress'
-      - '@chromatic-com/playwright'
-      - react
-
   '@csstools/postcss-color-function@1.1.0(postcss@8.4.31)':
     dependencies:
       '@csstools/postcss-progressive-custom-properties': 1.3.0(postcss@8.4.31)
@@ -20426,13 +20368,6 @@ snapshots:
       '@storybook/global': 5.0.0
       storybook: 8.4.7(prettier@3.3.3)
       tiny-invariant: 1.3.3
-
-  '@storybook/addon-onboarding@8.4.7(react@19.1.0-canary-37906d4d-20250127)(storybook@8.4.7(prettier@3.3.3))':
-    dependencies:
-      react-confetti: 6.1.0(react@19.1.0-canary-37906d4d-20250127)
-      storybook: 8.4.7(prettier@3.3.3)
-    transitivePeerDependencies:
-      - react
 
   '@storybook/addon-outline@8.4.7(storybook@8.4.7(prettier@3.3.3))':
     dependencies:
@@ -22813,8 +22748,6 @@ snapshots:
   chownr@2.0.0: {}
 
   chownr@3.0.0: {}
-
-  chromatic@11.20.2: {}
 
   chrome-trace-event@1.0.2:
     dependencies:
@@ -25432,8 +25365,6 @@ snapshots:
     dependencies:
       minimatch: 5.1.6
 
-  filesize@10.1.6: {}
-
   filesize@6.1.0: {}
 
   fill-range@7.1.1:
@@ -27642,12 +27573,6 @@ snapshots:
   jsonfile@6.0.1:
     dependencies:
       universalify: 1.0.0
-    optionalDependencies:
-      graceful-fs: 4.2.11
-
-  jsonfile@6.1.0:
-    dependencies:
-      universalify: 2.0.0
     optionalDependencies:
       graceful-fs: 4.2.11
 
@@ -31119,11 +31044,6 @@ snapshots:
       minimist: 1.2.8
       strip-json-comments: 2.0.1
 
-  react-confetti@6.1.0(react@19.1.0-canary-37906d4d-20250127):
-    dependencies:
-      react: 19.1.0-canary-37906d4d-20250127
-      tween-functions: 1.2.0
-
   react-docgen-typescript@2.2.2(typescript@5.7.2):
     dependencies:
       typescript: 5.7.2
@@ -33187,8 +33107,6 @@ snapshots:
       turbo-linux-arm64: 2.3.3
       turbo-windows-64: 2.3.3
       turbo-windows-arm64: 2.3.3
-
-  tween-functions@1.2.0: {}
 
   tweetnacl@0.14.5: {}
 
