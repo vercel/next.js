@@ -103,7 +103,6 @@ export const CALL_STACK_FRAME_STYLES = css`
     transition: background 100ms ease-out;
 
     &[data-animate='true'] {
-      opacity: 0;
       filter: blur(4px);
       animation: fadeIn 250ms var(--timing-swift) forwards
         calc(var(--index) * 25ms);
@@ -145,7 +144,6 @@ export const CALL_STACK_FRAME_STYLES = css`
 
   @keyframes fadeIn {
     to {
-      opacity: 1;
       filter: blur(0px);
     }
   }
