@@ -87,12 +87,10 @@ use turbopack_core::{
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
 
-use self::{
-    chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
-    code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
-};
+use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     chunk::EcmascriptChunkPlaceable,
+    code_gen::CodeGens,
     references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };
@@ -757,7 +755,7 @@ impl EcmascriptModuleContent {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         references: Vc<ModuleReferences>,
-        code_generation: Vc<CodeGenerateables>,
+        code_generation: Vc<CodeGens>,
         async_module: Vc<OptionAsyncModule>,
         generate_source_map: Vc<bool>,
         original_source_map: ResolvedVc<OptionSourceMap>,
@@ -767,16 +765,7 @@ impl EcmascriptModuleContent {
         let mut code_gens = Vec::new();
         for r in references.await?.iter() {
             let r = r.resolve().await?;
-            if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r)
-            {
-                code_gens.push(code_gen.code_generation(
-                    module_graph,
-                    chunking_context,
-                    async_module_info,
-                ));
-            } else if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r)
-            {
+            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r) {
                 code_gens.push(code_gen.code_generation(module_graph, chunking_context));
             }
         }
@@ -788,20 +777,14 @@ impl EcmascriptModuleContent {
                 chunking_context,
             ));
         }
-        for c in code_generation.await?.iter() {
-            match c {
-                CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(module_graph, chunking_context));
-                }
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    code_gens.push(c.code_generation(
-                        module_graph,
-                        chunking_context,
-                        async_module_info,
-                    ));
-                }
-            }
-        }
+        code_gens.extend(
+            code_generation
+                .await?
+                .iter()
+                .map(|c| c.code_generation(module_graph, chunking_context))
+                .try_join()
+                .await?,
+        );
         if let EcmascriptExports::EsmExports(exports) = *exports.await? {
             code_gens.push(exports.code_generation(module_graph, chunking_context));
         }

@@ -19,22 +19,10 @@ use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::EsmAssetReference;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration, VisitorFactory},
+    code_gen::{CodeGen, CodeGeneration, VisitorFactory},
     create_visitor,
     references::AstPath,
 };
-
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
-pub struct EsmBindings {
-    pub bindings: Vec<EsmBinding>,
-}
-
-impl EsmBindings {
-    pub fn new(bindings: Vec<EsmBinding>) -> Vc<Self> {
-        EsmBindings { bindings }.cell()
-    }
-}
 
 #[derive(
     Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue,
@@ -151,25 +139,24 @@ impl EsmBinding {
 
         Ok(())
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmBindings {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
-        let bindings = self.bindings.clone();
 
-        for item in bindings.into_iter() {
-            item.to_visitors(&mut visitors, module_graph, chunking_context)
-                .await?;
-        }
+        self.to_visitors(&mut visitors, module_graph, chunking_context)
+            .await?;
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl Into<CodeGen> for EsmBinding {
+    fn into(self) -> CodeGen {
+        CodeGen::EsmBinding(self)
     }
 }
 

@@ -1,36 +1,28 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct IdentReplacement {
     value: RcStr,
     path: ResolvedVc<AstPath>,
 }
 
-#[turbo_tasks::value_impl]
 impl IdentReplacement {
-    #[turbo_tasks::function]
-    pub async fn new(value: RcStr, path: Vc<AstPath>) -> Result<Vc<Self>> {
-        Ok(Self::cell(IdentReplacement {
-            value,
-            path: path.to_resolved().await?,
-        }))
+    pub fn new(value: RcStr, path: ResolvedVc<AstPath>) -> Self {
+        IdentReplacement { value, path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for IdentReplacement {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -44,5 +36,11 @@ impl CodeGenerateable for IdentReplacement {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl Into<CodeGen> for IdentReplacement {
+    fn into(self) -> CodeGen {
+        CodeGen::IdentReplacement(self)
     }
 }

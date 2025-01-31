@@ -1,37 +1,33 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, Vc,
+};
 use turbopack_core::{
     chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue, module_graph::ModuleGraph,
 };
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
-#[turbo_tasks::value]
-pub struct ConstantValue {
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,
     path: ResolvedVc<AstPath>,
 }
 
-#[turbo_tasks::value_impl]
-impl ConstantValue {
-    #[turbo_tasks::function]
-    pub fn new(value: Value<CompileTimeDefineValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(ConstantValue {
+impl ConstantValueCodeGen {
+    pub fn new(value: Value<CompileTimeDefineValue>, path: ResolvedVc<AstPath>) -> Self {
+        ConstantValueCodeGen {
             value: value.into_value(),
             path,
-        })
+        }
     }
-}
-
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ConstantValue {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -49,5 +45,11 @@ impl CodeGenerateable for ConstantValue {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl Into<CodeGen> for ConstantValueCodeGen {
+    fn into(self) -> CodeGen {
+        CodeGen::ConstantValue(self)
     }
 }

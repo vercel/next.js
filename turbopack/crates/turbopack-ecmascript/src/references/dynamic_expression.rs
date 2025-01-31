@@ -6,7 +6,7 @@ use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
@@ -16,35 +16,28 @@ enum DynamicExpressionType {
     Normal,
 }
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct DynamicExpression {
     path: ResolvedVc<AstPath>,
     ty: DynamicExpressionType,
 }
 
-#[turbo_tasks::value_impl]
 impl DynamicExpression {
-    #[turbo_tasks::function]
-    pub fn new(path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(DynamicExpression {
+    pub fn new(path: ResolvedVc<AstPath>) -> Self {
+        DynamicExpression {
             path,
             ty: DynamicExpressionType::Normal,
-        })
+        }
     }
 
-    #[turbo_tasks::function]
-    pub fn new_promise(path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(DynamicExpression {
+    pub fn new_promise(path: ResolvedVc<AstPath>) -> Self {
+        DynamicExpression {
             path,
             ty: DynamicExpressionType::Promise,
-        })
+        }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for DynamicExpression {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -65,5 +58,11 @@ impl CodeGenerateable for DynamicExpression {
         };
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl Into<CodeGen> for DynamicExpression {
+    fn into(self) -> CodeGen {
+        CodeGen::DynamicExpression(self)
     }
 }

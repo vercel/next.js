@@ -1,11 +1,14 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, Vc,
+};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
@@ -17,27 +20,21 @@ pub enum ConstantConditionValue {
     Nullish,
 }
 
-#[turbo_tasks::value]
-pub struct ConstantCondition {
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct ConstantConditionCodeGen {
     value: ConstantConditionValue,
     path: ResolvedVc<AstPath>,
 }
 
-#[turbo_tasks::value_impl]
-impl ConstantCondition {
-    #[turbo_tasks::function]
-    pub fn new(value: Value<ConstantConditionValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(ConstantCondition {
+impl ConstantConditionCodeGen {
+    pub fn new(value: Value<ConstantConditionValue>, path: ResolvedVc<AstPath>) -> Self {
+        ConstantConditionCodeGen {
             value: value.into_value(),
             path,
-        })
+        }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ConstantCondition {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -55,5 +52,11 @@ impl CodeGenerateable for ConstantCondition {
         .into();
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl Into<CodeGen> for ConstantConditionCodeGen {
+    fn into(self) -> CodeGen {
+        CodeGen::ConstantCondition(self)
     }
 }

@@ -1,6 +1,7 @@
 use std::mem::take;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{util::take::Take, Spanned},
     ecma::{
@@ -16,30 +17,27 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
     utils::AstPathRange,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+
 pub struct Unreachable {
     range: ResolvedVc<AstPathRange>,
 }
 
 impl Unreachable {
-    pub fn new(range: ResolvedVc<AstPathRange>) -> Vc<Self> {
-        Self::cell(Unreachable { range })
+    pub fn new(range: ResolvedVc<AstPathRange>) -> Self {
+        Unreachable { range }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for Unreachable {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -124,6 +122,12 @@ impl CodeGenerateable for Unreachable {
         };
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl Into<CodeGen> for Unreachable {
+    fn into(self) -> CodeGen {
+        CodeGen::Unreachable(self)
     }
 }
 

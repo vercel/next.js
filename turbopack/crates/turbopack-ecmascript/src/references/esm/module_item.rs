@@ -1,6 +1,7 @@
 use std::mem::replace;
 
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{
@@ -9,11 +10,11 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
 };
@@ -21,22 +22,17 @@ use crate::{
 /// Makes code changes to remove export/import declarations and places the
 /// expr/decl in a normal statement. Unnamed expr/decl will be named with the
 /// magic identifier "export default"
-#[turbo_tasks::value]
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct EsmModuleItem {
     pub path: ResolvedVc<AstPath>,
 }
 
 impl EsmModuleItem {
-    pub fn new(path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(EsmModuleItem { path })
+    pub fn new(path: ResolvedVc<AstPath>) -> Self {
+        EsmModuleItem { path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmModuleItem {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -103,5 +99,11 @@ impl CodeGenerateable for EsmModuleItem {
         );
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl Into<CodeGen> for EsmModuleItem {
+    fn into(self) -> CodeGen {
+        CodeGen::EsmModuleItem(self)
     }
 }

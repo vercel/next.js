@@ -5,10 +5,18 @@ use swc_core::ecma::{
     visit::{AstParentKind, VisitMut},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
-use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkingContext},
-    module_graph::ModuleGraph,
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+
+use crate::references::{
+    amd::AmdDefineWithDependenciesCodeGen,
+    cjs::CjsRequireCacheAccess,
+    constant_condition::ConstantConditionCodeGen,
+    constant_value::ConstantValueCodeGen,
+    dynamic_expression::DynamicExpression,
+    esm::{EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef},
+    ident::IdentReplacement,
+    unreachable::Unreachable,
 };
 
 /// impl of code generation inferred from a ModuleReference.
@@ -102,42 +110,47 @@ pub trait CodeGenerateable {
     ) -> Vc<CodeGeneration>;
 }
 
-#[turbo_tasks::value_trait]
-pub trait CodeGenerateableWithAsyncModuleInfo {
-    fn code_generation(
-        self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<CodeGeneration>;
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub enum CodeGen {
+    AmdDefineWithDependenciesCodeGen(AmdDefineWithDependenciesCodeGen),
+    CjsRequireCacheAccess(CjsRequireCacheAccess),
+    ConstantCondition(ConstantConditionCodeGen),
+    ConstantValue(ConstantValueCodeGen),
+    DynamicExpression(DynamicExpression),
+    EsmBinding(EsmBinding),
+    // EsmExports(EsmExports),
+    EsmModuleItem(EsmModuleItem),
+    IdentReplacement(IdentReplacement),
+    ImportMetaBinding(ImportMetaBinding),
+    ImportMetaRef(ImportMetaRef),
+    Unreachable(Unreachable),
 }
 
-pub enum UnresolvedCodeGen {
-    CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
-    CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
-}
-
-impl UnresolvedCodeGen {
-    pub async fn to_resolved(&self) -> Result<CodeGen> {
-        Ok(match self {
-            Self::CodeGenerateable(vc) => CodeGen::CodeGenerateable(vc.to_resolved().await?),
-            Self::CodeGenerateableWithAsyncModuleInfo(vc) => {
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(vc.to_resolved().await?)
-            }
-        })
+impl CodeGen {
+    pub async fn code_generation(
+        &self,
+        g: Vc<ModuleGraph>,
+        ctx: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Vc<CodeGeneration>> {
+        match self {
+            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::CjsRequireCacheAccess(v) => v.code_generation(g, ctx).await,
+            Self::ConstantCondition(v) => v.code_generation(g, ctx).await,
+            Self::ConstantValue(v) => v.code_generation(g, ctx).await,
+            Self::DynamicExpression(v) => v.code_generation(g, ctx).await,
+            Self::EsmBinding(v) => v.code_generation(g, ctx).await,
+            // Self::EsmExports(v) => v.code_generation(g, ctx).await,
+            Self::EsmModuleItem(v) => v.code_generation(g, ctx).await,
+            Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
+            Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,
+            Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
+            Self::Unreachable(v) => v.code_generation(g, ctx).await,
+        }
     }
 }
 
-#[derive(
-    Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
-)]
-pub enum CodeGen {
-    CodeGenerateable(ResolvedVc<Box<dyn CodeGenerateable>>),
-    CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
-}
-
 #[turbo_tasks::value(transparent)]
-pub struct CodeGenerateables(Vec<CodeGen>);
+pub struct CodeGens(Vec<CodeGen>);
 
 pub fn path_to(
     path: &[AstParentKind],

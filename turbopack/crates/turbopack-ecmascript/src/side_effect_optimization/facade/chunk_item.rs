@@ -23,7 +23,7 @@ use crate::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkItemOptions,
         EcmascriptChunkPlaceable, EcmascriptChunkType, EcmascriptExports,
     },
-    code_gen::{CodeGenerateable, CodeGenerateableWithAsyncModuleInfo},
+    code_gen::CodeGenerateable,
     process_content_with_code_gens,
 };
 
@@ -71,16 +71,7 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         let references_ref = references.await?;
         let mut code_gens = Vec::with_capacity(references_ref.len() + 2);
         for r in &references_ref {
-            if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(*r)
-            {
-                code_gens.push(code_gen.code_generation(
-                    *self.module_graph,
-                    *chunking_context,
-                    async_module_info,
-                ));
-            } else if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r)
-            {
+            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
                 code_gens.push(code_gen.code_generation(*self.module_graph, *chunking_context));
             }
         }

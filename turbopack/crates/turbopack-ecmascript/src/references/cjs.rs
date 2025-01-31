@@ -1,11 +1,15 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::util::take::Take,
     ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
+    Vc,
+};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -17,7 +21,7 @@ use turbopack_resolve::ecmascript::cjs_resolve;
 
 use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
     runtime_functions::TURBOPACK_CACHE,
@@ -298,16 +302,16 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct CjsRequireCacheAccess {
     pub path: ResolvedVc<AstPath>,
 }
+impl CjsRequireCacheAccess {
+    pub fn new(path: ResolvedVc<AstPath>) -> Self {
+        CjsRequireCacheAccess { path }
+    }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for CjsRequireCacheAccess {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
@@ -324,5 +328,11 @@ impl CodeGenerateable for CjsRequireCacheAccess {
         }));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl Into<CodeGen> for CjsRequireCacheAccess {
+    fn into(self) -> CodeGen {
+        CodeGen::CjsRequireCacheAccess(self)
     }
 }
