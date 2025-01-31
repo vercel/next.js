@@ -92,6 +92,7 @@ turbopack-wasm = { path = "turbopack/crates/turbopack-wasm" }
 
 # SWC crates
 swc_core = { version = "12.0.0", features = [
+  "ecma_ast_serde",
   "ecma_loader_lru",
   "ecma_loader_parking_lot",
 ] }

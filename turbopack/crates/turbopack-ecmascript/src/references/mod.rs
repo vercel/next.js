@@ -3340,7 +3340,7 @@ async fn resolve_as_webpack_runtime(
     }
 }
 
-// TODO enable serialization
+// TODO enable serialization, then turn into a TaskInput after that
 #[turbo_tasks::value(transparent, serialization = "none")]
 pub struct AstPath(#[turbo_tasks(trace_ignore)] Vec<AstParentKind>);
 
