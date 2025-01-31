@@ -296,12 +296,14 @@ async function generateCacheEntryImpl(
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const cacheKeyParts =
+  const [, , , args] =
     typeof encodedArguments === 'string'
-      ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
-          temporaryReferences,
-        })
-      : await decodeReplyFromAsyncIterable<any[]>(
+      ? await decodeReply<CacheKeyParts>(
+          encodedArguments,
+          getServerModuleMap(),
+          { temporaryReferences }
+        )
+      : await decodeReplyFromAsyncIterable<CacheKeyParts>(
           {
             async *[Symbol.asyncIterator]() {
               for (const entry of encodedArguments) {
@@ -330,8 +332,6 @@ async function generateCacheEntryImpl(
           getServerModuleMap(),
           { temporaryReferences }
         )
-
-  const [, , , args] = cacheKeyParts as CacheKeyParts
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
