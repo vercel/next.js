@@ -37,7 +37,7 @@ impl ConnectChildOperation {
             }
             return;
         }
-        let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::Meta);
+        let mut parent_task = ctx.task(parent_task_id, TaskDataCategory::All);
         let Some(InProgressState::InProgress(box InProgressStateInner { new_children, .. })) =
             get_mut!(parent_task, InProgress)
         else {
@@ -46,6 +46,12 @@ impl ConnectChildOperation {
 
         // Quick skip if the child was already connected before
         if !new_children.insert(child_task_id) {
+            return;
+        }
+        if parent_task.has_key(&CachedDataItemKey::Child {
+            task: child_task_id,
+        }) {
+            // It is already connected, we can skip the rest
             return;
         }
         drop(parent_task);
