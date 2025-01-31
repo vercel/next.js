@@ -80,6 +80,7 @@ function DevToolsPopover({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
+  // This hook lets us do an exit animation before unmounting the component
   const { mounted, rendered } = useDelayedRender(isMenuOpen, {
     // Intentionally no fade in, makes the UI feel more immediate
     enterDelay: 0,

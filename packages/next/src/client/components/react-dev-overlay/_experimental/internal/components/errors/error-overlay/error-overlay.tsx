@@ -42,6 +42,8 @@ export function ErrorOverlay({
   setIsErrorOverlayOpen: (value: boolean) => void
 }) {
   const isTurbopack = !!process.env.TURBOPACK
+
+  // This hook lets us do an exit animation before unmounting the component
   const { mounted, rendered } = useDelayedRender(isErrorOverlayOpen, {
     exitDelay: transitionDurationMs,
   })
