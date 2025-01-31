@@ -140,7 +140,7 @@ importers:
         version: 1.1.0
       '@testing-library/jest-dom':
         specifier: 6.1.2
-        version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0))
+        version: 6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0))
       '@testing-library/react':
         specifier: ^15.0.5
         version: 15.0.7(@types/react@19.0.8)(react-dom@19.1.0-canary-37906d4d-20250127(react@19.1.0-canary-37906d4d-20250127))(react@19.1.0-canary-37906d4d-20250127)
@@ -278,7 +278,7 @@ importers:
         version: 2.31.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)
       eslint-plugin-jest:
         specifier: 27.6.3
-        version: 27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6))(typescript@5.7.2)
+        version: 27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(typescript@5.7.2)
       eslint-plugin-jsdoc:
         specifier: 48.0.4
         version: 48.0.4(eslint@9.12.0)
@@ -365,7 +365,7 @@ importers:
         version: 29.7.0
       jest-extended:
         specifier: 4.0.2
-        version: 4.0.2(jest@29.7.0(@types/node@20.17.6))
+        version: 4.0.2(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))
       jest-junit:
         specifier: 16.0.0
         version: 16.0.0
@@ -21614,7 +21614,7 @@ snapshots:
       lz-string: 1.5.0
       pretty-format: 27.5.1
 
-  '@testing-library/jest-dom@6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0))':
+  '@testing-library/jest-dom@6.1.2(@jest/globals@29.7.0)(@types/jest@29.5.5)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(vitest@3.0.4(@types/node@20.17.6)(sass@1.54.0))':
     dependencies:
       '@adobe/css-tools': 4.3.1
       '@babel/runtime': 7.22.5
@@ -25642,7 +25642,7 @@ snapshots:
       - eslint-import-resolver-webpack
       - supports-color
 
-  eslint-plugin-jest@27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6))(typescript@5.7.2):
+  eslint-plugin-jest@27.6.3(@typescript-eslint/eslint-plugin@8.0.0(@typescript-eslint/parser@8.0.0(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(typescript@5.7.2))(eslint@9.12.0)(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0))(typescript@5.7.2):
     dependencies:
       '@typescript-eslint/utils': 5.62.0(eslint@9.12.0)(typescript@5.7.2)
       eslint: 9.12.0
@@ -28142,7 +28142,7 @@ snapshots:
       jest-mock: 29.7.0
       jest-util: 29.7.0
 
-  jest-extended@4.0.2(jest@29.7.0(@types/node@20.17.6)):
+  jest-extended@4.0.2(jest@29.7.0(@types/node@20.17.6)(babel-plugin-macros@3.1.0)):
     dependencies:
       jest-diff: 29.7.0
       jest-get-type: 29.6.3

@@ -2,6 +2,9 @@ import type { Preview } from '@storybook/react'
 
 const preview: Preview = {
   parameters: {
+    a11y: {
+      element: 'nextjs-portal',
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
