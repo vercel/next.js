@@ -54,7 +54,17 @@ type TurbopackMiddlewareManifest = MiddlewareManifest & {
   instrumentation?: InstrumentationDefinition
 }
 
-const getManifestPath = (page: string, distDir: string, name: string, type: string) => {
+type ManifestName = | typeof MIDDLEWARE_MANIFEST
+| typeof BUILD_MANIFEST
+| typeof APP_BUILD_MANIFEST
+| typeof PAGES_MANIFEST
+| typeof WEBPACK_STATS
+| typeof APP_PATHS_MANIFEST
+| `${typeof SERVER_REFERENCE_MANIFEST}.json`
+| `${typeof NEXT_FONT_MANIFEST}.json`
+| typeof REACT_LOADABLE_MANIFEST
+
+const getManifestPath = (page: string, distDir: string, name: ManifestName, type: string) => {
   let manifestPath = posix.join(
     distDir,
     `server`,
@@ -66,31 +76,11 @@ const getManifestPath = (page: string, distDir: string, name: string, type: stri
         : getAssetPathFromRoute(page),
     name
   )
-  return manifestPath
-}
 
-async function readPartialManifest<T>(
-  distDir: string,
-  name:
-    | typeof MIDDLEWARE_MANIFEST
-    | typeof BUILD_MANIFEST
-    | typeof APP_BUILD_MANIFEST
-    | typeof PAGES_MANIFEST
-    | typeof WEBPACK_STATS
-    | typeof APP_PATHS_MANIFEST
-    | `${typeof SERVER_REFERENCE_MANIFEST}.json`
-    | `${typeof NEXT_FONT_MANIFEST}.json`
-    | typeof REACT_LOADABLE_MANIFEST,
-  pageName: string,
-  type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
-): Promise<T> {
-  const page = pageName
   const isSitemapRoute = /[\\/]sitemap(.xml)?\/route$/.test(page)
-  let manifestPath = getManifestPath(page, distDir, name, type)
-
   // Check the ambiguity of /sitemap and /sitemap.xml
   if (isSitemapRoute && !existsSync(manifestPath)) {
-    manifestPath = getManifestPath(pageName.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
+    manifestPath = getManifestPath(page.replace(/\/sitemap\/route$/, '/sitemap.xml/route'), distDir, name, type)
   }
   // existsSync is faster than using the async version
   if(!existsSync(manifestPath) && page.endsWith('/route')) {
@@ -98,6 +88,19 @@ async function readPartialManifest<T>(
     let metadataPage = addRouteSuffix(addMetadataIdToRoute(removeRouteSuffix(page)))
     manifestPath = getManifestPath(metadataPage, distDir, name, type)
   }
+
+  return manifestPath
+}
+
+async function readPartialManifest<T>(
+  distDir: string,
+  name:
+    ManifestName,
+  pageName: string,
+  type: 'pages' | 'app' | 'middleware' | 'instrumentation' = 'pages'
+): Promise<T> {
+  const page = pageName
+  const manifestPath = getManifestPath(page, distDir, name, type)
   return JSON.parse(await readFile(posix.join(manifestPath), 'utf-8')) as T
 }
 
@@ -566,10 +569,20 @@ export class TurbopackManifestLoader {
     )
   }
 
+  /**
+   * @returns If the manifest was written or not
+   */
   async loadMiddlewareManifest(
     pageName: string,
     type: 'pages' | 'app' | 'middleware' | 'instrumentation'
-  ): Promise<void> {
+  ): Promise<boolean> {
+    const middlewareManifestPath = getManifestPath(pageName, this.distDir, MIDDLEWARE_MANIFEST, type)
+
+    // middlewareManifest is actually "edge manifest" and not all routes are edge runtime. If it is not written we skip it.
+    if(!existsSync(middlewareManifestPath)) {
+      return false
+    }
+
     this.middlewareManifests.set(
       getEntryKey(
         type === 'middleware' || type === 'instrumentation' ? 'root' : type,
@@ -583,6 +596,8 @@ export class TurbopackManifestLoader {
         type
       )
     )
+
+    return true
   }
 
   getMiddlewareManifest(key: EntryKey) {

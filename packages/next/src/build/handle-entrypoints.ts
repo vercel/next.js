@@ -67,15 +67,15 @@ export async function handleRouteType({
     case 'page': {
       const serverKey = getEntryKey('pages', 'server', page)
 
-      const type = await route.htmlEndpoint.runtime()
-
       await manifestLoader.loadBuildManifest(page)
       await manifestLoader.loadPagesManifest(page)
-      if (type === 'edge') {
+
+      const middlewareManifestWritten =
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
-      } else {
+      if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(serverKey)
       }
+
       await manifestLoader.loadFontManifest('/_app', 'pages')
       await manifestLoader.loadFontManifest(page, 'pages')
 
@@ -88,12 +88,10 @@ export async function handleRouteType({
     case 'page-api': {
       const key = getEntryKey('pages', 'server', page)
 
-      const type = await route.endpoint.runtime()
-
       await manifestLoader.loadPagesManifest(page)
-      if (type === 'edge') {
+      const middlewareManifestWritten =
         await manifestLoader.loadMiddlewareManifest(page, 'pages')
-      } else {
+      if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
@@ -101,11 +99,10 @@ export async function handleRouteType({
     }
     case 'app-page': {
       const key = getEntryKey('app', 'server', page)
-      const type = await route.htmlEndpoint.runtime()
 
-      if (type === 'edge') {
+      const middlewareManifestWritten =
         await manifestLoader.loadMiddlewareManifest(page, 'app')
-      } else {
+      if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 
@@ -123,13 +120,13 @@ export async function handleRouteType({
     }
     case 'app-route': {
       const key = getEntryKey('app', 'server', page)
-      const type = await route.endpoint.runtime()
 
       await manifestLoader.loadAppPathsManifest(page)
 
-      if (type === 'edge') {
+      const middlewareManifestWritten =
         await manifestLoader.loadMiddlewareManifest(page, 'app')
-      } else {
+
+      if (!middlewareManifestWritten) {
         manifestLoader.deleteMiddlewareManifest(key)
       }
 

@@ -121,27 +121,6 @@ async fn get_written_endpoint_with_issues_operation(
 
 #[napi]
 #[tracing::instrument(skip_all)]
-pub async fn endpoint_runtime(
-    #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
-) -> napi::Result<String> {
-    let turbo_tasks = endpoint.turbo_tasks().clone();
-    let runtime = turbo_tasks
-        .run_once(async move {
-            let e = ***endpoint;
-            let e = e.connect();
-            Ok(*e.runtime().await?.clone())
-        })
-        .await
-        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
-
-    Ok(match runtime {
-        EndpointRuntime::NodeJs => "nodejs".into(),
-        EndpointRuntime::Edge => "edge".into(),
-    })
-}
-
-#[napi]
-#[tracing::instrument(skip_all)]
 pub async fn endpoint_write_to_disk(
     #[napi(ts_arg_type = "{ __napiType: \"Endpoint\" }")] endpoint: External<ExternalEndpoint>,
 ) -> napi::Result<TurbopackResult<NapiWrittenEndpoint>> {

@@ -737,15 +737,6 @@ function bindingToApi(
       )
     }
 
-    async runtime(): Promise<'nodejs' | 'edge'> {
-      return await withErrorCause(
-        () =>
-          binding.endpointRuntime(this._nativeEndpoint) as Promise<
-            TurbopackResult<'nodejs' | 'edge'>
-          >
-      )
-    }
-
     async clientChanged(): Promise<AsyncIterableIterator<TurbopackResult<{}>>> {
       const clientSubscription = subscribe<TurbopackResult>(
         false,
