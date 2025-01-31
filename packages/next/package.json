@@ -88,7 +88,8 @@
     "typescript": "tsec --noEmit",
     "ncc-compiled": "taskr ncc",
     "storybook": "storybook dev -p 6006",
-    "build-storybook": "storybook build"
+    "build-storybook": "storybook build",
+    "test-storybook": "test-storybook"
   },
   "taskr": {
     "requires": [
@@ -227,6 +228,7 @@
     "assert": "2.0.0",
     "async-retry": "1.2.3",
     "async-sema": "3.0.0",
+    "axe-playwright": "2.0.3",
     "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
     "babel-plugin-transform-define": "2.0.0",
     "babel-plugin-transform-react-remove-prop-types": "0.4.24",
