@@ -22,6 +22,12 @@ const preview: Preview = {
       default: 'backdrop',
     },
   },
+  globals: {
+    a11y: {
+      // Optional flag to prevent the automatic check
+      manual: true,
+    },
+  },
 }
 
 export default preview
