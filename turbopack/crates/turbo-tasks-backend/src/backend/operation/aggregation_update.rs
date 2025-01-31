@@ -1035,8 +1035,6 @@ impl AggregationUpdateQueue {
                         // followers
                         let data = AggregatedDataUpdate::from_task(&mut task);
                         let followers = get_followers(&task);
-                        let has_active_count =
-                            get!(task, Activeness).is_some_and(|a| a.active_counter > 0);
                         let diff = data.apply(&mut upper, ctx.session_id(), self);
 
                         if !upper_ids.is_empty() && !diff.is_empty() {
@@ -1050,12 +1048,6 @@ impl AggregationUpdateQueue {
                             );
                         }
                         if !followers.is_empty() {
-                            if has_active_count {
-                                // TODO combine both operations to avoid the clone
-                                self.push(AggregationUpdateJob::IncreaseActiveCounts {
-                                    task_ids: followers.clone(),
-                                })
-                            }
                             self.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
                                 upper_id,
                                 new_follower_ids: followers,
@@ -1075,6 +1067,14 @@ impl AggregationUpdateQueue {
                             upper_ids,
                             lost_follower_id: task_id,
                         });
+                    }
+
+                    // Follower was removed, we might need to update the active count
+                    let has_active_count =
+                        get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                    if has_active_count {
+                        // TODO combine both operations to avoid the clone
+                        self.push(AggregationUpdateJob::DecreaseActiveCount { task: task_id })
                     }
                 }
                 std::cmp::Ordering::Equal => {}
@@ -1100,7 +1100,9 @@ impl AggregationUpdateQueue {
                             self.push_optimize_task(upper_id);
                         }
                         // update active count
-                        if get!(task, Activeness).is_some_and(|a| a.active_counter > 0) {
+                        let has_active_count =
+                            get!(task, Activeness).is_some_and(|a| a.active_counter > 0);
+                        if has_active_count {
                             self.push(AggregationUpdateJob::IncreaseActiveCount { task: task_id });
                         }
                         // notify uppers about new follower
@@ -1459,7 +1461,9 @@ impl AggregationUpdateQueue {
                     }
 
                     // update active count
-                    if get!(upper, Activeness).is_some_and(|a| a.active_counter > 0) {
+                    let has_active_count =
+                        get!(upper, Activeness).is_some_and(|a| a.active_counter > 0);
+                    if has_active_count {
                         tasks_for_which_increment_active_count.push(new_follower_id);
                     }
                     // notify uppers about new follower
@@ -1883,13 +1887,13 @@ impl AggregationUpdateQueue {
 
         let mut task = ctx.task(task_id, TaskDataCategory::Meta);
         let state = get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
-        let is_positive = state.increment_active_counter();
+        let is_positive_now = state.increment_active_counter();
         let is_empty = state.is_empty();
         // This can happen if active count is negative before
         if is_empty {
             task.remove(&CachedDataItemKey::Activeness {});
         }
-        if is_positive {
+        if is_positive_now {
             let followers = get_followers(&task);
             drop(task);
             if !followers.is_empty() {

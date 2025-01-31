@@ -1214,9 +1214,15 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 }
             }
 
-            let active_count =
-                get!(task, Activeness).map_or(0, |activeness| activeness.active_counter);
-            connect_children(task_id, &mut task, new_children, &mut queue, active_count);
+            let has_active_count =
+                get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
+            connect_children(
+                task_id,
+                &mut task,
+                new_children,
+                &mut queue,
+                has_active_count,
+            );
         }
 
         // Remove no longer existing cells and notify in progress cells

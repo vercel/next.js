@@ -22,7 +22,7 @@ pub fn connect_children(
     parent_task: &mut impl TaskGuard,
     new_children: FxHashSet<TaskId>,
     queue: &mut AggregationUpdateQueue,
-    active_count: i32,
+    has_active_count: bool,
 ) {
     if new_children.is_empty() {
         return;
@@ -89,14 +89,16 @@ pub fn connect_children(
                 .into(),
             );
         }
+        if !has_active_count {
+            queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                task_ids: new_follower_ids,
+            })
+        }
     } else {
         queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
             upper_id: parent_task_id,
             new_follower_ids: new_follower_ids.clone(),
         });
-    }
-
-    if active_count == 0 {
         queue.push(AggregationUpdateJob::DecreaseActiveCounts {
             task_ids: new_follower_ids,
         })
