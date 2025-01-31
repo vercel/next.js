@@ -110,6 +110,6 @@ export function useErrorHook({
       ? rootLayoutMissingTags.length
       : !!buildError
         ? 1
-        : errors.length,
+        : readyErrors.length,
   }
 }
