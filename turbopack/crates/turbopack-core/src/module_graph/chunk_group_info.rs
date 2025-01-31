@@ -1,5 +1,5 @@
 use std::{
-    collections::{hash_map::Entry, BinaryHeap, HashMap, HashSet},
+    collections::{hash_map::Entry, BinaryHeap},
     hash::Hash,
     ops::{Deref, DerefMut},
 };
@@ -8,6 +8,7 @@ use anyhow::Result;
 use either::Either;
 use petgraph::graph::{DiGraph, EdgeIndex, NodeIndex};
 use roaring::RoaringBitmap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -76,7 +77,7 @@ impl Hash for RoaringBitmapWrapper {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ChunkGroupInfo(HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
+pub struct ChunkGroupInfo(FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper>);
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 enum ChunkGroup {
@@ -164,18 +165,18 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
     let span = span_outer.clone();
     async move {
         let mut next_chunk_group_id = 0u32;
-        let mut chunk_groups_to_id: HashMap<ChunkGroup, ChunkGroupId> = HashMap::new();
-        let mut chunk_groups_from_id: HashMap<ChunkGroupId, ChunkGroup> = HashMap::new();
+        let mut chunk_groups_to_id: FxHashMap<ChunkGroup, ChunkGroupId> = FxHashMap::default();
+        let mut chunk_groups_from_id: FxHashMap<ChunkGroupId, ChunkGroup> = FxHashMap::default();
 
-        let mut module_chunk_groups: HashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
-            HashMap::new();
+        let mut module_chunk_groups: FxHashMap<ResolvedVc<Box<dyn Module>>, RoaringBitmapWrapper> =
+            FxHashMap::default();
 
         let graphs = graph.graphs.iter().try_join().await?;
         let module_count = graphs.iter().map(|g| g.graph.node_count()).sum::<usize>();
         span.record("module_count", module_count);
 
         // First, compute the depth for each module in the graph
-        let mut module_depth: HashMap<ResolvedVc<Box<dyn Module>>, usize> = HashMap::new();
+        let mut module_depth: FxHashMap<ResolvedVc<Box<dyn Module>>, usize> = FxHashMap::default();
         // use all entries from all graphs
         let entries = graphs
             .iter()
@@ -202,7 +203,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut visitor =
             |parent_info: Option<(&'_ SingleModuleGraphModuleNode, &'_ ChunkingType)>,
              node: &'_ SingleModuleGraphModuleNode,
-             module_chunk_groups: &mut HashMap<
+             module_chunk_groups: &mut FxHashMap<
                 ResolvedVc<Box<dyn Module>>,
                 RoaringBitmapWrapper,
             >|
@@ -316,7 +317,7 @@ pub async fn compute_chunk_group_info(graph: &ModuleGraph) -> Result<Vc<ChunkGro
         let mut visit_count = 0usize;
 
         {
-            let mut queue_set = HashSet::new();
+            let mut queue_set = FxHashSet::default();
             let mut queue = BinaryHeap::with_capacity(entries.len());
             for e in entries {
                 queue.push(NodeWithPriority {

@@ -1,6 +1,7 @@
-use std::collections::HashSet;
+use std::iter::FromIterator;
 
 use lazy_static::lazy_static;
+use rustc_hash::FxHashSet;
 use swc_core::{
     atoms::atom,
     ecma::{
@@ -15,7 +16,7 @@ use swc_core::{
 use super::{ExportInfo, ExportInfoWarning};
 
 lazy_static! {
-    static ref EXPORTS_SET: HashSet<&'static str> = HashSet::from([
+    static ref EXPORTS_SET: FxHashSet<&'static str> = FxHashSet::from_iter([
         "getStaticProps",
         "getServerSideProps",
         "generateImageMetadata",

@@ -1,11 +1,12 @@
 use std::{
     cmp::max,
-    collections::{HashMap, HashSet, VecDeque},
+    collections::VecDeque,
     fmt::{Debug, Formatter},
     vec,
 };
 
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::{
     bottom_up::build_bottom_up_graph,
@@ -388,7 +389,7 @@ impl<'a> SpanRef<'a> {
     pub fn search(&self, query: &str) -> impl Iterator<Item = SpanRef<'a>> {
         let mut query_items = query.split(",").map(str::trim);
         let index = self.search_index();
-        let mut result = HashSet::new();
+        let mut result = FxHashSet::default();
         let query = query_items.next().unwrap();
         for (key, spans) in index {
             if key.contains(query) {
@@ -396,7 +397,7 @@ impl<'a> SpanRef<'a> {
             }
         }
         for query in query_items {
-            let mut and_result = HashSet::new();
+            let mut and_result = FxHashSet::default();
             for (key, spans) in index {
                 if key.contains(query) {
                     and_result.extend(spans.iter().copied());
@@ -412,9 +413,9 @@ impl<'a> SpanRef<'a> {
         })
     }
 
-    fn search_index(&self) -> &HashMap<String, Vec<SpanIndex>> {
+    fn search_index(&self) -> &FxHashMap<String, Vec<SpanIndex>> {
         self.extra().search_index.get_or_init(|| {
-            let mut index: HashMap<String, Vec<SpanIndex>> = HashMap::new();
+            let mut index: FxHashMap<String, Vec<SpanIndex>> = FxHashMap::default();
             let mut queue = VecDeque::with_capacity(8);
             queue.push_back(*self);
             while let Some(span) = queue.pop_front() {

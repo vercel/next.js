@@ -5,7 +5,6 @@ mod storage;
 
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
     future::Future,
     hash::BuildHasherDefault,
     mem::take,
@@ -20,7 +19,7 @@ use std::{
 use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use parking_lot::{Condvar, Mutex};
-use rustc_hash::FxHasher;
+use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
 use smallvec::smallvec;
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
@@ -67,14 +66,14 @@ const SNAPSHOT_REQUESTED_BIT: usize = 1 << (usize::BITS - 1);
 
 struct SnapshotRequest {
     snapshot_requested: bool,
-    suspended_operations: HashSet<PtrEqArc<AnyOperation>>,
+    suspended_operations: FxHashSet<PtrEqArc<AnyOperation>>,
 }
 
 impl SnapshotRequest {
     fn new() -> Self {
         Self {
             snapshot_requested: false,
-            suspended_operations: HashSet::new(),
+            suspended_operations: FxHashSet::default(),
         }
     }
 }
@@ -1196,7 +1195,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let _ = stateful;
 
         // handle cell counters: update max index and remove cells that are no longer used
-        let mut old_counters: HashMap<_, _> =
+        let mut old_counters: FxHashMap<_, _> =
             get_many!(task, CellTypeMaxIndex { cell_type } max_index => (cell_type, *max_index));
         for (&cell_type, &max_index) in cell_counters.iter() {
             if let Some(old_max_index) = old_counters.remove(&cell_type) {

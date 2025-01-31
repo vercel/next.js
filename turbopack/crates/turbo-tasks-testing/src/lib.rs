@@ -5,7 +5,6 @@ mod run;
 
 use std::{
     borrow::Cow,
-    collections::HashMap,
     future::Future,
     mem::replace,
     panic::AssertUnwindSafe,
@@ -14,6 +13,7 @@ use std::{
 
 use anyhow::{anyhow, Result};
 use futures::FutureExt;
+use rustc_hash::FxHashMap;
 use turbo_tasks::{
     backend::{CellContent, TaskCollectiblesMap, TypedCellContent},
     event::{Event, EventListener},
@@ -34,7 +34,7 @@ enum Task {
 #[derive(Default)]
 pub struct VcStorage {
     this: Weak<Self>,
-    cells: Mutex<HashMap<(TaskId, CellId), CellContent>>,
+    cells: Mutex<FxHashMap<(TaskId, CellId), CellContent>>,
     tasks: Mutex<Vec<Task>>,
 }
 

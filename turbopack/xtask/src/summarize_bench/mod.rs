@@ -1,8 +1,9 @@
 pub(crate) mod data;
 
 use std::{
-    collections::{hash_map::Entry, BTreeMap, HashMap},
+    collections::{hash_map::Entry, BTreeMap},
     fs::File,
+    hash::BuildHasherDefault,
     path::{Path, PathBuf},
     time::{Duration, UNIX_EPOCH},
 };
@@ -10,10 +11,13 @@ use std::{
 use anyhow::{anyhow, Context};
 use chrono::{DateTime, Utc};
 use indexmap::IndexSet;
+use rustc_hash::{FxHashMap, FxHasher};
 use walkdir::WalkDir;
 
 use self::data::Benchmark;
 use crate::summarize_bench::data::{BaseBenchmarks, CStats};
+
+type FxIndexSet<T> = IndexSet<T, BuildHasherDefault<FxHasher>>;
 
 #[derive(Debug)]
 struct BenchDataFile {
@@ -52,7 +56,7 @@ impl<'a> TryFrom<&'a Path> for BenchDataFile {
 }
 
 pub fn process_all(path: PathBuf) {
-    let mut map = HashMap::new();
+    let mut map = FxHashMap::default();
     for entry in WalkDir::new(&path)
         .into_iter()
         .filter_map(Result::ok)
@@ -63,14 +67,14 @@ pub fn process_all(path: PathBuf) {
     {
         let data_file_result: Result<BenchDataFile, _> = entry.path().try_into();
         if let Ok(data_file) = data_file_result {
-            let inner_map: &mut HashMap<_, _> = map.entry(data_file.system.clone()).or_default();
+            let inner_map: &mut FxHashMap<_, _> = map.entry(data_file.system.clone()).or_default();
             let items: &mut Vec<BenchDataFile> =
                 inner_map.entry(data_file.sha.clone()).or_default();
             items.push(data_file);
         }
     }
     for (system, inner_map) in map {
-        let mut latest: HashMap<std::string::String, (u64, String, Benchmark)> = HashMap::new();
+        let mut latest: FxHashMap<String, (u64, String, Benchmark)> = FxHashMap::default();
         for (sha, data_files) in inner_map {
             let min_ts = data_files.iter().map(|d| d.timestamp).min().unwrap();
             let max_ts = data_files.iter().map(|d| d.timestamp).max().unwrap();
@@ -85,7 +89,7 @@ pub fn process_all(path: PathBuf) {
                     data
                 })
                 .collect::<Vec<_>>();
-            let mut by_name = HashMap::new();
+            let mut by_name = FxHashMap::default();
             for (i, data) in items.iter().enumerate() {
                 for (name, bench) in data.benchmarks.iter() {
                     let list: &mut Vec<_> = by_name.entry(name).or_default();
@@ -143,7 +147,7 @@ pub fn process_all(path: PathBuf) {
             let all_benchmark_keys = items
                 .iter()
                 .flat_map(|b| b.benchmarks.keys())
-                .collect::<IndexSet<_>>();
+                .collect::<FxIndexSet<_>>();
             for key in all_benchmark_keys {
                 let (ts, bench) = items
                     .iter()

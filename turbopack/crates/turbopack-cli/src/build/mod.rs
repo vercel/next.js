@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     env::current_dir,
     mem::forget,
     path::{PathBuf, MAIN_SEPARATOR},
@@ -7,6 +6,7 @@ use std::{
 };
 
 use anyhow::{bail, Context, Result};
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     apply_effects, ReadConsistency, ResolvedVc, TransientInstance, TryJoinIterExt, TurboTasks,
@@ -438,7 +438,7 @@ async fn build_internal(
         .try_join()
         .await?;
 
-    let mut chunks: HashSet<ResolvedVc<Box<dyn OutputAsset>>> = HashSet::new();
+    let mut chunks: FxHashSet<ResolvedVc<Box<dyn OutputAsset>>> = FxHashSet::default();
     for chunk_group in entry_chunk_groups {
         chunks.extend(&*all_assets_from_entries(*chunk_group).await?);
     }

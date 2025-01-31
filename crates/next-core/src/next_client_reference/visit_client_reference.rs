@@ -1,6 +1,7 @@
-use std::{collections::HashSet, future::Future};
+use std::future::Future;
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -97,7 +98,7 @@ impl Default for ClientReferenceGraphResult {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct VisitedClientReferenceGraphNodes(HashSet<VisitClientReferenceNode>);
+pub struct VisitedClientReferenceGraphNodes(FxHashSet<VisitClientReferenceNode>);
 
 #[turbo_tasks::value_impl]
 impl VisitedClientReferenceGraphNodes {

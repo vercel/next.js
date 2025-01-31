@@ -1,11 +1,9 @@
-use std::{
-    cmp::{max, Reverse},
-    collections::{HashMap, HashSet},
-};
+use std::cmp::{max, Reverse};
 
 use either::Either;
 use itertools::Itertools;
 use rayon::iter::{IntoParallelRefIterator, ParallelIterator};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -22,7 +20,7 @@ const EXTRA_HEIGHT: u64 = 5;
 
 #[derive(Default)]
 pub struct Viewer {
-    span_options: HashMap<SpanId, SpanOptions>,
+    span_options: FxHashMap<SpanId, SpanOptions>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -341,8 +339,8 @@ impl Viewer {
     }
 
     pub fn compute_update(&mut self, store: &Store, view_rect: &ViewRect) -> Update {
-        let mut highlighted_spans: HashSet<SpanId> = HashSet::new();
-        let mut highlighted_span_parents: HashSet<SpanId> = HashSet::new();
+        let mut highlighted_spans: FxHashSet<SpanId> = FxHashSet::default();
+        let mut highlighted_span_parents: FxHashSet<SpanId> = FxHashSet::default();
         let search_mode = !view_rect.query.is_empty();
         let (query, focus_mode) = if let Some(query) = view_rect.query.strip_suffix('!') {
             (query, true)

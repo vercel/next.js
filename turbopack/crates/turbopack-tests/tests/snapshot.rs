@@ -3,14 +3,11 @@
 
 mod util;
 
-use std::{
-    collections::{HashSet, VecDeque},
-    fs,
-    path::PathBuf,
-};
+use std::{collections::VecDeque, fs, path::PathBuf};
 
 use anyhow::{bail, Context, Result};
 use dunce::canonicalize;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use serde_json::json;
 use turbo_rcstr::RcStr;
@@ -451,7 +448,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
         bail!("Entry module is not chunkable, so it can't be used to bootstrap the application")
     };
 
-    let mut seen = HashSet::new();
+    let mut seen = FxHashSet::default();
     let mut queue: VecDeque<_> = chunks.await?.iter().copied().collect();
 
     let output_path = project_path.await?;
@@ -478,7 +475,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
 async fn walk_asset(
     asset: ResolvedVc<Box<dyn OutputAsset>>,
     output_path: &ReadRef<FileSystemPath>,
-    seen: &mut HashSet<Vc<FileSystemPath>>,
+    seen: &mut FxHashSet<Vc<FileSystemPath>>,
     queue: &mut VecDeque<ResolvedVc<Box<dyn OutputAsset>>>,
 ) -> Result<()> {
     let path = asset.ident().path().resolve().await?;

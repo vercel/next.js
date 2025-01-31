@@ -1,7 +1,8 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
+use rustc_hash::FxHashSet;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -753,7 +754,7 @@ pub struct FunctionArguments {
     ///
     /// This should only be used by the task that directly performs the IO. Tasks that transitively
     /// perform IO should not be manually annotated.
-    io_markers: HashSet<IoMarker>,
+    io_markers: FxHashSet<IoMarker>,
     /// Should the function return an `OperationVc` instead of a `Vc`? Also ensures that all
     /// arguments are `OperationValue`s. Mutually exclusive with the `local_cells` flag.
     ///

@@ -1,12 +1,13 @@
 use std::{
     borrow::Cow,
-    collections::{BTreeMap, HashMap, HashSet},
+    collections::BTreeMap,
     fmt::{Display, Formatter, Write},
     future::Future,
     iter::once,
 };
 
 use anyhow::{bail, Result};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::{Instrument, Level};
 use turbo_rcstr::RcStr;
@@ -217,7 +218,7 @@ impl ModuleResolveResult {
             .affecting_sources
             .iter()
             .copied()
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
         self.affecting_sources.extend(
             other
                 .affecting_sources
@@ -639,7 +640,7 @@ impl ResolveResult {
             .affecting_sources
             .iter()
             .copied()
-            .collect::<HashSet<_>>();
+            .collect::<FxHashSet<_>>();
         self.affecting_sources.extend(
             other
                 .affecting_sources
@@ -2795,7 +2796,7 @@ async fn handle_exports_imports_field(
     query: Vc<RcStr>,
 ) -> Result<Vc<ResolveResult>> {
     let mut results = Vec::new();
-    let mut conditions_state = HashMap::new();
+    let mut conditions_state = FxHashMap::default();
 
     let query_str = query.await?;
     let req = Pattern::Constant(format!("{}{}", path, query_str).into());
