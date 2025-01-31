@@ -72,6 +72,7 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{
         AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext, EvaluatableAsset,
+        MinifyType,
     },
     compile_time_info::CompileTimeInfo,
     context::AssetContext,
@@ -877,6 +878,7 @@ impl EcmascriptModuleContent {
             code_gens,
             generate_source_map,
             original_source_map,
+            *chunking_context.minify_type().await?,
         )
         .instrument(tracing::info_span!("gen content with code gens"))
         .await
@@ -897,6 +899,7 @@ impl EcmascriptModuleContent {
             &[],
             generate_source_map,
             OptionStringifiedSourceMap::none().to_resolved().await?,
+            MinifyType::NoMinify,
         )
         .await
     }
@@ -909,6 +912,7 @@ async fn gen_content_with_code_gens(
     code_gens: impl IntoIterator<Item = &CodeGeneration>,
     generate_source_map: bool,
     original_source_map: ResolvedVc<OptionStringifiedSourceMap>,
+    minify: MinifyType,
 ) -> Result<Vc<EcmascriptModuleContent>> {
     let parsed = parsed.final_read_hint().await?;
 
@@ -980,7 +984,8 @@ async fn gen_content_with_code_gens(
                 };
 
                 let mut emitter = Emitter {
-                    cfg: swc_core::ecma::codegen::Config::default(),
+                    cfg: swc_core::ecma::codegen::Config::default()
+                        .with_minify(matches!(minify, MinifyType::Minify { .. })),
                     cm: source_map.clone(),
                     comments: Some(&comments),
                     wr: JsWriter::new(
