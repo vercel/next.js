@@ -61,6 +61,8 @@ export const styles = css`
     width: 100%;
     position: absolute;
     bottom: -1px;
+    height: 0;
+    overflow: visible;
   }
 
   .stack {
@@ -78,7 +80,6 @@ export const styles = css`
     overflow: hidden;
     z-index: -1;
     max-width: var(--next-dialog-max-width);
-    height: fit-content;
 
     .layer {
       grid-area: 1 / 1;
