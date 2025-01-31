@@ -2,6 +2,9 @@
 # build-native-no-plugin-release` and the `build_and_deploy` GitHub actions
 # workflow.
 #
+# These options potentially make builds slower and only have a small runtime
+# performance impact, so we only want to use them in CI.
+#
 # When using the napi CLI or the `pack-next` script, you can use
 # `--cargo-flags=--config=.cargo/release-config.toml` to enable this.
 #
@@ -10,3 +13,18 @@
 
 [profile.release]
 strip = "symbols"
+
+[target.'cfg(target_os = "macos")']
+# Enable Identical Code Folding (ICF), this is the same option that rustc uses.
+# MSVC (Windows) builds do this by default (without a flag).
+#
+# This reduces our stripped binary size:
+# - linux arm64: 134555288 -> 132508168 bytes (-1.5%)
+# - macos arm64: 132022352 -> 126647920 bytes (-4.1%)
+#
+# https://github.com/rust-lang/rust/blob/4a5f1cc52b7/src/bootstrap/src/core/build_steps/compile.rs#L1100
+rustflags = ["-Clink-arg=--icf=all"]
+
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))']
+# We need to use `-Wl,` because `cc`/`gcc` is used as the linker
+rustflags = ["-Clink-arg=-Wl,--icf=all"]
