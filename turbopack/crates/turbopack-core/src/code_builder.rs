@@ -166,7 +166,6 @@ impl GenerateSourceMap for Code {
 
         let mut sections = Vec::with_capacity(self.mappings.len());
         let mut read = self.code.read();
-        // ast-grep-ignore: to-resolved-in-loop
         for (byte_pos, map) in &self.mappings {
             let mut want = byte_pos - last_byte_pos;
             while want > 0 {
