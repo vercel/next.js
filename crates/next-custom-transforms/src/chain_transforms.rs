@@ -2,9 +2,9 @@ use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
 use dashmap::DashMap;
 use either::Either;
-use fxhash::FxHashSet;
 use modularize_imports;
 use preset_env_base::query::targets_to_versions;
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use swc_core::{
     common::{

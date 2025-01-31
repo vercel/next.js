@@ -36,10 +36,10 @@ use std::{
 
 use anyhow::{anyhow, bail, Context as _};
 use dashmap::DashMap;
-use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use once_cell::sync::Lazy;
+use rustc_hash::FxHashSet;
 use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
@@ -87,7 +87,7 @@ impl Task for TransformTask {
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let eliminated_packages: Rc<RefCell<fxhash::FxHashSet<String>>> = Default::default();
+            let eliminated_packages: Rc<RefCell<FxHashSet<String>>> = Default::default();
             let use_cache_telemetry_tracker: Rc<DashMap<String, usize>> = Default::default();
 
             let res = catch_unwind(AssertUnwindSafe(|| {

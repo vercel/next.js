@@ -1,7 +1,7 @@
 use std::{cell::RefCell, mem::take, rc::Rc};
 
 use easy_error::{bail, Error};
-use fxhash::FxHashSet;
+use rustc_hash::FxHashSet;
 use swc_core::{
     common::{
         errors::HANDLER,

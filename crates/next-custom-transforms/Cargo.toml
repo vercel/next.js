@@ -17,7 +17,6 @@ workspace = true
 chrono = "0.4"
 easy-error = "1.0.0"
 either = "1"
-fxhash = "0.2.1"
 hex = "0.4.3"
 indexmap = { workspace = true }
 indoc = { workspace = true }
