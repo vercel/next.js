@@ -7,7 +7,6 @@ const styles = css`
     right: 0;
     bottom: 0;
     left: 0;
-    overflow: auto;
     z-index: 9000;
 
     display: flex;
