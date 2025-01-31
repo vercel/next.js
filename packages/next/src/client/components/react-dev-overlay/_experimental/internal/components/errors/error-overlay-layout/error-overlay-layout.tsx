@@ -51,7 +51,7 @@ type ErrorOverlayLayoutProps = {
   setActiveIndex?: (index: number) => void
   footerMessage?: string
   isTurbopack?: boolean
-  dialogResizerRef?: React.RefObject<HTMLDivElement>
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function ErrorOverlayLayout({

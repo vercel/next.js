@@ -5,7 +5,7 @@ type ErrorOverlayDialogProps = {
   isTurbopack?: boolean
   children?: React.ReactNode
   onClose?: () => void
-  dialogResizerRef?: React.RefObject<HTMLDivElement>
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function ErrorOverlayDialog({
