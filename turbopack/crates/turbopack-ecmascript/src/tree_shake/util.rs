@@ -481,7 +481,6 @@ impl Visit for ShouldSkip {
             ..
         }) = &*n.arg
         {
-            // TODO this is a member expression now
             if expr.is_ident_ref_to("__turbopack_wasm_module__") {
                 self.skip = true;
                 return;

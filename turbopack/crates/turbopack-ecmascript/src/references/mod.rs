@@ -145,7 +145,8 @@ use crate::{
         type_issue::SpecifiedModuleTypeIssue,
     },
     runtime_functions::{
-        TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS, TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
+        TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS, TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE,
+        TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::{module_value_to_well_known_object, AstPathRange},
@@ -3437,21 +3438,43 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
                 self.cjs = true;
                 self.found = true;
             }
-            // TODO these are members now
             if &*i.sym == "__turbopack_export_value__" {
                 self.value = true;
                 self.found = true;
             }
-            // TODO these are members now
             if &*i.sym == "__turbopack_export_namespace__" {
                 self.namespace = true;
                 self.found = true;
             }
         }
+
         fn visit_expr(&mut self, n: &Expr) {
             if self.found {
                 return;
             }
+
+            if let Expr::Member(member) = n {
+                if member.obj.is_ident_ref_to("__turbopack_context__") {
+                    if let MemberProp::Ident(prop) = &member.prop {
+                        const TURBOPACK_EXPORT_VALUE_SHORTCUT: &str =
+                            TURBOPACK_EXPORT_VALUE.shortcut;
+                        const TURBOPACK_EXPORT_NAMESPACE_SHORTCUT: &str =
+                            TURBOPACK_EXPORT_NAMESPACE.shortcut;
+                        match &*prop.sym {
+                            TURBOPACK_EXPORT_VALUE_SHORTCUT => {
+                                self.value = true;
+                                self.found = true;
+                            }
+                            TURBOPACK_EXPORT_NAMESPACE_SHORTCUT => {
+                                self.namespace = true;
+                                self.found = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
             n.visit_children_with(self);
         }
 
