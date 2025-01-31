@@ -181,9 +181,4 @@ export const TERMINAL_STYLES = css`
     overflow: hidden;
     display: inline-block;
   }
-
-  [data-nextjs-terminal] svg {
-    color: var(--color-gray-900);
-    margin-right: 6px;
-  }
 `
