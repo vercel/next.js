@@ -1465,9 +1465,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 Vc::cell(ast_path.to_vec()),
                                 issue_source(*source, span),
                                 in_try,
-                                url_rewrite_behavior
-                                    .unwrap_or(UrlRewriteBehavior::Relative)
-                                    .cell(),
+                                url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                             )
                             .to_resolved()
                             .await?,
