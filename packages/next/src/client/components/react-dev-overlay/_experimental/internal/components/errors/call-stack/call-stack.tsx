@@ -144,7 +144,7 @@ export const CALL_STACK_STYLES = css`
     display: flex;
     justify-content: space-between;
     align-items: center;
-
+    min-height: 28px;
     margin-bottom: var(--size-3);
     padding: 0 var(--size-2);
   }
