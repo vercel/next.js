@@ -1,9 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, Vc,
-};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Value, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
@@ -23,11 +21,11 @@ pub enum ConstantConditionValue {
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct ConstantConditionCodeGen {
     value: ConstantConditionValue,
-    path: ResolvedVc<AstPath>,
+    path: AstPath,
 }
 
 impl ConstantConditionCodeGen {
-    pub fn new(value: Value<ConstantConditionValue>, path: ResolvedVc<AstPath>) -> Self {
+    pub fn new(value: Value<ConstantConditionValue>, path: AstPath) -> Self {
         ConstantConditionCodeGen {
             value: value.into_value(),
             path,
@@ -41,7 +39,7 @@ impl ConstantConditionCodeGen {
     ) -> Result<Vc<CodeGeneration>> {
         let value = self.value;
         let visitors = [
-            create_visitor!(exact &self.path.await?, visit_mut_expr(expr: &mut Expr) {
+            create_visitor!(exact self.path, visit_mut_expr(expr: &mut Expr) {
                 *expr = match value {
                     ConstantConditionValue::Truthy => quote!("(\"TURBOPACK compile-time truthy\", 1)" as Expr),
                     ConstantConditionValue::Falsy => quote!("(\"TURBOPACK compile-time falsy\", 0)" as Expr),
@@ -57,6 +55,6 @@ impl ConstantConditionCodeGen {
 
 impl From<ConstantConditionCodeGen> for CodeGen {
     fn from(val: ConstantConditionCodeGen) -> Self {
-        CodeGen::ConstantCondition(val)
+        CodeGen::ConstantConditionCodeGen(val)
     }
 }

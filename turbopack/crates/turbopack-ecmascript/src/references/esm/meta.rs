@@ -87,11 +87,11 @@ impl From<ImportMetaBinding> for CodeGen {
 /// in the file. But all references refer to the same mutable object.
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct ImportMetaRef {
-    ast_path: ResolvedVc<AstPath>,
+    ast_path: AstPath,
 }
 
 impl ImportMetaRef {
-    pub fn new(ast_path: ResolvedVc<AstPath>) -> Self {
+    pub fn new(ast_path: AstPath) -> Self {
         ImportMetaRef { ast_path }
     }
 
@@ -100,8 +100,7 @@ impl ImportMetaRef {
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let ast_path = &self.ast_path.await?;
-        let visitor = create_visitor!(ast_path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.ast_path, visit_mut_expr(expr: &mut Expr) {
             *expr = Expr::Ident(meta_ident());
         });
 

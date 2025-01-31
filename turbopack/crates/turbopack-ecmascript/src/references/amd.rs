@@ -128,7 +128,7 @@ pub enum AmdDefineFactoryType {
 pub struct AmdDefineWithDependenciesCodeGen {
     dependencies_requests: Vec<AmdDefineDependencyElement>,
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-    path: ResolvedVc<AstPath>,
+    path: AstPath,
     factory_type: AmdDefineFactoryType,
     issue_source: ResolvedVc<IssueSource>,
     in_try: bool,
@@ -138,7 +138,7 @@ impl AmdDefineWithDependenciesCodeGen {
     pub fn new(
         dependencies_requests: Vec<AmdDefineDependencyElement>,
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
-        path: ResolvedVc<AstPath>,
+        path: AstPath,
         factory_type: AmdDefineFactoryType,
         issue_source: ResolvedVc<IssueSource>,
         in_try: bool,
@@ -201,9 +201,8 @@ impl AmdDefineWithDependenciesCodeGen {
 
         let factory_type = self.factory_type;
 
-        let path = self.path.await?;
         visitors.push(
-            create_visitor!(exact path, visit_mut_call_expr(call_expr: &mut CallExpr) {
+            create_visitor!(exact self.path, visit_mut_call_expr(call_expr: &mut CallExpr) {
                 transform_amd_factory(call_expr, &resolved_elements, factory_type)
             }),
         );

@@ -17,7 +17,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
@@ -29,11 +29,11 @@ use crate::{
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 
 pub struct Unreachable {
-    range: ResolvedVc<AstPathRange>,
+    range: AstPathRange,
 }
 
 impl Unreachable {
-    pub fn new(range: ResolvedVc<AstPathRange>) -> Self {
+    pub fn new(range: AstPathRange) -> Self {
         Unreachable { range }
     }
 
@@ -42,8 +42,7 @@ impl Unreachable {
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
-        let range = self.range.await?;
-        let visitors = match &*range {
+        let visitors = match &self.range {
             AstPathRange::Exact(path) => {
                 [
                     // Unreachable might be used on Stmt or Expr

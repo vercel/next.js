@@ -10,7 +10,7 @@ use swc_core::{
     },
     quote,
 };
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use crate::{
@@ -24,11 +24,11 @@ use crate::{
 /// magic identifier "export default"
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct EsmModuleItem {
-    pub path: ResolvedVc<AstPath>,
+    pub path: AstPath,
 }
 
 impl EsmModuleItem {
-    pub fn new(path: ResolvedVc<AstPath>) -> Self {
+    pub fn new(path: AstPath) -> Self {
         EsmModuleItem { path }
     }
 
@@ -39,9 +39,8 @@ impl EsmModuleItem {
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
         visitors.push(
-            create_visitor!(path, visit_mut_module_item(module_item: &mut ModuleItem) {
+            create_visitor!(self.path, visit_mut_module_item(module_item: &mut ModuleItem) {
                 let item = replace(module_item, ModuleItem::Stmt(quote!(";" as Stmt)));
                 if let ModuleItem::ModuleDecl(module_decl) = item {
                     match module_decl {

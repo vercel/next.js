@@ -2,7 +2,7 @@ use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::{ecma::ast::Expr, quote};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
@@ -14,11 +14,11 @@ use crate::{
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct IdentReplacement {
     value: RcStr,
-    path: ResolvedVc<AstPath>,
+    path: AstPath,
 }
 
 impl IdentReplacement {
-    pub fn new(value: RcStr, path: ResolvedVc<AstPath>) -> Self {
+    pub fn new(value: RcStr, path: AstPath) -> Self {
         IdentReplacement { value, path }
     }
 
@@ -28,9 +28,8 @@ impl IdentReplacement {
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let value = self.value.clone();
-        let path = &self.path.await?;
 
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let id = Expr::Ident((&*value).into());
             *expr = quote!("(\"TURBOPACK ident replacement\", $e)" as Expr, e: Expr = id);
         });

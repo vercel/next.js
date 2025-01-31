@@ -304,10 +304,10 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct CjsRequireCacheAccess {
-    pub path: ResolvedVc<AstPath>,
+    pub path: AstPath,
 }
 impl CjsRequireCacheAccess {
-    pub fn new(path: ResolvedVc<AstPath>) -> Self {
+    pub fn new(path: AstPath) -> Self {
         CjsRequireCacheAccess { path }
     }
 
@@ -318,8 +318,7 @@ impl CjsRequireCacheAccess {
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Member(_) = expr {
                 *expr = TURBOPACK_CACHE.into();
             } else {

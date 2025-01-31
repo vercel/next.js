@@ -11,7 +11,7 @@ use swc_core::{
     },
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::EsmAssetReference;
@@ -21,20 +21,18 @@ use crate::{
     references::AstPath,
 };
 
-#[derive(
-    Hash, Clone, Debug, TaskInput, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue,
-)]
+#[derive(Hash, Clone, Debug, Serialize, Deserialize, PartialEq, Eq, TraceRawVcs, NonLocalValue)]
 pub struct EsmBinding {
     pub reference: ResolvedVc<EsmAssetReference>,
     pub export: Option<RcStr>,
-    pub ast_path: ResolvedVc<AstPath>,
+    pub ast_path: AstPath,
 }
 
 impl EsmBinding {
     pub fn new(
         reference: ResolvedVc<EsmAssetReference>,
         export: Option<RcStr>,
-        ast_path: ResolvedVc<AstPath>,
+        ast_path: AstPath,
     ) -> Self {
         EsmBinding {
             reference,
@@ -57,7 +55,7 @@ impl EsmBinding {
             .get_ident(module_graph, chunking_context)
             .await?;
 
-        let mut ast_path = self.ast_path.await?.clone_value();
+        let mut ast_path = self.ast_path.0.clone();
         loop {
             match ast_path.last() {
                 // Shorthand properties get special treatment because we need to rewrite them to
