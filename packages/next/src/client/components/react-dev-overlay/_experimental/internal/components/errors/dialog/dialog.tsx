@@ -20,7 +20,8 @@ export function ErrorOverlayDialog({
       aria-labelledby="nextjs__container_errors_label"
       aria-describedby="nextjs__container_errors_desc"
       onClose={onClose}
-      className={`error-overlay-dialog ${isTurbopack ? 'turbo' : ''}`}
+      className="error-overlay-dialog"
+      data-turbo={isTurbopack}
       {...props}
     >
       {children}
@@ -41,10 +42,8 @@ export const DIALOG_STYLES = css`
     @media (prefers-color-scheme: dark) {
       border-color: var(--color-gray-400);
     }
-  }
 
-  .turbo {
-    &:after {
+    &[data-turbo='true']::after {
       content: '';
       --size: 1px;
       --gradient: linear-gradient(
