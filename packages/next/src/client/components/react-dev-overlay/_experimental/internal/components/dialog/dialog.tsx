@@ -45,31 +45,9 @@ const Dialog: React.FC<DialogProps> = function Dialog({
     return onClose?.()
   })
 
-  // Make HTMLElements with `role=link` accessible to be triggered by the
-  // keyboard, i.e. [Enter].
   React.useEffect(() => {
     if (dialog == null) {
       return
-    }
-
-    const root = dialog.getRootNode()
-    // Always true, but we do this for TypeScript:
-    if (!(root instanceof ShadowRoot)) {
-      return
-    }
-    const shadowRoot = root
-    function handler(e: KeyboardEvent) {
-      const el = shadowRoot.activeElement
-      if (
-        e.key === 'Enter' &&
-        el instanceof HTMLElement &&
-        el.getAttribute('role') === 'link'
-      ) {
-        e.preventDefault()
-        e.stopPropagation()
-
-        el.click()
-      }
     }
 
     function handleFocus() {
@@ -78,11 +56,9 @@ const Dialog: React.FC<DialogProps> = function Dialog({
       setRole(document.hasFocus() ? 'dialog' : undefined)
     }
 
-    shadowRoot.addEventListener('keydown', handler as EventListener)
     window.addEventListener('focus', handleFocus)
     window.addEventListener('blur', handleFocus)
     return () => {
-      shadowRoot.removeEventListener('keydown', handler as EventListener)
       window.removeEventListener('focus', handleFocus)
       window.removeEventListener('blur', handleFocus)
     }
