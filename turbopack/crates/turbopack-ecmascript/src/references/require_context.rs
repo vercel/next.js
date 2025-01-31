@@ -458,7 +458,7 @@ impl EcmascriptChunkItem for RequireContextChunkItem {
                 *self.module_graph,
                 *ResolvedVc::upcast(self.chunking_context),
                 *entry.result,
-                Value::new(ResolveType::ChunkItem),
+                ResolveType::ChunkItem,
             )
             .await?;
 

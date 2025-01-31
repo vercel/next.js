@@ -13,7 +13,7 @@ use swc_core::{
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ReadRef, ResolvedVc,
-    TryJoinIterExt, Value, ValueToString, Vc,
+    TryJoinIterExt, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
@@ -24,11 +24,13 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
     code_gen::{CodeGen, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{
+        pattern_mapping::{PatternMapping, ResolveType},
+        AstPath,
+    },
     runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
 
@@ -180,7 +182,7 @@ impl AmdDefineWithDependenciesCodeGen {
                                 Some(*self.issue_source),
                                 self.in_try,
                             ),
-                            Value::new(ChunkItem),
+                            ResolveType::ChunkItem,
                         )
                         .await?,
                         request_str: request_str.to_string(),

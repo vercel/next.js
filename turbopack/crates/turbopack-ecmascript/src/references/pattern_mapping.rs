@@ -12,8 +12,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc,
-    TryJoinIterExt, Value, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, TaskInput,
+    TryJoinIterExt, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkItemExt, ChunkableModule, ChunkingContext, ModuleId},
@@ -87,8 +87,19 @@ pub(crate) enum PatternMapping {
     Map(FxIndexMap<String, SinglePatternMapping>),
 }
 
-#[derive(Hash, Debug, Copy, Clone)]
-#[turbo_tasks::value(serialization = "auto_for_input")]
+#[derive(
+    Copy,
+    Clone,
+    Debug,
+    Eq,
+    PartialEq,
+    Hash,
+    Serialize,
+    Deserialize,
+    TraceRawVcs,
+    TaskInput,
+    NonLocalValue,
+)]
 pub(crate) enum ResolveType {
     AsyncChunkLoader,
     ChunkItem,
@@ -398,9 +409,8 @@ impl PatternMapping {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         resolve_result: Vc<ModuleResolveResult>,
-        resolve_type: Value<ResolveType>,
+        resolve_type: ResolveType,
     ) -> Result<Vc<PatternMapping>> {
-        let resolve_type = resolve_type.into_value();
         let result = resolve_result.await?;
         match result.primary.len() {
             0 => Ok(PatternMapping::Single(SinglePatternMapping::Unresolvable(

@@ -7,8 +7,7 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
-    Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
@@ -19,11 +18,13 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
     code_gen::{CodeGen, CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{
+        pattern_mapping::{PatternMapping, ResolveType},
+        AstPath,
+    },
     runtime_functions::TURBOPACK_CACHE,
 };
 
@@ -155,7 +156,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
                 Some(*self.issue_source),
                 self.in_try,
             ),
-            Value::new(ChunkItem),
+            ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
@@ -264,7 +265,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
                 Some(*self.issue_source),
                 self.in_try,
             ),
-            Value::new(ChunkItem),
+            ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();

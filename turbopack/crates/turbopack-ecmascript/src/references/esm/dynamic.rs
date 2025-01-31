@@ -133,9 +133,9 @@ impl CodeGenerateable for EsmAsyncAssetReference {
                 *chunking_context.environment().chunk_loading().await?,
                 ChunkLoading::Edge
             ) {
-                Value::new(ResolveType::ChunkItem)
+                ResolveType::ChunkItem
             } else {
-                Value::new(ResolveType::AsyncChunkLoader)
+                ResolveType::AsyncChunkLoader
             },
         )
         .await?;
