@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Value, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
@@ -10,8 +10,9 @@ use crate::{
     create_visitor,
 };
 
-#[turbo_tasks::value(serialization = "auto_for_input")]
-#[derive(Debug, Clone, Copy, Hash)]
+#[derive(
+    Copy, Clone, Hash, PartialEq, Eq, Debug, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
+)]
 pub enum ConstantConditionValue {
     Truthy,
     Falsy,
@@ -25,11 +26,8 @@ pub struct ConstantConditionCodeGen {
 }
 
 impl ConstantConditionCodeGen {
-    pub fn new(value: Value<ConstantConditionValue>, path: AstPath) -> Self {
-        ConstantConditionCodeGen {
-            value: value.into_value(),
-            path,
-        }
+    pub fn new(value: ConstantConditionValue, path: AstPath) -> Self {
+        ConstantConditionCodeGen { value, path }
     }
 
     pub async fn code_generation(
