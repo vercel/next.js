@@ -6,9 +6,10 @@ import { useMeasureHeight } from '../../../hooks/use-measure-height'
 
 interface CallStackProps {
   frames: OriginalStackFrame[]
+  dialogResizerRef?: React.RefObject<HTMLDivElement>
 }
 
-export function CallStack({ frames }: CallStackProps) {
+export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
   const ignoreListRef = useRef<HTMLDivElement | null>(null)
   const initialDialogHeight = useRef<number>(NaN)
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
@@ -19,11 +20,7 @@ export function CallStack({ frames }: CallStackProps) {
   const ignoreListLength = ignoredFrames.length
 
   function onToggleIgnoreList() {
-    // This is not great but we are avoiding passing refs down several levels deep
-    const root = document.querySelector('nextjs-portal')?.shadowRoot
-    const dialog = root?.querySelector(
-      '[data-nextjs-dialog-sizer]'
-    ) as HTMLElement
+    const dialog = dialogResizerRef?.current as HTMLElement
 
     if (!dialog) {
       return

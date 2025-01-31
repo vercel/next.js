@@ -51,6 +51,7 @@ type ErrorOverlayLayoutProps = {
   setActiveIndex?: (index: number) => void
   footerMessage?: string
   isTurbopack?: boolean
+  dialogResizerRef?: React.RefObject<HTMLDivElement>
 }
 
 export function ErrorOverlayLayout({
@@ -68,6 +69,7 @@ export function ErrorOverlayLayout({
   setActiveIndex,
   footerMessage,
   isTurbopack,
+  dialogResizerRef,
 }: ErrorOverlayLayoutProps) {
   const { rendered, transitionDurationMs } = useErrorContext()
 
@@ -81,7 +83,11 @@ export function ErrorOverlayLayout({
   return (
     <ErrorOverlayOverlay fixed={isBuildError} {...animationProps}>
       <div data-nextjs-dialog-root {...animationProps}>
-        <ErrorOverlayDialog onClose={onClose} isTurbopack={isTurbopack}>
+        <ErrorOverlayDialog
+          onClose={onClose}
+          isTurbopack={isTurbopack}
+          dialogResizerRef={dialogResizerRef}
+        >
           <DialogContent>
             <ErrorOverlayFloatingHeader
               readyErrors={readyErrors}

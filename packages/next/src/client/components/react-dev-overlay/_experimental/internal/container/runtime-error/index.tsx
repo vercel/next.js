@@ -6,9 +6,12 @@ import { CallStack } from '../../components/errors/call-stack/call-stack'
 import { noop as css } from '../../helpers/noop-template'
 import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 
-export type RuntimeErrorProps = { error: ReadyRuntimeError }
+export type RuntimeErrorProps = {
+  error: ReadyRuntimeError
+  dialogResizerRef: React.RefObject<HTMLDivElement>
+}
 
-export function RuntimeError({ error }: RuntimeErrorProps) {
+export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {
   const { firstFrame } = useMemo(() => {
     const firstFirstPartyFrameIndex = error.frames.findIndex(
       (entry) =>
@@ -31,7 +34,9 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         />
       )}
 
-      {error.frames.length > 0 && <CallStack frames={error.frames} />}
+      {error.frames.length > 0 && (
+        <CallStack dialogResizerRef={dialogResizerRef} frames={error.frames} />
+      )}
     </>
   )
 }
