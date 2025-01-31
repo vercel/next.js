@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
+import { format } from 'util'
+import { BrowserInterface } from 'next-webdriver'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -93,8 +96,7 @@ describe('use-cache', () => {
     const browser = await next.browser('/react-cache')
     const a = await browser.waitForElementByCss('#a').text()
     const b = await browser.waitForElementByCss('#b').text()
-    // TODO: This is broken. It is expected to pass once we fix it.
-    expect(a).not.toBe(b)
+    expect(a).toBe(b)
   })
 
   it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
@@ -475,5 +477,49 @@ describe('use-cache', () => {
       )
       expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
     })
+
+    it('replays logs from "use cache" functions', async () => {
+      const browser = await next.browser('/logs')
+      const initialLogs = await getSanitizedLogs(browser)
+
+      await retry(async () => {
+        // TODO(veil): We might want to show only the original (right-most)
+        // environment badge when caches are nested.
+        expect(initialLogs).toEqual([
+          ' Server  outside',
+          ' Server   Cache  inside',
+          // We ignore the logged time string at the end of this message:
+          expect.stringMatching(/^ Server {3}Cache {3}Cache {2}deep inside /),
+        ])
+      })
+
+      // Load the page again and expect the cached logs to be replayed again.
+      // We're using an explicit `loadPage` instead of `refresh` here, to start
+      // with an empty set of logs.
+      await browser.loadPage(await browser.url())
+
+      await retry(async () => {
+        const newLogs = await getSanitizedLogs(browser)
+        expect(newLogs).toEqual(initialLogs)
+      })
+    })
   }
 })
+
+const ignoredLogs = [
+  'Download the React DevTools',
+  'Next.js page already hydrated',
+  '[Fast Refresh] rebuilding',
+]
+
+async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
+  const logs = await browser.log()
+
+  return logs
+    .map(({ args }) =>
+      format(
+        ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
+      )
+    )
+    .filter((msg) => !ignoredLogs.some((ignored) => msg.includes(ignored)))
+}
