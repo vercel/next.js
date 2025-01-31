@@ -462,14 +462,18 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 .unwrap_or_default()
                 .get(self.session_id);
             if dirty_tasks > 0 || is_dirty {
-                let root = get!(task, Activeness);
+                let root = get_mut!(task, Activeness);
                 let mut task_ids_to_schedule: Vec<_> = Vec::new();
                 // When there are dirty task, subscribe to the all_clean_event
                 let root = if let Some(root) = root {
+                    // This makes sure all tasks stay active and this task won't stale.
+                    // active_until_clean is automatically removed when this
+                    // task is clean.
+                    root.set_active_until_clean();
                     root
                 } else {
                     // If we don't have a root state, add one. This also makes sure all tasks stay
-                    // active and this task won't stale. CachedActiveUntilClean
+                    // active and this task won't stale. active_until_clean
                     // is automatically removed when this task is clean.
                     get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id))
                         .set_active_until_clean();
@@ -482,9 +486,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                             task
                         }
                     );
-                    if is_dirty {
-                        task_ids_to_schedule.push(task_id);
-                    }
+                    task_ids_to_schedule.push(task_id);
                     get!(task, Activeness).unwrap()
                 };
                 let listener = root.all_clean_event.listen_with_note(move || {

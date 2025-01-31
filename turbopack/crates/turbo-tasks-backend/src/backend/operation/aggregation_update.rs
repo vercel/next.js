@@ -1177,17 +1177,18 @@ impl AggregationUpdateQueue {
                 ctx.schedule(task_id);
             }
         }
-        if is_aggregating_node(get_aggregation_number(&task)) {
+        let aggregation_number = get_aggregation_number(&task);
+        if is_aggregating_node(aggregation_number) {
             // if it has `Activeness` we can skip visiting the nested nodes since
             // this would already be scheduled by the `Activeness`
-            if !task.has_key(&CachedDataItemKey::Activeness {}) {
+            let is_active_until_clean =
+                get!(task, Activeness).is_some_and(|a| a.active_until_clean);
+            if !is_active_until_clean {
                 let dirty_containers: Vec<_> = get_many!(task, AggregatedDirtyContainer { task } count if count.get(session_id) > 0 => task);
                 if !dirty_containers.is_empty() || dirty {
-                    let mut activeness_state = ActivenessState::new(task_id);
+                    let activeness_state =
+                        get_mut_or_insert_with!(task, Activeness, || ActivenessState::new(task_id));
                     activeness_state.set_active_until_clean();
-                    task.insert(CachedDataItem::Activeness {
-                        value: activeness_state,
-                    });
                     drop(task);
 
                     self.extend_find_and_schedule_dirty(dirty_containers);
