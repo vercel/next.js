@@ -195,9 +195,19 @@ export async function initialize(opts: { devClient?: any } = {}): Promise<{
     devClient = opts.devClient
   }
 
-  initialData = JSON.parse(
-    document.getElementById('__NEXT_DATA__')!.textContent!
-  )
+  let dataElement = document.getElementById('__NEXT_DATA__')
+
+  let iterations = 0
+  while (!dataElement && iterations < 10) {
+    await new Promise((resolve) => setTimeout(resolve, 5))
+    dataElement = document.getElementById('__NEXT_DATA__')
+    iterations += 1
+  }
+  if (!dataElement?.textContent) {
+    throw new Error('Could not find __NEXT_DATA__ element')
+  }
+
+  initialData = JSON.parse(dataElement.textContent)
   window.__NEXT_DATA__ = initialData
 
   defaultLocale = initialData.defaultLocale
