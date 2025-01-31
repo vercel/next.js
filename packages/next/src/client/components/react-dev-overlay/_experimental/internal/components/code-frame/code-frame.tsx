@@ -134,7 +134,7 @@ export const CODE_FRAME_STYLES = css`
   .code-frame-icon {
     display: flex;
     align-items: center;
-    gap: 0px;
+    gap: 6px;
   }
 
   [data-nextjs-codeframe]::selection,
