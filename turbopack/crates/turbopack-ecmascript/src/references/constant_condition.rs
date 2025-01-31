@@ -55,8 +55,8 @@ impl ConstantConditionCodeGen {
     }
 }
 
-impl Into<CodeGen> for ConstantConditionCodeGen {
-    fn into(self) -> CodeGen {
-        CodeGen::ConstantCondition(self)
+impl From<ConstantConditionCodeGen> for CodeGen {
+    fn from(val: ConstantConditionCodeGen) -> Self {
+        CodeGen::ConstantCondition(val)
     }
 }

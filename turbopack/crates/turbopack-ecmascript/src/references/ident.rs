@@ -39,8 +39,8 @@ impl IdentReplacement {
     }
 }
 
-impl Into<CodeGen> for IdentReplacement {
-    fn into(self) -> CodeGen {
-        CodeGen::IdentReplacement(self)
+impl From<IdentReplacement> for CodeGen {
+    fn from(val: IdentReplacement) -> Self {
+        CodeGen::IdentReplacement(val)
     }
 }

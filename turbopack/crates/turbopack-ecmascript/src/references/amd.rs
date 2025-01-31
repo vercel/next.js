@@ -212,9 +212,9 @@ impl AmdDefineWithDependenciesCodeGen {
     }
 }
 
-impl Into<CodeGen> for AmdDefineWithDependenciesCodeGen {
-    fn into(self) -> CodeGen {
-        CodeGen::AmdDefineWithDependenciesCodeGen(self)
+impl From<AmdDefineWithDependenciesCodeGen> for CodeGen {
+    fn from(val: AmdDefineWithDependenciesCodeGen) -> Self {
+        CodeGen::AmdDefineWithDependenciesCodeGen(val)
     }
 }
 

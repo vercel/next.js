@@ -125,9 +125,9 @@ impl Unreachable {
     }
 }
 
-impl Into<CodeGen> for Unreachable {
-    fn into(self) -> CodeGen {
-        CodeGen::Unreachable(self)
+impl From<Unreachable> for CodeGen {
+    fn from(val: Unreachable) -> Self {
+        CodeGen::Unreachable(val)
     }
 }
 

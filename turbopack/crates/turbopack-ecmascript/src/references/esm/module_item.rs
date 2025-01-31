@@ -102,8 +102,8 @@ impl EsmModuleItem {
     }
 }
 
-impl Into<CodeGen> for EsmModuleItem {
-    fn into(self) -> CodeGen {
-        CodeGen::EsmModuleItem(self)
+impl From<EsmModuleItem> for CodeGen {
+    fn from(val: EsmModuleItem) -> Self {
+        CodeGen::EsmModuleItem(val)
     }
 }

@@ -61,8 +61,8 @@ impl DynamicExpression {
     }
 }
 
-impl Into<CodeGen> for DynamicExpression {
-    fn into(self) -> CodeGen {
-        CodeGen::DynamicExpression(self)
+impl From<DynamicExpression> for CodeGen {
+    fn from(val: DynamicExpression) -> Self {
+        CodeGen::DynamicExpression(val)
     }
 }

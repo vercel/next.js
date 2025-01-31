@@ -48,8 +48,8 @@ impl ConstantValueCodeGen {
     }
 }
 
-impl Into<CodeGen> for ConstantValueCodeGen {
-    fn into(self) -> CodeGen {
-        CodeGen::ConstantValue(self)
+impl From<ConstantValueCodeGen> for CodeGen {
+    fn from(val: ConstantValueCodeGen) -> Self {
+        CodeGen::ConstantValue(val)
     }
 }

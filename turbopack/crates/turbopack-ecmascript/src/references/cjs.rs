@@ -331,8 +331,8 @@ impl CjsRequireCacheAccess {
     }
 }
 
-impl Into<CodeGen> for CjsRequireCacheAccess {
-    fn into(self) -> CodeGen {
-        CodeGen::CjsRequireCacheAccess(self)
+impl From<CjsRequireCacheAccess> for CodeGen {
+    fn from(val: CjsRequireCacheAccess) -> Self {
+        CodeGen::CjsRequireCacheAccess(val)
     }
 }

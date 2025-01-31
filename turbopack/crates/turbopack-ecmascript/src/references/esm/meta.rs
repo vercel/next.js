@@ -74,9 +74,9 @@ impl ImportMetaBinding {
     }
 }
 
-impl Into<CodeGen> for ImportMetaBinding {
-    fn into(self) -> CodeGen {
-        CodeGen::ImportMetaBinding(self)
+impl From<ImportMetaBinding> for CodeGen {
+    fn from(val: ImportMetaBinding) -> Self {
+        CodeGen::ImportMetaBinding(val)
     }
 }
 
@@ -109,9 +109,9 @@ impl ImportMetaRef {
     }
 }
 
-impl Into<CodeGen> for ImportMetaRef {
-    fn into(self) -> CodeGen {
-        CodeGen::ImportMetaRef(self)
+impl From<ImportMetaRef> for CodeGen {
+    fn from(val: ImportMetaRef) -> Self {
+        CodeGen::ImportMetaRef(val)
     }
 }
 
