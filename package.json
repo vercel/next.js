@@ -135,7 +135,7 @@
     "babel-plugin-react-compiler": "19.0.0-beta-e552027-20250112",
     "browserslist": "4.22.2",
     "buffer": "5.6.0",
-    "cheerio": "0.22.0",
+    "cheerio": "1.0.0",
     "cookie": "0.4.1",
     "cors": "2.8.5",
     "coveralls": "3.0.3",
@@ -253,7 +253,7 @@
     "webpack": "5.96.1",
     "webpack-bundle-analyzer": "4.7.0",
     "whatwg-fetch": "3.0.0",
-    "ws": "8.2.3",
+    "ws": "8.18.0",
     "yargs": "16.2.0"
   },
   "engines": {

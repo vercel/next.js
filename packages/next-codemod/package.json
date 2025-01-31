@@ -8,13 +8,13 @@
     "directory": "packages/next-codemod"
   },
   "dependencies": {
-    "cheerio": "1.0.0-rc.9",
+    "cheerio": "1.0.0",
     "commander": "12.1.0",
     "execa": "4.0.3",
     "find-up": "4.1.0",
     "globby": "11.0.1",
     "is-git-clean": "1.1.0",
-    "jscodeshift": "17.0.0",
+    "jscodeshift": "17.1.2",
     "picocolors": "1.0.0",
     "prompts": "2.4.2",
     "semver": "7.6.3",
