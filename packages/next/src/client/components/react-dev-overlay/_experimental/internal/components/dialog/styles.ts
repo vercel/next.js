@@ -74,7 +74,7 @@ const styles = css`
     /* We make this element absolute to fix it to the bottom during the height transition */
     position: absolute;
     bottom: 0;
-    height: var(--next-dialog-footer-height);
+    min-height: var(--next-dialog-footer-height);
     border-radius: 0 0 var(--next-dialog-radius) var(--next-dialog-radius);
     overflow: hidden;
 

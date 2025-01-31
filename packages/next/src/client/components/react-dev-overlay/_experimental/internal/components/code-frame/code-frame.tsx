@@ -68,16 +68,16 @@ export function CodeFrame({ stackFrame, codeFrame }: CodeFrameProps) {
         className="code-frame-header"
         onClick={open}
       >
-        <p className="code-frame-link">
+        <div className="code-frame-link">
           <span className="code-frame-icon">
             <FileIcon lang={fileExtension} />
             {getFrameSource(stackFrame)} @{' '}
             <HotlinkedText text={stackFrame.methodName} />
           </span>
           <ExternalIcon width={16} height={16} />
-        </p>
+        </div>
       </button>
-      <pre className="pre">
+      <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
           <span
             key={`frame-${index}`}
@@ -110,7 +110,7 @@ export const CODE_FRAME_STYLES = css`
   }
 
   .code-frame-link,
-  .pre {
+  .code-frame-pre {
     padding: 12px;
   }
 
@@ -119,7 +119,7 @@ export const CODE_FRAME_STYLES = css`
     cursor: pointer;
     border-top: 1px solid var(--color-gray-400);
     border-bottom: 1px solid var(--color-gray-400);
-    transition: backgrund 100ms ease-out;
+    transition: background 100ms ease-out;
 
     &:focus-visible {
       outline: var(--focus-ring);
@@ -134,7 +134,7 @@ export const CODE_FRAME_STYLES = css`
   .code-frame-icon {
     display: flex;
     align-items: center;
-    gap: 6px;
+    gap: 0px;
   }
 
   [data-nextjs-codeframe]::selection,
