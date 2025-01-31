@@ -174,7 +174,6 @@ pub struct AnalyzeEcmascriptModuleResultBuilder {
     async_module: ResolvedVc<OptionAsyncModule>,
     successful: bool,
     source_map: Option<ResolvedVc<OptionSourceMap>>,
-    bindings: Vec<EsmBinding>,
 }
 
 impl AnalyzeEcmascriptModuleResultBuilder {
@@ -189,7 +188,6 @@ impl AnalyzeEcmascriptModuleResultBuilder {
             async_module: ResolvedVc::cell(None),
             successful: false,
             source_map: None,
-            bindings: Vec::new(),
         }
     }
 
