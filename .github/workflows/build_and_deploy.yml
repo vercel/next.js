@@ -146,9 +146,12 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
+              set -ex
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              corepack enable
+              turbo run build-native-release -vvv --env-mode loose \
+                --remote-cache-timeout 90 --summarize -- \
+                --target x86_64-apple-darwin
 
           - host:
               - 'self-hosted'
@@ -159,9 +162,12 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}" && corepack enable
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-apple-darwin
-              strip -x packages/next-swc/native/next-swc.*.node
+              set -ex
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
+              corepack enable
+              turbo run build-native-release -vvv --env-mode loose \
+                --remote-cache-timeout 90 --summarize -- \
+                --target aarch64-apple-darwin
 
           - host:
               - 'self-hosted'
@@ -171,9 +177,12 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
+              set -ex
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target x86_64-pc-windows-msvc
+              turbo run build-native-release -vvv --env-mode loose \
+                --remote-cache-timeout 90 --summarize -- \
+                --target x86_64-pc-windows-msvc
             target: 'x86_64-pc-windows-msvc'
 
           - host:
@@ -185,9 +194,12 @@ jobs:
             # --env-mode loose is a breaking change required with turbo 2.x since Strict mode is now the default
             # TODO: we should add the relevant envs later to to switch to strict mode
             build: |
+              set -ex
               corepack enable
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" "turbo@${TURBO_VERSION}"
-              turbo run build-native-no-plugin-release -vvv --env-mode loose --remote-cache-timeout 90 --summarize -- --target aarch64-pc-windows-msvc
+              turbo run build-native-no-plugin-release -vvv --env-mode loose \
+                --remote-cache-timeout 90 --summarize -- \
+                --target aarch64-pc-windows-msvc
 
           - host:
               - 'self-hosted'
@@ -204,16 +216,16 @@ jobs:
             # - zig linker with portable glibc is avoided as it has known issues with static tls + node.js + multi threaded
             #   environment.
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-x64
-            build: >-
-              set -ex &&
-              apt update &&
-              apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
-              rustup show &&
-              rustup target add x86_64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              unset CC_x86_64_unknown_linux_gnu && unset CC &&
-              cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-gnu &&
-              strip native/next-swc.*.node &&
+            build: |
+              set -ex
+              apt update
+              apt install -y pkg-config xz-utils dav1d libdav1d-dev
+              rustup show
+              rustup target add x86_64-unknown-linux-gnu
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              unset CC_x86_64_unknown_linux_gnu && unset CC
+              cd packages/next-swc && npm run build-native-release -- \
+                --target x86_64-unknown-linux-gnu
               objdump -T native/next-swc.*.node | grep GLIBC_
 
           - host:
@@ -224,16 +236,20 @@ jobs:
 
             target: 'x86_64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
-            build: >-
-              set -ex &&
-              apk update &&
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev &&
-              rustup show &&
-              rustup target add x86_64-unknown-linux-musl &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static' &&
-              cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-musl &&
-              strip native/next-swc.*.node
+            build: |
+              set -ex
+              apk update
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev
+              rustup show
+              rustup target add x86_64-unknown-linux-musl
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              cd packages/next-swc
+              # Rustflags for musl targets need to be copied from `.cargo/config.toml`
+              # The napi cli sets RUSTFLAGS which will otherwise override these options:
+              # https://github.com/napi-rs/napi-rs/blob/2d8e19d7c6264/cli/src/api/build.ts#L467-L485
+              export RUSTFLAGS="--cfg=tokio_unstable -Zshare-generics=y -Zthreads=8 \
+                -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static"
+              npm run build-native-release -- --target x86_64-unknown-linux-musl
 
           - host:
               - 'self-hosted'
@@ -243,18 +259,19 @@ jobs:
 
             target: 'aarch64-unknown-linux-gnu'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-aarch64
-            build: >-
-              set -ex &&
-              apt update &&
-              apt install -y pkg-config xz-utils dav1d libdav1d-dev &&
-              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              rustup show &&
-              rustup target add aarch64-unknown-linux-gnu &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              export CC_aarch64_unknown_linux_gnu=/usr/bin/clang &&
-              export CFLAGS_aarch64_unknown_linux_gnu=\"--target=aarch64-unknown-linux-gnu --sysroot=/usr/aarch64-unknown-linux-gnu\" &&
-              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-gnu &&
-              llvm-strip -x native/next-swc.*.node &&
+            build: |
+              set -ex
+              apt update
+              apt install -y pkg-config xz-utils dav1d libdav1d-dev
+              export JEMALLOC_SYS_WITH_LG_PAGE=16
+              rustup show
+              rustup target add aarch64-unknown-linux-gnu
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              export CC_aarch64_unknown_linux_gnu=/usr/bin/clang
+              export CFLAGS_aarch64_unknown_linux_gnu="--target=aarch64-unknown-linux-gnu \
+                --sysroot=/usr/aarch64-unknown-linux-gnu"
+              cd packages/next-swc
+              npm run build-native-release -- --target aarch64-unknown-linux-gnu
               objdump -T native/next-swc.*.node | grep GLIBC_
 
           - host:
@@ -265,17 +282,21 @@ jobs:
 
             target: 'aarch64-unknown-linux-musl'
             docker: ghcr.io/napi-rs/napi-rs/nodejs-rust:stable-2023-09-17-alpine
-            build: >-
-              set -ex &&
-              apk update &&
-              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev &&
-              export JEMALLOC_SYS_WITH_LG_PAGE=16 &&
-              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
-              rustup show &&
-              rustup target add aarch64-unknown-linux-musl &&
-              export RUSTFLAGS='--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Zunstable-options -Csymbol-mangling-version=v0 -Clinker-flavor=gnu-lld-cc -Clink-self-contained=+linker' &&
-              cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-musl &&
-              llvm-strip -x native/next-swc.*.node
+            build: |
+              set -ex
+              apk update
+              apk add --no-cache libc6-compat pkgconfig dav1d libdav1d dav1d-dev clang-static llvm-dev
+              export JEMALLOC_SYS_WITH_LG_PAGE=16
+              npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}"
+              rustup show
+              rustup target add aarch64-unknown-linux-musl
+              cd packages/next-swc
+              # Rustflags for musl targets need to be copied from `.cargo/config.toml`
+              # The napi cli sets RUSTFLAGS which will otherwise override these options:
+              # https://github.com/napi-rs/napi-rs/blob/2d8e19d7c6264/cli/src/api/build.ts#L467-L485
+              export RUSTFLAGS="--cfg=tokio_unstable -Zshare-generics=y -Zthreads=8 \
+                -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static"
+              npm run build-native-release -- --target aarch64-unknown-linux-musl
 
     name: stable - ${{ matrix.settings.target }} - node@16
     runs-on: ${{ matrix.settings.host }}
