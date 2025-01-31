@@ -10,14 +10,12 @@ import {
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
-import { Sema } from 'next/dist/compiled/async-sema'
 import {
   rawEntrypointsToEntrypoints,
   handleRouteType,
 } from '../handle-entrypoints'
 // import type { Entrypoints } from '../swc/types'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
-import { createProgress } from '../progress'
 // import * as Log from '../output/log'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
@@ -145,41 +143,11 @@ export async function turbopackBuild(): Promise<{
 
   const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
 
-  const progress = createProgress(
-    currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
-    'Building'
-  )
   const promises: Promise<any>[] = []
-
-  // Concurrency will start at INITIAL_CONCURRENCY and
-  // slowly ramp up to CONCURRENCY by increasing the
-  // concurrency by 1 every time a task is completed.
-  const INITIAL_CONCURRENCY = 5
-  const CONCURRENCY = 10
-
-  const sema = new Sema(INITIAL_CONCURRENCY)
-  let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
-  const enqueue = (fn: () => Promise<void>) => {
-    promises.push(
-      (async () => {
-        await sema.acquire()
-        try {
-          await fn()
-        } finally {
-          sema.release()
-          if (remainingRampup > 0) {
-            remainingRampup--
-            sema.release()
-          }
-          progress.run()
-        }
-      })()
-    )
-  }
 
   if (!appDirOnly) {
     for (const [page, route] of currentEntrypoints.page) {
-      enqueue(() =>
+      promises.push(
         handleRouteType({
           page,
           route,
@@ -190,7 +158,7 @@ export async function turbopackBuild(): Promise<{
   }
 
   for (const [page, route] of currentEntrypoints.app) {
-    enqueue(() =>
+    promises.push(
       handleRouteType({
         page,
         route,
@@ -199,30 +167,24 @@ export async function turbopackBuild(): Promise<{
     )
   }
 
-  enqueue(() => manifestLoader.loadBuildManifest('_app'))
-  enqueue(() => manifestLoader.loadPagesManifest('_app'))
-  enqueue(() => manifestLoader.loadFontManifest('_app'))
-  enqueue(() => manifestLoader.loadPagesManifest('_document'))
-  enqueue(() => manifestLoader.loadBuildManifest('_error'))
-  enqueue(() => manifestLoader.loadPagesManifest('_error'))
-  enqueue(() => manifestLoader.loadFontManifest('_error'))
+  await Promise.all(promises)
 
-  if (entrypoints.instrumentation) {
-    enqueue(() =>
+  await Promise.all([
+    manifestLoader.loadBuildManifest('_app'),
+    manifestLoader.loadPagesManifest('_app'),
+    manifestLoader.loadFontManifest('_app'),
+    manifestLoader.loadPagesManifest('_document'),
+    manifestLoader.loadBuildManifest('_error'),
+    manifestLoader.loadPagesManifest('_error'),
+    manifestLoader.loadFontManifest('_error'),
+    entrypoints.instrumentation &&
       manifestLoader.loadMiddlewareManifest(
         'instrumentation',
         'instrumentation'
-      )
-    )
-  }
-
-  if (entrypoints.middleware) {
-    enqueue(() =>
-      manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
-    )
-  }
-
-  await Promise.all(promises)
+      ),
+    entrypoints.middleware &&
+      (await manifestLoader.loadMiddlewareManifest('middleware', 'middleware')),
+  ])
 
   await manifestLoader.writeManifests({
     devRewrites: undefined,
