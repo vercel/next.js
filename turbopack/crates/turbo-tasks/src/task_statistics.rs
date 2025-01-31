@@ -1,13 +1,8 @@
-use std::{
-    hash::BuildHasherDefault,
-    sync::{Arc, OnceLock},
-};
+use std::sync::{Arc, OnceLock};
 
-use dashmap::DashMap;
-use rustc_hash::FxHasher;
 use serde::{ser::SerializeMap, Serialize, Serializer};
 
-use crate::{registry, FunctionId};
+use crate::{registry, FunctionId, FxDashMap};
 
 /// An API for optionally enabling, updating, and reading aggregated statistics.
 #[derive(Default)]
@@ -19,7 +14,7 @@ impl TaskStatisticsApi {
     pub fn enable(&self) -> &Arc<TaskStatistics> {
         self.inner.get_or_init(|| {
             Arc::new(TaskStatistics {
-                inner: DashMap::with_hasher(Default::default()),
+                inner: FxDashMap::with_hasher(Default::default()),
             })
         })
     }
@@ -43,7 +38,7 @@ impl TaskStatisticsApi {
 
 /// A type representing the enabled state of [`TaskStatisticsApi`]. Implements [`serde::Serialize`].
 pub struct TaskStatistics {
-    inner: DashMap<FunctionId, TaskFunctionStatistics, BuildHasherDefault<FxHasher>>,
+    inner: FxDashMap<FunctionId, TaskFunctionStatistics>,
 }
 
 impl TaskStatistics {
