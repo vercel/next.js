@@ -1,18 +1,15 @@
-import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { useCallback } from 'react'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-type RootLayoutMissingTagsErrorProps = {
+interface RootLayoutMissingTagsErrorProps extends ErrorBaseProps {
   missingTags: string[]
-  isTurbopack: boolean
-  versionInfo?: VersionInfo
 }
 
 export function RootLayoutMissingTagsError({
   missingTags,
-  isTurbopack,
-  versionInfo,
+  ...props
 }: RootLayoutMissingTagsErrorProps) {
   const noop = useCallback(() => {}, [])
   return (
@@ -28,8 +25,7 @@ export function RootLayoutMissingTagsError({
         />
       }
       onClose={noop}
-      versionInfo={versionInfo}
-      isTurbopack={isTurbopack}
+      {...props}
     />
   )
 }

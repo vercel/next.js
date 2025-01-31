@@ -1,6 +1,5 @@
 import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { DebugInfo } from '../../../../../types'
-import type { VersionInfo } from '../../../../../../../../server/dev/parse-version-info'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
 
@@ -33,9 +32,9 @@ import { ErrorOverlayDialogBody, DIALOG_BODY_STYLES } from '../dialog/body'
 import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
-import { useErrorContext } from '../error-overlay/error-overlay'
+import type { ErrorBaseProps } from '../error-overlay/error-overlay'
 
-type ErrorOverlayLayoutProps = {
+interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
   errorType: ErrorType
   children?: React.ReactNode
@@ -44,14 +43,12 @@ type ErrorOverlayLayoutProps = {
   debugInfo?: DebugInfo
   isBuildError?: boolean
   onClose?: () => void
-  versionInfo?: VersionInfo
   // TODO: better handle receiving
   readyErrors?: ReadyRuntimeError[]
   activeIdx?: number
   setActiveIndex?: (index: number) => void
   footerMessage?: string
-  isTurbopack?: boolean
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
+  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 export function ErrorOverlayLayout({
@@ -70,9 +67,12 @@ export function ErrorOverlayLayout({
   footerMessage,
   isTurbopack,
   dialogResizerRef,
+  // This prop is used to animate the dialog, it comes from a parent component (<ErrorOverlay>)
+  // If it's not being passed, we should just render the component as it is being
+  // used without the context of a parent component that controls its state (e.g. Storybook).
+  rendered = true,
+  transitionDurationMs,
 }: ErrorOverlayLayoutProps) {
-  const { rendered, transitionDurationMs } = useErrorContext()
-
   const animationProps = {
     'data-rendered': rendered,
     style: {

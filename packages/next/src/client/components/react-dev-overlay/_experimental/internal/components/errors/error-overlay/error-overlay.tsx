@@ -5,29 +5,14 @@ import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
-import { createContext, useContext } from 'react'
 
 const transitionDurationMs = 200
 
-interface C {
+export interface ErrorBaseProps {
   rendered: boolean
   transitionDurationMs: number
-}
-
-const ErrorContext = createContext({} as C)
-
-export function useErrorContext() {
-  const context = useContext(ErrorContext)
-
-  // For Storybook we just render the overlay
-  if (!context.rendered && !context.transitionDurationMs) {
-    return {
-      rendered: true,
-      transitionDurationMs,
-    }
-  }
-
-  return context
+  isTurbopack: boolean
+  versionInfo: OverlayState['versionInfo']
 }
 
 export function ErrorOverlay({
@@ -48,24 +33,24 @@ export function ErrorOverlay({
     exitDelay: transitionDurationMs,
   })
 
+  const commonProps = {
+    rendered,
+    transitionDurationMs,
+    isTurbopack,
+    versionInfo: state.versionInfo,
+  }
+
   if (!!state.rootLayoutMissingTags?.length) {
     return (
       <RootLayoutMissingTagsError
-        isTurbopack={isTurbopack}
         missingTags={state.rootLayoutMissingTags}
-        versionInfo={state.versionInfo}
+        {...commonProps}
       />
     )
   }
 
   if (state.buildError !== null) {
-    return (
-      <BuildError
-        isTurbopack={isTurbopack}
-        message={state.buildError}
-        versionInfo={state.versionInfo}
-      />
-    )
+    return <BuildError message={state.buildError} {...commonProps} />
   }
 
   // No Runtime Errors.
@@ -78,21 +63,13 @@ export function ErrorOverlay({
   }
 
   return (
-    <ErrorContext.Provider
-      value={{
-        rendered,
-        transitionDurationMs,
+    <Errors
+      debugInfo={state.debugInfo}
+      readyErrors={readyErrors}
+      onClose={() => {
+        setIsErrorOverlayOpen(false)
       }}
-    >
-      <Errors
-        debugInfo={state.debugInfo}
-        isTurbopack={isTurbopack}
-        readyErrors={readyErrors}
-        versionInfo={state.versionInfo}
-        onClose={() => {
-          setIsErrorOverlayOpen(false)
-        }}
-      />
-    </ErrorContext.Provider>
+      {...commonProps}
+    />
   )
 }

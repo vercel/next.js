@@ -6,7 +6,7 @@ import { useMeasureHeight } from '../../../hooks/use-measure-height'
 
 interface CallStackProps {
   frames: OriginalStackFrame[]
-  dialogResizerRef: React.RefObject<HTMLDivElement>
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
