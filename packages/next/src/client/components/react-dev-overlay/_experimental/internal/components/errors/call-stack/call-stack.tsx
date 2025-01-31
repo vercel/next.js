@@ -91,6 +91,9 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
       ))}
 
       <div
+        // Hide from screen readers / tab navigation when closed
+        tabIndex={isIgnoreListOpen ? undefined : -1}
+        aria-hidden={isIgnoreListOpen ? false : true}
         style={{
           display: isIgnoreListOpen ? 'block' : 'none',
         }}
