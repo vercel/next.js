@@ -20,15 +20,17 @@ pub trait TaskInput: Send + Sync + Clone + Debug + PartialEq + Eq + Hash {
     fn is_resolved(&self) -> bool {
         true
     }
-    fn is_transient(&self) -> bool {
-        false
-    }
+    fn is_transient(&self) -> bool;
 }
 
 macro_rules! impl_task_input {
     ($($t:ty),*) => {
         $(
-            impl TaskInput for $t {}
+            impl TaskInput for $t {
+                fn is_transient(&self) -> bool {
+                    false
+                }
+            }
         )*
     };
 }
