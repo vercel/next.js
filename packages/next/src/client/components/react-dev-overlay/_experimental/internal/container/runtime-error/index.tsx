@@ -8,7 +8,7 @@ import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 
 export type RuntimeErrorProps = {
   error: ReadyRuntimeError
-  dialogResizerRef: React.RefObject<HTMLDivElement>
+  dialogResizerRef: React.RefObject<HTMLDivElement | null>
 }
 
 export function RuntimeError({ error, dialogResizerRef }: RuntimeErrorProps) {

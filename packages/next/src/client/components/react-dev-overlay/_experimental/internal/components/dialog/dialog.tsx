@@ -9,7 +9,7 @@ export type DialogProps = {
   'aria-describedby': string
   className?: string
   onClose?: () => void
-  dialogResizerRef: React.RefObject<HTMLDivElement | null>
+  dialogResizerRef?: React.RefObject<HTMLDivElement | null>
 }
 
 const CSS_SELECTORS_TO_EXCLUDE_ON_CLICK_OUTSIDE = [

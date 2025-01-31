@@ -4,7 +4,6 @@ import { Overlay } from '../components/overlay'
 import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './runtime-error'
-import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { getErrorSource } from '../../../../../../shared/lib/error-source'
 import { HotlinkedText } from '../components/hot-linked-text'
 import { PseudoHtmlDiff } from './runtime-error/component-stack-pseudo-html'
@@ -18,11 +17,10 @@ import {
 } from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-export type ErrorsProps = {
+export interface ErrorsProps extends ErrorBaseProps {
   readyErrors: ReadyRuntimeError[]
-  isTurbopack: boolean
-  versionInfo: VersionInfo
   debugInfo: DebugInfo
   onClose: () => void
 }
@@ -74,9 +72,8 @@ function ErrorDescription({
 export function Errors({
   readyErrors,
   debugInfo,
-  versionInfo,
-  isTurbopack,
   onClose,
+  ...props
 }: ErrorsProps) {
   const dialogResizerRef = useRef<HTMLDivElement | null>(null)
 
@@ -159,9 +156,8 @@ export function Errors({
       activeIdx={activeIdx}
       setActiveIndex={setActiveIndex}
       footerMessage={footerMessage}
-      versionInfo={versionInfo}
-      isTurbopack={isTurbopack}
       dialogResizerRef={dialogResizerRef}
+      {...props}
     >
       <div className="error-overlay-notes-container">
         {notes ? (
