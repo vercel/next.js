@@ -442,12 +442,13 @@ impl CapturedIssues {
 )]
 pub struct IssueSource {
     source: ResolvedVc<Box<dyn Source>>,
-    range: Option<ResolvedVc<SourceRange>>,
+    range: Option<SourceRange>,
 }
 
 /// The end position is the first character after the range
-#[turbo_tasks::value]
-#[derive(Clone, Debug)]
+#[derive(
+    Clone, Debug, PartialEq, Eq, Serialize, Deserialize, Hash, TaskInput, TraceRawVcs, NonLocalValue,
+)]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
     ByteOffset(usize, usize),
@@ -470,13 +471,13 @@ impl IssueSource {
     ) -> Self {
         IssueSource {
             source,
-            range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
+            range: Some(SourceRange::LineColumn(start, end)),
         }
     }
 
     pub async fn resolve_source_map(&self, origin: Vc<FileSystemPath>) -> Result<Cow<'_, Self>> {
         if let Some(range) = &self.range {
-            let (start, end) = match &*range.await? {
+            let (start, end) = match range {
                 SourceRange::LineColumn(start, end) => (*start, *end),
                 SourceRange::ByteOffset(start, end) => {
                     if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
@@ -495,7 +496,7 @@ impl IssueSource {
             if let Some((source, start, end)) = mapped {
                 return Ok(Cow::Owned(IssueSource {
                     source,
-                    range: Some(SourceRange::LineColumn(start, end).resolved_cell()),
+                    range: Some(SourceRange::LineColumn(start, end)),
                 }));
             }
         }
@@ -516,11 +517,9 @@ impl IssueSource {
             source,
             range: match (start == 0, end == 0) {
                 (true, true) => None,
-                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1).resolved_cell()),
-                (false, true) => {
-                    Some(SourceRange::ByteOffset(start - 1, start - 1).resolved_cell())
-                }
-                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1).resolved_cell()),
+                (false, false) => Some(SourceRange::ByteOffset(start - 1, end - 1)),
+                (false, true) => Some(SourceRange::ByteOffset(start - 1, start - 1)),
+                (true, false) => Some(SourceRange::ByteOffset(end - 1, end - 1)),
             },
         }
     }
@@ -544,7 +543,7 @@ impl IssueSource {
             range: if let FileLinesContent::Lines(lines) = &*source.content().lines().await? {
                 let start = find_line_and_column(lines.as_ref(), start);
                 let end = find_line_and_column(lines.as_ref(), end);
-                Some(SourceRange::LineColumn(start, end).resolved_cell())
+                Some(SourceRange::LineColumn(start, end))
             } else {
                 None
             },
@@ -560,8 +559,8 @@ impl IssueSource {
 impl IssueSource {
     /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
     pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
-        Ok(match self.range {
-            Some(range) => match &*range.await? {
+        Ok(match &self.range {
+            Some(range) => match range {
                 SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
                 SourceRange::LineColumn(start, end) => {
                     if let FileLinesContent::Lines(lines) = &*self.source.content().lines().await? {
@@ -769,8 +768,8 @@ impl IssueSource {
     pub async fn into_plain(&self) -> Result<PlainIssueSource> {
         Ok(PlainIssueSource {
             asset: PlainSource::from_source(*self.source).await?,
-            range: match self.range {
-                Some(range) => match &*range.await? {
+            range: match &self.range {
+                Some(range) => match range {
                     SourceRange::LineColumn(start, end) => Some((*start, *end)),
                     SourceRange::ByteOffset(start, end) => {
                         if let FileLinesContent::Lines(lines) =
