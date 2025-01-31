@@ -89,24 +89,25 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
     column: file?.location?.column ?? null,
   }
 
+  const fileExtension = stackFrame?.file?.split('.').pop()
+
   return (
     <div data-nextjs-terminal>
-      <div className="terminal-header">
-        <p
-          role="link"
-          onClick={open}
-          tabIndex={1}
-          title="Click to open in your editor"
-        >
-          <span className="terminal-source">
-            <FileIcon />
+      <button
+        aria-label="Open in editor"
+        className="code-frame-header"
+        onClick={open}
+      >
+        <div className="code-frame-link">
+          <span className="code-frame-icon">
+            <FileIcon lang={fileExtension} />
             {getFrameSource(stackFrame)}
             {/* TODO: Unlike the CodeFrame component, the `methodName` is unavailable. */}
           </span>
           <ExternalIcon width={16} height={16} />
-        </p>
-      </div>
-      <pre>
+        </div>
+      </button>
+      <pre className="code-frame-pre">
         {decoded.map((entry, index) => (
           <span
             key={`terminal-entry-${index}`}
@@ -136,11 +137,6 @@ export const Terminal: React.FC<TerminalProps> = function Terminal({
 
 export const TERMINAL_STYLES = css`
   [data-nextjs-terminal] {
-    display: -webkit-box;
-    -webkit-box-orient: vertical;
-    -webkit-line-clamp: 1;
-    flex: 1 0 0;
-
     background-color: var(--color-background-200);
     overflow: hidden;
     color: var(--color-gray-1000);
@@ -150,9 +146,9 @@ export const TERMINAL_STYLES = css`
     line-height: 16px;
   }
 
-  .terminal-header {
-    border-top: 1px solid var(--color-gray-400);
-    border-bottom: 1px solid var(--color-gray-400);
+  .code-frame-link,
+  .pre {
+    padding: 12px;
   }
 
   .terminal-source {
@@ -169,12 +165,6 @@ export const TERMINAL_STYLES = css`
     color: inherit;
     background-color: transparent;
     font-family: var(--font-stack-monospace);
-  }
-
-  [data-nextjs-terminal] > * {
-    margin: 0;
-    padding: calc(var(--size-gap) + var(--size-gap-half))
-      calc(var(--size-gap-double) + var(--size-gap-half));
   }
 
   [data-nextjs-terminal] > div > p {
