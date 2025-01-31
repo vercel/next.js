@@ -1,0 +1,12 @@
+# Overrides to `.cargo/config.toml` used by `pnpm build-native-release`/`pnpm
+# build-native-no-plugin-release` and the `build_and_deploy` GitHub actions
+# workflow.
+#
+# When using the napi CLI or the `pack-next` script, you can use
+# `--cargo-flags=--config=.cargo/release-config.toml` to enable this.
+#
+# cargo's merging logic combines rustflags in this file with those in the
+# relevant target sections of `.cargo/config.toml`
+
+[profile.release]
+strip = "symbols"

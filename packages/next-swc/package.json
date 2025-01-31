@@ -5,9 +5,9 @@
   "scripts": {
     "clean": "node ../../scripts/rm.mjs native",
     "build-native": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features plugin,image-extended --js false native",
-    "build-native-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features plugin,image-extended,tracing/release_max_level_info --js false native",
+    "build-native-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --cargo-flags=--config=.cargo/release-config.toml --features plugin,image-extended,tracing/release_max_level_info --js false native",
     "build-native-no-plugin": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --features image-webp --js false native",
-    "build-native-no-plugin-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --features image-webp,tracing/release_max_level_info --js false native",
+    "build-native-no-plugin-release": "napi build --platform -p next-swc-napi --cargo-cwd ../../ --cargo-name next_swc_napi --release --cargo-flags=--config=.cargo/release-config.toml --features image-webp,tracing/release_max_level_info --js false native",
     "build-native-wasi": "npx --package=@napi-rs/cli@3.0.0-alpha.45 napi build --platform --target wasm32-wasip1-threads -p next-swc-napi --cwd ../../ --output-dir packages/next-swc/native --no-default-features",
     "build-wasm": "wasm-pack build ../../crates/wasm --scope=next",
     "cache-build-native": "[ -d native ] && echo $(ls native)",
