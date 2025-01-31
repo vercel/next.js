@@ -245,8 +245,6 @@ export type Route =
     }
 
 export interface Endpoint {
-  runtime(): Promise<'nodejs' | 'edge'>
-
   /** Write files for the endpoint to disk. */
   writeToDisk(): Promise<TurbopackResult<WrittenEndpoint>>
 
