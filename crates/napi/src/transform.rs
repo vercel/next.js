@@ -35,11 +35,10 @@ use std::{
 };
 
 use anyhow::{anyhow, bail, Context as _};
-use dashmap::DashMap;
 use napi::bindgen_prelude::*;
 use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOptions};
 use once_cell::sync::Lazy;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
@@ -82,13 +81,14 @@ fn skip_filename() -> bool {
 }
 
 impl Task for TransformTask {
-    type Output = (TransformOutput, FxHashSet<String>, DashMap<String, usize>);
+    type Output = (TransformOutput, FxHashSet<String>, FxHashMap<String, usize>);
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
             let eliminated_packages: Rc<RefCell<FxHashSet<String>>> = Default::default();
-            let use_cache_telemetry_tracker: Rc<DashMap<String, usize>> = Default::default();
+            let use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>> =
+                Default::default();
 
             let res = catch_unwind(AssertUnwindSafe(|| {
                 try_with_handler(
@@ -169,7 +169,12 @@ impl Task for TransformTask {
                         (
                             o,
                             eliminated_packages.replace(Default::default()),
-                            (*use_cache_telemetry_tracker).clone(),
+                            Rc::into_inner(use_cache_telemetry_tracker)
+                                .expect(
+                                    "All other copies of use_cache_telemetry_tracker should be \
+                                     dropped by this point",
+                                )
+                                .into_inner(),
                         )
                     })
                     .convert_err(),

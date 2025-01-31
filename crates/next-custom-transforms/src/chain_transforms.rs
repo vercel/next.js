@@ -1,10 +1,9 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
-use dashmap::DashMap;
 use either::Either;
 use modularize_imports;
 use preset_env_base::query::targets_to_versions;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use swc_core::{
     common::{
@@ -126,7 +125,7 @@ pub fn custom_before_pass<'a, C>(
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
     unresolved_mark: Mark,
-    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
