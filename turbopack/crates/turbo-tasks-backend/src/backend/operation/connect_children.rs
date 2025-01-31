@@ -80,6 +80,7 @@ pub fn connect_children(
     let upper_ids = (!aggregating_node).then(|| get_uppers(&*parent_task));
 
     if let Some(upper_ids) = upper_ids {
+        // Parent is a leaf node, the children are followers of it now.
         if !upper_ids.is_empty() {
             queue.push(
                 InnerOfUppersHasNewFollowersJob {
@@ -89,16 +90,22 @@ pub fn connect_children(
                 .into(),
             );
         }
+        // We need to decrease the active count because we temporarily increased it during
+        // connect_child. We need to increase the active count when the parent has active
+        // count, because it's added as follower.
         if !has_active_count {
             queue.push(AggregationUpdateJob::DecreaseActiveCounts {
                 task_ids: new_follower_ids,
             })
         }
     } else {
+        // Parent is an aggregating node. We run the normal code to connect the children.
         queue.push(AggregationUpdateJob::InnerOfUpperHasNewFollowers {
             upper_id: parent_task_id,
             new_follower_ids: new_follower_ids.clone(),
         });
+        // We need to decrease the active count because we temporarily increased it during
+        // connect_child.
         queue.push(AggregationUpdateJob::DecreaseActiveCounts {
             task_ids: new_follower_ids,
         })
