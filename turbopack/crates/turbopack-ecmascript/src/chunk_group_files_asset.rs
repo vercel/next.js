@@ -142,7 +142,7 @@ impl ChunkGroupFilesChunkItem {
     async fn chunks(&self) -> Result<Vc<OutputAssets>> {
         let inner = self.inner.await?;
         let chunks = if let Some(ecma) =
-            ResolvedVc::try_sidecast_sync::<Box<dyn EvaluatableAsset>>(inner.module)
+            ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(inner.module)
         {
             inner.chunking_context.evaluated_chunk_group_assets(
                 inner.module.ident(),

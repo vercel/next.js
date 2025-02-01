@@ -58,7 +58,7 @@ impl Introspectable for CombinedContentSource {
             .map(|&source| async move {
                 Ok(
                     if let Some(source) =
-                        ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(source)
+                        ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
                     {
                         Some(source.title().await?)
                     } else {
@@ -86,21 +86,17 @@ impl Introspectable for CombinedContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         let source = ResolvedVc::cell("source".into());
-        Ok(
-            Vc::cell(
-                self.sources
-                    .iter()
-                    .copied()
-                    .map(|s| async move {
-                        Ok(ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(s))
-                    })
-                    .try_join()
-                    .await?
-                    .into_iter()
-                    .flatten()
-                    .map(|i| (source, i))
-                    .collect(),
-            ),
-        )
+        Ok(Vc::cell(
+            self.sources
+                .iter()
+                .copied()
+                .map(|s| async move { Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(s)) })
+                .try_join()
+                .await?
+                .into_iter()
+                .flatten()
+                .map(|i| (source, i))
+                .collect(),
+        ))
     }
 }

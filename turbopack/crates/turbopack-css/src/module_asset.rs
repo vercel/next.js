@@ -355,7 +355,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                         };
 
                         let Some(css_module) =
-                            ResolvedVc::try_downcast_type_sync::<ModuleCssAsset>(*resolved_module)
+                            ResolvedVc::try_downcast_type::<ModuleCssAsset>(*resolved_module)
                         else {
                             CssModuleComposesIssue {
                                 severity: IssueSeverity::Error.resolved_cell(),

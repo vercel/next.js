@@ -77,7 +77,7 @@ pub async fn children_from_module_references(
     for &reference in &*references {
         let mut key = key;
         if let Some(chunkable) =
-            ResolvedVc::try_downcast_sync::<Box<dyn ChunkableModuleReference>>(reference)
+            ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(reference)
         {
             match &*chunkable.chunking_type().await? {
                 None => {}

@@ -211,14 +211,13 @@ impl<T> ResolvedVc<T>
 where
     T: VcValueTrait + ?Sized,
 {
-    ///
     /// Returns `None` if the underlying value type does not implement `K`.
     ///
     /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
     /// This provides stronger guarantees, removing the need for a [`Result`] return type.
     ///
     /// See also: [`Vc::try_resolve_sidecast`].
-    pub fn try_sidecast_sync<K>(this: Self) -> Option<ResolvedVc<K>>
+    pub fn try_sidecast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: VcValueTrait + ?Sized,
     {
@@ -241,12 +240,12 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     ///
     /// See also: [`Vc::try_resolve_downcast`].
-    pub fn try_downcast_sync<K>(this: Self) -> Option<ResolvedVc<K>>
+    pub fn try_downcast<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: Upcast<T> + VcValueTrait + ?Sized,
     {
         // this is just a more type-safe version of a sidecast
-        Self::try_sidecast_sync(this)
+        Self::try_sidecast(this)
     }
 
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
@@ -254,7 +253,7 @@ where
     /// Returns `None` if the underlying value type is not a `K`.
     ///
     /// See also: [`Vc::try_resolve_downcast_type`].
-    pub fn try_downcast_type_sync<K>(this: Self) -> Option<ResolvedVc<K>>
+    pub fn try_downcast_type<K>(this: Self) -> Option<ResolvedVc<K>>
     where
         K: Upcast<T> + VcValueType,
     {

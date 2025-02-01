@@ -598,8 +598,7 @@ async fn source_pos(
     start: SourcePos,
     end: SourcePos,
 ) -> Result<Option<(ResolvedVc<Box<dyn Source>>, SourcePos, SourcePos)>> {
-    let Some(generator) = ResolvedVc::try_sidecast_sync::<Box<dyn GenerateSourceMap>>(source)
-    else {
+    let Some(generator) = ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source) else {
         return Ok(None);
     };
 

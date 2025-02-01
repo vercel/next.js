@@ -153,9 +153,7 @@ impl Introspectable for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn ty(&self) -> Result<Vc<RcStr>> {
         Ok(
-            if let Some(source) =
-                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
-            {
+            if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.ty()
             } else {
                 Vc::cell("IssueContextContentSource".into())
@@ -166,9 +164,7 @@ impl Introspectable for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn title(&self) -> Result<Vc<RcStr>> {
         Ok(
-            if let Some(source) =
-                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
-            {
+            if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 let title = source.title().await?;
                 Vc::cell(format!("{}: {}", self.description, title).into())
             } else {
@@ -180,9 +176,7 @@ impl Introspectable for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn details(&self) -> Result<Vc<RcStr>> {
         Ok(
-            if let Some(source) =
-                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
-            {
+            if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.details()
             } else {
                 Vc::cell(RcStr::default())
@@ -193,9 +187,7 @@ impl Introspectable for IssueFilePathContentSource {
     #[turbo_tasks::function]
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(
-            if let Some(source) =
-                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
-            {
+            if let Some(source) = ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source) {
                 source.children()
             } else {
                 Vc::cell(Default::default())

@@ -107,7 +107,7 @@ impl EcmascriptDevEvaluateChunk {
                 let module_graph = this.module_graph;
                 move |entry| async move {
                     if let Some(placeable) =
-                        ResolvedVc::try_sidecast_sync::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
+                        ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
                     {
                         Ok(Some(
                             placeable

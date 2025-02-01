@@ -69,8 +69,7 @@ impl WorkerAssetReference {
         let Some(module) = *module.first_module().await? else {
             return Ok(None);
         };
-        let Some(chunkable) = ResolvedVc::try_downcast_sync::<Box<dyn ChunkableModule>>(module)
-        else {
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.resolved_cell(),
                 title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),

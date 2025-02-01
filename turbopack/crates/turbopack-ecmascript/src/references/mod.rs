@@ -604,7 +604,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
             if !source_map_from_comment {
                 if let Some(generate_source_map) =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn GenerateSourceMap>>(source)
+                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
                     let source_map_origin = source.ident().path();
                     analysis.set_source_map(
