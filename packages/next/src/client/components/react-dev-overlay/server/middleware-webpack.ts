@@ -149,17 +149,6 @@ function isIgnoredSource(
   return false
 }
 
-function createStackFrame(searchParams: URLSearchParams) {
-  const file = searchParams.get('file') as string
-  return {
-    file,
-    methodName: searchParams.get('methodName') as string,
-    lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-    arguments: searchParams.getAll('arguments').filter(Boolean),
-  } satisfies StackFrame
-}
-
 function findOriginalSourcePositionAndContentFromCompilation(
   moduleId: string | undefined,
   importedModule: string,
@@ -357,13 +346,14 @@ async function getOriginalStackFrame({
   isServer: boolean
   isEdgeServer: boolean
   isAppDirectory: boolean
-  frame: ReturnType<typeof createStackFrame>
+  frame: StackFrame
   clientStats: () => webpack.Stats | null
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
 }) {
-  const source = await getSource(frame.file, {
+  const filename = frame.file ?? ''
+  const source = await getSource(filename, {
     getCompilations: () => {
       const compilations: webpack.Compilation[] = []
 
@@ -413,7 +403,7 @@ async function getOriginalStackFrame({
     lineNumber: frame.lineNumber,
     column: frame.column ?? 1,
     methodName: frame.methodName,
-    ignored: shouldIgnorePath(frame.file),
+    ignored: shouldIgnorePath(filename),
     arguments: [],
   }
   if (!source) {
@@ -459,7 +449,14 @@ export function getOverlayMiddleware(options: {
       const isServer = searchParams.get('isServer') === 'true'
       const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
       const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
-      const frame = createStackFrame(searchParams)
+
+      const frame = {
+        file: searchParams.get('file') as string,
+        methodName: searchParams.get('methodName') as string,
+        lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+        column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+        arguments: searchParams.getAll('arguments').filter(Boolean),
+      } satisfies StackFrame
 
       try {
         return json(
@@ -480,7 +477,13 @@ export function getOverlayMiddleware(options: {
         return internalServerError(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = createStackFrame(searchParams)
+      const frame = {
+        file: searchParams.get('file') as string,
+        methodName: searchParams.get('methodName') as string,
+        lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+        column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+        arguments: searchParams.getAll('arguments').filter(Boolean),
+      } satisfies StackFrame
 
       if (!frame.file) return badRequest(res)
 
