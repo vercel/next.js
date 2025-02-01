@@ -94,7 +94,7 @@ async fn internal_assets_for_source_mapping(
     let mut internal_assets_for_source_mapping = HashMap::new();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast_sync::<Box<dyn GenerateSourceMap>>(*asset)
         {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {

@@ -27,7 +27,7 @@ where
             continue;
         };
 
-        if let Some(chunk) = ResolvedVc::try_downcast_type::<EcmascriptDevChunk>(*asset).await? {
+        if let Some(chunk) = ResolvedVc::try_downcast_type_sync::<EcmascriptDevChunk>(*asset) {
             let chunk_ident = normalize_client_path(&chunk.ident().path().await?.path);
             chunks.push(WebpackStatsChunk {
                 size: asset_len,

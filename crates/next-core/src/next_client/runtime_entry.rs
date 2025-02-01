@@ -45,8 +45,7 @@ impl RuntimeEntry {
 
         let mut runtime_entries = Vec::with_capacity(modules.len());
         for &module in &modules {
-            if let Some(entry) =
-                ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module).await?
+            if let Some(entry) = ResolvedVc::try_downcast_sync::<Box<dyn EvaluatableAsset>>(module)
             {
                 runtime_entries.push(entry);
             } else {

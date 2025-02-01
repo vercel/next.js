@@ -55,10 +55,9 @@ impl ChunkType for EcmascriptChunkType {
                                module: _,
                                async_info,
                            }| {
-                        let Some(chunk_item) =
-                            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkItem>>(*chunk_item)
-                                .await?
-                        else {
+                        let Some(chunk_item) = ResolvedVc::try_downcast_sync::<
+                            Box<dyn EcmascriptChunkItem>,
+                        >(*chunk_item) else {
                             bail!(
                                 "Chunk item is not an ecmascript chunk item but reporting chunk \
                                  type ecmascript"

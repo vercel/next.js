@@ -289,7 +289,7 @@ pub async fn primary_chunkable_referenced_modules(
         .iter()
         .map(|reference| async {
             if let Some(reference) =
-                ResolvedVc::try_downcast::<Box<dyn ChunkableModuleReference>>(*reference).await?
+                ResolvedVc::try_downcast_sync::<Box<dyn ChunkableModuleReference>>(*reference)
             {
                 if let Some(chunking_type) = &*reference.chunking_type().await? {
                     let resolved = reference

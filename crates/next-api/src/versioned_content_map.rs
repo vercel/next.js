@@ -196,7 +196,7 @@ impl VersionedContentMap {
         };
 
         if let Some(generate_source_map) =
-            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast_sync::<Box<dyn GenerateSourceMap>>(*asset)
         {
             Ok(if let Some(section) = section {
                 generate_source_map.by_section(section)

@@ -375,7 +375,7 @@ async fn build_internal(
         .map(|entry_module| async move {
             Ok(
                 if let Some(ecmascript) =
-                    ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(entry_module).await?
+                    ResolvedVc::try_sidecast_sync::<Box<dyn EvaluatableAsset>>(entry_module)
                 {
                     match target {
                         Target::Browser => {

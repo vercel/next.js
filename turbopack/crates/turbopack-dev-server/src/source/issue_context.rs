@@ -154,7 +154,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn ty(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) =
-                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
             {
                 source.ty()
             } else {
@@ -167,7 +167,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn title(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) =
-                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
             {
                 let title = source.title().await?;
                 Vc::cell(format!("{}: {}", self.description, title).into())
@@ -181,7 +181,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn details(&self) -> Result<Vc<RcStr>> {
         Ok(
             if let Some(source) =
-                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
             {
                 source.details()
             } else {
@@ -194,7 +194,7 @@ impl Introspectable for IssueFilePathContentSource {
     async fn children(&self) -> Result<Vc<IntrospectableChildren>> {
         Ok(
             if let Some(source) =
-                ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(self.source).await?
+                ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(self.source)
             {
                 source.children()
             } else {

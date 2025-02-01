@@ -132,7 +132,7 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
                 .is_some_and(|layer| &**layer == "app-client" || &**layer == "client")
             {
                 if let Some(dynamic_entry_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module).await?
+                    ResolvedVc::try_downcast_type_sync::<NextDynamicEntryModule>(*module)
                 {
                     return Ok(Some((
                         *module,
@@ -143,7 +143,7 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module).await?
+                ResolvedVc::try_downcast_type_sync::<EcmascriptClientReferenceModule>(*module)
             {
                 return Ok(Some((
                     *module,

@@ -17,11 +17,11 @@ impl IntrospectableOutputAsset {
     pub async fn new(
         asset: ResolvedVc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn Introspectable>>> {
-        Ok(*ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(asset)
-            .await?
-            .unwrap_or_else(|| {
+        Ok(
+            *ResolvedVc::try_sidecast_sync::<Box<dyn Introspectable>>(asset).unwrap_or_else(|| {
                 ResolvedVc::upcast(IntrospectableOutputAsset(asset).resolved_cell())
-            }))
+            }),
+        )
     }
 }
 

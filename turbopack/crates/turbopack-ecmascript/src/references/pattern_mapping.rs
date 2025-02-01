@@ -346,7 +346,7 @@ async fn to_single_pattern_mapping(
             return Ok(SinglePatternMapping::Invalid);
         }
     };
-    if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await? {
+    if let Some(chunkable) = ResolvedVc::try_downcast_sync::<Box<dyn ChunkableModule>>(module) {
         match resolve_type {
             ResolveType::AsyncChunkLoader => {
                 let loader_id = chunking_context.async_loader_chunk_item_id(*chunkable);

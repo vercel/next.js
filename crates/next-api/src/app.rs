@@ -1634,8 +1634,7 @@ impl AppEndpoint {
                     .edge_rsc_runtime_entries()
                     .await?
                     .clone_value();
-                let evaluatable = ResolvedVc::try_sidecast(app_entry.rsc_entry)
-                    .await?
+                let evaluatable = ResolvedVc::try_sidecast_sync(app_entry.rsc_entry)
                     .context("Entry module must be evaluatable")?;
                 evaluatable_assets.push(evaluatable);
                 evaluatable_assets.push(server_action_manifest_loader);
@@ -1676,9 +1675,10 @@ impl AppEndpoint {
                             .server_utils
                             .iter()
                             .map(|m| async move {
-                                Ok(*ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
-                                    .await?
-                                    .context("Expected server utils to be chunkable")?)
+                                Ok(
+                                    *ResolvedVc::try_downcast_sync::<Box<dyn ChunkableModule>>(*m)
+                                        .context("Expected server utils to be chunkable")?,
+                                )
                             })
                             .try_join()
                             .await?;

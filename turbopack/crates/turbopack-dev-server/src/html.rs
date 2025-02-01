@@ -147,7 +147,7 @@ impl DevHtmlAsset {
 
                 let assets = if let Some(runtime_entries) = runtime_entries {
                     let runtime_entries = if let Some(evaluatable) =
-                        ResolvedVc::try_downcast(chunkable_module).await?
+                        ResolvedVc::try_downcast_sync(chunkable_module)
                     {
                         runtime_entries
                             .with_entry(*evaluatable)

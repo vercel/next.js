@@ -429,7 +429,7 @@ pub async fn parse_config_from_source(
     module: ResolvedVc<Box<dyn Module>>,
 ) -> Result<Vc<NextSourceConfig>> {
     if let Some(ecmascript_asset) =
-        ResolvedVc::try_sidecast::<Box<dyn EcmascriptParsable>>(module).await?
+        ResolvedVc::try_sidecast_sync::<Box<dyn EcmascriptParsable>>(module)
     {
         if let ParseResult::Ok {
             program: Program::Module(module_ast),

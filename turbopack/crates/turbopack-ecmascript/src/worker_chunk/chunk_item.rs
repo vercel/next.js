@@ -41,7 +41,7 @@ impl WorkerLoaderChunkItem {
         let module = self.module.await?;
 
         let Some(evaluatable) =
-            ResolvedVc::try_downcast::<Box<dyn EvaluatableAsset>>(module.inner).await?
+            ResolvedVc::try_downcast_sync::<Box<dyn EvaluatableAsset>>(module.inner)
         else {
             bail!(
                 "{} is not evaluatable for Worker loader module",
