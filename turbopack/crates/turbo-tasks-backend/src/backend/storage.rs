@@ -1,19 +1,20 @@
 use std::{
     hash::{BuildHasherDefault, Hash},
-    mem::take,
     ops::{Deref, DerefMut},
-    panic,
     thread::available_parallelism,
 };
 
-use auto_hash_map::{map::Entry, AutoMap};
 use dashmap::DashMap;
-use either::Either;
 use rustc_hash::FxHasher;
-use turbo_tasks::KeyValuePair;
+use turbo_tasks::TaskId;
 
 use crate::{
-    backend::indexed::Indexed,
+    backend::dynamic_storage::DynamicStorage,
+    data::{
+        AggregationNumber, CachedDataItem, CachedDataItemKey, CachedDataItemType,
+        CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
+    },
+    data_storage::{AutoMapStorage, OptionStorage},
     utils::dash_map_multi::{get_multiple_mut, RefMut},
 };
 
@@ -119,246 +120,392 @@ impl PersistanceState {
     }
 }
 
-const INDEX_THRESHOLD: usize = 1024;
-
-type IndexedMap<T> = AutoMap<
-    <<T as KeyValuePair>::Key as Indexed>::Index,
-    AutoMap<<T as KeyValuePair>::Key, <T as KeyValuePair>::Value>,
->;
-
-pub enum InnerStorage<T: KeyValuePair>
-where
-    T::Key: Indexed,
-{
-    Plain {
-        map: AutoMap<T::Key, T::Value>,
-        persistance_state: PersistanceState,
-    },
-    Indexed {
-        map: IndexedMap<T>,
-        persistance_state: PersistanceState,
-    },
+pub struct InnerStorage {
+    aggregation_number: OptionStorage<AggregationNumber>,
+    output_dependent: AutoMapStorage<TaskId, ()>,
+    output: OptionStorage<OutputValue>,
+    upper: AutoMapStorage<TaskId, i32>,
+    dynamic: DynamicStorage,
+    persistance_state: PersistanceState,
 }
 
-impl<T: KeyValuePair> InnerStorage<T>
-where
-    T::Key: Indexed,
-{
+impl InnerStorage {
     fn new() -> Self {
-        Self::Plain {
-            map: AutoMap::new(),
+        Self {
+            aggregation_number: Default::default(),
+            output_dependent: Default::default(),
+            output: Default::default(),
+            upper: Default::default(),
+            dynamic: DynamicStorage::new(),
             persistance_state: PersistanceState::default(),
         }
     }
 
     pub fn persistance_state(&self) -> &PersistanceState {
-        match self {
-            InnerStorage::Plain {
-                persistance_state, ..
-            } => persistance_state,
-            InnerStorage::Indexed {
-                persistance_state, ..
-            } => persistance_state,
-        }
+        &self.persistance_state
     }
 
     pub fn persistance_state_mut(&mut self) -> &mut PersistanceState {
-        match self {
-            InnerStorage::Plain {
-                persistance_state, ..
-            } => persistance_state,
-            InnerStorage::Indexed {
-                persistance_state, ..
-            } => persistance_state,
-        }
+        &mut self.persistance_state
     }
+}
 
-    fn check_threshold(&mut self) {
-        let InnerStorage::Plain {
-            map: plain_map,
-            persistance_state,
-        } = self
-        else {
+#[macro_export]
+macro_rules! generate_inner_storage_internal {
+    // Matching on CachedDataItem with a $value
+    (CachedDataItem: $self:ident, $item:ident, $value:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItem::$tag { $key_field, $value } = $item {
+            let result = $self.$field.$fn($key_field, $($args)*);
+            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag $key_field => $field);
+        }
+    };
+    (CachedDataItem: $self:ident, $item:ident, $value:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident => $field:ident,) => {
+        if let CachedDataItem::$tag { $value } = $item {
+            let result = $self.$field.$fn((), $($args)*);
+            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag => $field);
+        }
+    };
+    (CachedDataItem: $self:ident, $item:ident, $value:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(CachedDataItem: $self, $item, $value, $return_ty, $fn($($args)*): $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(CachedDataItem: $self, $item, $value, $return_ty, $fn($($args)*): $($config)+)
+    };
+    // Matching on CachedDataItemKey without a $value
+    (CachedDataItemKey: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItemKey::$tag { $key_field } = $item {
+            let result = $self.$field.$fn($key_field, $($args)*);
+            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag $key_field => $field);
+        }
+    };
+    (CachedDataItemKey: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident => $field:ident,) => {
+        if let CachedDataItemKey::$tag { } = $item {
+            let result = $self.$field.$fn(&(), $($args)*);
+            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag => $field);
+        }
+    };
+    (CachedDataItemKey: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(CachedDataItemKey: $self, $item, $return_ty, $fn($($args)*): $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(CachedDataItemKey: $self, $item, $return_ty, $fn($($args)*): $($config)+)
+    };
+    // Matching on CachedDataItemType without a $value
+    (CachedDataItemType: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident,) => {
+        if let CachedDataItemType::$tag = $item {
+            let result = $self.$field.$fn($($args)*);
+            return $crate::generate_inner_storage_internal!(return_value: result, $return_ty: $tag $($key_field)? => $field);
+        }
+    };
+    (CachedDataItemType: $self:ident, $item:ident, $return_ty:tt, $fn:ident($($args:tt)*): $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(CachedDataItemType: $self, $item, $return_ty, $fn($($args)*): $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(CachedDataItemType: $self, $item, $return_ty, $fn($($args)*): $($config)+)
+    };
+
+    // fn update
+    (update: $self:ident, $key:ident, $update:ident: $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItemKey::$tag { $key_field } = $key {
+            $self.$field.update($key_field, |old| {
+                let old = old.map(|old| CachedDataItemValue::$tag { value: old });
+                let new = $update(old);
+                new.map(|new| if let CachedDataItemValue::$tag { value } = new {
+                    value
+                } else {
+                    unreachable!()
+                })
+            });
             return;
-        };
-        if plain_map.len() >= INDEX_THRESHOLD {
-            let mut map: IndexedMap<T> = AutoMap::new();
-            for (key, value) in take(plain_map).into_iter() {
-                let index = key.index();
-                map.entry(index).or_default().insert(key, value);
-            }
-            *self = InnerStorage::Indexed {
-                map,
-                persistance_state: take(persistance_state),
-            };
         }
-    }
-
-    fn get_or_create_map_mut(&mut self, key: &T::Key) -> &mut AutoMap<T::Key, T::Value> {
-        self.check_threshold();
-        match self {
-            InnerStorage::Plain { map, .. } => map,
-            InnerStorage::Indexed { map, .. } => map.entry(key.index()).or_default(),
+    };
+    (update: $self:ident, $key:ident, $update:ident: $tag:ident => $field:ident,) => {
+        if let CachedDataItemKey::$tag { } = $key {
+            $self.$field.update((), |old| {
+                let old = old.map(|old| CachedDataItemValue::$tag { value: old });
+                let new = $update(old);
+                new.map(|new| if let CachedDataItemValue::$tag { value } = new {
+                    value
+                } else {
+                    unreachable!()
+                })
+            });
+            return;
         }
-    }
+    };
+    (update: $self:ident, $key:ident, $update:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(update: $self, $key, $update: $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(update: $self, $key, $update: $($config)+)
+    };
 
-    fn get_map_mut(&mut self, key: &T::Key) -> Option<&mut AutoMap<T::Key, T::Value>> {
-        self.check_threshold();
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get_mut(&key.index()),
+    // fn get_mut_or_insert_with
+    (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItemKey::$tag { $key_field } = $key {
+            let value = $self.$field.get_mut_or_insert_with($key_field, || {
+                let value = $insert_with();
+                if let CachedDataItemValue::$tag { value } = value {
+                    value
+                } else {
+                    unreachable!()
+                }
+            });
+            return CachedDataItemValueRefMut::$tag { value };
         }
-    }
-
-    fn get_map(&self, key: &T::Key) -> Option<&AutoMap<T::Key, T::Value>> {
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get(&key.index()),
+    };
+    (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident => $field:ident,) => {
+        if let CachedDataItemKey::$tag { } = $key {
+            let value = $self.$field.get_mut_or_insert_with((), || {
+                let value = $insert_with();
+                if let CachedDataItemValue::$tag { value } = value {
+                    value
+                } else {
+                    unreachable!()
+                }
+            });
+            return CachedDataItemValueRefMut::$tag { value };
         }
-    }
+    };
+    (get_mut_or_insert_with: $self:ident, $key:ident, $insert_with:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(get_mut_or_insert_with: $self, $key, $insert_with: $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(get_mut_or_insert_with: $self, $key, $insert_with: $($config)+)
+    };
 
-    fn index_map(&self, index: <T::Key as Indexed>::Index) -> Option<&AutoMap<T::Key, T::Value>> {
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get(&index),
+    // fn extract_if
+    (extract_if: $self:ident, $ty:ident, $f:ident: $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItemType::$tag = $ty {
+            let iter = $self.$field.extract_if(move |key, value| {
+                $f(CachedDataItemKey::$tag { $key_field: *key }, CachedDataItemValueRef::$tag { value })
+            }).map(|($key_field, value)| CachedDataItem::$tag { $key_field, value });
+            return InnerStorageIter::$tag(iter);
         }
-    }
-
-    fn index_map_mut(
-        &mut self,
-        index: <T::Key as Indexed>::Index,
-    ) -> Option<&mut AutoMap<T::Key, T::Value>> {
-        match self {
-            InnerStorage::Plain { map, .. } => Some(map),
-            InnerStorage::Indexed { map, .. } => map.get_mut(&index),
+    };
+    (extract_if: $self:ident, $ty:ident, $f:ident: $tag:ident => $field:ident,) => {
+        if let CachedDataItemType::$tag = $ty {
+            let iter = $self.$field.extract_if(move |_, value| {
+                $f(CachedDataItemKey::$tag { }, CachedDataItemValueRef::$tag { value })
+            }).map(|(_, value)| CachedDataItem::$tag { value });
+            return InnerStorageIter::$tag(iter);
         }
-    }
+    };
+    (extract_if: $self:ident, $ty:ident, $f:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(extract_if: $self, $ty, $f: $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(extract_if: $self, $ty, $f: $($config)+)
+    };
 
-    pub fn add(&mut self, item: T) -> bool {
-        let (key, value) = item.into_key_and_value();
-        match self.get_or_create_map_mut(&key).entry(key) {
-            Entry::Occupied(_) => false,
-            Entry::Vacant(e) => {
-                e.insert(value);
-                true
-            }
+    // fn iter
+    (iter: $self:ident, $ty:ident: $tag:ident $key_field:ident => $field:ident,) => {
+        if let CachedDataItemType::$tag = $ty {
+            let iter = $self.$field.iter().map(|($key_field, value)| (CachedDataItemKey::$tag { $key_field: *$key_field }, CachedDataItemValueRef::$tag { value }));
+            return InnerStorageIter::$tag(iter);
         }
-    }
-
-    pub fn insert(&mut self, item: T) -> Option<T::Value> {
-        let (key, value) = item.into_key_and_value();
-        self.get_or_create_map_mut(&key).insert(key, value)
-    }
-
-    pub fn remove(&mut self, key: &T::Key) -> Option<T::Value> {
-        self.get_map_mut(key).and_then(|m| m.remove(key))
-    }
-
-    pub fn get(&self, key: &T::Key) -> Option<&T::Value> {
-        self.get_map(key).and_then(|m| m.get(key))
-    }
-
-    pub fn get_mut(&mut self, key: &T::Key) -> Option<&mut T::Value> {
-        self.get_map_mut(key).and_then(|m| m.get_mut(key))
-    }
-
-    pub fn has_key(&self, key: &T::Key) -> bool {
-        self.get_map(key)
-            .map(|m| m.contains_key(key))
-            .unwrap_or_default()
-    }
-
-    pub fn is_indexed(&self) -> bool {
-        matches!(self, InnerStorage::Indexed { .. })
-    }
-
-    pub fn iter(
-        &self,
-        index: <T::Key as Indexed>::Index,
-    ) -> impl Iterator<Item = (&T::Key, &T::Value)> {
-        self.index_map(index)
-            .map(|m| m.iter())
-            .into_iter()
-            .flatten()
-    }
-
-    pub fn iter_all(&self) -> impl Iterator<Item = (&T::Key, &T::Value)> {
-        match self {
-            InnerStorage::Plain { map, .. } => Either::Left(map.iter()),
-            InnerStorage::Indexed { map, .. } => {
-                Either::Right(map.iter().flat_map(|(_, m)| m.iter()))
-            }
+    };
+    (iter: $self:ident, $ty:ident: $tag:ident => $field:ident,) => {
+        if let CachedDataItemType::$tag = $ty {
+            let iter = $self.$field.iter().map(|(_, value)| (CachedDataItemKey::$tag { }, CachedDataItemValueRef::$tag { value }));
+            return InnerStorageIter::$tag(iter);
         }
-    }
+    };
+    (iter: $self:ident, $ty:ident: $tag:ident $($key_field:ident)? => $field:ident, $($config:tt)+) => {
+        $crate::generate_inner_storage_internal!(iter: $self, $ty: $tag $($key_field)? => $field,);
+        $crate::generate_inner_storage_internal!(iter: $self, $ty: $($config)+)
+    };
 
-    pub fn extract_if<'l, F>(
-        &'l mut self,
-        index: <T::Key as Indexed>::Index,
-        mut f: F,
-    ) -> impl Iterator<Item = T> + use<'l, T, F>
-    where
-        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
-    {
-        self.index_map_mut(index)
-            .map(move |m| m.extract_if(move |k, v| f(k, v)))
-            .into_iter()
-            .flatten()
-            .map(|(key, value)| T::from_key_and_value(key, value))
-    }
 
-    pub fn extract_if_all<'l, F>(&'l mut self, mut f: F) -> impl Iterator<Item = T> + use<'l, T, F>
-    where
-        F: for<'a, 'b> FnMut(&'a T::Key, &'b T::Value) -> bool + 'l,
-    {
-        match self {
-            InnerStorage::Plain { map, .. } => map
-                .extract_if(move |k, v| f(k, v))
-                .map(|(key, value)| T::from_key_and_value(key, value)),
-            InnerStorage::Indexed { .. } => {
-                panic!("Do not use extract_if_all with indexed storage")
-            }
-        }
-    }
-}
+    // Return value handling
+    (return_value: $result:ident, none: $($more:tt)*) => {
+        $result
+    };
+    (return_value: $result:ident, option_value: $tag:ident $($more:tt)*) => {
+        $result.map(|value| CachedDataItemValue::$tag { value })
+    };
+    (return_value: $result:ident, option_ref: $tag:ident $($more:tt)*) => {
+        $result.map(|value| CachedDataItemValueRef::$tag { value })
+    };
+    (return_value: $result:ident, option_ref_mut: $tag:ident $($more:tt)*) => {
+        $result.map(|value| CachedDataItemValueRefMut::$tag { value })
+    };
 
-impl<T: KeyValuePair> InnerStorage<T>
-where
-    T::Key: Indexed,
-    T::Value: Default,
-    T::Key: Clone,
-{
-    pub fn update(
-        &mut self,
-        key: &T::Key,
-        update: impl FnOnce(Option<T::Value>) -> Option<T::Value>,
-    ) {
-        let map = self.get_or_create_map_mut(key);
-        if let Some(value) = map.get_mut(key) {
-            let v = take(value);
-            if let Some(v) = update(Some(v)) {
-                *value = v;
+    // Input value handling
+    (input_value: $input:ident, option_value: $tag:ident $($more:tt)*) => {
+        $input.map(|value| {
+            if let CachedDataItemValue::$tag { value } = value {
+                value
             } else {
-                map.remove(key);
+                unreachable!()
             }
-        } else if let Some(v) = update(None) {
-            map.insert(key.clone(), v);
+        })
+    };
+
+}
+
+macro_rules! generate_inner_storage {
+    ($($config:tt)*) => {
+        impl InnerStorage {
+            pub fn add(&mut self, item: CachedDataItem) -> bool {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, none, add(value): $($config)*);
+                self.dynamic.add(item)
+            }
+
+            pub fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue> {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItem: self, item, value, option_value, insert(value): $($config)*);
+                self.dynamic.insert(item)
+            }
+
+            pub fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue> {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_value, remove(): $($config)*);
+                self.dynamic.remove(key)
+            }
+
+            pub fn count(&self, ty: CachedDataItemType) -> usize {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, len(): $($config)*);
+                self.dynamic.count(ty)
+            }
+
+            pub fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef> {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref, get(): $($config)*);
+                self.dynamic.get(key)
+            }
+
+            pub fn contains_key(&self, key: &CachedDataItemKey) -> bool {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, none, contains_key(): $($config)*);
+                self.dynamic.contains_key(key)
+            }
+
+            pub fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut> {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItemKey: self, key, option_ref_mut, get_mut(): $($config)*);
+                self.dynamic.get_mut(key)
+            }
+
+            pub fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(CachedDataItemType: self, ty, none, shrink_to_fit(): $($config)*);
+                self.dynamic.shrink_to_fit(ty)
+            }
+
+            pub fn update(
+                &mut self,
+                key: CachedDataItemKey,
+                update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
+            ) {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(update: self, key, update: $($config)*);
+                self.dynamic.update(key, update)
+            }
+
+            pub fn extract_if<'l, F>(
+                &'l mut self,
+                ty: CachedDataItemType,
+                mut f: F,
+            ) -> impl Iterator<Item = CachedDataItem> + use<'l, F>
+            where
+                F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
+            {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(extract_if: self, ty, f: $($config)*);
+                InnerStorageIter::Dynamic(self.dynamic.extract_if(ty, f))
+            }
+
+            pub fn get_mut_or_insert_with(
+                &mut self,
+                key: CachedDataItemKey,
+                f: impl FnOnce() -> CachedDataItemValue,
+            ) -> CachedDataItemValueRefMut<'_>
+            {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(get_mut_or_insert_with: self, key, f: $($config)*);
+                self.dynamic.get_mut_or_insert_with(key, f)
+            }
+
+            pub fn iter(
+                &self,
+                ty: CachedDataItemType,
+            ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>
+            {
+                use crate::data_storage::Storage;
+                $crate::generate_inner_storage_internal!(iter: self, ty: $($config)*);
+                InnerStorageIter::Dynamic(self.dynamic.iter(ty))
+            }
+
+        }
+    };
+}
+
+generate_inner_storage!(
+    AggregationNumber => aggregation_number,
+    OutputDependent task => output_dependent,
+    Output => output,
+    Upper task => upper,
+);
+
+enum InnerStorageIter<A, B, C, D, E> {
+    AggregationNumber(A),
+    OutputDependent(B),
+    Output(C),
+    Upper(D),
+    Dynamic(E),
+}
+
+impl<T, A, B, C, D, E> Iterator for InnerStorageIter<A, B, C, D, E>
+where
+    A: Iterator<Item = T>,
+    B: Iterator<Item = T>,
+    C: Iterator<Item = T>,
+    D: Iterator<Item = T>,
+    E: Iterator<Item = T>,
+{
+    type Item = T;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        match self {
+            InnerStorageIter::AggregationNumber(iter) => iter.next(),
+            InnerStorageIter::OutputDependent(iter) => iter.next(),
+            InnerStorageIter::Output(iter) => iter.next(),
+            InnerStorageIter::Upper(iter) => iter.next(),
+            InnerStorageIter::Dynamic(iter) => iter.next(),
         }
     }
 }
 
-pub struct Storage<K, T: KeyValuePair>
-where
-    T::Key: Indexed,
-{
-    map: DashMap<K, InnerStorage<T>, BuildHasherDefault<FxHasher>>,
+impl InnerStorage {
+    pub fn iter_all(
+        &self,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        use crate::data_storage::Storage;
+        self.dynamic
+            .iter_all()
+            .chain(self.aggregation_number.iter().map(|(_, value)| {
+                (
+                    CachedDataItemKey::AggregationNumber {},
+                    CachedDataItemValueRef::AggregationNumber { value },
+                )
+            }))
+            .chain(self.output.iter().map(|(_, value)| {
+                (
+                    CachedDataItemKey::Output {},
+                    CachedDataItemValueRef::Output { value },
+                )
+            }))
+            .chain(self.upper.iter().map(|(k, value)| {
+                (
+                    CachedDataItemKey::Upper { task: *k },
+                    CachedDataItemValueRef::Upper { value },
+                )
+            }))
+            .chain(self.output_dependent.iter().map(|(k, value)| {
+                (
+                    CachedDataItemKey::OutputDependent { task: *k },
+                    CachedDataItemValueRef::OutputDependent { value },
+                )
+            }))
+    }
 }
 
-impl<K, T> Storage<K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-    K: Eq + std::hash::Hash + Clone,
-{
+pub struct Storage {
+    map: DashMap<TaskId, Box<InnerStorage>, BuildHasherDefault<FxHasher>>,
+}
+
+impl Storage {
     pub fn new() -> Self {
         let shard_amount =
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
@@ -371,10 +518,10 @@ where
         }
     }
 
-    pub fn access_mut(&self, key: K) -> StorageWriteGuard<'_, K, T> {
+    pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
-            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(InnerStorage::new()),
+            dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(InnerStorage::new())),
         };
         StorageWriteGuard {
             inner: inner.into(),
@@ -383,10 +530,10 @@ where
 
     pub fn access_pair_mut(
         &self,
-        key1: K,
-        key2: K,
-    ) -> (StorageWriteGuard<'_, K, T>, StorageWriteGuard<'_, K, T>) {
-        let (a, b) = get_multiple_mut(&self.map, key1, key2, || InnerStorage::new());
+        key1: TaskId,
+        key2: TaskId,
+    ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
+        let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(InnerStorage::new()));
         (
             StorageWriteGuard { inner: a },
             StorageWriteGuard { inner: b },
@@ -394,45 +541,37 @@ where
     }
 }
 
-pub struct StorageWriteGuard<'a, K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-{
-    inner: RefMut<'a, K, InnerStorage<T>>,
+pub struct StorageWriteGuard<'a> {
+    inner: RefMut<'a, TaskId, Box<InnerStorage>>,
 }
 
-impl<K, T> Deref for StorageWriteGuard<'_, K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-    K: Eq + Hash,
-{
-    type Target = InnerStorage<T>;
+impl Deref for StorageWriteGuard<'_> {
+    type Target = InnerStorage;
 
     fn deref(&self) -> &Self::Target {
         &self.inner
     }
 }
 
-impl<K, T> DerefMut for StorageWriteGuard<'_, K, T>
-where
-    T: KeyValuePair,
-    T::Key: Indexed,
-    K: Eq + Hash,
-{
+impl DerefMut for StorageWriteGuard<'_> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }
+}
+
+macro_rules! count {
+    ($task:ident, $key:ident) => {{
+        $task.count($crate::data::CachedDataItemType::$key)
+    }};
 }
 
 macro_rules! get {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key {
+        if let Some($crate::data::CachedDataItemValueRef::$key {
             value,
-        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input).as_ref() {
+        }) = $task.get(&$crate::data::CachedDataItemKey::$key $input) {
             Some(value)
         } else {
             None
@@ -447,7 +586,7 @@ macro_rules! get_mut {
     ($task:ident, $key:ident $input:tt) => {{
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
-        if let Some($crate::data::CachedDataItemValue::$key {
+        if let Some($crate::data::CachedDataItemValueRefMut::$key {
             value,
         }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
             let () = $crate::data::allow_mut_access::$key;
@@ -461,6 +600,24 @@ macro_rules! get_mut {
     };
 }
 
+macro_rules! get_mut_or_insert_with {
+    ($task:ident, $key:ident $input:tt, $f:expr) => {{
+        #[allow(unused_imports)]
+        use $crate::backend::operation::TaskGuard;
+        let () = $crate::data::allow_mut_access::$key;
+        let functor = $f;
+        let $crate::data::CachedDataItemValueRefMut::$key {
+            value,
+        } = $task.get_mut_or_insert_with($crate::data::CachedDataItemKey::$key $input, move || $crate::data::CachedDataItemValue::$key { value: functor() }) else {
+            unreachable!()
+        };
+        value
+    }};
+    ($task:ident, $key:ident, $f:expr) => {
+        $crate::backend::storage::get_mut_or_insert_with!($task, $key {}, $f)
+    };
+}
+
 /// Creates an iterator over all [`CachedDataItemKey::$key`][crate::data::CachedDataItemKey]s in
 /// `$task` matching the given `$key_pattern`, optional `$value_pattern`, and optional `if $cond`.
 ///
@@ -471,7 +628,7 @@ macro_rules! iter_many {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         $task
-            .iter($crate::data::indicies::$key)
+            .iter($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, _)| match key {
                 $crate::data::CachedDataItemKey::$key $key_pattern $(if $cond)? => Some(
                     $iter_item
@@ -483,11 +640,11 @@ macro_rules! iter_many {
         #[allow(unused_imports)]
         use $crate::backend::operation::TaskGuard;
         $task
-            .iter($crate::data::indicies::$key)
+            .iter($crate::data::CachedDataItemType::$key)
             .filter_map(|(key, value)| match (key, value) {
                 (
                     $crate::data::CachedDataItemKey::$key $input,
-                    $crate::data::CachedDataItemValue::$key { value: $value_pattern }
+                    $crate::data::CachedDataItemValueRef::$key { value: $value_pattern }
                 ) $(if $cond)? => Some($iter_item),
                 _ => None,
             })
@@ -510,7 +667,7 @@ macro_rules! update {
         use $crate::backend::operation::TaskGuard;
         #[allow(unused_mut)]
         let mut update = $update;
-        $task.update(&$crate::data::CachedDataItemKey::$key $input, |old| {
+        $task.update($crate::data::CachedDataItemKey::$key $input, |old| {
             update(old.and_then(|old| {
                 if let $crate::data::CachedDataItemValue::$key { value } = old {
                     Some(value)
@@ -523,42 +680,6 @@ macro_rules! update {
     }};
     ($task:ident, $key:ident, $update:expr) => {
         $crate::backend::storage::update!($task, $key {}, $update)
-    };
-}
-
-macro_rules! update_ucount_and_get {
-    ($task:ident, $key:ident $input:tt, -$update:expr) => {{
-        let update = $update;
-        let mut value = 0;
-        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-            if let Some(old) = old {
-                value = old - update;
-                (value != 0).then_some(value)
-            } else {
-                None
-            }
-        });
-        value
-    }};
-    ($task:ident, $key:ident $input:tt, $update:expr) => {{
-        let update = $update;
-        let mut value = 0;
-        $crate::backend::storage::update!($task, $key $input, |old: Option<_>| {
-            if let Some(old) = old {
-                value = old + update;
-                (value != 0).then_some(value)
-            } else {
-                value = update;
-                (update != 0).then_some(update)
-            }
-        });
-        value
-    }};
-    ($task:ident, $key:ident, -$update:expr) => {
-        $crate::backend::storage::update_ucount_and_get!($task, $key {}, -$update)
-    };
-    ($task:ident, $key:ident, $update:expr) => {
-        $crate::backend::storage::update_ucount_and_get!($task, $key {}, $update)
     };
 }
 
@@ -621,11 +742,12 @@ macro_rules! remove {
     };
 }
 
+pub(crate) use count;
 pub(crate) use get;
 pub(crate) use get_many;
 pub(crate) use get_mut;
+pub(crate) use get_mut_or_insert_with;
 pub(crate) use iter_many;
 pub(crate) use remove;
 pub(crate) use update;
 pub(crate) use update_count;
-pub(crate) use update_ucount_and_get;

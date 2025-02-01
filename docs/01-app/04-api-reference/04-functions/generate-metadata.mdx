@@ -566,13 +566,13 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   robots: {
-    index: false,
+    index: true,
     follow: true,
-    nocache: true,
+    nocache: false,
     googleBot: {
       index: true,
-      follow: false,
-      noimageindex: true,
+      follow: true,
+      noimageindex: false,
       'max-video-preview': -1,
       'max-image-preview': 'large',
       'max-snippet': -1,
@@ -582,10 +582,10 @@ export const metadata: Metadata = {
 ```
 
 ```html filename="<head> output" hideLineNumbers
-<meta name="robots" content="noindex, follow, nocache" />
+<meta name="robots" content="index, follow" />
 <meta
   name="googlebot"
-  content="index, nofollow, noimageindex, max-video-preview:-1, max-image-preview:large, max-snippet:-1"
+  content="index, follow, max-video-preview:-1, max-image-preview:large, max-snippet:-1"
 />
 ```
 

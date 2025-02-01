@@ -72,7 +72,7 @@ pureComponentPrototype.constructor = PureComponent;
 assign(pureComponentPrototype, Component.prototype);
 pureComponentPrototype.isPureReactComponent = !0;
 var isArrayImpl = Array.isArray,
-  ReactSharedInternals = { H: null, A: null, T: null, S: null },
+  ReactSharedInternals = { H: null, A: null, T: null, S: null, V: null },
   hasOwnProperty = Object.prototype.hasOwnProperty;
 function ReactElement(type, key, self, source, owner, props) {
   self = props.ref;
@@ -358,6 +358,7 @@ exports.Suspense = REACT_SUSPENSE_TYPE;
 exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
   ReactSharedInternals;
 exports.__COMPILER_RUNTIME = {
+  __proto__: null,
   c: function (size) {
     return ReactSharedInternals.H.useMemoCache(size);
   }
@@ -540,4 +541,4 @@ exports.useSyncExternalStore = function (
 exports.useTransition = function () {
   return ReactSharedInternals.H.useTransition();
 };
-exports.version = "19.1.0-canary-518d06d2-20241219";
+exports.version = "19.1.0-canary-37906d4d-20250127";

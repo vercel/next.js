@@ -2,6 +2,7 @@ use std::{
     env::current_dir,
     iter::FromIterator,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use next_custom_transforms::transforms::{
@@ -363,8 +364,8 @@ fn next_ssg_fixture(input: PathBuf) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some("__jsx".into()),
-                    pragma_frag: Some("__jsxFrag".into()),
+                    pragma: Some(Arc::new("__jsx".into())),
+                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     refresh: Default::default(),
@@ -475,6 +476,7 @@ fn react_server_components_typescript(input: PathBuf) {
                 Config::WithOptions(Options {
                     is_react_server_layer: true,
                     dynamic_io_enabled: false,
+                    use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -489,9 +491,10 @@ fn react_server_components_typescript(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/react-server-components/server-graph/**/input.js")]
-fn react_server_components_server_graph_fixture(input: PathBuf) {
+#[fixture("tests/fixture/react-server-components/**/input.js")]
+fn react_server_components_fixture(input: PathBuf) {
     use next_custom_transforms::transforms::react_server_components::{Config, Options};
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     let output = input.parent().unwrap().join("output.js");
     test_fixture(
         syntax(),
@@ -499,8 +502,9 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
             server_components(
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Config::WithOptions(Options {
-                    is_react_server_layer: true,
+                    is_react_server_layer,
                     dynamic_io_enabled: false,
+                    use_cache_enabled: false,
                 }),
                 tr.comments.as_ref().clone(),
                 None,
@@ -512,29 +516,6 @@ fn react_server_components_server_graph_fixture(input: PathBuf) {
             module: Some(true),
             ..Default::default()
         },
-    );
-}
-
-#[fixture("tests/fixture/react-server-components/client-graph/**/input.js")]
-fn react_server_components_client_graph_fixture(input: PathBuf) {
-    use next_custom_transforms::transforms::react_server_components::{Config, Options};
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|tr| {
-            server_components(
-                FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
-                Config::WithOptions(Options {
-                    is_react_server_layer: false,
-                    dynamic_io_enabled: false,
-                }),
-                tr.comments.as_ref().clone(),
-                None,
-            )
-        },
-        &input,
-        &output,
-        Default::default(),
     );
 }
 
@@ -555,9 +536,10 @@ fn next_font_loaders_fixture(input: PathBuf) {
     );
 }
 
-#[fixture("tests/fixture/server-actions/server/**/input.js")]
-fn server_actions_server_fixture(input: PathBuf) {
+#[fixture("tests/fixture/server-actions/**/input.js")]
+fn server_actions_fixture(input: PathBuf) {
     let output = input.parent().unwrap().join("output.js");
+    let is_react_server_layer = input.iter().any(|s| s.to_str() == Some("server-graph"));
     test_fixture(
         syntax(),
         &|_tr| {
@@ -566,12 +548,13 @@ fn server_actions_server_fixture(input: PathBuf) {
                 server_actions(
                     &FileName::Real("/app/item.js".into()),
                     server_actions::Config {
-                        is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        is_react_server_layer,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::from_iter(["x".into()]),
                     },
                     _tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
@@ -600,46 +583,18 @@ fn next_font_with_directive_fixture(input: PathBuf) {
                     &FileName::Real("/app/test.tsx".into()),
                     server_actions::Config {
                         is_react_server_layer: true,
-                        dynamic_io_enabled: true,
+                        use_cache_enabled: true,
                         hash_salt: "".into(),
                         cache_kinds: FxHashSet::default(),
                     },
                     _tr.comments.as_ref().clone(),
+                    Default::default(),
                 ),
             )
         },
         &input,
         &output,
         Default::default(),
-    );
-}
-
-#[fixture("tests/fixture/server-actions/client/**/input.js")]
-fn server_actions_client_fixture(input: PathBuf) {
-    let output = input.parent().unwrap().join("output.js");
-    test_fixture(
-        syntax(),
-        &|_tr| {
-            (
-                resolver(Mark::new(), Mark::new(), false),
-                server_actions(
-                    &FileName::Real("/app/item.js".into()),
-                    server_actions::Config {
-                        is_react_server_layer: false,
-                        dynamic_io_enabled: true,
-                        hash_salt: "".into(),
-                        cache_kinds: FxHashSet::default(),
-                    },
-                    _tr.comments.as_ref().clone(),
-                ),
-            )
-        },
-        &input,
-        &output,
-        FixtureTestConfig {
-            module: Some(true),
-            ..Default::default()
-        },
     );
 }
 
@@ -823,8 +778,8 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some("__jsx".into()),
-                    pragma_frag: Some("__jsxFrag".into()),
+                    pragma: Some(Arc::new("__jsx".into())),
+                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     ..Default::default()
@@ -900,6 +855,7 @@ fn test_edge_assert(input: PathBuf) {
                         is_unresolved_ref_safe: false,
                         unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
                         in_strict: false,
+                        remaining_depth: 4,
                     },
                     true,
                     true,
@@ -911,6 +867,37 @@ fn test_edge_assert(input: PathBuf) {
         FixtureTestConfig {
             allow_error: true,
             module: Some(true),
+            ..Default::default()
+        },
+    );
+}
+
+#[fixture("tests/fixture/source-maps/**/input.js")]
+fn test_source_maps(input: PathBuf) {
+    let output = input.parent().unwrap().join("output.js");
+    test_fixture(
+        syntax(),
+        &|_tr| {
+            (
+                resolver(Mark::new(), Mark::new(), false),
+                server_actions(
+                    &FileName::Real("/app/item.js".into()),
+                    server_actions::Config {
+                        is_react_server_layer: true,
+                        use_cache_enabled: true,
+                        hash_salt: "".into(),
+                        cache_kinds: FxHashSet::from_iter([]),
+                    },
+                    _tr.comments.as_ref().clone(),
+                    Default::default(),
+                ),
+            )
+        },
+        &input,
+        &output,
+        FixtureTestConfig {
+            module: Some(true),
+            sourcemap: true,
             ..Default::default()
         },
     );

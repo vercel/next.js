@@ -172,7 +172,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         // copy the layout but null the page segment as that's not meant to be used
         rsc: segmentForParallelRoute.includes(PAGE_SEGMENT_KEY) ? null : rsc,
         prefetchRsc: null,
-        head: [null, null],
+        head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading,
@@ -184,7 +184,7 @@ function fillNewTreeWithOnlyLoadingSegments(
         lazyData: null,
         rsc: null,
         prefetchRsc: null,
-        head: [null, null],
+        head: null,
         prefetchHead: null,
         parallelRoutes: new Map(),
         loading: null,

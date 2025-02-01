@@ -22,6 +22,7 @@ import type {
   WrittenEndpoint,
   TurbopackResult,
   Project,
+  Entrypoints,
 } from '../../build/swc/types'
 import { createDefineEnv } from '../../build/swc'
 import * as Log from '../../build/output/log'
@@ -47,40 +48,31 @@ import {
   AssetMapper,
   type ChangeSubscriptions,
   type ClientState,
-  type EntryIssuesMap,
-  formatIssue,
-  getTurbopackJsConfig,
   handleEntrypoints,
   handlePagesErrorRoute,
   handleRouteType,
   hasEntrypointForKey,
   msToNs,
-  processIssues,
   type ReadyIds,
-  renderStyledStringToErrorAnsi,
   type SendHmr,
   type StartBuilding,
   processTopLevelIssues,
-  type TopLevelIssuesMap,
-  isWellKnownError,
   printNonFatalIssue,
   normalizedPageToTurbopackStructureRoute,
-  isPersistentCachingEnabled,
 } from './turbopack-utils'
 import {
   propagateServerField,
   type ServerFields,
   type SetupOpts,
 } from '../lib/router-utils/setup-dev-bundler'
-import { TurbopackManifestLoader } from './turbopack/manifest-loader'
-import type { Entrypoints } from './turbopack/types'
+import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { findPagePathData } from './on-demand-entry-handler'
 import type { RouteDefinition } from '../route-definitions/route-definition'
 import {
   type EntryKey,
   getEntryKey,
   splitEntryKey,
-} from './turbopack/entry-key'
+} from '../../shared/lib/turbopack/entry-key'
 import { FAST_REFRESH_RUNTIME_RELOAD } from './messages'
 import { generateEncryptionKeyBase64 } from '../app-render/encryption-utils-server'
 import { isAppPageRouteDefinition } from '../route-definitions/app-page-route-definition'
@@ -92,6 +84,16 @@ import {
   type ModernSourceMapPayload,
 } from '../patch-error-inspect'
 import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
+import {
+  formatIssue,
+  getTurbopackJsConfig,
+  isPersistentCachingEnabled,
+  isWellKnownError,
+  processIssues,
+  renderStyledStringToErrorAnsi,
+  type EntryIssuesMap,
+  type TopLevelIssuesMap,
+} from '../../shared/lib/turbopack/utils'
 // import { getSupportedBrowsers } from '../../build/utils'
 
 const wsServer = new ws.Server({ noServer: true })
@@ -631,9 +633,7 @@ export async function createHotReloaderTurbopack(
     getNextErrorFeedbackMiddleware(opts.telemetry),
   ]
 
-  const versionInfoPromise = getVersionInfo(
-    isTestMode || opts.telemetry.isEnabled
-  )
+  const versionInfoPromise = getVersionInfo()
 
   let devtoolsFrontendUrl: string | undefined
   const nodeDebugType = getNodeDebugType()
@@ -727,9 +727,6 @@ export async function createHotReloaderTurbopack(
 
           // Next.js messages
           switch (parsedData.event) {
-            case 'ping':
-              // Ping doesn't need additional handling in Turbopack.
-              break
             case 'span-end': {
               hotReloaderSpan.manualTraceChild(
                 parsedData.spanName,
@@ -855,9 +852,6 @@ export async function createHotReloaderTurbopack(
       // Not implemented yet.
     },
     async start() {},
-    async stop() {
-      // Not implemented yet.
-    },
     async getCompilationErrors(page) {
       const appEntryKey = getEntryKey('app', 'server', page)
       const pagesEntryKey = getEntryKey('pages', 'server', page)
@@ -981,14 +975,12 @@ export async function createHotReloaderTurbopack(
             let finishBuilding = startBuilding(pathname, requestUrl, false)
             try {
               await handlePagesErrorRoute({
-                dev: true,
                 currentEntryIssues,
                 entrypoints: currentEntrypoints,
                 manifestLoader,
                 devRewrites: opts.fsChecker.rewrites,
                 productionRewrites: undefined,
                 logErrors: true,
-
                 hooks: {
                   subscribeToChanges,
                   handleWrittenEndpoint: (id, result) => {
@@ -1066,6 +1058,13 @@ export async function createHotReloaderTurbopack(
             finishBuilding()
           }
         })
+    },
+    close() {
+      for (const wsClient of clients) {
+        // it's okay to not cleanly close these websocket connections, this is dev
+        wsClient.terminate()
+      }
+      clients.clear()
     },
   }
 

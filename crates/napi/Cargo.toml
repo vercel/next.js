@@ -37,12 +37,16 @@ __internal_dhat-heap = ["dhat"]
 # effectively does nothing.
 __internal_dhat-ad-hoc = ["dhat"]
 
+# Enable support for the tokio console: https://github.com/tokio-rs/console
+tokio-console = ["dep:console-subscriber"]
+
 [lints]
 workspace = true
 
 [dependencies]
 anyhow = "1.0.66"
 backtrace = "0.3"
+console-subscriber = { workspace = true, optional = true }
 fxhash = "0.2.1"
 dhat = { workspace = true, optional = true }
 indexmap = { workspace = true }
@@ -69,6 +73,7 @@ tracing-chrome = "0.5.0"
 url = { workspace = true }
 urlencoding = { workspace = true }
 once_cell = { workspace = true }
+dashmap = "6.1.0"
 
 swc_core = { workspace = true, features = [
     "base_concurrent",

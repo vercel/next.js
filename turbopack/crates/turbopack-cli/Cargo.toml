@@ -45,15 +45,16 @@ tokio = { workspace = true, features = ["full"] }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
+turbo-tasks-backend = { workspace = true }
 turbo-tasks-env = { workspace = true }
 turbo-tasks-fetch = { workspace = true }
 turbo-tasks-fs = { workspace = true }
 turbo-tasks-malloc = { workspace = true, default-features = false }
-turbo-tasks-memory = { workspace = true }
 turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
+tracing = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",

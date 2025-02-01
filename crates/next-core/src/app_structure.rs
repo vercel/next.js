@@ -192,7 +192,7 @@ impl Metadata {
 }
 
 /// Metadata files that can be placed in the root of the app directory.
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Default, Clone, Debug)]
 pub struct GlobalMetadata {
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -214,7 +214,7 @@ impl GlobalMetadata {
     }
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Debug)]
 pub struct DirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -222,7 +222,7 @@ pub struct DirectoryTree {
     pub modules: AppDirModules,
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Clone, Debug)]
 struct PlainDirectoryTree {
     /// key is e.g. "dashboard", "(dashboard)", "@slot"
@@ -416,7 +416,7 @@ async fn get_directory_tree_internal(
     .cell())
 }
 
-#[turbo_tasks::value(local)]
+#[turbo_tasks::value]
 #[derive(Debug, Clone)]
 pub struct AppPageLoaderTree {
     pub page: AppPage,
@@ -512,6 +512,7 @@ impl ValueDefault for FileSystemPathVec {
     ValueDebugFormat,
     Debug,
     TaskInput,
+    NonLocalValue,
 )]
 pub enum Entrypoint {
     AppPage {
@@ -539,7 +540,7 @@ impl Entrypoint {
     }
 }
 
-#[turbo_tasks::value(transparent, local)]
+#[turbo_tasks::value(transparent)]
 pub struct Entrypoints(FxIndexMap<AppPath, Entrypoint>);
 
 fn is_parallel_route(name: &str) -> bool {
@@ -555,7 +556,7 @@ fn match_parallel_route(name: &str) -> Option<&str> {
 }
 
 fn conflict_issue(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     e: &'_ OccupiedEntry<'_, AppPath, Entrypoint>,
     a: &str,
     b: &str,
@@ -586,7 +587,7 @@ fn conflict_issue(
 }
 
 fn add_app_page(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     loader_tree: ResolvedVc<AppPageLoaderTree>,
@@ -645,7 +646,7 @@ fn add_app_page(
 }
 
 fn add_app_route(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     path: ResolvedVc<FileSystemPath>,
@@ -688,7 +689,7 @@ fn add_app_route(
 }
 
 fn add_app_metadata_route(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     result: &mut FxIndexMap<AppPath, Entrypoint>,
     page: AppPage,
     metadata: MetadataItem,
@@ -1121,7 +1122,7 @@ async fn default_route_tree(
 
 #[turbo_tasks::function]
 async fn directory_tree_to_entrypoints_internal(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
@@ -1142,7 +1143,7 @@ async fn directory_tree_to_entrypoints_internal(
 }
 
 async fn directory_tree_to_entrypoints_internal_untraced(
-    app_dir: Vc<FileSystemPath>,
+    app_dir: ResolvedVc<FileSystemPath>,
     global_metadata: Vc<GlobalMetadata>,
     directory_name: RcStr,
     directory_tree: Vc<DirectoryTree>,
@@ -1171,7 +1172,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
         let app_path = AppPath::from(app_page.clone());
 
         let loader_tree = *directory_tree_to_loader_tree(
-            app_dir,
+            *app_dir,
             global_metadata,
             directory_name.clone(),
             directory_tree_vc,
@@ -1261,7 +1262,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                             modules: AppDirModules {
                                 page: match modules.not_found {
                                     Some(v) => Some(v),
-                                    None => Some(get_next_package(app_dir)
+                                    None => Some(get_next_package(*app_dir)
                                         .join("dist/client/components/not-found-error.js".into())
                                         .to_resolved()
                                         .await?),
@@ -1305,7 +1306,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
             }
 
             let map = directory_tree_to_entrypoints_internal(
-                app_dir,
+                *app_dir,
                 global_metadata,
                 subdir_name.clone(),
                 *subdirectory,
@@ -1332,7 +1333,7 @@ async fn directory_tree_to_entrypoints_internal_untraced(
                         let app_path = AppPath::from(page.clone());
 
                         let loader_tree = directory_tree_to_loader_tree(
-                            app_dir,
+                            *app_dir,
                             global_metadata,
                             directory_name.clone(),
                             directory_tree_vc,
@@ -1427,11 +1428,10 @@ pub async fn get_global_metadata(
     Ok(metadata.cell())
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 struct DirectoryTreeIssue {
     pub severity: ResolvedVc<IssueSeverity>,
-    // no-resolved-vc(kdy1): I'll resolve this later because it's a complex case.
-    pub app_dir: Vc<FileSystemPath>,
+    pub app_dir: ResolvedVc<FileSystemPath>,
     pub message: ResolvedVc<StyledString>,
 }
 
@@ -1454,7 +1454,7 @@ impl Issue for DirectoryTreeIssue {
 
     #[turbo_tasks::function]
     fn file_path(&self) -> Vc<FileSystemPath> {
-        self.app_dir
+        *self.app_dir
     }
 
     #[turbo_tasks::function]

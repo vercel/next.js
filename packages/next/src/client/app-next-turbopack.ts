@@ -8,6 +8,10 @@ window.next.version += '-turbo'
 appBootstrap(() => {
   const { hydrate } = require('./app-index')
   hydrate()
-})
 
-// TODO-APP: build indicator
+  if (process.env.NODE_ENV !== 'production') {
+    const { initializeDevBuildIndicatorForAppRouter } =
+      require('./dev/dev-build-indicator/initialize-for-app-router') as typeof import('./dev/dev-build-indicator/initialize-for-app-router')
+    initializeDevBuildIndicatorForAppRouter()
+  }
+})

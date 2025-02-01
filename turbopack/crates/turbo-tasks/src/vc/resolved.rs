@@ -3,6 +3,7 @@ use std::{
     fmt::Debug,
     future::IntoFuture,
     hash::{Hash, Hasher},
+    marker::PhantomData,
     ops::Deref,
 };
 
@@ -72,13 +73,20 @@ where
     pub(crate) node: Vc<T>,
 }
 
-impl<T> ResolvedVc<T> {
+impl<T> ResolvedVc<T>
+where
+    T: ?Sized,
+{
     /// This function exists to intercept calls to Vc::to_resolved through dereferencing
     /// a ResolvedVc. Converting to Vc and re-resolving it puts unnecessary stress on
     /// the turbo tasks engine.
     #[deprecated(note = "No point in resolving a vc that is already resolved")]
     pub async fn to_resolved(self) -> Result<Self> {
         Ok(self)
+    }
+    #[deprecated(note = "No point in resolving a vc that is already resolved")]
+    pub async fn resolve(self) -> Result<Vc<T>> {
+        Ok(self.node)
     }
 }
 
@@ -215,10 +223,33 @@ where
     where
         K: VcValueTrait + ?Sized,
     {
-        // must be async, as we must read the cell to determine the type
-        Ok(Vc::try_resolve_sidecast(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // TODO: Expose a synchronous API instead of this async one that returns `Result<Option<_>>`
+        Ok(Self::try_sidecast_sync(this))
+    }
+
+    /// Attempts to sidecast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<Box<dyn K>>`.
+    ///
+    /// Returns `None` if the underlying value type does not implement `K`.
+    ///
+    /// **Note:** if the trait `T` is required to implement `K`, use [`ResolvedVc::upcast`] instead.
+    /// This provides stronger guarantees, removing the need for a [`Result`] return type.
+    ///
+    /// See also: [`Vc::try_resolve_sidecast`].
+    pub fn try_sidecast_sync<K>(this: Self) -> Option<ResolvedVc<K>>
+    where
+        K: VcValueTrait + ?Sized,
+    {
+        // `RawVc::TaskCell` already contains all the type information needed to check this
+        // sidecast, so we don't need to read the underlying cell!
+        let raw_vc = this.node.node;
+        raw_vc
+            .resolved_has_trait(<K as VcValueTrait>::get_trait_type_id())
+            .then_some(ResolvedVc {
+                node: Vc {
+                    node: raw_vc,
+                    _t: PhantomData,
+                },
+            })
     }
 
     /// Attempts to downcast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<K>`, where `K`
@@ -231,9 +262,22 @@ where
     where
         K: Upcast<T> + VcValueTrait + ?Sized,
     {
-        Ok(Vc::try_resolve_downcast(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // TODO: Expose a synchronous API instead of this async one that returns `Result<Option<_>>`
+        Ok(Self::try_downcast_sync(this))
+    }
+
+    /// Attempts to downcast the given `ResolvedVc<Box<dyn T>>` to a `ResolvedVc<K>`, where `K`
+    /// is of the form `Box<dyn L>`, and `L` is a value trait.
+    ///
+    /// Returns `None` if the underlying value type is not a `K`.
+    ///
+    /// See also: [`Vc::try_resolve_downcast`].
+    pub fn try_downcast_sync<K>(this: Self) -> Option<ResolvedVc<K>>
+    where
+        K: Upcast<T> + VcValueTrait + ?Sized,
+    {
+        // this is just a more type-safe version of a sidecast
+        Self::try_sidecast_sync(this)
     }
 
     /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
@@ -245,9 +289,28 @@ where
     where
         K: Upcast<T> + VcValueType,
     {
-        Ok(Vc::try_resolve_downcast_type(this.node)
-            .await?
-            .map(|node| ResolvedVc { node }))
+        // TODO: Expose a synchronous API instead of this async one that returns `Result<Option<_>>`
+        Ok(Self::try_downcast_type_sync(this))
+    }
+
+    /// Attempts to downcast the given `Vc<Box<dyn T>>` to a `Vc<K>`, where `K` is a value type.
+    ///
+    /// Returns `None` if the underlying value type is not a `K`.
+    ///
+    /// See also: [`Vc::try_resolve_downcast_type`].
+    pub fn try_downcast_type_sync<K>(this: Self) -> Option<ResolvedVc<K>>
+    where
+        K: Upcast<T> + VcValueType,
+    {
+        let raw_vc = this.node.node;
+        raw_vc
+            .resolved_is_type(<K as VcValueType>::get_value_type_id())
+            .then_some(ResolvedVc {
+                node: Vc {
+                    node: raw_vc,
+                    _t: PhantomData,
+                },
+            })
     }
 }
 

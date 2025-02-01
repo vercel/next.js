@@ -17,7 +17,7 @@ import type { NextError } from '../../lib/is-error'
 import {
   TelemetryPlugin,
   type TelemetryPluginState,
-} from '../webpack/plugins/telemetry-plugin'
+} from '../webpack/plugins/telemetry-plugin/telemetry-plugin'
 import {
   NextBuildContext,
   resumePluginState,
@@ -353,6 +353,7 @@ export async function webpackBuildImpl(
         usages: telemetryPlugin?.usages() || [],
         packagesUsedInServerSideProps:
           telemetryPlugin?.packagesUsedInServerSideProps() || [],
+        useCacheTracker: telemetryPlugin?.getUseCacheTracker() || {},
       },
     }
   }

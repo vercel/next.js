@@ -287,7 +287,7 @@ export const dynamicParams = false
 
 ```jsx filename="app/blog/[slug]/page.js" switcher
 export default async function Page({ params }) {
-  const slug = params.slug
+  const slug = (await params).slug
   const { default: Post } = await import(`@/content/${slug}.mdx`)
 
   return <Post />

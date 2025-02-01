@@ -9,6 +9,7 @@ use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
+    module_graph::ModuleGraph,
     reference::ModuleReference,
     resolve::{origin::ResolveOrigin, parse::Request, ModuleResolveResult},
 };
@@ -135,11 +136,13 @@ impl CodeGenerateable for CjsRequireAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             *self.request,
             *self.origin,
+            module_graph,
             Vc::upcast(chunking_context),
             cjs_resolve(
                 *self.origin,
@@ -242,11 +245,13 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let pm = PatternMapping::resolve_request(
             *self.request,
             *self.origin,
+            module_graph,
             Vc::upcast(chunking_context),
             cjs_resolve(
                 *self.origin,
@@ -303,7 +308,8 @@ impl CodeGenerateable for CjsRequireCacheAccess {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _context: Vc<Box<dyn ChunkingContext>>,
+        _module_graph: Vc<ModuleGraph>,
+        _chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
 

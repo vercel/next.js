@@ -32,7 +32,7 @@ pub fn js_value_to_pattern(value: &JsValue) -> Pattern {
             ConstantValue::Null => "null".into(),
             ConstantValue::Num(ConstantNumber(n)) => n.to_string().into(),
             ConstantValue::BigInt(n) => n.to_string().into(),
-            ConstantValue::Regex(exp, flags) => format!("/{exp}/{flags}").into(),
+            ConstantValue::Regex(box (exp, flags)) => format!("/{exp}/{flags}").into(),
             ConstantValue::Undefined => "undefined".into(),
         }),
         JsValue::Url(v, JsValueUrlKind::Relative) => Pattern::Constant(v.as_str().into()),
@@ -76,6 +76,23 @@ pub fn module_id_to_lit(module_id: &ModuleId) -> Expr {
             raw: None,
         }),
     })
+}
+
+pub struct StringifyModuleId<'a>(pub &'a ModuleId);
+
+impl std::fmt::Display for StringifyModuleId<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            ModuleId::Number(n) => {
+                if *n <= JS_MAX_SAFE_INTEGER {
+                    n.fmt(f)
+                } else {
+                    write!(f, "\"{n}\"")
+                }
+            }
+            ModuleId::String(s) => StringifyJs(s).fmt(f),
+        }
+    }
 }
 
 pub struct StringifyJs<'a, T>(pub &'a T)

@@ -23,6 +23,10 @@ import type { RequestData } from '../../server/web/types'
 import type { BuildManifest } from '../../server/get-page-files'
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { PAGE_TYPES } from '../../lib/page-types'
+import {
+  cacheHandlerGlobal,
+  cacheHandlersSymbol,
+} from '../../server/use-cache/constants'
 
 // injected by the loader afterwards.
 declare const pagesType: PAGE_TYPES
@@ -42,8 +46,14 @@ declare const user500RouteModuleOptions: any
 
 const cacheHandlers = {}
 
-if (!(globalThis as any).__nextCacheHandlers) {
-  ;(globalThis as any).__nextCacheHandlers = cacheHandlers
+if (!cacheHandlerGlobal.__nextCacheHandlers) {
+  cacheHandlerGlobal.__nextCacheHandlers = cacheHandlers
+
+  if (!cacheHandlerGlobal.__nextCacheHandlers.default) {
+    cacheHandlerGlobal.__nextCacheHandlers.default =
+      cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
+      cacheHandlerGlobal.__nextCacheHandlers.__nextDefault
+  }
 }
 
 const pageMod = {

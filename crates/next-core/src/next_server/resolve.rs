@@ -1,7 +1,7 @@
 use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
-use turbo_tasks::{trace::TraceRawVcs, ResolvedVc, Value, Vc};
+use turbo_tasks::{trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{self, glob::Glob, FileJsonContent, FileSystemPath};
 use turbopack_core::{
     issue::{Issue, IssueExt, IssueSeverity, IssueStage, OptionStyledString, StyledString},
@@ -275,8 +275,6 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
             ]);
         };
 
-        let result = result.resolve().await?;
-        let result_from_original_location = result_from_original_location.resolve().await?;
         if result_from_original_location != result {
             let package_json_file = find_context_file(
                 result.ident().path().parent().resolve().await?,
@@ -428,14 +426,13 @@ impl AfterResolvePlugin for ExternalCjsModulesResolvePlugin {
     }
 }
 
-#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug)]
+#[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, Debug, NonLocalValue)]
 pub struct PackagesGlobs {
-    path_glob: Vc<Glob>,
-    request_glob: Vc<Glob>,
+    path_glob: ResolvedVc<Glob>,
+    request_glob: ResolvedVc<Glob>,
 }
 
-// TODO move that to turbo
-#[turbo_tasks::value(transparent, local)]
+#[turbo_tasks::value(transparent)]
 pub struct OptionPackagesGlobs(Option<PackagesGlobs>);
 
 #[turbo_tasks::function]
@@ -448,8 +445,8 @@ async fn packages_glob(packages: Vc<Vec<RcStr>>) -> Result<Vc<OptionPackagesGlob
     let request_glob =
         Glob::new(format!("{{{},{}/**}}", packages.join(","), packages.join("/**,")).into());
     Ok(Vc::cell(Some(PackagesGlobs {
-        path_glob: path_glob.resolve().await?,
-        request_glob: request_glob.resolve().await?,
+        path_glob: path_glob.to_resolved().await?,
+        request_glob: request_glob.to_resolved().await?,
     })))
 }
 

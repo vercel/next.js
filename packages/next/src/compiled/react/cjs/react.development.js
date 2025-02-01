@@ -956,6 +956,7 @@
         A: null,
         T: null,
         S: null,
+        V: null,
         actQueue: null,
         isBatchingLegacy: !1,
         didScheduleLegacyUpdate: !1,
@@ -1029,6 +1030,12 @@
               });
             }
           : enqueueTask;
+    deprecatedAPIs = Object.freeze({
+      __proto__: null,
+      c: function (size) {
+        return resolveDispatcher().useMemoCache(size);
+      }
+    });
     exports.Children = {
       map: mapChildren,
       forEach: function (children, forEachFunc, forEachContext) {
@@ -1070,11 +1077,7 @@
     exports.Suspense = REACT_SUSPENSE_TYPE;
     exports.__CLIENT_INTERNALS_DO_NOT_USE_OR_WARN_USERS_THEY_CANNOT_UPGRADE =
       ReactSharedInternals;
-    exports.__COMPILER_RUNTIME = {
-      c: function (size) {
-        return resolveDispatcher().useMemoCache(size);
-      }
-    };
+    exports.__COMPILER_RUNTIME = deprecatedAPIs;
     exports.act = function (callback) {
       var prevActQueue = ReactSharedInternals.actQueue,
         prevActScopeDepth = actScopeDepth;
@@ -1518,7 +1521,7 @@
     exports.useTransition = function () {
       return resolveDispatcher().useTransition();
     };
-    exports.version = "19.1.0-canary-518d06d2-20241219";
+    exports.version = "19.1.0-canary-37906d4d-20250127";
     "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
       "function" ===
         typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&

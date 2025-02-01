@@ -66,6 +66,8 @@
           return "Suspense";
         case REACT_SUSPENSE_LIST_TYPE:
           return "SuspenseList";
+        case REACT_VIEW_TRANSITION_TYPE:
+          return "ViewTransition";
       }
       if ("object" === typeof type)
         switch (
@@ -499,6 +501,7 @@
       REACT_LAZY_TYPE = Symbol.for("react.lazy"),
       REACT_OFFSCREEN_TYPE = Symbol.for("react.offscreen"),
       REACT_POSTPONE_TYPE = Symbol.for("react.postpone"),
+      REACT_VIEW_TRANSITION_TYPE = Symbol.for("react.view_transition"),
       MAYBE_ITERATOR_SYMBOL = Symbol.iterator,
       REACT_CLIENT_REFERENCE$1 = Symbol.for("react.client.reference"),
       hasOwnProperty = Object.prototype.hasOwnProperty,
@@ -885,6 +888,7 @@
         type === REACT_SUSPENSE_TYPE ||
         type === REACT_SUSPENSE_LIST_TYPE ||
         type === REACT_OFFSCREEN_TYPE ||
+        type === REACT_VIEW_TRANSITION_TYPE ||
         ("object" === typeof type &&
           null !== type &&
           (type.$$typeof === REACT_LAZY_TYPE ||
@@ -948,7 +952,8 @@
           (ReactSharedInternals.T = prevTransition);
       }
     };
-    exports.unstable_SuspenseList = REACT_SUSPENSE_TYPE;
+    exports.unstable_SuspenseList = REACT_SUSPENSE_LIST_TYPE;
+    exports.unstable_ViewTransition = REACT_VIEW_TRANSITION_TYPE;
     exports.unstable_getCacheForType = function (resourceType) {
       var dispatcher = ReactSharedInternals.A;
       return dispatcher
@@ -982,5 +987,5 @@
     exports.useMemo = function (create, deps) {
       return resolveDispatcher().useMemo(create, deps);
     };
-    exports.version = "19.1.0-experimental-518d06d2-20241219";
+    exports.version = "19.1.0-experimental-37906d4d-20250127";
   })();

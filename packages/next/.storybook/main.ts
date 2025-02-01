@@ -17,10 +17,9 @@ const config: StorybookConfig = {
   ],
   addons: [
     getAbsolutePath('@storybook/addon-webpack5-compiler-swc'),
-    getAbsolutePath('@storybook/addon-onboarding'),
     getAbsolutePath('@storybook/addon-essentials'),
-    getAbsolutePath('@chromatic-com/storybook'),
     getAbsolutePath('@storybook/addon-interactions'),
+    getAbsolutePath('@storybook/addon-a11y'),
   ],
   framework: {
     name: getAbsolutePath('@storybook/react-webpack5'),

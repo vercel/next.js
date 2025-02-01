@@ -1661,13 +1661,13 @@
       "ReactRefreshRequire app provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire app provides fresh value for exports.* in parents",
       "ReactRefreshRequire app provides fresh value for module.exports in parents",
-      "ReactRefreshRequire app re-runs accepted modules",
       "ReactRefreshRequire app runs dependencies before dependents",
       "ReactRefreshRequire app stops update propagation after module-level errors"
     ],
     "failed": [],
     "pending": [
-      "ReactRefreshRequire app propagates a module that stops accepting in next version"
+      "ReactRefreshRequire app propagates a module that stops accepting in next version",
+      "ReactRefreshRequire app re-runs accepted modules"
     ],
     "flakey": [],
     "runtimeError": false
@@ -2018,20 +2018,21 @@
       "ReactRefreshRequire can continue hot updates after module-level errors with module.exports",
       "ReactRefreshRequire can replace a module before it is loaded",
       "ReactRefreshRequire does not accumulate stale exports over time",
-      "ReactRefreshRequire propagates a hot update to closest accepted module",
       "ReactRefreshRequire propagates a module that stops accepting in next version",
       "ReactRefreshRequire propagates hot update to all inverse dependencies",
       "ReactRefreshRequire provides fresh value for ES6 default import in parents",
       "ReactRefreshRequire provides fresh value for ES6 named import in parents",
       "ReactRefreshRequire provides fresh value for exports.* in parents",
       "ReactRefreshRequire provides fresh value for module.exports in parents",
-      "ReactRefreshRequire re-runs accepted modules",
       "ReactRefreshRequire runs dependencies before dependents",
       "ReactRefreshRequire stops update propagation after module-level errors"
     ],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": [
+      "ReactRefreshRequire propagates a hot update to closest accepted module",
+      "ReactRefreshRequire re-runs accepted modules"
+    ],
     "runtimeError": false
   },
   "test/development/acceptance/error-recovery.test.ts": {
@@ -3769,10 +3770,10 @@
     "runtimeError": false
   },
   "test/e2e/app-dir/app-compilation/index.test.ts": {
-    "passed": ["app dir HMR should not cause error when removing loading.js"],
+    "passed": [],
     "failed": [],
     "pending": [],
-    "flakey": [],
+    "flakey": ["app dir HMR should not cause error when removing loading.js"],
     "runtimeError": false
   },
   "test/e2e/app-dir/app-config-crossorigin/index.test.ts": {
@@ -8227,10 +8228,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-without-dynamic-io/use-cache-without-dynamic-io.test.ts": {
+  "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
     "passed": [
-      "use-cache-without-dynamic-io should recover from the build error if dynamicIO flag is set",
-      "use-cache-without-dynamic-io should show a build error"
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
     "failed": [],
     "pending": [],
@@ -10504,11 +10505,11 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
+  "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
     "passed": [],
     "failed": [],
     "pending": [
-      "yarn PnP should compile and serve the index page correctly with-mdx"
+      "yarn PnP should compile and serve the index page correctly mdx-pages"
     ],
     "flakey": [],
     "runtimeError": false
@@ -18640,6 +18641,9 @@
       "Required Server Files production mode should render dynamic SSR page correctly",
       "Required Server Files production mode should render dynamic SSR page correctly with x-matched-path",
       "Required Server Files production mode should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
       "Required Server Files production mode should render fallback page correctly",
       "Required Server Files production mode should render fallback page correctly with x-matched-path and routes-matches",
       "Required Server Files production mode should return data correctly with x-matched-path",

@@ -1,5 +1,6 @@
 use std::{cell::RefCell, path::PathBuf, rc::Rc, sync::Arc};
 
+use dashmap::DashMap;
 use either::Either;
 use fxhash::FxHashSet;
 use modularize_imports;
@@ -12,9 +13,9 @@ use swc_core::{
         FileName, Mark, SourceFile, SourceMap, SyntaxContext,
     },
     ecma::{
-        ast::{noop_pass, EsVersion, Pass},
+        ast::{fn_pass, noop_pass, EsVersion, Pass},
         parser::parse_file_as_module,
-        visit::{fold_pass, visit_mut_pass},
+        visit::visit_mut_pass,
     },
 };
 
@@ -125,10 +126,13 @@ pub fn custom_before_pass<'a, C>(
     comments: C,
     eliminated_packages: Rc<RefCell<FxHashSet<String>>>,
     unresolved_mark: Mark,
+    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
 ) -> impl Pass + 'a
 where
     C: Clone + Comments + 'a,
 {
+    let file_path_str = file.name.to_string();
+
     #[cfg(target_arch = "wasm32")]
     let relay_plugin = noop_pass();
 
@@ -147,13 +151,6 @@ where
         }
     };
 
-    let modularize_imports_config = match &opts.modularize_imports {
-        Some(config) => config.clone(),
-        None => modularize_imports::Config {
-            packages: std::collections::HashMap::new(),
-        },
-    };
-
     let target_browsers = opts
         .swc
         .config
@@ -162,19 +159,68 @@ where
         .map(|env| targets_to_versions(env.targets.clone()).expect("failed to parse env.targets"))
         .unwrap_or_default();
 
-    let styled_jsx = if let Some(config) = opts.styled_jsx.to_option() {
-        Either::Left(styled_jsx::visitor::styled_jsx(
-            cm.clone(),
-            (*file.name).clone(),
-            styled_jsx::visitor::Config {
-                use_lightningcss: config.use_lightningcss,
-                browsers: target_browsers,
-            },
-            styled_jsx::visitor::NativeConfig { process_css: None },
-        ))
-    } else {
-        Either::Right(noop_pass())
+    let styled_jsx = {
+        let cm = cm.clone();
+        let file = file.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.styled_jsx.to_option() {
+                program.mutate(styled_jsx::visitor::styled_jsx(
+                    cm.clone(),
+                    &file.name,
+                    &styled_jsx::visitor::Config {
+                        use_lightningcss: config.use_lightningcss,
+                        browsers: *target_browsers,
+                    },
+                    &styled_jsx::visitor::NativeConfig { process_css: None },
+                ))
+            }
+        })
     };
+
+    let styled_components = {
+        let file = file.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = &opts.styled_components {
+                program.mutate(styled_components::styled_components(
+                    Some(&file_path_str),
+                    file.src_hash,
+                    config,
+                    NoopComments,
+                ))
+            }
+        })
+    };
+
+    let emotion = {
+        let cm = cm.clone();
+        let file = file.clone();
+        let comments = comments.clone();
+
+        fn_pass(move |program| {
+            if let Some(config) = opts.emotion.as_ref() {
+                if !config.enabled.unwrap_or(false) {
+                    return;
+                }
+                if let FileName::Real(path) = &*file.name {
+                    program.mutate(swc_emotion::emotion(
+                        config,
+                        path,
+                        file.src_hash as u32,
+                        cm.clone(),
+                        comments.clone(),
+                    ));
+                }
+            }
+        })
+    };
+
+    let modularize_imports = fn_pass(move |program| {
+        if let Some(config) = opts.modularize_imports.as_ref() {
+            program.mutate(modularize_imports::modularize_imports(config));
+        }
+    });
 
     (
         (
@@ -193,15 +239,7 @@ where
                 _ => Either::Right(noop_pass()),
             },
             styled_jsx,
-            match &opts.styled_components {
-                Some(config) => Either::Left(styled_components::styled_components(
-                    file.name.clone(),
-                    file.src_hash,
-                    config.clone(),
-                    NoopComments,
-                )),
-                None => Either::Right(noop_pass()),
-            },
+            styled_components,
             Optional::new(
                 crate::transforms::next_ssg::next_ssg(eliminated_packages),
                 !opts.disable_next_ssg,
@@ -272,28 +310,8 @@ where
                 ),
                 _ => Either::Right(noop_pass()),
             },
-            opts.emotion
-                .as_ref()
-                .and_then(|config| {
-                    if !config.enabled.unwrap_or(false) {
-                        return None;
-                    }
-                    if let FileName::Real(path) = &*file.name {
-                        path.to_str().map(|_| {
-                            Either::Left(fold_pass(swc_emotion::EmotionTransformer::new(
-                                config.clone(),
-                                path,
-                                file.src_hash as u32,
-                                cm,
-                                comments.clone(),
-                            )))
-                        })
-                    } else {
-                        None
-                    }
-                })
-                .unwrap_or_else(|| Either::Right(noop_pass())),
-            modularize_imports::modularize_imports(modularize_imports_config),
+            emotion,
+            modularize_imports,
             match &opts.font_loaders {
                 Some(config) => Either::Left(next_font_loaders(config.clone())),
                 None => Either::Right(noop_pass()),
@@ -303,6 +321,7 @@ where
                     &file.name,
                     config.clone(),
                     comments.clone(),
+                    use_cache_telemetry_tracker,
                 )),
                 None => Either::Right(noop_pass()),
             },

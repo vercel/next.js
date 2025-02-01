@@ -1,8 +1,10 @@
 use turbo_tasks::{backend::CellContent, CellId, TaskId};
 
+#[cfg(feature = "trace_task_dirty")]
+use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
-        operation::{invalidate::TaskDirtyCause, ExecuteContext, InvalidateOperation, TaskGuard},
+        operation::{ExecuteContext, InvalidateOperation, TaskGuard},
         storage::{get_many, remove},
         TaskDataCategory,
     },
@@ -41,8 +43,8 @@ impl UpdateCellOperation {
         let dependent = get_many!(
             task,
             CellDependent { cell: dependent_cell, task }
-            if *dependent_cell == cell
-            => *task
+            if dependent_cell == cell
+            => task
         );
 
         drop(task);
@@ -50,6 +52,7 @@ impl UpdateCellOperation {
 
         InvalidateOperation::run(
             dependent,
+            #[cfg(feature = "trace_task_dirty")]
             TaskDirtyCause::CellChange {
                 value_type: cell.type_id,
             },

@@ -1,11 +1,15 @@
+use anyhow::Result;
 use serde::{Deserialize, Serialize};
 use swc_core::ecma::{
     ast::Stmt,
     visit::{AstParentKind, VisitMut},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, ResolvedVc, Vc};
-use turbopack_core::chunk::{AsyncModuleInfo, ChunkingContext};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
+use turbopack_core::{
+    chunk::{AsyncModuleInfo, ChunkingContext},
+    module_graph::ModuleGraph,
+};
 
 /// impl of code generation inferred from a ModuleReference.
 /// This is rust only and can't be implemented by non-rust plugins.
@@ -89,10 +93,11 @@ pub trait VisitorFactory: Send + Sync {
     fn create<'a>(&'a self) -> Box<dyn VisitMut + Send + Sync + 'a>;
 }
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait CodeGenerateable {
     fn code_generation(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Vc<CodeGeneration>;
 }
@@ -101,18 +106,37 @@ pub trait CodeGenerateable {
 pub trait CodeGenerateableWithAsyncModuleInfo {
     fn code_generation(
         self: Vc<Self>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Vc<CodeGeneration>;
 }
 
-#[derive(Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat)]
-pub enum CodeGen {
+pub enum UnresolvedCodeGen {
     CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
+    CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
+}
+
+impl UnresolvedCodeGen {
+    pub async fn to_resolved(&self) -> Result<CodeGen> {
+        Ok(match self {
+            Self::CodeGenerateable(vc) => CodeGen::CodeGenerateable(vc.to_resolved().await?),
+            Self::CodeGenerateableWithAsyncModuleInfo(vc) => {
+                CodeGen::CodeGenerateableWithAsyncModuleInfo(vc.to_resolved().await?)
+            }
+        })
+    }
+}
+
+#[derive(
+    Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
+)]
+pub enum CodeGen {
+    CodeGenerateable(ResolvedVc<Box<dyn CodeGenerateable>>),
     CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
 }
 
-#[turbo_tasks::value(transparent, local)]
+#[turbo_tasks::value(transparent)]
 pub struct CodeGenerateables(Vec<CodeGen>);
 
 pub fn path_to(

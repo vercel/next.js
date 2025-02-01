@@ -10,6 +10,7 @@ use turbopack_core::{
     chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
 };
 
@@ -131,6 +132,13 @@ impl Module for CachedExternalModule {
     async fn references(&self) -> Result<Vc<ModuleReferences>> {
         Ok(Vc::cell(self.additional_references.clone()))
     }
+
+    #[turbo_tasks::function]
+    async fn is_self_async(&self) -> Result<Vc<bool>> {
+        Ok(Vc::cell(
+            self.external_type == CachedExternalType::EcmaScriptViaImport,
+        ))
+    }
 }
 
 #[turbo_tasks::value_impl]
@@ -147,6 +155,7 @@ impl ChunkableModule for CachedExternalModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(
@@ -229,13 +238,6 @@ impl ChunkItem for CachedExternalModuleChunkItem {
     fn chunking_context(&self) -> Vc<Box<dyn ChunkingContext>> {
         *self.chunking_context
     }
-
-    #[turbo_tasks::function]
-    async fn is_self_async(&self) -> Result<Vc<bool>> {
-        Ok(Vc::cell(
-            self.module.await?.external_type == CachedExternalType::EcmaScriptViaImport,
-        ))
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -273,7 +275,7 @@ impl EcmascriptChunkItem for CachedExternalModuleChunkItem {
 ///
 /// It is used to include a module's ident in the module graph before the module
 /// itself is resolved, as is the case with NextServerComponentModule's
-/// "client modules" and "client modules ssr".
+/// "client modules" and "ssr modules".
 #[turbo_tasks::value]
 pub struct IncludeIdentModule {
     ident: ResolvedVc<AssetIdent>,

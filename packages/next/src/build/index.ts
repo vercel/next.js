@@ -18,7 +18,6 @@ import { defaultConfig } from '../server/config-shared'
 import devalue from 'next/dist/compiled/devalue'
 import findUp from 'next/dist/compiled/find-up'
 import { nanoid } from 'next/dist/compiled/nanoid/index.cjs'
-import { Sema } from 'next/dist/compiled/async-sema'
 import path from 'path'
 import {
   STATIC_STATUS_PAGE_GET_INITIAL_PROPS_ERROR,
@@ -50,7 +49,6 @@ import type {
 import { nonNullable } from '../lib/non-nullable'
 import { recursiveDelete } from '../lib/recursive-delete'
 import { verifyPartytownSetup } from '../lib/verify-partytown-setup'
-import { validateTurboNextConfig } from '../lib/turbopack-warning'
 import {
   BUILD_ID_FILE,
   BUILD_MANIFEST,
@@ -80,6 +78,7 @@ import {
   UNDERSCORE_NOT_FOUND_ROUTE_ENTRY,
   UNDERSCORE_NOT_FOUND_ROUTE,
   DYNAMIC_CSS_MANIFEST,
+  RESPONSE_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import {
   getSortedRoutes,
@@ -143,13 +142,7 @@ import type { NextError } from '../lib/is-error'
 import { isEdgeRuntime } from '../lib/is-edge-runtime'
 import { recursiveCopy } from '../lib/recursive-copy'
 import { recursiveReadDir } from '../lib/recursive-readdir'
-import {
-  loadBindings,
-  lockfilePatchPromise,
-  teardownTraceSubscriber,
-  teardownHeapProfiler,
-  createDefineEnv,
-} from './swc'
+import { lockfilePatchPromise, teardownTraceSubscriber } from './swc'
 import { getNamedRouteRegex } from '../shared/lib/router/utils/route-regex'
 import { getFilesInDir } from '../lib/get-files-in-dir'
 import { eventSwcPlugins } from '../telemetry/events/swc-plugins'
@@ -162,6 +155,8 @@ import {
   NEXT_ROUTER_STATE_TREE_HEADER,
   NEXT_DID_POSTPONE_HEADER,
   NEXT_ROUTER_SEGMENT_PREFETCH_HEADER,
+  NEXT_REWRITTEN_PATH_HEADER,
+  NEXT_REWRITTEN_QUERY_HEADER,
 } from '../client/components/app-router-headers'
 import { webpackBuild } from './webpack-build'
 import { NextBuildContext, type MappedPages } from './build-context'
@@ -184,20 +179,7 @@ import {
 import { getStartServerInfo, logStartInfo } from '../server/lib/app-info-log'
 import type { NextEnabledDirectories } from '../server/base-server'
 import { hasCustomExportOutput } from '../export/utils'
-import {
-  getTurbopackJsConfig,
-  handleEntrypoints,
-  type EntryIssuesMap,
-  handleRouteType,
-  handlePagesErrorRoute,
-  formatIssue,
-  isRelevantWarning,
-  isPersistentCachingEnabled,
-} from '../server/dev/turbopack-utils'
-import { TurbopackManifestLoader } from '../server/dev/turbopack/manifest-loader'
-import type { Entrypoints } from '../server/dev/turbopack/types'
 import { buildCustomRoute } from '../lib/build-custom-route'
-import { createProgress } from './progress'
 import { traceMemoryUsage } from '../lib/memory/trace'
 import { generateEncryptionKeyBase64 } from '../server/app-render/encryption-utils-server'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
@@ -214,6 +196,10 @@ import {
   getParsedNodeOptionsWithoutInspect,
 } from '../server/lib/utils'
 import { InvariantError } from '../shared/lib/invariant-error'
+import { HTML_LIMITED_BOT_UA_RE_STRING } from '../shared/lib/router/utils/is-bot'
+import type { UseCacheTrackerKey } from './webpack/plugins/telemetry-plugin/use-cache-tracker-utils'
+
+import { turbopackBuild } from './turbopack-build'
 
 type Fallback = null | boolean | string
 
@@ -402,6 +388,10 @@ export type RoutesManifest = {
     suffix: typeof RSC_SUFFIX
     prefetchSuffix: typeof RSC_PREFETCH_SUFFIX
   }
+  rewriteHeaders: {
+    pathHeader: typeof NEXT_REWRITTEN_PATH_HEADER
+    queryHeader: typeof NEXT_REWRITTEN_QUERY_HEADER
+  }
   skipMiddlewareUrlNormalize?: boolean
   caseSensitive?: boolean
   /**
@@ -422,7 +412,9 @@ export type RoutesManifest = {
 }
 
 function pageToRoute(page: string) {
-  const routeRegex = getNamedRouteRegex(page, true)
+  const routeRegex = getNamedRouteRegex(page, {
+    prefixRouteKeys: true,
+  })
   return {
     page,
     regex: normalizeRouteRegex(routeRegex.re.source),
@@ -765,8 +757,6 @@ async function getBuildId(
     .traceAsyncFn(() => generateBuildId(config.generateBuildId, nanoid))
 }
 
-const IS_TURBOPACK_BUILD = process.env.TURBOPACK && process.env.TURBOPACK_BUILD
-
 export default async function build(
   dir: string,
   reactProductionProfiling = false,
@@ -827,6 +817,7 @@ export default async function build(
         config.distDir = '.next'
       }
       const distDir = path.join(dir, config.distDir)
+      NextBuildContext.distDir = distDir
       setGlobal('phase', PHASE_PRODUCTION_BUILD)
       setGlobal('distDir', distDir)
 
@@ -849,7 +840,7 @@ export default async function build(
         ...rewrites.fallback,
       ]
       const hasRewrites = combinedRewrites.length > 0
-
+      NextBuildContext.hasRewrites = hasRewrites
       NextBuildContext.originalRewrites = config._originalRewrites
       NextBuildContext.originalRedirects = config._originalRedirects
 
@@ -904,12 +895,15 @@ export default async function build(
       )
 
       // Always log next version first then start rest jobs
-      const { envInfo, expFeatureInfo } = await getStartServerInfo(dir, false)
+      const { envInfo, experimentalFeatures } = await getStartServerInfo(
+        dir,
+        false
+      )
       logStartInfo({
         networkUrl: null,
         appUrl: null,
         envInfo,
-        expFeatureInfo,
+        experimentalFeatures,
       })
 
       const ignoreESLint = Boolean(config.eslint.ignoreDuringBuilds)
@@ -1130,7 +1124,7 @@ export default async function build(
       }
 
       // Turbopack already handles conflicting app and page routes.
-      if (!IS_TURBOPACK_BUILD) {
+      if (!turboNextBuild) {
         const numConflictingAppPaths = conflictingAppPagePaths.length
         if (mappedAppPages && numConflictingAppPaths > 0) {
           Log.error(
@@ -1256,6 +1250,10 @@ export default async function build(
               suffix: RSC_SUFFIX,
               prefetchSuffix: RSC_PREFETCH_SUFFIX,
             },
+            rewriteHeaders: {
+              pathHeader: NEXT_REWRITTEN_PATH_HEADER,
+              queryHeader: NEXT_REWRITTEN_QUERY_HEADER,
+            },
             skipMiddlewareUrlNormalize: config.skipMiddlewareUrlNormalize,
             ppr: isAppPPREnabled
               ? {
@@ -1304,6 +1302,24 @@ export default async function build(
         NextBuildContext.clientRouterFilters = clientRouterFilters
       }
 
+      if (config.experimental.streamingMetadata) {
+        // Write html limited bots config to response-config-manifest
+        const responseConfigManifestPath = path.join(
+          distDir,
+          RESPONSE_CONFIG_MANIFEST
+        )
+        const responseConfigManifest: {
+          version: number
+          htmlLimitedBots: string
+        } = {
+          version: 0,
+          htmlLimitedBots:
+            config.experimental.htmlLimitedBots ||
+            HTML_LIMITED_BOT_UA_RE_STRING,
+        }
+        await writeManifest(responseConfigManifestPath, responseConfigManifest)
+      }
+
       // Ensure commonjs handling is used for files in the distDir (generally .next)
       // Files outside of the distDir can be "type": "module"
       await writeFileUtf8(
@@ -1324,284 +1340,6 @@ export default async function build(
         SERVER_DIRECTORY,
         PAGES_MANIFEST
       )
-
-      async function turbopackBuild(): Promise<{
-        duration: number
-        buildTraceContext: undefined
-        shutdownPromise: Promise<void>
-      }> {
-        if (!IS_TURBOPACK_BUILD) {
-          throw new Error("next build doesn't support turbopack yet")
-        }
-
-        await validateTurboNextConfig({
-          dir,
-          isDev: false,
-        })
-
-        const startTime = process.hrtime()
-        const bindings = await loadBindings(config?.experimental?.useWasmBinary)
-        const dev = false
-
-        // const supportedBrowsers = await getSupportedBrowsers(dir, dev)
-        const supportedBrowsers = [
-          'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
-        ]
-
-        const project = await bindings.turbo.createProject(
-          {
-            projectPath: dir,
-            rootPath:
-              config.experimental?.turbo?.root ||
-              config.outputFileTracingRoot ||
-              dir,
-            distDir,
-            nextConfig: config,
-            jsConfig: await getTurbopackJsConfig(dir, config),
-            watch: {
-              enable: false,
-            },
-            dev,
-            env: process.env as Record<string, string>,
-            defineEnv: createDefineEnv({
-              isTurbopack: true,
-              clientRouterFilters,
-              config,
-              dev,
-              distDir,
-              fetchCacheKeyPrefix: config.experimental.fetchCacheKeyPrefix,
-              hasRewrites,
-              // Implemented separately in Turbopack, doesn't have to be passed here.
-              middlewareMatchers: undefined,
-            }),
-            buildId: NextBuildContext.buildId!,
-            encryptionKey: NextBuildContext.encryptionKey!,
-            previewProps: NextBuildContext.previewProps!,
-            browserslistQuery: supportedBrowsers.join(', '),
-          },
-          {
-            persistentCaching: isPersistentCachingEnabled(config),
-            memoryLimit: config.experimental.turbo?.memoryLimit,
-          }
-        )
-
-        await fs.mkdir(path.join(distDir, 'server'), { recursive: true })
-        await fs.mkdir(path.join(distDir, 'static', buildId), {
-          recursive: true,
-        })
-        await fs.writeFile(
-          path.join(distDir, 'package.json'),
-          JSON.stringify(
-            {
-              type: 'commonjs',
-            },
-            null,
-            2
-          )
-        )
-
-        // eslint-disable-next-line @typescript-eslint/no-unused-vars
-        const entrypointsSubscription = project.entrypointsSubscribe()
-        const currentEntrypoints: Entrypoints = {
-          global: {
-            app: undefined,
-            document: undefined,
-            error: undefined,
-
-            middleware: undefined,
-            instrumentation: undefined,
-          },
-
-          app: new Map(),
-          page: new Map(),
-        }
-
-        const currentEntryIssues: EntryIssuesMap = new Map()
-
-        const manifestLoader = new TurbopackManifestLoader({
-          buildId,
-          distDir,
-          encryptionKey,
-        })
-
-        const entrypointsResult = await entrypointsSubscription.next()
-        if (entrypointsResult.done) {
-          throw new Error('Turbopack did not return any entrypoints')
-        }
-        entrypointsSubscription.return?.().catch(() => {})
-
-        const entrypoints = entrypointsResult.value
-
-        const topLevelErrors: {
-          message: string
-        }[] = []
-        for (const issue of entrypoints.issues) {
-          topLevelErrors.push({
-            message: formatIssue(issue),
-          })
-        }
-
-        if (topLevelErrors.length > 0) {
-          throw new Error(
-            `Turbopack build failed with ${
-              topLevelErrors.length
-            } issues:\n${topLevelErrors.map((e) => e.message).join('\n')}`
-          )
-        }
-
-        await handleEntrypoints({
-          entrypoints,
-          currentEntrypoints,
-          currentEntryIssues,
-          manifestLoader,
-          devRewrites: undefined,
-          productionRewrites: customRoutes.rewrites,
-          logErrors: false,
-        })
-
-        const progress = createProgress(
-          currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
-          'Building'
-        )
-        const promises: Promise<any>[] = []
-
-        // Concurrency will start at INITIAL_CONCURRENCY and
-        // slowly ramp up to CONCURRENCY by increasing the
-        // concurrency by 1 every time a task is completed.
-        const INITIAL_CONCURRENCY = 5
-        const CONCURRENCY = 10
-
-        const sema = new Sema(INITIAL_CONCURRENCY)
-        let remainingRampup = CONCURRENCY - INITIAL_CONCURRENCY
-        const enqueue = (fn: () => Promise<void>) => {
-          promises.push(
-            (async () => {
-              await sema.acquire()
-              try {
-                await fn()
-              } finally {
-                sema.release()
-                if (remainingRampup > 0) {
-                  remainingRampup--
-                  sema.release()
-                }
-                progress.run()
-              }
-            })()
-          )
-        }
-
-        if (!appDirOnly) {
-          for (const [page, route] of currentEntrypoints.page) {
-            enqueue(() =>
-              handleRouteType({
-                dev,
-                page,
-                pathname: page,
-                route,
-
-                currentEntryIssues,
-                entrypoints: currentEntrypoints,
-                manifestLoader,
-                devRewrites: undefined,
-                productionRewrites: customRoutes.rewrites,
-                logErrors: false,
-              })
-            )
-          }
-        }
-
-        for (const [page, route] of currentEntrypoints.app) {
-          enqueue(() =>
-            handleRouteType({
-              page,
-              dev: false,
-              pathname: normalizeAppPath(page),
-              route,
-              currentEntryIssues,
-              entrypoints: currentEntrypoints,
-              manifestLoader,
-              devRewrites: undefined,
-              productionRewrites: customRoutes.rewrites,
-              logErrors: false,
-            })
-          )
-        }
-
-        enqueue(() =>
-          handlePagesErrorRoute({
-            dev: false,
-            currentEntryIssues,
-            entrypoints: currentEntrypoints,
-            manifestLoader,
-            devRewrites: undefined,
-            productionRewrites: customRoutes.rewrites,
-            logErrors: false,
-          })
-        )
-        await Promise.all(promises)
-
-        await manifestLoader.writeManifests({
-          devRewrites: undefined,
-          productionRewrites: customRoutes.rewrites,
-          entrypoints: currentEntrypoints,
-        })
-
-        const errors: {
-          page: string
-          message: string
-        }[] = []
-        const warnings: {
-          page: string
-          message: string
-        }[] = []
-        for (const [page, entryIssues] of currentEntryIssues) {
-          for (const issue of entryIssues.values()) {
-            if (issue.severity !== 'warning') {
-              errors.push({
-                page,
-                message: formatIssue(issue),
-              })
-            } else {
-              if (isRelevantWarning(issue)) {
-                warnings.push({
-                  page,
-                  message: formatIssue(issue),
-                })
-              }
-            }
-          }
-        }
-
-        const shutdownPromise = project.shutdown()
-
-        if (warnings.length > 0) {
-          Log.warn(
-            `Turbopack build collected ${warnings.length} warnings:\n${warnings
-              .map((e) => {
-                return 'Page: ' + e.page + '\n' + e.message
-              })
-              .join('\n')}`
-          )
-        }
-
-        if (errors.length > 0) {
-          throw new Error(
-            `Turbopack build failed with ${errors.length} errors:\n${errors
-              .map((e) => {
-                return 'Page: ' + e.page + '\n' + e.message
-              })
-              .join('\n')}`
-          )
-        }
-
-        const time = process.hrtime(startTime)
-        return {
-          duration: time[0] + time[1] / 1e9,
-          buildTraceContext: undefined,
-          shutdownPromise,
-        }
-      }
 
       let buildTraceContext: undefined | BuildTraceContext
       let buildTracesPromise: Promise<any> | undefined = undefined
@@ -1651,7 +1389,7 @@ export default async function build(
             duration: compilerDuration,
             shutdownPromise: p,
             ...rest
-          } = await turbopackBuild()
+          } = await turbopackBuild(true)
           shutdownPromise = p
           traceMemoryUsage('Finished build', nextBuildSpan)
 
@@ -2430,7 +2168,11 @@ export default async function build(
           path.join(SERVER_DIRECTORY, `${INSTRUMENTATION_HOOK_FILENAME}.js`)
         )
         // If there's edge routes, append the edge instrumentation hook
-        if (edgeRuntimeAppCount || edgeRuntimePagesCount) {
+        // Turbopack generates this chunk with a hashed name and references it in middleware-manifest.
+        if (
+          !process.env.TURBOPACK &&
+          (edgeRuntimeAppCount || edgeRuntimePagesCount)
+        ) {
           instrumentationHookEntryFiles.push(
             path.join(
               SERVER_DIRECTORY,
@@ -2484,6 +2226,9 @@ export default async function build(
               PRERENDER_MANIFEST,
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
+              ...(config.experimental.streamingMetadata
+                ? [RESPONSE_CONFIG_MANIFEST]
+                : []),
               ...(!process.env.TURBOPACK
                 ? [
                     path.join(
@@ -2638,6 +2383,10 @@ export default async function build(
       }
 
       const features: EventBuildFeatureUsage[] = [
+        {
+          featureName: 'experimental/dynamicIO',
+          invocationCount: config.experimental.dynamicIO ? 1 : 0,
+        },
         {
           featureName: 'experimental/optimizeCss',
           invocationCount: config.experimental.optimizeCss ? 1 : 0,
@@ -3181,7 +2930,9 @@ export default async function build(
                     : undefined,
                   experimentalBypassFor: bypassFor,
                   routeRegex: normalizeRouteRegex(
-                    getNamedRouteRegex(route.pathname, false).re.source
+                    getNamedRouteRegex(route.pathname, {
+                      prefixRouteKeys: false,
+                    }).re.source
                   ),
                   dataRoute,
                   fallback,
@@ -3195,22 +2946,21 @@ export default async function build(
                   dataRouteRegex: !dataRoute
                     ? null
                     : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          dataRoute.replace(/\.rsc$/, ''),
-                          false
-                        ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.rsc$')
+                        getNamedRouteRegex(dataRoute, {
+                          prefixRouteKeys: false,
+                          includeSuffix: true,
+                          excludeOptionalTrailingSlash: true,
+                        }).re.source
                       ),
                   prefetchDataRoute,
                   prefetchDataRouteRegex: !prefetchDataRoute
                     ? undefined
                     : normalizeRouteRegex(
-                        getNamedRouteRegex(
-                          prefetchDataRoute.replace(/\.prefetch\.rsc$/, ''),
-                          false
-                        ).re.source.replace(
-                          /\(\?:\\\/\)\?\$$/,
-                          '\\.prefetch\\.rsc$'
-                        )
+                        getNamedRouteRegex(prefetchDataRoute, {
+                          prefixRouteKeys: false,
+                          includeSuffix: true,
+                          excludeOptionalTrailingSlash: true,
+                        }).re.source
                       ),
                   allowHeader: ALLOWED_HEADERS,
                 }
@@ -3595,6 +3345,18 @@ export default async function build(
             NextBuildContext.telemetryState.packagesUsedInServerSideProps
           )
         )
+        const useCacheTracker = NextBuildContext.telemetryState.useCacheTracker
+
+        for (const [key, value] of Object.entries(useCacheTracker)) {
+          telemetry.record(
+            eventBuildFeatureUsage([
+              {
+                featureName: key as UseCacheTrackerKey,
+                invocationCount: value,
+              },
+            ])
+          )
+        }
       }
 
       if (ssgPages.size > 0 || appDir) {
@@ -3608,7 +3370,9 @@ export default async function build(
 
           prerenderManifest.dynamicRoutes[tbdRoute] = {
             routeRegex: normalizeRouteRegex(
-              getNamedRouteRegex(tbdRoute, false).re.source
+              getNamedRouteRegex(tbdRoute, {
+                prefixRouteKeys: false,
+              }).re.source
             ),
             experimentalPPR: undefined,
             renderingMode: undefined,
@@ -3622,10 +3386,11 @@ export default async function build(
             fallbackSourceRoute: undefined,
             fallbackRootParams: undefined,
             dataRouteRegex: normalizeRouteRegex(
-              getNamedRouteRegex(
-                dataRoute.replace(/\.json$/, ''),
-                false
-              ).re.source.replace(/\(\?:\\\/\)\?\$$/, '\\.json$')
+              getNamedRouteRegex(dataRoute, {
+                prefixRouteKeys: true,
+                includeSuffix: true,
+                excludeOptionalTrailingSlash: true,
+              }).re.source
             ),
             // Pages does not have a prefetch data route.
             prefetchDataRoute: undefined,
@@ -3750,7 +3515,6 @@ export default async function build(
     // Ensure all traces are flushed before finishing the command
     await flushAllTraces()
     teardownTraceSubscriber()
-    teardownHeapProfiler()
 
     if (traceUploadUrl && loadedConfig) {
       uploadTrace({

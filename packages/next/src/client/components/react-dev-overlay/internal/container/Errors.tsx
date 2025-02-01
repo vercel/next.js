@@ -28,13 +28,13 @@ import { PseudoHtmlDiff } from './RuntimeError/component-stack-pseudo-html'
 import {
   type HydrationErrorState,
   getHydrationWarningType,
-} from '../helpers/hydration-error-info'
+} from '../../../errors/hydration-error-info'
 import { NodejsInspectorCopyButton } from '../components/nodejs-inspector'
 import { CopyButton } from '../components/copy-button'
 import {
   getUnhandledErrorType,
   isUnhandledConsoleOrRejection,
-} from '../helpers/console-error'
+} from '../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../lib/error-telemetry-utils'
 
 export type SupportedErrorEvent = {

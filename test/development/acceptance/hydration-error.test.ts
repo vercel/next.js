@@ -124,18 +124,18 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <AppContainer>
-              <Container fn={function fn}>
-                <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
-                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                        <Mismatch>
-                          <div className="parent">
-                            <main className="child">
-          +                    client
-          -                    server"
+         "...
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Mismatch>
+                         <div className="parent">
+                           <main className="child">
+         +                    client
+         -                    server"
         `)
       }
     } else {
@@ -217,17 +217,17 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <AppContainer>
-              <Container fn={function fn}>
-                <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
-                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                        <Mismatch>
-                          <div className="parent">
-                            ...
-          +                  <main className="only">"
+         "...
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Mismatch>
+                         <div className="parent">
+                           ...
+         +                  <main className="only">"
         `)
       }
     } else {
@@ -305,17 +305,17 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
-          "...
-            <AppContainer>
-              <Container fn={function fn}>
-                <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
-                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                        <Mismatch>
-                          <div className="parent">
-          +                  second
-          -                  <footer className="3">"
+         "...
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Mismatch>
+                         <div className="parent">
+         +                  second
+         -                  <footer className="3">"
         `)
       }
     } else {
@@ -379,16 +379,16 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Root callbacks={[...]}>
-            <AppContainer>
-              <Container fn={function fn}>
-                <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
-                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                        <Mismatch>
-                          <div className="parent">
-          -                  <main className="only">"
+         "<Root callbacks={[...]}>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Mismatch>
+                         <div className="parent">
+         -                  <main className="only">"
         `)
       }
     } else {
@@ -463,16 +463,16 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Root callbacks={[...]}>
-            <AppContainer>
-              <Container fn={function fn}>
-                <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
-                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                      <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                        <Mismatch>
-                          <div className="parent">
-          -                  only"
+         "<Root callbacks={[...]}>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Mismatch} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Mismatch>
+                         <div className="parent">
+         -                  only"
         `)
       }
     } else {
@@ -548,17 +548,17 @@ describe('Error overlay for hydration errors in Pages router', () => {
         `)
       } else {
         expect(pseudoHtml).toMatchInlineSnapshot(`
-          "<Root callbacks={[...]}>
-            <AppContainer>
-              <Container fn={function fn}>
-                <ReactDevOverlay>
-                  <ErrorBoundary globalOverlay={undefined} isMounted={false} ...>
-                    <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
-                      <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
-                        <Page>
-                          ...
-          +                <table>
-          -                test"
+         "<Root callbacks={[...]}>
+           <AppContainer>
+             <Container fn={function fn}>
+               <ReactDevOverlay>
+                 <ErrorBoundary isMounted={false} onError={function usePagesReactDevOverlay.useCallback[onComponentError]}>
+                   <PathnameContextProviderAdapter router={{sdc:{},sbc:{}, ...}} isAutoExport={true}>
+                     <App pageProps={{}} Component={function Page} err={undefined} router={{sdc:{},sbc:{}, ...}}>
+                       <Page>
+                         ...
+         +                <table>
+         -                test"
         `)
       }
     } else {

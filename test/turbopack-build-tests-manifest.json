@@ -1134,19 +1134,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/app-dir/app/flying-shuttle.test.ts": {
-      "passed": [],
-      "failed": [],
-      "pending": [
-        "should output updated trace files should hard navigate on chunk load failure",
-        "should output updated trace files should have file hashes in trace files",
-        "should output updated trace files should only rebuild a changed app and pages route correctly",
-        "should output updated trace files should only rebuild just a changed app route correctly",
-        "should output updated trace files should only rebuild just a changed pages route correctly"
-      ],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/e2e/app-dir/app/index.test.ts": {
       "passed": [
         "app dir - basic <Link /> should allow linking from app page to pages page",
@@ -5139,15 +5126,6 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/instrumentation-hook/flying-shuttle/flying-shuttle.test.ts": {
-      "passed": [
-        "instrumentation-hook - flying-shuttle should only register without errors"
-      ],
-      "failed": [],
-      "pending": [],
-      "flakey": [],
-      "runtimeError": false
-    },
     "test/e2e/instrumentation-hook/instrumentation-hook.test.ts": {
       "passed": [
         "Instrumentation Hook general should not overlap with a instrumentation page",
@@ -6510,11 +6488,11 @@
       "flakey": [],
       "runtimeError": false
     },
-    "test/e2e/yarn-pnp/test/with-mdx.test.ts": {
+    "test/e2e/yarn-pnp/test/mdx-pages.test.ts": {
       "passed": [],
       "failed": [],
       "pending": [
-        "yarn PnP should compile and serve the index page correctly with-mdx"
+        "yarn PnP should compile and serve the index page correctly mdx-pages"
       ],
       "flakey": [],
       "runtimeError": false
@@ -14505,6 +14483,9 @@
         "Required Server Files production mode should render dynamic SSR page correctly",
         "Required Server Files production mode should render dynamic SSR page correctly with x-matched-path",
         "Required Server Files production mode should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
+        "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
+        "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
+        "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
         "Required Server Files production mode should render fallback page correctly",
         "Required Server Files production mode should render fallback page correctly with x-matched-path and routes-matches",
         "Required Server Files production mode should return data correctly with x-matched-path",
@@ -16668,6 +16649,7 @@
         "required server files should have correct cache-control for notFound with revalidate",
         "required server files should have correct cache-control for redirect no revalidate",
         "required server files should have correct cache-control for redirect with revalidate",
+        "required server files should handle data routes with optional catch-all params",
         "required server files should have correct resolvedUrl from dynamic route",
         "required server files should have correct resolvedUrl from rewrite",
         "required server files should have correct resolvedUrl from rewrite with added query",

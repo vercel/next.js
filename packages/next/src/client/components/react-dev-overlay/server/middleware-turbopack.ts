@@ -24,7 +24,8 @@ function shouldIgnorePath(modulePath: string): boolean {
   return (
     modulePath.includes('node_modules') ||
     // Only relevant for when Next.js is symlinked e.g. in the Next.js monorepo
-    modulePath.includes('next/dist')
+    modulePath.includes('next/dist') ||
+    modulePath.startsWith('node:')
   )
 }
 
@@ -39,7 +40,24 @@ export async function batchedTraceSource(
     ? // TODO(veil): Why are the frames sent encoded?
       decodeURIComponent(frame.file)
     : undefined
+
   if (!file) return
+
+  // For node internals they cannot traced the actual source code with project.traceSource,
+  // we need an early return to indicate it's ignored to avoid the unknown scheme error from `project.traceSource`.
+  if (file.startsWith('node:')) {
+    return {
+      frame: {
+        file,
+        lineNumber: frame.line ?? 0,
+        column: frame.column ?? 0,
+        methodName: frame.methodName ?? '<unknown>',
+        ignored: true,
+        arguments: [],
+      },
+      source: null,
+    }
+  }
 
   const currentDirectoryFileUrl = pathToFileURL(process.cwd()).href
 
@@ -51,7 +69,7 @@ export async function batchedTraceSource(
         lineNumber: frame.line ?? 0,
         column: frame.column ?? 0,
         methodName: frame.methodName ?? '<unknown>',
-        ignored: shouldIgnorePath(frame.file),
+        ignored: shouldIgnorePath(file),
         arguments: [],
       },
       source: null,
@@ -60,6 +78,7 @@ export async function batchedTraceSource(
 
   let source = null
   const originalFile = sourceFrame.originalFile
+
   // Don't look up source for node_modules or internals. These can often be large bundled files.
   const ignored =
     shouldIgnorePath(originalFile ?? sourceFrame.file) ||
@@ -226,7 +245,11 @@ async function nativeTraceSource(
         const sourceIndex = applicableSourceMap.sources.indexOf(
           originalPosition.source!
         )
-        ignored = applicableSourceMap.ignoreList?.includes(sourceIndex) ?? false
+        ignored =
+          applicableSourceMap.ignoreList?.includes(sourceIndex) ??
+          // When sourcemap is not available, fallback to checking `frame.file`.
+          // e.g. In pages router, nextjs server code is not bundled into the page.
+          shouldIgnorePath(frame.file)
       }
 
       const originalStackFrame: IgnorableStackFrame = {

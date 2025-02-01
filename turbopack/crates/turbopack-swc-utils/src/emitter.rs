@@ -14,6 +14,7 @@ use turbopack_core::{
     source::Source,
 };
 
+#[must_use]
 pub struct IssueCollector {
     inner: Arc<Mutex<IssueCollectorInner>>,
 }
@@ -22,10 +23,6 @@ impl IssueCollector {
     pub async fn emit(self) -> Result<()> {
         let issues = {
             let mut inner = self.inner.lock();
-            if inner.emitted {
-                return Ok(());
-            }
-            inner.emitted = true;
             take(&mut inner.emitted_issues)
         };
 
@@ -43,18 +40,6 @@ impl IssueCollector {
 
 struct IssueCollectorInner {
     emitted_issues: Vec<Vc<AnalyzeIssue>>,
-    emitted: bool,
-}
-
-impl Drop for IssueCollectorInner {
-    fn drop(&mut self) {
-        if !self.emitted {
-            panic!(
-                "IssueCollector and IssueEmitter were dropped without calling \
-                 `collector.emit().await?`"
-            );
-        }
-    }
 }
 
 pub struct IssueEmitter {
@@ -72,7 +57,6 @@ impl IssueEmitter {
     ) -> (Self, IssueCollector) {
         let inner = Arc::new(Mutex::new(IssueCollectorInner {
             emitted_issues: vec![],
-            emitted: false,
         }));
         (
             Self {
@@ -144,7 +128,6 @@ impl Emitter for IssueEmitter {
         );
 
         let mut inner = self.inner.lock();
-        inner.emitted = false;
         inner.emitted_issues.push(issue);
     }
 }

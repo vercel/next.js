@@ -34,10 +34,11 @@ use turbopack_core::{
         ChunkingContext, ModuleId,
     },
     module::Module,
+    module_graph::{ModuleGraph, SingleModuleGraph, SingleModuleGraphModuleNode},
     output::OutputAssets,
 };
 
-use crate::module_graph::{DynamicImportEntriesWithImporter, SingleModuleGraph};
+use crate::module_graph::DynamicImportEntriesWithImporter;
 
 pub(crate) enum NextDynamicChunkAvailability<'a> {
     /// In App Router, the client references
@@ -47,6 +48,7 @@ pub(crate) enum NextDynamicChunkAvailability<'a> {
 }
 
 pub(crate) async fn collect_next_dynamic_chunks(
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     dynamic_import_entries: ReadRef<DynamicImportEntriesWithImporter>,
     chunking_availability: NextDynamicChunkAvailability<'_>,
@@ -72,12 +74,15 @@ pub(crate) async fn collect_next_dynamic_chunks(
                 }
             };
 
-            let async_loader =
-                chunking_context.async_loader_chunk_item(*module, Value::new(availability_info));
+            let async_loader = chunking_context.async_loader_chunk_item(
+                *module,
+                module_graph,
+                Value::new(availability_info),
+            );
             let async_chunk_group = async_loader.references().to_resolved().await?;
 
             let module_id = dynamic_entry
-                .as_chunk_item(Vc::upcast(chunking_context))
+                .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                 .id()
                 .to_resolved()
                 .await?;
@@ -120,14 +125,17 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
         .await?
         .iter_nodes()
         .map(|node| async move {
-            let module = node.module;
-            let layer = node.layer.as_ref();
-            if layer.is_some_and(|layer| &**layer == "app-client" || &**layer == "client") {
+            let SingleModuleGraphModuleNode { module, layer, .. } = node;
+
+            if layer
+                .as_ref()
+                .is_some_and(|layer| &**layer == "app-client" || &**layer == "client")
+            {
                 if let Some(dynamic_entry_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(module).await?
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module).await?
                 {
                     return Ok(Some((
-                        module,
+                        *module,
                         DynamicImportEntriesMapType::DynamicEntry(dynamic_entry_module),
                     )));
                 }
@@ -135,10 +143,10 @@ pub async fn map_next_dynamic(graph: Vc<SingleModuleGraph>) -> Result<Vc<Dynamic
             // TODO add this check once these modules have the correct layer
             // if layer.is_some_and(|layer| &**layer == "app-rsc") {
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module).await?
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module).await?
             {
                 return Ok(Some((
-                    module,
+                    *module,
                     DynamicImportEntriesMapType::ClientReference(client_reference_module),
                 )));
             }

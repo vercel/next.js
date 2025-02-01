@@ -91,35 +91,16 @@ impl TurboTasksCallApi for VcStorage {
     fn dynamic_call(
         &self,
         func: turbo_tasks::FunctionId,
+        this: Option<RawVc>,
         arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
-        self.dynamic_call(func, None, arg)
+        self.dynamic_call(func, this, arg)
     }
-
-    fn dynamic_this_call(
-        &self,
-        func: turbo_tasks::FunctionId,
-        this_arg: RawVc,
-        arg: Box<dyn MagicAny>,
-        _persistence: TaskPersistence,
-    ) -> RawVc {
-        self.dynamic_call(func, Some(this_arg), arg)
-    }
-
     fn native_call(
         &self,
         _func: turbo_tasks::FunctionId,
-        _arg: Box<dyn MagicAny>,
-        _persistence: TaskPersistence,
-    ) -> RawVc {
-        unreachable!()
-    }
-
-    fn this_call(
-        &self,
-        _func: turbo_tasks::FunctionId,
-        _this: RawVc,
+        _this: Option<RawVc>,
         _arg: Box<dyn MagicAny>,
         _persistence: TaskPersistence,
     ) -> RawVc {
@@ -248,18 +229,8 @@ impl TurboTasksApi for VcStorage {
 
     fn try_read_local_output(
         &self,
-        parent_task_id: TaskId,
-        local_task_id: LocalTaskId,
-        consistency: ReadConsistency,
-    ) -> Result<Result<RawVc, EventListener>> {
-        self.try_read_local_output_untracked(parent_task_id, local_task_id, consistency)
-    }
-
-    fn try_read_local_output_untracked(
-        &self,
         _parent_task_id: TaskId,
         _local_task_id: LocalTaskId,
-        _consistency: ReadConsistency,
     ) -> Result<Result<RawVc, EventListener>> {
         unimplemented!()
     }

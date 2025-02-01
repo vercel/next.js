@@ -86,11 +86,6 @@ import { getNodeDebugType } from '../lib/utils'
 import { getNextErrorFeedbackMiddleware } from '../../client/components/react-dev-overlay/server/get-next-error-feedback-middleware'
 
 const MILLISECONDS_IN_NANOSECOND = BigInt(1_000_000)
-const isTestMode = !!(
-  process.env.NEXT_TEST_MODE ||
-  process.env.__NEXT_TEST_MODE ||
-  process.env.DEBUG
-)
 
 function diff(a: Set<any>, b: Set<any>) {
   return new Set([...a].filter((v) => !b.has(v)))
@@ -196,12 +191,8 @@ function erroredPages(compilation: webpack.Compilation) {
   return failedPages
 }
 
-export async function getVersionInfo(enabled: boolean): Promise<VersionInfo> {
+export async function getVersionInfo(): Promise<VersionInfo> {
   let installed = '0.0.0'
-
-  if (!enabled) {
-    return { installed, staleness: 'unknown' }
-  }
 
   try {
     installed = require('next/package.json').version
@@ -350,10 +341,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       parsedPageBundleUrl: UrlObject
     ): Promise<{ finished?: true }> => {
       const { pathname } = parsedPageBundleUrl
+      if (!pathname) return {}
+
       const params = matchNextPageBundleRequest(pathname)
-      if (!params) {
-        return {}
-      }
+      if (!params) return {}
 
       let decodedPagePath: string
 
@@ -701,6 +692,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       config: this.config,
       buildId: this.buildId,
       encryptionKey: this.encryptionKey,
+      appDir: this.appDir,
       pagesDir: this.pagesDir,
       rewrites: {
         beforeFiles: [],
@@ -751,10 +743,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     })
   }
 
-  private async tracedGetVersionInfo(span: Span, enabled: boolean) {
+  private async tracedGetVersionInfo(span: Span) {
     const versionInfoSpan = span.traceChild('get-version-info')
     return versionInfoSpan.traceAsyncFn<VersionInfo>(async () =>
-      getVersionInfo(enabled)
+      getVersionInfo()
     )
   }
 
@@ -762,10 +754,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     const startSpan = this.hotReloaderSpan.traceChild('start')
     startSpan.stop() // Stop immediately to create an artificial parent span
 
-    this.versionInfo = await this.tracedGetVersionInfo(
-      startSpan,
-      isTestMode || this.telemetry.isEnabled
-    )
+    this.versionInfo = await this.tracedGetVersionInfo(startSpan)
 
     const nodeDebugType = getNodeDebugType()
     if (nodeDebugType && !this.devtoolsFrontendUrl) {
@@ -1537,21 +1526,6 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
-  public async stop(): Promise<void> {
-    await new Promise((resolve, reject) => {
-      this.watcher.close((err: any) => (err ? reject(err) : resolve(true)))
-    })
-
-    if (this.fallbackWatcher) {
-      await new Promise((resolve, reject) => {
-        this.fallbackWatcher.close((err: any) =>
-          err ? reject(err) : resolve(true)
-        )
-      })
-    }
-    this.multiCompiler = undefined
-  }
-
   public async getCompilationErrors(page: string) {
     const getErrors = ({ compilation }: webpack.Stats) => {
       const failedPages = erroredPages(compilation)
@@ -1620,5 +1594,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           url,
         })
       })
+  }
+
+  public close() {
+    this.webpackHotMiddleware?.close()
   }
 }

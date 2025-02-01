@@ -21,6 +21,7 @@ use turbopack_core::{
         code_gen::CodeGenerationIssue, module::emit_unknown_module_type_error, IssueExt,
         IssueSeverity, StyledString,
     },
+    module_graph::ModuleGraph,
     resolve::{
         origin::ResolveOrigin, parse::Request, ExternalType, ModuleResolveResult,
         ModuleResolveResultItem,
@@ -299,6 +300,7 @@ impl PatternMapping {
 
 async fn to_single_pattern_mapping(
     origin: Vc<Box<dyn ResolveOrigin>>,
+    module_graph: Vc<ModuleGraph>,
     chunking_context: Vc<Box<dyn ChunkingContext>>,
     resolve_item: &ModuleResolveResultItem,
     resolve_type: ResolveType,
@@ -310,7 +312,7 @@ async fn to_single_pattern_mapping(
         }
         ModuleResolveResultItem::Ignore => return Ok(SinglePatternMapping::Ignored),
         ModuleResolveResultItem::Unknown(source) => {
-            emit_unknown_module_type_error(*source).await?;
+            emit_unknown_module_type_error(**source).await?;
             return Ok(SinglePatternMapping::Unresolvable(
                 "unknown module type".to_string(),
             ));
@@ -353,7 +355,7 @@ async fn to_single_pattern_mapping(
                 ));
             }
             ResolveType::ChunkItem => {
-                let chunk_item = chunkable.as_chunk_item(chunking_context);
+                let chunk_item = chunkable.as_chunk_item(module_graph, chunking_context);
                 return Ok(SinglePatternMapping::Module(
                     chunk_item.id().await?.clone_value(),
                 ));
@@ -383,6 +385,7 @@ impl PatternMapping {
     pub async fn resolve_request(
         request: Vc<Request>,
         origin: Vc<Box<dyn ResolveOrigin>>,
+        module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         resolve_result: Vc<ModuleResolveResult>,
         resolve_type: Value<ResolveType>,
@@ -396,9 +399,14 @@ impl PatternMapping {
             .cell()),
             1 => {
                 let resolve_item = result.primary.first().unwrap().1;
-                let single_pattern_mapping =
-                    to_single_pattern_mapping(origin, chunking_context, resolve_item, resolve_type)
-                        .await?;
+                let single_pattern_mapping = to_single_pattern_mapping(
+                    origin,
+                    module_graph,
+                    chunking_context,
+                    resolve_item,
+                    resolve_type,
+                )
+                .await?;
                 Ok(PatternMapping::Single(single_pattern_mapping).cell())
             }
             _ => {
@@ -411,9 +419,14 @@ impl PatternMapping {
                         set.insert(request).then(|| (request.to_string(), v))
                     })
                     .map(|(k, v)| async move {
-                        let single_pattern_mapping =
-                            to_single_pattern_mapping(origin, chunking_context, v, resolve_type)
-                                .await?;
+                        let single_pattern_mapping = to_single_pattern_mapping(
+                            origin,
+                            module_graph,
+                            chunking_context,
+                            v,
+                            resolve_type,
+                        )
+                        .await?;
                         Ok((k, single_pattern_mapping))
                     })
                     .try_join()

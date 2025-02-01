@@ -146,7 +146,7 @@ impl BeforeResolvePlugin for InvalidImportResolvePlugin {
         .emit();
 
         ResolveResultOption::some(
-            ResolveResult::primary(ResolveResultItem::Error(Vc::cell(
+            ResolveResult::primary(ResolveResultItem::Error(ResolvedVc::cell(
                 self.message.join("\n").into(),
             )))
             .cell(),

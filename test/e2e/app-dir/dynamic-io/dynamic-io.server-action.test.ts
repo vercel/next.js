@@ -26,9 +26,10 @@ describe('dynamic-io', () => {
     })
 
     if (process.env.__NEXT_EXPERIMENTAL_PPR && isNextDev) {
-      // TODO: Remove this branch for PPR in dev mode when the issue is resolved
-      // where the inclusion of server timings in the RSC payload makes the
-      // serialized bound args not suitable to be used as a cache key.
+      // TODO(react-time-info): Remove this branch for PPR in dev mode when the
+      // issue is resolved where the inclusion of server timings in the RSC
+      // payload makes the serialized bound args not suitable to be used as a
+      // cache key.
       expect(next.cliOutput).toMatch('Error: Route "/server-action-inline"')
     } else {
       expect(next.cliOutput).not.toMatch('Error: Route "/server-action-inline"')

@@ -524,6 +524,7 @@ pub struct ExperimentalTurboConfig {
     pub tree_shaking: Option<bool>,
     pub module_id_strategy: Option<ModuleIdStrategy>,
     pub minify: Option<bool>,
+    pub source_maps: Option<bool>,
     pub unstable_persistent_caching: Option<bool>,
 }
 
@@ -566,7 +567,7 @@ pub enum LoaderItem {
 }
 
 #[turbo_tasks::value(operation)]
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ModuleIdStrategy {
     Named,
@@ -665,6 +666,7 @@ pub struct ExperimentalConfig {
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
+    use_cache: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -723,6 +725,7 @@ pub struct ExperimentalConfig {
     /// @see [api reference](https://nextjs.org/docs/app/api-reference/next-config-js/typedRoutes)
     typed_routes: Option<bool>,
     url_imports: Option<serde_json::Value>,
+    view_transition: Option<bool>,
     /// This option is to enable running the Webpack build in a worker thread
     /// (doesn't apply to Turbopack).
     webpack_build_worker: Option<bool>,
@@ -1397,8 +1400,25 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_view_transition(&self) -> Vc<bool> {
+        Vc::cell(self.experimental.view_transition.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
     pub fn enable_dynamic_io(&self) -> Vc<bool> {
         Vc::cell(self.experimental.dynamic_io.unwrap_or(false))
+    }
+
+    #[turbo_tasks::function]
+    pub fn enable_use_cache(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .use_cache
+                // "use cache" was originally implicitly enabled with the
+                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // explicit useCache flag to ensure backwards compatibility.
+                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
+        )
     }
 
     #[turbo_tasks::function]
@@ -1463,11 +1483,11 @@ impl NextConfig {
             .experimental
             .turbo
             .as_ref()
-            .and_then(|t| t.module_id_strategy.as_ref())
+            .and_then(|t| t.module_id_strategy)
         else {
             return Vc::cell(None);
         };
-        Vc::cell(Some(module_id_strategy.clone()))
+        Vc::cell(Some(module_id_strategy))
     }
 
     #[turbo_tasks::function]
@@ -1477,6 +1497,13 @@ impl NextConfig {
         Ok(Vc::cell(
             minify.unwrap_or(matches!(*mode.await?, NextMode::Build)),
         ))
+    }
+
+    #[turbo_tasks::function]
+    pub async fn turbo_source_maps(&self) -> Result<Vc<bool>> {
+        let minify = self.experimental.turbo.as_ref().and_then(|t| t.source_maps);
+
+        Ok(Vc::cell(minify.unwrap_or(true)))
     }
 }
 

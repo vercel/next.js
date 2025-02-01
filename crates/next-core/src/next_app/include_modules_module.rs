@@ -7,6 +7,7 @@ use turbopack_core::{
     chunk::{ChunkItem, ChunkType, ChunkableModule, ChunkableModuleReference, ChunkingContext},
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
     reference::{ModuleReference, ModuleReferences},
     resolve::ModuleResolveResult,
 };
@@ -81,6 +82,7 @@ impl ChunkableModule for IncludeModulesModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        _module_graph: Vc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn ChunkItem>> {
         Vc::upcast(

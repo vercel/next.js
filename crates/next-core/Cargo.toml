@@ -15,6 +15,7 @@ workspace = true
 anyhow = { workspace = true }
 async-trait = { workspace = true }
 base64 = "0.21.0"
+either = { workspace = true }
 lazy-regex = "3.0.1"
 next-custom-transforms = { workspace = true }
 once_cell = { workspace = true }
@@ -31,8 +32,8 @@ lazy_static = { workspace = true }
 thiserror = { workspace = true }
 tracing = { workspace = true }
 rustc-hash = { workspace = true }
-react_remove_properties = "0.24.25"
-remove_console = "0.25.25"
+react_remove_properties = "0.28.0"
+remove_console = "0.29.0"
 
 auto-hash-map = { workspace = true }
 

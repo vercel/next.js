@@ -20,4 +20,4 @@ futures = { workspace = true }
 rustc-hash = { workspace = true }
 tokio = { workspace = true }
 turbo-rcstr = { workspace = true }
-turbo-tasks = { workspace = true }
+turbo-tasks = { workspace = true, features = ["non_operation_vc_strongly_consistent"] }

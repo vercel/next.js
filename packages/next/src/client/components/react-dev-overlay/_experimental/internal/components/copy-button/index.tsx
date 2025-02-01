@@ -1,4 +1,5 @@
 import * as React from 'react'
+import { noop as css } from '../../helpers/noop-template'
 
 function useCopyLegacy(content: string) {
   type CopyState =
@@ -181,8 +182,9 @@ export function CopyButton({
       title={label}
       aria-label={label}
       aria-disabled={isDisabled}
+      disabled={isDisabled}
       data-nextjs-data-runtime-error-copy-button
-      className={`nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
+      className={`${props.className || ''} nextjs-data-runtime-error-copy-button nextjs-data-runtime-error-copy-button--${copyState.state}`}
       onClick={() => {
         if (!isDisabled) {
           copy()
@@ -200,15 +202,17 @@ function CopyIcon() {
     <svg
       width="16"
       height="16"
-      viewBox="0 0 24 24"
-      fill="transparent"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
+      viewBox="0 0 16 16"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      className="error-overlay-toolbar-button-icon"
     >
-      <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-      <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" />
+      <path
+        fillRule="evenodd"
+        clipRule="evenodd"
+        d="M2.75 0.5C1.7835 0.5 1 1.2835 1 2.25V9.75C1 10.7165 1.7835 11.5 2.75 11.5H3.75H4.5V10H3.75H2.75C2.61193 10 2.5 9.88807 2.5 9.75V2.25C2.5 2.11193 2.61193 2 2.75 2H8.25C8.38807 2 8.5 2.11193 8.5 2.25V3H10V2.25C10 1.2835 9.2165 0.5 8.25 0.5H2.75ZM7.75 4.5C6.7835 4.5 6 5.2835 6 6.25V13.75C6 14.7165 6.7835 15.5 7.75 15.5H13.25C14.2165 15.5 15 14.7165 15 13.75V6.25C15 5.2835 14.2165 4.5 13.25 4.5H7.75ZM7.5 6.25C7.5 6.11193 7.61193 6 7.75 6H13.25C13.3881 6 13.5 6.11193 13.5 6.25V13.75C13.5 13.8881 13.3881 14 13.25 14H7.75C7.61193 14 7.5 13.8881 7.5 13.75V6.25Z"
+        fill="currentColor"
+      />
     </svg>
   )
 }
@@ -227,3 +231,36 @@ function CopySuccessIcon() {
     </svg>
   )
 }
+
+// TODO(jiwon): Is not used anymore, should we decouple the styles?
+export const COPY_BUTTON_STYLES = css`
+  [data-nextjs-data-runtime-error-copy-button],
+  [data-nextjs-data-runtime-error-copy-button]:focus:not(:focus-visible) {
+    position: relative;
+    margin-left: var(--size-gap);
+    padding: 0;
+    border: none;
+    background: none;
+    outline: none;
+  }
+  [data-nextjs-data-runtime-error-copy-button] > svg {
+    vertical-align: middle;
+  }
+  .nextjs-data-runtime-error-copy-button {
+    color: inherit;
+  }
+  .nextjs-data-runtime-error-copy-button--initial:hover {
+    cursor: pointer;
+  }
+  .nextjs-data-runtime-error-copy-button[aria-disabled='true'] {
+    opacity: 0.3;
+    cursor: not-allowed;
+  }
+  .nextjs-data-runtime-error-copy-button--error,
+  .nextjs-data-runtime-error-copy-button--error:hover {
+    color: var(--color-ansi-red);
+  }
+  .nextjs-data-runtime-error-copy-button--success {
+    color: var(--color-ansi-green);
+  }
+`

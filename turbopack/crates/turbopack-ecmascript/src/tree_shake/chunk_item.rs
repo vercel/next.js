@@ -1,10 +1,13 @@
 use anyhow::Result;
-use turbo_tasks::{ResolvedVc, ValueDefault, ValueToString, Vc};
+use turbo_tasks::{ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::rope::RopeBuilder;
 use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkItem, ChunkType, ChunkingContext},
+    chunk::{
+        AsyncModuleInfo, ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext,
+    },
     ident::AssetIdent,
     module::Module,
+    module_graph::ModuleGraph,
 };
 
 use super::{asset::EcmascriptModulePartAsset, part_of_module, split_module};
@@ -15,7 +18,7 @@ use crate::{
     },
     references::async_module::AsyncModuleOptions,
     tree_shake::side_effect_module::SideEffectsModule,
-    utils::StringifyJs,
+    utils::StringifyModuleId,
     EcmascriptModuleContent,
 };
 
@@ -26,6 +29,7 @@ use crate::{
 #[turbo_tasks::value(shared)]
 pub struct EcmascriptModulePartChunkItem {
     pub(super) module: ResolvedVc<EcmascriptModulePartAsset>,
+    pub(super) module_graph: ResolvedVc<ModuleGraph>,
     pub(super) chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -50,15 +54,20 @@ impl EcmascriptChunkItem for EcmascriptModulePartChunkItem {
         let async_module_options = analyze.async_module.module_options(async_module_info);
 
         let module_type_result = *module.full_module.determine_module_type().await?;
+        let generate_source_map = self
+            .chunking_context
+            .reference_module_source_maps(*ResolvedVc::upcast(self.module));
 
         let content = EcmascriptModuleContent::new(
             parsed,
             module.full_module.ident(),
             module_type_result.module_type,
+            *self.module_graph,
             *self.chunking_context,
             *analyze.references,
             *analyze.code_generation,
             *analyze.async_module,
+            generate_source_map,
             *analyze.source_map,
             *analyze.exports,
             async_module_info,
@@ -101,16 +110,12 @@ impl ChunkItem for EcmascriptModulePartChunkItem {
     fn module(&self) -> Vc<Box<dyn Module>> {
         *ResolvedVc::upcast(self.module)
     }
-
-    #[turbo_tasks::function]
-    fn is_self_async(&self) -> Vc<bool> {
-        self.module.is_async_module()
-    }
 }
 
 #[turbo_tasks::value(shared)]
 pub(super) struct SideEffectsModuleChunkItem {
     pub module: ResolvedVc<SideEffectsModule>,
+    pub module_graph: ResolvedVc<ModuleGraph>,
     pub chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
 }
 
@@ -165,7 +170,12 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
                 format!(
                     "{}__turbopack_import__({});\n",
                     if need_await { "await " } else { "" },
-                    StringifyJs(&*side_effect.ident().to_string().await?)
+                    StringifyModuleId(
+                        &*side_effect
+                            .as_chunk_item(*self.module_graph, *self.chunking_context)
+                            .id()
+                            .await?
+                    )
                 )
                 .as_bytes(),
             );
@@ -174,7 +184,13 @@ impl EcmascriptChunkItem for SideEffectsModuleChunkItem {
         code.push_bytes(
             format!(
                 "__turbopack_export_namespace__(__turbopack_import__({}));\n",
-                StringifyJs(&*module.resolved_as.ident().to_string().await?)
+                StringifyModuleId(
+                    &*module
+                        .resolved_as
+                        .as_chunk_item(*self.module_graph, *self.chunking_context)
+                        .id()
+                        .await?
+                )
             )
             .as_bytes(),
         );

@@ -29,6 +29,7 @@ lightningcss = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }
+rustc-hash = { workspace = true }
 
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }

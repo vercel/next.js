@@ -18,6 +18,7 @@ import type { LoadingModuleData } from '../../shared/lib/app-router-context.shar
 import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
+import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -35,6 +36,7 @@ export function createComponentTree(props: {
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  StreamingMetadata: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   return getTracer().trace(
     NextNodeServerSpan.createComponentTree,
@@ -70,6 +72,7 @@ async function createComponentTreeInternal({
   missingSlots,
   preloadCallbacks,
   authInterrupts,
+  StreamingMetadata,
 }: {
   loaderTree: LoaderTree
   parentParams: Params
@@ -83,6 +86,7 @@ async function createComponentTreeInternal({
   missingSlots?: Set<string>
   preloadCallbacks: PreloadCallbacks
   authInterrupts: boolean
+  StreamingMetadata: React.ComponentType<{}>
 }): Promise<CacheNodeSeedData> {
   const {
     renderOpts: { nextConfigOutput, experimental },
@@ -221,27 +225,6 @@ async function createComponentTreeInternal({
         })
       : []
 
-  const notFoundElement = NotFound ? (
-    <>
-      {notFoundStyles}
-      <NotFound />
-    </>
-  ) : undefined
-
-  const forbiddenElement = Forbidden ? (
-    <>
-      {forbiddenStyles}
-      <Forbidden />
-    </>
-  ) : undefined
-
-  const unauthorizedElement = Unauthorized ? (
-    <>
-      {unauthorizedStyles}
-      <Unauthorized />
-    </>
-  ) : undefined
-
   let dynamic = layoutOrPageMod?.dynamic
 
   if (nextConfigOutput === 'export') {
@@ -250,7 +233,7 @@ async function createComponentTreeInternal({
     } else if (dynamic === 'force-dynamic') {
       // force-dynamic is always incompatible with 'export'. We must interrupt the build
       throw new StaticGenBailoutError(
-        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is not runtime server to dynamic render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
+        `Page with \`dynamic = "force-dynamic"\` couldn't be exported. \`output: "export"\` requires all pages be renderable statically because there is no runtime server to dynamically render routes in this output format. Learn more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports`
       )
     }
   }
@@ -409,7 +392,35 @@ async function createComponentTreeInternal({
     workStore.rootParams = currentParams
   }
 
-  //
+  // Only render metadata on the actual SSR'd segment not the `default` segment,
+  // as it's used as a placeholder for navigation.
+  const metadata =
+    actualSegment !== DEFAULT_SEGMENT_KEY ? <StreamingMetadata /> : undefined
+
+  const notFoundElement = NotFound ? (
+    <>
+      <NotFound />
+      {metadata}
+      {notFoundStyles}
+    </>
+  ) : undefined
+
+  const forbiddenElement = Forbidden ? (
+    <>
+      <Forbidden />
+      {metadata}
+      {forbiddenStyles}
+    </>
+  ) : undefined
+
+  const unauthorizedElement = Unauthorized ? (
+    <>
+      <Unauthorized />
+      {metadata}
+      {unauthorizedStyles}
+    </>
+  ) : undefined
+
   // TODO: Combine this `map` traversal with the loop below that turns the array
   // into an object.
   const parallelRouteMap = await Promise.all(
@@ -504,7 +515,8 @@ async function createComponentTreeInternal({
             ctx,
             missingSlots,
             preloadCallbacks,
-            authInterrupts: authInterrupts,
+            authInterrupts,
+            StreamingMetadata,
           })
 
           childCacheNodeSeedData = seedData
@@ -658,6 +670,12 @@ async function createComponentTreeInternal({
       actualSegment,
       <React.Fragment key={cacheNodeKey}>
         {pageElement}
+        {/*
+         * The order here matters since a parent might call findDOMNode().
+         * findDOMNode() will return the first child if multiple children are rendered.
+         * But React will hoist metadata into <head> which breaks scroll handling.
+         */}
+        {metadata}
         {layerAssets}
         <OutletBoundary>
           <MetadataOutlet ready={getViewportReady} />
@@ -797,6 +815,7 @@ async function createComponentTreeInternal({
                     {notFoundStyles}
                     <NotFound />
                   </SegmentComponent>
+                  {metadata}
                 </>
               ) : undefined
             }

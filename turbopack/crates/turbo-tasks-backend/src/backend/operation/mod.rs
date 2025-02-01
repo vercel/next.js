@@ -21,7 +21,10 @@ use crate::{
         TurboTasksBackend, TurboTasksBackendInner,
     },
     backing_storage::BackingStorage,
-    data::{CachedDataItem, CachedDataItemIndex, CachedDataItemKey, CachedDataItemValue},
+    data::{
+        CachedDataItem, CachedDataItemKey, CachedDataItemType, CachedDataItemValue,
+        CachedDataItemValueRef, CachedDataItemValueRefMut,
+    },
 };
 
 pub trait Operation:
@@ -361,35 +364,37 @@ pub trait TaskGuard: Debug {
     fn insert(&mut self, item: CachedDataItem) -> Option<CachedDataItemValue>;
     fn update(
         &mut self,
-        key: &CachedDataItemKey,
+        key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     );
     fn remove(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValue>;
-    fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue>;
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue>;
+    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>>;
+    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>>;
+    fn get_mut_or_insert_with(
+        &mut self,
+        key: CachedDataItemKey,
+        insert: impl FnOnce() -> CachedDataItemValue,
+    ) -> CachedDataItemValueRefMut<'_>;
     fn has_key(&self, key: &CachedDataItemKey) -> bool;
-    fn is_indexed(&self) -> bool;
+    fn count(&self, ty: CachedDataItemType) -> usize;
     fn iter(
         &self,
-        index: CachedDataItemIndex,
-    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
-    fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)>;
+        ty: CachedDataItemType,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)>;
+    fn shrink_to_fit(&mut self, ty: CachedDataItemType);
     fn extract_if<'l, F>(
         &'l mut self,
-        index: CachedDataItemIndex,
+        ty: CachedDataItemType,
         f: F,
     ) -> impl Iterator<Item = CachedDataItem>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
-    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l;
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l;
     fn invalidate_serialization(&mut self);
 }
 
 struct TaskGuardImpl<'a, B: BackingStorage> {
     task_id: TaskId,
-    task: StorageWriteGuard<'a, TaskId, CachedDataItem>,
+    task: StorageWriteGuard<'a>,
     backend: &'a TurboTasksBackendInner<B>,
     #[cfg(debug_assertions)]
     category: TaskDataCategory,
@@ -474,10 +479,9 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
             self.task
                 .insert(CachedDataItem::from_key_and_value(key, value))
         } else if value.is_persistent() {
-            let old = self.task.insert(CachedDataItem::from_key_and_value(
-                key.clone(),
-                value.clone(),
-            ));
+            let old = self
+                .task
+                .insert(CachedDataItem::from_key_and_value(key, value.clone()));
             self.task.persistance_state_mut().add_persisting_item();
             self.backend
                 .persisted_storage_log(key.category())
@@ -491,7 +495,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 );
             old
         } else {
-            let item = CachedDataItem::from_key_and_value(key.clone(), value);
+            let item = CachedDataItem::from_key_and_value(key, value);
             if let Some(old) = self.task.insert(item) {
                 if old.is_persistent() {
                     self.task.persistance_state_mut().add_persisting_item();
@@ -509,7 +513,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
 
     fn update(
         &mut self,
-        key: &CachedDataItemKey,
+        key: CachedDataItemKey,
         update: impl FnOnce(Option<CachedDataItemValue>) -> Option<CachedDataItemValue>,
     ) {
         self.check_access(key.category());
@@ -538,7 +542,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     add_persisting_item = true;
                     backend.persisted_storage_log(key.category()).unwrap().push(
                         *task_id,
-                        key.clone(),
+                        key,
                         Some(old_value),
                         None,
                     );
@@ -547,7 +551,7 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                     add_persisting_item = true;
                     backend.persisted_storage_log(key.category()).unwrap().push(
                         *task_id,
-                        key.clone(),
+                        key,
                         old_value,
                         new.clone(),
                     );
@@ -570,14 +574,13 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
                 && key.is_persistent()
                 && value.is_persistent()
             {
-                let key = key.clone();
                 self.task.persistance_state_mut().add_persisting_item();
                 self.backend
                     .persisted_storage_log(key.category())
                     .unwrap()
                     .push(
                         self.task_id,
-                        key,
+                        *key,
                         value.is_persistent().then(|| value.clone()),
                         None,
                     );
@@ -588,67 +591,58 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
     }
 
-    fn get(&self, key: &CachedDataItemKey) -> Option<&CachedDataItemValue> {
+    fn get(&self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRef<'_>> {
         self.check_access(key.category());
         self.task.get(key)
     }
 
-    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<&mut CachedDataItemValue> {
+    fn get_mut(&mut self, key: &CachedDataItemKey) -> Option<CachedDataItemValueRefMut<'_>> {
         self.check_access(key.category());
         self.task.get_mut(key)
     }
 
-    fn has_key(&self, key: &CachedDataItemKey) -> bool {
+    fn get_mut_or_insert_with(
+        &mut self,
+        key: CachedDataItemKey,
+        insert: impl FnOnce() -> CachedDataItemValue,
+    ) -> CachedDataItemValueRefMut<'_> {
         self.check_access(key.category());
-        self.task.has_key(key)
+        self.task.get_mut_or_insert_with(key, insert)
     }
 
-    fn is_indexed(&self) -> bool {
-        self.task.is_indexed()
+    fn has_key(&self, key: &CachedDataItemKey) -> bool {
+        self.check_access(key.category());
+        self.task.contains_key(key)
+    }
+
+    fn count(&self, ty: CachedDataItemType) -> usize {
+        self.check_access(ty.category());
+        self.task.count(ty)
     }
 
     fn iter(
         &self,
-        index: CachedDataItemIndex,
-    ) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        self.task.iter(Some(index))
+        ty: CachedDataItemType,
+    ) -> impl Iterator<Item = (CachedDataItemKey, CachedDataItemValueRef<'_>)> {
+        self.task.iter(ty)
     }
 
-    fn iter_all(&self) -> impl Iterator<Item = (&CachedDataItemKey, &CachedDataItemValue)> {
-        self.task.iter_all()
+    fn shrink_to_fit(&mut self, ty: CachedDataItemType) {
+        self.task.shrink_to_fit(ty)
     }
 
     fn extract_if<'l, F>(
         &'l mut self,
-        index: CachedDataItemIndex,
+        ty: CachedDataItemType,
         f: F,
     ) -> impl Iterator<Item = CachedDataItem>
     where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
+        F: for<'a> FnMut(CachedDataItemKey, CachedDataItemValueRef<'a>) -> bool + 'l,
     {
         if !self.backend.should_persist() || self.task_id.is_transient() {
-            return Either::Left(self.task.extract_if(Some(index), f));
+            return Either::Left(self.task.extract_if(ty, f));
         }
-        Either::Right(self.task.extract_if(Some(index), f).inspect(|item| {
-            if item.is_persistent() {
-                let key = item.key();
-                let value = item.value();
-                self.backend
-                    .persisted_storage_log(key.category())
-                    .unwrap()
-                    .push(self.task_id, key, Some(value), None);
-            }
-        }))
-    }
-
-    fn extract_if_all<'l, F>(&'l mut self, f: F) -> impl Iterator<Item = CachedDataItem>
-    where
-        F: for<'a, 'b> FnMut(&'a CachedDataItemKey, &'b CachedDataItemValue) -> bool + 'l,
-    {
-        if !self.backend.should_persist() || self.task_id.is_transient() {
-            return Either::Left(self.task.extract_if_all(f));
-        }
-        Either::Right(self.task.extract_if_all(f).inspect(|item| {
+        Either::Right(self.task.extract_if(ty, f).inspect(|item| {
             if item.is_persistent() {
                 let key = item.key();
                 let value = item.value();
@@ -666,12 +660,15 @@ impl<B: BackingStorage> TaskGuard for TaskGuardImpl<'_, B> {
         }
         let mut count = 0;
         let cell_data = self
-            .iter(CachedDataItemIndex::CellData)
+            .iter(CachedDataItemType::CellData)
             .filter_map(|(key, value)| match (key, value) {
-                (CachedDataItemKey::CellData { cell }, CachedDataItemValue::CellData { value }) => {
+                (
+                    CachedDataItemKey::CellData { cell },
+                    CachedDataItemValueRef::CellData { value },
+                ) => {
                     count += 1;
                     Some(CachedDataItem::CellData {
-                        cell: *cell,
+                        cell,
                         value: value.clone(),
                     })
                 }
@@ -745,12 +742,13 @@ impl_operation!(UpdateOutput update_output::UpdateOutputOperation);
 impl_operation!(CleanupOldEdges cleanup_old_edges::CleanupOldEdgesOperation);
 impl_operation!(AggregationUpdate aggregation_update::AggregationUpdateQueue);
 
+#[cfg(feature = "trace_task_dirty")]
+pub use self::invalidate::TaskDirtyCause;
 pub use self::{
     aggregation_update::{
         get_aggregation_number, is_root_node, AggregatedDataUpdate, AggregationUpdateJob,
     },
     cleanup_old_edges::OutdatedEdge,
-    invalidate::TaskDirtyCause,
     update_cell::UpdateCellOperation,
     update_collectible::UpdateCollectibleOperation,
 };

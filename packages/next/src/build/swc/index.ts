@@ -21,7 +21,6 @@ import {
   getDefineEnv,
 } from '../webpack/plugins/define-env-plugin'
 import { getReactCompilerLoader } from '../get-babel-loader-config'
-import { TurbopackInternalError } from '../../server/dev/turbopack-utils'
 import type {
   NapiPartialProjectOptions,
   NapiProjectOptions,
@@ -41,6 +40,7 @@ import type {
   UpdateMessage,
   WrittenEndpoint,
 } from './types'
+import { TurbopackInternalError } from '../../shared/lib/turbopack/utils'
 
 type RawBindings = typeof import('./generated-native')
 type RawWasmBindings = typeof import('./generated-wasm') & {
@@ -165,7 +165,6 @@ let wasmBindings: Binding
 let downloadWasmPromise: any
 let pendingBindings: any
 let swcTraceFlushGuard: any
-let swcHeapProfilerFlushGuard: any
 let downloadNativeBindingsPromise: Promise<void> | undefined = undefined
 
 export const lockfilePatchPromise: { cur?: Promise<void> } = {}
@@ -1225,8 +1224,6 @@ function loadNative(importPath?: string) {
       getTargetTriple: bindings.getTargetTriple,
       initCustomTraceSubscriber: bindings.initCustomTraceSubscriber,
       teardownTraceSubscriber: bindings.teardownTraceSubscriber,
-      initHeapProfiler: bindings.initHeapProfiler,
-      teardownHeapProfiler: bindings.teardownHeapProfiler,
       turbo: {
         createProject: bindingToApi(customBindings ?? bindings, false),
         startTurbopackTraceServer(traceFilePath) {
@@ -1324,27 +1321,10 @@ export function getBinaryMetadata() {
  *
  */
 export function initCustomTraceSubscriber(traceFileName?: string) {
-  if (!swcTraceFlushGuard) {
+  if (swcTraceFlushGuard) {
     // Wasm binary doesn't support trace emission
     let bindings = loadNative()
     swcTraceFlushGuard = bindings.initCustomTraceSubscriber?.(traceFileName)
-  }
-}
-
-/**
- * Initialize heap profiler, if possible.
- * Note this is not available in release build of next-swc by default,
- * only available by manually building next-swc with specific flags.
- * Calling in release build will not do anything.
- */
-export function initHeapProfiler() {
-  try {
-    if (!swcHeapProfilerFlushGuard) {
-      let bindings = loadNative()
-      swcHeapProfilerFlushGuard = bindings.initHeapProfiler?.()
-    }
-  } catch (_) {
-    // Suppress exceptions, this fn allows to fail to load native bindings
   }
 }
 
@@ -1359,23 +1339,6 @@ function once(fn: () => void): () => void {
     }
   }
 }
-
-/**
- * Teardown heap profiler, if possible.
- *
- * Same as initialization, this is not available in release build of next-swc by default
- * and calling it will not do anything.
- */
-export const teardownHeapProfiler = once(() => {
-  try {
-    let bindings = loadNative()
-    if (swcHeapProfilerFlushGuard) {
-      bindings.teardownHeapProfiler?.(swcHeapProfilerFlushGuard)
-    }
-  } catch (e) {
-    // Suppress exceptions, this fn allows to fail to load native bindings
-  }
-})
 
 /**
  * Teardown swc's trace subscriber if there's an initialized flush guard exists.

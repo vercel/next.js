@@ -3,7 +3,9 @@ use turbo_rcstr::RcStr;
 use turbo_tasks::{trace::TraceRawVcs, FxIndexMap, NonLocalValue, ResolvedVc, ValueDefault, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
-    chunk::MinifyType, condition::ContextCondition, environment::Environment,
+    chunk::{MinifyType, SourceMapsType},
+    condition::ContextCondition,
+    environment::Environment,
     resolve::options::ImportMapping,
 };
 use turbopack_ecmascript::{references::esm::UrlRewriteBehavior, TreeShakingMode};
@@ -107,7 +109,7 @@ pub struct JsxTransformOptions {
     pub runtime: Option<RcStr>,
 }
 
-#[turbo_tasks::value(shared, local)]
+#[turbo_tasks::value(shared)]
 #[derive(Clone, Default)]
 #[serde(default)]
 pub struct ModuleOptionsContext {
@@ -160,6 +162,8 @@ pub struct EcmascriptOptionsContext {
     /// If false, they will reference the whole directory. If true, they won't
     /// reference anything and lead to an runtime error instead.
     pub ignore_dynamic_requests: bool,
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
 
     pub placeholder_for_future_extensions: (),
 }
@@ -176,6 +180,9 @@ pub struct CssOptionsContext {
     pub enable_raw_css: bool,
 
     pub minify_type: MinifyType,
+
+    /// Specifies how Source Maps are handled.
+    pub source_maps: SourceMapsType,
 
     pub placeholder_for_future_extensions: (),
 }

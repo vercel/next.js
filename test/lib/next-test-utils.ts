@@ -36,6 +36,10 @@ export { shouldRunTurboDevTest }
 export const nextServer = server
 export const pkg = _pkg
 
+// TODO(jiwon): Remove this once we have a new dev overlay at stable.
+const isNewDevOverlay =
+  process.env.__NEXT_EXPERIMENTAL_NEW_DEV_OVERLAY === 'true'
+
 export function initNextServerScript(
   scriptPath: string,
   successRegexp: RegExp,
@@ -883,13 +887,18 @@ export async function assertNoRedbox(browser: BrowserInterface) {
 export async function hasErrorToast(
   browser: BrowserInterface
 ): Promise<boolean> {
-  return browser.eval(() => {
-    return Boolean(
-      Array.from(document.querySelectorAll('nextjs-portal')).find((p) =>
-        p.shadowRoot.querySelector('[data-nextjs-toast]')
+  return (
+    (await browser.eval(() => {
+      return Boolean(
+        [].slice.call(document.querySelectorAll('nextjs-portal')).find((p) =>
+          p.shadowRoot.querySelector(
+            // TODO(jiwon): data-nextjs-toast may not be an error indicator in new UI
+            isNewDevOverlay ? '[data-issues]' : '[data-nextjs-toast]'
+          )
+        )
       )
-    )
-  })
+    })) ?? false // When browser.eval() throws, it returns null.
+  )
 }
 
 /**
@@ -898,13 +907,62 @@ export async function hasErrorToast(
  */
 export async function openRedbox(browser: BrowserInterface): Promise<void> {
   try {
-    browser.waitForElementByCss('[data-nextjs-toast]', 5000).click()
+    //TODO(jiwon): data-nextjs-toast won't open red box in new UI.
+    if (isNewDevOverlay) {
+      await browser.waitForElementByCss('[data-error-expanded="true"]')
+      await browser.waitForElementByCss('[data-issues-open]').click()
+    } else {
+      await browser.waitForElementByCss('[data-nextjs-toast]').click()
+    }
   } catch (cause) {
     const error = new Error('No Redbox to open.', { cause })
     Error.captureStackTrace(error, openRedbox)
     throw error
   }
   await assertHasRedbox(browser)
+}
+
+export async function openDevToolsIndicatorPopover(
+  browser: BrowserInterface
+): Promise<void> {
+  try {
+    await browser.waitForElementByCss('[data-nextjs-dev-tools-button]').click()
+  } catch (cause) {
+    const error = new Error('No DevTools Indicator to open.', { cause })
+    Error.captureStackTrace(error, openDevToolsIndicatorPopover)
+    throw error
+  }
+}
+
+export async function getRouteTypeFromDevToolsIndicator(
+  browser: BrowserInterface
+): Promise<'Static' | 'Dynamic'> {
+  await openDevToolsIndicatorPopover(browser)
+
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('[data-nextjs-toast]'))
+
+    const root = portal?.shadowRoot
+
+    // 'Route\nStatic' || 'Route\nDynamic'
+    const routeTypeText = root?.querySelector(
+      '[data-nextjs-route-type]'
+    )?.innerText
+
+    if (!routeTypeText) {
+      throw new Error('No Route Type Text Found')
+    }
+
+    // 'Static' || 'Dynamic'
+    const routeType = routeTypeText.split('\n').pop()
+    if (routeType !== 'Static' && routeType !== 'Dynamic') {
+      throw new Error(`Invalid Route Type: ${routeType}`)
+    }
+
+    return routeType as 'Static' | 'Dynamic'
+  })
 }
 
 export function getRedboxHeader(browser: BrowserInterface) {
@@ -917,7 +975,26 @@ export function getRedboxHeader(browser: BrowserInterface) {
   })
 }
 
+export function getRedboxFloatingHeaderText(
+  browser: BrowserInterface
+): Promise<string> {
+  return browser.eval(() => {
+    const portal = [].slice
+      .call(document.querySelectorAll('nextjs-portal'))
+      .find((p) => p.shadowRoot.querySelector('.error-overlay-floating-header'))
+    const root = portal.shadowRoot
+    return root.querySelector('.error-overlay-floating-header')?.innerText
+  })
+}
+
 export async function getRedboxTotalErrorCount(browser: BrowserInterface) {
+  // TODO(jiwon): Remove this once we have a new dev overlay at stable.
+  if (isNewDevOverlay) {
+    // N/M\nNext.js X.Y.Z -> M
+    const text = (await getRedboxFloatingHeaderText(browser)) || ''
+    return parseInt(text.match(/\/(\d+)/)?.[1])
+  }
+
   const header = (await getRedboxHeader(browser)) || ''
   return parseInt(header.match(/\d+ of (\d+) issue/)?.[1], 10)
 }
@@ -1521,4 +1598,43 @@ export async function toggleCollapseCallStackFrames(browser: BrowserInterface) {
     const currExpanded = await button.getAttribute('data-expand-ignore-button')
     expect(currExpanded).not.toBe(lastExpanded)
   })
+}
+
+/**
+ * Encodes the params into a URLSearchParams object using the format that the
+ * now builder uses for route matches (adding the `nxtP` prefix to the keys).
+ *
+ * @param params - The params to encode.
+ * @param extraQueryParams - The extra query params to encode (without the `nxtP` prefix).
+ * @returns The encoded URLSearchParams object.
+ */
+export function createNowRouteMatches(
+  params: Record<string, string>,
+  extraQueryParams: Record<string, string> = {}
+): URLSearchParams {
+  const urlSearchParams = new URLSearchParams()
+  for (const [key, value] of Object.entries(params)) {
+    urlSearchParams.append(`nxtP${key}`, value)
+  }
+  for (const [key, value] of Object.entries(extraQueryParams)) {
+    urlSearchParams.append(key, value)
+  }
+
+  return urlSearchParams
+}
+
+export async function assertNoConsoleErrors(browser: BrowserInterface) {
+  const logs = await browser.log()
+  const warningsAndErrors = logs.filter((log) => {
+    return (
+      log.source === 'warning' ||
+      (log.source === 'error' &&
+        // These are expected when we visit 404 pages.
+        !log.message.startsWith(
+          'Failed to load resource: the server responded with a status of 404'
+        ))
+    )
+  })
+
+  expect(warningsAndErrors).toEqual([])
 }

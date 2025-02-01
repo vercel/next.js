@@ -3,6 +3,7 @@ import type { DeepReadonly } from '../../shared/lib/deep-readonly'
 import {
   renderToReadableStream,
   decodeReply,
+  decodeReplyFromAsyncIterable,
   createTemporaryReferenceSet as createServerTemporaryReferenceSet,
 } from 'react-server-dom-webpack/server.edge'
 /* eslint-disable import/no-extraneous-dependencies */
@@ -33,46 +34,26 @@ import {
   getClientReferenceManifestForRsc,
   getServerModuleMap,
 } from '../app-render/encryption-utils'
-import DefaultCacheHandler from '../lib/cache-handlers/default'
 import type { CacheHandler, CacheEntry } from '../lib/cache-handlers/types'
 import type { CacheSignal } from '../app-render/cache-signal'
 import { decryptActionBoundArgs } from '../app-render/encryption'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { getDigestForWellKnownError } from '../app-render/create-error-handler'
+import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
+import { UseCacheTimeoutError } from './use-cache-errors'
+import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
-// If the expire time is less than .
-const DYNAMIC_EXPIRE = 300
-
-const cacheHandlersSymbol = Symbol.for('@next/cache-handlers')
-const _globalThis: typeof globalThis & {
-  [cacheHandlersSymbol]?: {
-    RemoteCache?: CacheHandler
-    DefaultCache?: CacheHandler
-  }
-  __nextCacheHandlers?: Record<string, CacheHandler>
-} = globalThis
-
-const cacheHandlerMap: Map<string, CacheHandler> = new Map([
-  [
-    'default',
-    _globalThis[cacheHandlersSymbol]?.DefaultCache || DefaultCacheHandler,
-  ],
-  [
-    'remote',
-    // in dev remote maps to default handler
-    // and is meant to be overridden in prod
-    _globalThis[cacheHandlersSymbol]?.RemoteCache || DefaultCacheHandler,
-  ],
-])
+const cacheHandlerMap: Map<string, CacheHandler> = new Map()
 
 function generateCacheEntry(
   workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
   // generation cannot read anything from the context we're currently executing which
@@ -85,7 +66,8 @@ function generateCacheEntry(
     outerWorkUnitStore,
     clientReferenceManifest,
     encodedArguments,
-    fn
+    fn,
+    timeoutError
   )
 }
 
@@ -94,7 +76,8 @@ function generateCacheEntryWithRestoredWorkStore(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
   // Note: We explicitly don't restore the RequestStore nor the PrerenderStore.
@@ -110,7 +93,8 @@ function generateCacheEntryWithRestoredWorkStore(
     outerWorkUnitStore,
     clientReferenceManifest,
     encodedArguments,
-    fn
+    fn,
+    timeoutError
   )
 }
 
@@ -119,7 +103,8 @@ function generateCacheEntryWithCacheContext(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ) {
   if (!workStore.cacheLifeProfiles) {
     throw new Error(
@@ -158,12 +143,12 @@ function generateCacheEntryWithCacheContext(
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
-    workStore,
     outerWorkUnitStore,
     cacheStore,
     clientReferenceManifest,
     encodedArguments,
-    fn
+    fn,
+    timeoutError
   )
 }
 
@@ -284,24 +269,51 @@ async function collectResult(
 }
 
 async function generateCacheEntryImpl(
-  workStore: WorkStore,
   outerWorkUnitStore: WorkUnitStore | undefined,
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any
+  fn: any,
+  timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , args] = await decodeReply<any[]>(
-    encodedArguments,
-    getServerModuleMap(),
-    {
-      temporaryReferences,
-    }
-  )
+  const [, , args] =
+    typeof encodedArguments === 'string'
+      ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
+          temporaryReferences,
+        })
+      : await decodeReplyFromAsyncIterable<any[]>(
+          {
+            async *[Symbol.asyncIterator]() {
+              for (const entry of encodedArguments) {
+                yield entry
+              }
 
-  // Track the timestamp when we started copmuting the result.
+              // The encoded arguments might contain hanging promises. In this
+              // case we don't want to reject with "Error: Connection closed.",
+              // so we intentionally keep the iterable alive. This is similar to
+              // the halting trick that we do while rendering.
+              if (outerWorkUnitStore?.type === 'prerender') {
+                await new Promise<void>((resolve) => {
+                  if (outerWorkUnitStore.renderSignal.aborted) {
+                    resolve()
+                  } else {
+                    outerWorkUnitStore.renderSignal.addEventListener(
+                      'abort',
+                      () => resolve(),
+                      { once: true }
+                    )
+                  }
+                })
+              }
+            },
+          },
+          getServerModuleMap(),
+          { temporaryReferences }
+        )
+
+  // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
   // Invoke the inner function to load a new result.
   const result = fn.apply(null, args)
@@ -310,17 +322,12 @@ async function generateCacheEntryImpl(
 
   let timer = undefined
   const controller = new AbortController()
-  if (workStore.isStaticGeneration) {
+  if (outerWorkUnitStore?.type === 'prerender') {
     // If we're prerendering, we give you 50 seconds to fill a cache entry. Otherwise
     // we assume you stalled on hanging input and deopt. This needs to be lower than
     // just the general timeout of 60 seconds.
     timer = setTimeout(() => {
-      controller.abort(
-        new Error(
-          'Filling a cache during prerender timed out, likely because request-specific arguments such as ' +
-            'params, searchParams, cookies() or dynamic data were used inside "use cache".'
-        )
-      )
+      controller.abort(timeoutError)
     }, 50000)
   }
 
@@ -342,10 +349,19 @@ async function generateCacheEntryImpl(
           return digest
         }
 
-        // TODO: For now we're also reporting the error here, because in
-        // production, the "Server" environment will only get the obfuscated
-        // error (created by the Flight Client in the cache wrapper).
-        console.error(error)
+        if (process.env.NODE_ENV !== 'development') {
+          // TODO: For now we're also reporting the error here, because in
+          // production, the "Server" environment will only get the obfuscated
+          // error (created by the Flight Client in the cache wrapper).
+          console.error(error)
+        }
+
+        if (error === timeoutError) {
+          // The timeout error already aborted the whole stream. We don't need
+          // to also push this error into the `errors` array.
+          return timeoutError.digest
+        }
+
         errors.push(error)
       },
     }
@@ -455,7 +471,7 @@ export function cache(
   fn: any
 ) {
   for (const [key, value] of Object.entries(
-    _globalThis.__nextCacheHandlers || {}
+    cacheHandlerGlobal.__nextCacheHandlers || {}
   )) {
     cacheHandlerMap.set(key, value as CacheHandler)
   }
@@ -464,6 +480,11 @@ export function cache(
   if (cacheHandler === undefined) {
     throw new Error('Unknown cache handler: ' + kind)
   }
+
+  // Capture the timeout error here to ensure a useful stack.
+  const timeoutError = new UseCacheTimeoutError()
+  Error.captureStackTrace(timeoutError, cache)
+
   const name = fn.name
   const cachedFn = {
     [name]: async function (...args: any[]) {
@@ -486,29 +507,10 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
-      let abortHangingInputSignal: null | AbortSignal = null
-      if (workUnitStore && workUnitStore.type === 'prerender') {
-        // In a prerender, we may end up with hanging Promises as inputs due them stalling
-        // on connection() or because they're loading dynamic data. In that case we need to
-        // abort the encoding of the arguments since they'll never complete.
-        const controller = new AbortController()
-        abortHangingInputSignal = controller.signal
-        if (workUnitStore.cacheSignal) {
-          // If we have a cacheSignal it means we're in a prospective render. If the input
-          // we're waiting on is coming from another cache, we do want to wait for it so that
-          // we can resolve this cache entry too.
-          workUnitStore.cacheSignal.inputReady().then(() => {
-            controller.abort()
-          })
-        } else {
-          // Otherwise we're in the final render and we should already have all our caches
-          // filled. We might still be waiting on some microtasks so we wait one tick before
-          // giving up. When we give up, we still want to render the content of this cache
-          // as deeply as we can so that we can suspend as deeply as possible in the tree
-          // or not at all if we don't end up waiting for the input.
-          process.nextTick(() => controller.abort())
-        }
-      }
+      const hangingInputAbortSignal =
+        workUnitStore?.type === 'prerender'
+          ? createHangingInputAbortSignal(workUnitStore)
+          : undefined
 
       if (boundArgsLength > 0) {
         if (args.length === 0) {
@@ -538,18 +540,7 @@ export function cache(
       const temporaryReferences = createClientTemporaryReferenceSet()
       const encodedArguments: FormData | string = await encodeReply(
         [buildId, id, args],
-        // Right now this is enough to cause the input to generate hanging Promises
-        // but that's really due to what is probably a React bug in decodeReply.
-        // If that's fixed we may need a different strategy. We can also just skip
-        // the serialization/cache in this scenario and pass-through raw objects.
-        abortHangingInputSignal
-          ? {
-              temporaryReferences,
-              signal: abortHangingInputSignal,
-            }
-          : {
-              temporaryReferences,
-            }
+        { temporaryReferences, signal: hangingInputAbortSignal }
       )
 
       const serializedCacheKey =
@@ -679,7 +670,8 @@ export function cache(
             workUnitStore,
             clientReferenceManifest,
             encodedArguments,
-            fn
+            fn,
+            timeoutError
           )
 
           let savedCacheEntry
@@ -738,7 +730,8 @@ export function cache(
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
               encodedArguments,
-              fn
+              fn,
+              timeoutError
             )
 
             let savedCacheEntry: Promise<CacheEntry>

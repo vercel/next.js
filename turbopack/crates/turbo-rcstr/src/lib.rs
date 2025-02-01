@@ -2,13 +2,22 @@ use std::{
     borrow::{Borrow, Cow},
     ffi::OsStr,
     fmt::{Debug, Display},
+    hash::{Hash, Hasher},
+    mem::forget,
+    num::NonZeroU8,
     ops::Deref,
     path::{Path, PathBuf},
 };
 
-use serde::{Deserialize, Serialize};
+use debug_unreachable::debug_unreachable;
+use serde::{Deserialize, Deserializer, Serialize, Serializer};
 use triomphe::Arc;
 use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
+
+use crate::{dynamic::new_atom, tagged_value::TaggedValue};
+
+mod dynamic;
+mod tagged_value;
 
 /// An immutable reference counted [`String`], similar to [`Arc<String>`][std::sync::Arc].
 ///
@@ -44,13 +53,37 @@ use turbo_tasks_hash::{DeterministicHash, DeterministicHasher};
 // If you want to change the underlying string type to `Arc<str>`, please ensure that you profile
 // performance. The current implementation offers very cheap `String -> RcStr -> String`, meaning we
 // only pay for the allocation for `Arc` when we pass `format!("").into()` to a function.
-#[derive(Clone, Default, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize, Deserialize)]
-#[serde(transparent)]
-pub struct RcStr(Arc<String>);
+pub struct RcStr {
+    unsafe_data: TaggedValue,
+}
+
+unsafe impl Send for RcStr {}
+unsafe impl Sync for RcStr {}
+
+const DYNAMIC_TAG: u8 = 0b_00;
+const INLINE_TAG: u8 = 0b_01; // len in upper nybble
+const INLINE_TAG_INIT: NonZeroU8 = unsafe { NonZeroU8::new_unchecked(INLINE_TAG) };
+const TAG_MASK: u8 = 0b_11;
+const LEN_OFFSET: usize = 4;
+const LEN_MASK: u8 = 0xf0;
 
 impl RcStr {
+    #[inline(always)]
+    fn tag(&self) -> u8 {
+        self.unsafe_data.tag() & TAG_MASK
+    }
+
+    #[inline(never)]
     pub fn as_str(&self) -> &str {
-        self.0.as_str()
+        match self.tag() {
+            DYNAMIC_TAG => unsafe { dynamic::deref_from(self.unsafe_data) },
+            INLINE_TAG => {
+                let len = (self.unsafe_data.tag() & LEN_MASK) >> LEN_OFFSET;
+                let src = self.unsafe_data.data();
+                unsafe { std::str::from_utf8_unchecked(&src[..(len as usize)]) }
+            }
+            _ => unsafe { debug_unreachable!() },
+        }
     }
 
     /// Returns an owned mutable [`String`].
@@ -61,14 +94,39 @@ impl RcStr {
     ///   underlying string without cloning in `O(1)` time.
     /// - This avoids some of the potential overhead of the `Display` trait.
     pub fn into_owned(self) -> String {
-        match Arc::try_unwrap(self.0) {
-            Ok(v) => v,
-            Err(arc) => (*arc).clone(),
+        match self.tag() {
+            DYNAMIC_TAG => {
+                let arc = unsafe { dynamic::restore_arc(self.unsafe_data) };
+
+                match Arc::try_unwrap(arc.clone()) {
+                    Ok(v) => v,
+                    Err(arc) => {
+                        let s = arc.to_string();
+                        forget(arc);
+                        s
+                    }
+                }
+            }
+            INLINE_TAG => self.as_str().to_string(),
+            _ => unsafe { debug_unreachable!() },
         }
     }
 
     pub fn map(self, f: impl FnOnce(String) -> String) -> Self {
-        RcStr(Arc::new(f(self.into_owned())))
+        RcStr::from(Cow::Owned(f(self.into_owned())))
+    }
+
+    #[inline]
+    pub(crate) fn from_alias(alias: TaggedValue) -> Self {
+        if alias.tag() & TAG_MASK == DYNAMIC_TAG {
+            unsafe {
+                let arc = dynamic::restore_arc(alias);
+                forget(arc.clone());
+                forget(arc);
+            }
+        }
+
+        Self { unsafe_data: alias }
     }
 }
 
@@ -83,70 +141,73 @@ impl Deref for RcStr {
     type Target = str;
 
     fn deref(&self) -> &Self::Target {
-        self.0.as_str()
+        self.as_str()
     }
 }
 
 impl Borrow<str> for RcStr {
     fn borrow(&self) -> &str {
-        self.0.as_str()
+        self.as_str()
     }
 }
 
 impl From<Arc<String>> for RcStr {
     fn from(s: Arc<String>) -> Self {
-        RcStr(s)
+        match Arc::try_unwrap(s) {
+            Ok(v) => new_atom(Cow::Owned(v)),
+            Err(arc) => new_atom(Cow::Borrowed(&**arc)),
+        }
     }
 }
 
 impl From<String> for RcStr {
     fn from(s: String) -> Self {
-        RcStr(Arc::new(s))
+        new_atom(Cow::Owned(s))
     }
 }
 
 impl From<&'_ str> for RcStr {
     fn from(s: &str) -> Self {
-        RcStr(Arc::new(s.to_string()))
+        new_atom(Cow::Borrowed(s))
     }
 }
 
 impl From<Cow<'_, str>> for RcStr {
     fn from(s: Cow<str>) -> Self {
-        RcStr(Arc::new(s.into_owned()))
+        new_atom(s)
     }
 }
 
 /// Mimic `&str`
 impl AsRef<Path> for RcStr {
     fn as_ref(&self) -> &Path {
-        (*self.0).as_ref()
+        self.as_str().as_ref()
     }
 }
 
 /// Mimic `&str`
 impl AsRef<OsStr> for RcStr {
     fn as_ref(&self) -> &OsStr {
-        (*self.0).as_ref()
+        self.as_str().as_ref()
     }
 }
 
 /// Mimic `&str`
 impl AsRef<[u8]> for RcStr {
     fn as_ref(&self) -> &[u8] {
-        (*self.0).as_ref()
+        self.as_str().as_ref()
     }
 }
 
 impl PartialEq<str> for RcStr {
     fn eq(&self, other: &str) -> bool {
-        self.0.as_str() == other
+        self.as_str() == other
     }
 }
 
 impl PartialEq<&'_ str> for RcStr {
     fn eq(&self, other: &&str) -> bool {
-        self.0.as_str() == *other
+        self.as_str() == *other
     }
 }
 
@@ -158,13 +219,13 @@ impl PartialEq<String> for RcStr {
 
 impl Debug for RcStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Debug::fmt(&self.0, f)
+        Debug::fmt(&self.as_str(), f)
     }
 }
 
 impl Display for RcStr {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.0, f)
+        Display::fmt(&self.as_str(), f)
     }
 }
 
@@ -177,5 +238,65 @@ impl From<RcStr> for String {
 impl From<RcStr> for PathBuf {
     fn from(s: RcStr) -> Self {
         String::from(s).into()
+    }
+}
+
+impl Clone for RcStr {
+    #[inline(always)]
+    fn clone(&self) -> Self {
+        Self::from_alias(self.unsafe_data)
+    }
+}
+
+impl Default for RcStr {
+    fn default() -> Self {
+        RcStr::from("")
+    }
+}
+
+impl PartialEq for RcStr {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_str() == other.as_str()
+    }
+}
+
+impl Eq for RcStr {}
+
+impl PartialOrd for RcStr {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.cmp(other))
+    }
+}
+
+impl Ord for RcStr {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.as_str().cmp(other.as_str())
+    }
+}
+
+impl Hash for RcStr {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_str().hash(state);
+    }
+}
+
+impl Serialize for RcStr {
+    fn serialize<S: Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
+        serializer.serialize_str(self.as_str())
+    }
+}
+
+impl<'de> Deserialize<'de> for RcStr {
+    fn deserialize<D: Deserializer<'de>>(deserializer: D) -> Result<Self, D::Error> {
+        let s = String::deserialize(deserializer)?;
+        Ok(RcStr::from(s))
+    }
+}
+
+impl Drop for RcStr {
+    fn drop(&mut self) {
+        if self.tag() == DYNAMIC_TAG {
+            unsafe { drop(dynamic::restore_arc(self.unsafe_data)) }
+        }
     }
 }

@@ -15,7 +15,7 @@ use crate::references::{
     esm::{EsmExport, EsmExports},
 };
 
-#[turbo_tasks::value_trait(local)]
+#[turbo_tasks::value_trait]
 pub trait EcmascriptChunkPlaceable: ChunkableModule + Module + Asset {
     fn get_exports(self: Vc<Self>) -> Vc<EcmascriptExports>;
     fn get_async_module(self: Vc<Self>) -> Vc<OptionAsyncModule> {

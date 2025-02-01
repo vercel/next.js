@@ -1,10 +1,7 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
-use turbopack::{
-    transition::{ContextTransition, Transition},
-    ModuleAssetContext,
-};
+use turbopack::{transition::Transition, ModuleAssetContext};
 use turbopack_core::{
     context::ProcessResult,
     file_source::FileSource,
@@ -13,12 +10,12 @@ use turbopack_core::{
 };
 use turbopack_ecmascript::chunk::EcmascriptChunkPlaceable;
 
-use super::ecmascript_client_reference_proxy_module::EcmascriptClientReferenceProxyModule;
+use crate::next_client_reference::ecmascript_client_reference::ecmascript_client_reference_module::EcmascriptClientReferenceModule;
 
 #[turbo_tasks::value(shared)]
 pub struct NextEcmascriptClientReferenceTransition {
     client_transition: ResolvedVc<Box<dyn Transition>>,
-    ssr_transition: ResolvedVc<ContextTransition>,
+    ssr_transition: ResolvedVc<Box<dyn Transition>>,
 }
 
 #[turbo_tasks::value_impl]
@@ -26,7 +23,7 @@ impl NextEcmascriptClientReferenceTransition {
     #[turbo_tasks::function]
     pub fn new(
         client_transition: ResolvedVc<Box<dyn Transition>>,
-        ssr_transition: ResolvedVc<ContextTransition>,
+        ssr_transition: ResolvedVc<Box<dyn Transition>>,
     ) -> Vc<Self> {
         NextEcmascriptClientReferenceTransition {
             client_transition,
@@ -125,7 +122,7 @@ impl Transition for NextEcmascriptClientReferenceTransition {
         );
 
         Ok(ProcessResult::Module(ResolvedVc::upcast(
-            EcmascriptClientReferenceProxyModule::new(
+            EcmascriptClientReferenceModule::new(
                 ident,
                 Vc::upcast(server_context),
                 *client_module,

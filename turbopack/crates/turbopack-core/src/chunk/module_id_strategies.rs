@@ -1,10 +1,13 @@
-use anyhow::Result;
-use turbo_rcstr::RcStr;
-use turbo_tasks::{FxIndexMap, ResolvedVc, ValueToString, Vc};
+use anyhow::{bail, Result};
+use rustc_hash::FxHashMap;
+use turbo_tasks::{ResolvedVc, ValueToString, Vc};
 use turbo_tasks_hash::hash_xxh3_hash64;
 
 use super::ModuleId;
-use crate::ident::AssetIdent;
+use crate::{
+    ident::AssetIdent,
+    issue::{module::ModuleIssue, IssueExt, StyledString},
+};
 
 #[turbo_tasks::value_trait]
 pub trait ModuleIdStrategy {
@@ -32,25 +35,43 @@ impl ModuleIdStrategy for DevModuleIdStrategy {
     }
 }
 
-#[turbo_tasks::value]
+#[turbo_tasks::value(shared)]
 pub struct GlobalModuleIdStrategy {
-    module_id_map: FxIndexMap<RcStr, ModuleId>,
-}
-
-impl GlobalModuleIdStrategy {
-    pub async fn new(module_id_map: FxIndexMap<RcStr, ModuleId>) -> Result<Vc<Self>> {
-        Ok(GlobalModuleIdStrategy { module_id_map }.cell())
-    }
+    pub module_id_map: FxHashMap<ResolvedVc<AssetIdent>, u64>,
 }
 
 #[turbo_tasks::value_impl]
 impl ModuleIdStrategy for GlobalModuleIdStrategy {
     #[turbo_tasks::function]
-    async fn get_module_id(&self, ident: Vc<AssetIdent>) -> Result<Vc<ModuleId>> {
-        let ident_string = ident.to_string().await?.clone_value();
-        if let Some(module_id) = self.module_id_map.get(&ident_string) {
-            return Ok(module_id.clone().cell());
+    async fn get_module_id(&self, ident: ResolvedVc<AssetIdent>) -> Result<Vc<ModuleId>> {
+        if let Some(module_id) = self.module_id_map.get(&ident) {
+            const JS_MAX_SAFE_INTEGER: u64 = (1u64 << 53) - 1;
+            if *module_id > JS_MAX_SAFE_INTEGER {
+                bail!("Numeric module id is too large: {}", module_id);
+            }
+            return Ok(ModuleId::Number(*module_id).cell());
         }
+
+        let ident_string = ident.to_string().await?;
+        if !ident_string.ends_with("[app-client] (ecmascript, next/dynamic entry)") {
+            // TODO: This shouldn't happen, but is a temporary workaround to ignore next/dynamic
+            // imports of a server component from another server component.
+
+            ModuleIssue {
+                ident,
+                title: StyledString::Text(
+                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                )
+                .resolved_cell(),
+                description: StyledString::Text(
+                    format!("ModuleId not found for ident: {:?}", ident_string).into(),
+                )
+                .resolved_cell(),
+            }
+            .resolved_cell()
+            .emit();
+        }
+
         Ok(ModuleId::String(
             hash_xxh3_hash64(ident.to_string().await?)
                 .to_string()

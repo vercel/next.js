@@ -1,18 +1,26 @@
 use anyhow::Result;
 use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, OperationVc, RcStr, Vc};
+use turbo_rcstr::RcStr;
+use turbo_tasks::{
+    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, NonLocalValue,
+    OperationVc, ResolvedVc, Vc,
+};
+use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
 
 use crate::{
     entrypoints::Entrypoints,
     route::{Endpoint, Route},
 };
 
-/// A derived type of Entrypoints, but with OperationVc<Endpoint> for every endpoint.
+/// Based on [`Entrypoints`], but with [`OperationVc<Endpoint>`][OperationVc] for every endpoint.
+///
+/// This is used when constructing `ExternalEndpoint`s in the `napi` crate.
+///
+/// This is important as `OperationVc`s can be stored in the VersionedContentMap and can be exposed
+/// to JS via napi.
 ///
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
-/// This is important as OperationVcs can be stored in the VersionedContentMap and can be exposed to
-/// JS via napi.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
     pub routes: IndexMap<RcStr, RouteOperation>,
@@ -23,11 +31,31 @@ pub struct EntrypointsOperation {
     pub pages_error_endpoint: OperationVc<Box<dyn Endpoint>>,
 }
 
+/// HACK: Wraps an `OperationVc<Entrypoints>` inside of a second `OperationVc`.
+#[turbo_tasks::function(operation)]
+fn entrypoints_wrapper(entrypoints: OperationVc<Entrypoints>) -> Vc<Entrypoints> {
+    entrypoints.connect()
+}
+
+/// Removes diagnostics, issues, and effects from the top-level `entrypoints` operation so that
+/// they're not duplicated across many different individual entrypoints or routes.
+#[turbo_tasks::function(operation)]
+async fn entrypoints_without_collectibles_operation(
+    entrypoints: OperationVc<Entrypoints>,
+) -> Result<Vc<Entrypoints>> {
+    let entrypoints = entrypoints_wrapper(entrypoints);
+    let _ = entrypoints.take_collectibles::<Box<dyn Diagnostic>>();
+    let _ = entrypoints.take_issues_with_path().await?;
+    let _ = get_effects(entrypoints).await?;
+    Ok(entrypoints.connect())
+}
+
 #[turbo_tasks::value_impl]
 impl EntrypointsOperation {
-    #[turbo_tasks::function]
+    #[turbo_tasks::function(operation)]
     pub async fn new(entrypoints: OperationVc<Entrypoints>) -> Result<Vc<Self>> {
         let e = entrypoints.connect().await?;
+        let entrypoints = entrypoints_without_collectibles_operation(entrypoints);
         Ok(Self {
             routes: e
                 .routes
@@ -85,20 +113,16 @@ fn wrap_route(route: &Route, entrypoints: OperationVc<Entrypoints>) -> RouteOper
     }
 }
 
-#[turbo_tasks::function]
-fn wrap_endpoint(
-    endpoint: Vc<Box<dyn Endpoint>>,
+/// Given a resolved `Endpoint` and the `Entrypoints` operation that it comes from, connect the
+/// operation and return a `OperationVc` of the `Entrypoint`. This `Endpoint` operation will keep
+/// the entire `Entrypoints` operation alive.
+#[turbo_tasks::function(operation)]
+fn wrap(
+    endpoint: ResolvedVc<Box<dyn Endpoint>>,
     op: OperationVc<Entrypoints>,
 ) -> Vc<Box<dyn Endpoint>> {
     let _ = op.connect();
-    endpoint
-}
-
-fn wrap(
-    endpoint: Vc<Box<dyn Endpoint>>,
-    op: OperationVc<Entrypoints>,
-) -> OperationVc<Box<dyn Endpoint>> {
-    OperationVc::new(wrap_endpoint(endpoint, op))
+    *endpoint
 }
 
 #[derive(Serialize, Deserialize, TraceRawVcs, PartialEq, Eq, ValueDebugFormat, NonLocalValue)]
@@ -124,7 +148,7 @@ pub enum RouteOperation {
     },
     AppPage(Vec<AppPageRouteOperation>),
     AppRoute {
-        original_name: String,
+        original_name: RcStr,
         endpoint: OperationVc<Box<dyn Endpoint>>,
     },
     Conflict,
@@ -142,7 +166,7 @@ pub enum RouteOperation {
     NonLocalValue,
 )]
 pub struct AppPageRouteOperation {
-    pub original_name: String,
+    pub original_name: RcStr,
     pub html_endpoint: OperationVc<Box<dyn Endpoint>>,
     pub rsc_endpoint: OperationVc<Box<dyn Endpoint>>,
 }

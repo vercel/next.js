@@ -109,6 +109,7 @@ import { InvariantError } from '../shared/lib/invariant-error'
 import { AwaiterOnce } from './after/awaiter'
 import { AsyncCallbackSet } from './lib/async-callback-set'
 import DefaultCacheHandler from './lib/cache-handlers/default'
+import { cacheHandlerGlobal, cacheHandlersSymbol } from './use-cache/constants'
 
 export * from './base-server'
 
@@ -283,6 +284,8 @@ export default class NextNodeServer extends BaseServer<
     const appPathsManifest = this.getAppPathsManifest()
     const pagesManifest = this.getPagesManifest()
 
+    await this.loadCustomCacheHandlers()
+
     for (const page of Object.keys(pagesManifest || {})) {
       await loadComponents({
         distDir: this.distDir,
@@ -374,6 +377,30 @@ export default class NextNodeServer extends BaseServer<
     )
   }
 
+  protected async loadCustomCacheHandlers() {
+    const { cacheHandlers } = this.nextConfig.experimental
+
+    if (!cacheHandlerGlobal.__nextCacheHandlers && cacheHandlers) {
+      cacheHandlerGlobal.__nextCacheHandlers = {}
+
+      for (const key of Object.keys(cacheHandlers)) {
+        if (cacheHandlers[key]) {
+          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
+            await dynamicImportEsmDefault(
+              formatDynamicImportPath(this.distDir, cacheHandlers[key])
+            )
+          )
+        }
+      }
+
+      if (!cacheHandlers.default) {
+        cacheHandlerGlobal.__nextCacheHandlers.default =
+          cacheHandlerGlobal[cacheHandlersSymbol]?.DefaultCache ||
+          DefaultCacheHandler
+      }
+    }
+  }
+
   protected async getIncrementalCache({
     requestHeaders,
     requestProtocol,
@@ -393,25 +420,7 @@ export default class NextNodeServer extends BaseServer<
       )
     }
 
-    const { cacheHandlers } = this.nextConfig.experimental
-
-    if (!(globalThis as any).__nextCacheHandlers && cacheHandlers) {
-      ;(globalThis as any).__nextCacheHandlers = {}
-
-      for (const key of Object.keys(cacheHandlers)) {
-        if (cacheHandlers[key]) {
-          ;(globalThis as any).__nextCacheHandlers[key] = interopDefault(
-            await dynamicImportEsmDefault(
-              formatDynamicImportPath(this.distDir, cacheHandlers[key])
-            )
-          )
-        }
-      }
-
-      if (!cacheHandlers.default) {
-        ;(globalThis as any).__nextCacheHandlers.default = DefaultCacheHandler
-      }
-    }
+    await this.loadCustomCacheHandlers()
 
     // incremental-cache is request specific
     // although can have shared caches in module scope
@@ -421,7 +430,6 @@ export default class NextNodeServer extends BaseServer<
       dev,
       requestHeaders,
       requestProtocol,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
       minimalMode: this.minimalMode,
@@ -1322,9 +1330,12 @@ export default class NextNodeServer extends BaseServer<
   }
 
   protected getMiddlewareManifest(): MiddlewareManifest | null {
-    if (this.minimalMode) return null
-    const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
-    return manifest
+    if (this.minimalMode) {
+      return null
+    } else {
+      const manifest: MiddlewareManifest = require(this.middlewareManifestPath)
+      return manifest
+    }
   }
 
   /** Returns the middleware routing item if there is one. */

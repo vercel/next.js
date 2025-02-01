@@ -1785,7 +1785,8 @@
         response.reason.close("" === row ? '"$undefined"' : row);
     }
     function resolveErrorDev(response, errorInfo) {
-      var env = errorInfo.env;
+      var name = errorInfo.name,
+        env = errorInfo.env;
       errorInfo = buildFakeCallStack(
         response,
         errorInfo.stack,
@@ -1798,6 +1799,7 @@
       );
       response = getRootTask(response, env);
       response = null != response ? response.run(errorInfo) : errorInfo();
+      response.name = name;
       response.environmentName = env;
       return response;
     }
@@ -2475,10 +2477,10 @@
       return hook.checkDCE ? !0 : !1;
     })({
       bundleType: 1,
-      version: "19.1.0-canary-518d06d2-20241219",
+      version: "19.1.0-canary-37906d4d-20250127",
       rendererPackageName: "react-server-dom-webpack",
       currentDispatcherRef: ReactSharedInternals,
-      reconcilerVersion: "19.1.0-canary-518d06d2-20241219",
+      reconcilerVersion: "19.1.0-canary-37906d4d-20250127",
       getCurrentComponentInfo: function () {
         return currentOwnerInDEV;
       }

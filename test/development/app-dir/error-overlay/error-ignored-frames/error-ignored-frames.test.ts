@@ -26,24 +26,26 @@ describe('error-ignored-frames', () => {
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`""`)
+    expect(defaultStack).toMatchInlineSnapshot(`"at Page (app/page.tsx (2:9))"`)
 
     await toggleCollapseCallStackFrames(browser)
 
     const expendedStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at resolveErrorDev ()
-        at processFullStringRow ()
-        at processFullBinaryRow ()
-        at progress ()"
+       "at Page (app/page.tsx (2:9))
+       at resolveErrorDev ()
+       at processFullStringRow ()
+       at processFullBinaryRow ()
+       at progress ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at resolveErrorDev ()
-        at processFullStringRow ()
-        at processFullBinaryRow ()
-        at progress ()"
+       "at Page (app/page.tsx (2:9))
+       at resolveErrorDev ()
+       at processFullStringRow ()
+       at processFullBinaryRow ()
+       at progress ()"
       `)
     }
   })
@@ -53,38 +55,42 @@ describe('error-ignored-frames', () => {
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`""`)
+    expect(defaultStack).toMatchInlineSnapshot(
+      `"at Page (app/client/page.tsx (4:9))"`
+    )
 
     await toggleCollapseCallStackFrames(browser)
 
     const expendedStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
+       "at Page (app/client/page.tsx (4:9))
+       at react-stack-bottom-frame ()
+       at renderWithHooks ()
+       at updateFunctionComponent ()
+       at beginWork ()
+       at runWithFiberInDEV ()
+       at performUnitOfWork ()
+       at workLoopSync ()
+       at renderRootSync ()
+       at performWorkOnRoot ()
+       at performWorkOnRootViaSchedulerTask ()
+       at MessagePort.performWorkUntilDeadline ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
+       "at Page (app/client/page.tsx (4:9))
+       at react-stack-bottom-frame ()
+       at renderWithHooks ()
+       at updateFunctionComponent ()
+       at beginWork ()
+       at runWithFiberInDEV ()
+       at performUnitOfWork ()
+       at workLoopSync ()
+       at renderRootSync ()
+       at performWorkOnRoot ()
+       at performWorkOnRootViaSchedulerTask ()
+       at MessagePort.performWorkUntilDeadline ()"
       `)
     }
   })
@@ -95,13 +101,15 @@ describe('error-ignored-frames', () => {
 
     const defaultStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
-      expect(defaultStack).toMatchInlineSnapshot(
-        `"at Page (app/interleaved/page.tsx (6:35))"`
-      )
+      expect(defaultStack).toMatchInlineSnapshot(`
+       "at <unknown> (app/interleaved/page.tsx (7:11))
+       at Page (app/interleaved/page.tsx (6:35))"
+      `)
     } else {
-      expect(defaultStack).toMatchInlineSnapshot(
-        `"at Page (app/interleaved/page.tsx (6:37))"`
-      )
+      expect(defaultStack).toMatchInlineSnapshot(`
+       "at eval (app/interleaved/page.tsx (7:11))
+       at Page (app/interleaved/page.tsx (6:37))"
+      `)
     }
 
     await toggleCollapseCallStackFrames(browser)
@@ -109,35 +117,37 @@ describe('error-ignored-frames', () => {
     const expendedStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at invokeCallback ()
-        at Page (app/interleaved/page.tsx (6:35))
-        at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
+       "at <unknown> (app/interleaved/page.tsx (7:11))
+       at invokeCallback ()
+       at Page (app/interleaved/page.tsx (6:35))
+       at react-stack-bottom-frame ()
+       at renderWithHooks ()
+       at updateFunctionComponent ()
+       at beginWork ()
+       at runWithFiberInDEV ()
+       at performUnitOfWork ()
+       at workLoopSync ()
+       at renderRootSync ()
+       at performWorkOnRoot ()
+       at performWorkOnRootViaSchedulerTask ()
+       at MessagePort.performWorkUntilDeadline ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at invokeCallback (node_modules/interleave/index.js (2:1))
-        at Page (app/interleaved/page.tsx (6:37))
-        at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at updateFunctionComponent ()
-        at beginWork ()
-        at runWithFiberInDEV ()
-        at performUnitOfWork ()
-        at workLoopSync ()
-        at renderRootSync ()
-        at performWorkOnRoot ()
-        at performWorkOnRootViaSchedulerTask ()
-        at MessagePort.performWorkUntilDeadline ()"
+       "at eval (app/interleaved/page.tsx (7:11))
+       at invokeCallback (node_modules/interleave/index.js (2:1))
+       at Page (app/interleaved/page.tsx (6:37))
+       at react-stack-bottom-frame ()
+       at renderWithHooks ()
+       at updateFunctionComponent ()
+       at beginWork ()
+       at runWithFiberInDEV ()
+       at performUnitOfWork ()
+       at workLoopSync ()
+       at renderRootSync ()
+       at performWorkOnRoot ()
+       at performWorkOnRootViaSchedulerTask ()
+       at MessagePort.performWorkUntilDeadline ()"
       `)
     }
   })
@@ -147,79 +157,83 @@ describe('error-ignored-frames', () => {
     await assertHasRedbox(browser)
 
     const defaultStack = await getStackFramesContent(browser)
-    expect(defaultStack).toMatchInlineSnapshot(`""`)
+    expect(defaultStack).toMatchInlineSnapshot(
+      `"at Page (pages/pages.tsx (2:9))"`
+    )
 
     await toggleCollapseCallStackFrames(browser)
 
     const expendedStack = await getStackFramesContent(browser)
     if (process.env.TURBOPACK) {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at finishFunctionComponent ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderNode ()
-        at renderChildrenArray ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderNode ()
-        at renderChildrenArray ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at finishFunctionComponent ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()"
+       "at Page (pages/pages.tsx (2:9))
+       at react-stack-bottom-frame ()
+       at renderWithHooks ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at finishFunctionComponent ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderNode ()
+       at renderChildrenArray ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderNode ()
+       at renderChildrenArray ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at finishFunctionComponent ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()"
       `)
     } else {
       expect(expendedStack).toMatchInlineSnapshot(`
-        "at react-stack-bottom-frame ()
-        at renderWithHooks ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at finishFunctionComponent ()
-        at renderElement ()
-        at retryNode ()
-        at renderNodeDestructive ()
-        at renderNode ()
-        at renderChildrenArray ()"
+       "at Page (pages/pages.tsx (2:9))
+       at react-stack-bottom-frame ()
+       at renderWithHooks ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at finishFunctionComponent ()
+       at renderElement ()
+       at retryNode ()
+       at renderNodeDestructive ()
+       at renderNode ()
+       at renderChildrenArray ()"
       `)
     }
   })

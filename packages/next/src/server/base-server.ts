@@ -175,6 +175,7 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
+import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -594,6 +595,8 @@ export default abstract class Server<
           this.nextConfig.experimental.clientSegmentCache ?? false,
         inlineCss: this.nextConfig.experimental.inlineCss ?? false,
         authInterrupts: !!this.nextConfig.experimental.authInterrupts,
+        streamingMetadata: !!this.nextConfig.experimental.streamingMetadata,
+        htmlLimitedBots: this.nextConfig.experimental.htmlLimitedBots,
       },
       onInstrumentationRequestError:
         this.instrumentationOnRequestError.bind(this),
@@ -1160,18 +1163,18 @@ export default abstract class Server<
           if (didRewrite && parsedUrl.pathname) {
             addRequestMeta(req, 'rewroteURL', parsedUrl.pathname)
           }
+
+          // Normalize all the query params to remove the prefixes.
           const routeParamKeys = new Set<string>()
+          for (const [key, value] of Object.entries(parsedUrl.query)) {
+            if (typeof value === 'undefined') continue
 
-          for (const key of Object.keys(parsedUrl.query)) {
-            const value = parsedUrl.query[key]
-
-            normalizeNextQueryParam(key, (normalizedKey) => {
-              if (!parsedUrl) return // typeguard
-
+            const normalizedKey = normalizeNextQueryParam(key)
+            if (normalizedKey) {
               parsedUrl.query[normalizedKey] = value
               routeParamKeys.add(normalizedKey)
               delete parsedUrl.query[key]
-            })
+            }
           }
 
           // interpolate dynamic params and normalize URL if needed
@@ -1179,7 +1182,8 @@ export default abstract class Server<
             let params: ParsedUrlQuery | false = {}
 
             let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query
+              parsedUrl.query,
+              false
             )
 
             // for prerendered ISR paths we attempt parsing the route
@@ -1193,7 +1197,7 @@ export default abstract class Server<
               let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
 
               if (matcherParams) {
-                utils.normalizeDynamicRouteParams(matcherParams)
+                utils.normalizeDynamicRouteParams(matcherParams, false)
                 Object.assign(paramsResult.params, matcherParams)
                 paramsResult.hasValidParams = true
               }
@@ -1215,8 +1219,10 @@ export default abstract class Server<
               let matcherParams = utils.dynamicRouteMatcher?.(matchedPath)
 
               if (matcherParams) {
-                const curParamsResult =
-                  utils.normalizeDynamicRouteParams(matcherParams)
+                const curParamsResult = utils.normalizeDynamicRouteParams(
+                  matcherParams,
+                  false
+                )
 
                 if (curParamsResult.hasValidParams) {
                   Object.assign(params, matcherParams)
@@ -1229,29 +1235,33 @@ export default abstract class Server<
               params = paramsResult.params
             }
 
+            const routeMatchesHeader = req.headers['x-now-route-matches']
             if (
-              req.headers['x-now-route-matches'] &&
+              typeof routeMatchesHeader === 'string' &&
+              routeMatchesHeader &&
               isDynamicRoute(matchedPath) &&
               !paramsResult.hasValidParams
             ) {
-              const opts: Record<string, string> = {}
-              const routeParams = utils.getParamsFromRouteMatches(
-                req,
-                opts,
-                getRequestMeta(req, 'locale')
-              )
+              const routeMatches =
+                utils.getParamsFromRouteMatches(routeMatchesHeader)
 
-              // If this returns a locale, it means that the locale was detected
-              // from the pathname.
-              if (opts.locale) {
-                addRequestMeta(req, 'locale', opts.locale)
+              if (routeMatches) {
+                paramsResult = utils.normalizeDynamicRouteParams(
+                  routeMatches,
+                  true
+                )
 
-                // As the locale was parsed from the pathname, we should mark
-                // that the locale was not inferred as the default.
-                removeRequestMeta(req, 'localeInferredFromDefault')
+                if (paramsResult.hasValidParams) {
+                  params = paramsResult.params
+                }
               }
+            }
+
+            // Try to parse the params from the query if we couldn't parse them
+            // from the route matches but ignore missing optional params.
+            if (!paramsResult.hasValidParams) {
               paramsResult = utils.normalizeDynamicRouteParams(
-                routeParams,
+                parsedUrl.query,
                 true
               )
 
@@ -1282,7 +1292,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, true, [
+            utils.normalizeVercelUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
@@ -1368,7 +1378,7 @@ export default abstract class Server<
           ) || []
 
         for (const handler of Object.values(_globalThis.__nextCacheHandlers)) {
-          if (typeof handler.receiveExpiredTags === 'function') {
+          if (typeof handler?.receiveExpiredTags === 'function') {
             await handler.receiveExpiredTags(...expiredTags)
           }
         }
@@ -1436,9 +1446,7 @@ export default abstract class Server<
         parsedUrl.pathname = normalizeResult.pathname
 
         for (const key of Object.keys(parsedUrl.query)) {
-          if (!key.startsWith('__next') && !key.startsWith('_next')) {
-            delete parsedUrl.query[key]
-          }
+          delete parsedUrl.query[key]
         }
         const invokeQuery = getRequestMeta(req, 'invokeQuery')
 
@@ -1675,15 +1683,21 @@ export default abstract class Server<
       'renderOpts'
     >
   ): Promise<void> {
-    const isBotRequest = isBot(partialContext.req.headers['user-agent'] || '')
+    const ua = partialContext.req.headers['user-agent'] || ''
+    const isBotRequest = isBot(ua)
+
     const ctx: RequestContext<ServerRequest, ServerResponse> = {
       ...partialContext,
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
-        isBot: !!isBotRequest,
+        serveStreamingMetadata: shouldServeStreamingMetadata(
+          ua,
+          this.renderOpts.experimental
+        ),
       },
     }
+
     const payload = await fn(ctx)
     if (payload === null) {
       return
@@ -2171,7 +2185,8 @@ export default abstract class Server<
     if ('amp' in query && !query.amp) delete query.amp
 
     if (opts.supportsDynamicResponse === true) {
-      const isBotRequest = isBot(req.headers['user-agent'] || '')
+      const ua = req.headers['user-agent'] || ''
+      const isBotRequest = isBot(ua)
       const isSupportedDocument =
         typeof components.Document?.getInitialProps !== 'function' ||
         // The built-in `Document` component also supports dynamic HTML for concurrent mode.
@@ -2184,7 +2199,6 @@ export default abstract class Server<
       // cache if there are no dynamic data requirements
       opts.supportsDynamicResponse =
         !isSSG && !isBotRequest && !query.amp && isSupportedDocument
-      opts.isBot = isBotRequest
     }
 
     // In development, we always want to generate dynamic HTML.
@@ -2656,10 +2670,10 @@ export default abstract class Server<
             }
 
             // TODO: adapt for putting the RDC inside the postponed data
-            // If we're in dev, and this isn't s prefetch or a server action,
+            // If we're in dev, and this isn't a prefetch or a server action,
             // we should seed the resume data cache.
             if (
-              this.nextConfig.experimental.dynamicIO &&
+              this.nextConfig.experimental.useCache &&
               this.renderOpts.dev &&
               !isPrefetchRSCRequest &&
               !isServerAction
@@ -3064,56 +3078,6 @@ export default abstract class Server<
       }
     )
 
-    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
-      // This is a prefetch request issued by the client Segment Cache. These
-      // should never reach the application layer (lambda). We should either
-      // respond from the cache (HIT) or respond with 204 No Content (MISS).
-
-      // Set a header to indicate that PPR is enabled for this route. This
-      // lets the client distinguish between a regular cache miss and a cache
-      // miss due to PPR being disabled. In other contexts this header is used
-      // to indicate that the response contains dynamic data, but here we're
-      // only using it to indicate that the feature is enabled — the segment
-      // response itself contains whether the data is dynamic.
-      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
-
-      if (
-        cacheEntry !== null &&
-        // This is always true at runtime but is needed to refine the type
-        // of cacheEntry.value to CachedAppPageValue, because the outer
-        // ResponseCacheEntry is not a discriminated union.
-        cacheEntry.value?.kind === CachedRouteKind.APP_PAGE &&
-        cacheEntry.value.segmentData
-      ) {
-        const matchedSegment = cacheEntry.value.segmentData.get(
-          segmentPrefetchHeader
-        )
-        if (matchedSegment !== undefined) {
-          // Cache hit
-          return {
-            type: 'rsc',
-            body: RenderResult.fromStatic(matchedSegment),
-            // TODO: Eventually this should use revalidate time of the
-            // individual segment, not the whole page.
-            revalidate: cacheEntry.revalidate,
-          }
-        }
-      }
-
-      // Cache miss. Either a cache entry for this route has not been generated
-      // (which technically should not be possible when PPR is enabled, because
-      // at a minimum there should always be a fallback entry) or there's no
-      // match for the requested segment. Respond with a 204 No Content. We
-      // don't bother to respond with 404, because these requests are only
-      // issued as part of a prefetch.
-      res.statusCode = 204
-      return {
-        type: 'rsc',
-        body: RenderResult.fromStatic(''),
-        revalidate: cacheEntry?.revalidate,
-      }
-    }
-
     if (isPreviewMode) {
       res.setHeader(
         'Cache-Control',
@@ -3205,6 +3169,53 @@ export default abstract class Server<
     }
 
     const { value: cachedData } = cacheEntry
+
+    if (isRoutePPREnabled && typeof segmentPrefetchHeader === 'string') {
+      // This is a prefetch request issued by the client Segment Cache. These
+      // should never reach the application layer (lambda). We should either
+      // respond from the cache (HIT) or respond with 204 No Content (MISS).
+
+      // Set a header to indicate that PPR is enabled for this route. This
+      // lets the client distinguish between a regular cache miss and a cache
+      // miss due to PPR being disabled. In other contexts this header is used
+      // to indicate that the response contains dynamic data, but here we're
+      // only using it to indicate that the feature is enabled — the segment
+      // response itself contains whether the data is dynamic.
+      res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
+
+      if (
+        // This is always true at runtime but is needed to refine the type
+        // of cacheEntry.value to CachedAppPageValue, because the outer
+        // ResponseCacheEntry is not a discriminated union.
+        cachedData?.kind === CachedRouteKind.APP_PAGE &&
+        cachedData.segmentData
+      ) {
+        const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
+        if (matchedSegment !== undefined) {
+          // Cache hit
+          return {
+            type: 'rsc',
+            body: RenderResult.fromStatic(matchedSegment),
+            // TODO: Eventually this should use revalidate time of the
+            // individual segment, not the whole page.
+            revalidate: cacheEntry.revalidate,
+          }
+        }
+      }
+
+      // Cache miss. Either a cache entry for this route has not been generated
+      // (which technically should not be possible when PPR is enabled, because
+      // at a minimum there should always be a fallback entry) or there's no
+      // match for the requested segment. Respond with a 204 No Content. We
+      // don't bother to respond with 404, because these requests are only
+      // issued as part of a prefetch.
+      res.statusCode = 204
+      return {
+        type: 'rsc',
+        body: RenderResult.fromStatic(''),
+        revalidate: cacheEntry?.revalidate,
+      }
+    }
 
     // If the cache value is an image, we should error early.
     if (cachedData?.kind === CachedRouteKind.IMAGE) {

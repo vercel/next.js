@@ -71,6 +71,7 @@ function getBaseSWCOptions({
   bundleLayer,
   isDynamicIo,
   cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   jest?: boolean
@@ -89,6 +90,7 @@ function getBaseSWCOptions({
   bundleLayer?: WebpackLayerName
   isDynamicIo?: boolean
   cacheHandlers?: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   const isReactServerLayer = isWebpackServerOnlyLayer(bundleLayer)
   const isAppRouterPagesLayer = isWebpackAppPagesLayer(bundleLayer)
@@ -210,13 +212,14 @@ function getBaseSWCOptions({
         ? {
             isReactServerLayer,
             dynamicIoEnabled: isDynamicIo,
+            useCacheEnabled,
           }
         : undefined,
     serverActions:
       isAppRouterPagesLayer && !jest
         ? {
             isReactServerLayer,
-            dynamicIoEnabled: isDynamicIo,
+            useCacheEnabled,
             hashSalt: serverReferenceHashSalt,
             cacheKinds: cacheHandlers ? Object.keys(cacheHandlers) : [],
           }
@@ -364,6 +367,7 @@ export function getLoaderSWCOptions({
   bundleLayer,
   esm,
   cacheHandlers,
+  useCacheEnabled,
 }: {
   filename: string
   development: boolean
@@ -389,6 +393,7 @@ export function getLoaderSWCOptions({
   serverReferenceHashSalt: string
   bundleLayer?: WebpackLayerName
   cacheHandlers: ExperimentalConfig['cacheHandlers']
+  useCacheEnabled?: boolean
 }) {
   let baseOptions: any = getBaseSWCOptions({
     filename,
@@ -407,6 +412,7 @@ export function getLoaderSWCOptions({
     esm: !!esm,
     isDynamicIo,
     cacheHandlers,
+    useCacheEnabled,
   })
   baseOptions.fontLoaders = {
     fontLoaders: ['next/font/local', 'next/font/google'],

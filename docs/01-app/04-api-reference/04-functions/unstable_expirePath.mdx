@@ -8,7 +8,6 @@ version: unstable
 
 > **Good to know**:
 >
-> - `unstable_expirePath` is available in both [Node.js and Edge runtimes](/docs/app/building-your-application/rendering/edge-and-nodejs-runtimes).
 > - `unstable_expirePath` only invalidates the cache when the included path is next visited. This means calling `unstable_expirePath` with a dynamic route segment will not immediately trigger many expirations at once. The invalidation only happens when the path is next visited.
 > - Currently, `unstable_expirePath` invalidates all the routes in the [client-side Router Cache](/docs/app/building-your-application/caching#client-side-router-cache) when used in a server action. This behavior is temporary and will be updated in the future to apply only to the specific path.
 > - Using `unstable_expirePath` invalidates **only the specific path** in the [server-side Route Cache](/docs/app/building-your-application/caching#full-route-cache).

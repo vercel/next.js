@@ -1,6 +1,6 @@
 //! Type definitions for the Next.js manifest formats.
 
-pub(crate) mod client_reference_manifest;
+pub mod client_reference_manifest;
 
 use std::collections::HashMap;
 

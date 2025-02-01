@@ -2,6 +2,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use next_custom_transforms::transforms::server_actions::{server_actions, Config};
 use swc_core::{common::FileName, ecma::ast::Program};
+use turbo_rcstr::RcStr;
 use turbo_tasks::ResolvedVc;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
 use turbopack_ecmascript::{CustomTransformer, EcmascriptInputTransform, TransformContext};
@@ -18,14 +19,16 @@ pub enum ActionsTransform {
 /// Returns a rule which applies the Next.js Server Actions transform.
 pub fn get_server_actions_transform_rule(
     transform: ActionsTransform,
+    encryption_key: ResolvedVc<RcStr>,
     enable_mdx_rs: bool,
-    dynamic_io_enabled: bool,
+    use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 ) -> ModuleRule {
     let transformer =
         EcmascriptInputTransform::Plugin(ResolvedVc::cell(Box::new(NextServerActions {
             transform,
-            dynamic_io_enabled,
+            encryption_key,
+            use_cache_enabled,
             cache_kinds,
         }) as _));
     ModuleRule::new(
@@ -40,7 +43,8 @@ pub fn get_server_actions_transform_rule(
 #[derive(Debug)]
 struct NextServerActions {
     transform: ActionsTransform,
-    dynamic_io_enabled: bool,
+    encryption_key: ResolvedVc<RcStr>,
+    use_cache_enabled: bool,
     cache_kinds: ResolvedVc<CacheKinds>,
 }
 
@@ -52,13 +56,13 @@ impl CustomTransformer for NextServerActions {
             &FileName::Real(ctx.file_path_str.into()),
             Config {
                 is_react_server_layer: matches!(self.transform, ActionsTransform::Server),
-                dynamic_io_enabled: self.dynamic_io_enabled,
-                hash_salt: "".into(),
+                use_cache_enabled: self.use_cache_enabled,
+                hash_salt: self.encryption_key.await?.to_string(),
                 cache_kinds: self.cache_kinds.await?.clone_value(),
             },
             ctx.comments.clone(),
+            Default::default(),
         );
-
         program.mutate(actions);
         Ok(())
     }

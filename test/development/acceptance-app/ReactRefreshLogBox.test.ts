@@ -799,7 +799,12 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const stackFrames = (
       await Promise.all(stackFrameElements.map((f) => f.innerText()))
     ).filter(Boolean)
-    expect(stackFrames).toEqual([])
+    expect(stackFrames).toEqual([
+      outdent`
+        Page
+        app/page.js (4:11)
+      `,
+    ])
   })
 
   test('Call stack for server error', async () => {
@@ -831,7 +836,12 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
     const stackFrames = (
       await Promise.all(stackFrameElements.map((f) => f.innerText()))
     ).filter(Boolean)
-    expect(stackFrames).toEqual([])
+    expect(stackFrames).toEqual([
+      outdent`
+        Page
+        app/page.js (2:9)
+      `,
+    ])
   })
 
   test('should hide unrelated frames in stack trace with unknown anonymous calls', async () => {
@@ -877,11 +887,19 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       process.env.TURBOPACK
         ? [
             outdent`
+                <anonymous>
+                app/page.js (4:13)
+              `,
+            outdent`
                 Page
                 app/page.js (5:6)
               `,
           ]
         : [
+            outdent`
+                eval
+                app/page.js (4:13)
+              `,
             outdent`
                 Page
                 app/page.js (5:5)
@@ -923,8 +941,8 @@ describe.each(['default', 'turbo'])('ReactRefreshLogBox app %s', () => {
       stackFrameElements.map((f) => f.innerText())
     )
 
-    // No following rest of displayed stack frames by default
-    expect(stackFrames.length).toBe(0)
+    // No ignore-listed frames to be displayed by default
+    expect(stackFrames.length).toBe(1)
   })
 
   test('Server component errors should open up in fullscreen', async () => {
@@ -1211,13 +1229,15 @@ export default function Home() {
 
     if (isTurbopack) {
       // FIXME: display the sourcemapped stack frames
-      expect(stackFrames).toMatchInlineSnapshot(
-        `"at [project]/app/page.js [app-client] (ecmascript) (app/page.js (2:1))"`
-      )
+      expect(stackFrames).toMatchInlineSnapshot(`
+       "at [project]/app/utils.ts [app-client] (ecmascript) (app/utils.ts (1:7))
+       at [project]/app/page.js [app-client] (ecmascript) (app/page.js (2:1))"
+      `)
     } else {
       // FIXME: Webpack stack frames are not source mapped
       expect(stackFrames).toMatchInlineSnapshot(`
-        "at ./app/utils.ts ()
+        "at eval (app/utils.ts (1:7))
+        at ./app/utils.ts ()
         at options.factory ()
         at __webpack_require__ ()
         at fn ()

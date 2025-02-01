@@ -55,6 +55,10 @@ export function createDefaultMetadata(): ResolvedMetadata {
     bookmarks: null,
     category: null,
     classification: null,
+    pagination: {
+      previous: null,
+      next: null,
+    },
     other: {},
   }
 }

@@ -32,6 +32,7 @@ import {
   SERVER_DIRECTORY,
   SERVER_REFERENCE_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
+  ROUTES_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -52,6 +53,7 @@ import { formatManifest } from '../build/manifests/formatter/format-manifest'
 import { TurborepoAccessTraceResult } from '../build/turborepo-access-trace'
 import { createProgress } from '../build/progress'
 import type { DeepReadonly } from '../shared/lib/deep-readonly'
+import { isInterceptionRouteRewrite } from '../lib/generate-interception-routes-rewrites'
 
 export class ExportError extends Error {
   code = 'NEXT_EXPORT_ERROR'
@@ -302,13 +304,29 @@ async function exportAppImpl(
     serverActionsManifest = require(
       join(distDir, SERVER_DIRECTORY, SERVER_REFERENCE_MANIFEST + '.json')
     )
+
     if (nextConfig.output === 'export') {
+      const routesManifest = require(join(distDir, ROUTES_MANIFEST))
+
+      // We already prevent rewrites earlier in the process, however Next.js will insert rewrites
+      // for interception routes so we need to check for that here.
+      if (routesManifest?.rewrites?.beforeFiles?.length > 0) {
+        const hasInterceptionRouteRewrite =
+          routesManifest.rewrites.beforeFiles.some(isInterceptionRouteRewrite)
+
+        if (hasInterceptionRouteRewrite) {
+          throw new ExportError(
+            `Intercepting routes are not supported with static export.\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features`
+          )
+        }
+      }
+
       if (
         Object.keys(serverActionsManifest.node).length > 0 ||
         Object.keys(serverActionsManifest.edge).length > 0
       ) {
         throw new ExportError(
-          `Server Actions are not supported with static export.`
+          `Server Actions are not supported with static export.\nRead more: https://nextjs.org/docs/app/building-your-application/deploying/static-exports#unsupported-features`
         )
       }
     }
@@ -359,6 +377,8 @@ async function exportAppImpl(
       clientSegmentCache: nextConfig.experimental.clientSegmentCache ?? false,
       inlineCss: nextConfig.experimental.inlineCss ?? false,
       authInterrupts: !!nextConfig.experimental.authInterrupts,
+      streamingMetadata: !!nextConfig.experimental.streamingMetadata,
+      htmlLimitedBots: nextConfig.experimental.htmlLimitedBots,
     },
     reactMaxHeadersLength: nextConfig.reactMaxHeadersLength,
   }

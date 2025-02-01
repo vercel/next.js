@@ -14,7 +14,7 @@ import { NextInstance } from 'e2e-utils'
 const installCheckVisible = (browser) => {
   return browser.eval(`(function() {
     window.checkInterval = setInterval(function() {
-      let watcherDiv = document.querySelector('#__next-build-watcher')
+      let watcherDiv = document.querySelector('#__next-build-indicator')
       watcherDiv = watcherDiv.shadowRoot || watcherDiv
       window.showedBuilder = window.showedBuilder || (
         watcherDiv.querySelector('div').className.indexOf('visible') > -1

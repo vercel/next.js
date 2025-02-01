@@ -9,7 +9,8 @@ use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{ChunkItem, ChunkItemExt, ChunkType, ChunkableModule, ChunkingContext},
     ident::AssetIdent,
-    module::{Module, Modules},
+    module::Module,
+    module_graph::ModuleGraph,
     reference::ModuleReferences,
 };
 use turbopack_ecmascript::{
@@ -17,17 +18,11 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
-    references::{
-        esm::{EsmExport, EsmExports},
-        external_module::IncludeIdentModule,
-    },
+    references::esm::{EsmExport, EsmExports},
     utils::StringifyJs,
 };
 
 use super::server_component_reference::NextServerComponentModuleReference;
-use crate::next_app::app_client_references_chunks::{
-    client_modules_modifier, client_modules_ssr_modifier,
-};
 
 #[turbo_tasks::function]
 fn modifier() -> Vc<RcStr> {
@@ -67,22 +62,6 @@ impl Module for NextServerComponentModule {
                 .await?,
         )]))
     }
-
-    #[turbo_tasks::function]
-    async fn additional_layers_modules(self: Vc<Self>) -> Result<Vc<Modules>> {
-        let base_ident = self.ident();
-        let ssr_entry_module = ResolvedVc::upcast(
-            IncludeIdentModule::new(base_ident.with_modifier(client_modules_ssr_modifier()))
-                .to_resolved()
-                .await?,
-        );
-        let client_entry_module = ResolvedVc::upcast(
-            IncludeIdentModule::new(base_ident.with_modifier(client_modules_modifier()))
-                .to_resolved()
-                .await?,
-        );
-        Ok(Vc::cell(vec![ssr_entry_module, client_entry_module]))
-    }
 }
 
 #[turbo_tasks::value_impl]
@@ -98,10 +77,12 @@ impl ChunkableModule for NextServerComponentModule {
     #[turbo_tasks::function]
     fn as_chunk_item(
         self: ResolvedVc<Self>,
+        module_graph: ResolvedVc<ModuleGraph>,
         chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     ) -> Vc<Box<dyn turbopack_core::chunk::ChunkItem>> {
         Vc::upcast(
             NextServerComponentChunkItem {
+                module_graph,
                 chunking_context,
                 inner: self,
             }
@@ -114,9 +95,11 @@ impl ChunkableModule for NextServerComponentModule {
 impl EcmascriptChunkPlaceable for NextServerComponentModule {
     #[turbo_tasks::function]
     async fn get_exports(&self) -> Result<Vc<EcmascriptExports>> {
-        let module_reference = Vc::upcast(NextServerComponentModuleReference::new(Vc::upcast(
-            *self.module,
-        )));
+        let module_reference = ResolvedVc::upcast(
+            NextServerComponentModuleReference::new(Vc::upcast(*self.module))
+                .to_resolved()
+                .await?,
+        );
 
         let mut exports = BTreeMap::new();
         exports.insert(
@@ -127,7 +110,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
         Ok(EcmascriptExports::EsmExports(
             EsmExports {
                 exports,
-                star_exports: vec![module_reference.to_resolved().await?],
+                star_exports: vec![module_reference],
             }
             .resolved_cell(),
         )
@@ -137,6 +120,7 @@ impl EcmascriptChunkPlaceable for NextServerComponentModule {
 
 #[turbo_tasks::value]
 struct NextServerComponentChunkItem {
+    module_graph: ResolvedVc<ModuleGraph>,
     chunking_context: ResolvedVc<Box<dyn ChunkingContext>>,
     inner: ResolvedVc<NextServerComponentModule>,
 }
@@ -154,7 +138,7 @@ impl EcmascriptChunkItem for NextServerComponentChunkItem {
 
         let module_id = inner
             .module
-            .as_chunk_item(Vc::upcast(*self.chunking_context))
+            .as_chunk_item(*self.module_graph, Vc::upcast(*self.chunking_context))
             .id()
             .await?;
         Ok(EcmascriptChunkItemContent {

@@ -83,6 +83,7 @@ function resolveAndValidateImage(
     // devtools.
     const shouldWarn =
       !isUsingVercelSystemEnvironmentVariables &&
+      !metadataBase &&
       (process.env.NODE_ENV === 'production' || !isStaticMetadataRouteFile)
 
     if (shouldWarn) {

@@ -54,6 +54,7 @@ use turbopack_core::{
     file_source::FileSource,
     ident::AssetIdent,
     module::{Module, Modules},
+    module_graph::ModuleGraph,
     output::{OptionOutputAsset, OutputAsset, OutputAssets},
     reference_type::{EcmaScriptModulesReferenceSubType, EntryReferenceSubType, ReferenceType},
     resolve::{origin::PlainResolveOrigin, parse::Request, pattern::Pattern},
@@ -76,13 +77,18 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, Route, Routes, WrittenEndpoint},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
     webpack_stats::generate_webpack_stats,
 };
 
 #[turbo_tasks::value]
 pub struct PagesProject {
     project: ResolvedVc<Project>,
+}
+
+#[turbo_tasks::function]
+fn client_layer() -> Vc<RcStr> {
+    Vc::cell("client".into())
 }
 
 #[turbo_tasks::value_impl]
@@ -210,10 +216,6 @@ impl PagesProject {
             add_dir_to_routes(&mut routes, *pages, make_page_route).await?;
         }
 
-        for route in routes.values_mut() {
-            route.resolve().await?;
-        }
-
         Ok(Vc::cell(routes))
     }
 
@@ -315,7 +317,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         )
     }
 
@@ -330,6 +332,7 @@ impl PagesProject {
             }),
             self.project().next_mode(),
             self.project().next_config(),
+            self.project().encryption_key(),
         ))
     }
 
@@ -353,7 +356,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         ))
     }
 
@@ -436,6 +439,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
+            self.project().encryption_key(),
         ))
     }
 
@@ -450,6 +454,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
+            self.project().encryption_key(),
         ))
     }
 
@@ -464,6 +469,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
+            self.project().encryption_key(),
         ))
     }
 
@@ -478,6 +484,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
+            self.project().encryption_key(),
         ))
     }
 
@@ -492,6 +499,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::NodeJs,
+            self.project().encryption_key(),
         ))
     }
 
@@ -508,6 +516,7 @@ impl PagesProject {
             self.project().next_mode(),
             self.project().next_config(),
             NextRuntime::Edge,
+            self.project().encryption_key(),
         ))
     }
 
@@ -621,6 +630,7 @@ impl PagesProject {
             false,
             None,
         )
+        .await?
         .first_module()
         .await?
         .context("expected Next.js client runtime to resolve to a module")?;
@@ -728,33 +738,55 @@ impl PageEndpoint {
     }
 
     #[turbo_tasks::function]
+    async fn client_evaluatable_assets(self: Vc<Self>) -> Result<Vc<EvaluatableAssets>> {
+        let this = self.await?;
+
+        let client_module = self.client_module();
+        let client_main_module = this.pages_project.client_main_module();
+
+        let Some(client_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
+        else {
+            bail!("expected an evaluateable asset");
+        };
+
+        let Some(client_main_module) =
+            Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
+        else {
+            bail!("expected an evaluateable asset");
+        };
+
+        let evaluatable_assets = this
+            .pages_project
+            .client_runtime_entries()
+            .with_entry(client_main_module)
+            .with_entry(client_module);
+        Ok(evaluatable_assets)
+    }
+
+    #[turbo_tasks::function]
+    async fn client_module_graph(self: Vc<Self>) -> Result<Vc<ModuleGraph>> {
+        let this = self.await?;
+        let project = this.pages_project.project();
+        let evaluatable_assets = self.client_evaluatable_assets();
+        Ok(project.module_graph_for_entries(evaluatable_assets))
+    }
+
+    #[turbo_tasks::function]
     async fn client_chunks(self: Vc<Self>) -> Result<Vc<ChunkGroupResult>> {
         async move {
             let this = self.await?;
 
-            let client_module = self.client_module();
-            let client_main_module = this.pages_project.client_main_module();
+            let project = this.pages_project.project();
+            let client_chunking_context = project.client_chunking_context();
 
-            let Some(client_module) =
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_module).await?
-            else {
-                bail!("expected an evaluateable asset");
-            };
-
-            let Some(client_main_module) =
-                Vc::try_resolve_sidecast::<Box<dyn EvaluatableAsset>>(client_main_module).await?
-            else {
-                bail!("expected an evaluateable asset");
-            };
-
-            let client_chunking_context = this.pages_project.project().client_chunking_context();
+            let evaluatable_assets = self.client_evaluatable_assets();
+            let module_graph = project.module_graph_for_entries(evaluatable_assets);
 
             let client_chunk_group = client_chunking_context.evaluated_chunk_group(
                 AssetIdent::from_path(*this.page.await?.base_path),
-                this.pages_project
-                    .client_runtime_entries()
-                    .with_entry(client_main_module)
-                    .with_entry(client_module),
+                evaluatable_assets,
+                module_graph,
                 Value::new(AvailabilityInfo::Root),
             );
 
@@ -873,6 +905,9 @@ impl PageEndpoint {
                 runtime,
             } = *self.internal_ssr_chunk_module().await?;
 
+            let project = this.pages_project.project();
+            let module_graph = project.module_graph(*ssr_module);
+
             let next_dynamic_imports = if let PageEndpointType::Html = this.ty {
                 // The SSR and Client Graphs are not connected in Pages Router.
                 // We are only interested in get_next_dynamic_imports_for_endpoint at the
@@ -892,9 +927,11 @@ impl PageEndpoint {
 
                 let client_availability_info = self.client_chunks().await?.availability_info;
 
+                let client_module_graph = self.client_module_graph();
+
                 let reduced_graphs = get_reduced_graphs_for_endpoint(
-                    this.pages_project.project(),
-                    self.client_module(),
+                    client_module_graph,
+                    *project.per_page_module_graph().await?,
                 );
                 let next_dynamic_imports = reduced_graphs
                     .get_next_dynamic_imports_for_endpoint(self.client_module())
@@ -910,7 +947,8 @@ impl PageEndpoint {
             )) = next_dynamic_imports
             {
                 collect_next_dynamic_chunks(
-                    Vc::upcast(this.pages_project.project().client_chunking_context()),
+                    self.client_module_graph(),
+                    Vc::upcast(project.client_chunking_context()),
                     next_dynamic_imports,
                     NextDynamicChunkAvailability::AvailabilityInfo(client_availability_info),
                 )
@@ -931,6 +969,7 @@ impl PageEndpoint {
                     .evaluated_chunk_group_assets(
                         ssr_module.ident(),
                         Vc::cell(evaluatable_assets),
+                        module_graph,
                         Value::new(AvailabilityInfo::Root),
                     )
                     .to_resolved()
@@ -956,6 +995,7 @@ impl PageEndpoint {
                         ssr_entry_chunk_path,
                         *ssr_module,
                         runtime_entries,
+                        module_graph,
                         OutputAssets::empty(),
                         Value::new(AvailabilityInfo::Root),
                     )
@@ -973,7 +1013,7 @@ impl PageEndpoint {
 
                     ResolvedVc::cell(Some(ResolvedVc::upcast(
                         NftJsonAsset::new(
-                            this.pages_project.project(),
+                            project,
                             *ssr_entry_chunk,
                             loadable_manifest_output
                                 .await?
@@ -1007,14 +1047,15 @@ impl PageEndpoint {
     #[turbo_tasks::function]
     async fn ssr_chunk(self: Vc<Self>) -> Result<Vc<SsrChunk>> {
         let this = self.await?;
+        let project = this.pages_project.project();
         Ok(self.internal_ssr_chunk(
             SsrChunkType::Page,
             this.pages_project
                 .project()
                 .node_root()
                 .join("server".into()),
-            this.pages_project.project().server_chunking_context(true),
-            this.pages_project.project().edge_chunking_context(true),
+            project.server_chunking_context(true),
+            project.edge_chunking_context(true),
             this.pages_project.ssr_runtime_entries(),
             this.pages_project.edge_ssr_runtime_entries(),
         ))
@@ -1333,7 +1374,7 @@ pub struct InternalSsrChunkModule {
 #[turbo_tasks::value_impl]
 impl Endpoint for PageEndpoint {
     #[turbo_tasks::function]
-    async fn write_to_disk(self: ResolvedVc<Self>) -> Result<Vc<WrittenEndpoint>> {
+    async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
         let original_name = this.original_name.await?;
         let span = {
@@ -1354,15 +1395,7 @@ impl Endpoint for PageEndpoint {
         };
         async move {
             let output = self.output().await?;
-            let output_assets_op = output_assets_operation(self);
-            let output_assets = output_assets_op.connect();
-
-            let _ = this
-                .pages_project
-                .project()
-                .emit_all_output_assets(output_assets_op)
-                .resolve()
-                .await?;
+            let output_assets = self.output().output_assets();
 
             let node_root = this.pages_project.project().node_root();
 
@@ -1390,7 +1423,7 @@ impl Endpoint for PageEndpoint {
 
             let node_root = &node_root.await?;
             let written_endpoint = match *output {
-                PageEndpointOutput::NodeJs { entry_chunk, .. } => WrittenEndpoint::NodeJs {
+                PageEndpointOutput::NodeJs { entry_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root
                         .get_path_to(&*entry_chunk.ident().path().await?)
                         .context("ssr chunk entry path must be inside the node root")?
@@ -1398,13 +1431,20 @@ impl Endpoint for PageEndpoint {
                     server_paths,
                     client_paths,
                 },
-                PageEndpointOutput::Edge { .. } => WrittenEndpoint::Edge {
+                PageEndpointOutput::Edge { .. } => EndpointOutputPaths::Edge {
                     server_paths,
                     client_paths,
                 },
             };
 
-            anyhow::Ok(written_endpoint.cell())
+            anyhow::Ok(
+                EndpointOutput {
+                    output_assets: output_assets.to_resolved().await?,
+                    output_paths: written_endpoint.resolved_cell(),
+                    project: this.pages_project.project().to_resolved().await?,
+                }
+                .cell(),
+            )
         }
         .instrument(span)
         .await
@@ -1443,11 +1483,6 @@ impl Endpoint for PageEndpoint {
 
         Ok(Vc::cell(modules))
     }
-}
-
-#[turbo_tasks::function(operation)]
-fn output_assets_operation(endpoint: ResolvedVc<PageEndpoint>) -> Vc<OutputAssets> {
-    endpoint.output().output_assets()
 }
 
 #[turbo_tasks::value]

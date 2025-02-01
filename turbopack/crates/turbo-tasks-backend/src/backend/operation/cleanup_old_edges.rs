@@ -1,19 +1,24 @@
 use std::mem::take;
 
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
-use turbo_tasks::{TaskId, ValueTypeId};
+use smallvec::SmallVec;
+use turbo_tasks::TaskId;
 
+#[cfg(feature = "trace_task_dirty")]
+use crate::backend::operation::invalidate::TaskDirtyCause;
 use crate::{
     backend::{
+        get, get_many,
         operation::{
             aggregation_update::{
                 get_aggregation_number, get_uppers, is_aggregating_node, AggregationUpdateJob,
-                AggregationUpdateQueue,
+                AggregationUpdateQueue, InnerOfUppersLostFollowersJob,
             },
-            invalidate::{make_task_dirty, TaskDirtyCause},
+            invalidate::make_task_dirty,
             AggregatedDataUpdate, ExecuteContext, Operation, TaskGuard,
         },
-        storage::{update_count, update_ucount_and_get},
+        storage::update_count,
         TaskDataCategory,
     },
     data::{CachedDataItemKey, CellRef, CollectibleRef, CollectiblesRef},
@@ -41,7 +46,11 @@ pub enum OutdatedEdge {
     CellDependency(CellRef),
     OutputDependency(TaskId),
     CollectiblesDependency(CollectiblesRef),
-    RemovedCellDependent(TaskId, ValueTypeId),
+    RemovedCellDependent {
+        task_id: TaskId,
+        #[cfg(feature = "trace_task_dirty")]
+        value_type_id: turbo_tasks::ValueTypeId,
+    },
 }
 
 impl CleanupOldEdgesOperation {
@@ -69,7 +78,7 @@ impl Operation for CleanupOldEdgesOperation {
                     if let Some(edge) = outdated.pop() {
                         match edge {
                             OutdatedEdge::Child(child_id) => {
-                                let mut children = Vec::new();
+                                let mut children = SmallVec::new();
                                 children.push(child_id);
                                 outdated.retain(|e| match e {
                                     OutdatedEdge::Child(id) => {
@@ -82,8 +91,6 @@ impl Operation for CleanupOldEdgesOperation {
                                 for &child_id in children.iter() {
                                     task.remove(&CachedDataItemKey::Child { task: child_id });
                                 }
-                                let remove_children_count = u32::try_from(children.len()).unwrap();
-                                update_ucount_and_get!(task, ChildrenCount, -remove_children_count);
                                 if is_aggregating_node(get_aggregation_number(&task)) {
                                     queue.push(AggregationUpdateJob::InnerOfUpperLostFollowers {
                                         upper_id: task_id,
@@ -91,10 +98,20 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 } else {
                                     let upper_ids = get_uppers(&task);
-                                    queue.push(AggregationUpdateJob::InnerOfUppersLostFollowers {
-                                        upper_ids,
-                                        lost_follower_ids: children,
-                                    });
+                                    if get!(task, Activeness).is_some_and(|a| a.active_counter > 0)
+                                    {
+                                        // TODO combine both operations to avoid the clone
+                                        queue.push(AggregationUpdateJob::DecreaseActiveCounts {
+                                            task_ids: children.clone(),
+                                        });
+                                    }
+                                    queue.push(
+                                        InnerOfUppersLostFollowersJob {
+                                            upper_ids,
+                                            lost_follower_ids: children,
+                                        }
+                                        .into(),
+                                    );
                                 }
                             }
                             OutdatedEdge::Collectible(collectible, count) => {
@@ -108,13 +125,27 @@ impl Operation for CleanupOldEdgesOperation {
                                     _ => true,
                                 });
                                 let mut task = ctx.task(task_id, TaskDataCategory::All);
+                                let mut emptied_collectables = FxHashSet::default();
                                 for (collectible, count) in collectibles.iter_mut() {
-                                    update_count!(
+                                    if update_count!(
                                         task,
                                         Collectible {
                                             collectible: *collectible
                                         },
                                         *count
+                                    ) {
+                                        emptied_collectables.insert(collectible.collectible_type);
+                                    }
+                                }
+
+                                for ty in emptied_collectables {
+                                    let task_ids = get_many!(task, CollectiblesDependent { collectible_type, task } if collectible_type == ty => { task });
+                                    queue.push(
+                                        AggregationUpdateJob::InvalidateDueToCollectiblesChange {
+                                            task_ids,
+                                            #[cfg(feature = "trace_task_dirty")]
+                                            collectible_type: ty,
+                                        },
                                     );
                                 }
                                 queue.extend(AggregationUpdateJob::data_update(
@@ -179,10 +210,17 @@ impl Operation for CleanupOldEdgesOperation {
                                     });
                                 }
                             }
-                            OutdatedEdge::RemovedCellDependent(task_id, value_type) => {
+                            OutdatedEdge::RemovedCellDependent {
+                                task_id,
+                                #[cfg(feature = "trace_task_dirty")]
+                                value_type_id,
+                            } => {
                                 make_task_dirty(
                                     task_id,
-                                    TaskDirtyCause::CellRemoved { value_type },
+                                    #[cfg(feature = "trace_task_dirty")]
+                                    TaskDirtyCause::CellRemoved {
+                                        value_type: value_type_id,
+                                    },
                                     queue,
                                     ctx,
                                 );

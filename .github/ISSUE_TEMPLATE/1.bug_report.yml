@@ -1,6 +1,6 @@
 name: Report an issue
 description: Report a Next.js issue.
-labels: ['bug']
+type: Bug
 body:
   - type: markdown
     attributes:
@@ -64,7 +64,7 @@ body:
           Yarn: 1.22.22
           pnpm: 9.10.0
         Relevant Packages:
-          next: 15.0.0-canary.148 
+          next: 15.0.0-canary.148
           eslint-config-next: 15.0.0-canary.148
           react: 19.0.0-rc-3dfd5d9e-20240910
           react-dom: 19.0.0-rc-3dfd5d9e-20240910
@@ -80,32 +80,41 @@ body:
       options:
         - 'Not sure'
         - 'create-next-app'
-        - 'Developer Experience'
-        - 'Documentation'
+        - 'CSS'
         - 'dynamicIO'
+        - 'Dynamic Routes'
+        - 'Error Handling'
         - 'Lazy Loading'
         - 'Font (next/font)'
+        - 'Form (next/form)'
         - 'Image (next/image)'
         - 'Instrumentation'
         - 'Internationalization (i18n)'
+        - 'Linking and Navigating'
         - 'Linting'
+        - 'Loading UI and Streaming'
         - 'Markdown (MDX)'
         - 'Metadata'
         - 'Middleware'
         - 'Module Resolution'
-        - 'Navigation'
-        - 'Output (export/standalone)'
+        - 'Output'
+        - 'Package Managers'
         - 'Pages Router'
         - 'Parallel & Intercepting Routes'
         - 'Partial Prerendering (PPR)'
         - 'Performance'
+        - 'React'
+        - 'Redirects'
+        - 'Route Groups'
+        - 'Route Handlers'
         - 'Runtime'
         - 'Script (next/script)'
+        - 'Server Actions'
         - 'Testing'
         - 'Turbopack'
         - 'TypeScript'
         - 'SWC'
-        - 'Upstream'
+        - 'Use Cache'
         - 'Webpack'
 
     validations:
