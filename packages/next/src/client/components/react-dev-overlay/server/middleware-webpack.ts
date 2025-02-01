@@ -344,6 +344,102 @@ async function getSource(
   return undefined
 }
 
+async function getOriginalStackFrame({
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+  frame,
+  clientStats,
+  serverStats,
+  edgeServerStats,
+  rootDirectory,
+}: {
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+  frame: ReturnType<typeof createStackFrame>
+  clientStats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+  rootDirectory: string
+}) {
+  const source = await getSource(frame.file, {
+    getCompilations: () => {
+      const compilations: webpack.Compilation[] = []
+
+      // Try Client Compilation first. In `pages` we leverage
+      // `isClientError` to check. In `app` it depends on if it's a server
+      // / client component and when the code throws. E.g. during HTML
+      // rendering it's the server/edge compilation.
+      if ((!isEdgeServer && !isServer) || isAppDirectory) {
+        const compilation = clientStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      // Try Server Compilation. In `pages` this could be something
+      // imported in getServerSideProps/getStaticProps as the code for
+      // those is tree-shaken. In `app` this finds server components and
+      // code that was imported from a server component. It also covers
+      // when client component code throws during HTML rendering.
+      if (isServer || isAppDirectory) {
+        const compilation = serverStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      // Try Edge Server Compilation. Both cases are the same as Server
+      // Compilation, main difference is that it covers `runtime: 'edge'`
+      // pages/app routes.
+      if (isEdgeServer || isAppDirectory) {
+        const compilation = edgeServerStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      return compilations
+    },
+  })
+
+  // This stack frame is used for the one that couldn't locate the source or source mapped frame
+  const defaultStackFrame: IgnorableStackFrame = {
+    file: frame.file,
+    lineNumber: frame.lineNumber,
+    column: frame.column ?? 1,
+    methodName: frame.methodName,
+    ignored: shouldIgnorePath(frame.file),
+    arguments: [],
+  }
+  if (!source) {
+    // return original stack frame with no source map
+    return {
+      originalStackFrame: defaultStackFrame,
+      originalCodeFrame: null,
+    }
+  }
+
+  const originalStackFrameResponse = await createOriginalStackFrame({
+    frame,
+    source,
+    rootDirectory,
+  })
+
+  if (!originalStackFrameResponse) {
+    return {
+      originalStackFrame: defaultStackFrame,
+      originalCodeFrame: null,
+    }
+  }
+
+  return originalStackFrameResponse
+}
+
 export function getOverlayMiddleware(options: {
   rootDirectory: string
   clientStats: () => webpack.Stats | null
@@ -365,88 +461,20 @@ export function getOverlayMiddleware(options: {
       const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
       const frame = createStackFrame(searchParams)
 
-      let source: Source | undefined
       try {
-        source = await getSource(frame.file, {
-          getCompilations: () => {
-            const compilations: webpack.Compilation[] = []
-
-            // Try Client Compilation first. In `pages` we leverage
-            // `isClientError` to check. In `app` it depends on if it's a server
-            // / client component and when the code throws. E.g. during HTML
-            // rendering it's the server/edge compilation.
-            if ((!isEdgeServer && !isServer) || isAppDirectory) {
-              const compilation = clientStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            // Try Server Compilation. In `pages` this could be something
-            // imported in getServerSideProps/getStaticProps as the code for
-            // those is tree-shaken. In `app` this finds server components and
-            // code that was imported from a server component. It also covers
-            // when client component code throws during HTML rendering.
-            if (isServer || isAppDirectory) {
-              const compilation = serverStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            // Try Edge Server Compilation. Both cases are the same as Server
-            // Compilation, main difference is that it covers `runtime: 'edge'`
-            // pages/app routes.
-            if (isEdgeServer || isAppDirectory) {
-              const compilation = edgeServerStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            return compilations
-          },
-        })
-      } catch (err) {
-        console.error('Failed to get source map:', err)
-        return internalServerError(res)
-      }
-
-      // This stack frame is used for the one that couldn't locate the source or source mapped frame
-      const defaultStackFrame: IgnorableStackFrame = {
-        file: frame.file,
-        lineNumber: frame.lineNumber,
-        column: frame.column ?? 1,
-        methodName: frame.methodName,
-        ignored: shouldIgnorePath(frame.file),
-        arguments: [],
-      }
-      if (!source) {
-        // return original stack frame with no source map
-        return json(res, {
-          originalStackFrame: defaultStackFrame,
-          originalCodeFrame: null,
-        })
-      }
-
-      try {
-        const originalStackFrameResponse = await createOriginalStackFrame({
-          frame,
-          source,
-          rootDirectory,
-        })
-
-        if (!originalStackFrameResponse) {
-          return json(res, {
-            originalStackFrame: defaultStackFrame,
-            originalCodeFrame: null,
+        return json(
+          res,
+          await getOriginalStackFrame({
+            isServer,
+            isEdgeServer,
+            isAppDirectory,
+            frame,
+            clientStats,
+            serverStats,
+            edgeServerStats,
+            rootDirectory,
           })
-        }
-
-        return json(res, originalStackFrameResponse)
+        )
       } catch (err) {
         console.log('Failed to parse source map:', err)
         return internalServerError(res)
