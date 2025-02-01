@@ -12,6 +12,8 @@ import {
   json,
   noContent,
   type OriginalStackFrameResponse,
+  type OriginalStackFramesRequest,
+  type OriginalStackFramesResponse,
 } from './shared'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
@@ -333,6 +335,41 @@ async function getSource(
   return undefined
 }
 
+async function getOriginalStackFrames({
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+  frames,
+  clientStats,
+  serverStats,
+  edgeServerStats,
+  rootDirectory,
+}: {
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+  frames: StackFrame[]
+  clientStats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+  rootDirectory: string
+}): Promise<OriginalStackFramesResponse> {
+  return Promise.allSettled(
+    frames.map((frame) =>
+      getOriginalStackFrame({
+        isServer,
+        isEdgeServer,
+        isAppDirectory,
+        frame,
+        clientStats,
+        serverStats,
+        edgeServerStats,
+        rootDirectory,
+      })
+    )
+  )
+}
+
 async function getOriginalStackFrame({
   isServer,
   isEdgeServer,
@@ -351,7 +388,7 @@ async function getOriginalStackFrame({
   serverStats: () => webpack.Stats | null
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
-}) {
+}): Promise<OriginalStackFrameResponse> {
   const filename = frame.file ?? ''
   const source = await getSource(filename, {
     getCompilations: () => {
@@ -445,6 +482,42 @@ export function getOverlayMiddleware(options: {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
+    if (pathname === '/__nextjs_original-stack-frames') {
+      if (req.method !== 'POST') {
+        return badRequest(res)
+      }
+
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ''
+        req.on('data', (chunk) => {
+          data += chunk
+        })
+        req.on('end', () => resolve(data))
+        req.on('error', reject)
+      })
+
+      try {
+        const { frames, isServer, isEdgeServer, isAppDirectory } = JSON.parse(
+          body
+        ) as OriginalStackFramesRequest
+
+        return json(
+          res,
+          await getOriginalStackFrames({
+            isServer,
+            isEdgeServer,
+            isAppDirectory,
+            frames,
+            clientStats,
+            serverStats,
+            edgeServerStats,
+            rootDirectory,
+          })
+        )
+      } catch (err) {
+        return badRequest(res)
+      }
+    }
     if (pathname === '/__nextjs_original-stack-frame') {
       const isServer = searchParams.get('isServer') === 'true'
       const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
