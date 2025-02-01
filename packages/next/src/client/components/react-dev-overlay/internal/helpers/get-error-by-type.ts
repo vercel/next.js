@@ -31,8 +31,7 @@ export async function getErrorByType(
         frames: await getOriginalStackFrames(
           event.frames,
           getErrorSource(event.reason),
-          isAppDir,
-          event.reason.toString()
+          isAppDir
         ),
       }
       if (event.type === ACTION_UNHANDLED_ERROR) {

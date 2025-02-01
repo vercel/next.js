@@ -86,13 +86,10 @@ function getOriginalStackFrame(
 export function getOriginalStackFrames(
   frames: StackFrame[],
   type: 'server' | 'edge-server' | null,
-  isAppDir: boolean,
-  errorMessage: string
+  isAppDir: boolean
 ) {
   return Promise.all(
-    frames.map((frame) =>
-      getOriginalStackFrame(frame, type, isAppDir, errorMessage)
-    )
+    frames.map((frame) => getOriginalStackFrame(frame, type, isAppDir))
   )
 }
 
