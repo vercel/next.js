@@ -82,9 +82,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::{ModuleGraphs, Project},
-    route::{
-        AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, EndpointRuntime, Route, Routes,
-    },
+    route::{AppPageRoute, Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
     server_actions::{build_server_actions_loader, create_server_actions_manifest},
     webpack_stats::generate_webpack_stats,
 };
@@ -1792,18 +1790,6 @@ async fn create_app_paths_manifest(
 
 #[turbo_tasks::value_impl]
 impl Endpoint for AppEndpoint {
-    #[turbo_tasks::function]
-    async fn runtime(self: ResolvedVc<Self>) -> Result<Vc<EndpointRuntime>> {
-        let app_entry = self.app_endpoint_entry().await?;
-        let runtime = app_entry.config.await?.runtime.unwrap_or_default();
-
-        Ok(match runtime {
-            NextRuntime::Edge => EndpointRuntime::Edge,
-            NextRuntime::NodeJs => EndpointRuntime::NodeJs,
-        }
-        .cell())
-    }
-
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;

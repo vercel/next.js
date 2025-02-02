@@ -30,7 +30,7 @@ use crate::{
         all_server_paths, get_js_paths_from_root, get_wasm_paths_from_root, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths, EndpointRuntime},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
 };
 
 #[turbo_tasks::value]
@@ -247,11 +247,6 @@ struct InstrumentationCoreModules {
 
 #[turbo_tasks::value_impl]
 impl Endpoint for InstrumentationEndpoint {
-    #[turbo_tasks::function]
-    async fn runtime(self: ResolvedVc<Self>) -> Vc<EndpointRuntime> {
-        EndpointRuntime::Edge.cell()
-    }
-
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("instrumentation endpoint");

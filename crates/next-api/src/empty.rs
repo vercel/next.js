@@ -2,7 +2,7 @@ use anyhow::{bail, Result};
 use turbo_tasks::{Completion, Vc};
 use turbopack_core::module::Modules;
 
-use crate::route::{Endpoint, EndpointOutput, EndpointRuntime};
+use crate::route::{Endpoint, EndpointOutput};
 
 #[turbo_tasks::value]
 pub struct EmptyEndpoint;
@@ -17,11 +17,6 @@ impl EmptyEndpoint {
 
 #[turbo_tasks::value_impl]
 impl Endpoint for EmptyEndpoint {
-    #[turbo_tasks::function]
-    fn runtime(self: Vc<Self>) -> Result<Vc<EndpointRuntime>> {
-        bail!("Empty endpoint can't have runtime")
-    }
-
     #[turbo_tasks::function]
     fn output(self: Vc<Self>) -> Result<Vc<EndpointOutput>> {
         bail!("Empty endpoint can't have output")

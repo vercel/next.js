@@ -44,16 +44,8 @@ pub enum Route {
     Conflict,
 }
 
-#[derive(Copy, Clone)]
-#[turbo_tasks::value(shared)]
-pub enum EndpointRuntime {
-    NodeJs,
-    Edge,
-}
-
 #[turbo_tasks::value_trait]
 pub trait Endpoint {
-    fn runtime(self: Vc<Self>) -> Vc<EndpointRuntime>;
     fn output(self: Vc<Self>) -> Vc<EndpointOutput>;
     // fn write_to_disk(self: Vc<Self>) -> Vc<EndpointOutputPaths>;
     fn server_changed(self: Vc<Self>) -> Vc<Completion>;
