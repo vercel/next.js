@@ -6,7 +6,7 @@ use next_api::{
     paths::ServerPath,
     route::{
         endpoint_server_changed_operation, endpoint_write_to_disk_operation, Endpoint,
-        EndpointOutputPaths, EndpointRuntime,
+        EndpointOutputPaths,
     },
 };
 use tracing::Instrument;
