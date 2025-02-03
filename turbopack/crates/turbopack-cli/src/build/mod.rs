@@ -240,7 +240,9 @@ async fn build_internal(
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
                     builder = builder.ecmascript_chunking_config(ChunkingConfig {
-                        min_chunk_size: 20000,
+                        min_chunk_size: 50_000,
+                        max_chunk_count_per_group: 40,
+                        max_merge_chunk_size: 200_000,
                         ..Default::default()
                     })
                 }
@@ -270,7 +272,9 @@ async fn build_internal(
                 NodeEnv::Development => {}
                 NodeEnv::Production => {
                     builder = builder.ecmascript_chunking_config(ChunkingConfig {
-                        min_chunk_size: 20000,
+                        min_chunk_size: 20_000,
+                        max_chunk_count_per_group: 100,
+                        max_merge_chunk_size: 100_000,
                         ..Default::default()
                     })
                 }
