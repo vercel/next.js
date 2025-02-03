@@ -98,10 +98,10 @@ fn init() {
 }
 
 #[inline]
-fn get_compiler() -> Arc<Compiler> {
+fn get_compiler() -> Compiler {
     let cm = Arc::new(SourceMap::new(FilePathMapping::empty()));
 
-    Arc::new(Compiler::new(cm))
+    Compiler::new(cm)
 }
 
 pub fn complete_output(
@@ -135,8 +135,6 @@ pub fn complete_output(
 
     Ok(js_output)
 }
-
-pub type ArcCompiler = Arc<Compiler>;
 
 static REGISTER_ONCE: Once = Once::new();
 
