@@ -518,7 +518,6 @@ export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
   isStaticGeneration: boolean
   getServerInsertedHTML: () => Promise<string>
-  serverInsertedHTMLToHead: boolean
   validateRootLayout?: boolean
   /**
    * Suffix to inject after the buffered data, but before the close tags.
@@ -533,7 +532,6 @@ export async function continueFizzStream(
     inlinedDataStream,
     isStaticGeneration,
     getServerInsertedHTML,
-    serverInsertedHTMLToHead,
     validateRootLayout,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
@@ -567,9 +565,7 @@ export async function continueFizzStream(
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
     // hydration errors. Remove this once it's ready to be handled by react itself.
-    serverInsertedHTMLToHead
-      ? createHeadInsertionTransformStream(getServerInsertedHTML)
-      : null,
+    createHeadInsertionTransformStream(getServerInsertedHTML),
   ])
 }
 
