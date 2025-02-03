@@ -423,6 +423,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
+        {/* @ts-expect-error next/og supports src as ArrayBuffer or Buffer */}
         <img src={logoSrc} height="100" />
       </div>
     )
@@ -478,6 +479,7 @@ export default async function Image() {
           justifyContent: 'center',
         }}
       >
+        {/* @ts-expect-error next/og supports src as ArrayBuffer or Buffer */}
         <img src={logoSrc} height="100" />
       </div>
     )
