@@ -66,17 +66,18 @@ pub async fn make_production_chunks(
                 make_chunk(chunk_items, &mut String::new(), &mut split_context).await?;
             }
         } else {
-            let mut heap = BinaryHeap::new();
+            let mut heap = grouped_chunk_items
+                .into_values()
+                .map(|chunk_items| {
+                    let size = chunk_items
+                        .iter()
+                        .map(|chunk_item| chunk_item.size)
+                        .sum::<usize>();
+                    ChunkCandidate { size, chunk_items }
+                })
+                .collect::<BinaryHeap<_>>();
 
             span.record("chunks_before_limits", heap.len());
-
-            for chunk_items in grouped_chunk_items.into_values() {
-                let size = chunk_items
-                    .iter()
-                    .map(|chunk_item| chunk_item.size)
-                    .sum::<usize>();
-                heap.push(ChunkCandidate { size, chunk_items });
-            }
 
             loop {
                 if let Some(smallest) = heap.peek() {
