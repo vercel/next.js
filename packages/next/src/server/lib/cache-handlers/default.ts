@@ -44,10 +44,9 @@ const DefaultCacheHandler: CacheHandler = {
     }
 
     const entry = privateEntry.entry
-    if (
-      performance.timeOrigin + performance.now() >
-      entry.timestamp + entry.revalidate * 1000
-    ) {
+    const now = performance.timeOrigin + performance.now()
+    const expires_at = entry.timestamp + entry.revalidate * 1000
+    if (now > expires_at) {
       // In memory caches should expire after revalidate time because it is unlikely that
       // a new entry will be able to be used before it is dropped from the cache.
       return undefined
@@ -65,6 +64,11 @@ const DefaultCacheHandler: CacheHandler = {
     return {
       ...entry,
       value: returnStream,
+      // This cached entry may be used by ISR to compute its own revalidate value.
+      // Therefore we need to adjust to account for time passed since last modified.
+      // Note: Since we can't use high precision here, we opt to round up to avoid
+      // premature expiration that would result in <1 sec values.
+      revalidate: Math.ceil(expires_at - now) * 0.001,
     }
   },
 
