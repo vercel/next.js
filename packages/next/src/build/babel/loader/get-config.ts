@@ -257,7 +257,7 @@ function checkCustomBabelConfigDeprecation(
  * Generate a new, flat Babel config, ready to be handed to Babel-traverse.
  * This config should have no unresolved overrides, presets, etc.
  */
-function getFreshConfig(
+async function getFreshConfig(
   this: NextJsLoaderContext,
   cacheCharacteristics: CharacteristicsGermaneToCaching,
   loaderOptions: NextBabelLoaderOptions,
@@ -265,7 +265,7 @@ function getFreshConfig(
   filename: string,
   inputSourceMap?: object | null
 ) {
-  const hasReactCompiler = (() => {
+  const hasReactCompiler = await (async () => {
     if (
       loaderOptions.reactCompilerPlugins &&
       loaderOptions.reactCompilerPlugins.length === 0
@@ -279,7 +279,7 @@ function getFreshConfig(
 
     if (
       loaderOptions.reactCompilerExclude &&
-      loaderOptions.reactCompilerExclude(filename)
+      (await loaderOptions.reactCompilerExclude(filename))
     ) {
       return false
     }
@@ -436,7 +436,7 @@ type BabelConfig = any
 const configCache: Map<any, BabelConfig> = new Map()
 const configFiles: Set<string> = new Set()
 
-export default function getConfig(
+export default async function getConfig(
   this: NextJsLoaderContext,
   {
     source,
@@ -451,7 +451,7 @@ export default function getConfig(
     filename: string
     inputSourceMap?: object | null
   }
-): BabelConfig {
+): Promise<BabelConfig> {
   const cacheCharacteristics = getCacheCharacteristics(
     loaderOptions,
     source,
