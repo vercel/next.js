@@ -113,6 +113,10 @@ export const CODE_FRAME_STYLES = css`
     line-height: 16px;
   }
 
+  [data-nextjs-codeframe] pre {
+    white-space: pre-wrap;
+  }
+
   .code-frame-header {
     border-top: 1px solid var(--color-gray-400);
     border-bottom: 1px solid var(--color-gray-400);
