@@ -1,23 +1,24 @@
 'use client'
-import React, { useEffect } from 'react'
-import type { AppRouterInstance } from '../../shared/lib/app-router-context.shared-runtime'
+import React, { useState, useEffect } from 'react'
 import { useRouter } from './navigation'
-import { getRedirectTypeFromError, getURLFromRedirectError } from './redirect'
+import {
+  getRedirectTypeFromError,
+  getURLFromRedirectError,
+} from './redirect'
 import { RedirectType, isRedirectError } from './redirect-error'
 
 interface RedirectBoundaryProps {
-  router: AppRouterInstance
   children: React.ReactNode
 }
 
 function HandleRedirect({
   redirect,
-  reset,
   redirectType,
+  onReset,
 }: {
   redirect: string
   redirectType: RedirectType
-  reset: () => void
+  onReset: () => void
 }) {
   const router = useRouter()
 
@@ -28,52 +29,59 @@ function HandleRedirect({
       } else {
         router.replace(redirect, {})
       }
-      reset()
+      onReset()
     })
-  }, [redirect, redirectType, reset, router])
+  }, [redirect, redirectType, onReset, router])
 
   return null
 }
 
-export class RedirectErrorBoundary extends React.Component<
-  RedirectBoundaryProps,
-  { redirect: string | null; redirectType: RedirectType | null }
-> {
-  constructor(props: RedirectBoundaryProps) {
-    super(props)
-    this.state = { redirect: null, redirectType: null }
-  }
-
-  static getDerivedStateFromError(error: any) {
-    if (isRedirectError(error)) {
-      const url = getURLFromRedirectError(error)
-      const redirectType = getRedirectTypeFromError(error)
-      return { redirect: url, redirectType }
-    }
-    // Re-throw if error is not for redirect
-    throw error
-  }
-
-  // Explicit type is needed to avoid the generated `.d.ts` having a wide return type that could be specific to the `@types/react` version.
-  render(): React.ReactNode {
-    const { redirect, redirectType } = this.state
-    if (redirect !== null && redirectType !== null) {
-      return (
-        <HandleRedirect
-          redirect={redirect}
-          redirectType={redirectType}
-          reset={() => this.setState({ redirect: null })}
-        />
-      )
-    }
-
-    return this.props.children
-  }
-}
-
-export function RedirectBoundary({ children }: { children: React.ReactNode }) {
+export function RedirectBoundary({ children }: RedirectBoundaryProps) {
   const router = useRouter()
-  return (
-    <RedirectErrorBoundary router={router}>{children}</RedirectErrorBoundary>
-  )
+  const [redirect, setRedirect] = useState<string | null>(null)
+  const [redirectType, setRedirectType] = useState<RedirectType | null>(null)
+
+  useEffect(() => {
+    const handleError = (error: unknown) => {
+      if (isRedirectError(error)) {
+        const url = getURLFromRedirectError(error)
+        const type = getRedirectTypeFromError(error)
+        setRedirect(url)
+        setRedirectType(type)
+      } else {
+        // Re-throw if error is not for redirect
+        throw error
+      }
+    }
+
+    // Example: Attach error listener (adjust based on your error handling setup)
+    window.addEventListener('error', (event: Event) => {
+      handleError((event as CustomEvent).detail)
+    })
+
+    return () => {
+      // Clean up error listener
+      window.removeEventListener('error', (event: Event) => {
+        handleError((event as CustomEvent).detail)
+      })
+    }
+  }, [])
+
+  const reset = () => {
+    setRedirect(null)
+    setRedirectType(null)
+  }
+
+  if (redirect !== null && redirectType !== null) {
+    return (
+      <HandleRedirect
+        redirect={redirect}
+        redirectType={redirectType}
+        onReset={reset}
+      />
+    )
+  }
+
+  return <>{children}</>
 }
+

@@ -25,7 +25,7 @@ function findHeadInCacheImpl(
     if (!childSegmentMap) {
       continue
     }
-
+ 
     const cacheKey = createRouterCacheKey(segment)
 
     const cacheNode = childSegmentMap.get(cacheKey)
