@@ -13,7 +13,10 @@ use crate::{
         CachedDataItemValue, CachedDataItemValueRef, CachedDataItemValueRefMut, OutputValue,
     },
     data_storage::{AutoMapStorage, OptionStorage},
-    utils::dash_map_multi::{get_multiple_mut, RefMut},
+    utils::{
+        buffered_age_queue::BufferedAgeQueue,
+        dash_map_multi::{get_multiple_mut, RefMut},
+    },
 };
 
 const META_UNRESTORED: u32 = 1 << 31;
@@ -501,6 +504,7 @@ impl InnerStorage {
 
 pub struct Storage {
     map: FxDashMap<TaskId, Box<InnerStorage>>,
+    age_queue: BufferedAgeQueue,
 }
 
 impl Storage {
@@ -513,10 +517,12 @@ impl Storage {
                 Default::default(),
                 shard_amount,
             ),
+            age_queue: BufferedAgeQueue::new(),
         }
     }
 
     pub fn access_mut(&self, key: TaskId) -> StorageWriteGuard<'_> {
+        self.age_queue.push(*key);
         let inner = match self.map.entry(key) {
             dashmap::mapref::entry::Entry::Occupied(e) => e.into_ref(),
             dashmap::mapref::entry::Entry::Vacant(e) => e.insert(Box::new(InnerStorage::new())),
@@ -531,6 +537,8 @@ impl Storage {
         key1: TaskId,
         key2: TaskId,
     ) -> (StorageWriteGuard<'_>, StorageWriteGuard<'_>) {
+        self.age_queue.push(*key1);
+        self.age_queue.push(*key2);
         let (a, b) = get_multiple_mut(&self.map, key1, key2, || Box::new(InnerStorage::new()));
         (
             StorageWriteGuard { inner: a },
