@@ -43,6 +43,7 @@ use backtrace::Backtrace;
 use napi::bindgen_prelude::*;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };

@@ -4,6 +4,7 @@ use next_custom_transforms::transforms::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashSet;
 use swc_core::{
+    atoms::{atom, Atom},
     base::{try_with_handler, Compiler},
     common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
     ecma::ast::noop_pass,
@@ -17,7 +18,7 @@ static COMPILER: Lazy<Arc<Compiler>> = Lazy::new(|| {
 
 #[test]
 fn should_collect_estimated_third_part_packages() {
-    let eliminated_packages: Rc<RefCell<FxHashSet<String>>> = Default::default();
+    let eliminated_packages: Rc<RefCell<FxHashSet<Atom>>> = Default::default();
     let fm = COMPILER.cm.new_source_file(
         FileName::Real("fixture.js".into()).into(),
         r#"import http from 'http'
@@ -57,7 +58,7 @@ export function getServerSideProps() {
         .expect("we should have the only remaining reference to `eliminated_packages`")
         .into_inner()
         .into_iter()
-        .collect::<Vec<String>>();
+        .collect::<Vec<Atom>>();
     eliminated_packages_vec.sort_unstable(); // HashSet order is random/arbitrary
     assert_eq!(eliminated_packages_vec, vec!["@napi-rs/bcrypt", "http"]);
 }
