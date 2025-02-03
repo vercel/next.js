@@ -6,7 +6,8 @@ use std::{
 use dashmap::DashMap;
 use rustc_hash::FxHasher;
 use serde::{ser::SerializeMap, Serialize, Serializer};
-use turbo_tasks::{registry, FunctionId};
+
+use crate::{registry, FunctionId};
 
 /// An API for optionally enabling, updating, and reading aggregated statistics.
 #[derive(Default)]
@@ -40,18 +41,17 @@ impl TaskStatisticsApi {
     }
 }
 
-/// A type representing the enabled state of [`TaskStatisticsApi`]. Implements
-/// [`serde::Serialize`].
+/// A type representing the enabled state of [`TaskStatisticsApi`]. Implements [`serde::Serialize`].
 pub struct TaskStatistics {
     inner: DashMap<FunctionId, TaskFunctionStatistics, BuildHasherDefault<FxHasher>>,
 }
 
 impl TaskStatistics {
-    pub(crate) fn increment_cache_hit(&self, function_id: FunctionId) {
+    pub fn increment_cache_hit(&self, function_id: FunctionId) {
         self.with_task_type_statistics(function_id, |stats| stats.cache_hit += 1)
     }
 
-    pub(crate) fn increment_cache_miss(&self, function_id: FunctionId) {
+    pub fn increment_cache_miss(&self, function_id: FunctionId) {
         self.with_task_type_statistics(function_id, |stats| stats.cache_miss += 1)
     }
 

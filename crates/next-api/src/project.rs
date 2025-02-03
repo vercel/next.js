@@ -27,6 +27,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
+    mark_root,
     trace::TraceRawVcs,
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
@@ -897,9 +898,9 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
+            let module_graphs_vc = module_graphs_op.connect().resolve().await?;
             let _ = module_graphs_op.take_issues_with_path().await?;
-            Ok(*module_graphs_vc)
+            Ok(module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -1605,6 +1606,7 @@ impl Project {
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<ModuleGraphs>> {
+    mark_root();
     let base_single_module_graph = SingleModuleGraph::new_with_entries(project.get_all_entries());
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 

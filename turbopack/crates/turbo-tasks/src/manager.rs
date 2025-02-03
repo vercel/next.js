@@ -45,6 +45,7 @@ use crate::{
         local_task::{LocalTask, LocalTaskType},
         shared_reference::TypedSharedReference,
     },
+    task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
     util::StaticOrArc,
@@ -164,6 +165,7 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
     fn read_own_task_cell(&self, task: TaskId, index: CellId) -> Result<TypedCellContent>;
     fn update_own_task_cell(&self, task: TaskId, index: CellId, content: CellContent);
     fn mark_own_task_as_finished(&self, task: TaskId);
+    fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32);
     fn mark_own_task_as_session_dependent(&self, task: TaskId);
 
     fn connect_task(&self, task: TaskId);
@@ -176,6 +178,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
+
+    fn task_statistics(&self) -> &TaskStatisticsApi;
 
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
@@ -1393,6 +1397,11 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
         self.backend.mark_own_task_as_finished(task, self);
     }
 
+    fn set_own_task_aggregation_number(&self, task: TaskId, aggregation_number: u32) {
+        self.backend
+            .set_own_task_aggregation_number(task, aggregation_number, self);
+    }
+
     fn mark_own_task_as_session_dependent(&self, task: TaskId) {
         self.backend.mark_own_task_as_session_dependent(task, self);
     }
@@ -1418,6 +1427,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
                 CURRENT_LOCAL_TASK_STATE.scope(local_task_state, tracked_fut),
             ),
         ))
+    }
+
+    fn task_statistics(&self) -> &TaskStatisticsApi {
+        self.backend.task_statistics()
     }
 
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {
@@ -1693,6 +1706,14 @@ pub fn current_task_for_testing() -> TaskId {
 pub fn mark_session_dependent() {
     with_turbo_tasks(|tt| {
         tt.mark_own_task_as_session_dependent(current_task("turbo_tasks::mark_session_dependent()"))
+    });
+}
+
+/// Marks the current task as finished. This excludes it from waiting for
+/// strongly consistency.
+pub fn mark_root() {
+    with_turbo_tasks(|tt| {
+        tt.set_own_task_aggregation_number(current_task("turbo_tasks::mark_root()"), u32::MAX)
     });
 }
 

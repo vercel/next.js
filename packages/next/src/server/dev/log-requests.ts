@@ -23,17 +23,17 @@ export interface RequestLoggingOptions {
 /**
  * Returns true if the incoming request should be ignored for logging.
  */
-export function ignoreLoggingIncomingRequest(
+export function ignoreLoggingIncomingRequests(
   request: NodeNextRequest,
   loggingConfig: LoggingConfig | undefined
 ): boolean {
   // If it's boolean use the boolean value
-  if (typeof loggingConfig?.incomingRequest === 'boolean') {
-    return !loggingConfig.incomingRequest
+  if (typeof loggingConfig?.incomingRequests === 'boolean') {
+    return !loggingConfig.incomingRequests
   }
 
   // Any of the value on the chain is falsy, will not ignore the request.
-  const ignore = loggingConfig?.incomingRequest?.ignore
+  const ignore = loggingConfig?.incomingRequests?.ignore
 
   // If ignore is not set, don't ignore anything
   if (!ignore) {
@@ -47,8 +47,8 @@ export function ignoreLoggingIncomingRequest(
 export function logRequests(options: RequestLoggingOptions): void {
   const { request, response, loggingConfig, requestDurationInMs } = options
 
-  if (!ignoreLoggingIncomingRequest(request, loggingConfig)) {
-    logIncomingRequest({
+  if (!ignoreLoggingIncomingRequests(request, loggingConfig)) {
+    logIncomingRequests({
       request,
       requestDurationInMs,
       statusCode: response.statusCode,
@@ -68,7 +68,7 @@ interface IncomingRequestOptions {
   readonly statusCode: number
 }
 
-function logIncomingRequest(options: IncomingRequestOptions): void {
+function logIncomingRequests(options: IncomingRequestOptions): void {
   const { request, requestDurationInMs, statusCode } = options
   const isRSC = getRequestMeta(request, 'isRSCRequest')
   const url = isRSC ? stripNextRscUnionQuery(request.url) : request.url

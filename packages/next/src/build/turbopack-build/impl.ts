@@ -61,6 +61,7 @@ export async function turbopackBuild(): Promise<{
     'last 1 Chrome versions, last 1 Firefox versions, last 1 Safari versions, last 1 Edge versions',
   ]
 
+  const persistentCaching = isPersistentCachingEnabled(config)
   const project = await bindings.turbo.createProject(
     {
       projectPath: dir,
@@ -91,8 +92,9 @@ export async function turbopackBuild(): Promise<{
       browserslistQuery: supportedBrowsers.join(', '),
     },
     {
-      persistentCaching: isPersistentCachingEnabled(config),
+      persistentCaching,
       memoryLimit: config.experimental.turbo?.memoryLimit,
+      dependencyTracking: persistentCaching,
     }
   )
 

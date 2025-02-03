@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
-import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './runtime-error'
 import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
@@ -18,6 +17,7 @@ import {
 } from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
 
 export type ErrorsProps = {
   readyErrors: ReadyRuntimeError[]

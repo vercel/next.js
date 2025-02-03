@@ -315,7 +315,8 @@ const cases: {
       RSC: '1',
     },
     expected: {
-      'x-nextjs-rewritten-path': null,
+      // Vercel matches `/` to `/home`
+      'x-nextjs-rewritten-path': '/home',
       'x-nextjs-rewritten-query': null,
     },
   },
@@ -327,7 +328,8 @@ const cases: {
       'Next-Router-Prefetch': '1',
     },
     expected: {
-      'x-nextjs-rewritten-path': null,
+      // Vercel matches `/` to `/home`
+      'x-nextjs-rewritten-path': '/home',
       'x-nextjs-rewritten-query': null,
     },
   },

@@ -19,8 +19,8 @@ use crate::{
     module::Module,
     module_graph::{GraphTraversalAction, ModuleGraph},
     output::OutputAssets,
-    rebase::RebasedAsset,
     reference::ModuleReference,
+    traced_asset::TracedAsset,
 };
 
 pub struct MakeChunkGroupResult {
@@ -184,13 +184,7 @@ pub async fn make_chunk_group(
         .into_iter()
         .map(|module| async move {
             Ok(ResolvedVc::upcast(
-                RebasedAsset::new(
-                    *module,
-                    module.ident().path().root(),
-                    module.ident().path().root(),
-                )
-                .to_resolved()
-                .await?,
+                TracedAsset::new(*module).to_resolved().await?,
             ))
         })
         .try_join()
