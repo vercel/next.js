@@ -36,6 +36,11 @@ export async function sendResponse(
 
     // Copy over the response headers.
     response.headers?.forEach((value, name) => {
+      // `x-middleware-set-cookie` is an internal header not needed for the response
+      if (name.toLowerCase() === 'x-middleware-set-cookie') {
+        return
+      }
+
       // The append handling is special cased for `set-cookie`.
       if (name.toLowerCase() === 'set-cookie') {
         // TODO: (wyattjoh) replace with native response iteration when we can upgrade undici
