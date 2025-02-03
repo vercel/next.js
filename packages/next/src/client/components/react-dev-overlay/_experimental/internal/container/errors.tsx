@@ -267,4 +267,7 @@ export const styles = css`
   .error-overlay-notes-container {
     padding: 0 var(--size-4);
   }
+  .error-overlay-notes-container p {
+    white-space: pre-wrap;
+  }
 `

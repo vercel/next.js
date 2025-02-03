@@ -8,7 +8,7 @@ import type { ReadyRuntimeError } from '../../../../internal/helpers/get-error-b
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
-  const { firstFrame } = useMemo(() => {
+  const firstFrame = useMemo(() => {
     const firstFirstPartyFrameIndex = error.frames.findIndex(
       (entry) =>
         !entry.ignored &&
@@ -16,9 +16,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         Boolean(entry.originalStackFrame)
     )
 
-    return {
-      firstFrame: error.frames[firstFirstPartyFrameIndex] ?? null,
-    }
+    return error.frames[firstFirstPartyFrameIndex] ?? null
   }, [error.frames])
 
   return (
