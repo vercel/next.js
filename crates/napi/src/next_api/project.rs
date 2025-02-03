@@ -888,7 +888,7 @@ pub fn project_entrypoints_subscribe(
             let (entrypoints, issues, diags) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: NapiEntrypoints::from_entrypoints_op(&*entrypoints, &turbo_tasks)?,
+                result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))
