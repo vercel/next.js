@@ -76,7 +76,7 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
             className="error-overlay-call-stack-ignored-list-toggle-button"
             onClick={onToggleIgnoreList}
           >
-            {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignored-listed Frames`}
+            {`${isIgnoreListOpen ? 'Hide' : 'Show'} ${ignoreListLength} Ignore-listed Frames`}
             <ChevronUpDown />
           </button>
         )}
