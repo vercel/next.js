@@ -1316,6 +1316,11 @@ export function getConfiguredExperimentalFeatures(
     ) as (keyof ExperimentalConfig)[]) {
       const value = userNextConfigExperimental[name]
 
+      if (name === 'turbo' && !process.env.TURBOPACK) {
+        // Ignore any Turbopack config if Turbopack is not enabled
+        continue
+      }
+
       if (
         name in defaultConfig.experimental &&
         value !== defaultConfig.experimental[name]
