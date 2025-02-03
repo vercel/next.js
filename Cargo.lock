@@ -2540,15 +2540,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
-]
-
-[[package]]
 name = "generator"
 version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4531,7 +4522,6 @@ dependencies = [
  "dashmap 6.1.0",
  "easy-error",
  "either",
- "fxhash",
  "hex",
  "indexmap 2.7.1",
  "indoc",
@@ -4568,7 +4558,6 @@ dependencies = [
  "console-subscriber",
  "dashmap 6.1.0",
  "dhat",
- "fxhash",
  "getrandom",
  "iana-time-zone",
  "indexmap 2.7.1",
@@ -4584,6 +4573,7 @@ dependencies = [
  "once_cell",
  "owo-colors 3.5.0",
  "rand",
+ "rustc-hash 1.1.0",
  "serde",
  "serde_json",
  "shadow-rs",

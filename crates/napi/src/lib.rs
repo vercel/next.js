@@ -41,8 +41,8 @@ use std::{
 
 use backtrace::Backtrace;
 use dashmap::DashMap;
-use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
+use rustc_hash::FxHashSet;
 use swc_core::{
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
