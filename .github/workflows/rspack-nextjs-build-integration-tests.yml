@@ -149,7 +149,7 @@ jobs:
           name: test-reports-build-integration-${{ matrix.group }}
           if-no-files-found: 'error'
           path: |
-            test/turbopack-test-junit-report
+            test/rspack-test-junit-report
 
   # Collect integration test results from execute_tests,
   # Store it as github artifact for next step to consume.
