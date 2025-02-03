@@ -481,8 +481,26 @@ export class Playwright extends BrowserInterface {
     return page.evaluate<T>(fn).catch(() => null)
   }
 
-  async log() {
-    return this.chain(() => Promise.all(pageLogs))
+  async log<T extends boolean = false>(options?: {
+    includeArgs?: T
+  }): Promise<
+    T extends true
+      ? { source: string; message: string; args: unknown[] }[]
+      : { source: string; message: string }[]
+  > {
+    return this.chain(
+      () =>
+        options?.includeArgs
+          ? Promise.all(pageLogs)
+          : Promise.all(pageLogs).then((logs) =>
+              logs.map(({ source, message }) => ({ source, message }))
+            )
+      // TODO: Starting with TypeScript 5.8 we might not need this type cast.
+    ) as Promise<
+      T extends true
+        ? { source: string; message: string; args: unknown[] }[]
+        : { source: string; message: string }[]
+    >
   }
 
   async websocketFrames() {

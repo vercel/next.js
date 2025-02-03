@@ -513,7 +513,7 @@ const ignoredLogs = [
 ]
 
 async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
-  const logs = await browser.log()
+  const logs = await browser.log({ includeArgs: true })
 
   return logs
     .map(({ args }) =>

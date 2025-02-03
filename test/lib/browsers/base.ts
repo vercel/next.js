@@ -119,8 +119,12 @@ export abstract class BrowserInterface<TCurrent = any> {
   abstract text(): Promise<string>
   abstract getComputedCss(prop: string): Promise<string>
   abstract hasElementByCssSelector(selector: string): Promise<boolean>
-  abstract log(): Promise<
-    { source: string; message: string; args: unknown[] }[]
+  abstract log<T extends boolean = false>(options?: {
+    includeArgs?: T
+  }): Promise<
+    T extends true
+      ? { source: string; message: string; args: unknown[] }[]
+      : { source: string; message: string }[]
   >
   abstract websocketFrames(): Promise<any[]>
   abstract url(): Promise<string>
