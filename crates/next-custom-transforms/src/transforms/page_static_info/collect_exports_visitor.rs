@@ -1,12 +1,15 @@
 use std::collections::HashSet;
 
 use lazy_static::lazy_static;
-use swc_core::ecma::{
-    ast::{
-        Decl, ExportDecl, ExportNamedSpecifier, ExportSpecifier, Expr, ExprOrSpread, ExprStmt, Lit,
-        ModuleExportName, ModuleItem, NamedExport, Pat, Stmt, Str, VarDeclarator,
+use swc_core::{
+    atoms::atom,
+    ecma::{
+        ast::{
+            Decl, ExportDecl, ExportNamedSpecifier, ExportSpecifier, Expr, ExprOrSpread, ExprStmt,
+            Lit, ModuleExportName, ModuleItem, NamedExport, Pat, Stmt, Str, VarDeclarator,
+        },
+        visit::{Visit, VisitWith},
     },
-    visit::{Visit, VisitWith},
 };
 
 use super::{ExportInfo, ExportInfoWarning};
@@ -46,11 +49,11 @@ impl Visit for CollectExportsVisitor {
                 if is_directive {
                     if value == "use server" {
                         let export_info = self.export_info.get_or_insert(Default::default());
-                        export_info.directives.insert("server".to_string());
+                        export_info.directives.insert(atom!("server"));
                     }
                     if value == "use client" {
                         let export_info = self.export_info.get_or_insert(Default::default());
-                        export_info.directives.insert("client".to_string());
+                        export_info.directives.insert(atom!("client"));
                     }
                 }
             } else {
@@ -86,7 +89,7 @@ impl Visit for CollectExportsVisitor {
                             let export_info = self.export_info.get_or_insert(Default::default());
                             export_info.runtime = decl.init.as_ref().and_then(|init| {
                                 if let Expr::Lit(Lit::Str(Str { value, .. })) = &**init {
-                                    Some(value.to_string())
+                                    Some(value.clone())
                                 } else {
                                     None
                                 }
@@ -102,18 +105,18 @@ impl Visit for CollectExportsVisitor {
                                         {
                                             let export_info =
                                                 self.export_info.get_or_insert(Default::default());
-                                            export_info.preferred_region.push(value.to_string());
+                                            export_info.preferred_region.push(value.clone());
                                         }
                                     }
                                 } else if let Expr::Lit(Lit::Str(Str { value, .. })) = &**init {
                                     let export_info =
                                         self.export_info.get_or_insert(Default::default());
-                                    export_info.preferred_region.push(value.to_string());
+                                    export_info.preferred_region.push(value.clone());
                                 }
                             }
                         } else {
                             let export_info = self.export_info.get_or_insert(Default::default());
-                            export_info.extra_properties.insert(id.sym.to_string());
+                            export_info.extra_properties.insert(id.sym.clone());
                         }
                     }
                 }
@@ -169,16 +172,15 @@ impl Visit for CollectExportsVisitor {
 
                 if export_info.runtime.is_none() && value.sym == "runtime" {
                     export_info.warnings.push(ExportInfoWarning::new(
-                        value.sym.to_string(),
-                        "it was not assigned to a string literal".to_string(),
+                        value.sym.clone(),
+                        "it was not assigned to a string literal",
                     ));
                 }
 
                 if export_info.preferred_region.is_empty() && value.sym == "preferredRegion" {
                     export_info.warnings.push(ExportInfoWarning::new(
-                        value.sym.to_string(),
-                        "it was not assigned to a string literal or an array of string literals"
-                            .to_string(),
+                        value.sym.clone(),
+                        "it was not assigned to a string literal or an array of string literals",
                     ));
                 }
             }
