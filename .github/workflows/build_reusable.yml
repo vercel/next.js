@@ -247,6 +247,7 @@ jobs:
           path: |
             test/test-junit-report
             test/turbopack-test-junit-report
+            test/rspack-test-junit-report
           if-no-files-found: ignore
 
       # upload playwright snapshots from failed tests
