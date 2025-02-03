@@ -781,7 +781,12 @@ impl EcmascriptModuleContent {
             }
         }
         if let Some(async_module) = *async_module.await? {
-            code_gens.push(async_module.code_generation(async_module_info, references));
+            code_gens.push(async_module.code_generation(
+                async_module_info,
+                references,
+                module_graph,
+                chunking_context,
+            ));
         }
         for c in code_generation.await?.iter() {
             match c {

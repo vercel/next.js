@@ -178,7 +178,7 @@ jobs:
       - name: Store artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: test-results
+          name: test-results-turbopack-development
           path: |
             nextjs-test-results.json
             failed-test-path-list.json

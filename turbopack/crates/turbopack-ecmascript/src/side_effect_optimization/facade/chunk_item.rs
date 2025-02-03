@@ -85,11 +85,12 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
                 code_gens.push(code_gen.code_generation(*self.module_graph, *chunking_context));
             }
         }
-        code_gens.push(
-            self.module
-                .async_module()
-                .code_generation(async_module_info, references),
-        );
+        code_gens.push(self.module.async_module().code_generation(
+            async_module_info,
+            references,
+            *self.module_graph,
+            *chunking_context,
+        ));
         code_gens.push(exports.code_generation(*self.module_graph, *chunking_context));
         let code_gens = code_gens.into_iter().try_join().await?;
         let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();

@@ -64,6 +64,7 @@
     "unpack-next": "node scripts/unpack-next.cjs",
     "swc-build-native": "node scripts/build-native.cjs",
     "swc-build-wasm": "node scripts/build-wasm.cjs",
+    "build-turbopack-cli": "cargo build -p turbopack-cli --release",
     "sweep": "node scripts/sweep.cjs",
     "check-error-codes": "node packages/next/check-error-codes.js",
     "storybook": "turbo run storybook",
