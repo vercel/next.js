@@ -45,6 +45,7 @@ use crate::{
         local_task::{LocalTask, LocalTaskType},
         shared_reference::TypedSharedReference,
     },
+    task_statistics::TaskStatisticsApi,
     trace::TraceRawVcs,
     trait_helpers::get_trait_method,
     util::StaticOrArc,
@@ -177,6 +178,8 @@ pub trait TurboTasksApi: TurboTasksCallApi + Sync + Send {
         &self,
         f: Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>;
+
+    fn task_statistics(&self) -> &TaskStatisticsApi;
 
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send>>;
 }
@@ -1424,6 +1427,10 @@ impl<B: Backend + 'static> TurboTasksApi for TurboTasks<B> {
                 CURRENT_LOCAL_TASK_STATE.scope(local_task_state, tracked_fut),
             ),
         ))
+    }
+
+    fn task_statistics(&self) -> &TaskStatisticsApi {
+        self.backend.task_statistics()
     }
 
     fn stop_and_wait(&self) -> Pin<Box<dyn Future<Output = ()> + Send + 'static>> {

@@ -61,12 +61,17 @@ impl EsmBinding {
     async fn to_visitors(
         &self,
         visitors: &mut Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<()> {
         let item = self.clone();
         let imported_module = self.reference.get_referenced_asset();
 
         let mut ast_path = item.ast_path.await?.clone_value();
-        let imported_module = imported_module.await?.get_ident().await?;
+        let imported_module = imported_module
+            .await?
+            .get_ident(module_graph, chunking_context)
+            .await?;
 
         loop {
             match ast_path.last() {
@@ -153,14 +158,15 @@ impl CodeGenerateable for EsmBindings {
     #[turbo_tasks::function]
     async fn code_generation(
         &self,
-        _module_graph: Vc<ModuleGraph>,
-        _chunking_context: Vc<Box<dyn ChunkingContext>>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<CodeGeneration>> {
         let mut visitors = Vec::new();
         let bindings = self.bindings.clone();
 
         for item in bindings.into_iter() {
-            item.to_visitors(&mut visitors).await?;
+            item.to_visitors(&mut visitors, module_graph, chunking_context)
+                .await?;
         }
 
         Ok(CodeGeneration::visitors(visitors))

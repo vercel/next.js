@@ -1,13 +1,19 @@
 import type { NextConfigComplete } from '../../server/config-shared'
 import type { __ApiPreviewProps } from '../../server/api-utils'
-import type { ExternalObject, RefCell } from './generated-native'
+import type {
+  ExternalObject,
+  RefCell,
+  NapiTurboEngineOptions,
+} from './generated-native'
+
+export type { NapiTurboEngineOptions as TurboEngineOptions }
 
 export interface Binding {
   isWasm: boolean
   turbo: {
     createProject(
       options: ProjectOptions,
-      turboEngineOptions?: TurboEngineOptions
+      turboEngineOptions?: NapiTurboEngineOptions
     ): Promise<Project>
     startTurbopackTraceServer(traceFilePath: string): void
 
@@ -97,18 +103,6 @@ export interface Diagnostics {
 export type TurbopackResult<T = {}> = T & {
   issues: Issue[]
   diagnostics: Diagnostics[]
-}
-
-export interface TurboEngineOptions {
-  /**
-   * Use the new backend with persistent caching enabled.
-   */
-  persistentCaching?: boolean
-
-  /**
-   * An upper bound of memory that turbopack will attempt to stay under.
-   */
-  memoryLimit?: number
 }
 
 export interface Middleware {

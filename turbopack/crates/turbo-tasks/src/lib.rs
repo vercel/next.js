@@ -73,6 +73,7 @@ mod shrink_to_fit;
 pub mod small_duration;
 mod state;
 pub mod task;
+pub mod task_statistics;
 pub mod trace;
 mod trait_helpers;
 mod trait_ref;

@@ -177,6 +177,8 @@ export interface NapiTurboEngineOptions {
   persistentCaching?: boolean
   /** An upper bound of memory that turbopack will attempt to stay under. */
   memoryLimit?: number
+  /** Track dependencies between tasks. If false, any change during build will error. */
+  dependencyTracking?: boolean
 }
 export declare function projectNew(
   options: NapiProjectOptions,

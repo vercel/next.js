@@ -13,7 +13,10 @@ use crate::{
         storage::{get, get_mut},
         TaskDataCategory,
     },
-    data::{CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState},
+    data::{
+        CachedDataItem, CachedDataItemKey, CachedDataItemValue, DirtyState, InProgressState,
+        InProgressStateInner,
+    },
 };
 
 #[derive(Serialize, Deserialize, Clone, Default)]
@@ -196,7 +199,9 @@ pub fn make_task_dirty_internal(
     ctx: &impl ExecuteContext,
 ) {
     if make_stale {
-        if let Some(InProgressState::InProgress { stale, .. }) = get_mut!(task, InProgress) {
+        if let Some(InProgressState::InProgress(box InProgressStateInner { stale, .. })) =
+            get_mut!(task, InProgress)
+        {
             if !*stale {
                 #[cfg(feature = "trace_task_dirty")]
                 let _span = tracing::trace_span!(
