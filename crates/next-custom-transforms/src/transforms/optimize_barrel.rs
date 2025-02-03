@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use serde::Deserialize;
 use swc_core::{
+    atoms::{atom, Atom},
     common::DUMMY_SP,
     ecma::{
         ast::*,
@@ -36,32 +37,29 @@ impl Fold for OptimizeBarrel {
         for item in &items {
             if let ModuleItem::ModuleDecl(ModuleDecl::Import(import_decl)) = item {
                 for spec in &import_decl.specifiers {
-                    let src = import_decl.src.value.to_string();
+                    let src = import_decl.src.value.clone();
                     match spec {
                         ImportSpecifier::Named(s) => {
                             local_idents.insert(
-                                s.local.sym.to_string(),
+                                s.local.sym.clone(),
                                 (
                                     src.clone(),
                                     match &s.imported {
                                         Some(n) => match &n {
-                                            ModuleExportName::Ident(n) => n.sym.to_string(),
-                                            ModuleExportName::Str(n) => n.value.to_string(),
+                                            ModuleExportName::Ident(n) => n.sym.clone(),
+                                            ModuleExportName::Str(n) => n.value.clone(),
                                         },
-                                        None => s.local.sym.to_string(),
+                                        None => s.local.sym.clone(),
                                     },
                                 ),
                             );
                         }
                         ImportSpecifier::Namespace(s) => {
-                            local_idents
-                                .insert(s.local.sym.to_string(), (src.clone(), "*".to_string()));
+                            local_idents.insert(s.local.sym.clone(), (src.clone(), atom!("*")));
                         }
                         ImportSpecifier::Default(s) => {
-                            local_idents.insert(
-                                s.local.sym.to_string(),
-                                (src.clone(), "default".to_string()),
-                            );
+                            local_idents
+                                .insert(s.local.sym.clone(), (src.clone(), atom!("default")));
                         }
                     }
                 }
@@ -95,20 +93,20 @@ impl Fold for OptimizeBarrel {
                                 match spec {
                                     ExportSpecifier::Namespace(s) => {
                                         let name_str = match &s.name {
-                                            ModuleExportName::Ident(n) => n.sym.to_string(),
-                                            ModuleExportName::Str(n) => n.value.to_string(),
+                                            ModuleExportName::Ident(n) => n.sym.clone(),
+                                            ModuleExportName::Str(n) => n.value.clone(),
                                         };
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
                                                 name_str.clone(),
-                                                src.value.to_string(),
-                                                "*".to_string(),
+                                                src.value.clone(),
+                                                atom!("*"),
                                             ));
                                         } else if self.wildcard {
                                             export_map.push((
                                                 name_str.clone(),
-                                                "".into(),
-                                                "*".to_string(),
+                                                Atom::default(),
+                                                atom!("*"),
                                             ));
                                         } else {
                                             is_barrel = false;
@@ -117,13 +115,13 @@ impl Fold for OptimizeBarrel {
                                     }
                                     ExportSpecifier::Named(s) => {
                                         let orig_str = match &s.orig {
-                                            ModuleExportName::Ident(n) => n.sym.to_string(),
-                                            ModuleExportName::Str(n) => n.value.to_string(),
+                                            ModuleExportName::Ident(n) => n.sym.clone(),
+                                            ModuleExportName::Str(n) => n.value.clone(),
                                         };
                                         let name_str = match &s.exported {
                                             Some(n) => match &n {
-                                                ModuleExportName::Ident(n) => n.sym.to_string(),
-                                                ModuleExportName::Str(n) => n.value.to_string(),
+                                                ModuleExportName::Ident(n) => n.sym.clone(),
+                                                ModuleExportName::Str(n) => n.value.clone(),
                                             },
                                             None => orig_str.clone(),
                                         };
@@ -131,7 +129,7 @@ impl Fold for OptimizeBarrel {
                                         if let Some(src) = &export_named.src {
                                             export_map.push((
                                                 name_str.clone(),
-                                                src.value.to_string(),
+                                                src.value.clone(),
                                                 orig_str.clone(),
                                             ));
                                         } else if let Some((src, orig)) =
@@ -145,7 +143,7 @@ impl Fold for OptimizeBarrel {
                                         } else if self.wildcard {
                                             export_map.push((
                                                 name_str.clone(),
-                                                "".into(),
+                                                Atom::default(),
                                                 orig_str.clone(),
                                             ));
                                         } else {
@@ -175,22 +173,22 @@ impl Fold for OptimizeBarrel {
                             match &export_decl.decl {
                                 Decl::Class(class) => {
                                     export_map.push((
-                                        class.ident.sym.to_string(),
-                                        "".into(),
-                                        "".into(),
+                                        class.ident.sym.clone(),
+                                        Atom::default(),
+                                        Atom::default(),
                                     ));
                                 }
                                 Decl::Fn(func) => {
                                     export_map.push((
-                                        func.ident.sym.to_string(),
-                                        "".into(),
-                                        "".into(),
+                                        func.ident.sym.clone(),
+                                        Atom::default(),
+                                        Atom::default(),
                                     ));
                                 }
                                 Decl::Var(var) => {
                                     let ids = collect_idents_in_var_decls(&var.decls);
                                     for id in ids {
-                                        export_map.push((id, "".into(), "".into()));
+                                        export_map.push((id, Atom::default(), Atom::default()));
                                     }
                                 }
                                 _ => {}
@@ -306,13 +304,13 @@ impl Fold for OptimizeBarrel {
     }
 }
 
-fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
+fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<Atom> {
     let mut ids = Vec::new();
 
     for elem in elems.iter().flatten() {
         match elem {
             Pat::Ident(ident) => {
-                ids.push(ident.sym.to_string());
+                ids.push(ident.sym.clone());
             }
             Pat::Array(array) => {
                 ids.extend(collect_idents_in_array_pat(&array.elems));
@@ -322,7 +320,7 @@ fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
             }
             Pat::Rest(rest) => {
                 if let Pat::Ident(ident) = &*rest.arg {
-                    ids.push(ident.sym.to_string());
+                    ids.push(ident.sym.clone());
                 }
             }
             _ => {}
@@ -332,19 +330,19 @@ fn collect_idents_in_array_pat(elems: &[Option<Pat>]) -> Vec<String> {
     ids
 }
 
-fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
+fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<Atom> {
     let mut ids = Vec::new();
 
     for prop in props {
         match prop {
             ObjectPatProp::KeyValue(KeyValuePatProp { key, value }) => {
                 if let PropName::Ident(ident) = key {
-                    ids.push(ident.sym.to_string());
+                    ids.push(ident.sym.clone());
                 }
 
                 match &**value {
                     Pat::Ident(ident) => {
-                        ids.push(ident.sym.to_string());
+                        ids.push(ident.sym.clone());
                     }
                     Pat::Array(array) => {
                         ids.extend(collect_idents_in_array_pat(&array.elems));
@@ -356,11 +354,11 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
                 }
             }
             ObjectPatProp::Assign(AssignPatProp { key, .. }) => {
-                ids.push(key.to_string());
+                ids.push(key.sym.clone());
             }
             ObjectPatProp::Rest(RestPat { arg, .. }) => {
                 if let Pat::Ident(ident) = &**arg {
-                    ids.push(ident.sym.to_string());
+                    ids.push(ident.sym.clone());
                 }
             }
         }
@@ -369,13 +367,13 @@ fn collect_idents_in_object_pat(props: &[ObjectPatProp]) -> Vec<String> {
     ids
 }
 
-fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<String> {
+fn collect_idents_in_var_decls(decls: &[VarDeclarator]) -> Vec<Atom> {
     let mut ids = Vec::new();
 
     for decl in decls {
         match &decl.name {
             Pat::Ident(ident) => {
-                ids.push(ident.sym.to_string());
+                ids.push(ident.sym.clone());
             }
             Pat::Array(array) => {
                 ids.extend(collect_idents_in_array_pat(&array.elems));
