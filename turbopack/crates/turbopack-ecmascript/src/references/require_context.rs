@@ -204,7 +204,7 @@ impl RequireContextMap {
 }
 
 /// A reference for `require.context()`, will replace it with an inlined map
-/// wrapped in `{TURBOPACK_MODULE_CONTEXT}`;
+/// wrapped in `__turbopack_module_context__`;
 #[turbo_tasks::value]
 #[derive(Hash, Debug)]
 pub struct RequireContextAssetReference {
