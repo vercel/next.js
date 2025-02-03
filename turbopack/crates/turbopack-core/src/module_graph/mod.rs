@@ -195,18 +195,20 @@ impl SingleModuleGraph {
         {
             let _span = tracing::info_span!("build module graph").entered();
             for (parent, current) in children_nodes_iter.into_breadth_first_edges() {
-                let parent_edge = parent.map(|parent| match parent {
-                    SingleModuleGraphBuilderNode::Module { module, .. } => {
-                        (*modules.get(&module).unwrap(), COMMON_CHUNKING_TYPE)
+                let parent_edge = match parent {
+                    Some(SingleModuleGraphBuilderNode::Module { module, .. }) => {
+                        Some((*modules.get(&module).unwrap(), COMMON_CHUNKING_TYPE))
                     }
-                    SingleModuleGraphBuilderNode::ChunkableReference {
-                        source,
-                        chunking_type,
-                        ..
-                    } => (*modules.get(&source).unwrap(), chunking_type),
-                    SingleModuleGraphBuilderNode::VisitedModule { .. }
-                    | SingleModuleGraphBuilderNode::Issues { .. } => unreachable!(),
-                });
+                    Some(SingleModuleGraphBuilderNode::ChunkableReference { .. }) => {
+                        // Handled when visiting ChunkableReference below
+                        continue;
+                    }
+                    Some(
+                        SingleModuleGraphBuilderNode::VisitedModule { .. }
+                        | SingleModuleGraphBuilderNode::Issues { .. },
+                    ) => unreachable!(),
+                    None => None,
+                };
 
                 match current {
                     SingleModuleGraphBuilderNode::Module {
@@ -248,9 +250,32 @@ impl SingleModuleGraph {
                             graph.add_edge(parent_idx, current_idx, chunking_type);
                         }
                     }
-                    SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
-                        // Ignore. They are handled when visiting the next edge
-                        // (ChunkableReference -> Module)
+                    SingleModuleGraphBuilderNode::ChunkableReference {
+                        source,
+                        target,
+                        target_layer,
+                        chunking_type,
+                        ..
+                    } => {
+                        // Find the current node, if it was already added
+                        let target_idx = if let Some(target_idx) = modules.get(&target) {
+                            *target_idx
+                        } else {
+                            let target_idx = visited_modules.get(&target);
+                            let idx = graph.add_node(match target_idx {
+                                Some(idx) => SingleModuleGraphNode::VisitedModule { idx: *idx },
+                                None => {
+                                    SingleModuleGraphNode::Module(SingleModuleGraphModuleNode {
+                                        module: target,
+                                        issues: Default::default(),
+                                        layer: target_layer,
+                                    })
+                                }
+                            });
+                            modules.insert(target, idx);
+                            idx
+                        };
+                        graph.add_edge(*modules.get(&source).unwrap(), target_idx, chunking_type);
                     }
                     SingleModuleGraphBuilderNode::Issues(new_issues) => {
                         let (parent_idx, _) = parent_edge.unwrap();
@@ -975,6 +1000,7 @@ enum SingleModuleGraphBuilderNode {
         source_ident: ReadRef<RcStr>,
         target: ResolvedVc<Box<dyn Module>>,
         target_ident: ReadRef<RcStr>,
+        target_layer: Option<ReadRef<RcStr>>,
     },
     /// A regular module
     Module {
@@ -1015,6 +1041,10 @@ impl SingleModuleGraphBuilderNode {
             source_ident: source.ident().to_string().await?,
             target,
             target_ident: target.ident().to_string().await?,
+            target_layer: match target.ident().await?.layer {
+                Some(layer) => Some(layer.await?),
+                None => None,
+            },
         })
     }
     fn new_visited_module(module: ResolvedVc<Box<dyn Module>>, idx: GraphNodeIndex) -> Self {
@@ -1039,10 +1069,13 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
 
     fn visit(&mut self, edge: Self::Edge) -> VisitControlFlow<SingleModuleGraphBuilderNode> {
         match edge.to {
-            SingleModuleGraphBuilderNode::Module { .. }
-            | SingleModuleGraphBuilderNode::ChunkableReference { .. } => {
-                VisitControlFlow::Continue(edge.to)
-            }
+            SingleModuleGraphBuilderNode::Module { .. } => VisitControlFlow::Continue(edge.to),
+            SingleModuleGraphBuilderNode::ChunkableReference {
+                ref chunking_type, ..
+            } => match chunking_type {
+                ChunkingType::Traced => VisitControlFlow::Skip(edge.to),
+                _ => VisitControlFlow::Continue(edge.to),
+            },
             // Module was already visited previously
             SingleModuleGraphBuilderNode::VisitedModule { .. } => VisitControlFlow::Skip(edge.to),
             // Issues doen't have any children
@@ -1066,7 +1099,7 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
                     let refs_cell = primary_chunkable_referenced_modules(*module);
-                    let refs = refs_cell.await?;
+                    let refs = refs_cell.await.context(module.ident().to_string().await?)?;
                     // TODO This is currently too slow
                     // let refs_issues = refs_cell
                     //     .take_collectibles::<Box<dyn Issue>>()
