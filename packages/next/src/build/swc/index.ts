@@ -1104,6 +1104,11 @@ async function loadWasm(importPath = '') {
             return bindings.mdxCompileSync(src, getMdxOptions(options))
           },
         },
+        reactCompiler: {
+          isReactCompilerRequired: (filename: string) => {
+            return bindings.isReactCompilerRequired(filename)
+          },
+        },
       }
       return wasmBindings
     } catch (e: any) {
@@ -1273,6 +1278,11 @@ function loadNative(importPath?: string) {
               transformAttrOptions
             )
           },
+        },
+      },
+      reactCompiler: {
+        isReactCompilerRequired: (filename: string) => {
+          return bindings.isReactCompilerRequired(filename)
         },
       },
     }
