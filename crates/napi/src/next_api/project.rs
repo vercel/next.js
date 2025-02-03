@@ -206,6 +206,8 @@ pub struct NapiTurboEngineOptions {
     pub persistent_caching: Option<bool>,
     /// An upper bound of memory that turbopack will attempt to stay under.
     pub memory_limit: Option<f64>,
+    /// Track dependencies between tasks. If false, any change during build will error.
+    pub dependency_tracking: Option<bool>,
 }
 
 impl From<NapiWatchOptions> for WatchOptions {
@@ -377,10 +379,12 @@ pub async fn project_new(
         .map(|m| m as usize)
         .unwrap_or(usize::MAX);
     let persistent_caching = turbo_engine_options.persistent_caching.unwrap_or_default();
+    let dependency_tracking = turbo_engine_options.dependency_tracking.unwrap_or(true);
     let turbo_tasks = create_turbo_tasks(
         PathBuf::from(&options.dist_dir),
         persistent_caching,
         memory_limit,
+        dependency_tracking,
     )?;
     if !persistent_caching {
         use std::io::Write;
