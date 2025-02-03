@@ -76,6 +76,9 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 #[napi::module_init]
 
 fn init() {
+    use tokio::runtime::Builder;
+    use turbo_tasks_malloc::TurboMalloc;
+
     set_hook(Box::new(|panic_info| {
         util::log_internal_error_and_inform(&format!(
             "Panic: {}\nBacktrace: {:?}",
@@ -83,6 +86,15 @@ fn init() {
             Backtrace::new()
         ));
     }));
+    let rt = Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .disable_lifo_slot()
+        .build()
+        .unwrap();
+    create_custom_tokio_runtime(rt);
 }
 
 #[inline]

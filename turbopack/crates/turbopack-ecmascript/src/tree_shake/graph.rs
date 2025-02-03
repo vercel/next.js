@@ -1246,10 +1246,11 @@ impl DepGraph {
                         let side_effects = !has_explicit_pure
                             && (vars.found_unresolved
                                 || decl.init.as_deref().is_some_and(|e| {
-                                    e.may_have_side_effects(&ExprCtx {
+                                    e.may_have_side_effects(ExprCtx {
                                         unresolved_ctxt,
                                         is_unresolved_ref_safe: false,
                                         in_strict: false,
+                                        remaining_depth: 4,
                                     })
                                 }));
 

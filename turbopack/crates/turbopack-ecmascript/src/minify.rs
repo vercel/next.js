@@ -100,7 +100,7 @@ pub async fn minify(
                         &ExtraOptions {
                             top_level_mark,
                             unresolved_mark,
-                            mangle_name_cache: Default::default(),
+                            mangle_name_cache: None,
                         },
                     );
 
@@ -167,7 +167,8 @@ fn print_program(
                 .context("failed to emit module")?;
         }
         // Invalid utf8 is valid in javascript world.
-        String::from_utf8(buf).expect("invalid utf8 character detected")
+        // SAFETY: SWC generates valid utf8.
+        unsafe { String::from_utf8_unchecked(buf) }
     };
 
     Ok((src, src_map_buf))
