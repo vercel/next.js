@@ -6,21 +6,22 @@ function countSubstring(str: string, substr: string): number {
 }
 
 describe('ppr-metadata-streaming', () => {
-  const { next } = nextTestSetup({
+  const { next, isNextDev } = nextTestSetup({
     files: __dirname,
   })
 
   // No dynamic APIs used in metadata
   describe('static metadata', () => {
     it('should generate metadata in head when page is fully static', async () => {
+      const rootSelector = isNextDev ? 'body' : 'head'
       const $ = await next.render$('/fully-static')
-      expect($(`head title`).text()).toBe('fully static')
+      expect($(`${rootSelector} title`).text()).toBe('fully static')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
       const browser = await next.browser('/fully-static')
-      expect(await browser.waitForElementByCss('head title').text()).toBe(
-        'fully static'
-      )
+      expect(
+        await browser.waitForElementByCss(`${rootSelector} title`).text()
+      ).toBe('fully static')
       await assertNoConsoleErrors(browser)
     })
 
@@ -39,7 +40,7 @@ describe('ppr-metadata-streaming', () => {
 
   // Dynamic APIs used in metadata, metadata should be suspended and inserted into body
   describe('dynamic metadata', () => {
-    it('should generate metadata in head when page is fully dynamic', async () => {
+    it('should generate metadata in body when page is fully dynamic', async () => {
       const $ = await next.render$('/fully-dynamic')
       expect($('body title').text()).toBe('fully dynamic')
       expect(countSubstring($.html(), '<title>')).toBe(1)
@@ -51,7 +52,7 @@ describe('ppr-metadata-streaming', () => {
       await assertNoConsoleErrors(browser)
     })
 
-    it('should generate metadata in head when page content is static', async () => {
+    it('should generate metadata in body when page content is static', async () => {
       const $ = await next.render$('/dynamic-metadata')
       expect($('body title').text()).toBe('dynamic metadata')
       expect(countSubstring($.html(), '<title>')).toBe(1)
@@ -78,14 +79,15 @@ describe('ppr-metadata-streaming', () => {
     })
 
     it('should insert metadata into head with dynamic metadata and dynamic page wrapped under layout Suspense boundary', async () => {
+      const rootSelector = isNextDev ? 'body' : 'head'
       const $ = await next.render$('/dynamic-page/partial')
-      expect($('head title').text()).toBe('dynamic-page - partial')
+      expect($(`${rootSelector} title`).text()).toBe('dynamic-page - partial')
       expect(countSubstring($.html(), '<title>')).toBe(1)
 
       const browser = await next.browser('/dynamic-page/partial')
-      expect(await browser.waitForElementByCss('head title').text()).toBe(
-        'dynamic-page - partial'
-      )
+      expect(
+        await browser.waitForElementByCss(`${rootSelector} title`).text()
+      ).toBe('dynamic-page - partial')
       await assertNoConsoleErrors(browser)
     })
   })
