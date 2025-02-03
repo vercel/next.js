@@ -53,11 +53,11 @@ export function getServerSideProps() {
         })
         .is_ok()
     );
-    assert_eq!(
-        eliminated_packages
-            .borrow()
-            .iter()
-            .collect::<Vec<&String>>(),
-        vec!["@napi-rs/bcrypt", "http"]
-    );
+    let mut eliminated_packages_vec = Rc::into_inner(eliminated_packages)
+        .expect("we should have the only remaining reference to `eliminated_packages`")
+        .into_inner()
+        .into_iter()
+        .collect::<Vec<String>>();
+    eliminated_packages_vec.sort_unstable(); // HashSet order is random/arbitrary
+    assert_eq!(eliminated_packages_vec, vec!["@napi-rs/bcrypt", "http"]);
 }
