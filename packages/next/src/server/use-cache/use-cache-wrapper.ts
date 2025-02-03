@@ -340,7 +340,7 @@ async function generateCacheEntryImpl(
   // though, until React awaits the promise so that React's request store (ALS)
   // is available when the function is invoked. This allows us, for example, to
   // capture logs so that we can later replay them.
-  const resultPromise = createLazyPromise(() => fn.apply(null, args))
+  const resultPromise = createLazyResult(() => fn.apply(null, args))
 
   let errors: Array<unknown> = []
 
@@ -824,32 +824,21 @@ export function cache(
   return cachedFn
 }
 
-function createLazyPromise<TResult>(
+/**
+ * Calls the given function only when the returned promise is awaited.
+ */
+function createLazyResult<TResult>(
   fn: () => Promise<TResult>
-): Promise<TResult> {
-  let invoked = false
-  let resolveFn: (value: TResult) => void
-  let rejectFn: (reason?: unknown) => void
+): PromiseLike<TResult> {
+  let pendingResult: Promise<TResult> | undefined
 
-  const promise = new Promise<TResult>((resolve, reject) => {
-    resolveFn = resolve
-    rejectFn = reject
-  })
-
-  return new Proxy(promise, {
-    get(target, prop, receiver) {
-      if (prop === 'then') {
-        return (...args: unknown[]) => {
-          if (!invoked) {
-            invoked = true
-            fn().then(resolveFn, rejectFn)
-          }
-
-          return Reflect.apply(target.then, target, args)
-        }
+  return {
+    then(onfulfilled, onrejected) {
+      if (!pendingResult) {
+        pendingResult = fn()
       }
 
-      return Reflect.get(target, prop, receiver)
+      return pendingResult.then(onfulfilled, onrejected)
     },
-  })
+  }
 }
