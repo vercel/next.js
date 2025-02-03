@@ -1635,7 +1635,6 @@ impl AppEndpoint {
                     .await?
                     .clone_value();
                 let evaluatable = ResolvedVc::try_sidecast(app_entry.rsc_entry)
-                    .await?
                     .context("Entry module must be evaluatable")?;
                 evaluatable_assets.push(evaluatable);
                 evaluatable_assets.push(server_action_manifest_loader);
@@ -1677,7 +1676,6 @@ impl AppEndpoint {
                             .iter()
                             .map(|m| async move {
                                 Ok(*ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(*m)
-                                    .await?
                                     .context("Expected server utils to be chunkable")?)
                             })
                             .try_join()

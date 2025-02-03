@@ -434,7 +434,7 @@ impl ChunkingContext for NodeJsChunkingContext {
             )
             .collect();
 
-        let Some(module) = ResolvedVc::try_downcast(module).await? else {
+        let Some(module) = ResolvedVc::try_downcast(module) else {
             bail!("module must be placeable in an ecmascript chunk");
         };
 

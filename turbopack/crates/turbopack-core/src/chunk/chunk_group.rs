@@ -312,7 +312,7 @@ pub async fn chunk_group_content(
                 }
 
                 let Some(chunkable_module) =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(node.module)
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(node.module)
                 else {
                     return Ok(GraphTraversalAction::Skip);
                 };
@@ -331,7 +331,7 @@ pub async fn chunk_group_content(
                 };
 
                 let parent_module =
-                    ResolvedVc::try_sidecast_sync::<Box<dyn ChunkableModule>>(parent_node.module)
+                    ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(parent_node.module)
                         .context("Expected parent module to be chunkable")?;
 
                 Ok(match edge {

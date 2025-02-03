@@ -39,7 +39,7 @@ pub async fn map_client_references(
             let module = node.module;
 
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type_sync::<EcmascriptClientReferenceModule>(module)
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
             {
                 Ok(Some((
                     module,
@@ -49,7 +49,7 @@ pub async fn map_client_references(
                     },
                 )))
             } else if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type_sync::<CssClientReferenceModule>(module)
+                ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
             {
                 Ok(Some((
                     module,
@@ -58,7 +58,7 @@ pub async fn map_client_references(
                     )),
                 )))
             } else if let Some(server_component) =
-                ResolvedVc::try_downcast_type_sync::<NextServerComponentModule>(module)
+                ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
             {
                 Ok(Some((
                     module,

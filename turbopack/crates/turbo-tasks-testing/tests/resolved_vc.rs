@@ -83,9 +83,9 @@ async fn test_sidecast() -> Result<()> {
     run(&REGISTRATION, || async {
         let concrete_value = ImplementsAandB.resolved_cell();
         let as_a = ResolvedVc::upcast::<Box<dyn TraitA>>(concrete_value);
-        let as_b = ResolvedVc::try_sidecast_sync::<Box<dyn TraitB>>(as_a);
+        let as_b = ResolvedVc::try_sidecast::<Box<dyn TraitB>>(as_a);
         assert!(as_b.is_some());
-        let as_c = ResolvedVc::try_sidecast_sync::<Box<dyn TraitC>>(as_a);
+        let as_c = ResolvedVc::try_sidecast::<Box<dyn TraitC>>(as_a);
         assert!(as_c.is_none());
         Ok(())
     })

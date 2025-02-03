@@ -60,9 +60,7 @@ impl UrlAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
         if let Some(module) = *self.resolve_reference().first_module().await? {
-            if let Some(chunkable) =
-                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
-            {
+            if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
                 let chunk_item = chunkable.as_chunk_item(module_graph, chunking_context);
                 if let Some(embeddable) =
                     Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(chunk_item).await?
