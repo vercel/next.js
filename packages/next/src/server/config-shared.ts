@@ -255,7 +255,7 @@ export interface LoggingConfig {
    * If set to false, incoming request logging is disabled.
    * You can specify a pattern to match incoming requests that should not be logged.
    */
-  incomingRequest?: boolean | IncomingRequestLoggingConfig
+  incomingRequests?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {
