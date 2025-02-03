@@ -1320,6 +1320,13 @@ export async function minify(
   return bindings.minify(src, options)
 }
 
+export async function isReactCompilerRequired(
+  filename: string
+): Promise<boolean> {
+  let bindings = await loadBindings()
+  return bindings.reactCompiler.isReactCompilerRequired(filename)
+}
+
 export async function parse(src: string, options: any): Promise<any> {
   let bindings = await loadBindings()
   let parserOptions = getParserOptions(options)

@@ -1,5 +1,6 @@
 import path from 'path'
 import type { ReactCompilerOptions } from '../server/config-shared'
+import { isReactCompilerRequired } from './swc'
 
 function getReactCompiler() {
   try {
@@ -101,11 +102,10 @@ const getReactCompilerLoader = (
       transformMode: 'standalone',
       cwd,
       reactCompilerPlugins,
+      reactCompilerExclude: async (filename: string) =>
+        reactCompilerExclude?.(filename) ||
+        !(await isReactCompilerRequired(filename)),
     },
-  }
-
-  if (reactCompilerExclude) {
-    config.options.reactCompilerExclude = reactCompilerExclude
   }
 
   return config
