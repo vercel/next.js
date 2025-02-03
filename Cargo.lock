@@ -9072,6 +9072,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "new_debug_unreachable",
  "serde",
  "triomphe 0.1.12",
@@ -9156,8 +9157,10 @@ dependencies = [
  "pot",
  "rand",
  "rayon",
+ "regex",
  "rustc-hash 1.1.0",
  "serde",
+ "serde_json",
  "serde_path_to_error",
  "smallvec",
  "thread_local",

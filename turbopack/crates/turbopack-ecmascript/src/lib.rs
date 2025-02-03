@@ -767,15 +767,14 @@ impl EcmascriptModuleContent {
         for r in references.await?.iter() {
             let r = r.resolve().await?;
             if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r)
             {
                 code_gens.push(code_gen.code_generation(
                     module_graph,
                     chunking_context,
                     async_module_info,
                 ));
-            } else if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
+            } else if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r)
             {
                 code_gens.push(code_gen.code_generation(module_graph, chunking_context));
             }

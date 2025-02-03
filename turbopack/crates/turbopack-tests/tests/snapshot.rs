@@ -498,9 +498,7 @@ async fn walk_asset(
             .await?
             .iter()
             .copied()
-            .map(|asset| async move {
-                Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset).await?)
-            })
+            .map(|asset| async move { Ok(ResolvedVc::try_downcast::<Box<dyn OutputAsset>>(asset)) })
             .try_join()
             .await?
             .into_iter()

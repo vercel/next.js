@@ -4,7 +4,7 @@ use next_custom_transforms::transforms::page_static_info::{
     collect_exports, extract_exported_const_values, Const,
 };
 use serde_json::Value;
-use swc_core::ecma::ast::Program;
+use swc_core::{atoms::atom, ecma::ast::Program};
 use turbo_tasks::{ResolvedVc, Vc};
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::module_options::{ModuleRule, ModuleRuleEffect};
@@ -51,7 +51,7 @@ impl CustomTransformer for NextPageStaticInfo {
     async fn transform(&self, program: &mut Program, ctx: &TransformContext<'_>) -> Result<()> {
         if let Some(collected_exports) = collect_exports(program)? {
             let mut properties_to_extract = collected_exports.extra_properties.clone();
-            properties_to_extract.insert("config".to_string());
+            properties_to_extract.insert(atom!("config"));
 
             let extracted = extract_exported_const_values(program, properties_to_extract);
 
@@ -82,7 +82,8 @@ impl CustomTransformer for NextPageStaticInfo {
             }
 
             if is_app_page {
-                if let Some(Some(Const::Value(Value::Object(config_obj)))) = extracted.get("config")
+                if let Some(Some(Const::Value(Value::Object(config_obj)))) =
+                    extracted.get(&atom!("config"))
                 {
                     let mut messages = vec![format!(
                         "Page config in {} is deprecated. Replace `export const config=…` with \
@@ -110,7 +111,7 @@ impl CustomTransformer for NextPageStaticInfo {
                 }
             }
 
-            if collected_exports.directives.contains("client")
+            if collected_exports.directives.contains(&atom!("client"))
                 && collected_exports.generate_static_params
                 && is_app_page
             {

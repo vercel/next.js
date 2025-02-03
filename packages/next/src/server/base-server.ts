@@ -2673,7 +2673,7 @@ export default abstract class Server<
             // If we're in dev, and this isn't a prefetch or a server action,
             // we should seed the resume data cache.
             if (
-              this.nextConfig.experimental.useCache &&
+              this.nextConfig.experimental.dynamicIO &&
               this.renderOpts.dev &&
               !isPrefetchRSCRequest &&
               !isServerAction

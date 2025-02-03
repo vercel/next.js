@@ -162,7 +162,6 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         // dynamically import.
         let placeable =
             ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(manifest.inner)
-                .await?
                 .ok_or_else(|| anyhow!("asset is not placeable in ecmascript chunk"))?;
         let dynamic_id = &*placeable
             .as_chunk_item(

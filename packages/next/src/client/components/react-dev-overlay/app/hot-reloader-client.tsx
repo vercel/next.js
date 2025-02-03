@@ -481,13 +481,20 @@ function processMessage(
         JSON.stringify({
           event: 'server-component-reload-page',
           clientId: __nextDevClientId,
+          hash: obj.hash,
         })
       )
+
+      // Store the latest hash in a session cookie so that it's sent back to the
+      // server with any subsequent requests.
+      document.cookie = `__next_hmr_refresh_hash__=${obj.hash}`
+
       if (RuntimeErrorHandler.hadRuntimeError) {
         if (reloading) return
         reloading = true
         return window.location.reload()
       }
+
       startTransition(() => {
         router.hmrRefresh()
         dispatcher.onRefresh()
