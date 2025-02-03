@@ -1105,8 +1105,8 @@ async function loadWasm(importPath = '') {
           },
         },
         reactCompiler: {
-          isReactCompilerRequired: (filename: string) => {
-            return bindings.isReactCompilerRequired(filename)
+          isReactCompilerRequired(_filename: string) {
+            return Promise.resolve(true)
           },
         },
       }
