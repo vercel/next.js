@@ -1,8 +1,8 @@
 import type { Meta, StoryObj } from '@storybook/react'
-import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 
 import { Errors } from './errors'
 import { withShadowPortal } from '../storybook/with-shadow-portal'
+import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
 
 const meta: Meta<typeof Errors> = {
   component: Errors,
