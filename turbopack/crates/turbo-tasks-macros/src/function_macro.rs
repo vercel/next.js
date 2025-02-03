@@ -59,6 +59,7 @@ pub fn function(args: TokenStream, input: TokenStream) -> TokenStream {
         function_path_string: ident.to_string(),
         function_path: parse_quote! { #inline_function_ident },
         is_method: turbo_fn.is_method(),
+        filter_trait_call_args: None, // not a trait method
         local,
         local_cells,
     };
