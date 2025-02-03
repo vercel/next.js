@@ -1,32 +1,19 @@
-import { createNext, FileRef } from 'e2e-utils'
-import { fetchViaHTTP } from 'next-test-utils'
+import { nextTestSetup } from 'e2e-utils'
 import path from 'path'
 
 describe('Vary Header Tests', () => {
-  let next
-
-  beforeAll(async () => {
-    next = await createNext({
-      files: {
-        'pages/api/custom-vary.js': new FileRef(
-          path.join(__dirname, '../pages/api/custom-vary.js')
-        ),
-        'app/normal/route.js': new FileRef(
-          path.join(__dirname, '../app/normal/route.js')
-        ),
-        'middleware.js': new FileRef(path.join(__dirname, '../middleware.js')),
-      },
-    })
+  const { next } = nextTestSetup({
+    files: path.join(__dirname, '../app'),
+    skipDeployment: true,
   })
-  afterAll(() => next.destroy())
 
   it('should preserve custom vary header in API routes', async () => {
-    const res = await fetchViaHTTP(next.url, '/api/custom-vary')
+    const res = await next.fetch('/api/custom-vary')
     expect(res.headers.get('vary')).toContain('Custom-Header')
   })
 
   it('should preserve custom vary header and append RSC headers in app route handlers', async () => {
-    const res = await fetchViaHTTP(next.url, '/normal')
+    const res = await next.fetch('/normal')
     const varyHeader = res.headers.get('vary')
 
     // Custom header is preserved
@@ -40,7 +27,7 @@ describe('Vary Header Tests', () => {
   })
 
   it('should preserve middleware vary header in combination with route handlers', async () => {
-    const res = await fetchViaHTTP(next.url, '/normal')
+    const res = await next.fetch('/normal')
     const varyHeader = res.headers.get('vary')
     const customHeader = res.headers.get('my-custom-header')
 
