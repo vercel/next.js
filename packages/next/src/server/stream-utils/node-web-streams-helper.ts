@@ -178,21 +178,6 @@ export function createBufferedTransformStream(): TransformStream<
   })
 }
 
-function createInsertedHTMLStream(
-  getServerInsertedHTML: () => Promise<string>
-): TransformStream<Uint8Array, Uint8Array> {
-  return new TransformStream({
-    transform: async (chunk, controller) => {
-      const html = await getServerInsertedHTML()
-      if (html) {
-        controller.enqueue(encoder.encode(html))
-      }
-
-      controller.enqueue(chunk)
-    },
-  })
-}
-
 export function renderToInitialFizzStream({
   ReactDOMServer,
   element,
@@ -532,8 +517,7 @@ function chainTransformers<T>(
 export type ContinueStreamOptions = {
   inlinedDataStream: ReadableStream<Uint8Array> | undefined
   isStaticGeneration: boolean
-  getServerInsertedHTML: (() => Promise<string>) | undefined
-  serverInsertedHTMLToHead: boolean
+  getServerInsertedHTML: () => Promise<string>
   validateRootLayout?: boolean
   /**
    * Suffix to inject after the buffered data, but before the close tags.
@@ -548,7 +532,6 @@ export async function continueFizzStream(
     inlinedDataStream,
     isStaticGeneration,
     getServerInsertedHTML,
-    serverInsertedHTMLToHead,
     validateRootLayout,
   }: ContinueStreamOptions
 ): Promise<ReadableStream<Uint8Array>> {
@@ -564,11 +547,6 @@ export async function continueFizzStream(
   return chainTransformers(renderStream, [
     // Buffer everything to avoid flushing too frequently
     createBufferedTransformStream(),
-
-    // Insert generated tags to head
-    getServerInsertedHTML && !serverInsertedHTMLToHead
-      ? createInsertedHTMLStream(getServerInsertedHTML)
-      : null,
 
     // Insert suffix content
     suffixUnclosed != null && suffixUnclosed.length > 0
@@ -587,9 +565,7 @@ export async function continueFizzStream(
     // Special head insertions
     // TODO-APP: Insert server side html to end of head in app layout rendering, to avoid
     // hydration errors. Remove this once it's ready to be handled by react itself.
-    getServerInsertedHTML && serverInsertedHTMLToHead
-      ? createHeadInsertionTransformStream(getServerInsertedHTML)
-      : null,
+    createHeadInsertionTransformStream(getServerInsertedHTML),
   ])
 }
 
