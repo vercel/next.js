@@ -10,6 +10,7 @@ use std::{
     fmt::{Debug, Formatter},
     future::Future,
     mem::replace,
+    pin::Pin,
 };
 
 #[cfg(feature = "hanging_detection")]
@@ -140,7 +141,7 @@ impl Future for EventListener {
     type Output = ();
 
     fn poll(
-        self: std::pin::Pin<&mut Self>,
+        self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         let listener = unsafe { self.map_unchecked_mut(|s| &mut s.listener) };
@@ -176,7 +177,7 @@ impl Future for EventListener {
     type Output = ();
 
     fn poll(
-        mut self: std::pin::Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Self::Output> {
         while let Some(future) = self.future.as_mut() {
