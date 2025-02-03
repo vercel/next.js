@@ -20,6 +20,7 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  getHmrRefreshHash,
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
@@ -42,6 +43,13 @@ import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
+
+type CacheKeyParts = [
+  buildId: string,
+  hmrRefreshHash: string | undefined,
+  id: string,
+  args: unknown[],
+]
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -123,6 +131,12 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
+  const useCacheOrRequestStore =
+    outerWorkUnitStore?.type === 'request' ||
+    outerWorkUnitStore?.type === 'cache'
+      ? outerWorkUnitStore
+      : undefined
+
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -139,7 +153,11 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: null,
+    hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
+    isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
+    serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
   }
+
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
@@ -278,12 +296,14 @@ async function generateCacheEntryImpl(
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , args] =
+  const [, , , args] =
     typeof encodedArguments === 'string'
-      ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
-          temporaryReferences,
-        })
-      : await decodeReplyFromAsyncIterable<any[]>(
+      ? await decodeReply<CacheKeyParts>(
+          encodedArguments,
+          getServerModuleMap(),
+          { temporaryReferences }
+        )
+      : await decodeReplyFromAsyncIterable<CacheKeyParts>(
           {
             async *[Symbol.asyncIterator]() {
               for (const entry of encodedArguments) {
@@ -507,6 +527,13 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
+      // In dev mode, when the HMR refresh hash is set, we include it in the
+      // cache key. This ensures that cache entries are not reused when server
+      // components have been edited. This is a very coarse approach. But it's
+      // also only a temporary solution until Action IDs are unique per
+      // implementation. Remove this once Action IDs hash the implementation.
+      const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
+
       const hangingInputAbortSignal =
         workUnitStore?.type === 'prerender'
           ? createHangingInputAbortSignal(workUnitStore)
@@ -538,17 +565,18 @@ export function cache(
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
-      const encodedArguments: FormData | string = await encodeReply(
-        [buildId, id, args],
+      const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
+      const encodedCacheKeyParts: FormData | string = await encodeReply(
+        cacheKeyParts,
         { temporaryReferences, signal: hangingInputAbortSignal }
       )
 
       const serializedCacheKey =
-        typeof encodedArguments === 'string'
+        typeof encodedCacheKeyParts === 'string'
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
-            encodedArguments
-          : await encodeFormData(encodedArguments)
+            encodedCacheKeyParts
+          : await encodeFormData(encodedCacheKeyParts)
 
       let stream: undefined | ReadableStream = undefined
 
@@ -669,7 +697,7 @@ export function cache(
             workStore,
             workUnitStore,
             clientReferenceManifest,
-            encodedArguments,
+            encodedCacheKeyParts,
             fn,
             timeoutError
           )
@@ -729,7 +757,7 @@ export function cache(
               workStore,
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
-              encodedArguments,
+              encodedCacheKeyParts,
               fn,
               timeoutError
             )
