@@ -225,6 +225,7 @@ jobs:
               rustup show &&
               rustup target add x86_64-unknown-linux-musl &&
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
+              export RUSTFLAGS="--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Csymbol-mangling-version=v0 -Ctarget-feature=-crt-static" &&
               cd packages/next-swc && npm run build-native-release -- --target x86_64-unknown-linux-musl &&
               strip native/next-swc.*.node
 
@@ -266,6 +267,7 @@ jobs:
               npm i -g "@napi-rs/cli@${NAPI_CLI_VERSION}" &&
               rustup show &&
               rustup target add aarch64-unknown-linux-musl &&
+              export RUSTFLAGS="--cfg tokio_unstable -Zshare-generics=y -Zthreads=8 -Zunstable-options -Csymbol-mangling-version=v0 -Clinker-flavor=gnu-lld-cc -Clink-self-contained=+linker" &&
               cd packages/next-swc && npm run build-native-release -- --target aarch64-unknown-linux-musl &&
               llvm-strip -x native/next-swc.*.node
 
