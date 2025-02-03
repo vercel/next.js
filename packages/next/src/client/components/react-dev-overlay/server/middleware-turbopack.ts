@@ -322,11 +322,16 @@ async function createOriginalStackFrame(
   project: Project,
   frame: TurbopackStackFrame
 ): Promise<OriginalStackFrameResponse | null> {
-  const traced =
-    (await nativeTraceSource(frame)) ??
-    // TODO(veil): When would the bundler know more than native?
-    // If it's faster, try the bundler first and fall back to native later.
-    (await batchedTraceSource(project, frame))
+  let traced
+  try {
+    traced = await nativeTraceSource(frame)
+  } catch {
+    // Try native source tracing first as a performance optimization.
+    // This will fail for bundler-specific URLs (e.g. turbopack://) which is expected,
+    // so we catch and fallback to the slower but more robust batch tracing.
+  }
+  traced = traced ?? (await batchedTraceSource(project, frame))
+
   if (!traced) {
     return null
   }
