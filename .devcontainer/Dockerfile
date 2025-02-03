@@ -28,4 +28,5 @@ RUN apt-get update && export DEBIAN_FRONTEND=noninteractive \
 # RUN su node -c "npm install -g <your-package-list-here>"
 
 # Enable pnpm
+RUN npm i -g corepack@latest
 RUN corepack enable pnpm
