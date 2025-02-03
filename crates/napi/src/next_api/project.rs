@@ -1,6 +1,7 @@
 use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
+use indexmap::IndexSet;
 use napi::{
     bindgen_prelude::{within_runtime_if_available, External},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -15,7 +16,7 @@ use next_api::{
         DefineEnv, DraftModeOptions, PartialProjectOptions, Project, ProjectContainer,
         ProjectOptions, WatchOptions,
     },
-    route::Endpoint,
+    route::{Endpoint, Route},
 };
 use next_core::tracing_presets::{
     TRACING_NEXT_OVERVIEW_TARGETS, TRACING_NEXT_TARGETS, TRACING_NEXT_TURBOPACK_TARGETS,
@@ -39,6 +40,7 @@ use turbopack_core::{
     diagnostics::PlainDiagnostic,
     error::PrettyPrintError,
     issue::PlainIssue,
+    output::{OutputAsset, OutputAssets},
     source_map::{SourceMap, Token},
     version::{PartialUpdate, TotalUpdate, Update, VersionState},
     SOURCE_MAP_PREFIX,
@@ -537,7 +539,7 @@ pub async fn project_shutdown(
 
 #[napi(object)]
 #[derive(Default)]
-struct AppPageNapiRoute {
+pub struct AppPageNapiRoute {
     /// The relative path from project_path to the route file
     pub original_name: Option<String>,
 
@@ -547,7 +549,7 @@ struct AppPageNapiRoute {
 
 #[napi(object)]
 #[derive(Default)]
-struct NapiRoute {
+pub struct NapiRoute {
     /// The router path
     pub pathname: String,
     /// The relative path from project_path to the route file
@@ -625,7 +627,7 @@ impl NapiRoute {
 }
 
 #[napi(object)]
-struct NapiMiddleware {
+pub struct NapiMiddleware {
     pub endpoint: External<ExternalEndpoint>,
 }
 
@@ -641,7 +643,7 @@ impl NapiMiddleware {
 }
 
 #[napi(object)]
-struct NapiInstrumentation {
+pub struct NapiInstrumentation {
     pub node_js: External<ExternalEndpoint>,
     pub edge: External<ExternalEndpoint>,
 }
@@ -665,13 +667,56 @@ impl NapiInstrumentation {
 }
 
 #[napi(object)]
-struct NapiEntrypoints {
+pub struct NapiEntrypoints {
     pub routes: Vec<NapiRoute>,
     pub middleware: Option<NapiMiddleware>,
     pub instrumentation: Option<NapiInstrumentation>,
     pub pages_document_endpoint: External<ExternalEndpoint>,
     pub pages_app_endpoint: External<ExternalEndpoint>,
     pub pages_error_endpoint: External<ExternalEndpoint>,
+}
+
+impl NapiEntrypoints {
+    fn from_entrypoints_op(
+        entrypoints: &EntrypointsOperation,
+        turbo_tasks: &NextTurboTasks,
+    ) -> Result<Self> {
+        let routes = entrypoints
+            .routes
+            .iter()
+            .map(|(k, v)| NapiRoute::from_route(k.to_string(), v.clone(), turbo_tasks))
+            .collect();
+        let middleware = entrypoints
+            .middleware
+            .as_ref()
+            .map(|m| NapiMiddleware::from_middleware(m, turbo_tasks))
+            .transpose()?;
+        let instrumentation = entrypoints
+            .instrumentation
+            .as_ref()
+            .map(|i| NapiInstrumentation::from_instrumentation(i, turbo_tasks))
+            .transpose()?;
+        let pages_document_endpoint = External::new(ExternalEndpoint(VcArc::new(
+            turbo_tasks.clone(),
+            entrypoints.pages_document_endpoint,
+        )));
+        let pages_app_endpoint = External::new(ExternalEndpoint(VcArc::new(
+            turbo_tasks.clone(),
+            entrypoints.pages_app_endpoint,
+        )));
+        let pages_error_endpoint = External::new(ExternalEndpoint(VcArc::new(
+            turbo_tasks.clone(),
+            entrypoints.pages_error_endpoint,
+        )));
+        Ok(NapiEntrypoints {
+            routes,
+            middleware,
+            instrumentation,
+            pages_document_endpoint,
+            pages_app_endpoint,
+            pages_error_endpoint,
+        })
+    }
 }
 
 #[turbo_tasks::value(serialization = "none")]
@@ -710,6 +755,100 @@ fn project_container_entrypoints_operation(
     container.entrypoints()
 }
 
+#[turbo_tasks::value(serialization = "none")]
+struct AllWrittenEntrypointsWithIssues {
+    entrypoints: Option<ReadRef<Entrypoints>>,
+    issues: Arc<Vec<ReadRef<PlainIssue>>>,
+    diagnostics: Arc<Vec<ReadRef<PlainDiagnostic>>>,
+    effects: Arc<Effects>,
+}
+
+#[napi]
+pub async fn project_write_all_entrypoints_to_disk(
+    #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
+    app_dir_only: bool,
+) -> napi::Result<TurbopackResult<NapiEntrypoints>> {
+    let turbo_tasks = project.turbo_tasks.clone();
+    let (entrypoints, issues, diags) = turbo_tasks
+        .run_once(async move {
+            let entrypoints_with_issues_op = get_all_written_entrypoints_with_issues_operation(
+                project.container.to_resolved().await?,
+                ResolvedVc::cell(app_dir_only),
+            );
+
+            let EntrypointsWithIssues {
+                entrypoints,
+                issues,
+                diagnostics,
+                effects,
+            } = &*entrypoints_with_issues_op
+                .read_strongly_consistent()
+                .await?;
+            effects.apply().await?;
+
+            Ok((entrypoints.clone(), issues.clone(), diagnostics.clone()))
+        })
+        .await
+        .map_err(|e| napi::Error::from_reason(PrettyPrintError(&e).to_string()))?;
+
+    Ok(TurbopackResult {
+        result: NapiEntrypoints::from_entrypoints_op(&entrypoints, &turbo_tasks)?,
+        issues: issues.iter().map(|i| NapiIssue::from(&**i)).collect(),
+        diagnostics: diags.iter().map(|d| NapiDiagnostic::from(d)).collect(),
+    })
+}
+
+#[turbo_tasks::function(operation)]
+async fn get_all_written_entrypoints_with_issues_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: ResolvedVc<bool>,
+) -> Result<Vc<EntrypointsWithIssues>> {
+    let entrypoints_operation = EntrypointsOperation::new(all_entrypoints_write_to_disk_operation(
+        container,
+        app_dir_only,
+    ));
+    let entrypoints = entrypoints_operation.read_strongly_consistent().await?;
+    let issues = get_issues(entrypoints_operation).await?;
+    let diagnostics = get_diagnostics(entrypoints_operation).await?;
+    let effects = Arc::new(get_effects(entrypoints_operation).await?);
+    Ok(EntrypointsWithIssues {
+        entrypoints,
+        issues,
+        diagnostics,
+        effects,
+    }
+    .cell())
+}
+
+#[turbo_tasks::function(operation)]
+pub async fn all_entrypoints_write_to_disk_operation(
+    project: ResolvedVc<ProjectContainer>,
+    app_dir_only: ResolvedVc<bool>,
+) -> Result<Vc<Entrypoints>> {
+    let _ = project
+        .project()
+        .emit_all_output_assets(output_assets_operation(project, app_dir_only))
+        .resolve()
+        .await?;
+
+    Ok(project.entrypoints())
+}
+
+#[turbo_tasks::function(operation)]
+async fn output_assets_operation(
+    container: ResolvedVc<ProjectContainer>,
+    app_dir_only: ResolvedVc<bool>,
+) -> Result<Vc<OutputAssets>> {
+    let mut output_assets: IndexSet<ResolvedVc<Box<dyn OutputAsset>>> = IndexSet::new();
+    let app_dir_only = *app_dir_only.await?;
+
+    for endpoint in container.project().get_all_endpoints(app_dir_only).await? {
+        output_assets.extend(endpoint.output().await?.output_assets.await?);
+    }
+
+    Ok(Vc::cell(output_assets.iter().copied().collect()))
+}
+
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
 pub fn project_entrypoints_subscribe(
     #[napi(ts_arg_type = "{ __napiType: \"Project\" }")] project: External<ProjectInstance>,
@@ -741,41 +880,7 @@ pub fn project_entrypoints_subscribe(
             let (entrypoints, issues, diags) = ctx.value;
 
             Ok(vec![TurbopackResult {
-                result: NapiEntrypoints {
-                    routes: entrypoints
-                        .routes
-                        .iter()
-                        .map(|(pathname, route)| {
-                            NapiRoute::from_route(
-                                pathname.clone().into(),
-                                route.clone(),
-                                &turbo_tasks,
-                            )
-                        })
-                        .collect::<Vec<_>>(),
-                    middleware: entrypoints
-                        .middleware
-                        .as_ref()
-                        .map(|m| NapiMiddleware::from_middleware(m, &turbo_tasks))
-                        .transpose()?,
-                    instrumentation: entrypoints
-                        .instrumentation
-                        .as_ref()
-                        .map(|m| NapiInstrumentation::from_instrumentation(m, &turbo_tasks))
-                        .transpose()?,
-                    pages_document_endpoint: External::new(ExternalEndpoint(VcArc::new(
-                        turbo_tasks.clone(),
-                        entrypoints.pages_document_endpoint,
-                    ))),
-                    pages_app_endpoint: External::new(ExternalEndpoint(VcArc::new(
-                        turbo_tasks.clone(),
-                        entrypoints.pages_app_endpoint,
-                    ))),
-                    pages_error_endpoint: External::new(ExternalEndpoint(VcArc::new(
-                        turbo_tasks.clone(),
-                        entrypoints.pages_error_endpoint,
-                    ))),
-                },
+                result: NapiEntrypoints::from_entrypoints_op(&*entrypoints, &turbo_tasks)?,
                 issues: issues
                     .iter()
                     .map(|issue| NapiIssue::from(&**issue))

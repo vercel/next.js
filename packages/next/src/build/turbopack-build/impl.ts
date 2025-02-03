@@ -4,21 +4,21 @@ import {
   formatIssue,
   getTurbopackJsConfig,
   isPersistentCachingEnabled,
-  isRelevantWarning,
-  type EntryIssuesMap,
+  shouldDisplayIssue,
+  // isRelevantWarning,
+  // type EntryIssuesMap,
 } from '../../shared/lib/turbopack/utils'
 import { NextBuildContext } from '../build-context'
 import { createDefineEnv, loadBindings } from '../swc'
 import { Sema } from 'next/dist/compiled/async-sema'
 import {
-  handleEntrypoints,
-  handlePagesErrorRoute,
+  rawEntrypointsToEntrypoints,
   handleRouteType,
 } from '../handle-entrypoints'
-import type { Entrypoints } from '../swc/types'
+// import type { Entrypoints } from '../swc/types'
 import { TurbopackManifestLoader } from '../../shared/lib/turbopack/manifest-loader'
 import { createProgress } from '../progress'
-import * as Log from '../output/log'
+// import * as Log from '../output/log'
 import { promises as fs } from 'fs'
 import { PHASE_PRODUCTION_BUILD } from '../../shared/lib/constants'
 import loadConfig from '../../server/config'
@@ -114,22 +114,7 @@ export async function turbopackBuild(): Promise<{
   )
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const entrypointsSubscription = project.entrypointsSubscribe()
-  const currentEntrypoints: Entrypoints = {
-    global: {
-      app: undefined,
-      document: undefined,
-      error: undefined,
-
-      middleware: undefined,
-      instrumentation: undefined,
-    },
-
-    app: new Map(),
-    page: new Map(),
-  }
-
-  const currentEntryIssues: EntryIssuesMap = new Map()
+  const entrypoints = await project.writeAllEntrypointsToDisk(appDirOnly)
 
   const manifestLoader = new TurbopackManifestLoader({
     buildId,
@@ -137,18 +122,14 @@ export async function turbopackBuild(): Promise<{
     encryptionKey,
   })
 
-  const entrypointsResult = await entrypointsSubscription.next()
-  if (entrypointsResult.done) {
-    throw new Error('Turbopack did not return any entrypoints')
-  }
-  entrypointsSubscription.return?.().catch(() => {})
-
-  const entrypoints = entrypointsResult.value
-
   const topLevelErrors: {
     message: string
   }[] = []
   for (const issue of entrypoints.issues) {
+    if (!shouldDisplayIssue(issue)) {
+      continue
+    }
+
     topLevelErrors.push({
       message: formatIssue(issue),
     })
@@ -162,14 +143,7 @@ export async function turbopackBuild(): Promise<{
     )
   }
 
-  await handleEntrypoints({
-    entrypoints,
-    currentEntrypoints,
-    currentEntryIssues,
-    manifestLoader,
-    productionRewrites: rewrites,
-    logErrors: false,
-  })
+  const currentEntrypoints = await rawEntrypointsToEntrypoints(entrypoints)
 
   const progress = createProgress(
     currentEntrypoints.page.size + currentEntrypoints.app.size + 1,
@@ -209,11 +183,7 @@ export async function turbopackBuild(): Promise<{
         handleRouteType({
           page,
           route,
-          currentEntryIssues,
-          entrypoints: currentEntrypoints,
           manifestLoader,
-          productionRewrites: rewrites,
-          logErrors: false,
         })
       )
     }
@@ -224,24 +194,34 @@ export async function turbopackBuild(): Promise<{
       handleRouteType({
         page,
         route,
-        currentEntryIssues,
-        entrypoints: currentEntrypoints,
         manifestLoader,
-        productionRewrites: rewrites,
-        logErrors: false,
       })
     )
   }
 
-  enqueue(() =>
-    handlePagesErrorRoute({
-      currentEntryIssues,
-      entrypoints: currentEntrypoints,
-      manifestLoader,
-      productionRewrites: rewrites,
-      logErrors: false,
-    })
-  )
+  enqueue(() => manifestLoader.loadBuildManifest('_app'))
+  enqueue(() => manifestLoader.loadPagesManifest('_app'))
+  enqueue(() => manifestLoader.loadFontManifest('_app'))
+  enqueue(() => manifestLoader.loadPagesManifest('_document'))
+  enqueue(() => manifestLoader.loadBuildManifest('_error'))
+  enqueue(() => manifestLoader.loadPagesManifest('_error'))
+  enqueue(() => manifestLoader.loadFontManifest('_error'))
+
+  if (entrypoints.instrumentation) {
+    enqueue(() =>
+      manifestLoader.loadMiddlewareManifest(
+        'instrumentation',
+        'instrumentation'
+      )
+    )
+  }
+
+  if (entrypoints.middleware) {
+    enqueue(() =>
+      manifestLoader.loadMiddlewareManifest('middleware', 'middleware')
+    )
+  }
+
   await Promise.all(promises)
 
   await manifestLoader.writeManifests({
@@ -250,53 +230,7 @@ export async function turbopackBuild(): Promise<{
     entrypoints: currentEntrypoints,
   })
 
-  const errors: {
-    page: string
-    message: string
-  }[] = []
-  const warnings: {
-    page: string
-    message: string
-  }[] = []
-  for (const [page, entryIssues] of currentEntryIssues) {
-    for (const issue of entryIssues.values()) {
-      if (issue.severity !== 'warning') {
-        errors.push({
-          page,
-          message: formatIssue(issue),
-        })
-      } else {
-        if (isRelevantWarning(issue)) {
-          warnings.push({
-            page,
-            message: formatIssue(issue),
-          })
-        }
-      }
-    }
-  }
-
   const shutdownPromise = project.shutdown()
-
-  if (warnings.length > 0) {
-    Log.warn(
-      `Turbopack build collected ${warnings.length} warnings:\n${warnings
-        .map((e) => {
-          return 'Page: ' + e.page + '\n' + e.message
-        })
-        .join('\n')}`
-    )
-  }
-
-  if (errors.length > 0) {
-    throw new Error(
-      `Turbopack build failed with ${errors.length} errors:\n${errors
-        .map((e) => {
-          return 'Page: ' + e.page + '\n' + e.message
-        })
-        .join('\n')}`
-    )
-  }
 
   const time = process.hrtime(startTime)
   return {

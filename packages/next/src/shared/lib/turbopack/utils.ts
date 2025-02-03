@@ -61,6 +61,39 @@ export async function getTurbopackJsConfig(
   return jsConfig ?? { compilerOptions: {} }
 }
 
+export function processIssuesForProd(
+  result: TurbopackResult,
+  throwIssue: boolean,
+  logErrors:boolean
+) {
+  const relevantIssues = new Set()
+  console.log('issues', result.issues)
+  for (const issue of result.issues) {
+    if (
+      issue.severity !== 'error' &&
+      issue.severity !== 'fatal' &&
+      issue.severity !== 'warning'
+    )
+      continue
+
+    if (issue.severity !== 'warning') {
+      if (throwIssue) {
+        const formatted = formatIssue(issue)
+        relevantIssues.add(formatted)
+      }
+      // if we throw the issue it will most likely get handed and logged elsewhere
+      else if (logErrors && isWellKnownError(issue)) {
+        const formatted = formatIssue(issue)
+        Log.error(formatted)
+      }
+    }
+  }
+
+  if (relevantIssues.size && throwIssue) {
+    throw new ModuleBuildError([...relevantIssues].join('\n\n'))
+  }
+}
+
 
 export function processIssues(
   currentEntryIssues: EntryIssuesMap,
@@ -180,6 +213,10 @@ export function formatIssue(issue: Issue) {
   }
 
   return message
+}
+
+export function shouldDisplayIssue(issue: Issue): boolean {
+  return issue.severity === 'fatal' || issue.severity === 'error' || isRelevantWarning(issue)
 }
 
 export function isRelevantWarning(issue: Issue): boolean {

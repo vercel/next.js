@@ -31,7 +31,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths, EndpointRuntime},
 };
 
 #[turbo_tasks::value]
@@ -276,6 +276,11 @@ impl MiddlewareEndpoint {
 
 #[turbo_tasks::value_impl]
 impl Endpoint for MiddlewareEndpoint {
+    #[turbo_tasks::function]
+    async fn runtime(self: ResolvedVc<Self>) -> Vc<EndpointRuntime> {
+        EndpointRuntime::Edge.cell()
+    }
+
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let span = tracing::info_span!("middleware endpoint");

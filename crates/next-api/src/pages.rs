@@ -77,7 +77,7 @@ use crate::{
         get_wasm_paths_from_root, paths_to_bindings, wasm_paths_to_bindings,
     },
     project::Project,
-    route::{Endpoint, EndpointOutput, EndpointOutputPaths, Route, Routes},
+    route::{Endpoint, EndpointOutput, EndpointOutputPaths, EndpointRuntime, Route, Routes},
     webpack_stats::generate_webpack_stats,
 };
 
@@ -1372,6 +1372,36 @@ pub struct InternalSsrChunkModule {
 
 #[turbo_tasks::value_impl]
 impl Endpoint for PageEndpoint {
+    #[turbo_tasks::function]
+    async fn runtime(self: Vc<Self>) -> Result<Vc<EndpointRuntime>> {
+        let this = &*self.await?;
+        let (reference_type, module_context) = match this.ty {
+            PageEndpointType::Html | PageEndpointType::SsrOnly => (
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                this.pages_project.ssr_module_context(),
+            ),
+            PageEndpointType::Data => (
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::Page)),
+                this.pages_project.ssr_data_module_context(),
+            ),
+            PageEndpointType::Api => (
+                Value::new(ReferenceType::Entry(EntryReferenceSubType::PagesApi)),
+                this.pages_project.api_module_context(),
+            ),
+        };
+
+        let ssr_module = module_context
+            .process(self.source(), reference_type.clone())
+            .module();
+
+        let config = parse_config_from_source(ssr_module).await?;
+        Ok(match config.runtime {
+            NextRuntime::NodeJs => EndpointRuntime::NodeJs,
+            NextRuntime::Edge => EndpointRuntime::Edge,
+        }
+        .cell())
+    }
+
     #[turbo_tasks::function]
     async fn output(self: ResolvedVc<Self>) -> Result<Vc<EndpointOutput>> {
         let this = self.await?;
