@@ -1,7 +1,7 @@
-use std::collections::HashSet;
-
+use rustc_hash::FxHashSet;
 use serde::Deserialize;
 use swc_core::{
+    atoms::Atom,
     common::DUMMY_SP,
     ecma::{
         ast::*,
@@ -11,7 +11,7 @@ use swc_core::{
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub packages: Vec<String>,
+    pub packages: Vec<Atom>,
 }
 
 pub fn named_import_transform(config: Config) -> impl Pass {
@@ -22,7 +22,7 @@ pub fn named_import_transform(config: Config) -> impl Pass {
 
 #[derive(Debug, Default)]
 struct NamedImportTransform {
-    packages: Vec<String>,
+    packages: Vec<Atom>,
 }
 
 /// TODO: Implement this as a [Pass] instead of a full visitor ([Fold])
@@ -32,7 +32,7 @@ impl Fold for NamedImportTransform {
         let src_value = decl.src.value.clone();
 
         if self.packages.iter().any(|p| src_value == *p) {
-            let mut specifier_names = HashSet::new();
+            let mut specifier_names = FxHashSet::default();
 
             // Skip the transform if the default or namespace import is present
             let mut skip_transform = false;
