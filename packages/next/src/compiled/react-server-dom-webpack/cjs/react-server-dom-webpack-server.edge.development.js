@@ -3773,11 +3773,12 @@
       id,
       exportName
     ) {
-      return registerClientReferenceImpl(
+      const clientReference = registerClientReferenceImpl(
         proxyImplementation,
         id + "#" + exportName,
         !1
       );
+      return new Proxy(clientReference, deepProxyHandlers);
     };
     exports.registerServerReference = function (reference, id, exportName) {
       return Object.defineProperties(reference, {
