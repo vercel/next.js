@@ -4,6 +4,7 @@ use std::{
     thread::available_parallelism,
 };
 
+use rand::Rng;
 use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
@@ -544,6 +545,29 @@ impl Storage {
             StorageWriteGuard { inner: a },
             StorageWriteGuard { inner: b },
         )
+    }
+
+    pub fn pop_some_old_tasks(&self, n: usize) -> Vec<TaskId> {
+        let mut queue = self.age_queue.queue().lock();
+        let old_tasks = queue.old_items_mut();
+        let mut result = Vec::with_capacity(n);
+        let mut r = rand::thread_rng();
+        while result.len() < n && !old_tasks.is_empty() {
+            let i = r.gen_range(0..old_tasks.len());
+            if let Some(task) = old_tasks.select(i as u32) {
+                result.push(TaskId::from(task));
+                old_tasks.remove(task);
+            } else {
+                break;
+            }
+        }
+        println!(
+            "Picked {} tasks from {} old tasks ({} total)",
+            result.len(),
+            old_tasks.len() as usize + result.len(),
+            queue.len()
+        );
+        result
     }
 }
 

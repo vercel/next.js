@@ -193,6 +193,7 @@ async fn run(resource: PathBuf, snapshot_mode: IssueSnapshotMode) -> Result<JsRe
         BackendOptions {
             storage_mode: None,
             dependency_tracking: false,
+            allowed_memory_usage: 0,
             ..Default::default()
         },
         noop_backing_storage(),

@@ -125,6 +125,16 @@ impl AgeQueue {
         self.queue.shrink_to_fit();
     }
 
+    pub fn estimated_len(&self) -> u64 {
+        self.len
+    }
+
+    pub fn len(&mut self) -> u64 {
+        self.remove_trailing_empty();
+        self.remove_duplicates();
+        self.len
+    }
+
     pub fn old_items_mut(&mut self) -> &mut RoaringBitmap {
         self.remove_trailing_empty();
         self.remove_duplicates();

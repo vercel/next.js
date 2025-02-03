@@ -134,13 +134,13 @@ where
 }
 
 fn check_skip() -> bool {
-    if matches!(
-        std::env::var("TURBOPACK_TEST_PERFORMANCE").ok().as_deref(),
-        None | Some("") | Some("no") | Some("false")
-    ) {
-        println!("Skipping test, pass `TURBOPACK_TEST_PERFORMANCE=yes` to run it");
-        return true;
-    }
+    // if matches!(
+    //     std::env::var("TURBOPACK_TEST_PERFORMANCE").ok().as_deref(),
+    //     None | Some("") | Some("no") | Some("false")
+    // ) {
+    //     println!("Skipping test, pass `TURBOPACK_TEST_PERFORMANCE=yes` to run it");
+    //     return true;
+    // }
 
     false
 }

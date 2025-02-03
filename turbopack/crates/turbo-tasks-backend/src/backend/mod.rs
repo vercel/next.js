@@ -34,6 +34,7 @@ use turbo_tasks::{
     CellId, FunctionId, FxDashMap, RawVc, ReadCellOptions, ReadConsistency, SessionId, TaskId,
     TraitTypeId, TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
+use turbo_tasks_malloc::TurboMalloc;
 
 pub use self::{operation::AnyOperation, storage::TaskDataCategory};
 #[cfg(feature = "trace_task_dirty")]
@@ -130,6 +131,15 @@ pub struct BackendOptions {
 
     /// Enables the backing storage.
     pub storage_mode: Option<StorageMode>,
+
+    /// Allowed memory usage in bytes before GC is triggered at all.
+    pub allowed_memory_usage: usize,
+
+    /// How often GC is triggered in "completed tasks"
+    pub gc_interval: u32,
+
+    /// How many tasks are collected in one GC batch.
+    pub gc_batch_size: usize,
 }
 
 impl Default for BackendOptions {
@@ -139,6 +149,10 @@ impl Default for BackendOptions {
             children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
+            // allowed_memory_usage: 1_000_000_000,
+            allowed_memory_usage: 0,
+            gc_interval: 128,
+            gc_batch_size: 64,
         }
     }
 }
@@ -699,6 +713,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
         // task the get the cell content.
+
+        println!(
+            "Need to recompute {task_id} {} {cell:?}",
+            ctx.get_task_description(task_id)
+        );
 
         let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
         let note = move || {
@@ -1616,7 +1635,56 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         task.shrink_to_fit(CachedDataItemType::CollectiblesDependency);
         drop(task);
 
+        drop(ctx);
+
+        if (*task_id % self.options.gc_interval) == 0 {
+            self.check_gc(turbo_tasks);
+        }
+
         false
+    }
+
+    fn check_gc(&self, turbo_tasks: &dyn TurboTasksBackendApi<TurboTasksBackend<B>>) {
+        if self.options.allowed_memory_usage != 0 {
+            let mem_usage = TurboMalloc::memory_usage();
+            if mem_usage <= self.options.allowed_memory_usage {
+                println!("Skip GC as memory usage is below threshold: {}", mem_usage);
+                return;
+            }
+        }
+        let batch = self.storage.pop_some_old_tasks(self.options.gc_batch_size);
+        if batch.is_empty() {
+            println!("Skip GC as no tasks to collect");
+            return;
+        }
+        let counters = TurboMalloc::allocation_counters();
+        let mut cells_to_drop = Vec::with_capacity(self.options.gc_batch_size * 4);
+        let mut ctx = self.execute_context(turbo_tasks);
+        for task_id in batch {
+            let mut task = ctx.task(task_id, TaskDataCategory::All);
+            if task.has_key(&CachedDataItemKey::Stateful {}) {
+                // Stateful tasks should never be collected
+                continue;
+            }
+            if task.has_key(&CachedDataItemKey::InProgress {}) {
+                // This is currently in progress, but we might want to collect it at some later
+                // time. It will be reenqueued when it's done.
+                continue;
+            }
+            println!("GC: {task_id} {}", ctx.get_task_description(task_id));
+            cells_to_drop.extend(task.extract_if(CachedDataItemType::CellData, |_, _| true));
+        }
+        let cells = cells_to_drop.len();
+        drop(cells_to_drop);
+        let counters = counters.until_now();
+        let allocations = counters.allocations as isize - counters.deallocations as isize;
+        if allocations.abs() > 2000000 {
+            println!("GC ({cells} cells): {}MiB", allocations / 1024 / 1024);
+        } else if allocations.abs() > 2000 {
+            println!("GC ({cells} cells): {}kiB", allocations / 1024);
+        } else {
+            println!("GC ({cells} cells): {}B", allocations);
+        }
     }
 
     fn run_backend_job<'a>(
