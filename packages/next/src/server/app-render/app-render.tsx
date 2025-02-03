@@ -681,8 +681,6 @@ async function warmupDevRender(
   const prerenderController = new AbortController()
   const cacheSignal = new CacheSignal()
 
-  // TODO(useCache): Should this be a PrerenderStorePPR if dynamicIO is not
-  // enabled?
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
