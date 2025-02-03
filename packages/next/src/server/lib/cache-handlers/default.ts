@@ -31,7 +31,7 @@ type PrivateCacheEntry = {
 
 // LRU cache default to max 50 MB but in future track
 const memoryCache = new LRUCache<PrivateCacheEntry>(
-  5 * 1024 * 1024,
+  50 * 1024 * 1024,
   (entry) => entry.size
 )
 const pendingSets = new Map<string, Promise<void>>()
