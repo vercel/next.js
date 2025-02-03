@@ -21,6 +21,12 @@ async fn basic() {
         let output3 = func_persistent(output1);
         assert_eq!(output3.await?.value, 123);
 
+        let output4 = nested_func_without_args_waiting();
+        assert_eq!(output4.await?.value, 123);
+
+        let output5 = nested_func_without_args_non_waiting();
+        assert_eq!(output5.await?.value, 123);
+
         anyhow::Ok(())
     })
     .await
@@ -28,6 +34,7 @@ async fn basic() {
 }
 
 #[turbo_tasks::value]
+#[derive(Clone, Debug)]
 struct Value {
     value: u32,
 }
@@ -51,4 +58,17 @@ async fn func_without_args() -> Result<Vc<Value>> {
     println!("func_without_args");
     let value = 123;
     Ok(Value { value }.cell())
+}
+
+#[turbo_tasks::function]
+async fn nested_func_without_args_waiting() -> Result<Vc<Value>> {
+    println!("nested_func_without_args_waiting");
+    let value = func_without_args().await?.clone_value();
+    Ok(value.cell())
+}
+
+#[turbo_tasks::function]
+async fn nested_func_without_args_non_waiting() -> Result<Vc<Value>> {
+    println!("nested_func_without_args_non_waiting");
+    Ok(func_without_args())
 }

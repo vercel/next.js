@@ -154,7 +154,7 @@ pub struct EventListener {
     note: Arc<dyn Fn() -> String + Sync + Send>,
     // Timeout need to stay pinned while polling and also while it's dropped.
     // So it's important to put it into a pinned Box to be able to take it out of the Option.
-    future: Option<Pin<Box<Timeout<event_listener::EventListener>>>>,
+    future: Option<std::pin::Pin<Box<Timeout<event_listener::EventListener>>>>,
     duration: Duration,
 }
 
@@ -200,7 +200,7 @@ impl Future for EventListener {
                         self.duration,
                         // SAFETY: We can move the inner future since it's an EventListener and
                         // that is Unpin.
-                        unsafe { Pin::into_inner_unchecked(future) }.into_inner(),
+                        unsafe { std::pin::Pin::into_inner_unchecked(future) }.into_inner(),
                     )));
                 }
             }
