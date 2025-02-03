@@ -1,7 +1,6 @@
 use std::{io::Write, path::PathBuf, sync::Arc, thread, time::Duration};
 
 use anyhow::{anyhow, bail, Context, Result};
-use indexmap::IndexSet;
 use napi::{
     bindgen_prelude::{within_runtime_if_available, External},
     threadsafe_function::{ThreadsafeFunction, ThreadsafeFunctionCallMode},
@@ -29,8 +28,8 @@ use tracing::Instrument;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, Registry};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    get_effects, Completion, Effects, OperationVc, ReadRef, ResolvedVc, TransientInstance,
-    UpdateInfo, Vc,
+    get_effects, Completion, Effects, FxIndexSet, OperationVc, ReadRef, ResolvedVc,
+    TransientInstance, TryJoinIterExt, UpdateInfo, Vc,
 };
 use turbo_tasks_fs::{
     get_relative_path_to, util::uri_from_file, DiskFileSystem, FileContent, FileSystem,
@@ -839,14 +838,23 @@ async fn output_assets_operation(
     container: ResolvedVc<ProjectContainer>,
     app_dir_only: ResolvedVc<bool>,
 ) -> Result<Vc<OutputAssets>> {
-    let mut output_assets: IndexSet<ResolvedVc<Box<dyn OutputAsset>>> = IndexSet::new();
     let app_dir_only = *app_dir_only.await?;
 
-    for endpoint in container.project().get_all_endpoints(app_dir_only).await? {
-        output_assets.extend(endpoint.output().await?.output_assets.await?);
+    let endpoint_assets = container
+        .project()
+        .get_all_endpoints(app_dir_only)
+        .await?
+        .iter()
+        .map(|endpoint| async move { endpoint.output().await?.output_assets.await })
+        .try_join()
+        .await?;
+
+    let mut output_assets: FxIndexSet<ResolvedVc<Box<dyn OutputAsset>>> = FxIndexSet::default();
+    for assets in endpoint_assets {
+        output_assets.extend(assets.iter());
     }
 
-    Ok(Vc::cell(output_assets.iter().copied().collect()))
+    Ok(Vc::cell(output_assets.into_iter().collect()))
 }
 
 #[napi(ts_return_type = "{ __napiType: \"RootTask\" }")]
