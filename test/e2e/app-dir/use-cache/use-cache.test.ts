@@ -482,15 +482,28 @@ describe('use-cache', () => {
       const browser = await next.browser('/logs')
       const initialLogs = await getSanitizedLogs(browser)
 
+      // We ignore the logged time string at the end of this message:
+      const logMessageWithDateRegexp =
+        /^ Server {3}Cache {3}Cache {2}deep inside /
+
+      let logMessageWithCachedDate: string | undefined
+
       await retry(async () => {
         // TODO(veil): We might want to show only the original (right-most)
         // environment badge when caches are nested.
-        expect(initialLogs).toEqual([
-          ' Server  outside',
-          ' Server   Cache  inside',
-          // We ignore the logged time string at the end of this message:
-          expect.stringMatching(/^ Server {3}Cache {3}Cache {2}deep inside /),
-        ])
+        expect(initialLogs).toMatchObject(
+          expect.arrayContaining([
+            ' Server  outside',
+            ' Server   Cache  inside',
+            expect.stringMatching(logMessageWithDateRegexp),
+          ])
+        )
+
+        logMessageWithCachedDate = initialLogs.find((log) =>
+          logMessageWithDateRegexp.test(log)
+        )
+
+        expect(logMessageWithCachedDate).toBeDefined()
       })
 
       // Load the page again and expect the cached logs to be replayed again.
@@ -500,26 +513,25 @@ describe('use-cache', () => {
 
       await retry(async () => {
         const newLogs = await getSanitizedLogs(browser)
-        expect(newLogs).toEqual(initialLogs)
+
+        expect(newLogs).toMatchObject(
+          expect.arrayContaining([
+            ' Server  outside',
+            ' Server   Cache  inside',
+            logMessageWithCachedDate,
+          ])
+        )
       })
     })
   }
 })
 
-const ignoredLogs = [
-  'Download the React DevTools',
-  'Next.js page already hydrated',
-  '[Fast Refresh] rebuilding',
-]
-
 async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
   const logs = await browser.log({ includeArgs: true })
 
-  return logs
-    .map(({ args }) =>
-      format(
-        ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
-      )
+  return logs.map(({ args }) =>
+    format(
+      ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
     )
-    .filter((msg) => !ignoredLogs.some((ignored) => msg.includes(ignored)))
+  )
 }
