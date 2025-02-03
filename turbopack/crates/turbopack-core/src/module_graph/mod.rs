@@ -1099,7 +1099,12 @@ impl Visit<SingleModuleGraphBuilderNode> for SingleModuleGraphBuilder<'_> {
             Ok(match (module, chunkable_ref_target) {
                 (Some(module), None) => {
                     let refs_cell = primary_chunkable_referenced_modules(*module);
-                    let refs = refs_cell.await.context(module.ident().to_string().await?)?;
+                    let refs = match refs_cell.await {
+                        Ok(refs) => refs,
+                        Err(e) => {
+                            return Err(e.context(module.ident().to_string().await?));
+                        }
+                    };
                     // TODO This is currently too slow
                     // let refs_issues = refs_cell
                     //     .take_collectibles::<Box<dyn Issue>>()
