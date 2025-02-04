@@ -588,7 +588,7 @@ macro_rules! get_mut {
         use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValueRefMut::$key {
             value,
-        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
+        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input) {
             let () = $crate::data::allow_mut_access::$key;
             Some(value)
         } else {

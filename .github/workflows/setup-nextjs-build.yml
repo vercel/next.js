@@ -82,6 +82,7 @@ jobs:
         run: |
           wget https://github.com/sharkdp/hyperfine/releases/download/v1.16.1/hyperfine_1.16.1_amd64.deb
           sudo dpkg -i hyperfine_1.16.1_amd64.deb
+          npm i -g corepack@0.31
           corepack enable
           pnpm install --loglevel error
 

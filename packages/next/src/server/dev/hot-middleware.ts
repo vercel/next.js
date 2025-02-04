@@ -72,16 +72,11 @@ class EventStream {
     this.clients = new Set()
   }
 
-  everyClient(fn: (client: ws) => void) {
-    for (const client of this.clients) {
-      fn(client)
-    }
-  }
-
   close() {
-    this.everyClient((client) => {
-      client.close()
-    })
+    for (const wsClient of this.clients) {
+      // it's okay to not cleanly close these websocket connections, this is dev
+      wsClient.terminate()
+    }
     this.clients.clear()
   }
 
@@ -93,9 +88,9 @@ class EventStream {
   }
 
   publish(payload: any) {
-    this.everyClient((client) => {
-      client.send(JSON.stringify(payload))
-    })
+    for (const wsClient of this.clients) {
+      wsClient.send(JSON.stringify(payload))
+    }
   }
 }
 

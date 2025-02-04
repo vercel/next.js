@@ -27,7 +27,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - run: corepack enable
+      - name: Setup corepack
+        run: |
+          npm i -g corepack@0.31
+          corepack enable
 
       - name: Install dependencies
         shell: bash

@@ -2,6 +2,9 @@ import type { Preview } from '@storybook/react'
 
 const preview: Preview = {
   parameters: {
+    a11y: {
+      element: 'nextjs-portal',
+    },
     controls: {
       matchers: {
         color: /(background|color)$/i,
@@ -17,6 +20,12 @@ const preview: Preview = {
         { name: 'background-200-dark', value: '#000000' },
       ],
       default: 'backdrop',
+    },
+  },
+  globals: {
+    a11y: {
+      // Optional flag to prevent the automatic check
+      manual: true,
     },
   },
 }

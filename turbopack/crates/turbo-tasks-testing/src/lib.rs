@@ -288,10 +288,18 @@ impl TurboTasksApi for VcStorage {
         // no-op
     }
 
+    fn set_own_task_aggregation_number(&self, _task: TaskId, _aggregation_number: u32) {
+        // no-op
+    }
+
     fn detached_for_testing(
         &self,
         _f: std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>>,
     ) -> std::pin::Pin<Box<dyn Future<Output = Result<()>> + Send + 'static>> {
+        unimplemented!()
+    }
+
+    fn task_statistics(&self) -> &turbo_tasks::task_statistics::TaskStatisticsApi {
         unimplemented!()
     }
 

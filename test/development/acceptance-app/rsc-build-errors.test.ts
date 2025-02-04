@@ -175,15 +175,16 @@ describe('Error overlay - RSC build errors', () => {
       // TODO: fix the issue ordering.
       // turbopack emits the resolve issue first instead of the transform issue.
       expect(await session.getRedboxSource()).toMatchInlineSnapshot(`
-        "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
-        Ecmascript file had an error
-        > 1 | import 'client-only'
-            | ^^^^^^^^^^^^^^^^^^^^
-          2 |
-          3 | export default function ClientOnlyLib() {
-          4 |   return 'client-only-lib'
+       "./app/server-with-errors/client-only-in-server/client-only-lib.js:1:1
+       Ecmascript file had an error
+       > 1 | import 'client-only'
+           | ^^^^^^^^^^^^^^^^^^^^
+         2 |
+         3 | export default function ClientOnlyLib() {
+         4 |   return 'client-only-lib'
 
-        You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.\\nLearn more: https://nextjs.org/docs/app/building-your-application/rendering\\n\\n"
+       You're importing a component that imports client-only. It only works in a Client Component but none of its parents are marked with "use client", so they're Server Components by default.
+       Learn more: https://nextjs.org/docs/app/building-your-application/rendering"
       `)
     } else {
       expect(await session.getRedboxSource()).toInclude(
