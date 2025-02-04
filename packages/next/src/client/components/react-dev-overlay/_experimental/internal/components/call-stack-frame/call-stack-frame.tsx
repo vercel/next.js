@@ -89,14 +89,15 @@ export const CALL_STACK_FRAME_STYLES = css`
     user-select: text;
     display: block;
     box-sizing: border-box;
-    width: 100%;
+    width: calc(100% + 16px);
 
     user-select: text;
     -webkit-user-select: text;
     -moz-user-select: text;
     -ms-user-select: text;
 
-    padding: var(--size-1_5) var(--size-2);
+    padding: 6px 8px;
+    margin-left: -8px;
     margin-bottom: var(--size-1);
 
     border-radius: var(--rounded-lg);

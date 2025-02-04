@@ -62,7 +62,7 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
   }
 
   return (
-    <div className="error-overlay-call-stack-container">
+    <div data-nextjs-call-stack className="error-overlay-call-stack-container">
       <div className="error-overlay-call-stack-header">
         <p className="error-overlay-call-stack-title">
           Call Stack{' '}
@@ -133,10 +133,9 @@ function ChevronUpDown() {
 
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
-    border-top: 1px solid var(--color-gray-400);
-    padding: var(--size-4) var(--size-3);
+    padding: 16px;
     /* To optically align last item */
-    padding-bottom: 8px;
+    padding-bottom: 4px;
     position: relative;
   }
 
@@ -145,8 +144,7 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    margin-bottom: var(--size-3);
-    padding: 0 var(--size-2);
+    margin-bottom: 8px;
   }
 
   .error-overlay-call-stack-title {

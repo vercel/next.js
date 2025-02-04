@@ -41,31 +41,31 @@ const originalStackFrame = {
   ignored: false,
 }
 
-const frame = {
+const frame = (file = './app/page.tsx', methodName = 'MyComponent') => ({
   originalStackFrame: {
-    file: './app/page.tsx',
-    methodName: 'MyComponent',
+    file,
+    methodName,
     arguments: [],
     lineNumber: 10,
     column: 5,
     ignored: false,
   },
   sourceStackFrame: {
-    file: './app/page.tsx',
-    methodName: 'MyComponent',
+    file,
+    methodName,
     arguments: [],
     lineNumber: 10,
     column: 5,
   },
-  originalCodeFrame: 'export default function MyComponent() {',
+  originalCodeFrame: originalCodeFrame('Second error message'),
   error: false,
   reason: null,
   external: false,
   ignored: false,
-}
+})
 
-const ignoredFrame = {
-  ...frame,
+const ignoredFrame1 = {
+  ...frame(),
   ignored: true,
 }
 
@@ -75,24 +75,38 @@ const readyErrors: ReadyRuntimeError[] = [
     runtime: true,
     error: new Error('First error message'),
     frames: [
-      frame,
+      frame('./app/components/ds/combobox/index.tsx', 'Combobox'),
       {
-        ...frame,
+        ...frame(),
         originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'ParentComponent',
+          ...frame('./app/components/ds/popover/index.tsx', 'Popover')
+            .originalStackFrame,
+          methodName: 'Popover',
           lineNumber: 5,
         },
       },
       {
-        ...frame,
+        ...frame(),
         originalStackFrame: {
-          ...frame.originalStackFrame,
-          methodName: 'GrandparentComponent',
+          ...frame('./app/careers/page.tsx', 'Form').originalStackFrame,
+          methodName: 'Form',
           lineNumber: 1,
         },
       },
-      ...Array(5).fill(ignoredFrame),
+      ...[
+        {
+          ...frame('./app/[lang]/careers/page.tsx', 'Root'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/page.tsx', 'Container'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/root.tsx', 'Person'),
+          ignored: true,
+        },
+      ],
     ],
   },
   {
@@ -109,6 +123,29 @@ const readyErrors: ReadyRuntimeError[] = [
         originalStackFrame,
         originalCodeFrame: originalCodeFrame('Second error message'),
       },
+      ...[
+        {
+          ...frame('./app/[lang]/careers/page.tsx', 'Root'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/page.tsx', 'Container'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/root.tsx', 'Person'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/layout.tsx', 'Layout'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/home/layout.tsx', 'Home'),
+          ...frame(),
+          ignored: true,
+        },
+      ],
     ],
   },
   {
@@ -125,6 +162,30 @@ const readyErrors: ReadyRuntimeError[] = [
         originalStackFrame,
         originalCodeFrame: originalCodeFrame('Third error message'),
       },
+
+      ...[
+        {
+          ...frame('./app/[lang]/careers/page.tsx', 'Root'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/page.tsx', 'Container'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/root.tsx', 'Person'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/careers/layout.tsx', 'Layout'),
+          ignored: true,
+        },
+        {
+          ...frame('./app/[lang]/home/layout.tsx', 'Home'),
+          ...frame(),
+          ignored: true,
+        },
+      ],
     ],
   },
   {

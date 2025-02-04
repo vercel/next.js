@@ -5,6 +5,7 @@ const styles = css`
     --next-dialog-radius: var(--rounded-xl);
     --next-dialog-footer-height: 48px;
     --next-dialog-max-width: 960px;
+    --next-dialog-row-padding: 16px;
 
     display: flex;
     flex-direction: column;
@@ -61,7 +62,8 @@ const styles = css`
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-header] {
     flex-shrink: 0;
-    padding: var(--size-4);
+    padding: var(--next-dialog-row-padding);
+    padding-bottom: 0;
   }
 
   [data-nextjs-dialog-content] > [data-nextjs-dialog-body] {
