@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react'
+import { useState, useRef, useCallback, useEffect } from 'react'
 
 interface Options {
   enterDelay?: number
@@ -31,67 +31,50 @@ interface Options {
  *}
  *
  * */
-export function useDelayedRender(
-  active: boolean = false,
-  options: Options = {}
-) {
-  const [, force] = useState<any>()
-  const mounted = useRef(active)
-  const rendered = useRef(false)
-  const renderTimer = useRef<NodeJS.Timeout | null>(null)
-  const unmountTimer = useRef<NodeJS.Timeout | null>(null)
-  const prevActive = useRef(active)
+export function useDelayedRender(active = false, options: Options = {}) {
+  const [mounted, setMounted] = useState(active)
+  const [rendered, setRendered] = useState(false)
+  const renderTimerRef = useRef<number | null>(null)
+  const unmountTimerRef = useRef<number | null>(null)
 
-  const recalculate = useCallback(() => {
+  const clearTimers = useCallback(() => {
+    if (renderTimerRef.current !== null) {
+      window.clearTimeout(renderTimerRef.current)
+      renderTimerRef.current = null
+    }
+    if (unmountTimerRef.current !== null) {
+      window.clearTimeout(unmountTimerRef.current)
+      unmountTimerRef.current = null
+    }
+  }, [])
+
+  useEffect(() => {
     const { enterDelay = 1, exitDelay = 0 } = options
 
-    if (prevActive.current) {
-      // Mount immediately
-      mounted.current = true
-      if (unmountTimer.current) clearTimeout(unmountTimer.current)
+    clearTimers()
 
+    if (active) {
+      setMounted(true)
       if (enterDelay <= 0) {
-        // Render immediately
-        rendered.current = true
+        setRendered(true)
       } else {
-        if (renderTimer.current) return
-
-        // Render after a delay
-        renderTimer.current = setTimeout(() => {
-          rendered.current = true
-          renderTimer.current = null
-          force({})
+        renderTimerRef.current = window.setTimeout(() => {
+          setRendered(true)
         }, enterDelay)
       }
     } else {
-      // Immediately set to unrendered
-      rendered.current = false
-
+      setRendered(false)
       if (exitDelay <= 0) {
-        mounted.current = false
+        setMounted(false)
       } else {
-        if (unmountTimer.current) return
-
-        // Unmount after a delay
-        unmountTimer.current = setTimeout(() => {
-          mounted.current = false
-          unmountTimer.current = null
-          force({})
+        unmountTimerRef.current = window.setTimeout(() => {
+          setMounted(false)
         }, exitDelay)
       }
     }
-  }, [options])
 
-  // When the active prop changes, need to re-calculate
-  if (active !== prevActive.current) {
-    prevActive.current = active
-    // We want to do this synchronously with the render, not in an effect
-    // this way when active → true, mounted → true in the same pass
-    recalculate()
-  }
+    return clearTimers
+  }, [active, options, clearTimers])
 
-  return {
-    mounted: mounted.current,
-    rendered: rendered.current,
-  }
+  return { mounted, rendered }
 }
