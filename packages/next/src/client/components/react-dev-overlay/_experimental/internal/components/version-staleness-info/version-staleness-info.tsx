@@ -5,21 +5,14 @@ export function VersionStalenessInfo({
   versionInfo,
   isTurbopack,
 }: {
-  versionInfo: VersionInfo | undefined
+  versionInfo: VersionInfo
   isTurbopack?: boolean
 }) {
-  if (!versionInfo) return null
   const { staleness } = versionInfo
   let { text, indicatorClass, title } = getStaleness(versionInfo)
 
-  if (!text) return null
-
   return (
-    <span
-      className={`nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click ${
-        isTurbopack ? 'turbopack-border' : ''
-      }`}
-    >
+    <span className="nextjs-container-build-error-version-status dialog-exclude-closing-from-outside-click">
       <Eclipse className={`version-staleness-indicator ${indicatorClass}`} />
       <span data-nextjs-version-checker title={title}>
         {text}
@@ -71,6 +64,7 @@ export function getStaleness({ installed, staleness, expected }: VersionInfo) {
       break
     }
     case 'unknown':
+      text = 'No version data'
       break
     default:
       break
@@ -86,12 +80,12 @@ export const styles = css`
     align-items: center;
     gap: var(--size-1);
 
-    height: 28px;
+    height: 26px;
     padding: 6px 8px 6px 6px;
     background: var(--color-background-100);
     background-clip: padding-box;
-    box-shadow: var(--shadow-small);
     border: 1px solid var(--color-gray-alpha-400);
+    box-shadow: var(--shadow-small);
     border-radius: var(--rounded-full);
 
     color: var(--color-gray-900);
@@ -111,20 +105,6 @@ export const styles = css`
   .version-staleness-indicator.outdated {
     fill: var(--color-red-800);
     stroke: var(--color-red-300);
-  }
-
-  .nextjs-container-build-error-version-status.turbopack-border {
-    border: 1px solid transparent;
-    background:
-      linear-gradient(var(--color-background-100), var(--color-background-100))
-        padding-box,
-      linear-gradient(
-          to right,
-          var(--color-turbopack-border-red) 0%,
-          var(--color-turbopack-border-blue) 100%
-        )
-        border-box;
-    border-radius: var(--rounded-full);
   }
 
   .nextjs-container-build-error-version-status > .turbopack-text {

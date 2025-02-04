@@ -50,14 +50,14 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
 
     if (isIgnoreListOpen) {
       function onTransitionEnd() {
-        setIsIgnoreListOpen(false)
         dialog.removeEventListener('transitionend', onTransitionEnd)
+        setIsIgnoreListOpen(false)
       }
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {
       dialog.style.height = `${initialDialogHeight.current + ignoreListHeight}px`
-      setIsIgnoreListOpen(!isIgnoreListOpen)
+      setIsIgnoreListOpen(true)
     }
   }
 

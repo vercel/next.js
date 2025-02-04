@@ -19,7 +19,7 @@ import {
   styles as errorTypeLabelStyles,
 } from '../error-type-label/error-type-label'
 import {
-  ErrorOverlayFloatingHeader,
+  ErrorOverlayNav,
   styles as floatingHeaderStyles,
 } from '../error-overlay-floating-header/error-overlay-floating-header'
 
@@ -88,14 +88,6 @@ export function ErrorOverlayLayout({
           dialogResizerRef={dialogResizerRef}
         >
           <DialogContent>
-            <ErrorOverlayFloatingHeader
-              readyErrors={readyErrors}
-              activeIdx={activeIdx}
-              setActiveIndex={setActiveIndex}
-              versionInfo={versionInfo}
-              isTurbopack={isTurbopack}
-            />
-
             <ErrorOverlayDialogHeader>
               <div
                 className="nextjs__container_errors__error_title"
@@ -125,6 +117,13 @@ export function ErrorOverlayLayout({
             />
           </DialogContent>
         </ErrorOverlayDialog>
+        <ErrorOverlayNav
+          readyErrors={readyErrors}
+          activeIdx={activeIdx}
+          setActiveIndex={setActiveIndex}
+          versionInfo={versionInfo}
+          isTurbopack={isTurbopack}
+        />
       </div>
     </ErrorOverlayOverlay>
   )

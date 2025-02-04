@@ -8,7 +8,7 @@ const styles = css`
     --next-dialog-row-padding: 16px;
 
     display: flex;
-    flex-direction: column;
+    flex-direction: column-reverse;
     width: 100%;
     max-height: calc(100% - 56px);
     max-width: var(--next-dialog-max-width);
