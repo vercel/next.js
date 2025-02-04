@@ -3242,7 +3242,11 @@ export default abstract class Server<
 
     const { value: cachedData } = cacheEntry
 
-    if (typeof segmentPrefetchHeader === 'string') {
+    if (
+      typeof segmentPrefetchHeader === 'string' &&
+      cachedData?.kind === CachedRouteKind.APP_PAGE &&
+      cachedData.segmentData
+    ) {
       // This is a prefetch request issued by the client Segment Cache. These
       // should never reach the application layer (lambda). We should either
       // respond from the cache (HIT) or respond with 204 No Content (MISS).
@@ -3255,23 +3259,15 @@ export default abstract class Server<
       // response itself contains whether the data is dynamic.
       res.setHeader(NEXT_DID_POSTPONE_HEADER, '2')
 
-      if (
-        // This is always true at runtime but is needed to refine the type
-        // of cacheEntry.value to CachedAppPageValue, because the outer
-        // ResponseCacheEntry is not a discriminated union.
-        cachedData?.kind === CachedRouteKind.APP_PAGE &&
-        cachedData.segmentData
-      ) {
-        const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
-        if (matchedSegment !== undefined) {
-          // Cache hit
-          return {
-            type: 'rsc',
-            body: RenderResult.fromStatic(matchedSegment),
-            // TODO: Eventually this should use revalidate time of the
-            // individual segment, not the whole page.
-            revalidate: cacheEntry.revalidate,
-          }
+      const matchedSegment = cachedData.segmentData.get(segmentPrefetchHeader)
+      if (matchedSegment !== undefined) {
+        // Cache hit
+        return {
+          type: 'rsc',
+          body: RenderResult.fromStatic(matchedSegment),
+          // TODO: Eventually this should use revalidate time of the
+          // individual segment, not the whole page.
+          revalidate: cacheEntry.revalidate,
         }
       }
 
