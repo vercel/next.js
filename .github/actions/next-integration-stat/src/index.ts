@@ -286,8 +286,8 @@ async function getJobResults(
 
   const testResultManifest: TestResultManifest = {
     nextjsVersion,
-    buildTime,
-    buildSize: nextSwcBuildSize,
+    // buildTime,
+    // buildSize: nextSwcBuildSize,
     ref: sha,
   } as any
 
