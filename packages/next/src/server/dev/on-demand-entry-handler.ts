@@ -802,9 +802,15 @@ export function onDemandEntryHandler({
       const isServerComponent =
         isInsideAppDir && staticInfo.rsc !== RSC_MODULE_TYPES.client
 
+      let pageRuntime = staticInfo.runtime
+
+      if (isMiddlewareFile(page) && !nextConfig.experimental.nodeMiddleware) {
+        pageRuntime = 'edge'
+      }
+
       runDependingOnPageType({
         page: route.page,
-        pageRuntime: staticInfo.runtime,
+        pageRuntime,
         pageType: pageBundleType,
         onClient: () => {
           // Skip adding the client entry for app / Server Components.

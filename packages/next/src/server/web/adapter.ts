@@ -103,7 +103,8 @@ export async function adapter(
   await ensureInstrumentationRegistered()
 
   // TODO-APP: use explicit marker for this
-  const isEdgeRendering = typeof self.__BUILD_MANIFEST !== 'undefined'
+  const isEdgeRendering =
+    typeof (globalThis as any).__BUILD_MANIFEST !== 'undefined'
 
   params.request.url = normalizeRscURL(params.request.url)
 

@@ -497,12 +497,19 @@ async function writeClientSsgManifest(
   )
 }
 
-interface FunctionsConfigManifest {
+export interface FunctionsConfigManifest {
   version: number
   functions: Record<
     string,
     {
       maxDuration?: number | undefined
+      runtime?: 'nodejs'
+      matchers?: Array<{
+        regexp: string
+        originalSource: string
+        has?: Rewrite['has']
+        missing?: Rewrite['has']
+      }>
     }
   >
 }
@@ -2224,6 +2231,7 @@ export default async function build(
               path.relative(distDir, pagesManifestPath),
               BUILD_MANIFEST,
               PRERENDER_MANIFEST,
+              path.join(SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_MANIFEST),
               path.join(SERVER_DIRECTORY, MIDDLEWARE_BUILD_MANIFEST + '.js'),
               ...(config.experimental.streamingMetadata
@@ -2298,6 +2306,34 @@ export default async function build(
             )
           )
         )
+      }
+
+      const middlewareFile = rootPaths.find((p) =>
+        p.includes(MIDDLEWARE_FILENAME)
+      )
+
+      if (middlewareFile) {
+        const staticInfo = await getStaticInfoIncludingLayouts({
+          isInsideAppDir: false,
+          pageFilePath: path.join(dir, middlewareFile),
+          config,
+          appDir,
+          pageExtensions: config.pageExtensions,
+          isDev: false,
+          page: 'middleware',
+        })
+
+        if (staticInfo.runtime === 'nodejs') {
+          functionsConfigManifest.functions['/_middleware'] = {
+            runtime: staticInfo.runtime,
+            matchers: staticInfo.middleware?.matchers ?? [
+              {
+                regexp: '^.*$',
+                originalSource: '/:path*',
+              },
+            ],
+          }
+        }
       }
 
       await writeFunctionsConfigManifest(distDir, functionsConfigManifest)
