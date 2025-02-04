@@ -67,8 +67,8 @@ export async function getDynamicHTMLPostponedState(
   if (!fallbackRouteParams || fallbackRouteParams.size === 0) {
     const postponedString = JSON.stringify(data)
 
-    // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-    return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(
+    // Serialized as `<isMetadataInShell><postponedString.length>:<postponedString><renderResumeDataCache>`
+    return `0:${postponedString.length}:${postponedString}${await stringifyResumeDataCache(
       createRenderResumeDataCache(prerenderResumeDataCache)
     )}`
   }
@@ -80,14 +80,14 @@ export async function getDynamicHTMLPostponedState(
   // Serialized as `<replacements.length><replacements><data>`
   const postponedString = `${replacementsString.length}${replacementsString}${dataString}`
 
-  // Serialized as `<postponedString.length>:<postponedString><renderResumeDataCache>`
-  return `${postponedString.length}:${postponedString}${await stringifyResumeDataCache(prerenderResumeDataCache)}`
+  // Serialized as `<isMetadataInShell><postponedString.length>:<postponedString><renderResumeDataCache>`
+  return `0:${postponedString.length}:${postponedString}${await stringifyResumeDataCache(prerenderResumeDataCache)}`
 }
 
 export async function getDynamicDataPostponedState(
   prerenderResumeDataCache: PrerenderResumeDataCache
 ): Promise<string> {
-  return `4:null${await stringifyResumeDataCache(createRenderResumeDataCache(prerenderResumeDataCache))}`
+  return `0:4:null${await stringifyResumeDataCache(createRenderResumeDataCache(prerenderResumeDataCache))}`
 }
 
 export function parsePostponedState(
@@ -95,6 +95,9 @@ export function parsePostponedState(
   params: Params | undefined
 ): PostponedState {
   try {
+    const hasMetadataInserted = state.startsWith('1:')
+    state = state.slice(2)
+
     const postponedStringLengthMatch = state.match(/^([0-9]*):/)?.[1]
     if (!postponedStringLengthMatch) {
       throw new Error(`Invariant: invalid postponed state ${state}`)
@@ -143,16 +146,22 @@ export function parsePostponedState(
           postponed = postponed.replaceAll(searchValue, replaceValue)
         }
 
+        const postponedState = JSON.parse(postponed)
+        postponedState.metadataInserted = hasMetadataInserted
+
         return {
           type: DynamicState.HTML,
-          data: JSON.parse(postponed),
+          data: postponedState,
           renderResumeDataCache,
         }
       }
 
+      const postponedState = JSON.parse(postponedString)
+      postponedState.metadataInserted = hasMetadataInserted
+
       return {
         type: DynamicState.HTML,
-        data: JSON.parse(postponedString),
+        data: postponedState,
         renderResumeDataCache,
       }
     } catch (err) {

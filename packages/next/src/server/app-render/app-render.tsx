@@ -103,11 +103,9 @@ import { createComponentTree } from './create-component-tree'
 import { getAssetQueryString } from './get-asset-query-string'
 import { setReferenceManifestsSingleton } from './encryption-utils'
 import {
-  DynamicState,
   type PostponedState,
+  DynamicState,
   parsePostponedState,
-} from './postponed-state'
-import {
   getDynamicDataPostponedState,
   getDynamicHTMLPostponedState,
   getPostponedFromState,
@@ -185,7 +183,7 @@ import {
 import type { MetadataErrorType } from '../../lib/metadata/resolve-metadata'
 import isError from '../../lib/is-error'
 import { isUseCacheTimeoutError } from '../use-cache/use-cache-errors'
-import { createServerInsertedMetadata } from './metadata-insertion/create-server-inserted-metadata'
+import { createServerInsertedMetadata, isMetadataInsertedInShell } from './metadata-insertion/create-server-inserted-metadata'
 
 export type GetDynamicParamFromSegment = (
   // [slug] / [[slug]] / [...slug]
@@ -806,6 +804,7 @@ async function getRSCPayload(
     createDivergedMetadataComponents(() => {
       return (
         // Not add requestId as react key to ensure segment prefetch could result consistently if nothing changed
+        // isMetadataInsertedAlready ? null : <MetadataTree />
         <MetadataTree />
       )
     }, !!ctx.renderOpts.serveStreamingMetadata)
@@ -1419,7 +1418,10 @@ async function renderToHTMLOrFlightImpl(
       }
     }
 
-    return new RenderResult(await streamToString(response.stream), options)
+    const html = await streamToString(response.stream)
+
+
+    return new RenderResult(html, options)
   } else {
     // We're rendering dynamically
     const renderResumeDataCache =
@@ -1680,8 +1682,10 @@ async function renderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+  const { 
+    ServerInsertedMetadataProvider, 
+    getServerInsertedMetadata,
+  } = createServerInsertedMetadata(undefined)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -1756,6 +1760,9 @@ async function renderToStream(
 
   const setHeader = res.setHeader.bind(res)
   const appendHeader = res.appendHeader.bind(res)
+
+
+  const isMetadataInsertedAlready = isMetadataInsertedInShell(postponedState)
 
   try {
     if (
@@ -1850,6 +1857,7 @@ async function renderToStream(
     // If provided, the postpone state should be parsed as JSON so it can be
     // provided to React.
     if (typeof renderOpts.postponed === 'string') {
+      // Replace postpone
       if (postponedState?.type === DynamicState.DATA) {
         // We have a complete HTML Document in the prerender but we need to
         // still include the new server component render because it was not included
@@ -2256,7 +2264,7 @@ async function spawnDynamicValidationInDev(
   }
 
   const { ServerInsertedHTMLProvider } = createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata()
+  const { ServerInsertedMetadataProvider } = createServerInsertedMetadata(undefined)
   const nonce = '1'
 
   if (initialServerStream) {
@@ -2533,8 +2541,10 @@ async function prerenderToStream(
 
   const { ServerInsertedHTMLProvider, renderServerInsertedHTML } =
     createServerInsertedHTML()
-  const { ServerInsertedMetadataProvider, getServerInsertedMetadata } =
-    createServerInsertedMetadata()
+  const { 
+    ServerInsertedMetadataProvider, 
+    getServerInsertedMetadata, 
+   } = createServerInsertedMetadata(metadata)
 
   const tracingMetadata = getTracedMetadata(
     getTracer().getTracePropagationData(),
@@ -3020,7 +3030,7 @@ async function prerenderToStream(
           renderOpts,
           fallbackRouteParams
         )
-
+        
         if (serverIsDynamic || clientIsDynamic) {
           if (postponed != null) {
             // Dynamic HTML case
@@ -3035,14 +3045,15 @@ async function prerenderToStream(
               prerenderResumeDataCache
             )
           }
+          const stream = await continueDynamicPrerender(prelude, {
+            getServerInsertedHTML,
+            getServerInsertedMetadata,
+          })
           reactServerResult.consume()
           return {
             digestErrorsMap: reactServerErrorsByDigest,
             ssrErrors: allCapturedErrors,
-            stream: await continueDynamicPrerender(prelude, {
-              getServerInsertedHTML,
-              getServerInsertedMetadata,
-            }),
+            stream: stream,
             dynamicAccess: consumeDynamicAccess(
               serverDynamicTracking,
               clientDynamicTracking
@@ -3672,18 +3683,24 @@ async function prerenderToStream(
             prerenderResumeDataCache
           )
         }
+        
+        
+        
         // Regardless of whether this is the Dynamic HTML or Dynamic Data case we need to ensure we include
         // server inserted html in the static response because the html that is part of the prerender may depend on it
         // It is possible in the set of stream transforms for Dynamic HTML vs Dynamic Data may differ but currently both states
         // require the same set so we unify the code path here
         reactServerResult.consume()
+
+        const stream = await continueDynamicPrerender(prelude, {
+          getServerInsertedHTML,
+          getServerInsertedMetadata,
+        })
+        
         return {
           digestErrorsMap: reactServerErrorsByDigest,
           ssrErrors: allCapturedErrors,
-          stream: await continueDynamicPrerender(prelude, {
-            getServerInsertedHTML,
-            getServerInsertedMetadata,
-          }),
+          stream,
           dynamicAccess: dynamicTracking.dynamicAccesses,
           // TODO: Should this include the SSR pass?
           collectedRevalidate: reactServerPrerenderStore.revalidate,
@@ -3772,6 +3789,7 @@ async function prerenderToStream(
           collectedTags: reactServerPrerenderStore.tags,
         }
       }
+      
     } else {
       const prerenderLegacyStore: PrerenderStore = (prerenderStore = {
         type: 'prerender-legacy',

@@ -17,6 +17,7 @@ function BrowserResolvedMetadata({ promise }: { promise: Promise<any> }) {
 }
 
 export function AsyncMetadata({ promise }: { promise: Promise<any> }) {
+  console.log('AsyncMetadata')
   return (
     <>
       {typeof window === 'undefined' ? (

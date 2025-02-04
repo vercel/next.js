@@ -1,12 +1,13 @@
+import { Metadata } from 'next'
 import { connection } from 'next/server'
-import { Suspense } from 'react'
+// import { Suspense } from 'react'
 
 export default function Page() {
   return (
     <div className="container">
-      <Suspense>
-        <SuspendedComponent />
-      </Suspense>
+      <SuspendedComponent />
+      {/* <Suspense>
+      </Suspense> */}
     </div>
   )
 }
@@ -28,11 +29,11 @@ async function NestedSuspendedComponent() {
   return <div>nested suspended component</div>
 }
 
-export async function generateMetadata() {
+export async function generateMetadata(): Promise<Metadata> {
   await new Promise((resolve) => setTimeout(resolve, 2 * 1000))
   return {
-    title: `this-is-title-${Math.random()}`,
-    description: `this-is-description-${Math.random()}`,
-    authors: [{ name: `huozhi-${Math.random()}` }],
+    title: `this-is-title`,
+    description: `this-is-description`,
+    authors: [{name: 'huozhi'}],   
   }
 }
