@@ -76,27 +76,6 @@ jobs:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18.18.2
-          check-latest: true
-      - uses: actions/cache/restore@v3
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}-${{ github.run_id }}-${{ github.run_attempt}}-${{ github.run_number }}
-          fail-on-cache-miss: true
-
-      - name: Enable corepack and install yarn
-        run: |
-          corepack enable
-          corepack prepare --activate yarn@1.22.19
-
-      - name: Setup playwright
-        run: |
-          pnpm playwright install
-
       - name: Run test/production
         run: |
           NEXT_TEST_MODE=start TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_E2E_TEST_TIMEOUT=240000 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type production
@@ -127,27 +106,6 @@ jobs:
         group: [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]
 
     steps:
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 18.18.2
-          check-latest: true
-      - uses: actions/cache/restore@v3
-        id: restore-build
-        with:
-          path: ./*
-          key: ${{ inputs.version || 'canary' }}-${{ github.sha }}
-          fail-on-cache-miss: true
-
-      - name: Enable corepack and install yarn
-        run: |
-          corepack enable
-          corepack prepare --activate yarn@1.22.19
-
-      - name: Setup playwright
-        run: |
-          pnpm playwright install
-
       - name: Run test/integration
         run: |
           TURBOPACK=1 TURBOPACK_BUILD=1 NEXT_E2E_TEST_TIMEOUT=240000 node run-tests.js -g ${{ matrix.group }}/12 -c ${TEST_CONCURRENCY} --type integration
