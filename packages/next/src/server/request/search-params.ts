@@ -16,6 +16,7 @@ import {
   type PrerenderStoreLegacy,
   type PrerenderStorePPR,
   type PrerenderStoreModern,
+  type RequestStore,
 } from '../app-render/work-unit-async-storage.external'
 import { InvariantError } from '../../shared/lib/invariant-error'
 import { makeHangingPromise } from '../dynamic-rendering-utils'
@@ -166,6 +167,11 @@ function createRenderSearchParams(
 
 interface CacheLifetime {}
 const CachedSearchParams = new WeakMap<CacheLifetime, Promise<SearchParams>>()
+
+const CachedSearchParamsForUseCache = new WeakMap<
+  CacheLifetime,
+  Promise<SearchParams>
+>()
 
 function makeAbortingExoticSearchParams(
   route: string,
@@ -466,6 +472,213 @@ function makeErroringExoticSearchParams(
   })
 
   CachedSearchParams.set(workStore, proxiedPromise)
+  return proxiedPromise
+}
+
+// TODO: Clean this up. For now, this is a rather dumb copypasta of
+// makeErroringExoticSearchParams, also allowing a request store, so that we can
+// throw in this case as well.
+export function makeErroringExoticSearchParamsForUseCache(
+  workStore: WorkStore,
+  workUnitStore: PrerenderStoreLegacy | PrerenderStorePPR | RequestStore
+): Promise<SearchParams> {
+  const cachedSearchParams = CachedSearchParamsForUseCache.get(workStore)
+  if (cachedSearchParams) {
+    return cachedSearchParams
+  }
+
+  const underlyingSearchParams = {}
+  // For search params we don't construct a ReactPromise because we want to interrupt
+  // rendering on any property access that was not set from outside and so we only want
+  // to have properties like value and status if React sets them.
+  const promise = Promise.resolve(underlyingSearchParams)
+
+  const proxiedPromise = new Proxy(promise, {
+    get(target, prop, receiver) {
+      if (Object.hasOwn(promise, prop)) {
+        // The promise has this property directly. we must return it.
+        // We know it isn't a dynamic access because it can only be something
+        // that was previously written to the promise and thus not an underlying searchParam value
+        return ReflectAdapter.get(target, prop, receiver)
+      }
+
+      switch (prop) {
+        // Object prototype
+        case 'hasOwnProperty':
+        case 'isPrototypeOf':
+        case 'propertyIsEnumerable':
+        case 'toString':
+        case 'valueOf':
+        case 'toLocaleString':
+
+        // Promise prototype
+        // fallthrough
+        case 'catch':
+        case 'finally':
+
+        // Common tested properties
+        // fallthrough
+        case 'toJSON':
+        case '$$typeof':
+        case '__esModule': {
+          // These properties cannot be shadowed because they need to be the
+          // true underlying value for Promises to work correctly at runtime
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+        case 'then': {
+          const expression =
+            '`await searchParams`, `searchParams.then`, or similar'
+          if (workStore.dynamicShouldError) {
+            throwWithStaticGenerationBailoutErrorWithDynamicError(
+              workStore.route,
+              expression
+            )
+          } else if (workUnitStore.type === 'prerender-ppr') {
+            // PPR Prerender (no dynamicIO)
+            postponeWithTracking(
+              workStore.route,
+              expression,
+              workUnitStore.dynamicTracking
+            )
+          } else if (workUnitStore.type === 'prerender-legacy') {
+            // Legacy Prerender
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              workUnitStore
+            )
+          } else {
+            throw new Error(
+              `Route ${workStore.route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+            )
+          }
+          return
+        }
+        case 'status': {
+          const expression =
+            '`use(searchParams)`, `searchParams.status`, or similar'
+          if (workStore.dynamicShouldError) {
+            throwWithStaticGenerationBailoutErrorWithDynamicError(
+              workStore.route,
+              expression
+            )
+          } else if (workUnitStore.type === 'prerender-ppr') {
+            // PPR Prerender (no dynamicIO)
+            postponeWithTracking(
+              workStore.route,
+              expression,
+              workUnitStore.dynamicTracking
+            )
+          } else if (workUnitStore.type === 'prerender-legacy') {
+            // Legacy Prerender
+            throwToInterruptStaticGeneration(
+              expression,
+              workStore,
+              workUnitStore
+            )
+          } else {
+            throw new Error(
+              `Route ${workStore.route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+            )
+          }
+          return
+        }
+        default: {
+          if (typeof prop === 'string') {
+            const expression = describeStringPropertyAccess(
+              'searchParams',
+              prop
+            )
+            if (workStore.dynamicShouldError) {
+              throwWithStaticGenerationBailoutErrorWithDynamicError(
+                workStore.route,
+                expression
+              )
+            } else if (workUnitStore.type === 'prerender-ppr') {
+              // PPR Prerender (no dynamicIO)
+              postponeWithTracking(
+                workStore.route,
+                expression,
+                workUnitStore.dynamicTracking
+              )
+            } else if (workUnitStore.type === 'prerender-legacy') {
+              // Legacy Prerender
+              throwToInterruptStaticGeneration(
+                expression,
+                workStore,
+                workUnitStore
+              )
+            } else {
+              throw new Error(
+                `Route ${workStore.route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+              )
+            }
+          }
+          return ReflectAdapter.get(target, prop, receiver)
+        }
+      }
+    },
+    has(target, prop) {
+      // We don't expect key checking to be used except for testing the existence of
+      // searchParams so we make all has tests trigger dynamic. this means that `promise.then`
+      // can resolve to the then function on the Promise prototype but 'then' in promise will assume
+      // you are testing whether the searchParams has a 'then' property.
+      if (typeof prop === 'string') {
+        const expression = describeHasCheckingStringProperty(
+          'searchParams',
+          prop
+        )
+        if (workStore.dynamicShouldError) {
+          throwWithStaticGenerationBailoutErrorWithDynamicError(
+            workStore.route,
+            expression
+          )
+        } else if (workUnitStore.type === 'prerender-ppr') {
+          // PPR Prerender (no dynamicIO)
+          postponeWithTracking(
+            workStore.route,
+            expression,
+            workUnitStore.dynamicTracking
+          )
+        } else if (workUnitStore.type === 'prerender-legacy') {
+          // Legacy Prerender
+          throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
+        } else {
+          throw new Error(
+            `Route ${workStore.route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+          )
+        }
+        return false
+      }
+      return ReflectAdapter.has(target, prop)
+    },
+    ownKeys() {
+      const expression =
+        '`{...searchParams}`, `Object.keys(searchParams)`, or similar'
+      if (workStore.dynamicShouldError) {
+        throwWithStaticGenerationBailoutErrorWithDynamicError(
+          workStore.route,
+          expression
+        )
+      } else if (workUnitStore.type === 'prerender-ppr') {
+        // PPR Prerender (no dynamicIO)
+        postponeWithTracking(
+          workStore.route,
+          expression,
+          workUnitStore.dynamicTracking
+        )
+      } else if (workUnitStore.type === 'prerender-legacy') {
+        // Legacy Prerender
+        throwToInterruptStaticGeneration(expression, workStore, workUnitStore)
+      } else {
+        throw new Error(
+          `Route ${workStore.route} used "searchParams" inside "use cache". Accessing Dynamic data sources inside a cache scope is not supported. If you need this data inside a cached function use "searchParams" outside of the cached function and pass the required dynamic data in as an argument. See more info here: https://nextjs.org/docs/messages/next-request-in-use-cache`
+        )
+      }
+    },
+  })
+
+  CachedSearchParamsForUseCache.set(workStore, proxiedPromise)
   return proxiedPromise
 }
 

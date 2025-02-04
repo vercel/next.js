@@ -43,6 +43,7 @@ import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
+import { makeErroringExoticSearchParamsForUseCache } from '../request/search-params'
 
 type CacheKeyParts = [
   buildId: string,
@@ -542,6 +543,38 @@ export function cache(
         workUnitStore?.type === 'prerender'
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
+
+      // TODO: Improve heuristic, with the help of the compiler. Try to limit to
+      // default exports in page files, when dynamicIO is not enabled.
+      if (
+        args.length === 2 &&
+        args[1] === undefined && // undefined ref of a server component
+        typeof args[0] === 'object' && // props of a server component
+        typeof args[0].params === 'object' &&
+        typeof args[0].searchParams === 'object' &&
+        (workUnitStore?.type === 'prerender-ppr' ||
+          workUnitStore?.type === 'prerender-legacy' ||
+          workUnitStore?.type === 'request')
+      ) {
+        // Overwrite to empty searchParams so that we can serialize the arg for
+        // the cache key, in case the searchParams are not used...
+        args[0].searchParams = Promise.resolve({})
+
+        const originalFn = fn
+
+        fn = {
+          [name]: async function ({ params }: any) {
+            // ...but throw an error if the searchParams are indeed used
+            // inside of the original function.
+            const searchParams = makeErroringExoticSearchParamsForUseCache(
+              workStore,
+              workUnitStore
+            )
+
+            return originalFn.apply(null, [{ params, searchParams }])
+          },
+        }[name]
+      }
 
       if (boundArgsLength > 0) {
         if (args.length === 0) {
