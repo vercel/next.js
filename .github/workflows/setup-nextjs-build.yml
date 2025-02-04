@@ -53,10 +53,6 @@ jobs:
       - name: Print Next.js release version to checkout
         run: echo "Checking out Next.js ${{ env.NEXTJS_VERSION }}"
 
-      # https://github.com/actions/virtual-environments/issues/1187
-      - name: tune linux network
-        run: sudo ethtool -K eth0 tx off rx off
-
       - name: Checkout Next.js
         uses: actions/checkout@v4
         with:
