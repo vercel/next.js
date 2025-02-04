@@ -36,12 +36,21 @@ env:
 
 jobs:
   # First, build Next.js to execute across tests.
-  setup_nextjs:
-    name: Setup Next.js build
-    uses: ./.github/workflows/setup-nextjs-build.yml
+  build-next:
+    name: build-next
+    uses: ./.github/workflows/build_reusable.yml
     with:
-      nodeVersion: 18.18.2
-      version: ${{ inputs.version || 'canary' }}
+      skipNativeBuild: 'yes'
+      stepName: 'build-next'
+    secrets: inherit
+
+  build-native:
+    name: build-native
+    uses: ./.github/workflows/build_reusable.yml
+    with:
+      skipInstallBuild: 'yes'
+      stepName: 'build-native'
+    secrets: inherit
 
   # Actual test scheduling. These jobs mimic the same jobs in Next.js repo,
   # which we do allow some of duplications to make it easier to update if upstream changes.
@@ -60,7 +69,7 @@ jobs:
       - 'x64'
       - 'metal'
 
-    needs: [setup_nextjs]
+    needs: ['build-next', 'build-native']
     strategy:
       fail-fast: false
       matrix:
@@ -104,7 +113,7 @@ jobs:
 
   test-integration-production:
     name: Next.js integration test (Integration)
-    needs: [setup_nextjs]
+    needs: ['build-next', 'build-native']
     runs-on:
       - 'self-hosted'
       - 'linux'
