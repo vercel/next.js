@@ -40,6 +40,7 @@ use next_custom_transforms::chain_transforms::{custom_before_pass, TransformOpti
 use once_cell::sync::Lazy;
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{try_with_handler, Compiler, TransformOutput},
     common::{comments::SingleThreadedComments, errors::ColorConfig, FileName, Mark, GLOBALS},
     ecma::ast::noop_pass,
@@ -81,12 +82,12 @@ fn skip_filename() -> bool {
 }
 
 impl Task for TransformTask {
-    type Output = (TransformOutput, FxHashSet<String>, FxHashMap<String, usize>);
+    type Output = (TransformOutput, FxHashSet<Atom>, FxHashMap<String, usize>);
     type JsValue = Object;
 
     fn compute(&mut self) -> napi::Result<Self::Output> {
         GLOBALS.set(&Default::default(), || {
-            let eliminated_packages: Rc<RefCell<FxHashSet<String>>> = Default::default();
+            let eliminated_packages: Rc<RefCell<FxHashSet<Atom>>> = Default::default();
             let use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>> =
                 Default::default();
 
