@@ -18,63 +18,6 @@ const BOT_COMMENT_MARKER = `<!-- __marker__ next.js integration stats __marker__
 // Header for the test report.
 const commentTitlePre = `## Failing next.js integration test suites`
 
-async function findNextJsVersionFromBuildLogs(
-  octokit: Octokit,
-  token: string,
-  job: Job
-): Promise<string> {
-  console.log(
-    'findNextJsVersionFromBuildLogs: Checking logs for the job ',
-    job.name
-  )
-
-  // downloadJobLogsForWorkflowRun returns a redirect to the actual logs
-  const jobLogRedirectResponse =
-    await octokit.rest.actions.downloadJobLogsForWorkflowRun({
-      accept: 'application/vnd.github+json',
-      ...context.repo,
-      job_id: job.id,
-    })
-
-  console.log(
-    'findNextJsVersionFromBuildLogs: Trying to get logs from redirect url ',
-    jobLogRedirectResponse.url
-  )
-
-  // fetch the actual logs
-  const jobLogsResponse = await fetch(jobLogRedirectResponse.url, {
-    headers: {
-      Accept: 'application/vnd.github.v3+json',
-      // [NOTE] we used to attach auth token, but seems this can cause 403
-      // redirect url is public anyway
-      //Authorization: `token ${token}`,
-    },
-  })
-
-  if (!jobLogsResponse.ok) {
-    throw new Error(
-      `Failed to get logsUrl, got status ${jobLogsResponse.status}`
-    )
-  }
-
-  // this should be the check_run's raw logs including each line
-  // prefixed with a timestamp in format 2020-03-02T18:42:30.8504261Z
-  const logText: string = await jobLogsResponse.text()
-  const dateTimeStripped = logText
-    .split('\n')
-    .map((line) => line.substr('2020-03-02T19:39:16.8832288Z '.length))
-
-  const nextjsVersion = dateTimeStripped
-    .find((x) => x.includes('RUNNING NEXTJS VERSION:') && !x.includes('$('))
-    ?.split('RUNNING NEXTJS VERSION:')
-    .pop()
-    ?.trim()!
-
-  console.log('Found Next.js version: ', nextjsVersion)
-
-  return nextjsVersion
-}
-
 // Download logs for a job in a workflow run by reading redirect url from workflow log response.
 async function fetchJobLogsFromWorkflow(
   octokit: Octokit,
