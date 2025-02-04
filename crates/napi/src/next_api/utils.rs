@@ -1,6 +1,4 @@
-use std::{
-    collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
-};
+use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -8,9 +6,11 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
-    trace::TraceRawVcs, OperationVc, ReadRef, TaskId, TryJoinIterExt, TurboTasks, UpdateInfo, Vc,
+    task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef, TaskId,
+    TryJoinIterExt, TurboTasks, TurboTasksApi, UpdateInfo, Vc,
 };
 use turbo_tasks_backend::{
     default_backing_storage, noop_backing_storage, DefaultBackingStorage, NoopBackingStorage,
@@ -108,17 +108,17 @@ impl NextTurboTasks {
         }
     }
 
-    pub fn memory_backend(&self) -> Option<&turbo_tasks_memory::MemoryBackend> {
-        match self {
-            NextTurboTasks::Memory(_) => None,
-            NextTurboTasks::PersistentCaching(_) => None,
-        }
-    }
-
     pub async fn stop_and_wait(&self) {
         match self {
             NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.stop_and_wait().await,
             NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.stop_and_wait().await,
+        }
+    }
+
+    pub fn task_statistics(&self) -> &TaskStatisticsApi {
+        match self {
+            NextTurboTasks::Memory(turbo_tasks) => turbo_tasks.task_statistics(),
+            NextTurboTasks::PersistentCaching(turbo_tasks) => turbo_tasks.task_statistics(),
         }
     }
 }
@@ -127,6 +127,7 @@ pub fn create_turbo_tasks(
     output_path: PathBuf,
     persistent_caching: bool,
     _memory_limit: usize,
+    dependency_tracking: bool,
 ) -> Result<NextTurboTasks> {
     Ok(if persistent_caching {
         let dirty_suffix = if crate::build::GIT_CLEAN
@@ -158,6 +159,7 @@ pub fn create_turbo_tasks(
                     } else {
                         turbo_tasks_backend::StorageMode::ReadWrite
                     }),
+                    dependency_tracking,
                     ..Default::default()
                 },
                 default_backing_storage(&output_path.join("cache/turbopack"), &version_info)?,
@@ -409,7 +411,8 @@ impl From<SourcePos> for NapiSourcePos {
 pub struct NapiDiagnostic {
     pub category: String,
     pub name: String,
-    pub payload: HashMap<String, String>,
+    #[napi(ts_type = "Record<string, string>")]
+    pub payload: FxHashMap<String, String>,
 }
 
 impl NapiDiagnostic {

@@ -1,10 +1,10 @@
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
+use turbo_tasks_fs::FileSystemPath;
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkingContext},
-    ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::{OutputAsset, OutputAssets},
     source_map::{GenerateSourceMap, OptionSourceMap, SourceMapAsset},
@@ -67,9 +67,9 @@ impl EcmascriptBuildNodeChunk {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBuildNodeChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    fn path(&self) -> Vc<FileSystemPath> {
         let ident = self.chunk.ident().with_modifier(modifier());
-        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
+        self.chunking_context.chunk_path(ident, ".js".into())
     }
 
     #[turbo_tasks::function]
@@ -137,7 +137,7 @@ impl Introspectable for EcmascriptBuildNodeChunk {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<RcStr> {
-        self.ident().to_string()
+        self.path().to_string()
     }
 
     #[turbo_tasks::function]

@@ -17,12 +17,7 @@ pub mod unreachable;
 pub mod util;
 pub mod worker;
 
-use std::{
-    borrow::Cow,
-    collections::{BTreeMap, HashMap},
-    mem::take,
-    sync::Arc,
-};
+use std::{borrow::Cow, collections::BTreeMap, mem::take, sync::Arc};
 
 use anyhow::{bail, Result};
 use constant_condition::{ConstantCondition, ConstantConditionValue};
@@ -604,7 +599,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             }
             if !source_map_from_comment {
                 if let Some(generate_source_map) =
-                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source).await?
+                    ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(source)
                 {
                     let source_map_origin = source.ident().path();
                     analysis.set_source_map(
@@ -2937,7 +2932,7 @@ enum StaticExpr {
 // TODO get rid of that
 #[derive(Default)]
 struct StaticAnalyser {
-    imports: HashMap<String, (String, Vec<String>)>,
+    imports: FxHashMap<String, (String, Vec<String>)>,
 }
 
 impl StaticAnalyser {

@@ -49,9 +49,15 @@ pub enum ReferencedAsset {
 }
 
 impl ReferencedAsset {
-    pub async fn get_ident(&self) -> Result<Option<String>> {
+    pub async fn get_ident(
+        &self,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<Option<String>> {
         Ok(match self {
-            ReferencedAsset::Some(asset) => Some(Self::get_ident_from_placeable(asset).await?),
+            ReferencedAsset::Some(asset) => {
+                Some(Self::get_ident_from_placeable(asset, module_graph, chunking_context).await?)
+            }
             ReferencedAsset::External(request, ty) => Some(magic_identifier::mangle(&format!(
                 "{ty} external {request}"
             ))),
@@ -61,12 +67,14 @@ impl ReferencedAsset {
 
     pub(crate) async fn get_ident_from_placeable(
         asset: &Vc<Box<dyn EcmascriptChunkPlaceable>>,
+        module_graph: Vc<ModuleGraph>,
+        chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<String> {
-        let path = asset.ident().to_string().await?;
-        Ok(magic_identifier::mangle(&format!(
-            "imported module {}",
-            path
-        )))
+        let id = asset
+            .as_chunk_item(module_graph, Vc::upcast(chunking_context))
+            .id()
+            .await?;
+        Ok(magic_identifier::mangle(&format!("imported module {}", id)))
     }
 }
 
@@ -89,7 +97,6 @@ impl ReferencedAsset {
                 &ModuleResolveResultItem::Module(module) => {
                     if let Some(placeable) =
                         ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
-                            .await?
                     {
                         return Ok(ReferencedAsset::Some(placeable).cell());
                     }
@@ -168,7 +175,6 @@ impl ModuleReference for EsmAssetReference {
                 if let Some(part) = self.export_name {
                     let module: ResolvedVc<crate::EcmascriptModuleAsset> =
                         ResolvedVc::try_downcast_type(self.origin)
-                            .await?
                             .expect("EsmAssetReference origin should be a EcmascriptModuleAsset");
 
                     return Ok(ModuleResolveResult::module(
@@ -196,7 +202,7 @@ impl ModuleReference for EsmAssetReference {
             let part = part.await?;
             if let &ModulePart::Export(export_name) = &*part {
                 for &module in result.primary_modules().await? {
-                    if let Some(module) = ResolvedVc::try_downcast(module).await? {
+                    if let Some(module) = ResolvedVc::try_downcast(module) {
                         let export = export_name.await?;
                         if *is_export_missing(*module, export.clone_value()).await? {
                             InvalidExport {
@@ -272,7 +278,10 @@ impl CodeGenerateable for EsmAssetReference {
                     span: DUMMY_SP,
                 });
                 Some((format!("throw {request}").into(), stmt))
-            } else if let Some(ident) = referenced_asset.get_ident().await? {
+            } else if let Some(ident) = referenced_asset
+                .get_ident(module_graph, chunking_context)
+                .await?
+            {
                 let span = this
                     .issue_source
                     .await?
@@ -290,12 +299,13 @@ impl CodeGenerateable for EsmAssetReference {
                             .as_chunk_item(module_graph, Vc::upcast(chunking_context))
                             .id()
                             .await?;
+                        let name = ident;
                         Some((
-                            ident.clone().into(),
+                            id.to_string().into(),
                             var_decl_with_span(
                                 quote!(
                                     "var $name = __turbopack_import__($id);" as Stmt,
-                                    name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                                    name = Ident::new(name.clone().into(), DUMMY_SP, Default::default()),
                                     id: Expr = module_id_to_lit(&id),
                                 ),
                                 span,

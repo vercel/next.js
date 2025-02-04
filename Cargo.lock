@@ -420,7 +420,7 @@ version = "3.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ff6e472cdea888a4bd64f342f09b3f50e1886d32afe8df3d663c01140b811b18"
 dependencies = [
- "event-listener 5.3.1",
+ "event-listener 5.4.0",
  "event-listener-strategy",
  "pin-project-lite",
 ]
@@ -569,7 +569,7 @@ name = "auto-hash-map"
 version = "0.1.0"
 dependencies = [
  "hashbrown 0.14.5",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "smallvec",
 ]
@@ -2229,11 +2229,12 @@ checksum = "5443807d6dff69373d433ab9ef5378ad8df50ca6298caf15de6e52e24aaf54d5"
 
 [[package]]
 name = "erased-serde"
-version = "0.3.25"
+version = "0.4.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4f2b0c2380453a92ea8b6c8e5f64ecaafccddde8ceab55ff7a8ac1029f894569"
+checksum = "24e2389d65ab4fab27dc2a5de7b191e1f6617d1f1c8855c0dc569c94a4cbb18d"
 dependencies = [
  "serde",
+ "typeid",
 ]
 
 [[package]]
@@ -2265,9 +2266,9 @@ dependencies = [
 
 [[package]]
 name = "event-listener"
-version = "5.3.1"
+version = "5.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "6032be9bd27023a771701cc49f9f053c751055f71efb2e0ae5c15809093675ba"
+checksum = "3492acde4c3fc54c845eaab3eed8bd00c7a7d881f78bfc801e43a93dec1331ae"
 dependencies = [
  "concurrent-queue",
  "parking",
@@ -2280,7 +2281,7 @@ version = "0.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0f214dc438f977e6d4e3500aaa277f5ad94ca83fbbd9b1a15713ce2344ccc5a1"
 dependencies = [
- "event-listener 5.3.1",
+ "event-listener 5.4.0",
  "pin-project-lite",
 ]
 
@@ -2536,15 +2537,6 @@ dependencies = [
  "pin-project-lite",
  "pin-utils",
  "slab",
-]
-
-[[package]]
-name = "fxhash"
-version = "0.2.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c31b6d751ae2c7f11320402d34e41349dd1016f8d5d45e48c4312bc8625af50c"
-dependencies = [
- "byteorder",
 ]
 
 [[package]]
@@ -4402,6 +4394,7 @@ dependencies = [
  "next-core",
  "petgraph",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "shadow-rs",
@@ -4491,7 +4484,7 @@ dependencies = [
  "react_remove_properties",
  "regex",
  "remove_console",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "swc_core",
@@ -4530,7 +4523,6 @@ dependencies = [
  "dashmap 6.1.0",
  "easy-error",
  "either",
- "fxhash",
  "hex",
  "indexmap 2.7.1",
  "indoc",
@@ -4543,6 +4535,7 @@ dependencies = [
  "regex",
  "remove_console",
  "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "sha1",
@@ -4567,7 +4560,6 @@ dependencies = [
  "console-subscriber",
  "dashmap 6.1.0",
  "dhat",
- "fxhash",
  "getrandom",
  "iana-time-zone",
  "indexmap 2.7.1",
@@ -4583,6 +4575,7 @@ dependencies = [
  "once_cell",
  "owo-colors 3.5.0",
  "rand",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "shadow-rs",
@@ -6422,9 +6415,9 @@ dependencies = [
 
 [[package]]
 name = "serde_json"
-version = "1.0.135"
+version = "1.0.138"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2b0d7ba2887406110130a978386c4e1befb98c674b4fba677954e4db976630d9"
+checksum = "d434192e7da787e94a6ea7e9670b26a036d0ca41e0b7efb2676dd32bae872949"
 dependencies = [
  "indexmap 2.7.1",
  "itoa",
@@ -6445,9 +6438,9 @@ dependencies = [
 
 [[package]]
 name = "serde_qs"
-version = "0.11.0"
+version = "0.13.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c679fa27b429f2bb57fd4710257e643e86c966e716037259f8baa33de594a1b6"
+checksum = "cd34f36fe4c5ba9654417139a9b3a20d2e1de6012ee678ad14d240c22c78d8d6"
 dependencies = [
  "percent-encoding",
  "serde",
@@ -6507,15 +6500,17 @@ dependencies = [
 
 [[package]]
 name = "serde_with"
-version = "2.3.2"
+version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "331bb8c3bf9b92457ab7abecf07078c13f7d270ba490103e84e8b014490cd0b0"
+checksum = "d6b6f7f2fcb69f747921f79f3926bd1e203fce4fef62c268dd3abfb6d86029aa"
 dependencies = [
- "base64 0.13.1",
+ "base64 0.22.1",
  "chrono",
  "hex",
  "indexmap 1.9.3",
+ "indexmap 2.7.1",
  "serde",
+ "serde_derive",
  "serde_json",
  "serde_with_macros",
  "time",
@@ -6523,14 +6518,14 @@ dependencies = [
 
 [[package]]
 name = "serde_with_macros"
-version = "2.3.2"
+version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "859011bddcc11f289f07f467cc1fe01c7a941daa4d8f6c40d4d1c92eb6d9319c"
+checksum = "8d00caa5193a3c8362ac2b73be6b9e768aa5a4b2f721d8f4b339600c3cb51f8e"
 dependencies = [
- "darling 0.14.4",
+ "darling 0.20.8",
  "proc-macro2",
  "quote",
- "syn 1.0.109",
+ "syn 2.0.95",
 ]
 
 [[package]]
@@ -9053,7 +9048,7 @@ dependencies = [
  "quick_cache",
  "rand",
  "rayon",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "tempfile",
  "thread_local",
@@ -9069,6 +9064,7 @@ version = "0.1.0"
 name = "turbo-rcstr"
 version = "0.1.0"
 dependencies = [
+ "criterion",
  "new_debug_unreachable",
  "serde",
  "triomphe 0.1.12",
@@ -9087,6 +9083,7 @@ dependencies = [
  "lsp-server",
  "lsp-types",
  "proc-macro2",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "serde_path_to_error",
@@ -9107,7 +9104,7 @@ dependencies = [
  "dashmap 6.1.0",
  "either",
  "erased-serde",
- "event-listener 2.5.3",
+ "event-listener 5.4.0",
  "futures",
  "indexmap 2.7.1",
  "mopa",
@@ -9116,7 +9113,7 @@ dependencies = [
  "pin-project-lite",
  "rayon",
  "regex",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "serde_regex",
@@ -9153,8 +9150,10 @@ dependencies = [
  "pot",
  "rand",
  "rayon",
- "rustc-hash 1.1.0",
+ "regex",
+ "rustc-hash 2.1.0",
  "serde",
+ "serde_json",
  "serde_path_to_error",
  "smallvec",
  "thread_local",
@@ -9179,6 +9178,7 @@ dependencies = [
  "cargo-lock",
  "glob",
  "quote",
+ "rustc-hash 2.1.0",
  "syn 1.0.109",
  "turbo-tasks-macros-shared",
 ]
@@ -9251,6 +9251,7 @@ dependencies = [
  "parking_lot",
  "rayon",
  "rstest",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -9286,6 +9287,7 @@ dependencies = [
  "proc-macro2",
  "quote",
  "regex",
+ "rustc-hash 2.1.0",
  "syn 1.0.109",
  "turbo-tasks-macros-shared",
 ]
@@ -9339,7 +9341,7 @@ dependencies = [
  "ref-cast",
  "regex",
  "rstest",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "smallvec",
@@ -9361,7 +9363,7 @@ dependencies = [
  "anyhow",
  "auto-hash-map",
  "futures",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "tokio",
  "turbo-rcstr",
  "turbo-tasks",
@@ -9380,7 +9382,7 @@ dependencies = [
  "regex",
  "rstest",
  "rstest_reuse",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "smallvec",
@@ -9421,6 +9423,7 @@ dependencies = [
  "portpicker",
  "rand",
  "regex",
+ "rustc-hash 2.1.0",
  "serde_json",
  "tempfile",
  "tokio",
@@ -9438,7 +9441,7 @@ dependencies = [
  "anyhow",
  "indexmap 2.7.1",
  "indoc",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "serde_qs",
@@ -9468,6 +9471,7 @@ dependencies = [
  "mime",
  "owo-colors 3.5.0",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "tokio",
  "tracing",
@@ -9504,6 +9508,7 @@ dependencies = [
  "clap",
  "crossterm 0.26.1",
  "owo-colors 3.5.0",
+ "rustc-hash 2.1.0",
  "serde",
  "turbo-tasks",
  "turbo-tasks-build",
@@ -9531,7 +9536,7 @@ dependencies = [
  "regex",
  "roaring",
  "rstest",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_bytes",
  "serde_json",
@@ -9572,6 +9577,7 @@ dependencies = [
  "parcel_selectors",
  "parcel_sourcemap",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "smallvec",
  "swc_core",
@@ -9602,6 +9608,7 @@ dependencies = [
  "mime_guess",
  "parking_lot",
  "pin-project-lite",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "serde_qs",
@@ -9640,7 +9647,7 @@ dependencies = [
  "parking_lot",
  "petgraph",
  "regex",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "sourcemap",
@@ -9681,7 +9688,7 @@ dependencies = [
  "indexmap 2.7.1",
  "lightningcss",
  "modularize_imports",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "styled_components",
@@ -9740,6 +9747,7 @@ dependencies = [
  "mime",
  "once_cell",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_with",
  "turbo-tasks",
@@ -9797,6 +9805,7 @@ dependencies = [
  "owo-colors 3.5.0",
  "parking_lot",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "serde_with",
@@ -9822,7 +9831,7 @@ dependencies = [
  "anyhow",
  "indexmap 2.7.1",
  "indoc",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "tracing",
  "turbo-rcstr",
@@ -9890,6 +9899,7 @@ dependencies = [
  "anyhow",
  "once_cell",
  "regex",
+ "rustc-hash 2.1.0",
  "serde",
  "similar",
  "turbo-rcstr",
@@ -9910,6 +9920,7 @@ dependencies = [
  "futures",
  "indexmap 2.7.1",
  "once_cell",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "testing",
@@ -9946,7 +9957,7 @@ dependencies = [
  "postcard",
  "rayon",
  "rustc-demangle",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "serde_json",
  "tungstenite 0.21.0",
@@ -9964,7 +9975,7 @@ dependencies = [
  "once_cell",
  "parking_lot",
  "postcard",
- "rustc-hash 1.1.0",
+ "rustc-hash 2.1.0",
  "serde",
  "thread_local",
  "tokio",
@@ -10016,6 +10027,12 @@ name = "typed-arena"
 version = "2.0.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "6af6ae20167a9ece4bcb41af5b80f8a1f1df981f6391189ce00fd257af04126a"
+
+[[package]]
+name = "typeid"
+version = "1.0.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0e13db2e0ccd5e14a544e8a246ba2312cd25223f616442d7f2cb0e3db614236e"
 
 [[package]]
 name = "typenum"
@@ -11544,6 +11561,7 @@ dependencies = [
  "num-format",
  "owo-colors 3.5.0",
  "plotters",
+ "rustc-hash 2.1.0",
  "semver 1.0.23",
  "serde",
  "serde_json",

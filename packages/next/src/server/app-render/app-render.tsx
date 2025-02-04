@@ -681,8 +681,6 @@ async function warmupDevRender(
   const prerenderController = new AbortController()
   const cacheSignal = new CacheSignal()
 
-  // TODO(useCache): Should this be a PrerenderStorePPR if dynamicIO is not
-  // enabled?
   const prerenderStore: PrerenderStore = {
     type: 'prerender',
     phase: 'render',
@@ -1965,7 +1963,6 @@ async function renderToStream(
       ),
       isStaticGeneration: generateStaticHTML,
       getServerInsertedHTML,
-      serverInsertedHTMLToHead: true,
       validateRootLayout,
     })
   } catch (err) {
@@ -2111,7 +2108,6 @@ async function renderToStream(
           basePath: renderOpts.basePath,
           tracingMetadata: tracingMetadata,
         }),
-        serverInsertedHTMLToHead: true,
         validateRootLayout,
       })
     } catch (finalErr: any) {
@@ -3501,7 +3497,6 @@ async function prerenderToStream(
             ),
             isStaticGeneration: true,
             getServerInsertedHTML,
-            serverInsertedHTMLToHead: true,
             validateRootLayout,
           }),
           dynamicAccess: consumeDynamicAccess(
@@ -3827,7 +3822,6 @@ async function prerenderToStream(
           ),
           isStaticGeneration: true,
           getServerInsertedHTML,
-          serverInsertedHTMLToHead: true,
         }),
         // TODO: Should this include the SSR pass?
         collectedRevalidate: prerenderLegacyStore.revalidate,
@@ -4002,7 +3996,6 @@ async function prerenderToStream(
             basePath: renderOpts.basePath,
             tracingMetadata: tracingMetadata,
           }),
-          serverInsertedHTMLToHead: true,
           validateRootLayout,
         }),
         dynamicAccess: null,

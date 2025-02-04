@@ -18,5 +18,6 @@ proc-macro-error = "1.0.4"
 proc-macro2 = { workspace = true }
 quote = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 syn = { workspace = true, features = ["full", "extra-traits", "visit-mut"] }
 turbo-tasks-macros-shared = { workspace = true }

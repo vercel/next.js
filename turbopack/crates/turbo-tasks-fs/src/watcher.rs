@@ -1,5 +1,4 @@
 use std::{
-    collections::{HashMap, HashSet},
     mem::take,
     path::{Path, PathBuf},
     sync::{
@@ -15,6 +14,7 @@ use notify::{
     Config, EventKind, PollWatcher, RecommendedWatcher, RecursiveMode, Watcher,
 };
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use tracing::instrument;
 use turbo_tasks::{spawn_thread, Invalidator};
@@ -240,13 +240,13 @@ impl DiskWatcher {
         inner: Arc<DiskFileSystemInner>,
         report_invalidation_reason: bool,
     ) {
-        let mut batched_invalidate_path = HashSet::new();
-        let mut batched_invalidate_path_dir = HashSet::new();
-        let mut batched_invalidate_path_and_children = HashSet::new();
-        let mut batched_invalidate_path_and_children_dir = HashSet::new();
+        let mut batched_invalidate_path = FxHashSet::default();
+        let mut batched_invalidate_path_dir = FxHashSet::default();
+        let mut batched_invalidate_path_and_children = FxHashSet::default();
+        let mut batched_invalidate_path_and_children_dir = FxHashSet::default();
 
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-        let mut batched_new_paths = HashSet::new();
+        let mut batched_new_paths = FxHashSet::default();
 
         'outer: loop {
             let mut event = rx.recv().or(Err(TryRecvError::Disconnected));
@@ -459,7 +459,7 @@ fn invalidate(
 fn invalidate_path(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
+    invalidator_map: &mut FxHashMap<String, FxHashSet<Invalidator>>,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {
@@ -475,7 +475,7 @@ fn invalidate_path(
 fn invalidate_path_and_children_execute(
     inner: &DiskFileSystemInner,
     report_invalidation_reason: bool,
-    invalidator_map: &mut HashMap<String, HashSet<Invalidator>>,
+    invalidator_map: &mut FxHashMap<String, FxHashSet<Invalidator>>,
     paths: impl Iterator<Item = PathBuf>,
 ) {
     for path in paths {

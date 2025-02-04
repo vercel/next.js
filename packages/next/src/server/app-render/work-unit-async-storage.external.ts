@@ -160,6 +160,9 @@ export type UseCacheStore = {
   explicitExpire: undefined | number // server expiration time
   explicitStale: undefined | number // client expiration time
   tags: null | string[]
+  readonly hmrRefreshHash: string | undefined
+  readonly isHmrRefresh: boolean
+  readonly serverComponentsHmrCache: ServerComponentsHmrCache | undefined
 } & PhasePartial
 
 export type UnstableCacheStore = {
@@ -242,4 +245,14 @@ export function getRenderResumeDataCache(
   }
 
   return null
+}
+
+export function getHmrRefreshHash(
+  workUnitStore: WorkUnitStore
+): string | undefined {
+  return workUnitStore.type === 'cache'
+    ? workUnitStore.hmrRefreshHash
+    : workUnitStore.type === 'request'
+      ? workUnitStore.cookies.get('__next_hmr_refresh_hash__')?.value
+      : undefined
 }

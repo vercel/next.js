@@ -407,9 +407,10 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
     }
   }
 
-  protected async refreshServerComponents(): Promise<void> {
+  protected async refreshServerComponents(hash: string): Promise<void> {
     this.send({
       action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+      hash,
       // TODO: granular reloading of changes
       // entrypoints: serverComponentChanges,
     })
@@ -1359,7 +1360,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       }
     )
 
-    this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', () => {
+    this.multiCompiler.hooks.done.tap('NextjsHotReloaderForServer', (stats) => {
       const reloadAfterInvalidation = this.reloadAfterInvalidation
       this.reloadAfterInvalidation = false
 
@@ -1401,7 +1402,7 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
         reloadAfterInvalidation
       ) {
         this.resetFetch()
-        this.refreshServerComponents()
+        this.refreshServerComponents(stats.hash)
       }
 
       changedClientPages.clear()
@@ -1594,5 +1595,9 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
           url,
         })
       })
+  }
+
+  public close() {
+    this.webpackHotMiddleware?.close()
   }
 }

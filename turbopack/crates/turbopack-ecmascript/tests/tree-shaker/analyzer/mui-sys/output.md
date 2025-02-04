@@ -1033,45 +1033,45 @@ graph TD
 {
     ModuleEvaluation: 30,
     Export(
-        "gap",
-    ): 33,
-    Export(
-        "gridAutoRows",
-    ): 37,
-    Export(
-        "gridTemplateColumns",
-    ): 41,
-    Export(
         "columnGap",
     ): 32,
-    Export(
-        "gridArea",
-    ): 34,
-    Exports: 44,
-    Export(
-        "gridAutoFlow",
-    ): 36,
-    Export(
-        "gridColumn",
-    ): 38,
-    Export(
-        "gridAutoColumns",
-    ): 35,
-    Export(
-        "rowGap",
-    ): 43,
-    Export(
-        "gridTemplateRows",
-    ): 42,
-    Export(
-        "gridTemplateAreas",
-    ): 40,
     Export(
         "default",
     ): 31,
     Export(
+        "gap",
+    ): 33,
+    Export(
+        "gridArea",
+    ): 34,
+    Export(
+        "gridAutoColumns",
+    ): 35,
+    Export(
+        "gridAutoFlow",
+    ): 36,
+    Export(
+        "gridAutoRows",
+    ): 37,
+    Export(
+        "gridColumn",
+    ): 38,
+    Export(
         "gridRow",
     ): 39,
+    Export(
+        "gridTemplateAreas",
+    ): 40,
+    Export(
+        "gridTemplateColumns",
+    ): 41,
+    Export(
+        "gridTemplateRows",
+    ): 42,
+    Export(
+        "rowGap",
+    ): 43,
+    Exports: 44,
 }
 ```
 
@@ -1749,45 +1749,45 @@ import "__TURBOPACK_PART__" assert {
 {
     ModuleEvaluation: 30,
     Export(
-        "gap",
-    ): 33,
-    Export(
-        "gridAutoRows",
-    ): 37,
-    Export(
-        "gridTemplateColumns",
-    ): 41,
-    Export(
         "columnGap",
     ): 32,
-    Export(
-        "gridArea",
-    ): 34,
-    Exports: 44,
-    Export(
-        "gridAutoFlow",
-    ): 36,
-    Export(
-        "gridColumn",
-    ): 38,
-    Export(
-        "gridAutoColumns",
-    ): 35,
-    Export(
-        "rowGap",
-    ): 43,
-    Export(
-        "gridTemplateRows",
-    ): 42,
-    Export(
-        "gridTemplateAreas",
-    ): 40,
     Export(
         "default",
     ): 31,
     Export(
+        "gap",
+    ): 33,
+    Export(
+        "gridArea",
+    ): 34,
+    Export(
+        "gridAutoColumns",
+    ): 35,
+    Export(
+        "gridAutoFlow",
+    ): 36,
+    Export(
+        "gridAutoRows",
+    ): 37,
+    Export(
+        "gridColumn",
+    ): 38,
+    Export(
         "gridRow",
     ): 39,
+    Export(
+        "gridTemplateAreas",
+    ): 40,
+    Export(
+        "gridTemplateColumns",
+    ): 41,
+    Export(
+        "gridTemplateRows",
+    ): 42,
+    Export(
+        "rowGap",
+    ): 43,
+    Exports: 44,
 }
 ```
 

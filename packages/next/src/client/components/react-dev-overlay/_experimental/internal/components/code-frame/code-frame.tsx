@@ -5,7 +5,7 @@ import stripAnsi from 'next/dist/compiled/strip-ansi'
 
 import { useMemo } from 'react'
 import { HotlinkedText } from '../hot-linked-text'
-import { getFrameSource } from '../../helpers/stack-frame'
+import { getFrameSource } from '../../../../internal/helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
 import { ExternalIcon } from '../../icons/external'
@@ -111,6 +111,10 @@ export const CODE_FRAME_STYLES = css`
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
+  }
+
+  [data-nextjs-codeframe] pre {
+    white-space: pre-wrap;
   }
 
   .code-frame-header {

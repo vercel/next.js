@@ -123,13 +123,12 @@ impl InstrumentationEndpoint {
         .await?
         .clone_value();
 
-        let Some(module) =
-            ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module).await?
+        let Some(module) = ResolvedVc::try_downcast::<Box<dyn EcmascriptChunkPlaceable>>(module)
         else {
             bail!("Entry module must be evaluatable");
         };
 
-        let Some(evaluatable) = ResolvedVc::try_sidecast(module).await? else {
+        let Some(evaluatable) = ResolvedVc::try_sidecast(module) else {
             bail!("Entry module must be evaluatable");
         };
         evaluatable_assets.push(evaluatable);
@@ -155,7 +154,7 @@ impl InstrumentationEndpoint {
         let userland_module = self.core_modules().await?.userland_module;
         let module_graph = this.project.module_graph(*userland_module);
 
-        let Some(module) = ResolvedVc::try_downcast(userland_module).await? else {
+        let Some(module) = ResolvedVc::try_downcast(userland_module) else {
             bail!("Entry module must be evaluatable");
         };
 

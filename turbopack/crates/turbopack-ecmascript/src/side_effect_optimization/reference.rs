@@ -67,7 +67,7 @@ impl ModuleReference for EcmascriptModulePartReference {
         let module = if let Some(part) = self.part {
             match *part.await? {
                 ModulePart::Locals => {
-                    let Some(module) = ResolvedVc::try_downcast_type(self.module).await? else {
+                    let Some(module) = ResolvedVc::try_downcast_type(self.module) else {
                         bail!(
                             "Expected EcmascriptModuleAsset for a EcmascriptModulePartReference \
                              with ModulePart::Locals"
@@ -119,7 +119,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
-            .get_ident()
+            .get_ident(module_graph, chunking_context)
             .await?
             .context("part module reference should have an ident")?;
 

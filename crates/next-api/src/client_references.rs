@@ -1,11 +1,10 @@
-use std::collections::HashMap;
-
 use anyhow::Result;
 use next_core::{
     self,
     next_client_reference::{CssClientReferenceModule, EcmascriptClientReferenceModule},
     next_server_component::server_component_module::NextServerComponentModule,
 };
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_tasks::{
     debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TryFlatJoinIterExt, Vc,
@@ -26,7 +25,7 @@ pub enum ClientReferenceMapType {
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct ClientReferencesSet(HashMap<ResolvedVc<Box<dyn Module>>, ClientReferenceMapType>);
+pub struct ClientReferencesSet(FxHashMap<ResolvedVc<Box<dyn Module>>, ClientReferenceMapType>);
 
 #[turbo_tasks::function]
 pub async fn map_client_references(
@@ -39,7 +38,7 @@ pub async fn map_client_references(
             let module = node.module;
 
             if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type_sync::<EcmascriptClientReferenceModule>(module)
+                ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(module)
             {
                 Ok(Some((
                     module,
@@ -49,7 +48,7 @@ pub async fn map_client_references(
                     },
                 )))
             } else if let Some(client_reference_module) =
-                ResolvedVc::try_downcast_type_sync::<CssClientReferenceModule>(module)
+                ResolvedVc::try_downcast_type::<CssClientReferenceModule>(module)
             {
                 Ok(Some((
                     module,
@@ -58,7 +57,7 @@ pub async fn map_client_references(
                     )),
                 )))
             } else if let Some(server_component) =
-                ResolvedVc::try_downcast_type_sync::<NextServerComponentModule>(module)
+                ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
             {
                 Ok(Some((
                     module,

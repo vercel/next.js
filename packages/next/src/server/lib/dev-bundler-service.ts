@@ -103,4 +103,8 @@ export class DevBundlerService {
       data: this.appIsrManifest,
     })
   }
+
+  public close() {
+    this.bundler.hotReloader.close()
+  }
 }

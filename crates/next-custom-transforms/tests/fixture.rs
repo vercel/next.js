@@ -26,6 +26,7 @@ use next_custom_transforms::transforms::{
 use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
+    atoms::atom,
     common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
         ast::Pass,
@@ -130,8 +131,8 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -150,8 +151,8 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -170,8 +171,8 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -276,8 +277,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -296,8 +297,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -316,8 +317,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -336,8 +337,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),

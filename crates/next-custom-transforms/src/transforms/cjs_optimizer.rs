@@ -7,7 +7,7 @@ use swc_core::{
             CallExpr, Callee, Decl, Expr, Id, Ident, IdentName, Lit, MemberExpr, MemberProp,
             Module, ModuleItem, Pat, Script, Stmt, VarDecl, VarDeclKind, VarDeclarator,
         },
-        atoms::{Atom, JsWord},
+        atoms::Atom,
         utils::{prepend_stmts, private_ident, ExprFactory, IdentRenamer},
         visit::{noop_visit_mut_type, noop_visit_type, Visit, VisitMut, VisitMutWith, VisitWith},
     },
@@ -23,18 +23,18 @@ pub fn cjs_optimizer(config: Config, unresolved_ctxt: SyntaxContext) -> CjsOptim
 
 #[derive(Clone, Debug, Deserialize)]
 pub struct Config {
-    pub packages: FxHashMap<String, PackageConfig>,
+    pub packages: FxHashMap<Atom, PackageConfig>,
 }
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PackageConfig {
-    pub transforms: FxHashMap<JsWord, JsWord>,
+    pub transforms: FxHashMap<Atom, Atom>,
 }
 
 pub struct CjsOptimizer {
     data: State,
-    packages: FxHashMap<String, PackageConfig>,
+    packages: FxHashMap<Atom, PackageConfig>,
     unresolved_ctxt: SyntaxContext,
 }
 
@@ -46,11 +46,11 @@ struct State {
     imports: FxHashMap<Id, ImportRecord>,
 
     /// `(module_specifier, property): (identifier)`
-    replaced: FxHashMap<(Atom, JsWord), Id>,
+    replaced: FxHashMap<(Atom, Atom), Id>,
 
     extra_stmts: Vec<Stmt>,
 
-    rename_map: FxHashMap<Id, Id>,
+    rename_map: swc_rustc_hash::FxHashMap<Id, Id>,
 
     /// Ignored identifiers for `obj` of [MemberExpr].
     ignored: FxHashSet<Id>,
@@ -64,7 +64,7 @@ struct ImportRecord {
 }
 
 impl CjsOptimizer {
-    fn should_rewrite(&self, module_specifier: &str) -> Option<&FxHashMap<JsWord, JsWord>> {
+    fn should_rewrite(&self, module_specifier: &Atom) -> Option<&FxHashMap<Atom, Atom>> {
         self.packages.get(module_specifier).map(|v| &v.transforms)
     }
 }

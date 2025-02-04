@@ -31,6 +31,7 @@ once_cell = { workspace = true }
 owo-colors = { workspace = true }
 parking_lot = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 serde_with = { workspace = true, features = ["base64"] }

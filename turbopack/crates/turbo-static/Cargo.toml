@@ -13,6 +13,7 @@ itertools.workspace = true
 lsp-server = "0.7.6"
 lsp-types = "0.95.1"
 proc-macro2 = { workspace = true, features = ["span-locations"] }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 serde_json.workspace = true
 serde_path_to_error = "0.1.16"

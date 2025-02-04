@@ -140,6 +140,7 @@ dhat = { version = "0.3.2" }
 dialoguer = "0.10.3"
 dunce = "1.0.3"
 either = "1.9.0"
+erased-serde = "0.4.5"
 futures = "0.3.26"
 futures-retry = "0.6.0"
 hashbrown = "0.14.5"
@@ -181,15 +182,14 @@ rayon = "1.10.0"
 regex = "1.10.6"
 reqwest = { version = "=0.11.17", default-features = false }
 rstest = "0.16.0"
-rustc-hash = "1.1.0"
+rustc-hash = "2.1.0"
 semver = "1.0.16"
-serde = { version = "1.0.152", features = ["derive"] }
-serde_json = "1.0.93"
+serde = { version = "1.0.217", features = ["derive"] }
+serde_json = "1.0.138"
 serde_bytes = "0.11.15"
-serde_path_to_error = "0.1.9"
-serde_qs = "0.11.0"
-serde_with = "2.3.2"
-serde_yaml = "0.9.17"
+serde_path_to_error = "0.1.16"
+serde_qs = "0.13.0"
+serde_with = "3.12.0"
 shadow-rs = { version = "0.37.0", default-features = false, features = [
   "tzdb",
 ] }
@@ -201,6 +201,7 @@ smallvec = { version = "1.13.1", features = [
 ] }
 sourcemap = "9.0.0"
 strsim = "0.11.1"
+swc-rustc-hash = { package = "rustc-hash", version = "1.1.0" } # used with swc
 syn = "1.0.107"
 tempfile = "3.3.0"
 thread_local = "1.1.8"

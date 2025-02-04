@@ -171,7 +171,7 @@ impl EcmascriptChunkItem for ModuleChunkItem {
                 path = StringifyJs(
                     &self
                         .chunking_context
-                        .asset_url(self.static_asset.ident())
+                        .asset_url(self.static_asset.path())
                         .await?
                 )
             )

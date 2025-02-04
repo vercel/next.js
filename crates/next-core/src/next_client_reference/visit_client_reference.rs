@@ -1,6 +1,7 @@
-use std::{collections::HashSet, future::Future};
+use std::future::Future;
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -12,7 +13,9 @@ use turbo_tasks::{
 };
 use turbo_tasks_fs::FileSystemPath;
 use turbopack::css::chunk::CssChunkPlaceable;
-use turbopack_core::{module::Module, reference::primary_referenced_modules};
+use turbopack_core::{
+    chunk::ChunkingType, module::Module, reference::primary_chunkable_referenced_modules,
+};
 
 use crate::{
     next_client_reference::{
@@ -95,7 +98,7 @@ impl Default for ClientReferenceGraphResult {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct VisitedClientReferenceGraphNodes(HashSet<VisitClientReferenceNode>);
+pub struct VisitedClientReferenceGraphNodes(FxHashSet<VisitClientReferenceNode>);
 
 #[turbo_tasks::value_impl]
 impl VisitedClientReferenceGraphNodes {
@@ -165,7 +168,6 @@ pub async fn client_reference_graph(
                         Ok(VisitClientReferenceNode {
                             state: if let Some(server_component) =
                                 ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
-                                    .await?
                             {
                                 VisitClientReferenceNodeState::InServerComponent {
                                     server_component,
@@ -402,79 +404,82 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 }
             };
 
-            let referenced_modules = primary_referenced_modules(*parent_module).await?;
+            let referenced_modules = primary_chunkable_referenced_modules(*parent_module).await?;
 
-            let referenced_modules = referenced_modules.iter().map(|module| async move {
-                if let Some(client_reference_module) =
-                    ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
-                        .await?
-                {
-                    return Ok(VisitClientReferenceNode {
-                        state: node.state,
-                        ty: VisitClientReferenceNodeType::ClientReference(
-                            ClientReference {
-                                server_component: node.state.server_component(),
-                                ty: ClientReferenceType::EcmascriptClientReference(
-                                    client_reference_module,
-                                ),
+            let referenced_modules = referenced_modules
+                .iter()
+                .flat_map(|(chunking_type, modules)| match chunking_type {
+                    ChunkingType::Traced => None,
+                    _ => Some(modules.iter()),
+                })
+                .flatten()
+                .map(|module| async move {
+                    if let Some(client_reference_module) =
+                        ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
+                    {
+                        return Ok(VisitClientReferenceNode {
+                            state: node.state,
+                            ty: VisitClientReferenceNodeType::ClientReference(
+                                ClientReference {
+                                    server_component: node.state.server_component(),
+                                    ty: ClientReferenceType::EcmascriptClientReference(
+                                        client_reference_module,
+                                    ),
+                                },
+                                client_reference_module.ident().to_string().await?,
+                            ),
+                        });
+                    }
+
+                    if let Some(client_reference_module) =
+                        ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
+                    {
+                        return Ok(VisitClientReferenceNode {
+                            state: node.state,
+                            ty: VisitClientReferenceNodeType::ClientReference(
+                                ClientReference {
+                                    server_component: node.state.server_component(),
+                                    ty: ClientReferenceType::CssClientReference(
+                                        client_reference_module.await?.client_module,
+                                    ),
+                                },
+                                client_reference_module.ident().to_string().await?,
+                            ),
+                        });
+                    }
+
+                    if let Some(server_component_asset) =
+                        ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
+                    {
+                        return Ok(VisitClientReferenceNode {
+                            state: VisitClientReferenceNodeState::InServerComponent {
+                                server_component: server_component_asset,
                             },
-                            client_reference_module.ident().to_string().await?,
-                        ),
-                    });
-                }
+                            ty: VisitClientReferenceNodeType::ServerComponentEntry(
+                                server_component_asset,
+                                server_component_asset.ident().to_string().await?,
+                            ),
+                        });
+                    }
 
-                if let Some(client_reference_module) =
-                    ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module).await?
-                {
-                    return Ok(VisitClientReferenceNode {
+                    if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module).is_some() {
+                        return Ok(VisitClientReferenceNode {
+                            state: VisitClientReferenceNodeState::InServerUtil,
+                            ty: VisitClientReferenceNodeType::ServerUtilEntry(
+                                *module,
+                                module.ident().to_string().await?,
+                            ),
+                        });
+                    }
+
+                    Ok(VisitClientReferenceNode {
                         state: node.state,
-                        ty: VisitClientReferenceNodeType::ClientReference(
-                            ClientReference {
-                                server_component: node.state.server_component(),
-                                ty: ClientReferenceType::CssClientReference(
-                                    client_reference_module.await?.client_module,
-                                ),
-                            },
-                            client_reference_module.ident().to_string().await?,
-                        ),
-                    });
-                }
-
-                if let Some(server_component_asset) =
-                    ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module).await?
-                {
-                    return Ok(VisitClientReferenceNode {
-                        state: VisitClientReferenceNodeState::InServerComponent {
-                            server_component: server_component_asset,
-                        },
-                        ty: VisitClientReferenceNodeType::ServerComponentEntry(
-                            server_component_asset,
-                            server_component_asset.ident().to_string().await?,
-                        ),
-                    });
-                }
-
-                if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
-                    .await?
-                    .is_some()
-                {
-                    return Ok(VisitClientReferenceNode {
-                        state: VisitClientReferenceNodeState::InServerUtil,
-                        ty: VisitClientReferenceNodeType::ServerUtilEntry(
+                        ty: VisitClientReferenceNodeType::Internal(
                             *module,
                             module.ident().to_string().await?,
                         ),
-                    });
-                }
-
-                Ok(VisitClientReferenceNode {
-                    state: node.state,
-                    ty: VisitClientReferenceNodeType::Internal(
-                        *module,
-                        module.ident().to_string().await?,
-                    ),
-                })
-            });
+                    })
+                });
 
             let assets = referenced_modules.try_join().await?;
 
