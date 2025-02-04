@@ -58839,7 +58839,7 @@ function getJobResults(octokit, token, sha) {
         //   nextSwcBuildSize,
         // })
         // Filter out next.js integration test jobs
-        const integrationTestJobs = jobs === null || jobs === void 0 ? void 0 : jobs.filter((job) => /Next\.js integration test \([^)]*\) \([^)]*\)$/.test(job.name));
+        const integrationTestJobs = jobs === null || jobs === void 0 ? void 0 : jobs.filter((job) => /Next\.js integration test \([^)]*\) \([^)]*\)/.test(job.name));
         console.log(`Logs found for ${integrationTestJobs.length} jobs`, integrationTestJobs.map((job) => job.name));
         // Iterate over all of next.js integration test jobs, read logs and collect failed test results if exists.
         const fullJobLogsFromWorkflow = yield Promise.all(integrationTestJobs.map((job) => fetchJobLogsFromWorkflow(octokit, token, job)));
