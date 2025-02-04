@@ -223,9 +223,9 @@ pub async fn get_client_compile_time_info(
         .to_resolved()
         .await?,
     )
-    .defines(client_defines(&*node_env).resolved_cell())
+    .defines(client_defines(&node_env).resolved_cell())
     .free_var_references(
-        free_var_references!(..client_defines(&*node_env).into_iter()).resolved_cell(),
+        free_var_references!(..client_defines(&node_env).into_iter()).resolved_cell(),
     )
     .cell()
     .await
