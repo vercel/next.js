@@ -95,7 +95,17 @@ pub struct EntryChunkGroupResult {
     Default, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize, TraceRawVcs, NonLocalValue,
 )]
 pub struct ChunkingConfig {
+    /// Try to avoid creating more than 1 chunk smaller than this size.
+    /// It merges multiple small chunks into bigger ones to avoid that.
     pub min_chunk_size: usize,
+
+    /// Try to avoid creating more than this number of chunks per group.
+    /// It merges multiple chunks into bigger ones to avoid that.
+    pub max_chunk_count_per_group: usize,
+
+    /// Never merges chunks bigger than this size with other chunks.
+    /// This makes sure that code in big chunks is not duplicated in multiple chunks.
+    pub max_merge_chunk_size: usize,
 
     #[allow(dead_code)]
     pub placeholder_for_future_extensions: (),
@@ -135,7 +145,7 @@ pub trait ChunkingContext {
 
     /// Returns a URL (relative or absolute, depending on the asset prefix) to
     /// the static asset based on its `ident`.
-    fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>>;
+    fn asset_url(self: Vc<Self>, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>>;
 
     fn asset_path(
         self: Vc<Self>,

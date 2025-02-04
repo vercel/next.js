@@ -6,12 +6,8 @@ const REACT_ERROR_STACK_BOTTOM_FRAME_REGEX = new RegExp(
   `(at ${REACT_ERROR_STACK_BOTTOM_FRAME} )|(${REACT_ERROR_STACK_BOTTOM_FRAME}\\@)`
 )
 
-const captureOwnerStack = (React as any).captureOwnerStack
-  ? (React as any).captureOwnerStack
-  : () => ''
-
 export function getReactStitchedError<T = unknown>(err: T): Error | T {
-  if (typeof (React as any).captureOwnerStack !== 'function') {
+  if (!process.env.__NEXT_REACT_OWNER_STACK) {
     return err
   }
   const isErrorInstance = isError(err)
@@ -39,8 +35,9 @@ export function getReactStitchedError<T = unknown>(err: T): Error | T {
 
 function appendOwnerStack(error: Error) {
   let stack = error.stack || ''
+  // This module is only bundled in development mode so this is safe.
+  const ownerStack = React.captureOwnerStack()
   // Avoid duplicate overriding stack frames
-  const ownerStack = captureOwnerStack()
   if (ownerStack && stack.endsWith(ownerStack) === false) {
     stack += ownerStack
     // Override stack

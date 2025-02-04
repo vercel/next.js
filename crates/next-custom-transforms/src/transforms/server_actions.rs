@@ -1,14 +1,14 @@
 use std::{
-    collections::{BTreeMap, HashSet},
+    cell::RefCell,
+    collections::{hash_map, BTreeMap},
     convert::{TryFrom, TryInto},
     mem::{replace, take},
     rc::Rc,
 };
 
-use dashmap::DashMap;
 use hex::encode as hex_encode;
 use indoc::formatdoc;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 use sha1::{Digest, Sha1};
 use swc_core::{
@@ -31,7 +31,7 @@ use turbo_rcstr::RcStr;
 #[serde(deny_unknown_fields, rename_all = "camelCase")]
 pub struct Config {
     pub is_react_server_layer: bool,
-    pub dynamic_io_enabled: bool,
+    pub use_cache_enabled: bool,
     pub hash_salt: String,
     pub cache_kinds: FxHashSet<RcStr>,
 }
@@ -104,7 +104,7 @@ enum ServerActionsErrorKind {
         span: Span,
         cache_kind: RcStr,
     },
-    UseCacheWithoutDynamicIO {
+    UseCacheWithoutExperimentalFlag {
         span: Span,
         directive: String,
     },
@@ -123,7 +123,7 @@ pub fn server_actions<C: Comments>(
     file_name: &FileName,
     config: Config,
     comments: C,
-    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 ) -> impl Pass {
     visit_mut_pass(ServerActions {
         config,
@@ -161,7 +161,7 @@ pub fn server_actions<C: Comments>(
         private_ctxt: SyntaxContext::empty().apply_mark(Mark::new()),
 
         arrow_or_fn_expr_ident: None,
-        exported_local_ids: HashSet::new(),
+        exported_local_ids: FxHashSet::default(),
 
         use_cache_telemetry_tracker,
     })
@@ -218,9 +218,9 @@ struct ServerActions<C: Comments> {
     private_ctxt: SyntaxContext,
 
     arrow_or_fn_expr_ident: Option<Ident>,
-    exported_local_ids: HashSet<Id>,
+    exported_local_ids: FxHashSet<Id>,
 
-    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 }
 
 impl<C: Comments> ServerActions<C> {
@@ -2618,7 +2618,7 @@ struct DirectiveVisitor<'a> {
     directive: Option<Directive>,
     has_file_directive: bool,
     is_allowed_position: bool,
-    use_cache_telemetry_tracker: Rc<DashMap<String, usize>>,
+    use_cache_telemetry_tracker: Rc<RefCell<FxHashMap<String, usize>>>,
 }
 
 impl DirectiveVisitor<'_> {
@@ -2684,8 +2684,8 @@ impl DirectiveVisitor<'_> {
                             location: self.location.clone(),
                         });
                     } else if self.is_allowed_position {
-                        if !self.config.dynamic_io_enabled {
-                            emit_error(ServerActionsErrorKind::UseCacheWithoutDynamicIO {
+                        if !self.config.use_cache_enabled {
+                            emit_error(ServerActionsErrorKind::UseCacheWithoutExperimentalFlag {
                                 span: *span,
                                 directive: value.to_string(),
                             });
@@ -2779,14 +2779,13 @@ impl DirectiveVisitor<'_> {
 
     // Increment telemetry counter tracking usage of "use cache" directives
     fn increment_cache_usage_counter(&mut self, cache_kind: &str) {
-        let entry = self
-            .use_cache_telemetry_tracker
-            .entry(cache_kind.to_string());
+        let mut tracker_map = RefCell::borrow_mut(&self.use_cache_telemetry_tracker);
+        let entry = tracker_map.entry(cache_kind.to_string());
         match entry {
-            dashmap::mapref::entry::Entry::Occupied(mut occupied) => {
+            hash_map::Entry::Occupied(mut occupied) => {
                 *occupied.get_mut() += 1;
             }
-            dashmap::mapref::entry::Entry::Vacant(vacant) => {
+            hash_map::Entry::Vacant(vacant) => {
                 vacant.insert(1);
             }
         }
@@ -3094,11 +3093,11 @@ fn emit_error(error_kind: ServerActionsErrorKind) {
                 "#
             },
         ),
-        ServerActionsErrorKind::UseCacheWithoutDynamicIO { span, directive } => (
+        ServerActionsErrorKind::UseCacheWithoutExperimentalFlag { span, directive } => (
             span,
             formatdoc! {
                 r#"
-                    To use "{directive}", please enable the experimental feature flag "dynamicIO" in your Next.js config.
+                    To use "{directive}", please enable the experimental feature flag "useCache" in your Next.js config.
 
                     Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
                 "#

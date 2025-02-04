@@ -580,6 +580,9 @@ impl From<&FreeVarReference> for JsValue {
             FreeVarReference::Ident(_) => {
                 JsValue::unknown_empty(false, "compile time injected ident")
             }
+            FreeVarReference::Member(_, _) => {
+                JsValue::unknown_empty(false, "compile time injected member")
+            }
             FreeVarReference::EcmaScriptModule { .. } => {
                 JsValue::unknown_empty(false, "compile time injected free var module")
             }

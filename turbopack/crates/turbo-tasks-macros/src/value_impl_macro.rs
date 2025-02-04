@@ -122,6 +122,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let func_args = func_args
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
+                let local = func_args.local.is_some();
                 let local_cells = func_args.local_cells.is_some();
 
                 let Some(turbo_fn) =
@@ -135,12 +136,14 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
-                let native_fn = NativeFn::new(
-                    &format!("{ty}::{ident}", ty = ty.to_token_stream()),
-                    &parse_quote! { <#ty>::#inline_function_ident },
-                    turbo_fn.is_method(),
+                let native_fn = NativeFn {
+                    function_path_string: format!("{ty}::{ident}", ty = ty.to_token_stream()),
+                    function_path: parse_quote! { <#ty>::#inline_function_ident },
+                    is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: None, // not a trait method
+                    local,
                     local_cells,
-                );
+                };
 
                 let native_function_ident = get_inherent_impl_function_ident(ty_ident, ident);
                 let native_function_ty = native_fn.ty();
@@ -221,6 +224,7 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let func_args = func_args
                     .inspect_err(|err| errors.push(err.to_compile_error()))
                     .unwrap_or_default();
+                let local = func_args.local.is_some();
                 let local_cells = func_args.local_cells.is_some();
 
                 let Some(turbo_fn) =
@@ -239,18 +243,20 @@ pub fn value_impl(args: TokenStream, input: TokenStream) -> TokenStream {
                 let (inline_signature, inline_block) = turbo_fn.inline_signature_and_block(block);
                 let inline_attrs = filter_inline_attributes(attrs.iter().copied());
 
-                let native_fn = NativeFn::new(
-                    &format!(
+                let native_fn = NativeFn {
+                    function_path_string: format!(
                         "<{ty} as {trait_path}>::{ident}",
                         ty = ty.to_token_stream(),
                         trait_path = trait_path.to_token_stream()
                     ),
-                    &parse_quote! {
+                    function_path: parse_quote! {
                         <#ty as #inline_extension_trait_ident>::#inline_function_ident
                     },
-                    turbo_fn.is_method(),
+                    is_method: turbo_fn.is_method(),
+                    filter_trait_call_args: turbo_fn.filter_trait_call_args(),
+                    local,
                     local_cells,
-                );
+                };
 
                 let native_function_ident =
                     get_trait_impl_function_ident(ty_ident, &trait_ident, ident);

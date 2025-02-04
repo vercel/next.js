@@ -1,7 +1,8 @@
-use std::{borrow::Cow, collections::HashSet};
+use std::borrow::Cow;
 
 use proc_macro2::{Ident, Span, TokenStream};
 use quote::{quote, quote_spanned, ToTokens};
+use rustc_hash::FxHashSet;
 use syn::{
     parenthesized,
     parse::{Parse, ParseStream},
@@ -27,11 +28,11 @@ pub struct TurboFn<'a> {
 
     output: Type,
     this: Option<Input>,
-    inputs: Vec<Input>,
+    exposed_inputs: Vec<Input>,
     /// Should we return `OperationVc` and require that all arguments are `NonLocalValue`s?
     operation: bool,
     /// Should this function use `TaskPersistence::LocalCells`?
-    local_cells: bool,
+    local: bool,
 }
 
 #[derive(Debug)]
@@ -75,7 +76,7 @@ impl TurboFn<'_> {
 
         let mut raw_inputs = orig_signature.inputs.iter();
         let mut this = None;
-        let mut inputs = Vec::with_capacity(raw_inputs.len());
+        let mut exposed_inputs = Vec::with_capacity(raw_inputs.len());
 
         if let Some(possibly_receiver) = raw_inputs.next() {
             match possibly_receiver {
@@ -218,7 +219,7 @@ impl TurboFn<'_> {
                             }
                             let ident = ident.ident.clone();
 
-                            inputs.push(Input {
+                            exposed_inputs.push(Input {
                                 ident,
                                 ty: (*typed.ty).clone(),
                             });
@@ -227,7 +228,7 @@ impl TurboFn<'_> {
                         // We can't support destructuring patterns (or other kinds of patterns).
                         let ident = Ident::new("arg1", typed.pat.span());
 
-                        inputs.push(Input {
+                        exposed_inputs.push(Input {
                             ident,
                             ty: (*typed.ty).clone(),
                         });
@@ -249,7 +250,7 @@ impl TurboFn<'_> {
                         Ident::new(&format!("arg{}", i + 2), typed.pat.span())
                     };
 
-                    inputs.push(Input {
+                    exposed_inputs.push(Input {
                         ident,
                         ty: (*typed.ty).clone(),
                     });
@@ -272,9 +273,9 @@ impl TurboFn<'_> {
             ident: orig_ident,
             output,
             this,
-            inputs,
+            exposed_inputs,
             operation: args.operation.is_some(),
-            local_cells: args.local_cells.is_some(),
+            local: args.local.is_some(),
             inline_ident,
         })
     }
@@ -286,7 +287,7 @@ impl TurboFn<'_> {
             .this
             .as_ref()
             .into_iter()
-            .chain(self.inputs.iter())
+            .chain(self.exposed_inputs.iter())
             .map(|input| {
                 FnArg::Typed(PatType {
                     attrs: Vec::new(),
@@ -348,6 +349,15 @@ impl TurboFn<'_> {
             .orig_signature
             .inputs
             .iter()
+            .filter(|arg| {
+                let FnArg::Typed(pat_type) = arg else {
+                    return true;
+                };
+                let Pat::Ident(pat_id) = &*pat_type.pat else {
+                    return true;
+                };
+                inline_inputs_identifier_filter(&pat_id.ident)
+            })
             .enumerate()
             .map(|(idx, arg)| match arg {
                 FnArg::Receiver(_) => (arg.clone(), None),
@@ -470,18 +480,65 @@ impl TurboFn<'_> {
         &self.inline_ident
     }
 
-    fn input_idents(&self) -> impl Iterator<Item = &Ident> {
-        self.inputs.iter().map(|Input { ident, .. }| ident)
+    fn inline_input_idents(&self) -> impl Iterator<Item = &Ident> {
+        self.exposed_input_idents()
+            .filter(|id| inline_inputs_identifier_filter(id))
     }
 
-    pub fn input_types(&self) -> Vec<&Type> {
-        self.inputs.iter().map(|Input { ty, .. }| ty).collect()
+    fn exposed_input_idents(&self) -> impl Iterator<Item = &Ident> {
+        self.exposed_inputs.iter().map(|Input { ident, .. }| ident)
+    }
+
+    pub fn exposed_input_types(&self) -> impl Iterator<Item = Cow<'_, Type>> {
+        self.exposed_inputs
+            .iter()
+            .map(|Input { ty, .. }| expand_task_input_type(ty))
+    }
+
+    pub fn filter_trait_call_args(&self) -> Option<FilterTraitCallArgsTokens> {
+        // we only need to do this on trait methods, but we're doing it on all methods because we
+        // don't know if we're a trait method or not (we could pass this information down)
+        if self.is_method() {
+            let inline_input_idents: Vec<_> = self.inline_input_idents().collect();
+            if inline_input_idents.len() != self.exposed_inputs.len() {
+                let exposed_input_idents: Vec<_> = self.exposed_input_idents().collect();
+                let exposed_input_types: Vec<_> = self.exposed_input_types().collect();
+                return Some(FilterTraitCallArgsTokens {
+                    filter_owned: quote! {
+                        |magic_any| {
+                            let (#(#exposed_input_idents,)*) =
+                                *turbo_tasks::macro_helpers
+                                    ::downcast_args_owned::<(#(#exposed_input_types,)*)>(magic_any);
+                            ::std::boxed::Box::new((#(#inline_input_idents,)*))
+                        }
+                    },
+                    filter_and_resolve: quote! {
+                        |magic_any| {
+                            Box::pin(async move {
+                                let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
+                                    ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
+                                let resolved = (#(
+                                    <_ as turbo_tasks::TaskInput>::resolve(
+                                        #inline_input_idents
+                                    ).await?,
+                                )*);
+                                Ok(
+                                    ::std::boxed::Box::new(resolved)
+                                    as ::std::boxed::Box<dyn turbo_tasks::MagicAny>
+                                )
+                            })
+                        }
+                    },
+                });
+            }
+        }
+        None
     }
 
     pub fn persistence(&self) -> impl ToTokens {
-        if self.local_cells {
+        if self.local {
             quote! {
-                turbo_tasks::TaskPersistence::LocalCells
+                turbo_tasks::TaskPersistence::Local
             }
         } else {
             quote! {
@@ -491,9 +548,9 @@ impl TurboFn<'_> {
     }
 
     pub fn persistence_with_this(&self) -> impl ToTokens {
-        if self.local_cells {
+        if self.local {
             quote! {
-                turbo_tasks::TaskPersistence::LocalCells
+                turbo_tasks::TaskPersistence::Local
             }
         } else {
             quote! {
@@ -557,7 +614,7 @@ impl TurboFn<'_> {
         let ident = &self.ident;
         let output = &self.output;
         let assertions = self.get_assertions();
-        let inputs = self.input_idents();
+        let inputs = self.exposed_input_idents();
         let persistence = self.persistence_with_this();
         parse_quote! {
             {
@@ -582,7 +639,7 @@ impl TurboFn<'_> {
     /// given native function.
     pub fn static_block(&self, native_function_id_ident: &Ident) -> Block {
         let output = &self.output;
-        let inputs = self.input_idents();
+        let inputs = self.inline_input_idents();
         let assertions = self.get_assertions();
         let mut block = if let Some(converted_this) = self.converted_this() {
             let persistence = self.persistence_with_this();
@@ -593,9 +650,9 @@ impl TurboFn<'_> {
                     let this = #converted_this;
                     let persistence = #persistence;
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
-                        turbo_tasks::dynamic_this_call(
+                        turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
-                            this,
+                            Some(this),
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -612,6 +669,7 @@ impl TurboFn<'_> {
                     <#output as turbo_tasks::task::TaskOutput>::try_from_raw_vc(
                         turbo_tasks::dynamic_call(
                             *#native_function_id_ident,
+                            None,
                             inputs as std::boxed::Box<dyn turbo_tasks::MagicAny>,
                             persistence,
                         )
@@ -696,12 +754,16 @@ pub struct FunctionArguments {
     ///
     /// This should only be used by the task that directly performs the IO. Tasks that transitively
     /// perform IO should not be manually annotated.
-    io_markers: HashSet<IoMarker>,
+    io_markers: FxHashSet<IoMarker>,
     /// Should the function return an `OperationVc` instead of a `Vc`? Also ensures that all
     /// arguments are `OperationValue`s. Mutually exclusive with the `local_cells` flag.
     ///
     /// If there is an error due to this option being set, it should be reported to this span.
     operation: Option<Span>,
+    /// Does not run the function as a real task, and instead runs it inside the parent task using
+    /// task-local state. The function call itself will not be cached, but cells will be created on
+    /// the parent task.
+    pub local: Option<Span>,
     /// Changes the behavior of `Vc::cell` to create local cells that are not cached across task
     /// executions. Cells can be converted to their non-local versions by calling `Vc::resolve`.
     ///
@@ -731,23 +793,29 @@ impl Parse for FunctionArguments {
                 ("operation", Meta::Path(_)) => {
                     parsed_args.operation = Some(meta.span());
                 }
+                ("local", Meta::Path(_)) => {
+                    parsed_args.local = Some(meta.span());
+                }
                 ("local_cells", Meta::Path(_)) => {
-                    let span = Some(meta.span());
-                    parsed_args.local_cells = span;
+                    parsed_args.local_cells = Some(meta.span());
                 }
                 (_, meta) => {
                     return Err(syn::Error::new_spanned(
                         meta,
                         "unexpected token, expected one of: \"fs\", \"network\", \"operation\", \
-                         or \"local_cells\"",
+                         \"local\", or \"local_cells\"",
                     ))
                 }
             }
         }
-        if let (Some(_), Some(span)) = (parsed_args.local_cells, parsed_args.operation) {
+        if let (Some(_), Some(span)) = (
+            parsed_args.local.or(parsed_args.local_cells),
+            parsed_args.operation,
+        ) {
             return Err(syn::Error::new(
                 span,
-                "\"operation\" is mutually exclusive with the \"local_cells\" option",
+                "\"operation\" is mutually exclusive with the \"local\" and \"local_cells\" \
+                 options",
             ));
         }
         Ok(parsed_args)
@@ -1021,30 +1089,24 @@ impl DefinitionContext {
 }
 
 #[derive(Debug)]
+pub struct FilterTraitCallArgsTokens {
+    filter_owned: TokenStream,
+    filter_and_resolve: TokenStream,
+}
+
+#[derive(Debug)]
 pub struct NativeFn {
-    function_path_string: String,
-    function_path: ExprPath,
-    is_method: bool,
-    local_cells: bool,
+    pub function_path_string: String,
+    pub function_path: ExprPath,
+    pub is_method: bool,
+    pub filter_trait_call_args: Option<FilterTraitCallArgsTokens>,
+    pub local: bool,
+    pub local_cells: bool,
 }
 
 impl NativeFn {
-    pub fn new(
-        function_path_string: &str,
-        function_path: &ExprPath,
-        is_method: bool,
-        local_cells: bool,
-    ) -> NativeFn {
-        NativeFn {
-            function_path_string: function_path_string.to_owned(),
-            function_path: function_path.clone(),
-            is_method,
-            local_cells,
-        }
-    }
-
     pub fn ty(&self) -> Type {
-        parse_quote! { turbo_tasks::NativeFunction }
+        parse_quote! { turbo_tasks::macro_helpers::NativeFunction }
     }
 
     pub fn definition(&self) -> TokenStream {
@@ -1052,25 +1114,53 @@ impl NativeFn {
             function_path_string,
             function_path,
             is_method,
+            filter_trait_call_args,
+            local,
             local_cells,
         } = self;
 
-        let constructor = if *is_method {
-            quote! { new_method }
+        if *is_method {
+            let arg_filter = if let Some(filter) = filter_trait_call_args {
+                let FilterTraitCallArgsTokens {
+                    filter_owned,
+                    filter_and_resolve,
+                } = filter;
+                quote! {
+                    ::std::option::Option::Some((
+                        #filter_owned,
+                        #filter_and_resolve,
+                    ))
+                }
+            } else {
+                quote! { ::std::option::Option::None }
+            };
+            quote! {
+                {
+                    #[allow(deprecated)]
+                    turbo_tasks::macro_helpers::NativeFunction::new_method(
+                        #function_path_string.to_owned(),
+                        turbo_tasks::macro_helpers::FunctionMeta {
+                            local: #local,
+                            local_cells: #local_cells,
+                        },
+                        #arg_filter,
+                        #function_path,
+                    )
+                }
+            }
         } else {
-            quote! { new_function }
-        };
-
-        quote! {
-            {
-                #[allow(deprecated)]
-                turbo_tasks::NativeFunction::#constructor(
-                    #function_path_string.to_owned(),
-                    turbo_tasks::FunctionMeta {
-                        local_cells: #local_cells,
-                    },
-                    #function_path,
-                )
+            quote! {
+                {
+                    #[allow(deprecated)]
+                    turbo_tasks::macro_helpers::NativeFunction::new_function(
+                        #function_path_string.to_owned(),
+                        turbo_tasks::macro_helpers::FunctionMeta {
+                            local: #local,
+                            local_cells: #local_cells,
+                        },
+                        #function_path,
+                    )
+                }
             }
         }
     }
@@ -1094,4 +1184,9 @@ pub fn filter_inline_attributes<'a>(
         .into_iter()
         .filter(|attr| attr.path.get_ident().is_none_or(|id| id != "doc"))
         .collect()
+}
+
+pub fn inline_inputs_identifier_filter(arg_ident: &Ident) -> bool {
+    // filter out underscore-prefixed (unused) arguments, we don't need to cache these
+    !arg_ident.to_string().starts_with('_')
 }

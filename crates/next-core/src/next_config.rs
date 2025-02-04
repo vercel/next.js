@@ -1,5 +1,3 @@
-use std::collections::HashSet;
-
 use anyhow::{bail, Context, Result};
 use rustc_hash::FxHashSet;
 use serde::{Deserialize, Deserializer, Serialize};
@@ -567,7 +565,7 @@ pub enum LoaderItem {
 }
 
 #[turbo_tasks::value(operation)]
-#[derive(Clone, Debug)]
+#[derive(Copy, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub enum ModuleIdStrategy {
     Named,
@@ -666,6 +664,7 @@ pub struct ExperimentalConfig {
     react_compiler: Option<ReactCompilerOptionsOrBoolean>,
     #[serde(rename = "dynamicIO")]
     dynamic_io: Option<bool>,
+    use_cache: Option<bool>,
     // ---
     // UNSUPPORTED
     // ---
@@ -1136,7 +1135,7 @@ impl NextConfig {
         if turbo_rules.is_empty() {
             return Vc::cell(None);
         }
-        let active_conditions = active_conditions.into_iter().collect::<HashSet<_>>();
+        let active_conditions = active_conditions.into_iter().collect::<FxHashSet<_>>();
         let mut rules = FxIndexMap::default();
         for (ext, rule) in turbo_rules.iter() {
             fn transform_loaders(loaders: &[LoaderItem]) -> ResolvedVc<WebpackLoaderItems> {
@@ -1160,7 +1159,7 @@ impl NextConfig {
             }
             fn find_rule<'a>(
                 rule: &'a RuleConfigItem,
-                active_conditions: &HashSet<RcStr>,
+                active_conditions: &FxHashSet<RcStr>,
             ) -> FindRuleResult<'a> {
                 match rule {
                     RuleConfigItem::Options(rule) => FindRuleResult::Found(rule),
@@ -1409,6 +1408,18 @@ impl NextConfig {
     }
 
     #[turbo_tasks::function]
+    pub fn enable_use_cache(&self) -> Vc<bool> {
+        Vc::cell(
+            self.experimental
+                .use_cache
+                // "use cache" was originally implicitly enabled with the
+                // dynamicIO flag, so we transfer the value for dynamicIO to the
+                // explicit useCache flag to ensure backwards compatibility.
+                .unwrap_or(self.experimental.dynamic_io.unwrap_or(false)),
+        )
+    }
+
+    #[turbo_tasks::function]
     pub fn cache_kinds(&self) -> Vc<CacheKinds> {
         Vc::cell(
             self.experimental
@@ -1470,11 +1481,11 @@ impl NextConfig {
             .experimental
             .turbo
             .as_ref()
-            .and_then(|t| t.module_id_strategy.as_ref())
+            .and_then(|t| t.module_id_strategy)
         else {
             return Vc::cell(None);
         };
-        Vc::cell(Some(module_id_strategy.clone()))
+        Vc::cell(Some(module_id_strategy))
     }
 
     #[turbo_tasks::function]

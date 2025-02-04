@@ -16,13 +16,13 @@ pub mod chunk;
 pub mod chunk_group_files_asset;
 pub mod code_gen;
 mod errors;
-pub mod global_module_id_strategy;
 pub mod magic_identifier;
 pub mod manifest;
 pub mod minify;
 pub mod parse;
 mod path_visitor;
 pub mod references;
+pub mod runtime_functions;
 pub mod side_effect_optimization;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
@@ -252,6 +252,19 @@ pub struct EcmascriptModuleAsset {
     pub inner_assets: Option<ResolvedVc<InnerAssets>>,
     #[turbo_tasks(debug_ignore)]
     last_successful_parse: turbo_tasks::TransientState<ReadRef<ParseResult>>,
+}
+impl core::fmt::Debug for EcmascriptModuleAsset {
+    fn fmt(&self, f: &mut core::fmt::Formatter) -> core::fmt::Result {
+        f.debug_struct("EcmascriptModuleAsset")
+            .field("source", &self.source)
+            .field("asset_context", &self.asset_context)
+            .field("ty", &self.ty)
+            .field("transforms", &self.transforms)
+            .field("options", &self.options)
+            .field("compile_time_info", &self.compile_time_info)
+            .field("inner_assets", &self.inner_assets)
+            .finish()
+    }
 }
 
 #[turbo_tasks::value_trait]
@@ -755,21 +768,25 @@ impl EcmascriptModuleContent {
         for r in references.await?.iter() {
             let r = r.resolve().await?;
             if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r)
             {
                 code_gens.push(code_gen.code_generation(
                     module_graph,
                     chunking_context,
                     async_module_info,
                 ));
-            } else if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
+            } else if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r)
             {
                 code_gens.push(code_gen.code_generation(module_graph, chunking_context));
             }
         }
         if let Some(async_module) = *async_module.await? {
-            code_gens.push(async_module.code_generation(async_module_info, references));
+            code_gens.push(async_module.code_generation(
+                async_module_info,
+                references,
+                module_graph,
+                chunking_context,
+            ));
         }
         for c in code_generation.await?.iter() {
             match c {

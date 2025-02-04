@@ -27,8 +27,8 @@ DEALINGS IN THE SOFTWARE.
 */
 use std::sync::Arc;
 
-use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
     base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},

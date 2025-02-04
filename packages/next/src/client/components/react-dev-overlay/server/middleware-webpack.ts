@@ -12,6 +12,8 @@ import {
   json,
   noContent,
   type OriginalStackFrameResponse,
+  type OriginalStackFramesRequest,
+  type OriginalStackFramesResponse,
 } from './shared'
 export { getServerError } from '../internal/helpers/node-stack-frames'
 export { parseStack } from '../internal/helpers/parse-stack'
@@ -147,17 +149,6 @@ function isIgnoredSource(
   }
 
   return false
-}
-
-function createStackFrame(searchParams: URLSearchParams) {
-  const file = searchParams.get('file') as string
-  return {
-    file,
-    methodName: searchParams.get('methodName') as string,
-    lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
-    column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
-    arguments: searchParams.getAll('arguments').filter(Boolean),
-  } satisfies StackFrame
 }
 
 function findOriginalSourcePositionAndContentFromCompilation(
@@ -344,6 +335,138 @@ async function getSource(
   return undefined
 }
 
+async function getOriginalStackFrames({
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+  frames,
+  clientStats,
+  serverStats,
+  edgeServerStats,
+  rootDirectory,
+}: {
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+  frames: StackFrame[]
+  clientStats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+  rootDirectory: string
+}): Promise<OriginalStackFramesResponse> {
+  return Promise.allSettled(
+    frames.map((frame) =>
+      getOriginalStackFrame({
+        isServer,
+        isEdgeServer,
+        isAppDirectory,
+        frame,
+        clientStats,
+        serverStats,
+        edgeServerStats,
+        rootDirectory,
+      })
+    )
+  )
+}
+
+async function getOriginalStackFrame({
+  isServer,
+  isEdgeServer,
+  isAppDirectory,
+  frame,
+  clientStats,
+  serverStats,
+  edgeServerStats,
+  rootDirectory,
+}: {
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+  frame: StackFrame
+  clientStats: () => webpack.Stats | null
+  serverStats: () => webpack.Stats | null
+  edgeServerStats: () => webpack.Stats | null
+  rootDirectory: string
+}): Promise<OriginalStackFrameResponse> {
+  const filename = frame.file ?? ''
+  const source = await getSource(filename, {
+    getCompilations: () => {
+      const compilations: webpack.Compilation[] = []
+
+      // Try Client Compilation first. In `pages` we leverage
+      // `isClientError` to check. In `app` it depends on if it's a server
+      // / client component and when the code throws. E.g. during HTML
+      // rendering it's the server/edge compilation.
+      if ((!isEdgeServer && !isServer) || isAppDirectory) {
+        const compilation = clientStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      // Try Server Compilation. In `pages` this could be something
+      // imported in getServerSideProps/getStaticProps as the code for
+      // those is tree-shaken. In `app` this finds server components and
+      // code that was imported from a server component. It also covers
+      // when client component code throws during HTML rendering.
+      if (isServer || isAppDirectory) {
+        const compilation = serverStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      // Try Edge Server Compilation. Both cases are the same as Server
+      // Compilation, main difference is that it covers `runtime: 'edge'`
+      // pages/app routes.
+      if (isEdgeServer || isAppDirectory) {
+        const compilation = edgeServerStats()?.compilation
+
+        if (compilation) {
+          compilations.push(compilation)
+        }
+      }
+
+      return compilations
+    },
+  })
+
+  // This stack frame is used for the one that couldn't locate the source or source mapped frame
+  const defaultStackFrame: IgnorableStackFrame = {
+    file: frame.file,
+    lineNumber: frame.lineNumber,
+    column: frame.column ?? 1,
+    methodName: frame.methodName,
+    ignored: shouldIgnorePath(filename),
+    arguments: [],
+  }
+  if (!source) {
+    // return original stack frame with no source map
+    return {
+      originalStackFrame: defaultStackFrame,
+      originalCodeFrame: null,
+    }
+  }
+
+  const originalStackFrameResponse = await createOriginalStackFrame({
+    frame,
+    source,
+    rootDirectory,
+  })
+
+  if (!originalStackFrameResponse) {
+    return {
+      originalStackFrame: defaultStackFrame,
+      originalCodeFrame: null,
+    }
+  }
+
+  return originalStackFrameResponse
+}
+
 export function getOverlayMiddleware(options: {
   rootDirectory: string
   clientStats: () => webpack.Stats | null
@@ -359,100 +482,53 @@ export function getOverlayMiddleware(options: {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(`http://n${req.url}`)
 
-    if (pathname === '/__nextjs_original-stack-frame') {
-      const isServer = searchParams.get('isServer') === 'true'
-      const isEdgeServer = searchParams.get('isEdgeServer') === 'true'
-      const isAppDirectory = searchParams.get('isAppDirectory') === 'true'
-      const frame = createStackFrame(searchParams)
+    if (pathname === '/__nextjs_original-stack-frames') {
+      if (req.method !== 'POST') {
+        return badRequest(res)
+      }
 
-      let source: Source | undefined
-      try {
-        source = await getSource(frame.file, {
-          getCompilations: () => {
-            const compilations: webpack.Compilation[] = []
-
-            // Try Client Compilation first. In `pages` we leverage
-            // `isClientError` to check. In `app` it depends on if it's a server
-            // / client component and when the code throws. E.g. during HTML
-            // rendering it's the server/edge compilation.
-            if ((!isEdgeServer && !isServer) || isAppDirectory) {
-              const compilation = clientStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            // Try Server Compilation. In `pages` this could be something
-            // imported in getServerSideProps/getStaticProps as the code for
-            // those is tree-shaken. In `app` this finds server components and
-            // code that was imported from a server component. It also covers
-            // when client component code throws during HTML rendering.
-            if (isServer || isAppDirectory) {
-              const compilation = serverStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            // Try Edge Server Compilation. Both cases are the same as Server
-            // Compilation, main difference is that it covers `runtime: 'edge'`
-            // pages/app routes.
-            if (isEdgeServer || isAppDirectory) {
-              const compilation = edgeServerStats()?.compilation
-
-              if (compilation) {
-                compilations.push(compilation)
-              }
-            }
-
-            return compilations
-          },
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ''
+        req.on('data', (chunk) => {
+          data += chunk
         })
-      } catch (err) {
-        console.error('Failed to get source map:', err)
-        return internalServerError(res)
-      }
-
-      // This stack frame is used for the one that couldn't locate the source or source mapped frame
-      const defaultStackFrame: IgnorableStackFrame = {
-        file: frame.file,
-        lineNumber: frame.lineNumber,
-        column: frame.column ?? 1,
-        methodName: frame.methodName,
-        ignored: shouldIgnorePath(frame.file),
-        arguments: [],
-      }
-      if (!source) {
-        // return original stack frame with no source map
-        return json(res, {
-          originalStackFrame: defaultStackFrame,
-          originalCodeFrame: null,
-        })
-      }
+        req.on('end', () => resolve(data))
+        req.on('error', reject)
+      })
 
       try {
-        const originalStackFrameResponse = await createOriginalStackFrame({
-          frame,
-          source,
-          rootDirectory,
-        })
+        const { frames, isServer, isEdgeServer, isAppDirectory } = JSON.parse(
+          body
+        ) as OriginalStackFramesRequest
 
-        if (!originalStackFrameResponse) {
-          return json(res, {
-            originalStackFrame: defaultStackFrame,
-            originalCodeFrame: null,
+        return json(
+          res,
+          await getOriginalStackFrames({
+            isServer,
+            isEdgeServer,
+            isAppDirectory,
+            frames: frames.map((frame) => ({
+              ...frame,
+              lineNumber: frame.lineNumber ?? 0,
+              column: frame.column ?? 0,
+            })),
+            clientStats,
+            serverStats,
+            edgeServerStats,
+            rootDirectory,
           })
-        }
-
-        return json(res, originalStackFrameResponse)
+        )
       } catch (err) {
-        console.log('Failed to parse source map:', err)
-        return internalServerError(res)
+        return badRequest(res)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
-      const frame = createStackFrame(searchParams)
+      const frame = {
+        file: searchParams.get('file') as string,
+        methodName: searchParams.get('methodName') as string,
+        lineNumber: parseInt(searchParams.get('lineNumber') ?? '0', 10) || 0,
+        column: parseInt(searchParams.get('column') ?? '0', 10) || 0,
+        arguments: searchParams.getAll('arguments').filter(Boolean),
+      } satisfies StackFrame
 
       if (!frame.file) return badRequest(res)
 

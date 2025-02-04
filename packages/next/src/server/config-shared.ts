@@ -255,10 +255,11 @@ export interface LoggingConfig {
    * If set to false, incoming request logging is disabled.
    * You can specify a pattern to match incoming requests that should not be logged.
    */
-  incomingRequest?: boolean | IncomingRequestLoggingConfig
+  incomingRequests?: boolean | IncomingRequestLoggingConfig
 }
 
 export interface ExperimentalConfig {
+  nodeMiddleware?: boolean
   cacheHandlers?: {
     default?: string
     remote?: string
@@ -607,6 +608,23 @@ export interface ExperimentalConfig {
    * Besides the default behavior, Next.js act differently on serving metadata to bots based on their capability.
    */
   htmlLimitedBots?: RegExp
+
+  /**
+   * Enables the use of the `"use cache"` directive.
+   */
+  useCache?: boolean
+
+  /**
+   * Enables detection and reporting of slow modules during development builds.
+   * Enabling this may impact build performance to ensure accurate measurements.
+   */
+  slowModuleDetection?: {
+    /**
+     * The time threshold in milliseconds for identifying slow modules.
+     * Modules taking longer than this build time threshold will be reported.
+     */
+    buildTimeThresholdMs: number
+  }
 }
 
 export type ExportPathMap = {
@@ -1112,6 +1130,7 @@ export const defaultConfig: NextConfig = {
   modularizeImports: undefined,
   outputFileTracingRoot: process.env.NEXT_PRIVATE_OUTPUT_TRACE_ROOT || '',
   experimental: {
+    nodeMiddleware: false,
     cacheLife: {
       default: {
         stale: undefined, // defaults to staleTimes.static
@@ -1237,6 +1256,8 @@ export const defaultConfig: NextConfig = {
     newDevOverlay: false,
     streamingMetadata: false,
     htmlLimitedBots: undefined,
+    useCache: undefined,
+    slowModuleDetection: undefined,
   },
   bundlePagesRouterDependencies: false,
 }

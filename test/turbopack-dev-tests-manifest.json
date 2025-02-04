@@ -8228,10 +8228,10 @@
     "flakey": [],
     "runtimeError": false
   },
-  "test/e2e/app-dir/use-cache-without-dynamic-io/use-cache-without-dynamic-io.test.ts": {
+  "test/e2e/app-dir/use-cache-without-experimental-flag/use-cache-without-experimental-flag.test.ts": {
     "passed": [
-      "use-cache-without-dynamic-io should recover from the build error if dynamicIO flag is set",
-      "use-cache-without-dynamic-io should show a build error"
+      "use-cache-without-experimental-flag should recover from the build error if useCache flag is set",
+      "use-cache-without-experimental-flag should show a build error"
     ],
     "failed": [],
     "pending": [],
@@ -18641,6 +18641,9 @@
       "Required Server Files production mode should render dynamic SSR page correctly",
       "Required Server Files production mode should render dynamic SSR page correctly with x-matched-path",
       "Required Server Files production mode should render fallback optional catch-all route correctly with x-matched-path and routes-matches",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello",
+      "Required Server Files production mode partial optional catch-all route should render /partial-catch-all/hello.com/hello/world",
       "Required Server Files production mode should render fallback page correctly",
       "Required Server Files production mode should render fallback page correctly with x-matched-path and routes-matches",
       "Required Server Files production mode should return data correctly with x-matched-path",

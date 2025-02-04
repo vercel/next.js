@@ -1,10 +1,7 @@
-use std::{
-    collections::{BTreeMap, HashMap},
-    fmt::Display,
-};
+use std::{collections::BTreeMap, fmt::Display};
 
 use once_cell::sync::Lazy;
-use rustc_hash::FxHashSet;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
     common::{comments::Comments, source_map::SmallPos, BytePos, Span, Spanned},
     ecma::{
@@ -176,7 +173,7 @@ pub(crate) struct ImportMap {
     /// full details.
     ///
     /// [magic]: https://webpack.js.org/api/module-methods/#magic-comments
-    attributes: HashMap<BytePos, ImportAttributes>,
+    attributes: FxHashMap<BytePos, ImportAttributes>,
 
     /// The module specifiers of star imports that are accessed dynamically and should be imported
     /// as a whole.

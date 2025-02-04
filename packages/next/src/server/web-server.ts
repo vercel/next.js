@@ -79,7 +79,6 @@ export default class NextWebServer extends BaseServer<
     return new IncrementalCache({
       dev,
       requestHeaders,
-      dynamicIO: Boolean(this.nextConfig.experimental.dynamicIO),
       requestProtocol: 'https',
       allowedRevalidateHeaderKeys:
         this.nextConfig.experimental.allowedRevalidateHeaderKeys,
@@ -174,9 +173,9 @@ export default class NextWebServer extends BaseServer<
         ) as NextParsedUrlQuery
         const paramsResult = normalizeDynamicRouteParams(
           query,
-          false,
           routeRegex,
-          defaultRouteMatches
+          defaultRouteMatches,
+          false
         )
         const normalizedParams = paramsResult.hasValidParams
           ? paramsResult.params
@@ -187,13 +186,7 @@ export default class NextWebServer extends BaseServer<
           normalizedParams,
           routeRegex
         )
-        normalizeVercelUrl(
-          req,
-          true,
-          Object.keys(routeRegex.routeKeys),
-          true,
-          routeRegex
-        )
+        normalizeVercelUrl(req, Object.keys(routeRegex.routeKeys), routeRegex)
       }
     }
 

@@ -1,8 +1,9 @@
-use std::{collections::HashMap, path::Path};
+use std::path::Path;
 
 use anyhow::{bail, Context, Result};
 use futures::FutureExt;
 use indoc::formatdoc;
+use rustc_hash::FxHashMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{Completion, FxIndexMap, ResolvedVc, Value, Vc};
@@ -710,7 +711,8 @@ async fn get_mock_stylesheet(
 
     match &val.try_into_single().await? {
         SingleValue::Single(val) => {
-            let val: HashMap<RcStr, Option<RcStr>> = parse_json_with_source_context(val.to_str()?)?;
+            let val: FxHashMap<RcStr, Option<RcStr>> =
+                parse_json_with_source_context(val.to_str()?)?;
             Ok(val
                 .get(&*stylesheet_url.await?)
                 .context("url not found")?

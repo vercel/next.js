@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible};
+use std::convert::Infallible;
 
 use anyhow::{bail, Result};
 use lightningcss::{
@@ -6,6 +6,7 @@ use lightningcss::{
     visit_types,
     visitor::{Visit, Visitor},
 };
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
@@ -60,9 +61,7 @@ impl UrlAssetReference {
         chunking_context: Vc<Box<dyn ChunkingContext>>,
     ) -> Result<Vc<ReferencedAsset>> {
         if let Some(module) = *self.resolve_reference().first_module().await? {
-            if let Some(chunkable) =
-                ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
-            {
+            if let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) {
                 let chunk_item = chunkable.as_chunk_item(module_graph, chunking_context);
                 if let Some(embeddable) =
                     Vc::try_resolve_downcast::<Box<dyn CssEmbed>>(chunk_item).await?
@@ -137,7 +136,7 @@ pub async fn resolve_url_reference(
     {
         // TODO(WEB-662) This is not the correct way to get the path of the asset.
         // `asset` is on module-level, but we need the output-level asset instead.
-        let path = asset.ident().path().await?;
+        let path = asset.path().await?;
         let relative_path = context_path
             .get_relative_path_to(&path)
             .unwrap_or_else(|| format!("/{}", path.path).into());
@@ -150,14 +149,14 @@ pub async fn resolve_url_reference(
 
 pub fn replace_url_references(
     ss: &mut StyleSheetLike<'static, 'static>,
-    urls: &HashMap<RcStr, RcStr>,
+    urls: &FxHashMap<RcStr, RcStr>,
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
     ss.0.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {
-    urls: &'a HashMap<RcStr, RcStr>,
+    urls: &'a FxHashMap<RcStr, RcStr>,
 }
 
 impl Visitor<'_> for AssetReferenceReplacer<'_> {

@@ -9,10 +9,8 @@ edition = "2021"
 bench = false
 
 [features]
-default = ["local_resolution"]
 tokio_tracing = ["tokio/tracing"]
 hanging_detection = []
-local_resolution = []
 
 # TODO(bgw): This feature is here to unblock turning on local tasks by default. It's only turned on
 # in unit tests. This will be removed very soon.
@@ -28,8 +26,8 @@ auto-hash-map = { workspace = true }
 concurrent-queue = { workspace = true }
 dashmap = { workspace = true }
 either = { workspace = true }
-erased-serde = "0.3.20"
-event-listener = "2.5.3"
+erased-serde = { workspace = true }
+event-listener = "5.4.0"
 futures = { workspace = true }
 indexmap = { workspace = true, features = ["serde"] }
 mopa = "0.2.0"

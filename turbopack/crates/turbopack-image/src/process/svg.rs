@@ -1,15 +1,14 @@
 // Ported from https://github.com/image-size/image-size/blob/94e9c1ee913b71222d7583dc904ac0116ae00834/lib/types/svg.ts
 // see SVG_LICENSE for license info
 
-use std::collections::HashMap;
-
 use anyhow::{anyhow, bail, Result};
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 
 const INCH_CM: f64 = 2.54;
-static UNITS: Lazy<HashMap<&str, f64>> = Lazy::new(|| {
-    HashMap::from([
+static UNITS: Lazy<FxHashMap<&str, f64>> = Lazy::new(|| {
+    FxHashMap::from_iter([
         ("in", 96.0),
         ("cm", 96.0 / INCH_CM),
         ("em", 16.0),

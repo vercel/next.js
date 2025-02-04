@@ -25,6 +25,7 @@ indexmap = { workspace = true }
 inquire = { version = "0.5.1" }
 num-format = "0.4.4"
 owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
 semver = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }

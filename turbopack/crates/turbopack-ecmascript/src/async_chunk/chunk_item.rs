@@ -19,7 +19,8 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
-    utils::StringifyJs,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD},
+    utils::{StringifyJs, StringifyModuleId},
 };
 
 #[turbo_tasks::value(shared)]
@@ -96,32 +97,32 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
             (Some(id), true) => {
                 formatdoc! {
                     r#"
-                        __turbopack_export_value__((__turbopack_import__) => {{
+                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
                             return Promise.resolve().then(() => {{
-                                return __turbopack_import__({id});
+                                return parentImport({id});
                             }});
                         }});
                     "#,
-                    id = StringifyJs(id),
+                    id = StringifyModuleId(id),
                 }
             }
             (Some(id), false) => {
                 formatdoc! {
                     r#"
-                        __turbopack_export_value__((__turbopack_import__) => {{
-                            return Promise.all({chunks:#}.map((chunk) => __turbopack_load__(chunk))).then(() => {{
-                                return __turbopack_import__({id});
+                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                                return parentImport({id});
                             }});
                         }});
                     "#,
                     chunks = StringifyJs(&chunks_data),
-                    id = StringifyJs(id),
+                    id = StringifyModuleId(id),
                 }
             }
             (None, true) => {
                 formatdoc! {
                     r#"
-                        __turbopack_export_value__((__turbopack_import__) => {{
+                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
                             return Promise.resolve();
                         }});
                     "#,
@@ -130,8 +131,8 @@ impl EcmascriptChunkItem for AsyncLoaderChunkItem {
             (None, false) => {
                 formatdoc! {
                     r#"
-                        __turbopack_export_value__((__turbopack_import__) => {{
-                            return Promise.all({chunks:#}.map((chunk) => __turbopack_load__(chunk))).then(() => {{}});
+                        {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                            return Promise.all({chunks:#}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{}});
                         }});
                     "#,
                     chunks = StringifyJs(&chunks_data),

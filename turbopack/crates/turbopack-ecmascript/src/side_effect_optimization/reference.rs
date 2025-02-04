@@ -20,6 +20,7 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
     references::esm::base::ReferencedAsset,
+    runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
 
@@ -67,7 +68,7 @@ impl ModuleReference for EcmascriptModulePartReference {
         let module = if let Some(part) = self.part {
             match *part.await? {
                 ModulePart::Locals => {
-                    let Some(module) = ResolvedVc::try_downcast_type(self.module).await? else {
+                    let Some(module) = ResolvedVc::try_downcast_type(self.module) else {
                         bail!(
                             "Expected EcmascriptModuleAsset for a EcmascriptModulePartReference \
                              with ModulePart::Locals"
@@ -119,7 +120,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         let referenced_asset = ReferencedAsset::from_resolve_result(self.resolve_reference());
         let referenced_asset = referenced_asset.await?;
         let ident = referenced_asset
-            .get_ident()
+            .get_ident(module_graph, chunking_context)
             .await?
             .context("part module reference should have an ident")?;
 
@@ -134,8 +135,9 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         Ok(CodeGeneration::hoisted_stmt(
             ident.clone().into(),
             quote!(
-                "var $name = __turbopack_import__($id);" as Stmt,
+                "var $name = $turbopack_import($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                 id: Expr = module_id_to_lit(&id),
             ),
         ))

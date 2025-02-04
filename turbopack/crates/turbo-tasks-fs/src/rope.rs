@@ -185,10 +185,11 @@ impl RopeBuilder {
         self.committed.push(Shared(other.data.clone()));
     }
 
-    /// Writes any pending bytes into our committed queue.
+    /// Writes any pending bytes into our committed queue. This is called automatically by other
+    /// `RopeBuilder` methods.
     ///
     /// This may be called multiple times without issue.
-    pub fn finish(&mut self) {
+    fn finish(&mut self) {
         if let Some(b) = self.uncommitted.finish() {
             debug_assert!(!b.is_empty(), "must not have empty uncommitted bytes");
             self.length += b.len();
@@ -538,7 +539,7 @@ impl DeterministicHash for InnerRope {
 }
 
 impl From<Vec<RopeElem>> for InnerRope {
-    fn from(els: Vec<RopeElem>) -> Self {
+    fn from(mut els: Vec<RopeElem>) -> Self {
         if cfg!(debug_assertions) {
             // It's important that an InnerRope never contain an empty Bytes section.
             for el in els.iter() {
@@ -554,6 +555,7 @@ impl From<Vec<RopeElem>> for InnerRope {
                 }
             }
         }
+        els.shrink_to_fit();
         InnerRope(Arc::from(els))
     }
 }

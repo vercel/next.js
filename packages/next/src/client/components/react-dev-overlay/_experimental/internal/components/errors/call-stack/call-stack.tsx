@@ -1,4 +1,4 @@
-import type { OriginalStackFrame } from '../../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../../../../internal/helpers/stack-frame'
 import { useMemo, useState } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'

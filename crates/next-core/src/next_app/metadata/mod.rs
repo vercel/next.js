@@ -1,7 +1,8 @@
-use std::{collections::HashMap, ops::Deref};
+use std::ops::Deref;
 
 use anyhow::Result;
 use once_cell::sync::Lazy;
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::Vc;
 use turbo_tasks_fs::FileSystemPath;
@@ -11,9 +12,9 @@ use crate::next_app::{AppPage, PageSegment, PageType};
 pub mod image;
 pub mod route;
 
-pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
+pub static STATIC_LOCAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
-        HashMap::from([
+        FxHashMap::from_iter([
             (
                 "icon",
                 &["ico", "jpg", "jpeg", "png", "svg"] as &'static [&'static str],
@@ -25,9 +26,9 @@ pub static STATIC_LOCAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static 
         ])
     });
 
-pub static STATIC_GLOBAL_METADATA: Lazy<HashMap<&'static str, &'static [&'static str]>> =
+pub static STATIC_GLOBAL_METADATA: Lazy<FxHashMap<&'static str, &'static [&'static str]>> =
     Lazy::new(|| {
-        HashMap::from([
+        FxHashMap::from_iter([
             ("favicon", &["ico"] as &'static [&'static str]),
             ("manifest", &["webmanifest", "json"]),
             ("robots", &["txt"]),
@@ -52,7 +53,7 @@ fn match_numbered_metadata(stem: &str) -> Option<(&str, &str)> {
 fn match_metadata_file<'a>(
     filename: &'a str,
     page_extensions: &[RcStr],
-    metadata: &HashMap<&str, &[&str]>,
+    metadata: &FxHashMap<&str, &[&str]>,
 ) -> Option<MetadataFileMatch<'a>> {
     let (stem, ext) = filename.split_once('.')?;
 

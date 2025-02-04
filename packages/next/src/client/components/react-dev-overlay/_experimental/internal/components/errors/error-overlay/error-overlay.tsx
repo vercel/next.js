@@ -1,9 +1,9 @@
 import type { OverlayState } from '../../../../../shared'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 export function ErrorOverlay({
   state,
@@ -39,7 +39,7 @@ export function ErrorOverlay({
   }
 
   // No Runtime Errors.
-  if (!state.errors.length) {
+  if (!readyErrors.length) {
     return null
   }
 
@@ -50,9 +50,7 @@ export function ErrorOverlay({
   return (
     <Errors
       debugInfo={state.debugInfo}
-      hasStaticIndicator={state.staticIndicator}
       isTurbopack={isTurbopack}
-      errors={state.errors}
       readyErrors={readyErrors}
       versionInfo={state.versionInfo}
       onClose={() => {

@@ -40,10 +40,10 @@ use std::{
 };
 
 use backtrace::Backtrace;
-use dashmap::DashMap;
-use fxhash::FxHashSet;
 use napi::bindgen_prelude::*;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     base::{Compiler, TransformOutput},
     common::{FilePathMapping, SourceMap},
 };
@@ -76,6 +76,9 @@ static ALLOC: dhat::Alloc = dhat::Alloc;
 #[napi::module_init]
 
 fn init() {
+    use tokio::runtime::Builder;
+    use turbo_tasks_malloc::TurboMalloc;
+
     set_hook(Box::new(|panic_info| {
         util::log_internal_error_and_inform(&format!(
             "Panic: {}\nBacktrace: {:?}",
@@ -83,6 +86,15 @@ fn init() {
             Backtrace::new()
         ));
     }));
+    let rt = Builder::new_multi_thread()
+        .enable_all()
+        .on_thread_stop(|| {
+            TurboMalloc::thread_stop();
+        })
+        .disable_lifo_slot()
+        .build()
+        .unwrap();
+    create_custom_tokio_runtime(rt);
 }
 
 #[inline]
@@ -95,8 +107,8 @@ fn get_compiler() -> Arc<Compiler> {
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
-    eliminated_packages: FxHashSet<String>,
-    use_cache_telemetry_tracker: DashMap<String, usize>,
+    eliminated_packages: FxHashSet<Atom>,
+    use_cache_telemetry_tracker: FxHashMap<String, usize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
     js_output.set_named_property("code", env.create_string_from_std(output.code)?)?;
@@ -115,7 +127,7 @@ pub fn complete_output(
             env.create_string_from_std(serde_json::to_string(
                 &use_cache_telemetry_tracker
                     .iter()
-                    .map(|entry| (entry.key().clone(), *entry.value()))
+                    .map(|(k, v)| (k.clone(), *v))
                     .collect::<Vec<_>>(),
             )?)?,
         )?;

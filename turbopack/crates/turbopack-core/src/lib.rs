@@ -39,6 +39,7 @@ pub mod source_map;
 pub mod source_pos;
 pub mod source_transform;
 pub mod target;
+pub mod traced_asset;
 mod utils;
 pub mod version;
 pub mod virtual_output;

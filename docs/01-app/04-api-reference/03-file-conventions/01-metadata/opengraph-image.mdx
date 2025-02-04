@@ -96,8 +96,8 @@ The easiest way to generate an image is to use the [ImageResponse](/docs/app/api
 
 ```tsx filename="app/about/opengraph-image.tsx" switcher
 import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -110,10 +110,10 @@ export const contentType = 'image/png'
 
 // Image generation
 export default async function Image() {
-  // Font
-  const interSemiBold = fetch(
-    new URL('./Inter-SemiBold.ttf', import.meta.url)
-  ).then((res) => res.arrayBuffer())
+  // Font loading, process.cwd() is Next.js project directory
+  const interSemiBold = await readFile(
+    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+  )
 
   return new ImageResponse(
     (
@@ -140,7 +140,7 @@ export default async function Image() {
       fonts: [
         {
           name: 'Inter',
-          data: await interSemiBold,
+          data: interSemiBold,
           style: 'normal',
           weight: 400,
         },
@@ -152,8 +152,8 @@ export default async function Image() {
 
 ```jsx filename="app/about/opengraph-image.js" switcher
 import { ImageResponse } from 'next/og'
-
-export const runtime = 'edge'
+import { readFile } from 'node:fs/promises'
+import { join } from 'node:path'
 
 // Image metadata
 export const alt = 'About Acme'
@@ -166,10 +166,10 @@ export const contentType = 'image/png'
 
 // Image generation
 export default async function Image() {
-  // Font
-  const interSemiBold = fetch(
-    new URL('./Inter-SemiBold.ttf', import.meta.url)
-  ).then((res) => res.arrayBuffer())
+  // Font loading, process.cwd() is Next.js project directory
+  const interSemiBold = await readFile(
+    join(process.cwd(), 'assets/Inter-SemiBold.ttf')
+  )
 
   return new ImageResponse(
     (
@@ -196,7 +196,7 @@ export default async function Image() {
       fonts: [
         {
           name: 'Inter',
-          data: await interSemiBold,
+          data: interSemiBold,
           style: 'normal',
           weight: 400,
         },

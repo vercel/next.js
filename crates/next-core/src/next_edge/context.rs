@@ -243,7 +243,7 @@ pub async fn get_edge_chunking_context_with_client_assets(
 
     if !next_mode.is_development() {
         builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
+            min_chunk_size: 20_000,
             ..Default::default()
         })
     }
@@ -293,7 +293,7 @@ pub async fn get_edge_chunking_context(
 
     if !next_mode.is_development() {
         builder = builder.ecmascript_chunking_config(ChunkingConfig {
-            min_chunk_size: 20000,
+            min_chunk_size: 20_000,
             ..Default::default()
         })
     }

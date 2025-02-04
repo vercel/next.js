@@ -6,6 +6,7 @@ related:
   title: Related
   description: View related API references.
   links:
+    - app/api-reference/config/next-config-js/useCache
     - app/api-reference/config/next-config-js/dynamicIO
     - app/api-reference/config/next-config-js/cacheLife
     - app/api-reference/functions/cacheTag
@@ -17,14 +18,14 @@ The `use cache` directive designates a component and/or a function to be cached.
 
 ## Usage
 
-Enable support for the `use cache` directive with the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in your `next.config.ts` file:
+Enable support for the `use cache` directive with the [`useCache`](/docs/app/api-reference/config/next-config-js/useCache) flag in your `next.config.ts` file:
 
 ```ts filename="next.config.ts" switcher
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
   experimental: {
-    dynamicIO: true,
+    useCache: true,
   },
 }
 
@@ -35,12 +36,14 @@ export default nextConfig
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   experimental: {
-    dynamicIO: true,
+    useCache: true,
   },
 }
 
 module.exports = nextConfig
 ```
+
+Additionally, `use cache` directives are also enabled when the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag is set.
 
 Then, you can use the `use cache` directive at the file, component, or function level:
 
@@ -75,7 +78,6 @@ export async function getData() {
 - The return value of the cacheable function must also be serializable. This ensures that the cached data can be stored and retrieved correctly.
 - Functions that use the `use cache` directive must not have any side-effects, such as modifying state, directly manipulating the DOM, or setting timers to execute code at intervals.
 - If used alongside [Partial Prerendering](/docs/app/building-your-application/rendering/partial-prerendering), segments that have `use cache` will be prerendered as part of the static HTML shell.
-- The `use cache` directive will be available separately from the [`dynamicIO`](/docs/app/api-reference/config/next-config-js/dynamicIO) flag in the future.
 - Unlike [`unstable_cache`](/docs/app/api-reference/functions/unstable_cache) which only supports JSON data, `use cache` can cache any serializable data React can render, including the render output of components.
 
 ## Examples
@@ -86,7 +88,6 @@ To prerender an entire route, add `use cache` to the top **both** the `layout` a
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
@@ -95,7 +96,6 @@ export default function Layout({ children }: { children: ReactNode }) {
 
 ```jsx filename="app/page.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export default function Layout({ children }) {
   return <div>{children}</div>
@@ -106,7 +106,6 @@ Any components imported and nested in `page` file will inherit the cache behavio
 
 ```tsx filename="app/page.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function Users() {
   const users = await fetch('/api/users')
@@ -124,7 +123,6 @@ export default function Page() {
 
 ```jsx filename="app/page.js" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function Users() {
   const users = await fetch('/api/users')

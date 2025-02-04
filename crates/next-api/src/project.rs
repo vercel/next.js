@@ -27,6 +27,7 @@ use turbo_tasks::{
     debug::ValueDebugFormat,
     fxindexmap,
     graph::{AdjacencyMap, GraphTraversal},
+    mark_root,
     trace::TraceRawVcs,
     Completion, Completions, FxIndexMap, IntoTraitRef, NonLocalValue, OperationValue, OperationVc,
     ReadRef, ResolvedVc, State, TaskInput, TransientInstance, TryFlatJoinIterExt, Value, Vc,
@@ -34,7 +35,8 @@ use turbo_tasks::{
 use turbo_tasks_env::{EnvMap, ProcessEnv};
 use turbo_tasks_fs::{DiskFileSystem, FileSystem, FileSystemPath, VirtualFileSystem};
 use turbopack::{
-    evaluate_context::node_build_environment, transition::TransitionOptions, ModuleAssetContext,
+    evaluate_context::node_build_environment, global_module_ids::get_global_module_id_strategy,
+    transition::TransitionOptions, ModuleAssetContext,
 };
 use turbopack_core::{
     changed::content_changed,
@@ -68,7 +70,6 @@ use crate::{
     build,
     empty::EmptyEndpoint,
     entrypoints::Entrypoints,
-    global_module_id_strategy::GlobalModuleIdStrategyBuilder,
     instrumentation::InstrumentationEndpoint,
     middleware::MiddlewareEndpoint,
     pages::PagesProject,
@@ -897,9 +898,9 @@ impl Project {
     pub async fn whole_app_module_graphs(self: ResolvedVc<Self>) -> Result<Vc<ModuleGraphs>> {
         async move {
             let module_graphs_op = whole_app_module_graph_operation(self);
-            let module_graphs_vc = module_graphs_op.resolve_strongly_consistent().await?;
+            let module_graphs_vc = module_graphs_op.connect().resolve().await?;
             let _ = module_graphs_op.take_issues_with_path().await?;
-            Ok(*module_graphs_vc)
+            Ok(module_graphs_vc)
         }
         .instrument(tracing::info_span!("module graph for app"))
         .await
@@ -1576,16 +1577,25 @@ impl Project {
     /// Gets the module id strategy for the project.
     #[turbo_tasks::function]
     pub async fn module_id_strategy(self: Vc<Self>) -> Result<Vc<Box<dyn ModuleIdStrategy>>> {
-        let module_id_strategy = self.next_config().module_id_strategy_config();
-        match *module_id_strategy.await? {
-            Some(ModuleIdStrategyConfig::Named) => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-            Some(ModuleIdStrategyConfig::Deterministic) => {
-                Ok(Vc::upcast(GlobalModuleIdStrategyBuilder::build(self)))
+        let module_id_strategy = if let Some(module_id_strategy) =
+            &*self.next_config().module_id_strategy_config().await?
+        {
+            *module_id_strategy
+        } else {
+            match *self.next_mode().await? {
+                NextMode::Development => ModuleIdStrategyConfig::Named,
+                NextMode::Build => ModuleIdStrategyConfig::Deterministic,
             }
-            None => match *self.next_mode().await? {
-                NextMode::Development => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-                NextMode::Build => Ok(Vc::upcast(DevModuleIdStrategy::new())),
-            },
+        };
+
+        match module_id_strategy {
+            ModuleIdStrategyConfig::Named => Ok(Vc::upcast(DevModuleIdStrategy::new())),
+            ModuleIdStrategyConfig::Deterministic => {
+                let module_graphs = self.whole_app_module_graphs().await?;
+                Ok(Vc::upcast(get_global_module_id_strategy(
+                    *module_graphs.full,
+                )))
+            }
         }
     }
 }
@@ -1596,6 +1606,7 @@ impl Project {
 async fn whole_app_module_graph_operation(
     project: ResolvedVc<Project>,
 ) -> Result<Vc<ModuleGraphs>> {
+    mark_root();
     let base_single_module_graph = SingleModuleGraph::new_with_entries(project.get_all_entries());
     let base_visited_modules = VisitedModules::from_graph(base_single_module_graph);
 
@@ -1638,7 +1649,7 @@ async fn any_output_changed(
         .into_inner()
         .into_reverse_topological()
         .map(|m| async move {
-            let asset_path = m.ident().path().await?;
+            let asset_path = m.path().await?;
             if !asset_path.path.ends_with(".map")
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)

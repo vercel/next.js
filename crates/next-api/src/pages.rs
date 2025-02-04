@@ -86,6 +86,11 @@ pub struct PagesProject {
     project: ResolvedVc<Project>,
 }
 
+#[turbo_tasks::function]
+fn client_layer() -> Vc<RcStr> {
+    Vc::cell("client".into())
+}
+
 #[turbo_tasks::value_impl]
 impl PagesProject {
     #[turbo_tasks::function]
@@ -312,7 +317,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         )
     }
 
@@ -351,7 +356,7 @@ impl PagesProject {
             self.project().client_compile_time_info(),
             self.client_module_options_context(),
             self.client_resolve_options_context(),
-            Vc::cell("client".into()),
+            client_layer(),
         ))
     }
 
@@ -956,7 +961,6 @@ impl PageEndpoint {
             if is_edge {
                 let mut evaluatable_assets = edge_runtime_entries.await?.clone_value();
                 let evaluatable = ResolvedVc::try_sidecast(ssr_module)
-                    .await?
                     .context("could not process page loader entry module")?;
                 evaluatable_assets.push(evaluatable);
 
@@ -1094,7 +1098,7 @@ impl PageEndpoint {
         entry_chunk: Vc<Box<dyn OutputAsset>>,
     ) -> Result<Vc<Box<dyn OutputAsset>>> {
         let node_root = self.pages_project.project().node_root();
-        let chunk_path = entry_chunk.ident().path().await?;
+        let chunk_path = entry_chunk.path().await?;
 
         let asset_path = node_root
             .join("server".into())
@@ -1420,7 +1424,7 @@ impl Endpoint for PageEndpoint {
             let written_endpoint = match *output {
                 PageEndpointOutput::NodeJs { entry_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root
-                        .get_path_to(&*entry_chunk.ident().path().await?)
+                        .get_path_to(&*entry_chunk.path().await?)
                         .context("ssr chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,

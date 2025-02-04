@@ -3,7 +3,7 @@ use std::fmt::Write;
 use anyhow::Result;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::{Chunk, ChunkItem, ChunkingContext},
@@ -87,7 +87,7 @@ impl Chunk for SingleItemCssChunk {
     #[turbo_tasks::function]
     fn ident(self: Vc<Self>) -> Vc<AssetIdent> {
         let self_as_output_asset: Vc<Box<dyn OutputAsset>> = Vc::upcast(self);
-        self_as_output_asset.ident()
+        AssetIdent::from_path(self_as_output_asset.path())
     }
 
     #[turbo_tasks::function]
@@ -104,14 +104,12 @@ fn single_item_modifier() -> Vc<RcStr> {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SingleItemCssChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(
-            self.chunking_context.chunk_path(
-                self.item
-                    .asset_ident()
-                    .with_modifier(single_item_modifier()),
-                ".css".into(),
-            ),
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.chunking_context.chunk_path(
+            self.item
+                .asset_ident()
+                .with_modifier(single_item_modifier()),
+            ".css".into(),
         )
     }
 

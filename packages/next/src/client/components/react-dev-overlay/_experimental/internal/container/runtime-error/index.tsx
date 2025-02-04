@@ -1,15 +1,14 @@
-import type { ReadyRuntimeError } from '../../helpers/get-error-by-type'
-
 import { useMemo } from 'react'
 import { CodeFrame } from '../../components/code-frame/code-frame'
 import { CallStack } from '../../components/errors/call-stack/call-stack'
 import { noop as css } from '../../helpers/noop-template'
 import { PSEUDO_HTML_DIFF_STYLES } from './component-stack-pseudo-html'
 
+import type { ReadyRuntimeError } from '../../../../internal/helpers/get-error-by-type'
 export type RuntimeErrorProps = { error: ReadyRuntimeError }
 
 export function RuntimeError({ error }: RuntimeErrorProps) {
-  const { firstFrame } = useMemo(() => {
+  const firstFrame = useMemo(() => {
     const firstFirstPartyFrameIndex = error.frames.findIndex(
       (entry) =>
         !entry.ignored &&
@@ -17,9 +16,7 @@ export function RuntimeError({ error }: RuntimeErrorProps) {
         Boolean(entry.originalStackFrame)
     )
 
-    return {
-      firstFrame: error.frames[firstFirstPartyFrameIndex] ?? null,
-    }
+    return error.frames[firstFirstPartyFrameIndex] ?? null
   }, [error.frames])
 
   return (

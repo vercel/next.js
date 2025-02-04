@@ -1182,7 +1182,8 @@ export default abstract class Server<
             let params: ParsedUrlQuery | false = {}
 
             let paramsResult = utils.normalizeDynamicRouteParams(
-              parsedUrl.query
+              parsedUrl.query,
+              false
             )
 
             // for prerendered ISR paths we attempt parsing the route
@@ -1196,7 +1197,7 @@ export default abstract class Server<
               let matcherParams = utils.dynamicRouteMatcher?.(normalizedUrlPath)
 
               if (matcherParams) {
-                utils.normalizeDynamicRouteParams(matcherParams)
+                utils.normalizeDynamicRouteParams(matcherParams, false)
                 Object.assign(paramsResult.params, matcherParams)
                 paramsResult.hasValidParams = true
               }
@@ -1218,8 +1219,10 @@ export default abstract class Server<
               let matcherParams = utils.dynamicRouteMatcher?.(matchedPath)
 
               if (matcherParams) {
-                const curParamsResult =
-                  utils.normalizeDynamicRouteParams(matcherParams)
+                const curParamsResult = utils.normalizeDynamicRouteParams(
+                  matcherParams,
+                  false
+                )
 
                 if (curParamsResult.hasValidParams) {
                   Object.assign(params, matcherParams)
@@ -1254,6 +1257,19 @@ export default abstract class Server<
               }
             }
 
+            // Try to parse the params from the query if we couldn't parse them
+            // from the route matches but ignore missing optional params.
+            if (!paramsResult.hasValidParams) {
+              paramsResult = utils.normalizeDynamicRouteParams(
+                parsedUrl.query,
+                true
+              )
+
+              if (paramsResult.hasValidParams) {
+                params = paramsResult.params
+              }
+            }
+
             // handle the actual dynamic route name being requested
             if (
               utils.defaultRouteMatches &&
@@ -1276,7 +1292,7 @@ export default abstract class Server<
           }
 
           if (pageIsDynamic || didRewrite) {
-            utils.normalizeVercelUrl(req, true, [
+            utils.normalizeVercelUrl(req, [
               ...rewriteParamKeys,
               ...Object.keys(utils.defaultRouteRegex?.groups || {}),
             ])
@@ -1888,12 +1904,12 @@ export default abstract class Server<
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.setHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
       addedNextUrlToVary = true
     } else if (isAppPath || isRSCRequest) {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.setHeader('vary', baseVaryHeader)
+      res.appendHeader('vary', baseVaryHeader)
     }
 
     if (!addedNextUrlToVary) {
@@ -2654,7 +2670,7 @@ export default abstract class Server<
             }
 
             // TODO: adapt for putting the RDC inside the postponed data
-            // If we're in dev, and this isn't s prefetch or a server action,
+            // If we're in dev, and this isn't a prefetch or a server action,
             // we should seed the resume data cache.
             if (
               this.nextConfig.experimental.dynamicIO &&

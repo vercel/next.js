@@ -4,7 +4,7 @@ use anyhow::{bail, Result};
 use indoc::writedoc;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::{File, FileSystem};
+use turbo_tasks_fs::{File, FileSystem, FileSystemPath};
 use turbopack_core::{
     asset::{Asset, AssetContent},
     chunk::ChunkingContext,
@@ -41,7 +41,7 @@ impl EcmascriptBuildNodeRuntimeChunk {
         let generate_source_map = this
             .chunking_context
             .reference_chunk_source_maps(Vc::upcast(self));
-        let runtime_path = self.ident().path().await?;
+        let runtime_path = self.path().await?;
         let runtime_public_path = if let Some(path) = output_root.get_path_to(&runtime_path) {
             path
         } else {
@@ -105,14 +105,14 @@ impl ValueToString for EcmascriptBuildNodeRuntimeChunk {
 #[turbo_tasks::value_impl]
 impl OutputAsset for EcmascriptBuildNodeRuntimeChunk {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    fn path(&self) -> Vc<FileSystemPath> {
         let ident = AssetIdent::from_path(
             turbopack_ecmascript_runtime::embed_fs()
                 .root()
                 .join("runtime.js".into()),
         );
 
-        AssetIdent::from_path(self.chunking_context.chunk_path(ident, ".js".into()))
+        self.chunking_context.chunk_path(ident, ".js".into())
     }
 
     #[turbo_tasks::function]

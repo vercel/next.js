@@ -17,7 +17,7 @@ jobs:
           repo-token: ${{ secrets.STALE_TOKEN }}
           ascending: true
           days-before-issue-close: 7
-          days-before-issue-stale: 730 # issues with no activity in over two years
+          days-before-issue-stale: 545 # issues with no activity in over ~1.5 years
           days-before-pr-close: -1
           days-before-pr-stale: -1
           remove-issue-stale-when-updated: true

@@ -9,6 +9,7 @@ use crate::{
     span_graph_ref::{event_map_to_list, SpanGraphEventRef, SpanGraphRef},
     span_ref::SpanRef,
     store::{SpanId, Store},
+    timestamp::Timestamp,
     FxIndexMap,
 };
 
@@ -128,14 +129,14 @@ impl<'a> SpanBottomUpRef<'a> {
         })
     }
 
-    pub fn corrected_self_time(&self) -> u64 {
+    pub fn corrected_self_time(&self) -> Timestamp {
         *self
             .bottom_up
             .corrected_self_time
             .get_or_init(|| self.spans().map(|span| span.corrected_self_time()).sum())
     }
 
-    pub fn self_time(&self) -> u64 {
+    pub fn self_time(&self) -> Timestamp {
         *self
             .bottom_up
             .self_time

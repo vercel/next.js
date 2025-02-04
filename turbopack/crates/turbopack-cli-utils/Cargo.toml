@@ -19,6 +19,7 @@ anyhow = { workspace = true }
 clap = { workspace = true, features = ["derive"] }
 crossterm = "0.26.0"
 owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["derive"] }
 turbo-tasks = { workspace = true }
 turbo-tasks-fs = { workspace = true }

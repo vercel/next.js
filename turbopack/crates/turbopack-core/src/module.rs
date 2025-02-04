@@ -16,10 +16,6 @@ pub trait Module: Asset {
         ModuleReferences::empty()
     }
 
-    fn additional_layers_modules(self: Vc<Self>) -> Vc<Modules> {
-        Vc::cell(vec![])
-    }
-
     /// Signifies the module itself is async, e.g. it uses top-level await, is a wasm module, etc.
     fn is_self_async(self: Vc<Self>) -> Vc<bool> {
         Vc::cell(false)

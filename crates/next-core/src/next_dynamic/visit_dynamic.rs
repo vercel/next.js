@@ -94,7 +94,7 @@ impl Visit<VisitDynamicNode> for VisitDynamic {
 
             let referenced_modules = referenced_modules.iter().map(|module| async move {
                 if let Some(next_dynamic_module) =
-                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module).await?
+                    ResolvedVc::try_downcast_type::<NextDynamicEntryModule>(*module)
                 {
                     return Ok(VisitDynamicNode::Dynamic(
                         next_dynamic_module,

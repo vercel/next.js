@@ -232,10 +232,10 @@ graph TD
 ```
 {
     ModuleEvaluation: 3,
-    Exports: 5,
     Export(
         "run",
     ): 4,
+    Exports: 5,
 }
 ```
 
@@ -406,10 +406,10 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 3,
-    Exports: 5,
     Export(
         "run",
     ): 4,
+    Exports: 5,
 }
 ```
 
