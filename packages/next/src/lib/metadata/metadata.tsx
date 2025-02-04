@@ -148,8 +148,8 @@ export function createMetadataComponents({
   async function resolveFinalMetadata() {
     try {
       return await metadata()
-    } catch (error) {
-      if (!errorType && isHTTPAccessFallbackError(error)) {
+    } catch (metadataErr) {
+      if (!errorType && isHTTPAccessFallbackError(metadataErr)) {
         try {
           return await getNotFoundMetadata(
             tree,
@@ -159,12 +159,18 @@ export function createMetadataComponents({
             createServerParamsForMetadata,
             workStore
           )
-        } catch {}
+        } catch (notFoundMetadataErr) {
+          // In PPR rendering we still need to throw the postpone error.
+          // If metadata is postponed, React needs to be aware of the location of error.
+          if (isPostpone(notFoundMetadataErr)) {
+            throw notFoundMetadataErr
+          }
+        }
       }
       // In PPR rendering we still need to throw the postpone error.
       // If metadata is postponed, React needs to be aware of the location of error.
-      if (isPostpone(error)) {
-        throw error
+      if (isPostpone(metadataErr)) {
+        throw metadataErr
       }
       // We don't actually want to error in this component. We will
       // also error in the MetadataOutlet which causes the error to
