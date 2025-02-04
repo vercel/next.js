@@ -1,19 +1,29 @@
-import { cookies } from 'next/headers'
+import { connection } from 'next/server'
 
-// Dynamic usage in page, wrapped with Suspense boundary
+/// Page is suspended and being caught by the layout Suspense boundary
 export default function Page() {
   return (
-    <div>
-      <h1>Partial Dynamic Page</h1>
-      <SubComponent />
+    <div className="container">
+      <SuspendedComponent />
     </div>
   )
 }
 
-async function SubComponent() {
-  const cookieStore = await cookies()
-  const cookie = await cookieStore.get('test')
-  return <div>Cookie: {cookie?.value}</div>
+async function SuspendedComponent() {
+  await connection()
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return (
+    <div>
+      <div>suspended component</div>
+      <NestedSuspendedComponent />
+    </div>
+  )
+}
+
+async function NestedSuspendedComponent() {
+  await connection()
+  await new Promise((resolve) => setTimeout(resolve, 500))
+  return <div>nested suspended component</div>
 }
 
 export async function generateMetadata() {
