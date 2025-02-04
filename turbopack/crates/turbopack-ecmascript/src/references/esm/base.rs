@@ -397,7 +397,7 @@ impl CodeGenerateable for EsmAssetReference {
         };
 
         if let Some((key, stmt)) = result {
-            Ok(CodeGeneration::hoisted_stmt(key, stmt))
+            Ok(CodeGeneration::hoisted_stmt(key, stmt).cell())
         } else {
             Ok(CodeGeneration::empty())
         }

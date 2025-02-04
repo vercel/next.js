@@ -1,45 +1,38 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::quote;
-use turbo_tasks::{ResolvedVc, Value, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Value, Vc};
 use turbopack_core::{
     chunk::ChunkingContext, compile_time_info::CompileTimeDefineValue, module_graph::ModuleGraph,
 };
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
-#[turbo_tasks::value]
-pub struct ConstantValue {
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct ConstantValueCodeGen {
     value: CompileTimeDefineValue,
-    path: ResolvedVc<AstPath>,
+    path: AstPath,
 }
 
-#[turbo_tasks::value_impl]
-impl ConstantValue {
-    #[turbo_tasks::function]
-    pub fn new(value: Value<CompileTimeDefineValue>, path: ResolvedVc<AstPath>) -> Vc<Self> {
-        Self::cell(ConstantValue {
+impl ConstantValueCodeGen {
+    pub fn new(value: Value<CompileTimeDefineValue>, path: AstPath) -> Self {
+        ConstantValueCodeGen {
             value: value.into_value(),
             path,
-        })
+        }
     }
-}
-
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for ConstantValue {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let value = self.value.clone();
-        let path = &self.path.await?;
 
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             *expr = match value {
                 CompileTimeDefineValue::Bool(true) => quote!("(\"TURBOPACK compile-time value\", true)" as Expr),
                 CompileTimeDefineValue::Bool(false) => quote!("(\"TURBOPACK compile-time value\", false)" as Expr),
@@ -49,5 +42,11 @@ impl CodeGenerateable for ConstantValue {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<ConstantValueCodeGen> for CodeGen {
+    fn from(val: ConstantValueCodeGen) -> Self {
+        CodeGen::ConstantValueCodeGen(val)
     }
 }
