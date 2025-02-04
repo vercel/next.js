@@ -19,6 +19,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkType,
     },
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_WORKER_BLOB_URL},
     utils::StringifyJs,
 };
 
@@ -88,7 +89,7 @@ impl EcmascriptChunkItem for WorkerLoaderChunkItem {
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__(__turbopack_worker_blob_url__({chunks:#}));
+                {TURBOPACK_EXPORT_VALUE}({TURBOPACK_WORKER_BLOB_URL}({chunks:#}));
             "#,
             chunks = StringifyJs(&chunks_data),
         };

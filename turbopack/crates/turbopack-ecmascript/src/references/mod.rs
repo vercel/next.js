@@ -7,6 +7,7 @@ pub mod dynamic_expression;
 pub mod esm;
 pub mod external_module;
 pub mod ident;
+pub mod member;
 pub mod node;
 pub mod pattern_mapping;
 pub mod raw;
@@ -133,9 +134,14 @@ use crate::{
         dynamic_expression::DynamicExpression,
         esm::{module_id::EsmModuleIdAssetReference, EsmBinding, UrlRewriteBehavior},
         ident::IdentReplacement,
+        member::MemberReplacement,
         node::PackageJsonReference,
         require_context::{RequireContextAssetReference, RequireContextMap},
         type_issue::SpecifiedModuleTypeIssue,
+    },
+    runtime_functions::{
+        TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS, TURBOPACK_EXPORT_NAMESPACE, TURBOPACK_EXPORT_VALUE,
+        TURBOPACK_REQUIRE_REAL, TURBOPACK_REQUIRE_STUB,
     },
     tree_shake::{find_turbopack_part_id_in_asserts, part_of_module, split},
     utils::{module_value_to_well_known_object, AstPathRange},
@@ -1369,9 +1375,9 @@ async fn compile_time_info_for_module_type(
 
     let mut free_var_references = free_var_references.await?.clone_value();
     let (typeof_exports, typeof_module, require) = if is_esm {
-        ("undefined", "undefined", "__turbopack_require_stub__")
+        ("undefined", "undefined", TURBOPACK_REQUIRE_STUB)
     } else {
-        ("object", "object", "__turbopack_require_real__")
+        ("object", "object", TURBOPACK_REQUIRE_REAL)
     };
     free_var_references
         .entry(vec![
@@ -1400,7 +1406,16 @@ async fn compile_time_info_for_module_type(
         .or_insert("function".into());
     free_var_references
         .entry(vec![DefineableNameSegment::Name("require".into())])
-        .or_insert(FreeVarReference::Ident(require.into()));
+        .or_insert(require.into());
+
+    free_var_references.extend(TUBROPACK_RUNTIME_FUNCTION_SHORTCUTS.into_iter().map(
+        |(name, shortcut)| {
+            (
+                vec![DefineableNameSegment::Name(name.into())],
+                shortcut.into(),
+            )
+        },
+    ));
 
     Ok(CompileTimeInfo {
         environment: compile_time_info.environment,
@@ -2435,6 +2450,13 @@ async fn handle_free_var_reference(
                 Vc::cell(ast_path.to_vec()),
             ));
         }
+        FreeVarReference::Member(key, value) => {
+            analysis.add_code_gen(MemberReplacement::new(
+                key.clone(),
+                value.clone(),
+                Vc::cell(ast_path.to_vec()),
+            ));
+        }
         FreeVarReference::EcmaScriptModule {
             request,
             lookup_path,
@@ -3420,10 +3442,34 @@ fn detect_dynamic_export(p: &Program) -> DetectedDynamicExportType {
                 self.found = true;
             }
         }
+
         fn visit_expr(&mut self, n: &Expr) {
             if self.found {
                 return;
             }
+
+            if let Expr::Member(member) = n {
+                if member.obj.is_ident_ref_to("__turbopack_context__") {
+                    if let MemberProp::Ident(prop) = &member.prop {
+                        const TURBOPACK_EXPORT_VALUE_SHORTCUT: &str =
+                            TURBOPACK_EXPORT_VALUE.shortcut;
+                        const TURBOPACK_EXPORT_NAMESPACE_SHORTCUT: &str =
+                            TURBOPACK_EXPORT_NAMESPACE.shortcut;
+                        match &*prop.sym {
+                            TURBOPACK_EXPORT_VALUE_SHORTCUT => {
+                                self.value = true;
+                                self.found = true;
+                            }
+                            TURBOPACK_EXPORT_NAMESPACE_SHORTCUT => {
+                                self.namespace = true;
+                                self.found = true;
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+            }
+
             n.visit_children_with(self);
         }
 

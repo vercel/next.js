@@ -29,6 +29,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_REQUIRE},
 };
 
 #[turbo_tasks::value]
@@ -196,7 +197,7 @@ impl CodeGenerateable for AmdDefineWithDependenciesCodeGen {
                         ResolvedElement::Expr(quote!("module" as Expr))
                     }
                     AmdDefineDependencyElement::Require => {
-                        ResolvedElement::Expr(quote!("__turbopack_require__" as Expr))
+                        ResolvedElement::Expr(TURBOPACK_REQUIRE.into())
                     }
                 })
             })
@@ -271,11 +272,12 @@ fn transform_amd_factory(
             });
             *callee = Callee::Expr(quote_expr!(
                 "($f1, r = typeof $f2 !== \"function\" ? $f3 : $call_f) => r !== undefined && \
-                 __turbopack_export_value(r)",
-                f1 = f.clone(),
-                f2 = f.clone(),
-                f3 = f,
-                call_f: Expr = call_f
+                 $turbopack_export_value(r)",
+                 f1 = f.clone(),
+                 f2 = f.clone(),
+                 f3 = f,
+                 call_f: Expr = call_f,
+                 turbopack_export_value: Expr = TURBOPACK_EXPORT_VALUE.into()
             ));
             args.push(ExprOrSpread {
                 expr: factory,
@@ -285,7 +287,8 @@ fn transform_amd_factory(
         AmdDefineFactoryType::Function => {
             // (r => r !== undefined && __turbopack_export_value__(r))(...([...]))
             *callee = Callee::Expr(quote_expr!(
-                "r => r !== undefined && __turbopack_export_value__(r)"
+                "r => r !== undefined && $turbopack_export_value(r)",
+                turbopack_export_value: Expr = TURBOPACK_EXPORT_VALUE.into()
             ));
             args.push(ExprOrSpread {
                 expr: Box::new(Expr::Call(CallExpr {
@@ -298,7 +301,7 @@ fn transform_amd_factory(
         }
         AmdDefineFactoryType::Value => {
             // __turbopack_export_value__(...)
-            *callee = Callee::Expr(quote_expr!("__turbopack_export_value__"));
+            *callee = Callee::Expr(Box::new(TURBOPACK_EXPORT_VALUE.into()));
             args.push(ExprOrSpread {
                 expr: factory,
                 spread: None,

@@ -14,6 +14,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor, magic_identifier,
     references::AstPath,
+    runtime_functions::TURBOPACK_RESOLVE_ABSOLUTE_PATH,
 };
 
 /// Responsible for initializing the `import.meta` object binding, so that it
@@ -57,7 +58,8 @@ impl CodeGenerateable for ImportMetaBinding {
             |path| {
                 let formatted = encode_path(path.trim_start_matches("./")).to_string();
                 quote!(
-                    "`file://${__turbopack_resolve_absolute_path__($formatted)}`" as Expr,
+                    "`file://${$turbopack_resolve_absolute_path($formatted)}`" as Expr,
+                    turbopack_resolve_absolute_path: Expr = TURBOPACK_RESOLVE_ABSOLUTE_PATH.into(),
                     formatted: Expr = formatted.into()
                 )
             },

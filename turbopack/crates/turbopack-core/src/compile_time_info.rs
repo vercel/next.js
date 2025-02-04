@@ -209,6 +209,7 @@ pub enum FreeVarReference {
         export: Option<RcStr>,
     },
     Ident(RcStr),
+    Member(RcStr, RcStr),
     Value(CompileTimeDefineValue),
     Error(RcStr),
 }

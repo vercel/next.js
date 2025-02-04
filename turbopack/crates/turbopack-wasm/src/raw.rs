@@ -16,6 +16,7 @@ use turbopack_ecmascript::{
         EcmascriptChunkItem, EcmascriptChunkItemContent, EcmascriptChunkPlaceable,
         EcmascriptChunkType, EcmascriptExports,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -157,7 +158,7 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
 
         Ok(EcmascriptChunkItemContent {
             inner_code: format!(
-                "__turbopack_export_value__({path});",
+                "{TURBOPACK_EXPORT_VALUE}({path});",
                 path = StringifyJs(path)
             )
             .into(),

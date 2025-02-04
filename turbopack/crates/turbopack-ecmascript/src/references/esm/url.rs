@@ -25,6 +25,9 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::{
+        TURBOPACK_RELATIVE_URL, TURBOPACK_REQUIRE, TURBOPACK_RESOLVE_MODULE_ID_PATH,
+    },
     utils::module_id_to_lit,
 };
 
@@ -178,7 +181,9 @@ impl CodeGenerateable for UrlAssetReference {
 
                             if should_rewrite_to_relative {
                                 *new_expr = quote!(
-                                    "new __turbopack_relative_url__(__turbopack_require__($id))" as Expr,
+                                    "new $turbopack_relative_url($turbopack_require($id))" as Expr,
+                                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
+                                    turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                     id: Expr = module_id_to_lit(&id),
                                 );
                             }
@@ -195,7 +200,8 @@ impl CodeGenerateable for UrlAssetReference {
 
                             if should_rewrite_to_relative {
                                 *new_expr = quote!(
-                                    "new __turbopack_relative_url__($id)" as Expr,
+                                    "new $turbopack_relative_url($id)" as Expr,
+                                    turbopack_relative_url: Expr = TURBOPACK_RELATIVE_URL.into(),
                                     id: Expr = request.as_str().into(),
                                 );
                             }
@@ -245,12 +251,14 @@ impl CodeGenerateable for UrlAssetReference {
                         // runtime fn __turbopack_resolve_module_id_path__.
                         let url_segment_resolver = if rewrite_url_base.is_some() {
                             quote!(
-                                "__turbopack_require__($id)" as Expr,
+                                "$turbopack_require($id)" as Expr,
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 id: Expr = module_id_to_lit(&id),
                             )
                         } else {
                             quote!(
-                                "__turbopack_resolve_module_id_path__($id)" as Expr,
+                                "$turbopack_resolve_module_id_path($id)" as Expr,
+                                turbopack_resolve_module_id_path: Expr = TURBOPACK_RESOLVE_MODULE_ID_PATH.into(),
                                 id: Expr = module_id_to_lit(&id),
                             )
                         };

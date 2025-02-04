@@ -26,6 +26,7 @@ use turbopack_core::{
     source_transform::SourceTransform,
     virtual_source::VirtualSource,
 };
+use turbopack_ecmascript::runtime_functions::TURBOPACK_EXTERNAL_IMPORT;
 
 use super::{
     util::{emitted_assets_to_virtual_sources, EmittedAsset},
@@ -381,7 +382,7 @@ pub(crate) async fn config_loader_source(
             // https://github.com/nodejs/node/issues/31710
             // convert it to a file:// URL, which works on all platforms
             const configUrl = pathToFileURL(configPath).toString();
-            const mod = await __turbopack_external_import__(configUrl);
+            const mod = await {TURBOPACK_EXTERNAL_IMPORT}(configUrl);
 
             export default mod.default ?? mod;
         "#,
