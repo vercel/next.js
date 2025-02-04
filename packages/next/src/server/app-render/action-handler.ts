@@ -51,6 +51,8 @@ import { RedirectStatusCode } from '../../client/components/redirect-status-code
 import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
+import type { NodeNextRequest } from '../base-http/node'
+import type { Transform } from 'stream'
 
 function formDataFromSearchQueryString(query: string) {
   const searchParams = new URLSearchParams(query)
@@ -668,14 +670,15 @@ export async function handleAction({
 
         if (isMultipartAction) {
           // TODO-APP: Add streaming support
-          const formData = await req.request.formData()
           if (isFetchAction) {
+            const formData = await req.request.formData()
             boundActionArguments = await decodeReply(
               formData,
               serverModuleMap,
               { temporaryReferences }
             )
           } else {
+            const formData = await req.request.formData()
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
@@ -699,6 +702,7 @@ export async function handleAction({
             return
           }
         } else {
+          // not a multipart action
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
@@ -711,14 +715,8 @@ export async function handleAction({
           }
 
           const chunks: Buffer[] = []
-          const reader = req.body.getReader()
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) {
-              break
-            }
-
-            chunks.push(value)
+          for await (const chunk of req.request.body!) {
+            chunks.push(Buffer.from(chunk))
           }
 
           const actionData = Buffer.concat(chunks).toString('utf-8')
@@ -748,7 +746,6 @@ export async function handleAction({
         const {
           createTemporaryReferenceSet,
           decodeReply,
-          decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
         } = require(
@@ -757,80 +754,22 @@ export async function handleAction({
 
         temporaryReferences = createTemporaryReferenceSet()
 
-        const { Transform } =
-          require('node:stream') as typeof import('node:stream')
-
-        const defaultBodySizeLimit = '1 MB'
-        const bodySizeLimit =
-          serverActions?.bodySizeLimit ?? defaultBodySizeLimit
-        const bodySizeLimitBytes =
-          bodySizeLimit !== defaultBodySizeLimit
-            ? (
-                require('next/dist/compiled/bytes') as typeof import('bytes')
-              ).parse(bodySizeLimit)
-            : 1024 * 1024 // 1 MB
-
-        let size = 0
-        const body = req.body.pipe(
-          new Transform({
-            transform(chunk, encoding, callback) {
-              size += Buffer.byteLength(chunk, encoding)
-              if (size > bodySizeLimitBytes) {
-                const { ApiError } = require('../api-utils')
-
-                callback(
-                  new ApiError(
-                    413,
-                    `Body exceeded ${bodySizeLimit} limit.
-                To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
-                  )
-                )
-                return
-              }
-
-              callback(null, chunk)
-            },
-          })
-        )
+        const sizeLimit = resolveBodySizeLimit(serverActions)
+        const body = getBodyStreamWithSizeLimit(req, sizeLimit)
 
         if (isMultipartAction) {
           if (isFetchAction) {
-            const busboy = (require('busboy') as typeof import('busboy'))({
-              defParamCharset: 'utf8',
-              headers: req.headers,
-              limits: { fieldSize: bodySizeLimitBytes },
-            })
-
-            body.pipe(busboy)
-
-            boundActionArguments = await decodeReplyFromBusboy(
-              busboy,
+            boundActionArguments = await decodeReplyNode(
+              req.headers,
+              body,
+              sizeLimit,
               serverModuleMap,
-              { temporaryReferences }
+              temporaryReferences
             )
           } else {
             // React doesn't yet publish a busboy version of decodeAction
             // so we polyfill the parsing of FormData.
-            const fakeRequest = new Request('http://localhost', {
-              method: 'POST',
-              // @ts-expect-error
-              headers: { 'Content-Type': contentType },
-              body: new ReadableStream({
-                start: (controller) => {
-                  body.on('data', (chunk) => {
-                    controller.enqueue(new Uint8Array(chunk))
-                  })
-                  body.on('end', () => {
-                    controller.close()
-                  })
-                  body.on('error', (err) => {
-                    controller.error(err)
-                  })
-                },
-              }),
-              duplex: 'half',
-            })
-            const formData = await fakeRequest.formData()
+            const formData = await parseFormDataNode(contentType, body)
             const action = await decodeAction(formData, serverModuleMap)
             if (typeof action === 'function') {
               // Only warn if it's a server action, otherwise skip for other post requests
@@ -854,6 +793,7 @@ export async function handleAction({
             return
           }
         } else {
+          // not a multipart action
           try {
             actionModId = getActionModIdOrError(actionId, serverModuleMap)
           } catch (err) {
@@ -1055,6 +995,109 @@ export async function handleAction({
 
     throw err
   }
+}
+
+async function decodeReplyNode(
+  headers: NodeNextRequest['headers'],
+  body: Transform,
+  sizeLimit: ResolvedSizeLimit,
+  serverModuleMap: ServerModuleMap,
+  temporaryReferences: TemporaryReferenceSet | undefined
+) {
+  const { decodeReplyFromBusboy } = require(
+    `./react-server.node`
+  ) as typeof import('./react-server.node')
+
+  const busboy = (require('busboy') as typeof import('busboy'))({
+    defParamCharset: 'utf8',
+    headers: headers,
+    limits: { fieldSize: sizeLimit.bytes },
+  })
+
+  body.pipe(busboy)
+
+  return await decodeReplyFromBusboy(busboy, serverModuleMap, {
+    temporaryReferences,
+  })
+}
+
+async function parseFormDataNode(
+  contentType: string | undefined,
+  body: Transform
+) {
+  const fakeRequest = new Request('http://localhost', {
+    method: 'POST',
+    // @ts-expect-error
+    headers: { 'Content-Type': contentType },
+    body: new ReadableStream({
+      start: (controller) => {
+        body.on('data', (chunk) => {
+          controller.enqueue(new Uint8Array(chunk))
+        })
+        body.on('end', () => {
+          controller.close()
+        })
+        body.on('error', (err) => {
+          controller.error(err)
+        })
+      },
+    }),
+    duplex: 'half',
+  })
+  const formData = await fakeRequest.formData()
+  return formData
+}
+
+type ResolvedSizeLimit = {
+  humanReadable: SizeLimit
+  bytes: number
+}
+
+function resolveBodySizeLimit(
+  config: ServerActionsConfig | undefined
+): ResolvedSizeLimit {
+  const defaultBodySizeLimit = '1 MB'
+  const bodySizeLimit = config?.bodySizeLimit ?? defaultBodySizeLimit
+  const bodySizeLimitBytes =
+    bodySizeLimit !== defaultBodySizeLimit
+      ? (require('next/dist/compiled/bytes') as typeof import('bytes')).parse(
+          bodySizeLimit
+        )
+      : 1024 * 1024 // 1 MB
+  return {
+    humanReadable: bodySizeLimit,
+    bytes: bodySizeLimitBytes,
+  }
+}
+
+function getBodyStreamWithSizeLimit(
+  req: NodeNextRequest,
+  limits: ResolvedSizeLimit
+) {
+  const { Transform } = require('node:stream') as typeof import('node:stream')
+
+  let size = 0
+  return req.body.pipe(
+    new Transform({
+      transform(chunk, encoding, callback) {
+        size += Buffer.byteLength(chunk, encoding)
+        if (size > limits.bytes) {
+          const { ApiError } = require('../api-utils')
+
+          callback(
+            new ApiError(
+              413,
+              `Body exceeded ${limits.humanReadable} limit.
+                  To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+            )
+          )
+          return
+        }
+
+        callback(null, chunk)
+      },
+    })
+  )
 }
 
 /**
