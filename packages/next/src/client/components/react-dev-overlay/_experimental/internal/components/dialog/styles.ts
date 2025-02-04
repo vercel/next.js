@@ -46,7 +46,6 @@ const styles = css`
   }
 
   [data-nextjs-dialog-content] {
-    overflow-y: auto;
     border: none;
     margin: 0;
     height: 100%;

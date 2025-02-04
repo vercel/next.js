@@ -92,7 +92,7 @@ const readyErrors: ReadyRuntimeError[] = [
           lineNumber: 1,
         },
       },
-      ...Array(5).fill(ignoredFrame),
+      ...Array(20).fill(ignoredFrame),
     ],
   },
   {
