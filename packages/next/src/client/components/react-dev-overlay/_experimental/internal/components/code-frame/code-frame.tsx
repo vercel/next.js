@@ -111,6 +111,9 @@ export const CODE_FRAME_STYLES = css`
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
+    margin: var(--size-4) var(--size-4) var(--size-2);
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--size-2);
   }
 
   [data-nextjs-codeframe] pre {
@@ -118,7 +121,6 @@ export const CODE_FRAME_STYLES = css`
   }
 
   .code-frame-header {
-    border-top: 1px solid var(--color-gray-400);
     border-bottom: 1px solid var(--color-gray-400);
   }
 
