@@ -51,7 +51,7 @@ import {
 import { resolveIcons } from './resolvers/resolve-icons'
 import { getTracer } from '../../server/lib/trace/tracer'
 import { ResolveMetadataSpan } from '../../server/lib/trace/constants'
-import { PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
+import { DEFAULT_SEGMENT_KEY, PAGE_SEGMENT_KEY } from '../../shared/lib/segment'
 import * as Log from '../../build/output/log'
 import type { WorkStore } from '../../server/app-render/work-async-storage.external'
 import type {
@@ -443,6 +443,10 @@ async function collectMetadata({
   const hasErrorConventionComponent = Boolean(
     errorConvention && tree[2][errorConvention]
   )
+  // If it's default.js, ignore the metadata
+  if (tree[0] === DEFAULT_SEGMENT_KEY) {
+    return
+  }
   if (errorConvention) {
     mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
