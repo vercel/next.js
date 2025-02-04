@@ -1,7 +1,6 @@
-use std::collections::{HashMap, HashSet};
-
 use anyhow::{bail, Result};
 use next_core::emit_assets;
+use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
@@ -31,7 +30,7 @@ use turbopack_core::{
 struct MapEntry {
     assets_operation: OperationVc<OutputAssets>,
     /// Precomputed map for quick access to output asset by filepath
-    path_to_asset: HashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,
+    path_to_asset: FxHashMap<ResolvedVc<FileSystemPath>, ResolvedVc<Box<dyn OutputAsset>>>,
 }
 
 // HACK: This is technically incorrect because `path_to_asset` contains `ResolvedVc`...
@@ -49,7 +48,7 @@ pub struct PathToOutputOperation(
     /// It may not be 100% correct for the key (`FileSystemPath`) to be in a `ResolvedVc` here, but
     /// it's impractical to make it an `OperationVc`/`OperationValue`, and it's unlikely to
     /// change/break?
-    HashMap<ResolvedVc<FileSystemPath>, FxIndexSet<OperationVc<OutputAssets>>>,
+    FxHashMap<ResolvedVc<FileSystemPath>, FxIndexSet<OperationVc<OutputAssets>>>,
 );
 
 // HACK: This is technically incorrect because the map's key is a `ResolvedVc`...
@@ -57,7 +56,7 @@ unsafe impl OperationValue for PathToOutputOperation {}
 
 // A precomputed map for quick access to output asset by filepath
 type OutputOperationToComputeEntry =
-    HashMap<OperationVc<OutputAssets>, OperationVc<OptionMapEntry>>;
+    FxHashMap<OperationVc<OutputAssets>, OperationVc<OptionMapEntry>>;
 
 #[turbo_tasks::value]
 pub struct VersionedContentMap {
@@ -77,8 +76,8 @@ impl VersionedContentMap {
     // should be a singleton for each project.
     pub fn new() -> ResolvedVc<Self> {
         VersionedContentMap {
-            map_path_to_op: State::new(PathToOutputOperation(HashMap::new())),
-            map_op_to_compute_entry: State::new(HashMap::new()),
+            map_path_to_op: State::new(PathToOutputOperation(FxHashMap::default())),
+            map_op_to_compute_entry: State::new(FxHashMap::default()),
         }
         .resolved_cell()
     }
@@ -142,7 +141,7 @@ impl VersionedContentMap {
             let mut changed = false;
 
             // get current map's keys, subtract keys that don't exist in operation
-            let mut stale_assets = map.0.keys().copied().collect::<HashSet<_>>();
+            let mut stale_assets = map.0.keys().copied().collect::<FxHashSet<_>>();
 
             for (k, _) in entries.iter() {
                 let res = map.0.entry(*k).or_default().insert(assets_operation);

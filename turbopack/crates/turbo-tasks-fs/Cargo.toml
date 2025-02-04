@@ -40,6 +40,7 @@ mime = { workspace = true }
 notify = { workspace = true }
 parking_lot = { workspace = true }
 rayon = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true, features = ["rc"] }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true }

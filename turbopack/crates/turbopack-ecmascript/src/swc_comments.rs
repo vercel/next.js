@@ -1,5 +1,6 @@
-use std::{cell::RefCell, collections::HashMap, mem::take};
+use std::{cell::RefCell, mem::take};
 
+use rustc_hash::FxHashMap;
 use swc_core::{
     base::SwcComments,
     common::{
@@ -12,8 +13,8 @@ use swc_core::{
 /// variants are still implemented, but do not mutate the content. They are used
 /// by the SWC Emitter.
 pub struct ImmutableComments {
-    pub leading: HashMap<BytePos, Vec<Comment>>,
-    pub trailing: HashMap<BytePos, Vec<Comment>>,
+    pub leading: FxHashMap<BytePos, Vec<Comment>>,
+    pub trailing: FxHashMap<BytePos, Vec<Comment>>,
 }
 
 impl ImmutableComments {
@@ -185,8 +186,8 @@ impl Comments for ImmutableComments {
 }
 
 pub struct CowComments<'a> {
-    leading: RefCell<HashMap<BytePos, &'a Vec<Comment>>>,
-    trailing: RefCell<HashMap<BytePos, &'a Vec<Comment>>>,
+    leading: RefCell<FxHashMap<BytePos, &'a Vec<Comment>>>,
+    trailing: RefCell<FxHashMap<BytePos, &'a Vec<Comment>>>,
 }
 
 impl<'a> CowComments<'a> {

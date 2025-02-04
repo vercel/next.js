@@ -29,6 +29,7 @@ parking_lot = { workspace = true }
 portpicker = "0.1.1"
 rand = { workspace = true }
 regex = { workspace = true }
+rustc-hash = { workspace = true }
 serde_json = { workspace = true }
 tempfile = { workspace = true }
 tokio = { workspace = true, features = ["full"] }

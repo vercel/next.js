@@ -40,8 +40,10 @@ dunce = { workspace = true }
 futures = { workspace = true }
 mime = { workspace = true }
 owo-colors = { workspace = true }
+rustc-hash = { workspace = true }
 serde = { workspace = true }
 tokio = { workspace = true, features = ["full"] }
+tracing = { workspace = true }
 tracing-subscriber = { workspace = true, features = ["env-filter", "json"] }
 turbo-rcstr = { workspace = true }
 turbo-tasks = { workspace = true }
@@ -54,7 +56,6 @@ turbopack = { workspace = true }
 turbopack-browser = { workspace = true }
 turbopack-cli-utils = { workspace = true }
 turbopack-core = { workspace = true }
-tracing = { workspace = true }
 turbopack-dev-server = { workspace = true }
 turbopack-ecmascript-plugins = { workspace = true, features = [
   "transform_emotion",

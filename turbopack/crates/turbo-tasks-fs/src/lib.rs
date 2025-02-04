@@ -27,7 +27,6 @@ mod watcher;
 use std::{
     borrow::Cow,
     cmp::{min, Ordering},
-    collections::HashSet,
     fmt::{self, Debug, Display, Formatter, Write as _},
     fs::FileType,
     future::Future,
@@ -50,6 +49,7 @@ use mime::Mime;
 use rayon::iter::{IntoParallelIterator, ParallelIterator};
 use read_glob::read_glob;
 pub use read_glob::ReadGlobResult;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tokio::{
@@ -261,9 +261,10 @@ impl DiskFileSystemInner {
         &self,
         path: &Path,
         invalidator: Invalidator,
-    ) -> Result<HashSet<Invalidator>> {
+    ) -> Result<FxHashSet<Invalidator>> {
         let mut invalidator_map = self.invalidator_map.lock().unwrap();
-        let old_invalidators = invalidator_map.insert(path_to_key(path), [invalidator].into());
+        let old_invalidators =
+            invalidator_map.insert(path_to_key(path), FxHashSet::from_iter([invalidator]));
         drop(invalidator_map);
         #[cfg(not(any(target_os = "macos", target_os = "windows")))]
         if let Some(dir) = path.parent() {
@@ -329,7 +330,7 @@ impl DiskFileSystemInner {
         });
     }
 
-    fn invalidate_from_write(&self, full_path: &Path, invalidators: HashSet<Invalidator>) {
+    fn invalidate_from_write(&self, full_path: &Path, invalidators: FxHashSet<Invalidator>) {
         if !invalidators.is_empty() {
             if let Some(path) = format_absolute_fs_path(full_path, &self.name, self.root_path()) {
                 if invalidators.len() == 1 {

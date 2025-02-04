@@ -1,4 +1,4 @@
-use std::{collections::HashMap, convert::Infallible};
+use std::convert::Infallible;
 
 use anyhow::{bail, Result};
 use lightningcss::{
@@ -6,6 +6,7 @@ use lightningcss::{
     visit_types,
     visitor::{Visit, Visitor},
 };
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{debug::ValueDebug, ResolvedVc, Value, ValueToString, Vc};
 use turbopack_core::{
@@ -148,14 +149,14 @@ pub async fn resolve_url_reference(
 
 pub fn replace_url_references(
     ss: &mut StyleSheetLike<'static, 'static>,
-    urls: &HashMap<RcStr, RcStr>,
+    urls: &FxHashMap<RcStr, RcStr>,
 ) {
     let mut replacer = AssetReferenceReplacer { urls };
     ss.0.visit(&mut replacer).unwrap();
 }
 
 struct AssetReferenceReplacer<'a> {
-    urls: &'a HashMap<RcStr, RcStr>,
+    urls: &'a FxHashMap<RcStr, RcStr>,
 }
 
 impl Visitor<'_> for AssetReferenceReplacer<'_> {
