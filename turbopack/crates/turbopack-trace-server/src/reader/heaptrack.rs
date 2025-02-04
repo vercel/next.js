@@ -6,7 +6,7 @@ use rustc_demangle::demangle;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
+use crate::{span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp, FxIndexMap};
 
 #[derive(Debug, Clone, Copy)]
 struct TraceNode {
@@ -87,7 +87,7 @@ struct TraceData {
 pub struct HeaptrackFormat {
     store: Arc<StoreContainer>,
     version: u32,
-    last_timestamp: u64,
+    last_timestamp: Timestamp,
     strings: Vec<String>,
     traces: Vec<TraceData>,
     ip_parent_map: FxHashMap<(usize, SpanIndex), usize>,
@@ -109,7 +109,7 @@ impl HeaptrackFormat {
         Self {
             store,
             version: 0,
-            last_timestamp: 0,
+            last_timestamp: Timestamp::ZERO,
             strings: vec!["".to_string()],
             traces: vec![TraceData {
                 span_index: SpanIndex::new(usize::MAX).unwrap(),
@@ -411,7 +411,7 @@ impl TraceFormat for HeaptrackFormat {
                 b'c' => {
                     // timestamp
                     let timestamp = read_hex(&mut line)?;
-                    self.last_timestamp = timestamp;
+                    self.last_timestamp = Timestamp::from_micros(timestamp);
                 }
                 b'a' => {
                     // allocation info
