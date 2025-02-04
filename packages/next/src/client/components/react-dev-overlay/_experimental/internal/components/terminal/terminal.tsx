@@ -4,7 +4,7 @@ import { HotlinkedText } from '../hot-linked-text'
 import { EditorLink } from './editor-link'
 import { ExternalIcon } from '../../icons/external'
 import { noop as css } from '../../helpers/noop-template'
-import { getFrameSource } from '../../helpers/stack-frame'
+import { getFrameSource } from '../../../../internal/helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { FileIcon } from '../../icons/file'
 
@@ -148,6 +148,10 @@ export const TERMINAL_STYLES = css`
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
+  }
+
+  [data-nextjs-terminal] pre {
+    white-space: pre-wrap;
   }
 
   .terminal-header {

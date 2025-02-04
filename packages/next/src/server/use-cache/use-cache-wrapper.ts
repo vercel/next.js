@@ -20,6 +20,7 @@ import type {
   WorkUnitStore,
 } from '../app-render/work-unit-async-storage.external'
 import {
+  getHmrRefreshHash,
   getRenderResumeDataCache,
   getPrerenderResumeDataCache,
   workUnitAsyncStorage,
@@ -43,6 +44,13 @@ import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
 
+type CacheKeyParts = [
+  buildId: string,
+  hmrRefreshHash: string | undefined,
+  id: string,
+  args: unknown[],
+]
+
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
 const cacheHandlerMap: Map<string, CacheHandler> = new Map()
@@ -52,7 +60,7 @@ function generateCacheEntry(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
@@ -76,7 +84,7 @@ function generateCacheEntryWithRestoredWorkStore(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
@@ -103,7 +111,7 @@ function generateCacheEntryWithCacheContext(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
   if (!workStore.cacheLifeProfiles) {
@@ -123,6 +131,12 @@ function generateCacheEntryWithCacheContext(
     )
   }
 
+  const useCacheOrRequestStore =
+    outerWorkUnitStore?.type === 'request' ||
+    outerWorkUnitStore?.type === 'cache'
+      ? outerWorkUnitStore
+      : undefined
+
   // Initialize the Store for this Cache entry.
   const cacheStore: UseCacheStore = {
     type: 'cache',
@@ -139,7 +153,11 @@ function generateCacheEntryWithCacheContext(
     explicitExpire: undefined,
     explicitStale: undefined,
     tags: null,
+    hmrRefreshHash: outerWorkUnitStore && getHmrRefreshHash(outerWorkUnitStore),
+    isHmrRefresh: useCacheOrRequestStore?.isHmrRefresh ?? false,
+    serverComponentsHmrCache: useCacheOrRequestStore?.serverComponentsHmrCache,
   }
+
   return workUnitAsyncStorage.run(
     cacheStore,
     generateCacheEntryImpl,
@@ -273,17 +291,19 @@ async function generateCacheEntryImpl(
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
 
-  const [, , args] =
+  const [, , , args] =
     typeof encodedArguments === 'string'
-      ? await decodeReply<any[]>(encodedArguments, getServerModuleMap(), {
-          temporaryReferences,
-        })
-      : await decodeReplyFromAsyncIterable<any[]>(
+      ? await decodeReply<CacheKeyParts>(
+          encodedArguments,
+          getServerModuleMap(),
+          { temporaryReferences }
+        )
+      : await decodeReplyFromAsyncIterable<CacheKeyParts>(
           {
             async *[Symbol.asyncIterator]() {
               for (const entry of encodedArguments) {
@@ -315,24 +335,28 @@ async function generateCacheEntryImpl(
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
-  // Invoke the inner function to load a new result.
-  const result = fn.apply(null, args)
+
+  // Invoke the inner function to load a new result. We delay the invocation
+  // though, until React awaits the promise so that React's request store (ALS)
+  // is available when the function is invoked. This allows us, for example, to
+  // capture logs so that we can later replay them.
+  const resultPromise = createLazyResult(() => fn.apply(null, args))
 
   let errors: Array<unknown> = []
 
   let timer = undefined
   const controller = new AbortController()
   if (outerWorkUnitStore?.type === 'prerender') {
-    // If we're prerendering, we give you 50 seconds to fill a cache entry. Otherwise
-    // we assume you stalled on hanging input and deopt. This needs to be lower than
-    // just the general timeout of 60 seconds.
+    // If we're prerendering, we give you 50 seconds to fill a cache entry.
+    // Otherwise we assume you stalled on hanging input and de-opt. This needs
+    // to be lower than just the general timeout of 60 seconds.
     timer = setTimeout(() => {
       controller.abort(timeoutError)
     }, 50000)
   }
 
   const stream = renderToReadableStream(
-    result,
+    resultPromise,
     clientReferenceManifest.clientModules,
     {
       environmentName: 'Cache',
@@ -468,7 +492,7 @@ export function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
-  fn: any
+  fn: (...args: unknown[]) => Promise<unknown>
 ) {
   for (const [key, value] of Object.entries(
     cacheHandlerGlobal.__nextCacheHandlers || {}
@@ -507,6 +531,13 @@ export function cache(
       // the implementation.
       const buildId = workStore.buildId
 
+      // In dev mode, when the HMR refresh hash is set, we include it in the
+      // cache key. This ensures that cache entries are not reused when server
+      // components have been edited. This is a very coarse approach. But it's
+      // also only a temporary solution until Action IDs are unique per
+      // implementation. Remove this once Action IDs hash the implementation.
+      const hmrRefreshHash = workUnitStore && getHmrRefreshHash(workUnitStore)
+
       const hangingInputAbortSignal =
         workUnitStore?.type === 'prerender'
           ? createHangingInputAbortSignal(workUnitStore)
@@ -538,17 +569,18 @@ export function cache(
       }
 
       const temporaryReferences = createClientTemporaryReferenceSet()
-      const encodedArguments: FormData | string = await encodeReply(
-        [buildId, id, args],
+      const cacheKeyParts: CacheKeyParts = [buildId, hmrRefreshHash, id, args]
+      const encodedCacheKeyParts: FormData | string = await encodeReply(
+        cacheKeyParts,
         { temporaryReferences, signal: hangingInputAbortSignal }
       )
 
       const serializedCacheKey =
-        typeof encodedArguments === 'string'
+        typeof encodedCacheKeyParts === 'string'
           ? // Fast path for the simple case for simple inputs. We let the CacheHandler
             // Convert it to an ArrayBuffer if it wants to.
-            encodedArguments
-          : await encodeFormData(encodedArguments)
+            encodedCacheKeyParts
+          : await encodeFormData(encodedCacheKeyParts)
 
       let stream: undefined | ReadableStream = undefined
 
@@ -669,7 +701,7 @@ export function cache(
             workStore,
             workUnitStore,
             clientReferenceManifest,
-            encodedArguments,
+            encodedCacheKeyParts,
             fn,
             timeoutError
           )
@@ -729,7 +761,7 @@ export function cache(
               workStore,
               undefined, // This is not running within the context of this unit.
               clientReferenceManifest,
-              encodedArguments,
+              encodedCacheKeyParts,
               fn,
               timeoutError
             )
@@ -790,4 +822,23 @@ export function cache(
     },
   }[name]
   return cachedFn
+}
+
+/**
+ * Calls the given function only when the returned promise is awaited.
+ */
+function createLazyResult<TResult>(
+  fn: () => Promise<TResult>
+): PromiseLike<TResult> {
+  let pendingResult: Promise<TResult> | undefined
+
+  return {
+    then(onfulfilled, onrejected) {
+      if (!pendingResult) {
+        pendingResult = fn()
+      }
+
+      return pendingResult.then(onfulfilled, onrejected)
+    },
+  }
 }

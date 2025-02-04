@@ -1,8 +1,8 @@
 use std::{cell::RefCell, rc::Rc, sync::Arc};
 
-use fxhash::FxHashSet;
 use next_custom_transforms::transforms::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
+use rustc_hash::FxHashSet;
 use swc_core::{
     base::{try_with_handler, Compiler},
     common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
@@ -53,11 +53,11 @@ export function getServerSideProps() {
         })
         .is_ok()
     );
-    assert_eq!(
-        eliminated_packages
-            .borrow()
-            .iter()
-            .collect::<Vec<&String>>(),
-        vec!["@napi-rs/bcrypt", "http"]
-    );
+    let mut eliminated_packages_vec = Rc::into_inner(eliminated_packages)
+        .expect("we should have the only remaining reference to `eliminated_packages`")
+        .into_inner()
+        .into_iter()
+        .collect::<Vec<String>>();
+    eliminated_packages_vec.sort_unstable(); // HashSet order is random/arbitrary
+    assert_eq!(eliminated_packages_vec, vec!["@napi-rs/bcrypt", "http"]);
 }

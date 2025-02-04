@@ -1,7 +1,4 @@
-use std::{
-    collections::HashMap,
-    sync::{Arc, RwLock},
-};
+use std::sync::{Arc, RwLock};
 
 use anyhow::{bail, Result};
 use lightningcss::{
@@ -12,6 +9,7 @@ use lightningcss::{
     visit_types,
     visitor::Visit,
 };
+use rustc_hash::FxHashMap;
 use smallvec::smallvec;
 use swc_core::{
     base::sourcemap::SourceMapBuilder,
@@ -148,7 +146,7 @@ pub enum CssWithPlaceholderResult {
         exports: Option<FxIndexMap<String, CssModuleExport>>,
 
         #[turbo_tasks(trace_ignore)]
-        placeholders: HashMap<String, Url<'static>>,
+        placeholders: FxHashMap<String, Url<'static>>,
     },
     Unparseable,
     NotFound,
@@ -210,7 +208,7 @@ pub async fn process_css_with_placeholder(
                 exports,
                 references: *references,
                 url_references: *url_references,
-                placeholders: HashMap::new(),
+                placeholders: FxHashMap::default(),
             }
             .cell())
         }
@@ -246,7 +244,7 @@ pub async fn finalize_css(
 
             let url_references = *url_references;
 
-            let mut url_map = HashMap::new();
+            let mut url_map = FxHashMap::default();
 
             for (src, reference) in (*url_references.await?).iter() {
                 let resolved =

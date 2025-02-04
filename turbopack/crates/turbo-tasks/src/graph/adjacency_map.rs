@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashSet, VecDeque},
-    hash::Hash,
-};
+use std::{collections::VecDeque, hash::Hash};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use serde::{Deserialize, Serialize};
@@ -102,7 +99,7 @@ where
                 .rev()
                 .map(|root| (ReverseTopologicalPass::Pre, root))
                 .collect(),
-            visited: HashSet::new(),
+            visited: FxHashSet::default(),
         }
     }
 
@@ -164,7 +161,7 @@ where
 {
     adjacency_map: FxHashMap<T, Vec<T>>,
     stack: Vec<(ReverseTopologicalPass, T)>,
-    visited: HashSet<T>,
+    visited: FxHashSet<T>,
 }
 
 impl<T> Iterator for IntoReverseTopologicalIter<T>

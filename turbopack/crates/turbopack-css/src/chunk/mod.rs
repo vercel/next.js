@@ -199,8 +199,7 @@ impl OutputChunk for CssChunk {
         let imports_chunk_items: Vec<_> = entries_chunk_items
             .iter()
             .map(|&chunk_item| async move {
-                let Some(css_item) =
-                    ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item).await?
+                let Some(css_item) = ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(chunk_item)
                 else {
                     return Ok(vec![]);
                 };
@@ -505,7 +504,7 @@ impl ChunkType for CssChunkType {
                 .iter()
                 .map(async |ChunkItemWithAsyncModuleInfo { chunk_item, .. }| {
                     let Some(chunk_item) =
-                        ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item).await?
+                        ResolvedVc::try_downcast::<Box<dyn CssChunkItem>>(*chunk_item)
                     else {
                         bail!("Chunk item is not an css chunk item but reporting chunk type css");
                     };

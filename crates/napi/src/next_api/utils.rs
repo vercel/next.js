@@ -1,6 +1,4 @@
-use std::{
-    collections::HashMap, future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration,
-};
+use std::{future::Future, ops::Deref, path::PathBuf, sync::Arc, time::Duration};
 
 use anyhow::{anyhow, Context, Result};
 use napi::{
@@ -8,6 +6,7 @@ use napi::{
     threadsafe_function::{ThreadSafeCallContext, ThreadsafeFunction, ThreadsafeFunctionCallMode},
     JsFunction, JsObject, JsUnknown, NapiRaw, NapiValue, Status,
 };
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use turbo_tasks::{
     task_statistics::TaskStatisticsApi, trace::TraceRawVcs, OperationVc, ReadRef, TaskId,
@@ -412,7 +411,8 @@ impl From<SourcePos> for NapiSourcePos {
 pub struct NapiDiagnostic {
     pub category: String,
     pub name: String,
-    pub payload: HashMap<String, String>,
+    #[napi(ts_type = "Record<string, string>")]
+    pub payload: FxHashMap<String, String>,
 }
 
 impl NapiDiagnostic {

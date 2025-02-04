@@ -17,7 +17,6 @@ workspace = true
 chrono = "0.4"
 easy-error = "1.0.0"
 either = "1"
-fxhash = "0.2.1"
 hex = "0.4.3"
 indexmap = { workspace = true }
 indoc = { workspace = true }
@@ -25,6 +24,7 @@ once_cell = { workspace = true }
 pathdiff = { workspace = true }
 regex = "1.5"
 rustc-hash = { workspace = true }
+swc-rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"
