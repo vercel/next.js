@@ -176,6 +176,8 @@ function DevToolsPopover({
     }, ANIMATE_OUT_DURATION_MS)
   }
 
+  console.log(issueCount)
+
   return (
     <Toast
       data-nextjs-toast
@@ -186,7 +188,6 @@ function DevToolsPopover({
     >
       <NextLogo
         ref={triggerRef}
-        key={issueCount}
         aria-haspopup="menu"
         aria-expanded={isMenuOpen}
         aria-controls="nextjs-dev-tools-menu"
@@ -227,12 +228,14 @@ function DevToolsPopover({
             }}
           >
             <div className="inner">
-              <MenuItem
-                index={0}
-                label="Issues"
-                value={<IssueCount>{issueCount}</IssueCount>}
-                onClick={openErrorOverlay}
-              />
+              {issueCount > 0 && (
+                <MenuItem
+                  index={0}
+                  label="Issues"
+                  value={<IssueCount>{issueCount}</IssueCount>}
+                  onClick={openErrorOverlay}
+                />
+              )}
               <MenuItem
                 label="Route"
                 value={isStaticRoute ? 'Static' : 'Dynamic'}
