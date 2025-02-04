@@ -99,13 +99,7 @@ export function PseudoHtmlDiff({
                 sign === '+' ? 'add' : 'remove'
               }
             >
-              <span
-              // className={
-              //   isHtmlCollapsed
-              //     ? 'error-overlay-hydration-error-collapsed'
-              //     : ''
-              // }
-              >
+              <span>
                 {/* Slice 2 spaces for the icon */}
                 {spaces.slice(2)}
                 {trimmedLine}
@@ -358,11 +352,21 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     display: inline-block;
     width: 100%;
     padding-left: var(--size-10);
+    line-height: calc(5 / 3);
   }
   [data-nextjs-container-errors-pseudo-html-line--error] {
-    background: var(--color-red-300);
+    background: var(--color-amber-300);
     font-weight: bold;
   }
+  [data-nextjs-container-errors-pseudo-html-line--error]::before {
+    content: '>';
+    color: var(--color-red-900);
+    float: left;
+    width: 0;
+    margin-left: calc(var(--size-6) * -1);
+    margin-right: var(--size-8);
+  }
+
   [data-nextjs-container-errors-pseudo-html-collapse] {
     all: unset;
     margin-left: var(--size-3);
@@ -408,9 +412,6 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
     display: block;
     width: 100%;
     white-space: pre-wrap;
-  }
-  .error-overlay-hydration-error-collapsed {
-    padding-left: var(--size-4);
   }
   .error-overlay-hydration-error-diff-plus-icon {
     color: var(--color-green-900);
