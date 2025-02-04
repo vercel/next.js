@@ -595,6 +595,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 return;
             }
             if let Some(reader) = reader {
+                if reader == task_id {
+                    // We never want to have a dependency on ourselves, otherwise we end up in a
+                    // loop of re-executing the same task.
+                    return;
+                }
                 let _ = task.add(CachedDataItem::CellDependent {
                     cell,
                     task: reader,
