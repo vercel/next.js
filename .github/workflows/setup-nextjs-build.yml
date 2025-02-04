@@ -16,7 +16,11 @@ on:
 jobs:
   build_nextjs:
     name: Build Next.js for the turbopack integration test
-    runs-on: ubuntu-latest-16-core-oss
+    runs-on:
+      - 'self-hosted'
+      - 'linux'
+      - 'x64'
+      - 'metal'
     outputs:
       output1: ${{ steps.build-next-swc-turbopack-patch.outputs.success }}
     steps:
