@@ -17,7 +17,7 @@ export interface NextBabelLoaderBaseOptions {
 
   // Custom plugins to be added to the generated babel options.
   reactCompilerPlugins?: Array<any>
-  reactCompilerExclude?: (excludePath: string) => Promise<boolean>
+  reactCompilerExclude?: (excludePath: string) => boolean
 }
 
 /**

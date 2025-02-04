@@ -8,6 +8,7 @@ import type { NextBabelLoaderOptions, NextJsLoaderContext } from './types'
 import { consumeIterator } from './util'
 import * as Log from '../../output/log'
 import jsx from 'next/dist/compiled/babel/plugin-syntax-jsx'
+import { isReactCompilerRequired } from '../../swc'
 
 const nextDistPath =
   /(next[\\/]dist[\\/]shared[\\/]lib)|(next[\\/]dist[\\/]client)|(next[\\/]dist[\\/]pages)/
@@ -279,8 +280,12 @@ async function getFreshConfig(
 
     if (
       loaderOptions.reactCompilerExclude &&
-      (await loaderOptions.reactCompilerExclude(filename))
+      loaderOptions.reactCompilerExclude(filename)
     ) {
+      return false
+    }
+
+    if (!(await isReactCompilerRequired(filename))) {
       return false
     }
 
