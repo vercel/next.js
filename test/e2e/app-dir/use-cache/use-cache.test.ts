@@ -315,30 +315,33 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using unstable_expireTag', async () => {
-    const browser = await next.browser(`/form`)
-    const time1 = await browser.waitForElementByCss('#t').text()
+  // TODO(useCache): Re-activate for deploy tests when NAR-85 is resolved.
+  if (!isNextDeploy) {
+    it('should be able to revalidate a page using unstable_expireTag', async () => {
+      const browser = await next.browser(`/form`)
+      const time1 = await browser.waitForElementByCss('#t').text()
 
-    await browser.loadPage(new URL(`/form`, next.url).toString())
+      await browser.loadPage(new URL(`/form`, next.url).toString())
 
-    const time2 = await browser.waitForElementByCss('#t').text()
+      const time2 = await browser.waitForElementByCss('#t').text()
 
-    expect(time1).toBe(time2)
+      expect(time1).toBe(time2)
 
-    await browser.elementByCss('#refresh').click()
+      await browser.elementByCss('#refresh').click()
 
-    await waitFor(500)
+      await waitFor(500)
 
-    const time3 = await browser.waitForElementByCss('#t').text()
+      const time3 = await browser.waitForElementByCss('#t').text()
 
-    expect(time3).not.toBe(time2)
+      expect(time3).not.toBe(time2)
 
-    // Reloading again should ideally be the same value but because the Action seeds
-    // the cache with real params as the argument it has a different cache key.
-    // await browser.loadPage(new URL(`/form?c`, next.url).toString())
-    // const time4 = await browser.waitForElementByCss('#t').text()
-    // expect(time4).toBe(time3);
-  })
+      // Reloading again should ideally be the same value but because the Action seeds
+      // the cache with real params as the argument it has a different cache key.
+      // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+      // const time4 = await browser.waitForElementByCss('#t').text()
+      // expect(time4).toBe(time3);
+    })
+  }
 
   it('should use revalidate config in fetch', async () => {
     const browser = await next.browser('/fetch-revalidate')
