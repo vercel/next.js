@@ -136,7 +136,7 @@ jobs:
       - run: fnm default ${{ inputs.nodeVersion || env.NODE_LTS_VERSION }}
       - run: node -v
       - name: Prepare corepack
-        if: ${{ contains('ubuntu-latest', fromJson(inputs.runs_on_labels)) }}
+        if: ${{ contains(fromJson(inputs.runs_on_labels), 'ubuntu-latest') }}
         run: |
           npm i -g corepack@0.31
       - run: corepack enable
