@@ -16,6 +16,7 @@ use crate::references::{
     dynamic_expression::DynamicExpression,
     esm::{EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef},
     ident::IdentReplacement,
+    member::MemberReplacement,
     unreachable::Unreachable,
 };
 
@@ -118,6 +119,7 @@ pub enum CodeGen {
     IdentReplacement(IdentReplacement),
     ImportMetaBinding(ImportMetaBinding),
     ImportMetaRef(ImportMetaRef),
+    MemberReplacement(MemberReplacement),
     Unreachable(Unreachable),
 }
 
@@ -138,6 +140,7 @@ impl CodeGen {
             Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
             Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,
             Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
+            Self::MemberReplacement(v) => v.code_generation(g, ctx).await,
             Self::Unreachable(v) => v.code_generation(g, ctx).await,
         }
     }

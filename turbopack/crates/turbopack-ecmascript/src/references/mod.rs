@@ -2406,7 +2406,7 @@ async fn handle_free_var_reference(
             analysis.add_code_gen(MemberReplacement::new(
                 key.clone(),
                 value.clone(),
-                Vc::cell(ast_path.to_vec()),
+                ast_path.to_vec().into(),
             ));
         }
         FreeVarReference::EcmaScriptModule {

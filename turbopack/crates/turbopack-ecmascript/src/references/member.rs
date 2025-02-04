@@ -1,51 +1,41 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::DUMMY_SP,
     ecma::ast::{Expr, MemberExpr, MemberProp},
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Vc};
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
 use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
 
 use super::AstPath;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration},
     create_visitor,
 };
 
-#[turbo_tasks::value]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct MemberReplacement {
     key: RcStr,
     value: RcStr,
-    path: ResolvedVc<AstPath>,
+    path: AstPath,
 }
 
-#[turbo_tasks::value_impl]
 impl MemberReplacement {
-    #[turbo_tasks::function]
-    pub async fn new(key: RcStr, value: RcStr, path: Vc<AstPath>) -> Result<Vc<Self>> {
-        Ok(Self::cell(MemberReplacement {
-            key,
-            value,
-            path: path.to_resolved().await?,
-        }))
+    pub fn new(key: RcStr, value: RcStr, path: AstPath) -> Self {
+        MemberReplacement { key, value, path }
     }
-}
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for MemberReplacement {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let key = self.key.clone();
         let value = self.value.clone();
-        let path = &self.path.await?;
 
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let member = Expr::Member(MemberExpr {
                 span: DUMMY_SP,
                 obj: Box::new(Expr::Ident((&*key).into())),
@@ -55,5 +45,11 @@ impl CodeGenerateable for MemberReplacement {
         });
 
         Ok(CodeGeneration::visitors(vec![visitor]))
+    }
+}
+
+impl From<MemberReplacement> for CodeGen {
+    fn from(val: MemberReplacement) -> Self {
+        CodeGen::MemberReplacement(val)
     }
 }
