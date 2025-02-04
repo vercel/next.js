@@ -1847,9 +1847,18 @@ async function renderToStream(
     // one task before continuing
     await waitAtLeastOneReactRenderTask()
 
+    // When streaming metadata is enabled and request UA is a html-limited bot, we should do a dynamic render.
+    const shouldDoDynamicRender =
+      ctx.renderOpts.botType === 'html-limited' &&
+      ctx.renderOpts.experimental.streamingMetadata
+
     // If provided, the postpone state should be parsed as JSON so it can be
     // provided to React.
-    if (typeof renderOpts.postponed === 'string') {
+    if (
+      typeof renderOpts.postponed === 'string' &&
+      // When we don't need to forcedly do a dynamic render, continue PPR renderer.
+      !shouldDoDynamicRender
+    ) {
       if (postponedState?.type === DynamicState.DATA) {
         // We have a complete HTML Document in the prerender but we need to
         // still include the new server component render because it was not included

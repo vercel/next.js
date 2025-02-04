@@ -74,13 +74,6 @@ describe('app-dir - metadata-streaming-static-generation', () => {
   })
 
   describe('dynamic pages with html limited bots', () => {
-    // TODO: dealing with bots in PPR mode
-    // Couldn't find all resumable slots by key/index during replaying. The tree doesn't match so React will fallback to client rendering
-    if (isPPREnabled) {
-      it('skip ppr test', () => {})
-      return
-    }
-
     it('should contain async generated metadata in head for simple dynamics page', async () => {
       const $ = await next.render$('/suspenseful/dynamic', undefined, {
         headers: {
