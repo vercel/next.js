@@ -1157,7 +1157,7 @@ impl AppEndpoint {
         for chunk in client_shared_chunk_group.assets.await?.iter().copied() {
             client_assets.insert(chunk);
 
-            let chunk_path = chunk.ident().path().await?;
+            let chunk_path = chunk.path().await?;
             if chunk_path.extension_ref() == Some("js") {
                 client_shared_chunks.push(chunk);
             }
@@ -1534,7 +1534,7 @@ impl AppEndpoint {
                         &app_entry.original_name,
                         server_path
                             .await?
-                            .get_path_to(&*rsc_chunk.ident().path().await?)
+                            .get_path_to(&*rsc_chunk.path().await?)
                             .context(
                                 "RSC chunk path should be within app paths manifest directory",
                             )?
@@ -1847,7 +1847,7 @@ impl Endpoint for AppEndpoint {
             let written_endpoint = match *output {
                 AppEndpointOutput::NodeJs { rsc_chunk, .. } => EndpointOutputPaths::NodeJs {
                     server_entry_path: node_root_ref
-                        .get_path_to(&*rsc_chunk.ident().path().await?)
+                        .get_path_to(&*rsc_chunk.path().await?)
                         .context("Node.js chunk entry path must be inside the node root")?
                         .to_string(),
                     server_paths,

@@ -180,7 +180,7 @@ impl EcmascriptChunkItem for ChunkGroupFilesChunkItem {
         let chunks_paths = chunks
             .await?
             .iter()
-            .map(|chunk| chunk.ident().path())
+            .map(|chunk| chunk.path())
             .try_join()
             .await?;
         let chunks_paths: Vec<_> = chunks_paths

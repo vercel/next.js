@@ -445,7 +445,7 @@ async fn build_internal(
 
     chunks
         .iter()
-        .map(|c| c.content().write(c.ident().path()))
+        .map(|c| c.content().write(c.path()))
         .try_join()
         .await?;
 

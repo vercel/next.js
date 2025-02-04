@@ -128,7 +128,7 @@ impl VersionedContentMap {
             let entries = assets_ref
                 .iter()
                 .map(|&asset| async move {
-                    let path = asset.ident().path().to_resolved().await?;
+                    let path = asset.path().to_resolved().await?;
                     Ok((path, asset))
                 })
                 .try_join()

@@ -963,7 +963,7 @@ async fn emit_aggregated_assets(
 
 #[turbo_tasks::function]
 pub fn emit_asset(asset: Vc<Box<dyn OutputAsset>>) {
-    let _ = asset.content().write(asset.ident().path());
+    let _ = asset.content().write(asset.path());
 }
 
 #[turbo_tasks::function]
@@ -972,7 +972,7 @@ pub async fn emit_asset_into_dir(
     output_dir: Vc<FileSystemPath>,
 ) -> Result<()> {
     let dir = &*output_dir.await?;
-    if asset.ident().path().await?.is_inside_ref(dir) {
+    if asset.path().await?.is_inside_ref(dir) {
         let _ = emit_asset(asset);
     }
     Ok(())

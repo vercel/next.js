@@ -39,7 +39,7 @@ impl EcmascriptDevChunkListContent {
         let output_root = chunk_list_ref.chunking_context.output_root().await?;
         Ok(EcmascriptDevChunkListContent {
             chunk_list_path: output_root
-                .get_path_to(&*chunk_list.ident().path().await?)
+                .get_path_to(&*chunk_list.path().await?)
                 .context("chunk list path not in output root")?
                 .to_string(),
             chunks_contents: chunk_list_ref
@@ -51,7 +51,7 @@ impl EcmascriptDevChunkListContent {
                     async move {
                         Ok((
                             output_root
-                                .get_path_to(&*chunk.ident().path().await?)
+                                .get_path_to(&*chunk.path().await?)
                                 .map(|path| path.to_string()),
                             chunk.versioned_content().to_resolved().await?,
                         ))

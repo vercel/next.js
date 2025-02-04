@@ -113,7 +113,7 @@ async fn expand(
     let root_assets_with_path = root_assets
         .iter()
         .map(|&asset| async move {
-            let path = asset.ident().path().await?;
+            let path = asset.path().await?;
             Ok((path, asset))
         })
         .try_join()
@@ -153,7 +153,7 @@ async fn expand(
     while let Some(references) = queue.pop_front() {
         for asset in references.await?.iter() {
             if assets_set.insert(*asset) {
-                let path = asset.ident().path().await?;
+                let path = asset.path().await?;
                 if let Some(sub_path) = root_path.get_path_to(&path) {
                     let (sub_paths_buffer, sub_paths) = get_sub_paths(sub_path);
                     let expanded = if let Some(expanded) = &expanded {

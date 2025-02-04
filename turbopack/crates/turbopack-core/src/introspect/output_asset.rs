@@ -39,7 +39,7 @@ impl Introspectable for IntrospectableOutputAsset {
 
     #[turbo_tasks::function]
     fn title(&self) -> Vc<RcStr> {
-        self.0.ident().to_string()
+        self.0.path().to_string()
     }
 
     #[turbo_tasks::function]
