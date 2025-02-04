@@ -4,7 +4,7 @@ use next_custom_transforms::transforms::next_ssg::next_ssg;
 use once_cell::sync::Lazy;
 use rustc_hash::FxHashSet;
 use swc_core::{
-    atoms::{atom, Atom},
+    atoms::Atom,
     base::{try_with_handler, Compiler},
     common::{comments::SingleThreadedComments, FileName, FilePathMapping, SourceMap, GLOBALS},
     ecma::ast::noop_pass,

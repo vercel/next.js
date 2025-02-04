@@ -107,7 +107,7 @@ fn get_compiler() -> Arc<Compiler> {
 pub fn complete_output(
     env: &Env,
     output: TransformOutput,
-    eliminated_packages: FxHashSet<String>,
+    eliminated_packages: FxHashSet<Atom>,
     use_cache_telemetry_tracker: FxHashMap<String, usize>,
 ) -> napi::Result<Object> {
     let mut js_output = env.create_object()?;
