@@ -33,11 +33,11 @@ const isOwnerStackEnabled = process.env.__NEXT_EXPERIMENTAL_PPR === 'true'
             
             5 |     <div>
             6 |       {list.map((item, index) => (
-              >  7 |         <span>{item}</span>
+         >  7 |         <span>{item}</span>
               |          ^
-              8 |       ))}
-              9 |     </div>
-              10 |   )"
+            8 |       ))}
+            9 |     </div>
+           10 |   )"
               `)
       } else {
         expect(stackFramesContent).toMatchInlineSnapshot(`
