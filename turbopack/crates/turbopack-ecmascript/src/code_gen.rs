@@ -49,37 +49,33 @@ impl CodeGeneration {
         visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
-    ) -> Vc<Self> {
+    ) -> Self {
         CodeGeneration {
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
         }
-        .cell()
     }
 
-    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Vc<Self> {
+    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Self {
         CodeGeneration {
             visitors,
             ..Default::default()
         }
-        .cell()
     }
 
-    pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Vc<Self> {
+    pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Self {
         CodeGeneration {
             hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
             ..Default::default()
         }
-        .cell()
     }
 
-    pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
+    pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Self {
         CodeGeneration {
             hoisted_stmts,
             ..Default::default()
         }
-        .cell()
     }
 }
 
@@ -130,7 +126,7 @@ impl CodeGen {
         &self,
         g: Vc<ModuleGraph>,
         ctx: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         match self {
             Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
             Self::CjsRequireCacheAccess(v) => v.code_generation(g, ctx).await,

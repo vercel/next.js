@@ -140,6 +140,7 @@ impl CodeGenerateable for EcmascriptModulePartReference {
                 turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                 id: Expr = module_id_to_lit(&id),
             ),
-        ))
+        )
+        .cell())
     }
 }

@@ -83,10 +83,10 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         ));
         code_gens.push(exports.code_generation(*self.module_graph, *chunking_context));
         let code_gens = code_gens.into_iter().try_join().await?;
-        let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
+        let code_gens = code_gens.iter().map(|cg| &**cg);
 
         let mut program = Program::Module(swc_core::ecma::ast::Module::dummy());
-        process_content_with_code_gens(&mut program, &Globals::new(), None, &code_gens);
+        process_content_with_code_gens(&mut program, &Globals::new(), None, code_gens);
 
         let mut bytes: Vec<u8> = vec![];
 

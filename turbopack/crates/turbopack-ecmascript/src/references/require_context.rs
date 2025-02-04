@@ -314,7 +314,7 @@ impl CodeGenerateable for RequireContextAssetReference {
             }
         }));
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors(visitors).cell())
     }
 }
 

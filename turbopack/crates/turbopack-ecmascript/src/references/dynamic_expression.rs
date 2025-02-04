@@ -41,7 +41,7 @@ impl DynamicExpression {
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let visitor = match self.ty {
             DynamicExpressionType::Normal => {
                 create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {

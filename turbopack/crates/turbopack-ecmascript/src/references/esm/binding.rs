@@ -45,7 +45,7 @@ impl EsmBinding {
         &self,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
         let export = self.export.clone();

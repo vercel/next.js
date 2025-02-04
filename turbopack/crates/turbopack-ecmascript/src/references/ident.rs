@@ -26,7 +26,7 @@ impl IdentReplacement {
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let value = self.value.clone();
 
         let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {

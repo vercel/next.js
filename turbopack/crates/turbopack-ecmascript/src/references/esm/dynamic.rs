@@ -177,6 +177,6 @@ impl CodeGenerateable for EsmAsyncAssetReference {
             });
         });
 
-        Ok(CodeGeneration::visitors(vec![visitor]))
+        Ok(CodeGeneration::visitors(vec![visitor]).cell())
     }
 }
