@@ -1274,24 +1274,24 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if self.should_track_dependencies() {
             old_edges.extend(iter_many!(task, OutdatedCellDependency { target } => OutdatedEdge::CellDependency(target)));
             old_edges.extend(iter_many!(task, OutdatedOutputDependency { target } => OutdatedEdge::OutputDependency(target)));
-            old_edges.extend(task.iter(CachedDataItemType::CellDependent).filter_map(
-                |(key, _)| {
-                    match key {
-                        CachedDataItemKey::CellDependent { cell, task }
-                            if cell_counters
-                                .get(&cell.type_id)
-                                .is_none_or(|start_index| cell.index >= *start_index) =>
+            old_edges.extend(
+                iter_many!(task, CellDependent { cell, task } => (cell, task)).filter_map(
+                    |(cell, task)| {
+                        if cell_counters
+                            .get(&cell.type_id)
+                            .is_none_or(|start_index| cell.index >= *start_index)
                         {
                             Some(OutdatedEdge::RemovedCellDependent {
                                 task_id: task,
                                 #[cfg(feature = "trace_task_dirty")]
                                 value_type_id: cell.type_id,
                             })
+                        } else {
+                            None
                         }
-                        _ => None,
-                    }
-                },
-            ));
+                    },
+                ),
+            );
         }
 
         drop(task);
