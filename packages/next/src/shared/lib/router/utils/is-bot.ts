@@ -23,3 +23,15 @@ function isHtmlLimitedBotUA(userAgent: string) {
 export function isBot(userAgent: string): boolean {
   return isHeadlessBrowserBotUA(userAgent) || isHtmlLimitedBotUA(userAgent)
 }
+
+export function getBotType(
+  userAgent: string
+): 'headless' | 'html-limited' | undefined {
+  if (isHeadlessBrowserBotUA(userAgent)) {
+    return 'headless'
+  }
+  if (isHtmlLimitedBotUA(userAgent)) {
+    return 'html-limited'
+  }
+  return undefined
+}

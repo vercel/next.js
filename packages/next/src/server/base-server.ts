@@ -83,7 +83,7 @@ import {
 } from './lib/revalidate'
 import { execOnce } from '../shared/lib/utils'
 import { isBlockedPage } from './utils'
-import { isBot } from '../shared/lib/router/utils/is-bot'
+import { getBotType, isBot } from '../shared/lib/router/utils/is-bot'
 import RenderResult from './render-result'
 import { removeTrailingSlash } from '../shared/lib/router/utils/remove-trailing-slash'
 import { denormalizePagePath } from '../shared/lib/page-path/denormalize-page-path'
@@ -1761,6 +1761,7 @@ export default abstract class Server<
       renderOpts: {
         ...this.renderOpts,
         supportsDynamicResponse: !isBotRequest,
+        botType: getBotType(ua),
         serveStreamingMetadata: shouldServeStreamingMetadata(
           ua,
           this.renderOpts.experimental
