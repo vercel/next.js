@@ -19,7 +19,6 @@ use std::{
 
 use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
-use dashmap::DashMap;
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::FxHasher;
 use smallvec::smallvec;
@@ -33,7 +32,7 @@ use turbo_tasks::{
     registry,
     task_statistics::TaskStatisticsApi,
     util::IdFactoryWithReuse,
-    CellId, FunctionId, RawVc, ReadConsistency, SessionId, TaskId, TraitTypeId,
+    CellId, FunctionId, FxDashMap, RawVc, ReadConsistency, SessionId, TaskId, TraitTypeId,
     TurboTasksBackendApi, ValueTypeId, TRANSIENT_TASK_BIT,
 };
 
@@ -152,7 +151,7 @@ struct TurboTasksBackendInner<B: BackingStorage> {
 
     persisted_task_cache_log: Option<TaskCacheLog>,
     task_cache: BiMap<Arc<CachedTaskType>, TaskId>,
-    transient_tasks: DashMap<TaskId, Arc<TransientTask>, BuildHasherDefault<FxHasher>>,
+    transient_tasks: FxDashMap<TaskId, Arc<TransientTask>>,
 
     persisted_storage_data_log: Option<PersistedStorageLog>,
     persisted_storage_meta_log: Option<PersistedStorageLog>,
@@ -214,7 +213,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
             ),
             persisted_task_cache_log: need_log.then(|| Sharded::new(shard_amount)),
             task_cache: BiMap::new(),
-            transient_tasks: DashMap::default(),
+            transient_tasks: FxDashMap::default(),
             persisted_storage_data_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
             persisted_storage_meta_log: need_log.then(|| PersistedStorageLog::new(shard_amount)),
             storage: Storage::new(),
