@@ -20,7 +20,7 @@ use anyhow::{bail, Result};
 use auto_hash_map::{AutoMap, AutoSet};
 use parking_lot::{Condvar, Mutex};
 use rustc_hash::{FxHashMap, FxHashSet, FxHasher};
-use smallvec::{smallvec, SmallVec};
+use smallvec::smallvec;
 use tokio::time::{Duration, Instant};
 use turbo_tasks::{
     backend::{
@@ -1230,18 +1230,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         prepare_new_children(task_id, &mut task, &new_children, &mut queue);
 
         // Filter actual new children
-        let mut kept_children = SmallVec::new();
         for old_child in iter_many!(task, Child { task } => task) {
             if !new_children.remove(&old_child) {
                 old_edges.push(OutdatedEdge::Child(old_child));
-            } else {
-                kept_children.push(old_child);
             }
-        }
-        if !kept_children.is_empty() {
-            queue.push(AggregationUpdateJob::DecreaseActiveCounts {
-                task_ids: kept_children,
-            });
         }
 
         // Remove no longer existing cells and notify in progress cells
