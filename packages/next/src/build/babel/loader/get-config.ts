@@ -498,7 +498,7 @@ export default async function getConfig(
     )
   }
 
-  const freshConfig = getFreshConfig.call(
+  const freshConfig = await getFreshConfig.call(
     this,
     cacheCharacteristics,
     loaderOptions,
