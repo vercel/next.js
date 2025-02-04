@@ -72,6 +72,7 @@ export interface WorkStore {
   readonly assetPrefix?: string
 
   rootParams: Params
+  dynamicIOEnabled?: boolean
 }
 
 export type WorkAsyncStorage = AsyncLocalStorage<WorkStore>

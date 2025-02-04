@@ -546,15 +546,18 @@ export function cache(
 
       // TODO: Improve heuristic, with the help of the compiler. Try to limit to
       // default exports in page files, when dynamicIO is not enabled.
-      if (
+      const isPossiblyPageComponent =
         args.length === 2 &&
         args[1] === undefined && // undefined ref of a server component
         typeof args[0] === 'object' && // props of a server component
         typeof args[0].params === 'object' &&
-        typeof args[0].searchParams === 'object' &&
+        typeof args[0].searchParams === 'object'
+
+      if (
+        isPossiblyPageComponent &&
         (workUnitStore?.type === 'prerender-ppr' ||
           workUnitStore?.type === 'prerender-legacy' ||
-          workUnitStore?.type === 'request')
+          (workUnitStore?.type === 'request' && !workStore.dynamicIOEnabled))
       ) {
         // Overwrite to empty searchParams so that we can serialize the arg for
         // the cache key, in case the searchParams are not used...
