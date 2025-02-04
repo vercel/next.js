@@ -8064,9 +8064,6 @@ function recursivelyTraverseMutationEffects(root$jscomp$0, parentFiber) {
             hostParentIsContainer = !1;
             break a;
           case 3:
-            hostParent = parent.stateNode.containerInfo;
-            hostParentIsContainer = !0;
-            break a;
           case 4:
             hostParent = parent.stateNode.containerInfo;
             hostParentIsContainer = !0;
@@ -10217,7 +10214,6 @@ var DefaultAsyncDispatcher = {
   workInProgressSuspendedRetryLanes = 0,
   workInProgressRootConcurrentErrors = null,
   workInProgressRootRecoverableErrors = null,
-  workInProgressAppearingViewTransitions = null,
   workInProgressRootDidIncludeRecursiveRenderUpdate = !1,
   globalMostRecentFallbackTime = 0,
   workInProgressRootRenderTargetTime = Infinity,
@@ -10408,7 +10404,6 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               forceSync,
               workInProgressRootRecoverableErrors,
               workInProgressTransitions,
-              workInProgressAppearingViewTransitions,
               workInProgressRootDidIncludeRecursiveRenderUpdate,
               lanes,
               workInProgressDeferredLane,
@@ -10429,7 +10424,6 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           forceSync,
           workInProgressRootRecoverableErrors,
           workInProgressTransitions,
-          workInProgressAppearingViewTransitions,
           workInProgressRootDidIncludeRecursiveRenderUpdate,
           lanes,
           workInProgressDeferredLane,
@@ -10452,7 +10446,6 @@ function commitRootWhenReady(
   finishedWork,
   recoverableErrors,
   transitions,
-  appearingViewTransitions,
   didIncludeRenderPhaseUpdate,
   lanes,
   spawnedLane,
@@ -10467,13 +10460,12 @@ function commitRootWhenReady(
   root.timeoutHandle = -1;
   suspendedCommitReason = finishedWork.subtreeFlags;
   if (
-    (suspendedCommitReason =
-      suspendedCommitReason & 8192 ||
-      16785408 === (suspendedCommitReason & 16785408))
+    suspendedCommitReason & 8192 ||
+    16785408 === (suspendedCommitReason & 16785408)
   )
     if (
       ((suspendedState = { stylesheets: null, count: 0, unsuspend: noop }),
-      suspendedCommitReason && accumulateSuspenseyCommitOnFiber(finishedWork),
+      accumulateSuspenseyCommitOnFiber(finishedWork),
       (suspendedCommitReason = waitForCommitToBeReady()),
       null !== suspendedCommitReason)
     ) {
@@ -10485,7 +10477,6 @@ function commitRootWhenReady(
           lanes,
           recoverableErrors,
           transitions,
-          appearingViewTransitions,
           didIncludeRenderPhaseUpdate,
           spawnedLane,
           updatedLanes,
@@ -10505,7 +10496,6 @@ function commitRootWhenReady(
     lanes,
     recoverableErrors,
     transitions,
-    appearingViewTransitions,
     didIncludeRenderPhaseUpdate,
     spawnedLane,
     updatedLanes,
@@ -10615,7 +10605,6 @@ function prepareFreshStack(root, lanes) {
   workInProgressRootRecoverableErrors = workInProgressRootConcurrentErrors =
     null;
   workInProgressRootDidIncludeRecursiveRenderUpdate = !1;
-  workInProgressAppearingViewTransitions = null;
   0 !== (lanes & 8) && (lanes |= lanes & 32);
   var allEntangledLanes = root.entangledLanes;
   if (0 !== allEntangledLanes)
@@ -11024,7 +11013,6 @@ function commitRoot(
   lanes,
   recoverableErrors,
   transitions,
-  appearingViewTransitions,
   didIncludeRenderPhaseUpdate,
   spawnedLane,
   updatedLanes,
@@ -11073,12 +11061,7 @@ function commitRoot(
       spawnedLane = executionContext;
       executionContext |= 4;
       try {
-        commitBeforeMutationEffects(
-          root,
-          finishedWork,
-          lanes,
-          appearingViewTransitions
-        );
+        commitBeforeMutationEffects(root, finishedWork, lanes);
       } finally {
         (executionContext = spawnedLane),
           (ReactDOMSharedInternals.p = transitions),
@@ -11763,20 +11746,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1492 = 0;
-  i$jscomp$inline_1492 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1492++
+  var i$jscomp$inline_1491 = 0;
+  i$jscomp$inline_1491 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1491++
 ) {
-  var eventName$jscomp$inline_1493 =
-      simpleEventPluginEvents[i$jscomp$inline_1492],
-    domEventName$jscomp$inline_1494 =
-      eventName$jscomp$inline_1493.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1495 =
-      eventName$jscomp$inline_1493[0].toUpperCase() +
-      eventName$jscomp$inline_1493.slice(1);
+  var eventName$jscomp$inline_1492 =
+      simpleEventPluginEvents[i$jscomp$inline_1491],
+    domEventName$jscomp$inline_1493 =
+      eventName$jscomp$inline_1492.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1494 =
+      eventName$jscomp$inline_1492[0].toUpperCase() +
+      eventName$jscomp$inline_1492.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1494,
-    "on" + capitalizedEvent$jscomp$inline_1495
+    domEventName$jscomp$inline_1493,
+    "on" + capitalizedEvent$jscomp$inline_1494
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15238,16 +15221,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1739 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1738 = React.version;
 if (
-  "19.1.0-canary-c492f975-20250128" !==
-  isomorphicReactPackageVersion$jscomp$inline_1739
+  "19.1.0-canary-a4b2d0d5-20250203" !==
+  isomorphicReactPackageVersion$jscomp$inline_1738
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1739,
-      "19.1.0-canary-c492f975-20250128"
+      isomorphicReactPackageVersion$jscomp$inline_1738,
+      "19.1.0-canary-a4b2d0d5-20250203"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15267,24 +15250,24 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_2216 = {
+var internals$jscomp$inline_2215 = {
   bundleType: 0,
-  version: "19.1.0-canary-c492f975-20250128",
+  version: "19.1.0-canary-a4b2d0d5-20250203",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-c492f975-20250128"
+  reconcilerVersion: "19.1.0-canary-a4b2d0d5-20250203"
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2217 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2216 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2217.isDisabled &&
-    hook$jscomp$inline_2217.supportsFiber
+    !hook$jscomp$inline_2216.isDisabled &&
+    hook$jscomp$inline_2216.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2217.inject(
-        internals$jscomp$inline_2216
+      (rendererID = hook$jscomp$inline_2216.inject(
+        internals$jscomp$inline_2215
       )),
-        (injectedHook = hook$jscomp$inline_2217);
+        (injectedHook = hook$jscomp$inline_2216);
     } catch (err) {}
 }
 exports.createRoot = function (container, options) {
@@ -15378,4 +15361,4 @@ exports.hydrateRoot = function (container, initialChildren, options) {
   listenToAllSupportedEvents(container);
   return new ReactDOMHydrationRoot(initialChildren);
 };
-exports.version = "19.1.0-canary-c492f975-20250128";
+exports.version = "19.1.0-canary-a4b2d0d5-20250203";

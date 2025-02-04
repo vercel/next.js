@@ -8446,9 +8446,6 @@ function recursivelyTraverseMutationEffects(root$jscomp$0, parentFiber) {
             hostParentIsContainer = !1;
             break a;
           case 3:
-            hostParent = parent.stateNode.containerInfo;
-            hostParentIsContainer = !0;
-            break a;
           case 4:
             hostParent = parent.stateNode.containerInfo;
             hostParentIsContainer = !0;
@@ -10711,7 +10708,6 @@ var DefaultAsyncDispatcher = {
   workInProgressSuspendedRetryLanes = 0,
   workInProgressRootConcurrentErrors = null,
   workInProgressRootRecoverableErrors = null,
-  workInProgressAppearingViewTransitions = null,
   workInProgressRootDidIncludeRecursiveRenderUpdate = !1,
   globalMostRecentFallbackTime = 0,
   workInProgressRootRenderTargetTime = Infinity,
@@ -10903,7 +10899,6 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
               forceSync,
               workInProgressRootRecoverableErrors,
               workInProgressTransitions,
-              workInProgressAppearingViewTransitions,
               workInProgressRootDidIncludeRecursiveRenderUpdate,
               lanes,
               workInProgressDeferredLane,
@@ -10924,7 +10919,6 @@ function performWorkOnRoot(root$jscomp$0, lanes, forceSync) {
           forceSync,
           workInProgressRootRecoverableErrors,
           workInProgressTransitions,
-          workInProgressAppearingViewTransitions,
           workInProgressRootDidIncludeRecursiveRenderUpdate,
           lanes,
           workInProgressDeferredLane,
@@ -10947,7 +10941,6 @@ function commitRootWhenReady(
   finishedWork,
   recoverableErrors,
   transitions,
-  appearingViewTransitions,
   didIncludeRenderPhaseUpdate,
   lanes,
   spawnedLane,
@@ -10962,13 +10955,12 @@ function commitRootWhenReady(
   root.timeoutHandle = -1;
   suspendedCommitReason = finishedWork.subtreeFlags;
   if (
-    (suspendedCommitReason =
-      suspendedCommitReason & 8192 ||
-      16785408 === (suspendedCommitReason & 16785408))
+    suspendedCommitReason & 8192 ||
+    16785408 === (suspendedCommitReason & 16785408)
   )
     if (
       ((suspendedState = { stylesheets: null, count: 0, unsuspend: noop$1 }),
-      suspendedCommitReason && accumulateSuspenseyCommitOnFiber(finishedWork),
+      accumulateSuspenseyCommitOnFiber(finishedWork),
       (suspendedCommitReason = waitForCommitToBeReady()),
       null !== suspendedCommitReason)
     ) {
@@ -10980,7 +10972,6 @@ function commitRootWhenReady(
           lanes,
           recoverableErrors,
           transitions,
-          appearingViewTransitions,
           didIncludeRenderPhaseUpdate,
           spawnedLane,
           updatedLanes,
@@ -11000,7 +10991,6 @@ function commitRootWhenReady(
     lanes,
     recoverableErrors,
     transitions,
-    appearingViewTransitions,
     didIncludeRenderPhaseUpdate,
     spawnedLane,
     updatedLanes,
@@ -11110,7 +11100,6 @@ function prepareFreshStack(root, lanes) {
   workInProgressRootRecoverableErrors = workInProgressRootConcurrentErrors =
     null;
   workInProgressRootDidIncludeRecursiveRenderUpdate = !1;
-  workInProgressAppearingViewTransitions = null;
   0 !== (lanes & 8) && (lanes |= lanes & 32);
   var allEntangledLanes = root.entangledLanes;
   if (0 !== allEntangledLanes)
@@ -11592,7 +11581,6 @@ function commitRoot(
   lanes,
   recoverableErrors,
   transitions,
-  appearingViewTransitions,
   didIncludeRenderPhaseUpdate,
   spawnedLane,
   updatedLanes,
@@ -11646,12 +11634,7 @@ function commitRoot(
       spawnedLane = executionContext;
       executionContext |= 4;
       try {
-        commitBeforeMutationEffects(
-          root,
-          finishedWork,
-          lanes,
-          appearingViewTransitions
-        );
+        commitBeforeMutationEffects(root, finishedWork, lanes);
       } finally {
         (executionContext = spawnedLane),
           (ReactDOMSharedInternals.p = transitions),
@@ -12392,20 +12375,20 @@ function extractEvents$1(
   }
 }
 for (
-  var i$jscomp$inline_1586 = 0;
-  i$jscomp$inline_1586 < simpleEventPluginEvents.length;
-  i$jscomp$inline_1586++
+  var i$jscomp$inline_1585 = 0;
+  i$jscomp$inline_1585 < simpleEventPluginEvents.length;
+  i$jscomp$inline_1585++
 ) {
-  var eventName$jscomp$inline_1587 =
-      simpleEventPluginEvents[i$jscomp$inline_1586],
-    domEventName$jscomp$inline_1588 =
-      eventName$jscomp$inline_1587.toLowerCase(),
-    capitalizedEvent$jscomp$inline_1589 =
-      eventName$jscomp$inline_1587[0].toUpperCase() +
-      eventName$jscomp$inline_1587.slice(1);
+  var eventName$jscomp$inline_1586 =
+      simpleEventPluginEvents[i$jscomp$inline_1585],
+    domEventName$jscomp$inline_1587 =
+      eventName$jscomp$inline_1586.toLowerCase(),
+    capitalizedEvent$jscomp$inline_1588 =
+      eventName$jscomp$inline_1586[0].toUpperCase() +
+      eventName$jscomp$inline_1586.slice(1);
   registerSimpleEvent(
-    domEventName$jscomp$inline_1588,
-    "on" + capitalizedEvent$jscomp$inline_1589
+    domEventName$jscomp$inline_1587,
+    "on" + capitalizedEvent$jscomp$inline_1588
   );
 }
 registerSimpleEvent(ANIMATION_END, "onAnimationEnd");
@@ -15886,16 +15869,16 @@ ReactDOMHydrationRoot.prototype.unstable_scheduleHydration = function (target) {
     0 === i && attemptExplicitHydrationTarget(target);
   }
 };
-var isomorphicReactPackageVersion$jscomp$inline_1835 = React.version;
+var isomorphicReactPackageVersion$jscomp$inline_1834 = React.version;
 if (
-  "19.1.0-canary-c492f975-20250128" !==
-  isomorphicReactPackageVersion$jscomp$inline_1835
+  "19.1.0-canary-a4b2d0d5-20250203" !==
+  isomorphicReactPackageVersion$jscomp$inline_1834
 )
   throw Error(
     formatProdErrorMessage(
       527,
-      isomorphicReactPackageVersion$jscomp$inline_1835,
-      "19.1.0-canary-c492f975-20250128"
+      isomorphicReactPackageVersion$jscomp$inline_1834,
+      "19.1.0-canary-a4b2d0d5-20250203"
     )
   );
 ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
@@ -15915,12 +15898,12 @@ ReactDOMSharedInternals.findDOMNode = function (componentOrElement) {
     null === componentOrElement ? null : componentOrElement.stateNode;
   return componentOrElement;
 };
-var internals$jscomp$inline_1842 = {
+var internals$jscomp$inline_1841 = {
   bundleType: 0,
-  version: "19.1.0-canary-c492f975-20250128",
+  version: "19.1.0-canary-a4b2d0d5-20250203",
   rendererPackageName: "react-dom",
   currentDispatcherRef: ReactSharedInternals,
-  reconcilerVersion: "19.1.0-canary-c492f975-20250128",
+  reconcilerVersion: "19.1.0-canary-a4b2d0d5-20250203",
   getLaneLabelMap: function () {
     for (
       var map = new Map(), lane = 1, index$281 = 0;
@@ -15938,16 +15921,16 @@ var internals$jscomp$inline_1842 = {
   }
 };
 if ("undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__) {
-  var hook$jscomp$inline_2280 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
+  var hook$jscomp$inline_2279 = __REACT_DEVTOOLS_GLOBAL_HOOK__;
   if (
-    !hook$jscomp$inline_2280.isDisabled &&
-    hook$jscomp$inline_2280.supportsFiber
+    !hook$jscomp$inline_2279.isDisabled &&
+    hook$jscomp$inline_2279.supportsFiber
   )
     try {
-      (rendererID = hook$jscomp$inline_2280.inject(
-        internals$jscomp$inline_1842
+      (rendererID = hook$jscomp$inline_2279.inject(
+        internals$jscomp$inline_1841
       )),
-        (injectedHook = hook$jscomp$inline_2280);
+        (injectedHook = hook$jscomp$inline_2279);
     } catch (err) {}
 }
 function noop() {}
@@ -16202,7 +16185,7 @@ exports.useFormState = function (action, initialState, permalink) {
 exports.useFormStatus = function () {
   return ReactSharedInternals.H.useHostTransitionStatus();
 };
-exports.version = "19.1.0-canary-c492f975-20250128";
+exports.version = "19.1.0-canary-a4b2d0d5-20250203";
 "undefined" !== typeof __REACT_DEVTOOLS_GLOBAL_HOOK__ &&
   "function" ===
     typeof __REACT_DEVTOOLS_GLOBAL_HOOK__.registerInternalModuleStop &&
