@@ -1,5 +1,8 @@
 import { nextTestSetup } from 'e2e-utils'
 import { retry, waitFor } from 'next-test-utils'
+import stripAnsi from 'strip-ansi'
+import { format } from 'util'
+import { BrowserInterface } from 'next-webdriver'
 
 const GENERIC_RSC_ERROR =
   'An error occurred in the Server Components render. The specific message is omitted in production builds to avoid leaking sensitive details. A digest property is included on this error instance which may provide additional details about the nature of the error.'
@@ -93,8 +96,7 @@ describe('use-cache', () => {
     const browser = await next.browser('/react-cache')
     const a = await browser.waitForElementByCss('#a').text()
     const b = await browser.waitForElementByCss('#b').text()
-    // TODO: This is broken. It is expected to pass once we fix it.
-    expect(a).not.toBe(b)
+    expect(a).toBe(b)
   })
 
   it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
@@ -313,30 +315,33 @@ describe('use-cache', () => {
     })
   })
 
-  it('should be able to revalidate a page using unstable_expireTag', async () => {
-    const browser = await next.browser(`/form`)
-    const time1 = await browser.waitForElementByCss('#t').text()
+  // TODO(useCache): Re-activate for deploy tests when NAR-85 is resolved.
+  if (!isNextDeploy) {
+    it('should be able to revalidate a page using unstable_expireTag', async () => {
+      const browser = await next.browser(`/form`)
+      const time1 = await browser.waitForElementByCss('#t').text()
 
-    await browser.loadPage(new URL(`/form`, next.url).toString())
+      await browser.loadPage(new URL(`/form`, next.url).toString())
 
-    const time2 = await browser.waitForElementByCss('#t').text()
+      const time2 = await browser.waitForElementByCss('#t').text()
 
-    expect(time1).toBe(time2)
+      expect(time1).toBe(time2)
 
-    await browser.elementByCss('#refresh').click()
+      await browser.elementByCss('#refresh').click()
 
-    await waitFor(500)
+      await waitFor(500)
 
-    const time3 = await browser.waitForElementByCss('#t').text()
+      const time3 = await browser.waitForElementByCss('#t').text()
 
-    expect(time3).not.toBe(time2)
+      expect(time3).not.toBe(time2)
 
-    // Reloading again should ideally be the same value but because the Action seeds
-    // the cache with real params as the argument it has a different cache key.
-    // await browser.loadPage(new URL(`/form?c`, next.url).toString())
-    // const time4 = await browser.waitForElementByCss('#t').text()
-    // expect(time4).toBe(time3);
-  })
+      // Reloading again should ideally be the same value but because the Action seeds
+      // the cache with real params as the argument it has a different cache key.
+      // await browser.loadPage(new URL(`/form?c`, next.url).toString())
+      // const time4 = await browser.waitForElementByCss('#t').text()
+      // expect(time4).toBe(time3);
+    })
+  }
 
   it('should use revalidate config in fetch', async () => {
     const browser = await next.browser('/fetch-revalidate')
@@ -475,5 +480,61 @@ describe('use-cache', () => {
       )
       expect(next.cliOutput).not.toContain('HANGING_PROMISE_REJECTION')
     })
+
+    it('replays logs from "use cache" functions', async () => {
+      const browser = await next.browser('/logs')
+      const initialLogs = await getSanitizedLogs(browser)
+
+      // We ignore the logged time string at the end of this message:
+      const logMessageWithDateRegexp =
+        /^ Server {3}Cache {3}Cache {2}deep inside /
+
+      let logMessageWithCachedDate: string | undefined
+
+      await retry(async () => {
+        // TODO(veil): We might want to show only the original (right-most)
+        // environment badge when caches are nested.
+        expect(initialLogs).toMatchObject(
+          expect.arrayContaining([
+            ' Server  outside',
+            ' Server   Cache  inside',
+            expect.stringMatching(logMessageWithDateRegexp),
+          ])
+        )
+
+        logMessageWithCachedDate = initialLogs.find((log) =>
+          logMessageWithDateRegexp.test(log)
+        )
+
+        expect(logMessageWithCachedDate).toBeDefined()
+      })
+
+      // Load the page again and expect the cached logs to be replayed again.
+      // We're using an explicit `loadPage` instead of `refresh` here, to start
+      // with an empty set of logs.
+      await browser.loadPage(await browser.url())
+
+      await retry(async () => {
+        const newLogs = await getSanitizedLogs(browser)
+
+        expect(newLogs).toMatchObject(
+          expect.arrayContaining([
+            ' Server  outside',
+            ' Server   Cache  inside',
+            logMessageWithCachedDate,
+          ])
+        )
+      })
+    })
   }
 })
+
+async function getSanitizedLogs(browser: BrowserInterface): Promise<string[]> {
+  const logs = await browser.log({ includeArgs: true })
+
+  return logs.map(({ args }) =>
+    format(
+      ...args.map((arg) => (typeof arg === 'string' ? stripAnsi(arg) : arg))
+    )
+  )
+}
