@@ -887,9 +887,22 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
             const isInstrumentation =
               isInstrumentationHookFile(page) && pageType === PAGE_TYPES.ROOT
 
+            let pageRuntime = staticInfo?.runtime
+
+            if (
+              isMiddlewareFile(page) &&
+              !this.config.experimental.nodeMiddleware &&
+              pageRuntime === 'nodejs'
+            ) {
+              Log.warn(
+                'nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config'
+              )
+              pageRuntime = 'edge'
+            }
+
             runDependingOnPageType({
               page,
-              pageRuntime: staticInfo?.runtime,
+              pageRuntime,
               pageType,
               onEdgeServer: () => {
                 // TODO-APP: verify if child entry should support.
@@ -1009,6 +1022,20 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
                     isServerComponent: true,
                     value,
                     hasAppDir,
+                  })
+                } else if (isMiddlewareFile(page)) {
+                  value = getEdgeServerEntry({
+                    absolutePagePath: entryData.absolutePagePath,
+                    rootDir: this.dir,
+                    buildId: this.buildId,
+                    bundlePath,
+                    config: this.config,
+                    isDev: true,
+                    page,
+                    pages: this.pagesMapping,
+                    isServerComponent,
+                    pagesType: PAGE_TYPES.PAGES,
+                    preferredRegion: staticInfo?.preferredRegion,
                   })
                 } else if (isAppPath) {
                   value = getAppEntry({
@@ -1376,9 +1403,11 @@ export default class HotReloaderWebpack implements NextJsHotReloaderInterface {
       const pageChanges = serverOnlyChanges
         .concat(edgeServerOnlyChanges)
         .filter((key) => key.startsWith('pages/'))
-      const middlewareChanges = Array.from(changedEdgeServerPages).filter(
-        (name) => isMiddlewareFilename(name)
-      )
+
+      const middlewareChanges = [
+        ...Array.from(changedEdgeServerPages),
+        ...Array.from(changedServerPages),
+      ].filter((name) => isMiddlewareFilename(name))
 
       if (middlewareChanges.length > 0) {
         this.send({

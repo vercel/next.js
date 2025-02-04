@@ -3,7 +3,7 @@
 import fs from 'fs-extra'
 import { join } from 'path'
 import webdriver from 'next-webdriver'
-import { NextInstance } from 'e2e-utils'
+import { isNextStart, NextInstance } from 'e2e-utils'
 import {
   check,
   fetchViaHTTP,
@@ -17,6 +17,12 @@ const urlsError = 'Please use only absolute URLs'
 describe('Middleware Runtime', () => {
   let next: NextInstance
 
+  const isNodeMiddleware = Boolean(process.env.TEST_NODE_MIDDLEWARE)
+
+  if (isNodeMiddleware && (global as any).isNextDeploy) {
+    return it('should skip deploy for node middleware for now', () => {})
+  }
+
   const setup = ({ i18n }: { i18n: boolean }) => {
     afterAll(async () => {
       await next.destroy()
@@ -24,7 +30,13 @@ describe('Middleware Runtime', () => {
     beforeAll(async () => {
       next = await createNext({
         files: {
-          'middleware.js': new FileRef(join(__dirname, '../app/middleware.js')),
+          'middleware.js': new FileRef(
+            join(
+              __dirname,
+              '../app',
+              isNodeMiddleware ? 'middleware-node.js' : 'middleware.js'
+            )
+          ),
           pages: new FileRef(join(__dirname, '../app/pages')),
           'shared-package': new FileRef(
             join(__dirname, '../app/node_modules/shared-package')
@@ -33,6 +45,7 @@ describe('Middleware Runtime', () => {
         nextConfig: {
           experimental: {
             webpackBuildWorker: true,
+            nodeMiddleware: true,
           },
           ...(i18n
             ? {
@@ -102,6 +115,34 @@ describe('Middleware Runtime', () => {
   }
 
   function runTests({ i18n }: { i18n?: boolean }) {
+    if (isNodeMiddleware) {
+      it('should be able to use node builtins with node runtime', async () => {
+        const res = await next.fetch('/test-node-fs')
+        expect(res.status).toBe(200)
+
+        const body = await res.json()
+        expect(body.dependencies || body.devDependencies).toBeTruthy()
+      })
+
+      if (isNextStart) {
+        it('should have added middleware in functions manifest', async () => {
+          const { functions } = await next.readJSON(
+            '.next/server/functions-config-manifest.json'
+          )
+
+          expect(functions['/_middleware']).toEqual({
+            runtime: 'nodejs',
+            matchers: [
+              {
+                regexp: '^.*$',
+                originalSource: '/:path*',
+              },
+            ],
+          })
+        })
+      }
+    }
+
     it('should handle 404 on fallback: false route correctly', async () => {
       const res = await next.fetch('/ssg-fallback-false/first')
       expect(res.status).toBe(200)
@@ -170,7 +211,7 @@ describe('Middleware Runtime', () => {
       })
     }
 
-    if ((global as any).isNextStart) {
+    if ((global as any).isNextStart && !isNodeMiddleware) {
       it('should have valid middleware field in manifest', async () => {
         const manifest = await fs.readJSON(
           join(next.testDir, '.next/server/middleware-manifest.json')
@@ -523,7 +564,7 @@ describe('Middleware Runtime', () => {
         const res = await fetchViaHTTP(next.url, `/fetch-user-agent-default`)
 
         expect(readMiddlewareJSON(res).headers['user-agent']).toBe(
-          'Next.js Middleware'
+          isNodeMiddleware ? 'node' : 'Next.js Middleware'
         )
 
         const res2 = await fetchViaHTTP(next.url, `/fetch-user-agent-crypto`)
@@ -544,7 +585,7 @@ describe('Middleware Runtime', () => {
         ...((global as any).isNextDeploy
           ? {}
           : {
-              NEXT_RUNTIME: 'edge',
+              NEXT_RUNTIME: isNodeMiddleware ? 'nodejs' : 'edge',
             }),
       })) {
         expect(json.process.env[key]).toBe(value)
@@ -586,9 +627,13 @@ describe('Middleware Runtime', () => {
       expect(res.headers.get('req-url-basepath')).toBeFalsy()
       expect(res.headers.get('req-url-pathname')).toBe('/static')
 
-      const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
-      expect(pathname).toBe(undefined)
-      expect(params).toEqual(undefined)
+      if (!isNodeMiddleware) {
+        const { pathname, params } = JSON.parse(
+          res.headers.get('req-url-params')
+        )
+        expect(pathname).toBe(undefined)
+        expect(params).toEqual(undefined)
+      }
 
       expect(res.headers.get('req-url-query')).not.toBe('bar')
     })
@@ -600,11 +645,13 @@ describe('Middleware Runtime', () => {
         expect(res.headers.get('req-url-basepath')).toBeFalsy()
         expect(res.headers.get('req-url-pathname')).toBe('/1')
 
-        const { pathname, params } = JSON.parse(
-          res.headers.get('req-url-params')
-        )
-        expect(pathname).toBe('/:locale/:id')
-        expect(params).toEqual({ locale: 'fr', id: '1' })
+        if (!isNodeMiddleware) {
+          const { pathname, params } = JSON.parse(
+            res.headers.get('req-url-params')
+          )
+          expect(pathname).toBe('/:locale/:id')
+          expect(params).toEqual({ locale: 'fr', id: '1' })
+        }
 
         expect(res.headers.get('req-url-query')).not.toBe('bar')
         expect(res.headers.get('req-url-locale')).toBe('fr')
@@ -614,11 +661,13 @@ describe('Middleware Runtime', () => {
         const res = await fetchViaHTTP(next.url, `/fr/abc123`)
         expect(res.headers.get('req-url-basepath')).toBeFalsy()
 
-        const { pathname, params } = JSON.parse(
-          res.headers.get('req-url-params')
-        )
-        expect(pathname).toBe('/:locale/:id')
-        expect(params).toEqual({ locale: 'fr', id: 'abc123' })
+        if (!isNodeMiddleware) {
+          const { pathname, params } = JSON.parse(
+            res.headers.get('req-url-params')
+          )
+          expect(pathname).toBe('/:locale/:id')
+          expect(params).toEqual({ locale: 'fr', id: 'abc123' })
+        }
 
         expect(res.headers.get('req-url-query')).not.toBe('bar')
         expect(res.headers.get('req-url-locale')).toBe('fr')
@@ -629,10 +678,14 @@ describe('Middleware Runtime', () => {
       const res = await fetchViaHTTP(next.url, `/abc123?foo=bar`)
       expect(res.headers.get('req-url-basepath')).toBeFalsy()
 
-      const { pathname, params } = JSON.parse(res.headers.get('req-url-params'))
+      if (!isNodeMiddleware) {
+        const { pathname, params } = JSON.parse(
+          res.headers.get('req-url-params')
+        )
 
-      expect(pathname).toBe('/:id')
-      expect(params).toEqual({ id: 'abc123' })
+        expect(pathname).toBe('/:id')
+        expect(params).toEqual({ id: 'abc123' })
+      }
 
       expect(res.headers.get('req-url-query')).toBe('bar')
 
@@ -658,12 +711,16 @@ describe('Middleware Runtime', () => {
       // these errors differ on Vercel
       it('should throw when using Request with a relative URL', async () => {
         const response = await fetchViaHTTP(next.url, `/url/relative-request`)
-        expect(readMiddlewareError(response)).toContain(urlsError)
+        expect(readMiddlewareError(response)).toContain(
+          isNodeMiddleware ? 'Failed to parse URL from' : urlsError
+        )
       })
 
       it('should warn when using Response.redirect with a relative URL', async () => {
         const response = await fetchViaHTTP(next.url, `/url/relative-redirect`)
-        expect(readMiddlewareError(response)).toContain(urlsError)
+        expect(readMiddlewareError(response)).toContain(
+          isNodeMiddleware ? 'Failed to parse URL from' : urlsError
+        )
       })
     }
 
