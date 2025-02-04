@@ -27,11 +27,17 @@ export async function sendResponse(
     res.statusCode = response.status
     res.statusMessage = response.statusText
 
-    // can add more headers to this list if needed
+    // TODO: this is not spec-compliant behavior and we should not restrict
+    // headers that are allowed to appear many times.
+    //
+    // See:
+    // https://github.com/vercel/next.js/pull/70127
     const headersWithMultipleValuesAllowed = [
+      // can add more headers to this list if needed
       'set-cookie',
       'www-authenticate',
       'proxy-authenticate',
+      'vary',
     ]
 
     // Copy over the response headers.
