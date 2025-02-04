@@ -2488,12 +2488,8 @@ type PrerenderToStreamResult = {
  * Determines whether we should generate static flight data.
  */
 function shouldGenerateStaticFlightData(workStore: WorkStore): boolean {
-  const { fallbackRouteParams, isStaticGeneration } = workStore
+  const { isStaticGeneration } = workStore
   if (!isStaticGeneration) return false
-
-  if (fallbackRouteParams && fallbackRouteParams.size > 0) {
-    return false
-  }
 
   return true
 }
