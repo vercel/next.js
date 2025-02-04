@@ -658,7 +658,7 @@ impl Viewer {
                                 Reverse(value_mode.value_from_span(child))
                             }))
                         } else {
-                            Either::Right(span.children())
+                            Either::Right(span.children().sorted_by_key(|child| child.start()))
                         };
                         for child in spans {
                             let filtered = get_filter_mode(child.id());
@@ -748,7 +748,7 @@ impl Viewer {
                                     Reverse(value_mode.value_from_bottom_up_span(child))
                                 }))
                             } else {
-                                Either::Right(bottom_up)
+                                Either::Right(bottom_up.sorted_by_key(|child| child.start()))
                             };
                             for child in bottom_up {
                                 let filtered = get_filter_mode(child.id());
@@ -770,7 +770,9 @@ impl Viewer {
                                 Reverse(value_mode.value_from_span(child))
                             }))
                         } else {
-                            Either::Right(span_graph.root_spans())
+                            Either::Right(
+                                span_graph.root_spans().sorted_by_key(|child| child.start()),
+                            )
                         };
                         for child in spans {
                             let filtered = get_filter_mode(child.id());
@@ -849,7 +851,7 @@ impl Viewer {
                                 Reverse(value_mode.value_from_bottom_up_span(child))
                             }))
                         } else {
-                            Either::Right(bottom_up.spans())
+                            Either::Right(bottom_up.spans().sorted_by_key(|child| child.start()))
                         };
                         for child in spans {
                             let filtered = get_filter_mode(child.id());
