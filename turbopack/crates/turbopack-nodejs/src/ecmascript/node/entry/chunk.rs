@@ -114,7 +114,6 @@ impl EcmascriptBuildNodeEntryChunk {
         for evaluatable_asset in &*evaluatable_assets {
             if let Some(placeable) =
                 ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*evaluatable_asset)
-                    .await?
             {
                 let runtime_module_id = placeable
                     .as_chunk_item(*this.module_graph, Vc::upcast(*this.chunking_context))

@@ -1,11 +1,7 @@
-use std::{
-    collections::{hash_map::Entry, HashSet},
-    future::Future,
-    mem::take,
-};
+use std::{collections::hash_map::Entry, future::Future, mem::take};
 
 use anyhow::Result;
-use rustc_hash::FxHashMap;
+use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::ecma::ast::Id;
 
 use super::{graph::VarGraph, JsValue};
@@ -60,7 +56,7 @@ where
     let mut done: Vec<JsValue> = Vec::new();
     // Tracks the number of nodes in the queue and done combined
     let mut total_nodes = 0;
-    let mut cycle_stack: HashSet<Id> = HashSet::new();
+    let mut cycle_stack: FxHashSet<Id> = FxHashSet::default();
     // Tracks the number linking steps so far
     let mut steps = 0;
 

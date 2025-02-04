@@ -1904,12 +1904,12 @@ export default abstract class Server<
     if (isAppPath && this.pathCouldBeIntercepted(resolvedPathname)) {
       // Interception route responses can vary based on the `Next-URL` header.
       // We use the Vary header to signal this behavior to the client to properly cache the response.
-      res.setHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
+      res.appendHeader('vary', `${baseVaryHeader}, ${NEXT_URL}`)
       addedNextUrlToVary = true
     } else if (isAppPath || isRSCRequest) {
       // We don't need to include `Next-URL` in the Vary header for non-interception routes since it won't affect the response.
       // We also set this header for pages to avoid caching issues when navigating between pages and app.
-      res.setHeader('vary', baseVaryHeader)
+      res.appendHeader('vary', baseVaryHeader)
     }
 
     if (!addedNextUrlToVary) {
@@ -2673,7 +2673,7 @@ export default abstract class Server<
             // If we're in dev, and this isn't a prefetch or a server action,
             // we should seed the resume data cache.
             if (
-              this.nextConfig.experimental.useCache &&
+              this.nextConfig.experimental.dynamicIO &&
               this.renderOpts.dev &&
               !isPrefetchRSCRequest &&
               !isServerAction

@@ -106,7 +106,8 @@ export type StartChangeSubscription = (
   includeIssues: boolean,
   endpoint: Endpoint,
   makePayload: (
-    change: TurbopackResult
+    change: TurbopackResult,
+    hash: string
   ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
   onError?: (e: Error) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void
 ) => Promise<void>
@@ -341,7 +342,7 @@ export async function handleRouteType({
           key,
           true,
           route.rscEndpoint,
-          (change) => {
+          (change, hash) => {
             if (change.issues.some((issue) => issue.severity === 'error')) {
               // Ignore any updates that has errors
               // There will be another update without errors eventually
@@ -351,11 +352,13 @@ export async function handleRouteType({
             readyIds?.delete(pathname)
             return {
               action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+              hash,
             }
           },
-          () => {
+          (e) => {
             return {
-              action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+              action: HMR_ACTIONS_SENT_TO_BROWSER.RELOAD_PAGE,
+              data: `error in ${page} app-page subscription: ${e}`,
             }
           }
         )

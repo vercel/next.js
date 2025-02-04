@@ -163,8 +163,8 @@ pub async fn create_web_entry_source(
         .into_iter()
         .map(|module| async move {
             if let (Some(chunkable_module), Some(entry)) = (
-                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?,
-                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module).await?,
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module),
+                ResolvedVc::try_sidecast::<Box<dyn EvaluatableAsset>>(module),
             ) {
                 Ok(DevHtmlEntry {
                     chunkable_module,
@@ -173,7 +173,7 @@ pub async fn create_web_entry_source(
                     runtime_entries: Some(runtime_entries.with_entry(*entry).to_resolved().await?),
                 })
             } else if let Some(chunkable_module) =
-                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module).await?
+                ResolvedVc::try_sidecast::<Box<dyn ChunkableModule>>(module)
             {
                 // TODO this is missing runtime code, so it's probably broken and we should also
                 // add an ecmascript chunk with the runtime code

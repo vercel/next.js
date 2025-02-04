@@ -1,10 +1,9 @@
 use anyhow::Result;
-use indexmap::IndexMap;
 use serde::{Deserialize, Serialize};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, NonLocalValue,
-    OperationVc, ResolvedVc, Vc,
+    debug::ValueDebugFormat, get_effects, trace::TraceRawVcs, CollectiblesSource, FxIndexMap,
+    NonLocalValue, OperationVc, ResolvedVc, Vc,
 };
 use turbopack_core::{diagnostics::Diagnostic, issue::IssueDescriptionExt};
 
@@ -23,7 +22,7 @@ use crate::{
 /// This is needed to call `write_to_disk` which expects an `OperationVc<Endpoint>`.
 #[turbo_tasks::value(shared)]
 pub struct EntrypointsOperation {
-    pub routes: IndexMap<RcStr, RouteOperation>,
+    pub routes: FxIndexMap<RcStr, RouteOperation>,
     pub middleware: Option<MiddlewareOperation>,
     pub instrumentation: Option<InstrumentationOperation>,
     pub pages_document_endpoint: OperationVc<Box<dyn Endpoint>>,

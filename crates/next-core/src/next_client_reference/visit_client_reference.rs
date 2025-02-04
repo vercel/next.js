@@ -1,6 +1,7 @@
-use std::{collections::HashSet, future::Future};
+use std::future::Future;
 
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use serde::{Deserialize, Serialize};
 use tracing::Instrument;
 use turbo_rcstr::RcStr;
@@ -97,7 +98,7 @@ impl Default for ClientReferenceGraphResult {
 }
 
 #[turbo_tasks::value(shared)]
-pub struct VisitedClientReferenceGraphNodes(HashSet<VisitClientReferenceNode>);
+pub struct VisitedClientReferenceGraphNodes(FxHashSet<VisitClientReferenceNode>);
 
 #[turbo_tasks::value_impl]
 impl VisitedClientReferenceGraphNodes {
@@ -167,7 +168,6 @@ pub async fn client_reference_graph(
                         Ok(VisitClientReferenceNode {
                             state: if let Some(server_component) =
                                 ResolvedVc::try_downcast_type::<NextServerComponentModule>(module)
-                                    .await?
                             {
                                 VisitClientReferenceNodeState::InServerComponent {
                                     server_component,
@@ -416,7 +416,6 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                 .map(|module| async move {
                     if let Some(client_reference_module) =
                         ResolvedVc::try_downcast_type::<EcmascriptClientReferenceModule>(*module)
-                            .await?
                     {
                         return Ok(VisitClientReferenceNode {
                             state: node.state,
@@ -433,7 +432,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                     }
 
                     if let Some(client_reference_module) =
-                        ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module).await?
+                        ResolvedVc::try_downcast_type::<CssClientReferenceModule>(*module)
                     {
                         return Ok(VisitClientReferenceNode {
                             state: node.state,
@@ -450,7 +449,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                     }
 
                     if let Some(server_component_asset) =
-                        ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module).await?
+                        ResolvedVc::try_downcast_type::<NextServerComponentModule>(*module)
                     {
                         return Ok(VisitClientReferenceNode {
                             state: VisitClientReferenceNodeState::InServerComponent {
@@ -463,10 +462,7 @@ impl Visit<VisitClientReferenceNode> for VisitClientReference {
                         });
                     }
 
-                    if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module)
-                        .await?
-                        .is_some()
-                    {
+                    if ResolvedVc::try_downcast_type::<NextServerUtilityModule>(*module).is_some() {
                         return Ok(VisitClientReferenceNode {
                             state: VisitClientReferenceNodeState::InServerUtil,
                             ty: VisitClientReferenceNodeType::ServerUtilEntry(

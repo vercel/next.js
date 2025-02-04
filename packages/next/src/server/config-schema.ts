@@ -565,7 +565,7 @@ export const configSchema: zod.ZodType<NextConfig> = z.lazy(() =>
               hmrRefreshes: z.boolean().optional(),
             })
             .optional(),
-          incomingRequest: z
+          incomingRequests: z
             .union([
               z.boolean(),
               z.object({

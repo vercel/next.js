@@ -304,15 +304,13 @@ export function PseudoHtmlDiff({
 
   return (
     <div data-nextjs-container-errors-pseudo-html>
-      <span>
-        <button
-          tabIndex={10} // match CallStackFrame
-          data-nextjs-container-errors-pseudo-html-collapse
-          onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
-        >
-          <CollapseIcon collapsed={isHtmlCollapsed} />
-        </button>
-      </span>
+      <button
+        tabIndex={10} // match CallStackFrame
+        data-nextjs-container-errors-pseudo-html-collapse
+        onClick={() => toggleCollapseHtml(!isHtmlCollapsed)}
+      >
+        <CollapseIcon collapsed={isHtmlCollapsed} />
+      </button>
       <pre {...props}>
         <code>{htmlComponents}</code>
       </pre>
@@ -371,9 +369,13 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   }
   [data-nextjs-container-errors-pseudo-html-collapse] {
     all: unset;
+    padding: var(--size-2);
     &:focus {
       outline: none;
     }
+  }
+  [data-nextjs-container-errors-pseudo-html--diff] {
+    width: fit-content;
   }
   [data-nextjs-container-errors-pseudo-html--diff='add'] {
     background: var(--color-green-300);
@@ -393,16 +395,10 @@ export const PSEUDO_HTML_DIFF_STYLES = css`
   [data-nextjs-container-errors-pseudo-html--tag-adjacent='false'] {
     color: var(--color-accents-1);
   }
-
-  [data-nextjs-container-errors-pseudo-html] > span {
-    display: block;
-    height: var(--size-5);
-  }
   [data-nextjs-container-errors-pseudo-html] > pre > code > span {
     display: block;
-    height: var(--size-5);
+    padding: var(--size-1) var(--size-4);
   }
-
   .nextjs__container_errors__component-stack {
     margin: 0;
   }

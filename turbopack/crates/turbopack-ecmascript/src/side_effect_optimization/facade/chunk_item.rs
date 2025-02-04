@@ -72,15 +72,14 @@ impl EcmascriptChunkItem for EcmascriptModuleFacadeChunkItem {
         let mut code_gens = Vec::with_capacity(references_ref.len() + 2);
         for r in &references_ref {
             if let Some(code_gen) =
-                ResolvedVc::try_sidecast_sync::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(*r)
+                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(*r)
             {
                 code_gens.push(code_gen.code_generation(
                     *self.module_graph,
                     *chunking_context,
                     async_module_info,
                 ));
-            } else if let Some(code_gen) =
-                ResolvedVc::try_sidecast_sync::<Box<dyn CodeGenerateable>>(*r)
+            } else if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r)
             {
                 code_gens.push(code_gen.code_generation(*self.module_graph, *chunking_context));
             }

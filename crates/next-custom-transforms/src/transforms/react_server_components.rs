@@ -1,14 +1,14 @@
 use std::{
-    collections::HashMap,
     fmt::{self, Display},
+    iter::FromIterator,
     path::PathBuf,
     rc::Rc,
     sync::Arc,
 };
 
-use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 use regex::Regex;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
     common::{
@@ -29,6 +29,7 @@ use swc_core::{
 };
 
 use super::{cjs_finder::contains_cjs, import_analyzer::ImportMap};
+use crate::FxIndexMap;
 
 #[derive(Clone, Debug, Deserialize)]
 #[serde(untagged)]
@@ -544,10 +545,10 @@ struct ReactServerComponentValidator {
     filepath: String,
     app_dir: Option<PathBuf>,
     invalid_server_imports: Vec<JsWord>,
-    invalid_server_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
-    deprecated_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
+    invalid_server_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
+    deprecated_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
     invalid_client_imports: Vec<JsWord>,
-    invalid_client_lib_apis_mapping: HashMap<&'static str, Vec<&'static str>>,
+    invalid_client_lib_apis_mapping: FxHashMap<&'static str, Vec<&'static str>>,
     pub directive_import_collection: Option<(bool, bool, RcVec<ModuleImports>, RcVec<String>)>,
     imports: ImportMap,
 }
@@ -573,7 +574,7 @@ impl ReactServerComponentValidator {
             // react -> [apis]
             // react-dom -> [apis]
             // next/navigation -> [apis]
-            invalid_server_lib_apis_mapping: [
+            invalid_server_lib_apis_mapping: FxHashMap::from_iter([
                 (
                     "react",
                     vec![
@@ -618,9 +619,8 @@ impl ReactServerComponentValidator {
                         "ServerInsertedHTMLContext",
                     ],
                 ),
-            ]
-            .into(),
-            deprecated_apis_mapping: [("next/server", vec!["ImageResponse"])].into(),
+            ]),
+            deprecated_apis_mapping: FxHashMap::from_iter([("next/server", vec!["ImageResponse"])]),
 
             invalid_server_imports: vec![
                 JsWord::from("client-only"),
@@ -631,7 +631,7 @@ impl ReactServerComponentValidator {
 
             invalid_client_imports: vec![JsWord::from("server-only"), JsWord::from("next/headers")],
 
-            invalid_client_lib_apis_mapping: [("next/server", vec!["after"])].into(),
+            invalid_client_lib_apis_mapping: FxHashMap::from_iter([("next/server", vec!["after"])]),
             imports: ImportMap::default(),
         }
     }
@@ -781,8 +781,8 @@ impl ReactServerComponentValidator {
         let is_layout_or_page = RE.is_match(&self.filepath);
 
         if is_layout_or_page {
-            let mut possibly_invalid_exports: IndexMap<String, (InvalidExportKind, Span)> =
-                IndexMap::new();
+            let mut possibly_invalid_exports: FxIndexMap<String, (InvalidExportKind, Span)> =
+                FxIndexMap::default();
 
             let mut collect_possibly_invalid_exports =
                 |export_name: &str, span: &Span| match export_name {

@@ -1,10 +1,10 @@
 import type { OverlayState } from '../../../../../shared'
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 
 import { BuildError } from '../../../container/build-error'
 import { Errors } from '../../../container/errors'
 import { RootLayoutMissingTagsError } from '../../../container/root-layout-missing-tags-error'
 import { useDelayedRender } from '../../../hooks/use-delayed-render'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 const transitionDurationMs = 200
 

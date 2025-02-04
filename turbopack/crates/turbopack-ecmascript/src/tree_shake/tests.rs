@@ -1,4 +1,4 @@
-use std::{fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
+use std::{collections::BTreeMap, fmt::Write, hash::Hash, path::PathBuf, sync::Arc};
 
 use anyhow::Error;
 use serde::Deserialize;
@@ -192,7 +192,13 @@ fn run(input: PathBuf) {
                     ..
                 } = g.split_module(&[], analyzer.items);
 
-                writeln!(s, "# Entrypoints\n\n```\n{:#?}\n```\n\n", entrypoints).unwrap();
+                writeln!(
+                    s,
+                    "# Entrypoints\n\n```\n{:#?}\n```\n\n",
+                    // sort entrypoints for the snapshot
+                    entrypoints.iter().collect::<BTreeMap<_, _>>(),
+                )
+                .unwrap();
 
                 if !skip_parts {
                     writeln!(s, "# Modules ({})", if is_debug { "dev" } else { "prod" }).unwrap();

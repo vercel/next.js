@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
 use quote::quote;
+use rustc_hash::FxHashSet;
 use syn::{parse_macro_input, spanned::Spanned, visit_mut::VisitMut, GenericParam, Lifetime, Type};
 use turbo_tasks_macros_shared::{get_type_ident, GenericTypeInput};
 
@@ -105,7 +106,7 @@ pub fn generic_type(input: TokenStream) -> TokenStream {
 }
 
 struct ReplaceGenericsVisitor<'a> {
-    generics: &'a std::collections::HashSet<String>,
+    generics: &'a FxHashSet<String>,
 }
 
 impl VisitMut for ReplaceGenericsVisitor<'_> {
@@ -134,7 +135,7 @@ fn replace_generics_with_unit<'a, P>(params: P, ty: &Type) -> Type
 where
     P: IntoIterator<Item = &'a GenericParam>,
 {
-    let generics_set: std::collections::HashSet<_> = params
+    let generics_set: FxHashSet<_> = params
         .into_iter()
         .filter_map(|param| {
             if let GenericParam::Type(type_param) = param {

@@ -1,5 +1,5 @@
-import type { OriginalStackFrame } from '../../../helpers/stack-frame'
-import { useMemo, useRef, useState } from 'react'
+import type { OriginalStackFrame } from '../../../../../internal/helpers/stack-frame'
+import { useMemo, useState, useRef } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'
 import { useMeasureHeight } from '../../../hooks/use-measure-height'

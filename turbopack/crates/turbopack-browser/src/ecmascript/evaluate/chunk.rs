@@ -108,7 +108,6 @@ impl EcmascriptDevEvaluateChunk {
                 move |entry| async move {
                     if let Some(placeable) =
                         ResolvedVc::try_sidecast::<Box<dyn EcmascriptChunkPlaceable>>(*entry)
-                            .await?
                     {
                         Ok(Some(
                             placeable

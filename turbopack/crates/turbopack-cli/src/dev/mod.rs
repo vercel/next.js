@@ -1,5 +1,4 @@
 use std::{
-    collections::HashSet,
     env::current_dir,
     future::{join, Future},
     io::{stdout, Write},
@@ -11,6 +10,7 @@ use std::{
 
 use anyhow::{Context, Result};
 use owo_colors::OwoColorize;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     util::{FormatBytes, FormatDuration},
@@ -331,7 +331,7 @@ async fn source(
         .await?;
     let introspect = ResolvedVc::upcast(
         IntrospectionSource {
-            roots: HashSet::from([ResolvedVc::upcast(main_source)]),
+            roots: FxHashSet::from_iter([ResolvedVc::upcast(main_source)]),
         }
         .resolved_cell(),
     );

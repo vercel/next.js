@@ -4,10 +4,11 @@
 #![feature(arbitrary_self_types_pointers)]
 #![feature(extract_if)]
 
-use std::{collections::HashMap, iter::once, thread::available_parallelism};
+use std::{iter::once, thread::available_parallelism};
 
 use anyhow::{bail, Result};
 pub use node_entry::{NodeEntry, NodeRenderingEntries, NodeRenderingEntry};
+use rustc_hash::FxHashMap;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
     graph::{AdjacencyMap, GraphTraversal},
@@ -80,7 +81,7 @@ async fn internal_assets(
 }
 
 #[turbo_tasks::value(transparent)]
-pub struct AssetsForSourceMapping(HashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
+pub struct AssetsForSourceMapping(FxHashMap<String, ResolvedVc<Box<dyn GenerateSourceMap>>>);
 
 /// Extracts a map of "internal" assets ([`internal_assets`]) which implement
 /// the [GenerateSourceMap] trait.
@@ -91,10 +92,10 @@ async fn internal_assets_for_source_mapping(
 ) -> Result<Vc<AssetsForSourceMapping>> {
     let internal_assets = internal_assets(intermediate_asset, intermediate_output_path).await?;
     let intermediate_output_path = &*intermediate_output_path.await?;
-    let mut internal_assets_for_source_mapping = HashMap::new();
+    let mut internal_assets_for_source_mapping = FxHashMap::default();
     for asset in internal_assets.iter() {
         if let Some(generate_source_map) =
-            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset).await?
+            ResolvedVc::try_sidecast::<Box<dyn GenerateSourceMap>>(*asset)
         {
             if let Some(path) = intermediate_output_path.get_path_to(&*asset.ident().path().await?)
             {

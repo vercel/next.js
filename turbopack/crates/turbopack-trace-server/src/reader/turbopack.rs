@@ -1,12 +1,13 @@
 use std::{
     borrow::Cow,
-    collections::{hash_map::Entry, HashMap, HashSet},
+    collections::hash_map::Entry,
     mem::transmute,
     ops::{Deref, DerefMut},
     sync::Arc,
 };
 
 use anyhow::Result;
+use rustc_hash::{FxHashMap, FxHashSet};
 use turbopack_trace_utils::tracing::{TraceRow, TraceValue};
 
 use super::TraceFormat;
@@ -129,24 +130,24 @@ struct QueuedRows {
 
 pub struct TurbopackFormat {
     store: Arc<StoreContainer>,
-    id_mapping: HashMap<u64, SpanIndex>,
-    queued_rows: HashMap<u64, QueuedRows>,
-    outdated_spans: HashSet<SpanIndex>,
-    thread_stacks: HashMap<u64, Vec<u64>>,
-    thread_allocation_counters: HashMap<u64, AllocationInfo>,
-    self_time_started: HashMap<(u64, u64), u64>,
+    id_mapping: FxHashMap<u64, SpanIndex>,
+    queued_rows: FxHashMap<u64, QueuedRows>,
+    outdated_spans: FxHashSet<SpanIndex>,
+    thread_stacks: FxHashMap<u64, Vec<u64>>,
+    thread_allocation_counters: FxHashMap<u64, AllocationInfo>,
+    self_time_started: FxHashMap<(u64, u64), u64>,
 }
 
 impl TurbopackFormat {
     pub fn new(store: Arc<StoreContainer>) -> Self {
         Self {
             store,
-            id_mapping: HashMap::new(),
-            queued_rows: HashMap::new(),
-            outdated_spans: HashSet::new(),
-            thread_stacks: HashMap::new(),
-            thread_allocation_counters: HashMap::new(),
-            self_time_started: HashMap::new(),
+            id_mapping: FxHashMap::default(),
+            queued_rows: FxHashMap::default(),
+            outdated_spans: FxHashSet::default(),
+            thread_stacks: FxHashMap::default(),
+            thread_allocation_counters: FxHashMap::default(),
+            self_time_started: FxHashMap::default(),
         }
     }
 

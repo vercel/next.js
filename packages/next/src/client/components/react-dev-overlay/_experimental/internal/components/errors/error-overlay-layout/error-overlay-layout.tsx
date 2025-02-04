@@ -1,4 +1,3 @@
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
 import type { DebugInfo } from '../../../../../types'
 import type { ErrorMessageType } from '../error-message/error-message'
 import type { ErrorType } from '../error-type-label/error-type-label'
@@ -33,6 +32,7 @@ import { CALL_STACK_STYLES } from '../call-stack/call-stack'
 import { OVERLAY_STYLES, ErrorOverlayOverlay } from '../overlay/overlay'
 import { ErrorOverlayBottomStack } from '../error-overlay-bottom-stack'
 import type { ErrorBaseProps } from '../error-overlay/error-overlay'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 interface ErrorOverlayLayoutProps extends ErrorBaseProps {
   errorMessage: ErrorMessageType
