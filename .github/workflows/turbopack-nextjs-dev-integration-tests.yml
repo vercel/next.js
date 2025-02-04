@@ -70,8 +70,7 @@ jobs:
 
   test-integration-development:
     name: test turbopack development integration
-    needs: ['optimize-ci', 'changes', 'build-next', 'build-native']
-    if: ${{ needs.optimize-ci.outputs.skip == 'false' && needs.changes.outputs.docs-only == 'false' }}
+    needs: ['build-next', 'build-native']
 
     strategy:
       fail-fast: false
