@@ -234,40 +234,36 @@ async function getJobResults(
   )
 
   // Filter out next.js build setup jobs
-  const nextjsBuildSetupJob = jobs?.find((job) =>
-    /Build Next.js for the turbopack integration test$/.test(job.name)
-  )
+  // const nextjsBuildSetupJob = jobs?.find((job) =>
+  //   /Build Next.js for the turbopack integration test$/.test(job.name)
+  // )
 
   // Next.js build setup jobs includes the version of next.js that is being tested, try to read it.
-  const nextjsVersion = await findNextJsVersionFromBuildLogs(
-    octokit,
-    token,
-    nextjsBuildSetupJob
-  )
+  const nextjsVersion = '!version!'
 
   // Find out next-swc build workflow
-  const nextSwcBuildJob = jobs?.find((job) =>
-    job.name.includes('Build Next.js for the turbopack integration test')
-  )
-  const nextSwcBuildLogs = (
-    await fetchJobLogsFromWorkflow(octokit, token, nextSwcBuildJob)
-  ).logs.split('\n')
-  const buildTimeMatch = (
-    nextSwcBuildLogs.find((line) => line.includes('Time (abs ≡):')) ?? ''
-  ).match(/  ([+-]?(?=\.\d|\d)(?:\d+)?(?:\.?\d*))(?:[Ee]([+-]?\d+))? s/)
-  const buildTime = buildTimeMatch?.length >= 2 ? buildTimeMatch[1] : undefined
-  const nextSwcBuildSize = (
-    nextSwcBuildLogs.find(
-      (line) =>
-        line.includes('NEXT_SWC_FILESIZE:') &&
-        /NEXT_SWC_FILESIZE: (\d+)/.test(line)
-    ) ?? ''
-  ).match(/NEXT_SWC_FILESIZE: (\d+)/)[1]
+  // const nextSwcBuildJob = jobs?.find((job) =>
+  //   job.name.includes('Build Next.js for the turbopack integration test')
+  // )
+  // const nextSwcBuildLogs = (
+  //   await fetchJobLogsFromWorkflow(octokit, token, nextSwcBuildJob)
+  // ).logs.split('\n')
+  // const buildTimeMatch = (
+  //   nextSwcBuildLogs.find((line) => line.includes('Time (abs ≡):')) ?? ''
+  // ).match(/  ([+-]?(?=\.\d|\d)(?:\d+)?(?:\.?\d*))(?:[Ee]([+-]?\d+))? s/)
+  // const buildTime = buildTimeMatch?.length >= 2 ? buildTimeMatch[1] : undefined
+  // const nextSwcBuildSize = (
+  //   nextSwcBuildLogs.find(
+  //     (line) =>
+  //       line.includes('NEXT_SWC_FILESIZE:') &&
+  //       /NEXT_SWC_FILESIZE: (\d+)/.test(line)
+  //   ) ?? ''
+  // ).match(/NEXT_SWC_FILESIZE: (\d+)/)[1]
 
-  console.log(`Found next-swc build information from build logs`, {
-    buildTime,
-    nextSwcBuildSize,
-  })
+  // console.log(`Found next-swc build information from build logs`, {
+  //   buildTime,
+  //   nextSwcBuildSize,
+  // })
 
   // Filter out next.js integration test jobs
   const integrationTestJobs = jobs?.filter((job) =>
@@ -656,7 +652,7 @@ function getTestSummary(
     testCaseDiff = `:arrow_up_small: ${-caseCountDiff}`
   }
 
-  const shortBaseNextJsVersion = baseResults.nextjsVersion.split(' ')[1]
+  const shortBaseNextJsVersion = ''
 
   // Append summary test report to the comment body
   let ret = `### Test summary

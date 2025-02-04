@@ -56,7 +56,7 @@ jobs:
   # which we do allow some of duplications to make it easier to update if upstream changes.
   # Refer build_and_test.yml in the Next.js repo for more details.
   test-dev:
-    name: test turbopack dev
+    name: Next.js integration test (Development)
     needs: ['build-next', 'build-native']
     strategy:
       fail-fast: false
@@ -69,7 +69,7 @@ jobs:
     secrets: inherit
 
   test-integration-development:
-    name: test turbopack development integration
+    name: Next.js integration test (Integration)
     needs: ['build-next', 'build-native']
 
     strategy:
