@@ -714,10 +714,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         // Cell should exist, but data was dropped or is not serializable. We need to recompute the
         // task the get the cell content.
 
-        println!(
-            "Need to recompute {task_id} {} {cell:?}",
-            ctx.get_task_description(task_id)
-        );
+        // println!(
+        //     "Need to recompute {task_id} {} {cell:?}",
+        //     ctx.get_task_description(task_id)
+        // );
 
         let reader_desc = reader.map(|r| self.get_task_desc_fn(r));
         let note = move || {
@@ -1648,13 +1648,11 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         if self.options.allowed_memory_usage != 0 {
             let mem_usage = TurboMalloc::memory_usage();
             if mem_usage <= self.options.allowed_memory_usage {
-                println!("Skip GC as memory usage is below threshold: {}", mem_usage);
                 return;
             }
         }
         let batch = self.storage.pop_some_old_tasks(self.options.gc_batch_size);
         if batch.is_empty() {
-            println!("Skip GC as no tasks to collect");
             return;
         }
         let counters = TurboMalloc::allocation_counters();
@@ -1671,20 +1669,10 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
                 // time. It will be reenqueued when it's done.
                 continue;
             }
-            println!("GC: {task_id} {}", ctx.get_task_description(task_id));
             cells_to_drop.extend(task.extract_if(CachedDataItemType::CellData, |_, _| true));
         }
         let cells = cells_to_drop.len();
         drop(cells_to_drop);
-        let counters = counters.until_now();
-        let allocations = counters.allocations as isize - counters.deallocations as isize;
-        if allocations.abs() > 2000000 {
-            println!("GC ({cells} cells): {}MiB", allocations / 1024 / 1024);
-        } else if allocations.abs() > 2000 {
-            println!("GC ({cells} cells): {}kiB", allocations / 1024);
-        } else {
-            println!("GC ({cells} cells): {}B", allocations);
-        }
     }
 
     fn run_backend_job<'a>(

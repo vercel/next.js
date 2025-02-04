@@ -561,12 +561,6 @@ impl Storage {
                 break;
             }
         }
-        println!(
-            "Picked {} tasks from {} old tasks ({} total)",
-            result.len(),
-            old_tasks.len() as usize + result.len(),
-            queue.len()
-        );
         result
     }
 }
