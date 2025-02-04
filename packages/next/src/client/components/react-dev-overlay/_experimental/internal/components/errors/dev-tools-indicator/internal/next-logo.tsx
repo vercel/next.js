@@ -289,6 +289,11 @@ export const NextLogo = forwardRef(function NextLogo(
             }
           }
 
+          [data-issues-count-plural] {
+            display: inline-block;
+            animation: fadeIn 300ms var(--timing) forwards;
+          }
+
           .path0 {
             animation: draw0 1.5s ease-in-out infinite;
           }
@@ -403,7 +408,14 @@ export const NextLogo = forwardRef(function NextLogo(
                 <AnimateCount animate={newErrorDetected} data-issues-count>
                   {issueCount}
                 </AnimateCount>{' '}
-                {issueCount === 1 ? 'Issue' : 'Issues'}
+                <div>
+                  Issue
+                  {issueCount > 1 && (
+                    <span aria-hidden data-issues-count-plural>
+                      s
+                    </span>
+                  )}
+                </div>
               </button>
               <button
                 data-issues-collapse

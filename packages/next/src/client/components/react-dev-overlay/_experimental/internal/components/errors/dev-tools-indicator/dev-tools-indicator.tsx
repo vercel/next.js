@@ -92,7 +92,16 @@ function DevToolsPopover({
   useFocusTrap(menuRef, triggerRef, isMenuOpen)
   useClickOutside(menuRef, triggerRef, isMenuOpen, closeMenu)
 
-  function select(index: number | 'last') {
+  function select(index: number | 'first' | 'last') {
+    if (index === 'first') {
+      const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
+      if (all) {
+        const firstIndex = all[0].getAttribute('data-index')
+        select(Number(firstIndex))
+      }
+      return
+    }
+
     if (index === 'last') {
       const all = menuRef.current?.querySelectorAll('[role="menuitem"]')
       if (all) {
@@ -124,7 +133,7 @@ function DevToolsPopover({
         select(prev)
         break
       case 'Home':
-        select(0)
+        select('first')
         break
       case 'End':
         select('last')
@@ -144,7 +153,7 @@ function DevToolsPopover({
       setIsMenuOpen(true)
       // Run on next tick because querying DOM after state change
       setTimeout(() => {
-        select(0)
+        select('first')
       })
     }
 
