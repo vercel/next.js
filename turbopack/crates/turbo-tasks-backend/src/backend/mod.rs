@@ -1301,7 +1301,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         drop(task);
 
         {
-            // let _span = tracing::trace_span!("CleanupOldEdgesOperation").entered();
+            let _span = tracing::trace_span!("CleanupOldEdgesOperation").entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
             // be scheduled and executed again
