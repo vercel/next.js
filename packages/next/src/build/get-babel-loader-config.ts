@@ -88,7 +88,7 @@ const getReactCompilerLoader = (
   cwd: string,
   isDev: boolean,
   isServer: boolean,
-  reactCompilerExclude?: ((excludePath: string) => boolean) | undefined
+  reactCompilerExclude: ((excludePath: string) => boolean) | undefined
 ) => {
   const reactCompilerPlugins = getReactCompilerPlugins(options, isDev, isServer)
   if (!reactCompilerPlugins) {
