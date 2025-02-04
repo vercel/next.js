@@ -20,6 +20,7 @@ use turbopack_core::{
     condition::ContextCondition,
     context::AssetContext,
     environment::{BrowserEnvironment, Environment, ExecutionEnvironment},
+    free_var_references,
     resolve::options::{ImportMap, ImportMapping},
 };
 use turbopack_node::{
@@ -195,13 +196,12 @@ pub fn get_client_asset_context(
     asset_context
 }
 
-fn client_defines(node_env: &NodeEnv) -> Vc<CompileTimeDefines> {
+fn client_defines(node_env: &NodeEnv) -> CompileTimeDefines {
     compile_time_defines!(
         process.turbopack = true,
         process.env.TURBOPACK = true,
         process.env.NODE_ENV = node_env.to_string()
     )
-    .cell()
 }
 
 #[turbo_tasks::function]
@@ -209,6 +209,7 @@ pub async fn get_client_compile_time_info(
     browserslist_query: RcStr,
     node_env: Vc<NodeEnv>,
 ) -> Result<Vc<CompileTimeInfo>> {
+    let node_env = node_env.await?;
     CompileTimeInfo::builder(
         Environment::new(Value::new(ExecutionEnvironment::Browser(
             BrowserEnvironment {
@@ -222,7 +223,10 @@ pub async fn get_client_compile_time_info(
         .to_resolved()
         .await?,
     )
-    .defines(client_defines(&*node_env.await?).to_resolved().await?)
+    .defines(client_defines(&*node_env).resolved_cell())
+    .free_var_references(
+        free_var_references!(..client_defines(&*node_env).into_iter()).resolved_cell(),
+    )
     .cell()
     .await
 }
