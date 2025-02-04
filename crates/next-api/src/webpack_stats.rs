@@ -21,14 +21,14 @@ where
         FxIndexMap::default();
     let mut modules = vec![];
     for asset in entry_assets {
-        let path = normalize_client_path(&asset.ident().path().await?.path);
+        let path = normalize_client_path(&asset.path().await?.path);
 
         let Some(asset_len) = *asset.size_bytes().await? else {
             continue;
         };
 
         if let Some(chunk) = ResolvedVc::try_downcast_type::<EcmascriptDevChunk>(*asset) {
-            let chunk_ident = normalize_client_path(&chunk.ident().path().await?.path);
+            let chunk_ident = normalize_client_path(&chunk.path().await?.path);
             chunks.push(WebpackStatsChunk {
                 size: asset_len,
                 files: vec![chunk_ident.clone().into()],

@@ -6,7 +6,6 @@ use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
     reference::referenced_modules_and_affecting_sources,
@@ -41,12 +40,12 @@ impl RebasedAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for RebasedAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(FileSystemPath::rebase(
+    fn path(&self) -> Vc<FileSystemPath> {
+        FileSystemPath::rebase(
             self.module.ident().path(),
             *self.input_dir,
             *self.output_dir,
-        ))
+        )
     }
 
     #[turbo_tasks::function]

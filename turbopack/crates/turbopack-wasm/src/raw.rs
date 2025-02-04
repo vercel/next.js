@@ -148,7 +148,7 @@ impl EcmascriptChunkItem for RawModuleChunkItem {
 
     #[turbo_tasks::function]
     async fn content(&self) -> Result<Vc<EcmascriptChunkItemContent>> {
-        let path = self.wasm_asset.ident().path().await?;
+        let path = self.wasm_asset.path().await?;
         let output_root = self.chunking_context.output_root().await?;
 
         let Some(path) = output_root.get_path_to(&path) else {
