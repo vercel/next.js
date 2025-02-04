@@ -24,6 +24,7 @@ once_cell = { workspace = true }
 pathdiff = { workspace = true }
 regex = "1.5"
 rustc-hash = { workspace = true }
+swc-rustc-hash = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true, features = ["preserve_order"] }
 sha1 = "0.10.1"

@@ -392,20 +392,20 @@ graph TD
 
 ```
 {
-    Export(
-        "getChimera",
-    ): 10,
     ModuleEvaluation: 11,
-    Export(
-        "initialCat",
-    ): 9,
-    Exports: 13,
     Export(
         "cat",
     ): 12,
     Export(
         "dogRef",
     ): 3,
+    Export(
+        "getChimera",
+    ): 10,
+    Export(
+        "initialCat",
+    ): 9,
+    Exports: 13,
 }
 ```
 
@@ -614,18 +614,18 @@ import "__TURBOPACK_PART__" assert {
 {
     ModuleEvaluation: 2,
     Export(
+        "cat",
+    ): 7,
+    Export(
+        "dogRef",
+    ): 3,
+    Export(
         "getChimera",
     ): 6,
     Export(
         "initialCat",
     ): 5,
     Exports: 8,
-    Export(
-        "cat",
-    ): 7,
-    Export(
-        "dogRef",
-    ): 3,
 }
 ```
 

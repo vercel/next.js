@@ -603,31 +603,31 @@ graph TD
 
 ```
 {
-    Export(
-        "createPrerenderState",
-    ): 9,
     ModuleEvaluation: 17,
-    Export(
-        "markCurrentScopeAsDynamic",
-    ): 10,
-    Export(
-        "usedDynamicAPIs",
-    ): 14,
-    Export(
-        "trackDynamicDataAccessed",
-    ): 11,
     Export(
         "Postpone",
     ): 12,
     Export(
-        "trackDynamicFetch",
-    ): 13,
-    Export(
         "createPostponedAbortSignal",
     ): 16,
     Export(
+        "createPrerenderState",
+    ): 9,
+    Export(
         "formatDynamicAPIAccesses",
     ): 15,
+    Export(
+        "markCurrentScopeAsDynamic",
+    ): 10,
+    Export(
+        "trackDynamicDataAccessed",
+    ): 11,
+    Export(
+        "trackDynamicFetch",
+    ): 13,
+    Export(
+        "usedDynamicAPIs",
+    ): 14,
     Exports: 18,
 }
 ```
@@ -985,31 +985,31 @@ import "__TURBOPACK_PART__" assert {
 
 ```
 {
-    Export(
-        "createPrerenderState",
-    ): 9,
     ModuleEvaluation: 19,
-    Export(
-        "markCurrentScopeAsDynamic",
-    ): 10,
-    Export(
-        "usedDynamicAPIs",
-    ): 15,
-    Export(
-        "trackDynamicDataAccessed",
-    ): 11,
     Export(
         "Postpone",
     ): 12,
     Export(
-        "trackDynamicFetch",
-    ): 13,
-    Export(
         "createPostponedAbortSignal",
     ): 18,
     Export(
+        "createPrerenderState",
+    ): 9,
+    Export(
         "formatDynamicAPIAccesses",
     ): 16,
+    Export(
+        "markCurrentScopeAsDynamic",
+    ): 10,
+    Export(
+        "trackDynamicDataAccessed",
+    ): 11,
+    Export(
+        "trackDynamicFetch",
+    ): 13,
+    Export(
+        "usedDynamicAPIs",
+    ): 15,
     Exports: 20,
 }
 ```
