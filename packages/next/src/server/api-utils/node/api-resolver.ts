@@ -423,7 +423,7 @@ export async function apiResolver(
       if (typeof apiRouteResult !== 'undefined') {
         if (apiRouteResult instanceof Response) {
           throw new Error(
-            'API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: "edge"` instead: https://nextjs.org/docs/api-routes/edge-api-routes'
+            'API route returned a Response object in the Node.js runtime, this is not supported. Please use `runtime: "edge"` instead: https://nextjs.org/docs/pages/building-your-application/routing/api-routes#edge-api-routes'
           )
         }
         console.warn(
