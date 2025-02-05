@@ -27,6 +27,7 @@ import type {
 } from 'next/dist/compiled/source-map08'
 import { formatFrameSourceFile } from '../internal/helpers/webpack-module-path'
 import type { MappedPosition } from 'source-map'
+import { inspect } from 'util'
 
 function shouldIgnorePath(modulePath: string): boolean {
   return (
@@ -335,7 +336,7 @@ async function getSource(
   return undefined
 }
 
-async function getOriginalStackFrames({
+function getOriginalStackFrames({
   isServer,
   isEdgeServer,
   isAppDirectory,
@@ -354,18 +355,32 @@ async function getOriginalStackFrames({
   edgeServerStats: () => webpack.Stats | null
   rootDirectory: string
 }): Promise<OriginalStackFramesResponse> {
-  return Promise.allSettled(
-    frames.map((frame) =>
-      getOriginalStackFrame({
-        isServer,
-        isEdgeServer,
-        isAppDirectory,
-        frame,
-        clientStats,
-        serverStats,
-        edgeServerStats,
-        rootDirectory,
-      })
+  return Promise.all(
+    frames.map(
+      (frame): Promise<OriginalStackFramesResponse[number]> =>
+        getOriginalStackFrame({
+          isServer,
+          isEdgeServer,
+          isAppDirectory,
+          frame,
+          clientStats,
+          serverStats,
+          edgeServerStats,
+          rootDirectory,
+        }).then(
+          (value) => {
+            return {
+              status: 'fulfilled',
+              value,
+            }
+          },
+          (reason) => {
+            return {
+              status: 'rejected',
+              reason: inspect(reason, { colors: false }),
+            }
+          }
+        )
     )
   )
 }
@@ -518,8 +533,8 @@ export function getOverlayMiddleware(options: {
             rootDirectory,
           })
         )
-      } catch (err) {
-        return badRequest(res)
+      } catch (error) {
+        return internalServerError(res, error)
       }
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = {
@@ -602,9 +617,7 @@ export function getSourceMapMiddleware(options: {
         },
       })
     } catch (error) {
-      console.error('Failed to get source map:', error)
-
-      return internalServerError(res)
+      return internalServerError(res, error)
     }
 
     if (!source) {
