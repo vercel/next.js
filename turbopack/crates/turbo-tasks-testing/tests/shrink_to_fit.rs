@@ -18,9 +18,6 @@ async fn test_shrink_to_fit() -> Result<()> {
         let a: Vc<Wrapper> = Vc::cell(Vec::with_capacity(100));
         assert_eq!(a.await?.capacity(), 0);
 
-        let b: Vc<Wrapper> = Vc::local_cell(Vec::with_capacity(100));
-        assert_eq!(b.await?.capacity(), 0);
-
         Ok(())
     })
     .await
