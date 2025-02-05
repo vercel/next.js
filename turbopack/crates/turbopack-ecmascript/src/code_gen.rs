@@ -109,7 +109,8 @@ pub trait CodeGenerateable {
 
 #[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub enum CodeGen {
-    AmdDefineWithDependenciesCodeGen(AmdDefineWithDependenciesCodeGen),
+    // AMD occurs very rarely and makes the enum more than 2x bigger
+    AmdDefineWithDependenciesCodeGen(Box<AmdDefineWithDependenciesCodeGen>),
     CjsRequireCacheAccess(CjsRequireCacheAccess),
     ConstantConditionCodeGen(ConstantConditionCodeGen),
     ConstantValueCodeGen(ConstantValueCodeGen),
