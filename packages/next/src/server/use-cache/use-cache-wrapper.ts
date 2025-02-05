@@ -894,9 +894,8 @@ function isPageComponent(
 
   return (
     ref === undefined && // server components receive an undefined ref arg
+    props !== null &&
     typeof props === 'object' &&
-    typeof props.params === 'object' &&
-    typeof props.searchParams === 'object' &&
     (props as UseCachePageComponentProps).$$isPageComponent
   )
 }
