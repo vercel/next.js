@@ -20,6 +20,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkPlaceable, EcmascriptChunkType,
     },
+    runtime_functions::{TURBOPACK_EXPORT_VALUE, TURBOPACK_LOAD, TURBOPACK_REQUIRE},
     utils::{StringifyJs, StringifyModuleId},
 };
 
@@ -180,13 +181,13 @@ impl EcmascriptChunkItem for ManifestLoaderChunkItem {
         writedoc!(
             code,
             r#"
-                __turbopack_export_value__((__turbopack_import__) => {{
-                    return Promise.all({chunks_server_data}.map((chunk) => __turbopack_load__(chunk))).then(() => {{
-                        return __turbopack_require__({item_id});
+                {TURBOPACK_EXPORT_VALUE}((parentImport) => {{
+                    return Promise.all({chunks_server_data}.map((chunk) => {TURBOPACK_LOAD}(chunk))).then(() => {{
+                        return {TURBOPACK_REQUIRE}({item_id});
                     }}).then((chunks) => {{
-                        return Promise.all(chunks.map((chunk) => __turbopack_load__(chunk)));
+                        return Promise.all(chunks.map((chunk) => {TURBOPACK_LOAD}(chunk)));
                     }}).then(() => {{
-                        return __turbopack_import__({dynamic_id});
+                        return parentImport({dynamic_id});
                     }});
                 }});
             "#,

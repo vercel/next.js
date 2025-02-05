@@ -60,7 +60,7 @@ function generateCacheEntry(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   // We need to run this inside a clean AsyncLocalStorage snapshot so that the cache
@@ -84,7 +84,7 @@ function generateCacheEntryWithRestoredWorkStore(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
   // Since we cleared the AsyncLocalStorage we need to restore the workStore.
@@ -111,7 +111,7 @@ function generateCacheEntryWithCacheContext(
   outerWorkUnitStore: WorkUnitStore | undefined,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ) {
   if (!workStore.cacheLifeProfiles) {
@@ -291,7 +291,7 @@ async function generateCacheEntryImpl(
   innerCacheStore: UseCacheStore,
   clientReferenceManifest: DeepReadonly<ClientReferenceManifestForRsc>,
   encodedArguments: FormData | string,
-  fn: any,
+  fn: (...args: unknown[]) => Promise<unknown>,
   timeoutError: UseCacheTimeoutError
 ): Promise<[ReadableStream, Promise<CacheEntry>]> {
   const temporaryReferences = createServerTemporaryReferenceSet()
@@ -335,24 +335,28 @@ async function generateCacheEntryImpl(
 
   // Track the timestamp when we started computing the result.
   const startTime = performance.timeOrigin + performance.now()
-  // Invoke the inner function to load a new result.
-  const result = fn.apply(null, args)
+
+  // Invoke the inner function to load a new result. We delay the invocation
+  // though, until React awaits the promise so that React's request store (ALS)
+  // is available when the function is invoked. This allows us, for example, to
+  // capture logs so that we can later replay them.
+  const resultPromise = createLazyResult(() => fn.apply(null, args))
 
   let errors: Array<unknown> = []
 
   let timer = undefined
   const controller = new AbortController()
   if (outerWorkUnitStore?.type === 'prerender') {
-    // If we're prerendering, we give you 50 seconds to fill a cache entry. Otherwise
-    // we assume you stalled on hanging input and deopt. This needs to be lower than
-    // just the general timeout of 60 seconds.
+    // If we're prerendering, we give you 50 seconds to fill a cache entry.
+    // Otherwise we assume you stalled on hanging input and de-opt. This needs
+    // to be lower than just the general timeout of 60 seconds.
     timer = setTimeout(() => {
       controller.abort(timeoutError)
     }, 50000)
   }
 
   const stream = renderToReadableStream(
-    result,
+    resultPromise,
     clientReferenceManifest.clientModules,
     {
       environmentName: 'Cache',
@@ -488,7 +492,7 @@ export function cache(
   kind: string,
   id: string,
   boundArgsLength: number,
-  fn: any
+  fn: (...args: unknown[]) => Promise<unknown>
 ) {
   for (const [key, value] of Object.entries(
     cacheHandlerGlobal.__nextCacheHandlers || {}
@@ -818,4 +822,23 @@ export function cache(
     },
   }[name]
   return cachedFn
+}
+
+/**
+ * Calls the given function only when the returned promise is awaited.
+ */
+function createLazyResult<TResult>(
+  fn: () => Promise<TResult>
+): PromiseLike<TResult> {
+  let pendingResult: Promise<TResult> | undefined
+
+  return {
+    then(onfulfilled, onrejected) {
+      if (!pendingResult) {
+        pendingResult = fn()
+      }
+
+      return pendingResult.then(onfulfilled, onrejected)
+    },
+  }
 }

@@ -306,6 +306,7 @@ export async function turbopackBuild(): Promise<{
   }
 }
 
+let shutdownPromise: Promise<void> | undefined
 export async function workerMain(workerData: {
   buildContext: typeof NextBuildContext
 }): Promise<Awaited<ReturnType<typeof turbopackBuild>>> {
@@ -332,5 +333,12 @@ export async function workerMain(workerData: {
   setGlobal('telemetry', telemetry)
 
   const result = await turbopackBuild()
+  shutdownPromise = result.shutdownPromise
   return result
+}
+
+export async function waitForShutdown(): Promise<void> {
+  if (shutdownPromise) {
+    await shutdownPromise
+  }
 }

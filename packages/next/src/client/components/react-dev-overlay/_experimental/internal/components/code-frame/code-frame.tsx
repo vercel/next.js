@@ -107,6 +107,9 @@ export const CODE_FRAME_STYLES = css`
     font-family: var(--font-stack-monospace);
     font-size: 12px;
     line-height: 16px;
+    margin: var(--size-4) var(--size-4) var(--size-2);
+    border: 1px solid var(--color-gray-400);
+    border-radius: var(--size-2);
   }
 
   .code-frame-link,

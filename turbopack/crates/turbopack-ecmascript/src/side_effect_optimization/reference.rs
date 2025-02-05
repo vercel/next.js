@@ -20,6 +20,7 @@ use crate::{
     chunk::EcmascriptChunkPlaceable,
     code_gen::{CodeGenerateable, CodeGeneration},
     references::esm::base::ReferencedAsset,
+    runtime_functions::TURBOPACK_IMPORT,
     utils::module_id_to_lit,
 };
 
@@ -134,10 +135,12 @@ impl CodeGenerateable for EcmascriptModulePartReference {
         Ok(CodeGeneration::hoisted_stmt(
             ident.clone().into(),
             quote!(
-                "var $name = __turbopack_import__($id);" as Stmt,
+                "var $name = $turbopack_import($id);" as Stmt,
                 name = Ident::new(ident.clone().into(), DUMMY_SP, Default::default()),
+                turbopack_import: Expr = TURBOPACK_IMPORT.into(),
                 id: Expr = module_id_to_lit(&id),
             ),
-        ))
+        )
+        .cell())
     }
 }

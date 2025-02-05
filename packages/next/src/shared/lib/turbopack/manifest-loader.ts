@@ -423,7 +423,9 @@ export class TurbopackManifestLoader {
     )
     await writeFileAtomic(
       middlewareBuildManifestPath,
-      `self.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
+      // we use globalThis here because middleware can be node
+      // which doesn't have "self"
+      `globalThis.__BUILD_MANIFEST=${JSON.stringify(buildManifest)};`
     )
 
     const interceptionRewrites = JSON.stringify(

@@ -109,7 +109,7 @@ impl ClientReferenceManifest {
                         Ok(if let Some(path) = path {
                             (chunk, Either::Left(path))
                         } else {
-                            (chunk, Either::Right(chunk.ident().path().await?))
+                            (chunk, Either::Right(chunk.path().await?))
                         })
                     })
                     .try_join()

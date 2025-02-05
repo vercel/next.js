@@ -7,6 +7,8 @@ import {
   jsonString,
   noContent,
   type OriginalStackFrameResponse,
+  type OriginalStackFramesRequest,
+  type OriginalStackFramesResponse,
 } from './shared'
 
 import fs, { constants as FS } from 'fs/promises'
@@ -118,18 +120,47 @@ export async function batchedTraceSource(
     source,
   }
 }
-
-function createStackFrame(searchParams: URLSearchParams) {
-  const fileParam = searchParams.get('file')
-
+function parseFile(fileParam: string | null): string | undefined {
   if (!fileParam) {
     return undefined
   }
 
   // rsc://React/Server/file://<filename>?42 => file://<filename>
-  const file = fileParam
-    .replace(/^rsc:\/\/React\/[^/]+\//, '')
-    .replace(/\?\d+$/, '')
+  return fileParam.replace(/^rsc:\/\/React\/[^/]+\//, '').replace(/\?\d+$/, '')
+}
+
+function createStackFrames(
+  body: OriginalStackFramesRequest
+): TurbopackStackFrame[] {
+  const { frames, isServer } = body
+
+  return frames
+    .map((frame): TurbopackStackFrame | undefined => {
+      const file = parseFile(frame.file)
+
+      if (!file) {
+        return undefined
+      }
+
+      return {
+        file,
+        methodName: frame.methodName ?? '<unknown>',
+        line: frame.lineNumber ?? 0,
+        column: frame.column ?? 0,
+        isServer,
+      } satisfies TurbopackStackFrame
+    })
+    .filter((f): f is TurbopackStackFrame => f !== undefined)
+}
+
+function createStackFrame(
+  searchParams: URLSearchParams
+): TurbopackStackFrame | undefined {
+  const file = parseFile(searchParams.get('file'))
+
+  if (!file) {
+    return undefined
+  }
 
   return {
     file,
@@ -314,25 +345,37 @@ export function getOverlayMiddleware(project: Project) {
   ): Promise<void> {
     const { pathname, searchParams } = new URL(req.url!, 'http://n')
 
-    if (pathname === '/__nextjs_original-stack-frame') {
-      const frame = createStackFrame(searchParams)
-
-      if (!frame) return badRequest(res)
-
-      let originalStackFrame: OriginalStackFrameResponse | null
-      try {
-        originalStackFrame = await createOriginalStackFrame(project, frame)
-      } catch (e: any) {
-        return internalServerError(res, e.stack)
+    if (pathname === '/__nextjs_original-stack-frames') {
+      if (req.method !== 'POST') {
+        return badRequest(res)
       }
 
-      if (!originalStackFrame) {
-        res.statusCode = 404
-        res.end('Unable to resolve sourcemap')
-        return
-      }
+      const body = await new Promise<string>((resolve, reject) => {
+        let data = ''
+        req.on('data', (chunk) => {
+          data += chunk
+        })
+        req.on('end', () => resolve(data))
+        req.on('error', reject)
+      })
 
-      return json(res, originalStackFrame)
+      const request = JSON.parse(body) as OriginalStackFramesRequest
+      const stackFrames = createStackFrames(request)
+      const result = (await Promise.allSettled(
+        stackFrames.map(async (frame) => {
+          try {
+            const stackFrame = await createOriginalStackFrame(project, frame)
+            if (stackFrame === null) {
+              return Promise.reject('Failed to create original stack frame')
+            }
+            return stackFrame
+          } catch (e: any) {
+            return Promise.reject(e.stack)
+          }
+        })
+      )) satisfies OriginalStackFramesResponse
+
+      return json(res, result)
     } else if (pathname === '/__nextjs_launch-editor') {
       const frame = createStackFrame(searchParams)
 

@@ -208,12 +208,12 @@ export const styles = css`
   p.nextjs__container_errors__link {
     color: var(--color-red-900);
     font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));

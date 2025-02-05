@@ -1,9 +1,9 @@
 use anyhow::Result;
 use turbo_tasks::{ResolvedVc, TryJoinIterExt, Vc};
+use turbo_tasks_fs::FileSystemPath;
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     module::Module,
     output::{OutputAsset, OutputAssets},
     reference::referenced_modules_and_affecting_sources,
@@ -26,8 +26,8 @@ impl TracedAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for TracedAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
-        AssetIdent::from_path(self.module.ident().path())
+    fn path(&self) -> Vc<FileSystemPath> {
+        self.module.ident().path()
     }
 
     #[turbo_tasks::function]

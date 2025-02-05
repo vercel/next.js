@@ -1,11 +1,10 @@
 use anyhow::{bail, Result};
 use turbo_rcstr::RcStr;
 use turbo_tasks::{FxIndexSet, ResolvedVc, ValueToString, Vc};
-use turbo_tasks_fs::File;
+use turbo_tasks_fs::{File, FileSystemPath};
 
 use crate::{
     asset::{Asset, AssetContent},
-    ident::AssetIdent,
     introspect::{Introspectable, IntrospectableChildren},
     output::OutputAsset,
     source_map::{GenerateSourceMap, SourceMap},
@@ -28,10 +27,10 @@ impl SourceMapAsset {
 #[turbo_tasks::value_impl]
 impl OutputAsset for SourceMapAsset {
     #[turbo_tasks::function]
-    fn ident(&self) -> Vc<AssetIdent> {
+    fn path(&self) -> Vc<FileSystemPath> {
         // NOTE(alexkirsz) We used to include the asset's version id in the path,
         // but this caused `all_assets_map` to be recomputed on every change.
-        AssetIdent::from_path(self.asset.ident().path().append(".map".into()))
+        self.asset.path().append(".map".into())
     }
 }
 
@@ -73,7 +72,7 @@ impl Introspectable for SourceMapAsset {
 
     #[turbo_tasks::function]
     fn title(self: Vc<Self>) -> Vc<RcStr> {
-        self.ident().to_string()
+        self.path().to_string()
     }
 
     #[turbo_tasks::function]

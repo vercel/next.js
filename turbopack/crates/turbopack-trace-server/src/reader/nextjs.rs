@@ -4,7 +4,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 use serde::Deserialize;
 
 use super::TraceFormat;
-use crate::{span::SpanIndex, store_container::StoreContainer, FxIndexMap};
+use crate::{span::SpanIndex, store_container::StoreContainer, timestamp::Timestamp, FxIndexMap};
 
 pub struct NextJsFormat {
     store: Arc<StoreContainer>,
@@ -51,6 +51,8 @@ impl TraceFormat for NextJsFormat {
                     start_time: _,
                     trace_id: _,
                 } = span;
+                let timestamp = Timestamp::from_micros(timestamp);
+                let duration = Timestamp::from_micros(duration);
                 let (parent, queue_parent) = if let Some(parent) = parent_id {
                     if let Some(parent) = self.id_mapping.get(&parent) {
                         (Some(*parent), None)

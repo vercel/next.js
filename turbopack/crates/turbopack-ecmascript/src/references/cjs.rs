@@ -1,11 +1,14 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
-    common::{util::take::Take, DUMMY_SP},
-    ecma::ast::{CallExpr, Expr, ExprOrSpread, Ident, Lit},
+    common::util::take::Take,
+    ecma::ast::{CallExpr, Expr, ExprOrSpread, Lit},
     quote,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, ValueToString, Vc,
+};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext},
     issue::IssueSource,
@@ -15,11 +18,14 @@ use turbopack_core::{
 };
 use turbopack_resolve::ecmascript::cjs_resolve;
 
-use super::pattern_mapping::{PatternMapping, ResolveType::ChunkItem};
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGenerateable, CodeGeneration},
     create_visitor,
-    references::AstPath,
+    references::{
+        pattern_mapping::{PatternMapping, ResolveType},
+        AstPath,
+    },
+    runtime_functions::TURBOPACK_CACHE,
 };
 
 #[turbo_tasks::value]
@@ -150,7 +156,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
                 Some(*self.issue_source),
                 self.in_try,
             ),
-            Value::new(ChunkItem),
+            ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
@@ -180,7 +186,7 @@ impl CodeGenerateable for CjsRequireAssetReference {
             );
         }));
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors(visitors).cell())
     }
 }
 
@@ -259,7 +265,7 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
                 Some(*self.issue_source),
                 self.in_try,
             ),
-            Value::new(ChunkItem),
+            ResolveType::ChunkItem,
         )
         .await?;
         let mut visitors = Vec::new();
@@ -293,35 +299,40 @@ impl CodeGenerateable for CjsRequireResolveAssetReference {
             // but we can ignore that as it will be recomputed anyway.
         }));
 
-        Ok(CodeGeneration::visitors(visitors))
+        Ok(CodeGeneration::visitors(visitors).cell())
     }
 }
 
-#[turbo_tasks::value(shared)]
-#[derive(Hash, Debug)]
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
 pub struct CjsRequireCacheAccess {
-    pub path: ResolvedVc<AstPath>,
+    pub path: AstPath,
 }
+impl CjsRequireCacheAccess {
+    pub fn new(path: AstPath) -> Self {
+        CjsRequireCacheAccess { path }
+    }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for CjsRequireCacheAccess {
-    #[turbo_tasks::function]
-    async fn code_generation(
+    pub async fn code_generation(
         &self,
         _module_graph: Vc<ModuleGraph>,
         _chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let mut visitors = Vec::new();
 
-        let path = &self.path.await?;
-        visitors.push(create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        visitors.push(create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             if let Expr::Member(_) = expr {
-                *expr = Expr::Ident(Ident::new("__turbopack_cache__".into(), DUMMY_SP, Default::default()));
+                *expr = TURBOPACK_CACHE.into();
             } else {
                 unreachable!("`CjsRequireCacheAccess` is only created from `MemberExpr`");
             }
         }));
 
         Ok(CodeGeneration::visitors(visitors))
+    }
+}
+
+impl From<CjsRequireCacheAccess> for CodeGen {
+    fn from(val: CjsRequireCacheAccess) -> Self {
+        CodeGen::CjsRequireCacheAccess(val)
     }
 }

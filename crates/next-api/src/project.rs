@@ -1649,7 +1649,7 @@ async fn any_output_changed(
         .into_inner()
         .into_reverse_topological()
         .map(|m| async move {
-            let asset_path = m.ident().path().await?;
+            let asset_path = m.path().await?;
             if !asset_path.path.ends_with(".map")
                 && (!server || !asset_path.path.ends_with(".css"))
                 && asset_path.is_inside_ref(path)

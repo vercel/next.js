@@ -11,6 +11,7 @@ import type {
   TurborepoAccessTraceResult,
 } from '../build/turborepo-access-trace'
 import type { FetchMetrics } from '../server/base-http'
+import type { RouteMetadata } from './routes/types'
 
 export interface AmpValidation {
   page: string
@@ -67,10 +68,7 @@ export type ExportRouteResult =
   | {
       ampValidations?: AmpValidation[]
       revalidate: Revalidate
-      metadata?: {
-        status?: number
-        headers?: OutgoingHttpHeaders
-      }
+      metadata?: Partial<RouteMetadata>
       ssgNotFound?: boolean
       hasEmptyPrelude?: boolean
       hasPostponed?: boolean
@@ -135,7 +133,7 @@ export type ExportAppResult = {
       /**
        * The metadata for the page.
        */
-      metadata?: { status?: number; headers?: OutgoingHttpHeaders }
+      metadata?: Partial<RouteMetadata>
       /**
        * If the page has an empty prelude when using PPR.
        */

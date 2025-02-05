@@ -88,7 +88,6 @@ To prerender an entire route, add `use cache` to the top **both** the `layout` a
 
 ```tsx filename="app/layout.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export default function Layout({ children }: { children: ReactNode }) {
   return <div>{children}</div>
@@ -97,7 +96,6 @@ export default function Layout({ children }: { children: ReactNode }) {
 
 ```jsx filename="app/page.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 export default function Layout({ children }) {
   return <div>{children}</div>
@@ -108,7 +106,6 @@ Any components imported and nested in `page` file will inherit the cache behavio
 
 ```tsx filename="app/page.tsx" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function Users() {
   const users = await fetch('/api/users')
@@ -126,7 +123,6 @@ export default function Page() {
 
 ```jsx filename="app/page.js" switcher
 'use cache'
-import { unstable_cacheLife as cacheLife } from 'next/cache'
 
 async function Users() {
   const users = await fetch('/api/users')
