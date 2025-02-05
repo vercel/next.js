@@ -2468,9 +2468,8 @@ export default abstract class Server<
         // If this is a dynamic RSC request, then this render supports dynamic
         // HTML (it's dynamic).
         isDynamicRSCRequest ||
-        // When we're not sending the postponed state, we don't serve the partial shell as well.
-        // Instead we need to proceed a full dynamic rendering.
-        (!isHtmlBotRequest && !opts.dev)
+        // We can generate dynamic HTML when it's not html bot request.
+        !isHtmlBotRequest
 
       const origQuery = parseUrl(req.url || '', true).query
 
