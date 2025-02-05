@@ -70,7 +70,7 @@ pub struct UrlAssetReference {
     request: ResolvedVc<Request>,
     rendering: ResolvedVc<Rendering>,
     ast_path: ResolvedVc<AstPath>,
-    issue_source: ResolvedVc<IssueSource>,
+    issue_source: IssueSource,
     in_try: bool,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
@@ -83,7 +83,7 @@ impl UrlAssetReference {
         request: ResolvedVc<Request>,
         rendering: ResolvedVc<Rendering>,
         ast_path: ResolvedVc<AstPath>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
         url_rewrite_behavior: UrlRewriteBehavior,
     ) -> Vc<Self> {
@@ -113,7 +113,7 @@ impl ModuleReference for UrlAssetReference {
             *self.origin,
             *self.request,
             Value::new(ReferenceType::Url(UrlReferenceSubType::EcmaScriptNewUrl)),
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }

@@ -39,7 +39,7 @@ use crate::{
 pub struct AmdDefineAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
-    issue_source: ResolvedVc<IssueSource>,
+    issue_source: IssueSource,
     in_try: bool,
 }
 
@@ -49,7 +49,7 @@ impl AmdDefineAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Vc<Self> {
         Self::cell(AmdDefineAssetReference {
@@ -68,7 +68,7 @@ impl ModuleReference for AmdDefineAssetReference {
         cjs_resolve(
             *self.origin,
             *self.request,
-            Some(*self.issue_source),
+            Some(self.issue_source.clone()),
             self.in_try,
         )
     }
@@ -132,7 +132,7 @@ pub struct AmdDefineWithDependenciesCodeGen {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     path: AstPath,
     factory_type: AmdDefineFactoryType,
-    issue_source: ResolvedVc<IssueSource>,
+    issue_source: IssueSource,
     in_try: bool,
 }
 
@@ -142,7 +142,7 @@ impl AmdDefineWithDependenciesCodeGen {
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         path: AstPath,
         factory_type: AmdDefineFactoryType,
-        issue_source: ResolvedVc<IssueSource>,
+        issue_source: IssueSource,
         in_try: bool,
     ) -> Self {
         AmdDefineWithDependenciesCodeGen {
@@ -179,7 +179,7 @@ impl AmdDefineWithDependenciesCodeGen {
                             cjs_resolve(
                                 *self.origin,
                                 **request,
-                                Some(*self.issue_source),
+                                Some(self.issue_source.clone()),
                                 self.in_try,
                             ),
                             ResolveType::ChunkItem,

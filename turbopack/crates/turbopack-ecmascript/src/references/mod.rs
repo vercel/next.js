@@ -606,11 +606,9 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 Request::parse(Value::new(RcStr::from(&*r.module_path).into()))
                     .to_resolved()
                     .await?,
-                if let Some(issue_source) = r.issue_source {
-                    issue_source.to_resolved().await?
-                } else {
-                    IssueSource::from_source_only(*source).to_resolved().await?
-                },
+                r.issue_source
+                    .clone()
+                    .unwrap_or_else(|| IssueSource::from_source_only(source)),
                 Value::new(r.annotations.clone()),
                 match options.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments) => match &r.imported_symbol {
@@ -878,7 +876,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                 StyledString::Text("top level await is only supported in ESM modules.".into())
                     .cell(),
                 None,
-                Some(issue_source(*source, span)),
+                Some(issue_source(source, span)),
             )
             .to_resolved()
             .await?
@@ -1262,7 +1260,7 @@ pub(crate) async fn analyse_ecmascript_module_internal(
                                         EsmAssetReference::new(
                                             r_ref.origin,
                                             r_ref.request,
-                                            r_ref.issue_source,
+                                            r_ref.issue_source.clone(),
                                             Value::new(r_ref.annotations.clone()),
                                             Some(ModulePart::export(export).to_resolved().await?),
                                             r_ref.import_externals,
@@ -1463,7 +1461,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 Request::parse(Value::new(pat)),
                                 compile_time_info.environment().rendering(),
                                 Vc::cell(ast_path.to_vec()),
-                                issue_source(*source, span),
+                                issue_source(source, span),
                                 in_try,
                                 url_rewrite_behavior.unwrap_or(UrlRewriteBehavior::Relative),
                             )
@@ -1498,7 +1496,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                 *origin,
                                 Request::parse(Value::new(pat)),
                                 Vc::cell(ast_path.to_vec()),
-                                issue_source(*source, span),
+                                issue_source(source, span),
                                 in_try,
                             )
                             .to_resolved()
@@ -1597,7 +1595,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         *origin,
                         Request::parse(Value::new(pat)),
                         Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         Value::new(import_annotations),
                         in_try,
                         state.import_externals,
@@ -1639,7 +1637,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         *origin,
                         Request::parse(Value::new(pat)),
                         Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -1693,7 +1691,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                         *origin,
                         Request::parse(Value::new(pat)),
                         Vc::cell(ast_path.to_vec()),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -1739,7 +1737,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     options.include_subdirs,
                     Vc::cell(options.filter),
                     Vc::cell(ast_path.to_vec()),
-                    Some(issue_source(*source, span)),
+                    Some(issue_source(source, span)),
                     in_try,
                 )
                 .to_resolved()
@@ -1883,7 +1881,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                             CjsAssetReference::new(
                                 *origin,
                                 Request::parse(Value::new(pat)),
-                                issue_source(*source, span),
+                                issue_source(source, span),
                                 in_try,
                             )
                             .to_resolved()
@@ -1945,7 +1943,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(Value::new(pat)),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2122,7 +2120,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                                         CjsAssetReference::new(
                                             *origin,
                                             Request::parse(Value::new(pat)),
-                                            issue_source(*source, span),
+                                            issue_source(source, span),
                                             in_try,
                                         )
                                         .to_resolved()
@@ -2194,7 +2192,7 @@ async fn handle_call<G: Fn(Vec<Effect>) + Send + Sync>(
                     CjsAssetReference::new(
                         *origin,
                         Request::parse(Value::new(js_value_to_pattern(&args[1]))),
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2427,13 +2425,7 @@ async fn handle_free_var_reference(
                 Request::parse(Value::new(request.clone().into()))
                     .to_resolved()
                     .await?,
-                IssueSource::from_swc_offsets(
-                    *state.source,
-                    span.lo.to_usize(),
-                    span.hi.to_usize(),
-                )
-                .to_resolved()
-                .await?,
+                IssueSource::from_swc_offsets(state.source, span.lo.to_usize(), span.hi.to_usize()),
                 Default::default(),
                 match state.tree_shaking_mode {
                     Some(TreeShakingMode::ModuleFragments)
@@ -2461,7 +2453,7 @@ async fn handle_free_var_reference(
     Ok(true)
 }
 
-fn issue_source(source: Vc<Box<dyn Source>>, span: Span) -> Vc<IssueSource> {
+fn issue_source(source: ResolvedVc<Box<dyn Source>>, span: Span) -> IssueSource {
     IssueSource::from_swc_offsets(source, span.lo.to_usize(), span.hi.to_usize())
 }
 
@@ -2506,7 +2498,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Function,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2520,7 +2512,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Unknown,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2534,7 +2526,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Function,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2544,7 +2536,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Value,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2558,7 +2550,7 @@ async fn analyze_amd_define(
                 origin,
                 ast_path.to_vec().into(),
                 AmdDefineFactoryType::Unknown,
-                issue_source(*source, span).to_resolved().await?,
+                issue_source(source, span),
                 in_try,
             ));
         }
@@ -2610,7 +2602,7 @@ async fn analyze_amd_define_with_deps(
                     let reference = AmdDefineAssetReference::new(
                         *origin,
                         *request,
-                        issue_source(*source, span),
+                        issue_source(source, span),
                         in_try,
                     )
                     .to_resolved()
@@ -2646,7 +2638,7 @@ async fn analyze_amd_define_with_deps(
         origin,
         ast_path.to_vec().into(),
         AmdDefineFactoryType::Function,
-        issue_source(*source, span).to_resolved().await?,
+        issue_source(source, span),
         in_try,
     ));
 
