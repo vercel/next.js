@@ -146,7 +146,7 @@ import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-u
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getIsServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -1279,7 +1279,7 @@ async function renderToHTMLOrFlightImpl(
     fallbackRouteParams
   )
 
-  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
+  const isActionRequest = getIsServerAction(req)
 
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,

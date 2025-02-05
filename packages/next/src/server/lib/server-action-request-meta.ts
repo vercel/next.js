@@ -12,12 +12,6 @@ type OldMetadata = {
   isServerAction: boolean
 }
 
-export function getServerActionRequestMetadata(
-  req: IncomingMessage | BaseNextRequest | NextRequest
-): OldMetadata {
-  return transformActionMetadata(getServerActionRequestMetadataNew(req))
-}
-
 export function transformActionMetadata(
   meta: ServerActionMetadata | null
 ): OldMetadata {
