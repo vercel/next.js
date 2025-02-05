@@ -306,7 +306,10 @@ class Invalidator {
         this.rebuildAgain.delete(key)
       }
     }
-    this.invalidate(rebuild)
+
+    if (rebuild.length > 0) {
+      this.invalidate(rebuild)
+    }
   }
 
   public willRebuild(compilerKey: keyof typeof COMPILER_INDEXES) {
