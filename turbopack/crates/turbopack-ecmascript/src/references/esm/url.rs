@@ -6,7 +6,8 @@ use swc_core::{
 };
 use turbo_rcstr::RcStr;
 use turbo_tasks::{
-    trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Value, ValueToString, Vc,
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, TaskInput, Value,
+    ValueToString, Vc,
 };
 use turbopack_core::{
     chunk::{
@@ -25,7 +26,7 @@ use turbopack_core::{
 
 use super::base::ReferencedAsset;
 use crate::{
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::AstPath,
     runtime_functions::{
@@ -68,38 +69,31 @@ pub enum UrlRewriteBehavior {
 pub struct UrlAssetReference {
     origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     request: ResolvedVc<Request>,
-    rendering: ResolvedVc<Rendering>,
-    ast_path: AstPath,
+    rendering: Rendering,
     issue_source: IssueSource,
     in_try: bool,
     url_rewrite_behavior: UrlRewriteBehavior,
 }
 
-#[turbo_tasks::value_impl]
 impl UrlAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        rendering: ResolvedVc<Rendering>,
-        ast_path: AstPath,
+        rendering: Rendering,
         issue_source: IssueSource,
         in_try: bool,
         url_rewrite_behavior: UrlRewriteBehavior,
-    ) -> Vc<Self> {
+    ) -> Self {
         UrlAssetReference {
             origin,
             request,
             rendering,
-            ast_path,
             issue_source,
             in_try,
             url_rewrite_behavior,
         }
-        .cell()
     }
 
-    #[turbo_tasks::function]
     pub(crate) fn get_referenced_asset(self: Vc<Self>) -> Vc<ReferencedAsset> {
         ReferencedAsset::from_resolve_result(self.resolve_reference())
     }
@@ -137,8 +131,38 @@ impl ChunkableModuleReference for UrlAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for UrlAssetReference {
+impl IntoCodeGenReference for UrlAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let Self {
+            rendering,
+            url_rewrite_behavior,
+            ..
+        } = self;
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::UrlAssetReferenceCodeGen(UrlAssetReferenceCodeGen {
+                reference,
+                path,
+                url_rewrite_behavior,
+                rendering,
+            }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct UrlAssetReferenceCodeGen {
+    reference: ResolvedVc<UrlAssetReference>,
+    path: AstPath,
+    url_rewrite_behavior: UrlRewriteBehavior,
+    rendering: Rendering,
+}
+
+impl UrlAssetReferenceCodeGen {
     /// Rewrites call to the `new URL()` ctor depends on the current
     /// conditions. Generated code will point to the output path of the asset,
     /// as similar to the webpack's behavior. This is based on the
@@ -156,18 +180,16 @@ impl CodeGenerateable for UrlAssetReference {
     │ None                          │ new URL(url, base)                                                      │ new URL(url, base)                             │ new URL(url, base)    │
     └───────────────────────────────┴─────────────────────────────────────────────────────────────────────────┴────────────────────────────────────────────────┴───────────────────────┘
     */
-    #[turbo_tasks::function]
-    async fn code_generation(
-        self: Vc<Self>,
+    pub async fn code_generation(
+        &self,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
-        let this = self.await?;
+    ) -> Result<CodeGeneration> {
         let mut visitors = vec![];
 
-        match this.url_rewrite_behavior {
+        match self.url_rewrite_behavior {
             UrlRewriteBehavior::Relative => {
-                let referenced_asset = self.get_referenced_asset().await?;
+                let referenced_asset = self.reference.get_referenced_asset().await?;
 
                 // if the referenced url is in the module graph of turbopack, replace it into
                 // the chunk item will be emitted into output path to point the
@@ -184,7 +206,7 @@ impl CodeGenerateable for UrlAssetReference {
                             .id()
                             .await?;
 
-                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(self.path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -203,7 +225,7 @@ impl CodeGenerateable for UrlAssetReference {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(self.path, visit_mut_expr(new_expr: &mut Expr) {
                             let should_rewrite_to_relative = if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 matches!(args.first(), Some(ExprOrSpread { .. }))
                             } else {
@@ -230,7 +252,7 @@ impl CodeGenerateable for UrlAssetReference {
                 }
             }
             UrlRewriteBehavior::Full => {
-                let referenced_asset = self.get_referenced_asset().await?;
+                let referenced_asset = self.reference.get_referenced_asset().await?;
 
                 // For rendering environments (CSR), we rewrite the `import.meta.url` to
                 // be a location.origin because it allows us to access files from the root of
@@ -238,7 +260,7 @@ impl CodeGenerateable for UrlAssetReference {
                 //
                 // By default for the remaining environments, turbopack's runtime have overriden
                 // `import.meta.url`.
-                let rewrite_url_base = match &*this.rendering.await? {
+                let rewrite_url_base = match self.rendering {
                     Rendering::Client => Some(quote!("location.origin" as Expr)),
                     Rendering::None | Rendering::Server => None,
                 };
@@ -274,7 +296,7 @@ impl CodeGenerateable for UrlAssetReference {
                             )
                         };
 
-                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(self.path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
                                     *expr = url_segment_resolver.clone();
@@ -294,7 +316,7 @@ impl CodeGenerateable for UrlAssetReference {
                     }
                     ReferencedAsset::External(request, ExternalType::Url) => {
                         let request = request.to_string();
-                        visitors.push(create_visitor!(this.ast_path, visit_mut_expr(new_expr: &mut Expr) {
+                        visitors.push(create_visitor!(self.path, visit_mut_expr(new_expr: &mut Expr) {
                             if let Expr::New(NewExpr { args: Some(args), .. }) = new_expr {
                                 if let Some(ExprOrSpread { box expr, spread: None }) = args.get_mut(0) {
                                     *expr = request.as_str().into()
@@ -323,6 +345,6 @@ impl CodeGenerateable for UrlAssetReference {
             }
         };
 
-        Ok(CodeGeneration::visitors(visitors).cell())
+        Ok(CodeGeneration::visitors(visitors))
     }
 }

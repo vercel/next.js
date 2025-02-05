@@ -249,6 +249,6 @@ impl AsyncModule {
             }
         }
 
-        Ok(CodeGeneration::empty())
+        Ok(CodeGeneration::empty().cell())
     }
 }

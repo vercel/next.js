@@ -1,11 +1,15 @@
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use swc_core::{
     common::{util::take::Take, DUMMY_SP},
     ecma::ast::{CallExpr, Callee, Expr, ExprOrSpread, Lit},
     quote_expr,
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{ResolvedVc, Value, ValueToString, Vc};
+use turbo_tasks::{
+    debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Value, ValueToString,
+    Vc,
+};
 use turbopack_core::{
     chunk::{ChunkableModuleReference, ChunkingContext, ChunkingType, ChunkingTypeOption},
     environment::ChunkLoading,
@@ -24,7 +28,7 @@ use turbopack_resolve::ecmascript::esm_resolve;
 use super::super::pattern_mapping::{PatternMapping, ResolveType};
 use crate::{
     analyzer::imports::ImportAnnotations,
-    code_gen::{CodeGenerateable, CodeGeneration},
+    code_gen::{CodeGen, CodeGeneration, IntoCodeGenReference},
     create_visitor,
     references::AstPath,
 };
@@ -34,7 +38,6 @@ use crate::{
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: AstPath,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub in_try: bool,
@@ -51,27 +54,23 @@ impl EsmAsyncAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
 impl EsmAsyncAssetReference {
-    #[turbo_tasks::function]
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: AstPath,
         issue_source: IssueSource,
         annotations: Value<ImportAnnotations>,
         in_try: bool,
         import_externals: bool,
-    ) -> Vc<Self> {
-        Self::cell(EsmAsyncAssetReference {
+    ) -> Self {
+        EsmAsyncAssetReference {
             origin,
             request,
-            path,
             issue_source,
             annotations: annotations.into_value(),
             in_try,
             import_externals,
-        })
+        }
     }
 }
 
@@ -108,27 +107,52 @@ impl ChunkableModuleReference for EsmAsyncAssetReference {
     }
 }
 
-#[turbo_tasks::value_impl]
-impl CodeGenerateable for EsmAsyncAssetReference {
-    #[turbo_tasks::function]
-    async fn code_generation(
+impl IntoCodeGenReference for EsmAsyncAssetReference {
+    fn into_code_gen_reference(
+        self,
+        path: AstPath,
+    ) -> (ResolvedVc<Box<dyn ModuleReference>>, CodeGen) {
+        let Self {
+            request,
+            origin,
+            import_externals,
+            ..
+        } = self;
+        let reference = self.resolved_cell();
+        (
+            ResolvedVc::upcast(reference),
+            CodeGen::EsmAsyncAssetReferenceCodeGen(EsmAsyncAssetReferenceCodeGen {
+                reference,
+                request,
+                origin,
+                path,
+                import_externals,
+            }),
+        )
+    }
+}
+
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub struct EsmAsyncAssetReferenceCodeGen {
+    path: AstPath,
+    request: ResolvedVc<Request>,
+    origin: ResolvedVc<Box<dyn ResolveOrigin>>,
+    reference: ResolvedVc<EsmAsyncAssetReference>,
+    import_externals: bool,
+}
+
+impl EsmAsyncAssetReferenceCodeGen {
+    pub async fn code_generation(
         &self,
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
-    ) -> Result<Vc<CodeGeneration>> {
+    ) -> Result<CodeGeneration> {
         let pm = PatternMapping::resolve_request(
             *self.request,
             *self.origin,
             module_graph,
             Vc::upcast(chunking_context),
-            esm_resolve(
-                self.get_origin().resolve().await?,
-                *self.request,
-                Value::new(EcmaScriptModulesReferenceSubType::DynamicImport),
-                self.in_try,
-                Some(self.issue_source.clone()),
-            )
-            .await?,
+            self.reference.resolve_reference(),
             if matches!(
                 *chunking_context.environment().chunk_loading().await?,
                 ChunkLoading::Edge
@@ -176,6 +200,6 @@ impl CodeGenerateable for EsmAsyncAssetReference {
             });
         });
 
-        Ok(CodeGeneration::visitors(vec![visitor]).cell())
+        Ok(CodeGeneration::visitors(vec![visitor]))
     }
 }
