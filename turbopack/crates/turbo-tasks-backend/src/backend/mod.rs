@@ -149,8 +149,8 @@ impl Default for BackendOptions {
             children_tracking: true,
             active_tracking: true,
             storage_mode: Some(StorageMode::ReadWrite),
-            // allowed_memory_usage: 1_000_000_000,
-            allowed_memory_usage: 0,
+            allowed_memory_usage: 10_000_000_000,
+            // allowed_memory_usage: 0,
             gc_interval: 128,
             gc_batch_size: 64,
         }
