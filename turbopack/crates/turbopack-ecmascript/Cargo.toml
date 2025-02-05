@@ -67,7 +67,7 @@ swc_core = { workspace = true, features = [
   "testing",
   "base",
 ] }
-swc_ecma_visit = { version = "5.0.0", features = ["serde-impl"] }
+swc_ecma_visit = { version = "6.0.0", features = ["serde-impl"] }
 
 [dev-dependencies]
 criterion = { workspace = true, features = ["async_tokio"] }

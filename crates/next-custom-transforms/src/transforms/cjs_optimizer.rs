@@ -50,7 +50,7 @@ struct State {
 
     extra_stmts: Vec<Stmt>,
 
-    rename_map: swc_rustc_hash::FxHashMap<Id, Id>,
+    rename_map: FxHashMap<Id, Id>,
 
     /// Ignored identifiers for `obj` of [MemberExpr].
     ignored: FxHashSet<Id>,
