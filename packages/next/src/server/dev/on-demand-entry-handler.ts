@@ -418,7 +418,7 @@ export async function findPagePathData(
     let bundlePath = normalizedPagePath
     let pageKey = posix.normalize(pageUrl)
 
-    if (isInstrumentation) {
+    if (isInstrumentation || isMiddlewareFile(normalizedPagePath)) {
       bundlePath = bundlePath.replace('/src', '')
       pageKey = page.replace('/src', '')
     }
