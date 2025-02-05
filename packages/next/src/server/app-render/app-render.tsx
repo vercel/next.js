@@ -1849,7 +1849,7 @@ async function renderToStream(
 
     // When streaming metadata is enabled and request UA is a html-limited bot, we should do a dynamic render.
     const shouldDoDynamicRender =
-      ctx.renderOpts.botType === 'html-limited' &&
+      ctx.renderOpts.botType === 'html' &&
       ctx.renderOpts.experimental.streamingMetadata
 
     // If provided, the postpone state should be parsed as JSON so it can be
