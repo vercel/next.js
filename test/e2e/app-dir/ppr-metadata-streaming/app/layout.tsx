@@ -2,7 +2,6 @@ import Link from 'next/link'
 import { ReactNode } from 'react'
 
 const hrefs = [
-  '/',
   '/dynamic-metadata',
   '/dynamic-metadata/partial',
   '/dynamic-page',

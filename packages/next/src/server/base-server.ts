@@ -175,8 +175,11 @@ import type { RouteModule } from './route-modules/route-module'
 import { FallbackMode, parseFallbackField } from '../lib/fallback'
 import { toResponseCacheEntry } from './response-cache/utils'
 import { scheduleOnNextTick } from '../lib/scheduler'
-import { shouldServeStreamingMetadata } from './lib/streaming-metadata'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
+import {
+  shouldServeStreamingMetadata,
+  shouldSkipPostponedState,
+} from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
   components: LoadComponentsReturnType
@@ -2167,6 +2170,11 @@ export default abstract class Server<
     const hasDebugFallbackShellQuery =
       hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
 
+    const skipPostponed = shouldSkipPostponedState(
+      req,
+      this.renderOpts.experimental.streamingMetadata
+    )
+
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
     const isRoutePPREnabled: boolean =
@@ -2515,7 +2523,7 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
-        postponed,
+        postponed: skipPostponed ? undefined : postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
