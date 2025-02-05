@@ -329,6 +329,10 @@ function getFreshConfig(
   }
 
   if (loaderOptions.transformMode === 'standalone') {
+    if (!reactCompilerPluginsIfEnabled.length) {
+      return null
+    }
+
     options.plugins = [jsx, ...reactCompilerPluginsIfEnabled]
     options.presets = [
       [
@@ -462,6 +466,9 @@ export default function getConfig(
   const cacheKey = getCacheKey(cacheCharacteristics)
   if (configCache.has(cacheKey)) {
     const cachedConfig = configCache.get(cacheKey)
+    if (!cachedConfig) {
+      return null
+    }
 
     return {
       ...cachedConfig,
