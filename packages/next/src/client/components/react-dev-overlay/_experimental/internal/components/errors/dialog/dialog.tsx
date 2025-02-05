@@ -31,6 +31,7 @@ export function ErrorOverlayDialog({
 
 export const DIALOG_STYLES = css`
   .error-overlay-dialog {
+    overflow-y: auto;
     -webkit-font-smoothing: antialiased;
     background: var(--color-background-100);
     background-clip: padding-box;
