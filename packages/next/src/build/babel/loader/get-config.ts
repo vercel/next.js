@@ -273,6 +273,10 @@ function getFreshConfig(
       return false
     }
 
+    if (filename.includes('node_modules')) {
+      return false
+    }
+
     if (
       loaderOptions.reactCompilerExclude &&
       loaderOptions.reactCompilerExclude(filename)
