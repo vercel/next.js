@@ -438,6 +438,7 @@ fn format_absolute_fs_path(path: &Path, name: &str, root_path: &Path) -> Option<
     let path = if let Ok(rel_path) = path.strip_prefix(root_path) {
         let path = if MAIN_SEPARATOR != '/' {
             let rel_path = rel_path.to_string_lossy().replace(MAIN_SEPARATOR, "/");
+            // TODO: Is this related to [project]?
             format!("[{name}]/{}", rel_path)
         } else {
             format!("[{name}]/{}", rel_path.display())
@@ -1584,7 +1585,7 @@ impl ValueToString for FileSystemPath {
     #[turbo_tasks::function]
     async fn to_string(&self) -> Result<Vc<RcStr>> {
         Ok(Vc::cell(
-            format!("[{}]/{}", self.fs.to_string().await?, self.path).into(),
+            format!("{}/{}", self.fs.to_string().await?, self.path).into(),
         ))
     }
 }

@@ -126,7 +126,8 @@ export function formatIssue(issue: Issue) {
   }
 
   let formattedFilePath = filePath
-    .replace('[project]/', './')
+    // TODO: Can we make this more surgical?
+    .replace('PROJECT/', './')
     .replaceAll('/./', '/')
     .replace('\\\\?\\', '')
 
@@ -209,7 +210,7 @@ function isNodeModulesIssue(issue: Issue): boolean {
       // Ignore Next.js itself when running next directly in the monorepo where it is not inside
       // node_modules anyway.
       // TODO(mischnic) prevent matches when this is published to npm
-      issue.filePath.startsWith('[project]/packages/next/'))
+      issue.filePath.startsWith('PROJECT/packages/next/'))
   )
 }
 

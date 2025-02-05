@@ -49,7 +49,7 @@ pub mod virtual_fs {
     pub use turbo_tasks_fs::VirtualFileSystem;
 }
 
-pub const PROJECT_FILESYSTEM_NAME: &str = "project";
+pub const PROJECT_FILESYSTEM_NAME: &str = "PROJECT";
 pub const SOURCE_MAP_PREFIX: &str = "turbopack://";
 
 #[doc(hidden)]

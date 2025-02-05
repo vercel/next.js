@@ -34,7 +34,7 @@ use turbopack_core::{
     asset::Asset,
     chunk::{
         availability_info::AvailabilityInfo, ChunkableModule, ChunkingContext, ChunkingContextExt,
-        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType,
+        EvaluatableAsset, EvaluatableAssetExt, EvaluatableAssets, MinifyType, SourceMapsType,
     },
     compile_time_defines,
     compile_time_info::CompileTimeInfo,
@@ -294,6 +294,7 @@ async fn run_test_operation(resource: RcStr) -> Result<Vc<FileSystemPath>> {
                     ..Default::default()
                 })),
                 ignore_dynamic_requests: true,
+                source_maps: SourceMapsType::Full,
                 ..Default::default()
             },
             css: CssOptionsContext {

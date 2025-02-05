@@ -1209,7 +1209,7 @@ export default function Home() {
 
     if (isTurbopack) {
       expect(source).toMatchInlineSnapshot(`
-        "app/utils.ts (1:7) @ [project]/app/utils.ts [app-client] (ecmascript)
+        "app/utils.ts (1:7) @ PROJECT/app/utils.ts [app-client] (ecmascript)
 
         > 1 | throw new Error('utils error')
             |       ^

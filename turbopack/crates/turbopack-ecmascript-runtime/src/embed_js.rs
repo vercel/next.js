@@ -6,6 +6,9 @@ use turbopack_ecmascript::StaticEcmascriptCode;
 
 #[turbo_tasks::function]
 pub fn embed_fs() -> Vc<Box<dyn FileSystem>> {
+    // responsible for turbopack://TURBOPACK
+    // but if we uppercase it, we also create "TURBOPACK_runtime.js"
+    // Not sure if the change in casing causes problems on case-sensitive file systems i.e. no MacOS.
     embed_directory!("turbopack", "$CARGO_MANIFEST_DIR/js/src")
 }
 
