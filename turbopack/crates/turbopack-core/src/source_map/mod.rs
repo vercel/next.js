@@ -1,7 +1,6 @@
 use std::{borrow::Cow, io::Write, ops::Deref, sync::Arc};
 
 use anyhow::Result;
-use indexmap::IndexSet;
 use once_cell::sync::Lazy;
 use ref_cast::RefCast;
 use regex::Regex;
@@ -15,11 +14,12 @@ use turbo_tasks_fs::{
 };
 
 use crate::{
-    asset::AssetContent, source::Source, source_pos::SourcePos, virtual_source::VirtualSource,
-    SOURCE_MAP_PREFIX,
+    asset::AssetContent, source::Source, source_map::utils::add_default_ignore_list,
+    source_pos::SourcePos, virtual_source::VirtualSource, SOURCE_MAP_PREFIX,
 };
 
 pub(crate) mod source_map_asset;
+pub mod utils;
 
 pub use source_map_asset::SourceMapAsset;
 
@@ -198,6 +198,11 @@ impl SourceMap {
     /// Creates a new SourceMap::Decoded Vc out of a [DecodedMap] instance.
     pub fn new_decoded(map: DecodedMap) -> Self {
         SourceMap::Decoded(InnerSourceMap::new(map))
+    }
+
+    /// Creates a new SourceMap::Decoded Vc out of a [InnerSourceMap] instance.
+    pub fn new_inner(map: InnerSourceMap) -> Self {
+        SourceMap::Decoded(map)
     }
 
     /// Creates a new SourceMap::Sectioned Vc out of a collection of source map
@@ -416,28 +421,15 @@ impl SourceMap {
                 .collect::<Vec<_>>();
             let mut new_sources = Vec::with_capacity(count);
             let mut new_source_contents = Vec::with_capacity(count);
-            let mut ignored_sources = IndexSet::new();
-            for (src_id, (source, source_content)) in sources
-                .into_iter()
-                .zip(source_contents.into_iter())
-                .enumerate()
-            {
+            for (source, source_content) in sources.into_iter().zip(source_contents.into_iter()) {
                 let (source, name) = resolve_source(source, source_content, origin).await?;
-                if source.starts_with("turbopack://[next]")
-                    || source.starts_with("turbopack://[turbopack]")
-                    || source.contains("/node_modules/")
-                {
-                    ignored_sources.insert(src_id);
-                }
                 new_sources.push(source);
                 new_source_contents.push(Some(name));
             }
             let mut map =
                 RegularMap::new(file, tokens, names, new_sources, Some(new_source_contents));
 
-            for ignored_source in ignored_sources {
-                map.add_to_ignore_list(ignored_source as _);
-            }
+            add_default_ignore_list(&mut map);
 
             Ok(map)
         }
