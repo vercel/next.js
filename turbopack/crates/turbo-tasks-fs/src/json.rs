@@ -15,20 +15,20 @@ pub struct UnparseableJson {
     pub path: Option<String>,
     /// The start line and column of the error.
     /// Line and column is 0-based.
-    pub start_location: Option<(usize, usize)>,
+    pub start_location: Option<(u32, u32)>,
     /// The end line and column of the error.
     /// Line and column is 0-based.
-    pub end_location: Option<(usize, usize)>,
+    pub end_location: Option<(u32, u32)>,
 }
 
 /// Converts a byte position to a 0-based line and column.
-fn byte_to_location(pos: usize, text: &str) -> (usize, usize) {
+fn byte_to_location(pos: usize, text: &str) -> (u32, u32) {
     let text = &text[..pos];
     let mut lines = text.lines().rev();
     let last = lines.next().unwrap_or("");
     let column = last.len();
     let line = lines.count();
-    (line, column)
+    (line as u32, column as u32)
 }
 
 impl UnparseableJson {
@@ -47,8 +47,8 @@ impl UnparseableJson {
             message: inner.to_string().into(),
             path: Some(e.path().to_string()),
             start_location: Some((
-                inner.line().saturating_sub(1),
-                inner.column().saturating_sub(1),
+                inner.line().saturating_sub(1) as u32,
+                inner.column().saturating_sub(1) as u32,
             )),
             end_location: None,
         }

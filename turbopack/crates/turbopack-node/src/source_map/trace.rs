@@ -20,8 +20,8 @@ use turbopack_ecmascript::magic_identifier::unmangle_identifiers;
 pub struct StackFrame<'a> {
     pub file: Cow<'a, str>,
     #[serde(rename = "lineNumber")]
-    pub line: Option<usize>,
-    pub column: Option<usize>,
+    pub line: Option<u32>,
+    pub column: Option<u32>,
     #[serde(rename = "methodName")]
     pub name: Option<Cow<'a, str>>,
 }
@@ -63,7 +63,7 @@ impl<'a> StackFrame<'a> {
         }
     }
 
-    pub fn get_pos(&self) -> Option<(usize, usize)> {
+    pub fn get_pos(&self) -> Option<(u32, u32)> {
         self.line.zip(self.column)
     }
 }
@@ -87,8 +87,8 @@ impl Display for StackFrame<'_> {
 #[derive(Debug)]
 pub struct SourceMapTrace {
     map: ResolvedVc<SourceMap>,
-    line: usize,
-    column: usize,
+    line: u32,
+    column: u32,
     name: Option<RcStr>,
 }
 
@@ -105,8 +105,8 @@ impl SourceMapTrace {
     #[turbo_tasks::function]
     pub fn new(
         map: ResolvedVc<SourceMap>,
-        line: usize,
-        column: usize,
+        line: u32,
+        column: u32,
         name: Option<RcStr>,
     ) -> Vc<Self> {
         SourceMapTrace {

@@ -2084,7 +2084,7 @@ impl FileContent {
                                     content: l.to_string(),
                                     bytes_offset,
                                 };
-                                bytes_offset += l.len() + 1;
+                                bytes_offset += (l.len() + 1) as u32;
                                 line
                             })
                             .collect(),
@@ -2195,7 +2195,7 @@ impl FileJsonContent {
 #[derive(Debug, PartialEq, Eq)]
 pub struct FileLine {
     pub content: String,
-    pub bytes_offset: usize,
+    pub bytes_offset: u32,
 }
 
 #[turbo_tasks::value(shared, serialization = "none")]

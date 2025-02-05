@@ -451,7 +451,7 @@ pub struct IssueSource {
 )]
 enum SourceRange {
     LineColumn(SourcePos, SourcePos),
-    ByteOffset(usize, usize),
+    ByteOffset(u32, u32),
 }
 
 impl IssueSource {
@@ -512,7 +512,7 @@ impl IssueSource {
     /// * `source`: The source code in which to look up the byte offsets.
     /// * `start`: The start index of the span. Must use **1-based** indexing.
     /// * `end`: The end index of the span. Must use **1-based** indexing.
-    pub fn from_swc_offsets(source: ResolvedVc<Box<dyn Source>>, start: usize, end: usize) -> Self {
+    pub fn from_swc_offsets(source: ResolvedVc<Box<dyn Source>>, start: u32, end: u32) -> Self {
         IssueSource {
             source,
             range: match (start == 0, end == 0) {
@@ -535,8 +535,8 @@ impl IssueSource {
     /// * `end`: Byte offset into the source that the text ends. 0-based index and exclusive.
     pub async fn from_byte_offset(
         source: ResolvedVc<Box<dyn Source>>,
-        start: usize,
-        end: usize,
+        start: u32,
+        end: u32,
     ) -> Result<Self> {
         Ok(IssueSource {
             source,
@@ -558,7 +558,7 @@ impl IssueSource {
 
 impl IssueSource {
     /// Returns bytes offsets corresponding the source range in the format used by swc's Spans.
-    pub async fn to_swc_offsets(&self) -> Result<Option<(usize, usize)>> {
+    pub async fn to_swc_offsets(&self) -> Result<Option<(u32, u32)>> {
         Ok(match &self.range {
             Some(range) => match range {
                 SourceRange::ByteOffset(start, end) => Some((*start + 1, *end + 1)),
@@ -593,7 +593,7 @@ async fn source_pos(
         return Ok(None);
     };
 
-    let find = |line: usize, col: usize| async move {
+    let find = |line: u32, col: u32| async move {
         let TokenWithSource {
             token,
             source_content,
@@ -1048,9 +1048,12 @@ pub async fn handle_issues<T: Send>(
     }
 }
 
-fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
+fn find_line_and_column(lines: &[FileLine], offset: u32) -> SourcePos {
     match lines.binary_search_by(|line| line.bytes_offset.cmp(&offset)) {
-        Ok(i) => SourcePos { line: i, column: 0 },
+        Ok(i) => SourcePos {
+            line: i as u32,
+            column: 0,
+        },
         Err(i) => {
             if i == 0 {
                 SourcePos {
@@ -1060,15 +1063,15 @@ fn find_line_and_column(lines: &[FileLine], offset: usize) -> SourcePos {
             } else {
                 let line = &lines[i - 1];
                 SourcePos {
-                    line: i - 1,
-                    column: min(line.content.len(), offset - line.bytes_offset),
+                    line: (i - 1) as u32,
+                    column: min(line.content.len() as u32, offset - line.bytes_offset),
                 }
             }
         }
     }
 }
 
-fn find_offset(lines: &[FileLine], pos: SourcePos) -> usize {
-    let line = &lines[pos.line];
+fn find_offset(lines: &[FileLine], pos: SourcePos) -> u32 {
+    let line = &lines[pos.line as usize];
     line.bytes_offset + pos.column
 }
