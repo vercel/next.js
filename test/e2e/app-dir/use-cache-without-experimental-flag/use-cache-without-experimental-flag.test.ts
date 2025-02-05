@@ -109,7 +109,6 @@ describe('use-cache-without-experimental-flag', () => {
         } else {
           expect(errorSource).toMatchInlineSnapshot(`
            "./app/page.tsx
-
            Error:   x To use "use cache", please enable the experimental feature flag "useCache" in your Next.js config.
              | 
              | Read more: https://nextjs.org/docs/canary/app/api-reference/directives/use-cache#usage
