@@ -51,7 +51,7 @@ export function transformActionMetadata(
   }
 }
 
-type ServerActionMetadata =
+export type ServerActionMetadata =
   | {
       kind: 'fetch'
       actionId: string
