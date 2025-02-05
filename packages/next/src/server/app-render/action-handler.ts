@@ -52,15 +52,6 @@ import { synchronizeMutableCookies } from '../async-storage/request-store'
 import type { TemporaryReferenceSet } from 'react-server-dom-webpack/server.edge'
 import { workUnitAsyncStorage } from '../app-render/work-unit-async-storage.external'
 
-function formDataFromSearchQueryString(query: string) {
-  const searchParams = new URLSearchParams(query)
-  const formData = new FormData()
-  for (const [key, value] of searchParams) {
-    formData.append(key, value)
-  }
-  return formData
-}
-
 function nodeHeadersToRecord(
   headers: IncomingHttpHeaders | OutgoingHttpHeaders
 ) {
@@ -485,13 +476,8 @@ export async function handleAction({
   const contentType = req.headers['content-type']
   const { serverActionsManifest, page } = ctx.renderOpts
 
-  const {
-    actionId,
-    isURLEncodedAction,
-    isMultipartAction,
-    isFetchAction,
-    isServerAction,
-  } = getServerActionRequestMetadata(req)
+  const { actionId, isMultipartAction, isFetchAction, isServerAction } =
+    getServerActionRequestMetadata(req)
 
   // If it's not a Server Action, skip handling.
   if (!isServerAction) {
@@ -644,6 +630,13 @@ export async function handleAction({
 
   try {
     await actionAsyncStorage.run({ isAction: true }, async () => {
+      if (!isMultipartAction) {
+        // We only support multipart form actions. Jump to the catch handler, which will send a 500.
+        // TODO: maybe do a 400 instead?
+        throw new Error(
+          'Server actions must use the multipart/form-data content-type'
+        )
+      }
       if (
         // The type check here ensures that `req` is correctly typed, and the
         // environment variable check provides dead code elimination.
@@ -666,77 +659,34 @@ export async function handleAction({
 
         temporaryReferences = createTemporaryReferenceSet()
 
-        if (isMultipartAction) {
-          // TODO-APP: Add streaming support
-          const formData = await req.request.formData()
-          if (isFetchAction) {
-            boundActionArguments = await decodeReply(
-              formData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            const action = await decodeAction(formData, serverModuleMap)
-            if (typeof action === 'function') {
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
-
-              formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-
-              requestStore.phase = 'render'
-            }
-
-            // Skip the fetch path
-            return
-          }
+        // TODO-APP: Add streaming support
+        const formData = await req.request.formData()
+        if (isFetchAction) {
+          boundActionArguments = await decodeReply(formData, serverModuleMap, {
+            temporaryReferences,
+          })
         } else {
-          try {
-            actionModId = getActionModIdOrError(actionId, serverModuleMap)
-          } catch (err) {
-            if (actionId !== null) {
-              console.error(err)
-            }
-            return {
-              type: 'not-found',
-            }
-          }
+          const action = await decodeAction(formData, serverModuleMap)
+          if (typeof action === 'function') {
+            // Only warn if it's a server action, otherwise skip for other post requests
+            warnBadServerActionRequest()
 
-          const chunks: Buffer[] = []
-          const reader = req.body.getReader()
-          while (true) {
-            const { done, value } = await reader.read()
-            if (done) {
-              break
-            }
+            const actionReturnedState = await workUnitAsyncStorage.run(
+              requestStore,
+              action
+            )
 
-            chunks.push(value)
-          }
-
-          const actionData = Buffer.concat(chunks).toString('utf-8')
-
-          if (isURLEncodedAction) {
-            const formData = formDataFromSearchQueryString(actionData)
-            boundActionArguments = await decodeReply(
+            formState = await decodeFormState(
+              actionReturnedState,
               formData,
-              serverModuleMap,
-              { temporaryReferences }
+              serverModuleMap
             )
-          } else {
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+
+            requestStore.phase = 'render'
           }
+
+          // Skip the fetch path
+          return
         }
       } else if (
         // The type check here ensures that `req` is correctly typed, and the
@@ -747,7 +697,6 @@ export async function handleAction({
         // Use react-server-dom-webpack/server.node which supports streaming
         const {
           createTemporaryReferenceSet,
-          decodeReply,
           decodeReplyFromBusboy,
           decodeAction,
           decodeFormState,
@@ -793,99 +742,64 @@ export async function handleAction({
           })
         )
 
-        if (isMultipartAction) {
-          if (isFetchAction) {
-            const busboy = (require('busboy') as typeof import('busboy'))({
-              defParamCharset: 'utf8',
-              headers: req.headers,
-              limits: { fieldSize: bodySizeLimitBytes },
-            })
+        if (isFetchAction) {
+          const busboy = (require('busboy') as typeof import('busboy'))({
+            defParamCharset: 'utf8',
+            headers: req.headers,
+            limits: { fieldSize: bodySizeLimitBytes },
+          })
 
-            body.pipe(busboy)
+          body.pipe(busboy)
 
-            boundActionArguments = await decodeReplyFromBusboy(
-              busboy,
-              serverModuleMap,
-              { temporaryReferences }
-            )
-          } else {
-            // React doesn't yet publish a busboy version of decodeAction
-            // so we polyfill the parsing of FormData.
-            const fakeRequest = new Request('http://localhost', {
-              method: 'POST',
-              // @ts-expect-error
-              headers: { 'Content-Type': contentType },
-              body: new ReadableStream({
-                start: (controller) => {
-                  body.on('data', (chunk) => {
-                    controller.enqueue(new Uint8Array(chunk))
-                  })
-                  body.on('end', () => {
-                    controller.close()
-                  })
-                  body.on('error', (err) => {
-                    controller.error(err)
-                  })
-                },
-              }),
-              duplex: 'half',
-            })
-            const formData = await fakeRequest.formData()
-            const action = await decodeAction(formData, serverModuleMap)
-            if (typeof action === 'function') {
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState = await workUnitAsyncStorage.run(
-                requestStore,
-                action
-              )
-
-              formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-
-              requestStore.phase = 'render'
-            }
-
-            // Skip the fetch path
-            return
-          }
+          boundActionArguments = await decodeReplyFromBusboy(
+            busboy,
+            serverModuleMap,
+            { temporaryReferences }
+          )
         } else {
-          try {
-            actionModId = getActionModIdOrError(actionId, serverModuleMap)
-          } catch (err) {
-            if (actionId !== null) {
-              console.error(err)
-            }
-            return {
-              type: 'not-found',
-            }
-          }
+          // React doesn't yet publish a busboy version of decodeAction
+          // so we polyfill the parsing of FormData.
+          const fakeRequest = new Request('http://localhost', {
+            method: 'POST',
+            // @ts-expect-error
+            headers: { 'Content-Type': contentType },
+            body: new ReadableStream({
+              start: (controller) => {
+                body.on('data', (chunk) => {
+                  controller.enqueue(new Uint8Array(chunk))
+                })
+                body.on('end', () => {
+                  controller.close()
+                })
+                body.on('error', (err) => {
+                  controller.error(err)
+                })
+              },
+            }),
+            duplex: 'half',
+          })
+          const formData = await fakeRequest.formData()
+          const action = await decodeAction(formData, serverModuleMap)
+          if (typeof action === 'function') {
+            // Only warn if it's a server action, otherwise skip for other post requests
+            warnBadServerActionRequest()
 
-          const chunks: Buffer[] = []
-          for await (const chunk of req.body) {
-            chunks.push(Buffer.from(chunk))
-          }
+            const actionReturnedState = await workUnitAsyncStorage.run(
+              requestStore,
+              action
+            )
 
-          const actionData = Buffer.concat(chunks).toString('utf-8')
-
-          if (isURLEncodedAction) {
-            const formData = formDataFromSearchQueryString(actionData)
-            boundActionArguments = await decodeReply(
+            formState = await decodeFormState(
+              actionReturnedState,
               formData,
-              serverModuleMap,
-              { temporaryReferences }
+              serverModuleMap
             )
-          } else {
-            boundActionArguments = await decodeReply(
-              actionData,
-              serverModuleMap,
-              { temporaryReferences }
-            )
+
+            requestStore.phase = 'render'
           }
+
+          // Skip the fetch path
+          return
         }
       } else {
         throw new Error('Invariant: Unknown request type.')
