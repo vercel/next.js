@@ -20,7 +20,6 @@ export const styles = css`
     opacity: 0;
     outline: 0;
     min-width: 248px;
-    background: var(--color-background-100);
     transition: opacity var(--animate-out-duration-ms)
       var(--animate-out-timing-function);
 

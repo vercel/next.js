@@ -4,6 +4,9 @@ import type { OverlayState } from '../../shared'
 import ReactDevOverlay from './react-dev-overlay'
 import { ACTION_UNHANDLED_ERROR } from '../../shared'
 
+// @ts-expect-error
+import imgApp from './app.png'
+
 const meta: Meta<typeof ReactDevOverlay> = {
   component: ReactDevOverlay,
   parameters: {
@@ -80,6 +83,17 @@ const state: OverlayState = {
 export const Default: Story = {
   args: {
     state,
-    children: <div>Application Content</div>,
+    children: (
+      <div>
+        <img
+          src={imgApp}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'contain',
+          }}
+        />
+      </div>
+    ),
   },
 }

@@ -1,19 +1,16 @@
 import * as React from 'react'
-import type { VersionInfo } from '../../../../../../server/dev/parse-version-info'
 import { Terminal } from '../components/terminal'
 import { noop as css } from '../helpers/noop-template'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
-export type BuildErrorProps = {
+export interface BuildErrorProps extends ErrorBaseProps {
   message: string
-  isTurbopack: boolean
-  versionInfo?: VersionInfo
 }
 
 export const BuildError: React.FC<BuildErrorProps> = function BuildError({
   message,
-  versionInfo,
-  isTurbopack,
+  ...props
 }) {
   const noop = React.useCallback(() => {}, [])
   return (
@@ -21,9 +18,8 @@ export const BuildError: React.FC<BuildErrorProps> = function BuildError({
       errorType="Build Error"
       errorMessage="Failed to compile"
       onClose={noop}
-      versionInfo={versionInfo}
       footerMessage="This error occurred during the build process and can only be dismissed by fixing the error."
-      isTurbopack={isTurbopack}
+      {...props}
     >
       <Terminal content={message} />
     </ErrorOverlayLayout>

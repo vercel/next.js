@@ -6,9 +6,9 @@ import { Toast } from '../../toast'
 import { NextLogo } from './internal/next-logo'
 import { useIsDevBuilding } from '../../../../../../../dev/dev-build-indicator/internal/initialize-for-new-overlay'
 import { useIsDevRendering } from './internal/dev-render-indicator'
-import { useDelayedRender } from './internal/use-delayed-render'
 import { useKeyboardShortcut } from '../../../hooks/use-keyboard-shortcut'
 import { MODIFIERS } from '../../../hooks/use-keyboard-shortcut'
+import { useDelayedRender } from '../../../hooks/use-delayed-render'
 
 // TODO: add E2E tests to cover different scenarios
 
@@ -80,6 +80,7 @@ function DevToolsPopover({
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const [selectedIndex, setSelectedIndex] = useState(-1)
 
+  // This hook lets us do an exit animation before unmounting the component
   const { mounted, rendered } = useDelayedRender(isMenuOpen, {
     // Intentionally no fade in, makes the UI feel more immediate
     enterDelay: 0,
@@ -370,7 +371,16 @@ function useFocusTrap(
     if (isMenuOpen) {
       menuRef.current?.focus()
     } else {
-      triggerRef.current?.focus()
+      const root = triggerRef.current?.getRootNode()
+      const activeElement =
+        root instanceof ShadowRoot ? (root?.activeElement as HTMLElement) : null
+
+      // Only restore focus if the focus was previously on the menu.
+      // This avoids us accidentally focusing on mount when the
+      // user could want to interact with their own app instead.
+      if (menuRef.current?.contains(activeElement)) {
+        triggerRef.current?.focus()
+      }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isMenuOpen])
