@@ -1226,12 +1226,16 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
         let mut removed_data = Vec::new();
         let mut old_edges = Vec::new();
 
+        let has_children = !new_children.is_empty();
+
         // Prepare all new children
-        prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+        if has_children {
+            prepare_new_children(task_id, &mut task, &new_children, &mut queue);
+        }
 
         // Filter actual new children
         for old_child in iter_many!(task, Child { task } => task) {
-            if !new_children.remove(&old_child) {
+            if !has_children || !new_children.remove(&old_child) {
                 old_edges.push(OutdatedEdge::Child(old_child));
             }
         }
@@ -1296,7 +1300,7 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         drop(task);
 
-        {
+        if !queue.is_empty() || !old_edges.is_empty() {
             let _span = tracing::trace_span!("remove old edges and prepare new children").entered();
             // Remove outdated edges first, before removing in_progress+dirty flag.
             // We need to make sure all outdated edges are removed before the task can potentially
@@ -1344,19 +1348,21 @@ impl<B: BackingStorage> TurboTasksBackendInner<B> {
 
         let mut queue = AggregationUpdateQueue::new();
 
-        let has_active_count =
-            get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
-        connect_children(
-            task_id,
-            &mut task,
-            new_children,
-            &mut queue,
-            has_active_count,
-        );
+        if has_children {
+            let has_active_count =
+                get!(task, Activeness).map_or(false, |activeness| activeness.active_counter > 0);
+            connect_children(
+                task_id,
+                &mut task,
+                new_children,
+                &mut queue,
+                has_active_count,
+            );
+        }
 
         drop(task);
 
-        {
+        if has_children {
             let _span = tracing::trace_span!("connect new children").entered();
             queue.execute(&mut ctx);
         }
