@@ -1,6 +1,9 @@
 import type { CacheNodeSeedData, PreloadCallbacks } from './types'
 import React from 'react'
-import { isClientReference } from '../../lib/client-reference'
+import {
+  isClientReference,
+  isUseCacheFunction,
+} from '../../lib/client-and-server-references'
 import { getLayoutOrPageModule } from '../lib/app-dir-module'
 import type { LoaderTree } from '../lib/app-dir-module'
 import { interopDefault } from './interop-default'
@@ -19,6 +22,7 @@ import type { Params } from '../request/params'
 import { workUnitAsyncStorage } from './work-unit-async-storage.external'
 import { OUTLET_BOUNDARY_NAME } from '../../lib/metadata/metadata-constants'
 import { DEFAULT_SEGMENT_KEY } from '../../shared/lib/segment'
+import type { UseCachePageComponentProps } from '../use-cache/use-cache-wrapper'
 
 /**
  * Use the provided loader tree to create the React Component tree.
@@ -652,19 +656,44 @@ async function createComponentTreeInternal({
         )
       }
     } else {
-      // If we are passing searchParams to a server component Page we need to track their usage in case
-      // the current render mode tracks dynamic API usage.
+      // If we are passing params to a server component Page we need to track
+      // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
         workStore
       )
-      const searchParams = createServerSearchParamsForServerPage(
-        query,
-        workStore
-      )
-      pageElement = (
-        <PageComponent params={params} searchParams={searchParams} />
-      )
+
+      // TODO(useCache): Should we use this trick also if dynamicIO is enabled,
+      // instead of relying on the searchParams being a hanging promise?
+      if (!experimental.dynamicIO && isUseCacheFunction(PageComponent)) {
+        const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
+          PageComponent
+
+        // The "use cache" wrapper takes care of converting this into an
+        // erroring search params promise when passing it to the original
+        // function.
+        const searchParams = Promise.resolve({})
+
+        pageElement = (
+          <UseCachePageComponent
+            params={params}
+            searchParams={searchParams}
+            $$isPageComponent
+          />
+        )
+      } else {
+        // If we are passing searchParams to a server component Page we need to
+        // track their usage in case the current render mode tracks dynamic API
+        // usage.
+        const searchParams = createServerSearchParamsForServerPage(
+          query,
+          workStore
+        )
+
+        pageElement = (
+          <PageComponent params={params} searchParams={searchParams} />
+        )
+      }
     }
     return [
       actualSegment,

@@ -43,6 +43,11 @@ import { getDigestForWellKnownError } from '../app-render/create-error-handler'
 import { cacheHandlerGlobal, DYNAMIC_EXPIRE } from './constants'
 import { UseCacheTimeoutError } from './use-cache-errors'
 import { createHangingInputAbortSignal } from '../app-render/dynamic-rendering'
+import {
+  makeErroringExoticSearchParamsForUseCache,
+  type SearchParams,
+} from '../request/search-params'
+import type { Params } from '../request/params'
 
 type CacheKeyParts = [
   buildId: string,
@@ -50,6 +55,12 @@ type CacheKeyParts = [
   id: string,
   args: unknown[],
 ]
+
+export interface UseCachePageComponentProps {
+  params: Promise<Params>
+  searchParams: Promise<SearchParams>
+  $$isPageComponent: true
+}
 
 const isEdgeRuntime = process.env.NEXT_RUNTIME === 'edge'
 
@@ -543,6 +554,35 @@ export function cache(
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
 
+      // When dynamicIO is not enabled, we can not encode searchParams as
+      // hanging promises. To still avoid unused search params from making a
+      // page dynamic, we overwrite them here with a promise that resolves to an
+      // empty object, while also overwriting the to-be-invoked function for
+      // generating a cache entry with a function that creates an erroring
+      // searchParams prop before invoking the original function. This ensures
+      // that used searchParams inside of cached functions would still yield an
+      // error.
+      if (!workStore.dynamicIOEnabled && isPageComponent(args)) {
+        const [{ params, searchParams }] = args
+        // Overwrite the props to omit $$isPageComponent.
+        args = [{ params, searchParams }]
+
+        const originalFn = fn
+
+        fn = {
+          [name]: async ({
+            params: serializedParams,
+          }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
+            originalFn.apply(null, [
+              {
+                params: serializedParams,
+                searchParams:
+                  makeErroringExoticSearchParamsForUseCache(workStore),
+              },
+            ]),
+        }[name] as (...args: unknown[]) => Promise<unknown>
+      }
+
       if (boundArgsLength > 0) {
         if (args.length === 0) {
           throw new InvariantError(
@@ -841,4 +881,21 @@ function createLazyResult<TResult>(
       return pendingResult.then(onfulfilled, onrejected)
     },
   }
+}
+
+function isPageComponent(
+  args: any[]
+): args is [UseCachePageComponentProps, undefined] {
+  if (args.length !== 2) {
+    return false
+  }
+
+  const [props, ref] = args
+
+  return (
+    ref === undefined && // server components receive an undefined ref arg
+    props !== null &&
+    typeof props === 'object' &&
+    (props as UseCachePageComponentProps).$$isPageComponent
+  )
 }
