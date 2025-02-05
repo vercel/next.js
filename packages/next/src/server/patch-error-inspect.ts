@@ -151,6 +151,28 @@ interface SourcemappableStackFrame extends StackFrame {
   file: NonNullable<StackFrame['file']>
 }
 
+interface SourceMappedFrame {
+  stack: IgnoreableStackFrame
+  // DEV only
+  code: string | null
+}
+
+function createUnsourcemappedFrame(
+  frame: SourcemappableStackFrame
+): SourceMappedFrame {
+  return {
+    stack: {
+      arguments: frame.arguments,
+      column: frame.column,
+      file: frame.file,
+      lineNumber: frame.lineNumber,
+      methodName: frame.methodName,
+      ignored: shouldIgnoreListGeneratedFrame(frame.file),
+    },
+    code: null,
+  }
+}
+
 /**
  * @param frame
  * @param sourceMapCache
@@ -176,27 +198,45 @@ function getSourcemappedFrameIfPossible(
     if (sourceURL.startsWith('/')) {
       sourceURL = url.pathToFileURL(frame.file).toString()
     }
-    const maybeSourceMapPayload =
-      nativeFindSourceMap(sourceURL)?.payload ??
-      bundlerFindSourceMapPayload(sourceURL)
+    let maybeSourceMapPayload: ModernSourceMapPayload | undefined
+    try {
+      const sourceMap = nativeFindSourceMap(sourceURL)
+      maybeSourceMapPayload = sourceMap?.payload
+    } catch (cause) {
+      // We should not log an actual error instance here because that will re-enter
+      // this codepath during error inspection and could lead to infinite recursion.
+      console.error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+      )
+      // Don't even fall back to the bundler because it might be not as strict
+      // with regards to parsing and then we fail later once we consume the
+      // source map payload.
+      // This essentially avoids a redundant error where we fail here and then
+      // later on consumption because the bundler just handed back an invalid
+      // source map.
+      return createUnsourcemappedFrame(frame)
+    }
     if (maybeSourceMapPayload === undefined) {
-      return {
-        stack: {
-          arguments: frame.arguments,
-          column: frame.column,
-          file: frame.file,
-          lineNumber: frame.lineNumber,
-          methodName: frame.methodName,
-          ignored: shouldIgnoreListGeneratedFrame(frame.file),
-        },
-        code: null,
-      }
+      maybeSourceMapPayload = bundlerFindSourceMapPayload(sourceURL)
+    }
+
+    if (maybeSourceMapPayload === undefined) {
+      return createUnsourcemappedFrame(frame)
     }
     sourceMapPayload = maybeSourceMapPayload
-    sourceMapConsumer = new SyncSourceMapConsumer(
-      // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
-      sourceMapPayload
-    )
+    try {
+      sourceMapConsumer = new SyncSourceMapConsumer(
+        // @ts-expect-error -- Module.SourceMap['version'] is number but SyncSourceMapConsumer wants a string
+        sourceMapPayload
+      )
+    } catch (cause) {
+      // We should not log an actual error instance here because that will re-enter
+      // this codepath during error inspection and could lead to infinite recursion.
+      console.error(
+        `${sourceURL}: Invalid source map. Only conformant source maps can be used to find the original code. Cause: ${cause}`
+      )
+      return createUnsourcemappedFrame(frame)
+    }
     sourceMapCache.set(frame.file, {
       map: sourceMapConsumer,
       payload: sourceMapPayload,

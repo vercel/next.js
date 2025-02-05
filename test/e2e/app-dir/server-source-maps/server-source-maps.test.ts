@@ -206,12 +206,34 @@ describe('app-dir - server source maps', () => {
     await next.render('/bad-sourcemap')
 
     await retry(() => {
-      expect(next.cliOutput.slice(outputIndex)).toContain('TypeError: ')
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        'GET /bad-sourcemap 200'
+      )
     })
 
-    // FIXME
-    expect(next.cliOutput.slice(outputIndex)).toContain(
-      'TypeError: The "payload" argument must be of type object. Received null'
-    )
+    if (isTurbopack) {
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        // Node.js is fine with invalid URLs in index maps apparently.
+        '' +
+          '\nError: Boom!' +
+          // TODO(veil): Turbopack's sourcemap loader generates a wrong source entry here
+          // Should be not be sourcemapped or "custom://[badhost]/app/bad-sourcemap/page.js"
+          '\n    at Page (turbopack://[project]/test/e2e/app-dir/server-source-maps/fixtures/default/app/bad-sourcemap/custom:/[badhost]/app/bad-sourcemap/page.js:9:16)' +
+          // TODO: Remove blank line
+          '\n' +
+          '\n GET /bad-sourcemap 200'
+      )
+    } else {
+      expect(normalizeCliOutput(next.cliOutput.slice(outputIndex))).toContain(
+        // Node.js is not fine with invalid URLs in vanilla source maps.
+        // Feel free to adjust these locations. They're just here to showcase
+        // sourcemapping is broken on invalid sources.
+        '' +
+          `\nwebpack-internal:///(rsc)/./app/bad-sourcemap/page.js: Invalid source map. Only conformant source maps can be used to find the original code. Cause: TypeError [ERR_INVALID_ARG_TYPE]: The "payload" argument must be of type object. Received null` +
+          '\nError: Boom!' +
+          '\n    at Page (webpack-internal:///(rsc)/./app/bad-sourcemap/page.js:15:19)' +
+          '\n GET /bad-sourcemap'
+      )
+    }
   })
 })
