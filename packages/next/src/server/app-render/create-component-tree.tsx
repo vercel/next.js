@@ -663,7 +663,9 @@ async function createComponentTreeInternal({
         workStore
       )
 
-      if (isUseCacheFunction(PageComponent)) {
+      // TODO(useCache): Should we use this trick also if dynamicIO is enabled,
+      // instead of relying on the searchParams being a hanging promise?
+      if (!experimental.dynamicIO && isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
 
