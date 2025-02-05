@@ -43,7 +43,7 @@ export async function unstable_rootParams(): Promise<Params> {
           )
         }
 
-        return makeUntrackedRootParams(underlyingParams)
+        return Promise.resolve(underlyingParams)
       }
       case 'prerender':
       case 'prerender-ppr':
@@ -57,7 +57,7 @@ export async function unstable_rootParams(): Promise<Params> {
       // fallthrough
     }
   }
-  return makeUntrackedRootParams(underlyingParams)
+  return Promise.resolve(underlyingParams)
 }
 
 function createPrerenderRootParams(
@@ -106,7 +106,7 @@ function createPrerenderRootParams(
   }
 
   // We don't have any fallback params so we have an entirely static safe params object
-  return makeUntrackedRootParams(underlyingParams)
+  return Promise.resolve(underlyingParams)
 }
 
 function makeErroringRootParams(
@@ -167,30 +167,6 @@ function makeErroringRootParams(
       } else {
         ;(promise as any)[prop] = underlyingParams[prop]
       }
-    }
-  })
-
-  return promise
-}
-
-function makeUntrackedRootParams(underlyingParams: Params): Promise<Params> {
-  const cachedParams = CachedParams.get(underlyingParams)
-  if (cachedParams) {
-    return cachedParams
-  }
-
-  // We don't use makeResolvedReactPromise here because params
-  // supports copying with spread and we don't want to unnecessarily
-  // instrument the promise with spreadable properties of ReactPromise.
-  const promise = Promise.resolve(underlyingParams)
-  CachedParams.set(underlyingParams, promise)
-
-  Object.keys(underlyingParams).forEach((prop) => {
-    if (wellKnownProperties.has(prop)) {
-      // These properties cannot be shadowed because they need to be the
-      // true underlying value for Promises to work correctly at runtime
-    } else {
-      ;(promise as any)[prop] = underlyingParams[prop]
     }
   })
 
