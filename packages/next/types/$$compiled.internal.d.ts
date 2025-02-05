@@ -114,10 +114,10 @@ declare module 'react-server-dom-webpack/server.edge' {
     [id: string]: ImportManifestEntry
   }
 
-  export type ReactFormState = [
-    unknown /* actual state value */,
+  export type ReactFormState<S = unknown, ServerReferenceId = string> = [
+    S /* actual state value */,
     string /* key path */,
-    string /* Server Reference ID */,
+    ServerReferenceId /* Server Reference ID */,
     number /* number of bound arguments */,
   ]
 
@@ -158,11 +158,11 @@ declare module 'react-server-dom-webpack/server.edge' {
     body: FormData,
     serverManifest: ServerManifest
   ): Promise<() => T> | null
-  export function decodeFormState(
+  export function decodeFormState<S>(
     actionResult: unknown,
     body: FormData,
     serverManifest: ServerManifest
-  ): Promise<ReactFormState | null>
+  ): Promise<ReactFormState<S> | null>
 
   export function registerServerReference<T>(
     reference: T,
@@ -189,10 +189,10 @@ declare module 'react-server-dom-webpack/server.node' {
     [id: string]: ImportManifestEntry
   }
 
-  export type ReactFormState = [
-    unknown /* actual state value */,
+  export type ReactFormState<S = unknown, ServerReferenceId = string> = [
+    S /* actual state value */,
     string /* key path */,
-    string /* Server Reference ID */,
+    ServerReferenceId /* Server Reference ID */,
     number /* number of bound arguments */,
   ]
 
@@ -217,11 +217,11 @@ declare module 'react-server-dom-webpack/server.node' {
     serverManifest: ServerManifest
   ): Promise<() => unknown> | null
 
-  export function decodeFormState(
+  export function decodeFormState<S>(
     actionResult: unknown,
     body: FormData,
     serverManifest: ServerManifest
-  ): Promise<ReactFormState | null>
+  ): Promise<ReactFormState<S> | null>
 }
 declare module 'react-server-dom-webpack/static.edge' {
   export function unstable_prerender(
