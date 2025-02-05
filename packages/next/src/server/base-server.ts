@@ -2464,7 +2464,10 @@ export default abstract class Server<
         typeof postponed === 'string' ||
         // If this is a dynamic RSC request, then this render supports dynamic
         // HTML (it's dynamic).
-        isDynamicRSCRequest
+        isDynamicRSCRequest ||
+        // When we're not sending the postponed state, we don't serve the partial shell as well.
+        // Instead we need to proceed a full dynamic rendering.
+        skipPostponed
 
       const origQuery = parseUrl(req.url || '', true).query
 
@@ -2523,7 +2526,7 @@ export default abstract class Server<
         isOnDemandRevalidate,
         isDraftMode: isPreviewMode,
         isServerAction,
-        postponed: skipPostponed ? undefined : postponed,
+        postponed,
         waitUntil: this.getWaitUntil(),
         onClose: res.onClose.bind(res),
         onAfterTaskError: undefined,
@@ -3536,7 +3539,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone.
-      if (didPostpone) {
+      if (didPostpone && !skipPostponed) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3583,6 +3586,34 @@ export default abstract class Server<
           type: 'html',
           body,
           revalidate: cacheEntry.revalidate,
+        }
+      }
+
+      // When the postponed state is skipped, we don't consume the `postponed` state from build cache.
+      // Pass down a `undefined` postponed state to the renderer to avoid resume rendering.
+      if (skipPostponed) {
+        const result = await doRender({
+          postponed: undefined,
+          pagesFallback: undefined,
+          // This is a resume render, not a fallback render, so we don't need to
+          // set this.
+          fallbackRouteParams: null,
+        })
+
+        if (!result) {
+          throw new Error('Invariant: expected a result to be returned')
+        }
+
+        if (result.value?.kind !== CachedRouteKind.APP_PAGE) {
+          throw new Error(
+            `Invariant: expected a page response, got ${result.value?.kind}`
+          )
+        }
+
+        return {
+          type: 'html',
+          body: result.value.html,
+          revalidate: result.revalidate,
         }
       }
 

@@ -1,4 +1,5 @@
 import { nextTestSetup } from 'e2e-utils'
+import cheerio from 'cheerio'
 import { assertNoConsoleErrors } from 'next-test-utils'
 
 function countSubstring(str: string, substr: string): number {
@@ -89,6 +90,57 @@ describe('ppr-metadata-streaming', () => {
         await browser.waitForElementByCss(`${rootSelector} title`).text()
       ).toBe('dynamic-page - partial')
       await assertNoConsoleErrors(browser)
+    })
+  })
+
+  describe('html limited bots', () => {
+    it('should serve partial static shell when normal UA requests the page', async () => {
+      const res1 = await next.fetch('/dynamic-page/partial')
+      const res2 = await next.fetch('/dynamic-page/partial')
+
+      const $1 = cheerio.load(await res1.text())
+      const $2 = cheerio.load(await res2.text())
+
+      const attribute1 = parseInt($1('[data-date]').attr('data-date'))
+      const attribute2 = parseInt($2('[data-date]').attr('data-date'))
+
+      const headers = res1.headers
+
+      // Static render should have postponed header
+      expect(headers.get('x-nextjs-postponed')).toBe('1')
+
+      // Normal UA should still get the partial static shell produced by PPR
+      expect(attribute1).toBe(attribute2)
+      expect(attribute1).toBeTruthy()
+    })
+
+    it('should not serve partial static shell when html limited bots requests the page', async () => {
+      const htmlLimitedBotUA = 'Discordbot'
+      const res1 = await next.fetch('/dynamic-page/partial', {
+        headers: {
+          'User-Agent': htmlLimitedBotUA,
+        },
+      })
+
+      const res2 = await next.fetch('/dynamic-page/partial', {
+        headers: {
+          'User-Agent': htmlLimitedBotUA,
+        },
+      })
+
+      // Dynamic render should not have postponed header
+      const headers = res1.headers
+      expect(headers.get('x-nextjs-postponed')).toBe(null)
+
+      const $1 = cheerio.load(await res1.text())
+      const $2 = cheerio.load(await res2.text())
+
+      const attribute1 = parseInt($1('[data-date]').attr('data-date'))
+      const attribute2 = parseInt($2('[data-date]').attr('data-date'))
+
+      // Two requests are dynamic and should not have the same data-date attribute
+      expect(attribute2).toBeGreaterThan(attribute1)
+      expect(attribute1).toBeTruthy()
     })
   })
 })
