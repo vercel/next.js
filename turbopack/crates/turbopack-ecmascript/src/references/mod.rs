@@ -315,6 +315,7 @@ struct AnalysisState<'a> {
     /// This is the current state of known values of function
     /// arguments.
     fun_args_values: Mutex<FxHashMap<u32, Vec<JsValue>>>,
+    var_cache: Mutex<FxHashMap<Id, JsValue>>,
     // There can be many references to import.meta, but only the first should hoist
     // the object allocation.
     first_import_meta: bool,
@@ -327,8 +328,7 @@ struct AnalysisState<'a> {
 impl AnalysisState<'_> {
     /// Links a value to the graph, returning the linked value.
     async fn link_value(&self, value: JsValue, attributes: &ImportAttributes) -> Result<JsValue> {
-        let fun_args_values = self.fun_args_values.lock().clone();
-        link(
+        Ok(link(
             self.var_graph,
             value,
             &early_value_visitor,
@@ -341,9 +341,11 @@ impl AnalysisState<'_> {
                     attributes,
                 )
             },
-            fun_args_values,
+            &self.fun_args_values,
+            &self.var_cache,
         )
-        .await
+        .await?
+        .0)
     }
 }
 
@@ -897,7 +899,8 @@ pub(crate) async fn analyse_ecmascript_module_internal(
             origin,
             compile_time_info,
             var_graph: &var_graph,
-            fun_args_values: Mutex::new(FxHashMap::<u32, Vec<JsValue>>::default()),
+            fun_args_values: Default::default(),
+            var_cache: Default::default(),
             first_import_meta: true,
             tree_shaking_mode: options.tree_shaking_mode,
             import_externals: options.import_externals,

@@ -1031,6 +1031,10 @@ impl JsValue {
 
 // Methods regarding node count
 impl JsValue {
+    pub fn has_children(&self) -> bool {
+        self.total_nodes() > 1
+    }
+
     pub fn total_nodes(&self) -> u32 {
         match self {
             JsValue::Constant(_)
@@ -3982,10 +3986,14 @@ pub mod test_utils {
 mod tests {
     use std::{mem::take, path::PathBuf, time::Instant};
 
+    use parking_lot::Mutex;
+    use rustc_hash::FxHashMap;
     use swc_core::{
         common::{comments::SingleThreadedComments, Mark},
         ecma::{
-            ast::EsVersion, parser::parse_file_as_program, transforms::base::resolver,
+            ast::{EsVersion, Id},
+            parser::parse_file_as_program,
+            transforms::base::resolver,
             visit::VisitMutWith,
         },
         testing::{fixture, run_test, NormalizedOutput},
@@ -4039,6 +4047,7 @@ mod tests {
                     EvalContext::new(&m, unresolved_mark, top_level_mark, Some(&comments), None);
 
                 let mut var_graph = create_graph(&m, &eval_context);
+                let var_cache = Default::default();
 
                 let mut named_values = var_graph
                     .values
@@ -4047,17 +4056,19 @@ mod tests {
                     .map(|((id, ctx), value)| {
                         let unique = var_graph.values.keys().filter(|(i, _)| &id == i).count() == 1;
                         if unique {
-                            (id.to_string(), value)
+                            (id.to_string(), ((id, ctx), value))
                         } else {
-                            (format!("{id}{ctx:?}"), value)
+                            (format!("{id}{ctx:?}"), ((id, ctx), value))
                         }
                     })
                     .collect::<Vec<_>>();
                 named_values.sort_by(|a, b| a.0.cmp(&b.0));
 
-                fn explain_all(values: &[(String, JsValue)]) -> String {
+                fn explain_all<'a>(
+                    values: impl IntoIterator<Item = (&'a String, &'a JsValue)>,
+                ) -> String {
                     values
-                        .iter()
+                        .into_iter()
                         .map(|(id, value)| {
                             let (explainer, hints) = value.explain(10, 5);
                             format!("{id} = {explainer}{hints}")
@@ -4072,13 +4083,21 @@ mod tests {
                     let large = large_marker.exists();
 
                     if !large {
-                        NormalizedOutput::from(format!("{:#?}", named_values))
-                            .compare_to_file(&graph_snapshot_path)
-                            .unwrap();
-                    }
-                    NormalizedOutput::from(explain_all(&named_values))
-                        .compare_to_file(&graph_explained_snapshot_path)
+                        NormalizedOutput::from(format!(
+                            "{:#?}",
+                            named_values
+                                .iter()
+                                .map(|(name, (_, value))| (name, value))
+                                .collect::<Vec<_>>()
+                        ))
+                        .compare_to_file(&graph_snapshot_path)
                         .unwrap();
+                    }
+                    NormalizedOutput::from(explain_all(
+                        named_values.iter().map(|(name, (_, value))| (name, value)),
+                    ))
+                    .compare_to_file(&graph_explained_snapshot_path)
+                    .unwrap();
                     if !large {
                         NormalizedOutput::from(format!("{:#?}", var_graph.effects))
                             .compare_to_file(&graph_effects_snapshot_path)
@@ -4091,21 +4110,28 @@ mod tests {
 
                     let start = Instant::now();
                     let mut resolved = Vec::new();
-                    for (id, val) in named_values.iter().cloned() {
+                    for (name, (id, _)) in named_values.iter().cloned() {
                         let start = Instant::now();
                         // Ideally this would use eval_context.imports.get_attributes(span), but the
                         // span isn't available here
-                        let res = resolve(&var_graph, val, ImportAttributes::empty_ref()).await;
+                        let (res, steps) = resolve(
+                            &var_graph,
+                            JsValue::Variable(id),
+                            ImportAttributes::empty_ref(),
+                            &var_cache,
+                        )
+                        .await;
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
-                                "linking {} {id} took {}",
+                                "linking {} {name} took {} in {} steps",
                                 input.display(),
-                                FormatDuration(time)
+                                FormatDuration(time),
+                                steps
                             );
                         }
 
-                        resolved.push((id, res));
+                        resolved.push((name, res));
                     }
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
@@ -4113,7 +4139,7 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(&resolved);
+                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4146,6 +4172,7 @@ mod tests {
                             args: Vec<EffectArg>,
                             queue: &mut Vec<(usize, Effect)>,
                             var_graph: &VarGraph,
+                            var_cache: &Mutex<FxHashMap<Id, JsValue>>,
                             i: usize,
                         ) -> Vec<JsValue> {
                             let mut new_args = Vec::new();
@@ -4153,14 +4180,26 @@ mod tests {
                                 match arg {
                                     EffectArg::Value(v) => {
                                         new_args.push(
-                                            resolve(var_graph, v, ImportAttributes::empty_ref())
-                                                .await,
+                                            resolve(
+                                                var_graph,
+                                                v,
+                                                ImportAttributes::empty_ref(),
+                                                var_cache,
+                                            )
+                                            .await
+                                            .0,
                                         );
                                     }
                                     EffectArg::Closure(v, effects) => {
                                         new_args.push(
-                                            resolve(var_graph, v, ImportAttributes::empty_ref())
-                                                .await,
+                                            resolve(
+                                                var_graph,
+                                                v,
+                                                ImportAttributes::empty_ref(),
+                                                var_cache,
+                                            )
+                                            .await
+                                            .0,
                                         );
                                         queue.extend(
                                             effects.effects.into_iter().rev().map(|e| (i, e)),
@@ -4173,13 +4212,17 @@ mod tests {
                             }
                             new_args
                         }
-                        match effect {
+                        let steps = match effect {
                             Effect::Conditional {
                                 condition, kind, ..
                             } => {
-                                let condition =
-                                    resolve(&var_graph, *condition, ImportAttributes::empty_ref())
-                                        .await;
+                                let (condition, steps) = resolve(
+                                    &var_graph,
+                                    *condition,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
                                 resolved.push((format!("{parent} -> {i} conditional"), condition));
                                 match *kind {
                                     ConditionalKind::If { then } => {
@@ -4218,6 +4261,7 @@ mod tests {
                                             .extend(expr.effects.into_iter().rev().map(|e| (i, e)));
                                     }
                                 };
+                                steps
                             }
                             Effect::Call {
                                 func,
@@ -4226,13 +4270,15 @@ mod tests {
                                 span,
                                 ..
                             } => {
-                                let func = resolve(
+                                let (func, steps) = resolve(
                                     &var_graph,
                                     *func,
                                     eval_context.imports.get_attributes(span),
+                                    &var_cache,
                                 )
                                 .await;
-                                let new_args = handle_args(args, &mut queue, &var_graph, i).await;
+                                let new_args =
+                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} call"),
                                     if new {
@@ -4241,47 +4287,69 @@ mod tests {
                                         JsValue::call(Box::new(func), new_args)
                                     },
                                 ));
+                                steps
                             }
                             Effect::FreeVar { var, .. } => {
                                 resolved.push((format!("{parent} -> {i} free var"), *var));
+                                0
                             }
                             Effect::TypeOf { arg, .. } => {
-                                let arg =
-                                    resolve(&var_graph, *arg, ImportAttributes::empty_ref()).await;
+                                let (arg, steps) = resolve(
+                                    &var_graph,
+                                    *arg,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
                                 resolved.push((
                                     format!("{parent} -> {i} typeof"),
                                     JsValue::type_of(Box::new(arg)),
                                 ));
+                                steps
                             }
                             Effect::MemberCall {
                                 obj, prop, args, ..
                             } => {
-                                let obj =
-                                    resolve(&var_graph, *obj, ImportAttributes::empty_ref()).await;
-                                let prop =
-                                    resolve(&var_graph, *prop, ImportAttributes::empty_ref()).await;
-                                let new_args = handle_args(args, &mut queue, &var_graph, i).await;
+                                let (obj, obj_steps) = resolve(
+                                    &var_graph,
+                                    *obj,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
+                                let (prop, prop_steps) = resolve(
+                                    &var_graph,
+                                    *prop,
+                                    ImportAttributes::empty_ref(),
+                                    &var_cache,
+                                )
+                                .await;
+                                let new_args =
+                                    handle_args(args, &mut queue, &var_graph, &var_cache, i).await;
                                 resolved.push((
                                     format!("{parent} -> {i} member call"),
                                     JsValue::member_call(Box::new(obj), Box::new(prop), new_args),
                                 ));
+                                obj_steps + prop_steps
                             }
                             Effect::Unreachable { .. } => {
                                 resolved.push((
                                     format!("{parent} -> {i} unreachable"),
                                     JsValue::unknown_empty(true, "unreachable"),
                                 ));
+                                0
                             }
-                            Effect::ImportMeta { .. } => {}
-                            Effect::ImportedBinding { .. } => {}
-                            Effect::Member { .. } => {}
-                        }
+                            Effect::ImportMeta { .. }
+                            | Effect::ImportedBinding { .. }
+                            | Effect::Member { .. } => 0,
+                        };
                         let time = start.elapsed();
                         if time.as_millis() > 1 {
                             println!(
-                                "linking effect {} took {}",
+                                "linking effect {} took {} in {} steps",
                                 input.display(),
-                                FormatDuration(time)
+                                FormatDuration(time),
+                                steps
                             );
                         }
                     }
@@ -4295,7 +4363,7 @@ mod tests {
                     }
 
                     let start = Instant::now();
-                    let explainer = explain_all(&resolved);
+                    let explainer = explain_all(resolved.iter().map(|(name, value)| (name, value)));
                     let time = start.elapsed();
                     if time.as_millis() > 1 {
                         println!(
@@ -4316,7 +4384,12 @@ mod tests {
         .unwrap();
     }
 
-    async fn resolve(var_graph: &VarGraph, val: JsValue, attributes: &ImportAttributes) -> JsValue {
+    async fn resolve(
+        var_graph: &VarGraph,
+        val: JsValue,
+        attributes: &ImportAttributes,
+        var_cache: &Mutex<FxHashMap<Id, JsValue>>,
+    ) -> (JsValue, u32) {
         turbo_tasks_testing::VcStorage::with(async {
             let compile_time_info = CompileTimeInfo::builder(
                 Environment::new(Value::new(ExecutionEnvironment::NodeJsLambda(
@@ -4349,7 +4422,8 @@ mod tests {
                         attributes,
                     ))
                 }),
-                Default::default(),
+                &Default::default(),
+                var_cache,
             )
             .await
         })
