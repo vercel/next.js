@@ -563,19 +563,24 @@ export function cache(
       // that used searchParams inside of cached functions would still yield an
       // error.
       if (!workStore.dynamicIOEnabled && isPageComponent(args)) {
-        const [props] = args
-        args = [{ params: props.params, searchParams: Promise.resolve({}) }]
+        const [{ params, searchParams }] = args
+        // Overwrite the props to omit $$isPageComponent.
+        args = [{ params, searchParams }]
 
         const originalFn = fn
 
         fn = {
-          [name]: async function ({ params }: any) {
-            const searchParams =
-              makeErroringExoticSearchParamsForUseCache(workStore)
-
-            return originalFn.apply(null, [{ params, searchParams }])
-          },
-        }[name]
+          [name]: async ({
+            params: serializedParams,
+          }: Omit<UseCachePageComponentProps, '$$isPageComponent'>) =>
+            originalFn.apply(null, [
+              {
+                params: serializedParams,
+                searchParams:
+                  makeErroringExoticSearchParamsForUseCache(workStore),
+              },
+            ]),
+        }[name] as (...args: unknown[]) => Promise<unknown>
       }
 
       if (boundArgsLength > 0) {

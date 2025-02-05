@@ -656,20 +656,21 @@ async function createComponentTreeInternal({
         )
       }
     } else {
-      // If we are passing searchParams to a server component Page we need to track their usage in case
-      // the current render mode tracks dynamic API usage.
+      // If we are passing params to a server component Page we need to track
+      // their usage in case the current render mode tracks dynamic API usage.
       const params = createServerParamsForServerSegment(
         currentParams,
-        workStore
-      )
-      const searchParams = createServerSearchParamsForServerPage(
-        query,
         workStore
       )
 
       if (isUseCacheFunction(PageComponent)) {
         const UseCachePageComponent: React.ComponentType<UseCachePageComponentProps> =
           PageComponent
+
+        // The "use cache" wrapper takes care of converting this into an
+        // erroring search params promise when passing it to the original
+        // function.
+        const searchParams = Promise.resolve({})
 
         pageElement = (
           <UseCachePageComponent
@@ -679,6 +680,14 @@ async function createComponentTreeInternal({
           />
         )
       } else {
+        // If we are passing searchParams to a server component Page we need to
+        // track their usage in case the current render mode tracks dynamic API
+        // usage.
+        const searchParams = createServerSearchParamsForServerPage(
+          query,
+          workStore
+        )
+
         pageElement = (
           <PageComponent params={params} searchParams={searchParams} />
         )
