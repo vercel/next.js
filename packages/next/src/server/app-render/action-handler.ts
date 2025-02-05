@@ -1061,21 +1061,25 @@ async function decodeReplyNode(
   serverModuleMap: ServerModuleMap,
   temporaryReferences: TemporaryReferenceSet | undefined
 ) {
-  const { decodeReplyFromBusboy } = require(
-    `./react-server.node`
-  ) as typeof import('./react-server.node')
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError('decodeReplyNode cannot be used in edge runtime')
+  } else {
+    // NOTE: this branch must be wrapped in an `else` to DCE properly for edge, an early return won't work
+    const { decodeReplyFromBusboy } = require(
+      `./react-server.node`
+    ) as typeof import('./react-server.node')
+    const busboy = (require('busboy') as typeof import('busboy'))({
+      defParamCharset: 'utf8',
+      headers: headers,
+      limits: { fieldSize: sizeLimit.bytes },
+    })
 
-  const busboy = (require('busboy') as typeof import('busboy'))({
-    defParamCharset: 'utf8',
-    headers: headers,
-    limits: { fieldSize: sizeLimit.bytes },
-  })
+    body.pipe(busboy)
 
-  body.pipe(busboy)
-
-  return await decodeReplyFromBusboy(busboy, serverModuleMap, {
-    temporaryReferences,
-  })
+    return await decodeReplyFromBusboy(busboy, serverModuleMap, {
+      temporaryReferences,
+    })
+  }
 }
 
 async function parseFormDataNode(
@@ -1131,30 +1135,37 @@ function getBodyStreamWithSizeLimit(
   req: NodeNextRequest,
   limits: ResolvedSizeLimit
 ) {
-  const { Transform } = require('node:stream') as typeof import('node:stream')
+  if (process.env.NEXT_RUNTIME === 'edge') {
+    throw new InvariantError(
+      'getBodyStreamWithSizeLimit cannot be used in edge runtime'
+    )
+  } else {
+    // NOTE: this branch must be wrapped in an `else` to DCE properly for edge, an early return won't work
+    const { Transform } = require('node:stream') as typeof import('node:stream')
 
-  let size = 0
-  return req.body.pipe(
-    new Transform({
-      transform(chunk, encoding, callback) {
-        size += Buffer.byteLength(chunk, encoding)
-        if (size > limits.bytes) {
-          const { ApiError } = require('../api-utils')
+    let size = 0
+    return req.body.pipe(
+      new Transform({
+        transform(chunk, encoding, callback) {
+          size += Buffer.byteLength(chunk, encoding)
+          if (size > limits.bytes) {
+            const { ApiError } = require('../api-utils')
 
-          callback(
-            new ApiError(
-              413,
-              `Body exceeded ${limits.humanReadable} limit.
+            callback(
+              new ApiError(
+                413,
+                `Body exceeded ${limits.humanReadable} limit.
                   To configure the body size limit for Server Actions, see: https://nextjs.org/docs/app/api-reference/next-config-js/serverActions#bodysizelimit`
+              )
             )
-          )
-          return
-        }
+            return
+          }
 
-        callback(null, chunk)
-      },
-    })
-  )
+          callback(null, chunk)
+        },
+      })
+    )
+  }
 }
 
 /**

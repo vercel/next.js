@@ -632,5 +632,7 @@
   "631": "Invariant (SlowModuleDetectionPlugin): Circular dependency detected in module graph. This is a Next.js internal bug.",
   "632": "Invariant (SlowModuleDetectionPlugin): Module is missing a required debugId. This is a Next.js internal bug.",
   "633": "Dynamic route not found",
-  "634": "Invalid actionMetadata kind"
+  "634": "Invalid actionMetadata kind",
+  "635": "decodeReplyNode cannot be used in edge runtime",
+  "636": "getBodyStreamWithSizeLimit cannot be used in edge runtime"
 }
