@@ -93,54 +93,57 @@ describe('ppr-metadata-streaming', () => {
     })
   })
 
-  describe('html limited bots', () => {
-    it('should serve partial static shell when normal UA requests the page', async () => {
-      const res1 = await next.fetch('/dynamic-page/partial')
-      const res2 = await next.fetch('/dynamic-page/partial')
+  if (!isNextDev) {
+    // This test is only relevant in production mode, as it's testing PPR results
+    describe('html limited bots', () => {
+      it('should serve partial static shell when normal UA requests the page', async () => {
+        const res1 = await next.fetch('/dynamic-page/partial')
+        const res2 = await next.fetch('/dynamic-page/partial')
 
-      const $1 = cheerio.load(await res1.text())
-      const $2 = cheerio.load(await res2.text())
+        const $1 = cheerio.load(await res1.text())
+        const $2 = cheerio.load(await res2.text())
 
-      const attribute1 = parseInt($1('[data-date]').attr('data-date'))
-      const attribute2 = parseInt($2('[data-date]').attr('data-date'))
+        const attribute1 = parseInt($1('[data-date]').attr('data-date'))
+        const attribute2 = parseInt($2('[data-date]').attr('data-date'))
 
-      const headers = res1.headers
+        // Normal UA should still get the partial static shell produced by PPR
+        expect(attribute1).toBe(attribute2)
+        expect(attribute1).toBeTruthy()
 
-      // Static render should have postponed header
-      expect(headers.get('x-nextjs-postponed')).toBe('1')
+        const headers = res1.headers
 
-      // Normal UA should still get the partial static shell produced by PPR
-      expect(attribute1).toBe(attribute2)
-      expect(attribute1).toBeTruthy()
-    })
-
-    it('should not serve partial static shell when html limited bots requests the page', async () => {
-      const htmlLimitedBotUA = 'Discordbot'
-      const res1 = await next.fetch('/dynamic-page/partial', {
-        headers: {
-          'User-Agent': htmlLimitedBotUA,
-        },
+        // Static render should have postponed header
+        expect(headers.get('x-nextjs-postponed')).toBe('1')
       })
 
-      const res2 = await next.fetch('/dynamic-page/partial', {
-        headers: {
-          'User-Agent': htmlLimitedBotUA,
-        },
+      it('should not serve partial static shell when html limited bots requests the page', async () => {
+        const htmlLimitedBotUA = 'Discordbot'
+        const res1 = await next.fetch('/dynamic-page/partial', {
+          headers: {
+            'User-Agent': htmlLimitedBotUA,
+          },
+        })
+
+        const res2 = await next.fetch('/dynamic-page/partial', {
+          headers: {
+            'User-Agent': htmlLimitedBotUA,
+          },
+        })
+
+        // Dynamic render should not have postponed header
+        const headers = res1.headers
+        expect(headers.get('x-nextjs-postponed')).toBe(null)
+
+        const $1 = cheerio.load(await res1.text())
+        const $2 = cheerio.load(await res2.text())
+
+        const attribute1 = parseInt($1('[data-date]').attr('data-date'))
+        const attribute2 = parseInt($2('[data-date]').attr('data-date'))
+
+        // Two requests are dynamic and should not have the same data-date attribute
+        expect(attribute2).toBeGreaterThan(attribute1)
+        expect(attribute1).toBeTruthy()
       })
-
-      // Dynamic render should not have postponed header
-      const headers = res1.headers
-      expect(headers.get('x-nextjs-postponed')).toBe(null)
-
-      const $1 = cheerio.load(await res1.text())
-      const $2 = cheerio.load(await res2.text())
-
-      const attribute1 = parseInt($1('[data-date]').attr('data-date'))
-      const attribute2 = parseInt($2('[data-date]').attr('data-date'))
-
-      // Two requests are dynamic and should not have the same data-date attribute
-      expect(attribute2).toBeGreaterThan(attribute1)
-      expect(attribute1).toBeTruthy()
     })
-  })
+  }
 })
