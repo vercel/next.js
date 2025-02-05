@@ -2,7 +2,6 @@ import type { OriginalStackFrame } from '../../../../../internal/helpers/stack-f
 import { useMemo, useState, useRef } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'
-import { useMeasureHeight } from '../../../hooks/use-measure-height'
 
 interface CallStackProps {
   frames: OriginalStackFrame[]
@@ -10,10 +9,8 @@ interface CallStackProps {
 }
 
 export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
-  const ignoreListRef = useRef<HTMLDivElement | null>(null)
   const initialDialogHeight = useRef<number>(NaN)
   const [isIgnoreListOpen, setIsIgnoreListOpen] = useState(false)
-  const [ignoreListHeight] = useMeasureHeight(ignoreListRef)
 
   const { visibleFrames, ignoredFrames, ignoreListLength } = useMemo(() => {
     const visible: OriginalStackFrame[] = []
@@ -56,7 +53,6 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
       dialog.style.height = `${initialDialogHeight.current}px`
       dialog.addEventListener('transitionend', onTransitionEnd)
     } else {
-      dialog.style.height = `${initialDialogHeight.current + ignoreListHeight}px`
       setIsIgnoreListOpen(true)
     }
   }
@@ -90,7 +86,7 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
       ))}
 
       {isIgnoreListOpen && (
-        <div ref={ignoreListRef}>
+        <>
           {ignoredFrames.map((frame, frameIndex) => (
             <CallStackFrame
               key={`call-stack-ignored-${frameIndex}`}
@@ -98,7 +94,7 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
               index={frameIndex}
             />
           ))}
-        </div>
+        </>
       )}
     </div>
   )
