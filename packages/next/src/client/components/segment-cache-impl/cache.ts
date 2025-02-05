@@ -24,7 +24,6 @@ import {
 import {
   createFetch,
   createFromNextReadableStream,
-  urlToUrlWithoutFlightMarker,
   type RequestHeaders,
 } from '../router-reducer/fetch-server-response'
 import {
@@ -42,6 +41,7 @@ import type {
 import { createTupleMap, type TupleMap, type Prefix } from './tuple-map'
 import { createLRU } from './lru'
 import {
+  convertSegmentPathToStaticExportFilename,
   encodeChildSegmentKey,
   encodeSegment,
   ROOT_SEGMENT_KEY,
@@ -205,6 +205,10 @@ export type NonEmptySegmentCacheEntry = Exclude<
   SegmentCacheEntry,
   EmptySegmentCacheEntry
 >
+
+const isOutputExportMode =
+  process.env.NODE_ENV === 'production' &&
+  process.env.__NEXT_CONFIG_OUTPUT === 'export'
 
 // Route cache entries vary on multiple keys: the href and the Next-Url. Each of
 // these parts needs to be included in the internal cache key. Rather than
@@ -821,8 +825,24 @@ export async function fetchRouteOnCacheMiss(
   const key = task.key
   const href = key.href
   const nextUrl = key.nextUrl
+  const segmentPath = '/_tree'
+
+  const headers: RequestHeaders = {
+    [RSC_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
+  }
+  if (nextUrl !== null) {
+    headers[NEXT_URL] = nextUrl
+  }
+
+  // In output: "export" mode, we need to add the segment path to the URL.
+  const requestUrl = isOutputExportMode
+    ? addSegmentPathToUrlInOutputExportMode(href, segmentPath)
+    : href
+
   try {
-    const response = await fetchSegmentPrefetchResponse(href, '/_tree', nextUrl)
+    const response = await fetchPrefetchResponse(requestUrl, headers)
     if (
       !response ||
       !response.ok ||
@@ -841,7 +861,15 @@ export async function fetchRouteOnCacheMiss(
     // This is a bit convoluted but it's taken from router-reducer and
     // fetch-server-response
     const canonicalUrl = response.redirected
-      ? createHrefFromUrl(urlToUrlWithoutFlightMarker(response.url))
+      ? createHrefFromUrl(
+          new URL(
+            removeSegmentPathFromURLInOutputExportMode(
+              href,
+              requestUrl,
+              response.url
+            )
+          )
+        )
       : href
 
     // Check whether the response varies based on the Next-Url header.
@@ -855,9 +883,13 @@ export async function fetchRouteOnCacheMiss(
     // This checks whether the response was served from the per-segment cache,
     // rather than the old prefetching flow. If it fails, it implies that PPR
     // is disabled on this route.
-    // TODO: Add support for non-PPR routes.
     const routeIsPPREnabled =
-      response.headers.get(NEXT_DID_POSTPONE_HEADER) === '2'
+      response.headers.get(NEXT_DID_POSTPONE_HEADER) === '2' ||
+      // In output: "export" mode, we can't rely on response headers. But if we
+      // receive a well-formed response, we can assume it's a static response,
+      // because all data is static in this mode.
+      isOutputExportMode
+
     if (routeIsPPREnabled) {
       const prefetchStream = createPrefetchResponseStream(
         response.body,
@@ -956,7 +988,7 @@ export async function fetchSegmentOnCacheMiss(
   route: FulfilledRouteCacheEntry,
   segmentCacheEntry: PendingSegmentCacheEntry,
   routeKey: RouteCacheKey,
-  segmentKeyPath: string
+  segmentPath: string
 ): Promise<PrefetchSubtaskResult<FulfilledSegmentCacheEntry> | null> {
   // This function is allowed to use async/await because it contains the actual
   // fetch that gets issued on a cache miss. Notice it writes the result to the
@@ -965,21 +997,50 @@ export async function fetchSegmentOnCacheMiss(
   //
   // Segment fetches are non-blocking so we don't need to ping the scheduler
   // on completion.
-  const href = routeKey.href
+  const href =
+    route.canonicalUrl !== routeKey.href
+      ? // The route was redirected. If we request the segment data using the
+        // same URL, that request will be redirected, too. To avoid an extra
+        // waterfall on every segment request, pass the redirected URL instead
+        // of the original one.
+        //
+        // Since the redirected URL might be a relative path, we need to resolve
+        // it against the original href, which is a fully qualified URL.
+        //
+        // TODO: We should just store the fully qualified URL as canonical URL.
+        // There are other parts of the router that currently expect a relative
+        // path, so need to update those, too.
+        new URL(route.canonicalUrl, routeKey.href).href
+      : routeKey.href
+  const nextUrl = routeKey.nextUrl
+
+  const normalizedSegmentPath =
+    segmentPath === ROOT_SEGMENT_KEY
+      ? // The root segment is a special case. To simplify the server-side
+        // handling of these requests, we encode the root segment path as
+        // `_index` instead of as an empty string. This should be treated as
+        // an implementation detail and not as a stable part of the protocol.
+        // It just needs to match the equivalent logic that happens when
+        // prerendering the responses. It should not leak outside of Next.js.
+        '/_index'
+      : segmentPath
+
+  const headers: RequestHeaders = {
+    [RSC_HEADER]: '1',
+    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
+    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: normalizedSegmentPath,
+  }
+  if (nextUrl !== null) {
+    headers[NEXT_URL] = nextUrl
+  }
+
+  // In output: "export" mode, we need to add the segment path to the URL.
+  const requestUrl = isOutputExportMode
+    ? addSegmentPathToUrlInOutputExportMode(href, normalizedSegmentPath)
+    : href
+
   try {
-    const response = await fetchSegmentPrefetchResponse(
-      href,
-      segmentKeyPath === ROOT_SEGMENT_KEY
-        ? // The root segment is a special case. To simplify the server-side
-          // handling of these requests, we encode the root segment path as
-          // `_index` instead of as an empty string. This should be treated as
-          // an implementation detail and not as a stable part of the protocol.
-          // It just needs to match the equivalent logic that happens when
-          // prerendering the responses. It should not leak outside of Next.js.
-          '/_index'
-        : segmentKeyPath,
-      routeKey.nextUrl
-    )
+    const response = await fetchPrefetchResponse(requestUrl, headers)
     if (
       !response ||
       !response.ok ||
@@ -989,7 +1050,11 @@ export async function fetchSegmentOnCacheMiss(
       // is disabled on this route. Theoretically this should never happen
       // because we only issue requests for segments once we've verified that
       // the route supports PPR.
-      response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' ||
+      (response.headers.get(NEXT_DID_POSTPONE_HEADER) !== '2' &&
+        // In output: "export" mode, we can't rely on response headers. But if
+        // we receive a well-formed response, we can assume it's a static
+        // response, because all data is static in this mode.
+        !isOutputExportMode) ||
       !response.body
     ) {
       // Server responded with an error, or with a miss. We should still cache
@@ -1337,33 +1402,29 @@ function writeSeedDataIntoCache(
   }
 }
 
-async function fetchSegmentPrefetchResponse(
-  href: NormalizedHref,
-  segmentPath: string,
-  nextUrl: NormalizedNextUrl | null
-): Promise<Response | null> {
-  const headers: RequestHeaders = {
-    [RSC_HEADER]: '1',
-    [NEXT_ROUTER_PREFETCH_HEADER]: '1',
-    [NEXT_ROUTER_SEGMENT_PREFETCH_HEADER]: segmentPath,
-  }
-  if (nextUrl !== null) {
-    headers[NEXT_URL] = nextUrl
-  }
-  return fetchPrefetchResponse(href, headers)
-}
-
 async function fetchPrefetchResponse(
-  href: NormalizedHref,
+  href: string,
   headers: RequestHeaders
 ): Promise<Response | null> {
   const fetchPriority = 'low'
   const response = await createFetch(new URL(href), headers, fetchPriority)
-  const contentType = response.headers.get('content-type')
-  const isFlightResponse =
-    contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
-  if (!response.ok || !isFlightResponse) {
+  if (!response.ok) {
     return null
+  }
+
+  // Check the content type
+  if (isOutputExportMode) {
+    // In output: "export" mode, we relaxed about the content type, since it's
+    // not Next.js that's serving the response. If the status is OK, assume the
+    // response is valid. If it's not a valid response, the Flight client won't
+    // be able to decode it, and we'll treat it as a miss.
+  } else {
+    const contentType = response.headers.get('content-type')
+    const isFlightResponse =
+      contentType && contentType.startsWith(RSC_CONTENT_TYPE_HEADER)
+    if (!isFlightResponse) {
+      return null
+    }
   }
   return response
 }
@@ -1413,6 +1474,54 @@ function createPrefetchResponseStream(
       }
     },
   })
+}
+
+function addSegmentPathToUrlInOutputExportMode(
+  url: string,
+  segmentPath: string
+) {
+  if (isOutputExportMode) {
+    // In output: "export" mode, we cannot use a header to encode the segment
+    // path. Instead, we append it to the end of the pathname.
+    const staticUrl = new URL(url)
+    const routeDir = staticUrl.pathname.endsWith('/')
+      ? staticUrl.pathname.substring(0, -1)
+      : staticUrl.pathname
+    const staticExportFilename =
+      convertSegmentPathToStaticExportFilename(segmentPath)
+    staticUrl.pathname = `${routeDir}/${staticExportFilename}`
+    return staticUrl.href
+  }
+  return url
+}
+
+function removeSegmentPathFromURLInOutputExportMode(
+  href: string,
+  requestUrl: string,
+  redirectUrl: string
+) {
+  if (isOutputExportMode) {
+    // Reverse of addSegmentPathToUrlInOutputExportMode.
+    //
+    // In output: "export" mode, we append an extra string to the URL that
+    // represents the segment path. If the server performs a redirect, it must
+    // include the segment path in new URL.
+    //
+    // This removes the segment path from the redirected URL to obtain the
+    // URL of the page.
+    const segmentPath = requestUrl.substring(href.length)
+    if (redirectUrl.endsWith(segmentPath)) {
+      // Remove the segment path from the redirect URL to get the page URL.
+      return redirectUrl.substring(0, redirectUrl.length - segmentPath.length)
+    } else {
+      // The server redirected to a URL that doesn't include the segment path.
+      // This suggests the server may not have been configured correctly, but
+      // we'll assume the redirected URL represents the page URL and continue.
+      // TODO: Consider printing a warning with a link to a page that explains
+      // how to configure redirects and rewrites correctly.
+    }
+  }
+  return redirectUrl
 }
 
 function createPromiseWithResolvers<T>(): PromiseWithResolvers<T> {
