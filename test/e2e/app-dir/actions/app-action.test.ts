@@ -1760,7 +1760,7 @@ describe('app-dir action handling', () => {
     })
 
     it.each(['307', '308'])(
-      `redirects properly when server action handler redirects with a %s status code`,
+      `redirects properly when route handler redirects with a %s status code`,
       async (statusCode) => {
         const postRequests = []
         const responseCodes = []
@@ -1791,7 +1791,7 @@ describe('app-dir action handling', () => {
         })
         expect(await browser.elementById('redirect-page')).toBeTruthy()
 
-        // since a 307/308 status code follows the redirect, the POST request should be made to both the action handler and the redirect target
+        // since a 307/308 status code follows the redirect, the POST request should be made to both the route handler and the redirect target
         expect(postRequests).toEqual([
           `/redirects/api-redirect-${statusCode}`,
           `/redirects?success=true`,

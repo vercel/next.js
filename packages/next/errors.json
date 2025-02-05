@@ -659,5 +659,9 @@
   "658": "Pass `Infinity` instead of `false` if you want to cache on the server forever without checking with the origin.",
   "659": "SSG should not return an image cache value",
   "660": "Rspack support is only available in Next.js canary.",
-  "661": "Build failed because of %s errors"
+  "661": "Build failed because of %s errors",
+  "662": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.",
+  "663": "Failed to find Server Action \"%s\". This request might be from an older or newer deployment.%s",
+  "664": "Expected no-js actions to return from handler early.",
+  "665": "Expected actionId to be defined for a fetch action"
 }

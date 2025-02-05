@@ -146,7 +146,7 @@ import { parseRelativeUrl } from '../../shared/lib/router/utils/parse-relative-u
 import AppRouter from '../../client/components/app-router'
 import type { ServerComponentsHmrCache } from '../response-cache'
 import type { RequestErrorContext } from '../instrumentation/types'
-import { getServerActionRequestMetadata } from '../lib/server-action-request-meta'
+import { getIsPotentialServerAction } from '../lib/server-action-request-meta'
 import { createInitialRouterState } from '../../client/components/router-reducer/create-initial-router-state'
 import { createMutableActionQueue } from '../../shared/lib/router/action-queue'
 import { getRevalidateReason } from '../instrumentation/utils'
@@ -1304,7 +1304,7 @@ async function renderToHTMLOrFlightImpl(
     fallbackRouteParams
   )
 
-  const isActionRequest = getServerActionRequestMetadata(req).isServerAction
+  const isPotentialActionRequest = getIsPotentialServerAction(req)
 
   const ctx: AppRenderContext = {
     componentMod: ComponentMod,
@@ -1315,7 +1315,7 @@ async function renderToHTMLOrFlightImpl(
     getDynamicParamFromSegment,
     query,
     isPrefetch: isPrefetchRequest,
-    isAction: isActionRequest,
+    isAction: isPotentialActionRequest,
     requestTimestamp,
     appUsingSizeAdjustment,
     flightRouterState,
@@ -1505,7 +1505,7 @@ async function renderToHTMLOrFlightImpl(
     )
 
     let formState: null | any = null
-    if (isActionRequest) {
+    if (isPotentialActionRequest) {
       // For action requests, we handle them differently with a special render result.
       const actionRequestResult = await handleAction({
         req,
@@ -1542,6 +1542,9 @@ async function renderToHTMLOrFlightImpl(
           } else if (actionRequestResult.formState) {
             formState = actionRequestResult.formState
           }
+        } else if (actionRequestResult.type === 'not-an-action') {
+          // TODO: previously, these would be a 'done' with no `result` and no `formState`,
+          // so they'd fall through the branch above. Why does that work?
         }
       }
     }
