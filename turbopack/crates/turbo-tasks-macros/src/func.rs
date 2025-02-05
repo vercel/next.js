@@ -518,7 +518,7 @@ impl TurboFn<'_> {
                                 let (#(#exposed_input_idents,)*) = turbo_tasks::macro_helpers
                                     ::downcast_args_ref::<(#(#exposed_input_types,)*)>(magic_any);
                                 let resolved = (#(
-                                    <_ as turbo_tasks::TaskInput>::resolve(
+                                    <_ as turbo_tasks::TaskInput>::resolve_input(
                                         #inline_input_idents
                                     ).await?,
                                 )*);

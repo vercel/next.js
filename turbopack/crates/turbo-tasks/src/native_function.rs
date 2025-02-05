@@ -97,7 +97,7 @@ impl ArgMeta {
 fn resolve_functor_impl<T: MagicAny + TaskInput>(value: &dyn MagicAny) -> ResolveFuture<'_> {
     Box::pin(async {
         let value = downcast_args_ref::<T>(value);
-        let resolved = value.resolve().await?;
+        let resolved = value.resolve_input().await?;
         Ok(Box::new(resolved) as Box<dyn MagicAny>)
     })
 }
