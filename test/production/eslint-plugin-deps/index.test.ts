@@ -95,9 +95,9 @@ describe('eslint plugin deps', () => {
     "allowJs": true,
     "skipLibCheck": true,
     "strict": false,
+    // The rule @typescript-eslint/no-unnecessary-boolean-literal-compare requires the \`strictNullChecks\` compiler option to be turned on to function correctly.
     "strictNullChecks": true,
     "noEmit": true,
-    ${/* The rule @typescript-eslint/no-unnecessary-boolean-literal-compare requires the `strictNullChecks` compiler option to be turned on to function correctly. */ ''}
     "incremental": true,
     "module": "esnext",
     "esModuleInterop": true,
