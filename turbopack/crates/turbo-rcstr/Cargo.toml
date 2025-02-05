@@ -14,5 +14,12 @@ turbo-tasks-hash = { workspace = true }
 serde = { workspace = true }
 new_debug_unreachable = "1.0.6"
 
+[dev-dependencies]
+criterion = { workspace = true }
+
 [lints]
 workspace = true
+
+[[bench]]
+name = "mod"
+harness = false

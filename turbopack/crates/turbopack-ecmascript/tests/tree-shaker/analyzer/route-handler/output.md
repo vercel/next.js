@@ -130,13 +130,13 @@ graph TD
 ```
 {
     ModuleEvaluation: 4,
-    Exports: 5,
-    Export(
-        "runtime",
-    ): 3,
     Export(
         "GET",
     ): 2,
+    Export(
+        "runtime",
+    ): 3,
+    Exports: 5,
 }
 ```
 
@@ -215,13 +215,13 @@ import "__TURBOPACK_PART__" assert {
 ```
 {
     ModuleEvaluation: 4,
-    Exports: 5,
-    Export(
-        "runtime",
-    ): 3,
     Export(
         "GET",
     ): 2,
+    Export(
+        "runtime",
+    ): 3,
+    Exports: 5,
 }
 ```
 

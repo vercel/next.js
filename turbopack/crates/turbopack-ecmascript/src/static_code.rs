@@ -38,8 +38,7 @@ impl StaticEcmascriptCode {
             .module()
             .to_resolved()
             .await?;
-        let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module).await?
-        else {
+        let Some(asset) = ResolvedVc::try_sidecast::<Box<dyn EcmascriptAnalyzable>>(module) else {
             bail!("asset is not an Ecmascript module")
         };
         Ok(Self::cell(StaticEcmascriptCode {

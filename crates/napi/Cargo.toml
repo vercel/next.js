@@ -47,7 +47,6 @@ workspace = true
 anyhow = "1.0.66"
 backtrace = "0.3"
 console-subscriber = { workspace = true, optional = true }
-fxhash = "0.2.1"
 dhat = { workspace = true, optional = true }
 indexmap = { workspace = true }
 owo-colors = { workspace = true }
@@ -64,6 +63,7 @@ napi = { version = "2", default-features = false, features = [
 napi-derive = "2"
 next-custom-transforms = { workspace = true }
 rand = { workspace = true }
+rustc-hash = { workspace = true }
 serde = "1"
 serde_json = "1"
 shadow-rs = { workspace = true }

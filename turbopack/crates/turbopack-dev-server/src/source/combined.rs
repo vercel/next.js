@@ -58,7 +58,7 @@ impl Introspectable for CombinedContentSource {
             .map(|&source| async move {
                 Ok(
                     if let Some(source) =
-                        ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source).await?
+                        ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
                     {
                         Some(source.title().await?)
                     } else {
@@ -90,9 +90,7 @@ impl Introspectable for CombinedContentSource {
             self.sources
                 .iter()
                 .copied()
-                .map(|s| async move {
-                    Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(s).await?)
-                })
+                .map(|s| async move { Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(s)) })
                 .try_join()
                 .await?
                 .into_iter()

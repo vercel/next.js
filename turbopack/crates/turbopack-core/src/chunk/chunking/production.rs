@@ -21,10 +21,10 @@ pub async fn make_production_chunks(
     chunking_config: &ChunkingConfig,
     mut split_context: SplitContext<'_>,
 ) -> Result<()> {
-    let span_outer = tracing::trace_span!(
+    let span_outer = tracing::info_span!(
         "make production chunks",
         chunk_items = chunk_items.len(),
-        chunks_before_min_chunk_size = Empty,
+        chunks_before_limits = Empty,
         chunks = Empty,
         total_size = Empty
     );
@@ -53,32 +53,50 @@ pub async fn make_production_chunks(
             grouped_chunk_items.entry(key).or_default().push(chunk_item);
         }
 
-        let &ChunkingConfig { min_chunk_size, .. } = chunking_config;
+        let &ChunkingConfig {
+            min_chunk_size,
+            max_chunk_count_per_group,
+            max_merge_chunk_size,
+            ..
+        } = chunking_config;
 
-        if min_chunk_size == 0 {
+        if min_chunk_size == 0 && max_chunk_count_per_group == 0 {
             span.record("chunks", grouped_chunk_items.len());
             for chunk_items in grouped_chunk_items.into_values() {
                 make_chunk(chunk_items, &mut String::new(), &mut split_context).await?;
             }
         } else {
-            let mut heap = BinaryHeap::new();
+            let mut heap = grouped_chunk_items
+                .into_values()
+                .map(|chunk_items| {
+                    let size = chunk_items
+                        .iter()
+                        .map(|chunk_item| chunk_item.size)
+                        .sum::<usize>();
+                    ChunkCandidate { size, chunk_items }
+                })
+                .collect::<BinaryHeap<_>>();
 
-            span.record("chunks_before_min_chunk_size", heap.len());
-
-            for chunk_items in grouped_chunk_items.into_values() {
-                let size = chunk_items
-                    .iter()
-                    .map(|chunk_item| chunk_item.size)
-                    .sum::<usize>();
-                heap.push(ChunkCandidate { size, chunk_items });
-            }
+            span.record("chunks_before_limits", heap.len());
 
             loop {
                 if let Some(smallest) = heap.peek() {
-                    if smallest.size < min_chunk_size {
+                    let chunk_over_limit =
+                        max_merge_chunk_size != 0 && smallest.size > max_merge_chunk_size;
+                    if chunk_over_limit {
+                        break;
+                    }
+                    let too_many_chunks = max_chunk_count_per_group != 0
+                        && heap.len() + 1 > max_chunk_count_per_group;
+                    let too_small_chunk = min_chunk_size != 0 && smallest.size < min_chunk_size;
+                    if too_many_chunks || too_small_chunk {
                         let ChunkCandidate { size, chunk_items } = heap.pop().unwrap();
+                        // TODO find a small chunk with the biggest overlap in chunk groups
                         if let Some(mut item) = heap.peek_mut() {
-                            if item.size < min_chunk_size {
+                            let chunk_over_limit =
+                                max_merge_chunk_size != 0 && item.size > max_merge_chunk_size;
+                            let too_small_chunk = min_chunk_size != 0 && item.size < min_chunk_size;
+                            if !chunk_over_limit && (too_many_chunks || too_small_chunk) {
                                 // Merge them
                                 item.size += size;
                                 item.chunk_items.extend(chunk_items);

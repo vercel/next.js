@@ -1,9 +1,9 @@
 import type { StackFrame } from 'next/dist/compiled/stacktrace-parser'
-import type { OriginalStackFrame } from '../../helpers/stack-frame'
+import type { OriginalStackFrame } from '../../../../internal/helpers/stack-frame'
 
 import { HotlinkedText } from '../hot-linked-text'
 import { ExternalIcon } from '../../icons/external'
-import { getFrameSource } from '../../helpers/stack-frame'
+import { getFrameSource } from '../../../../internal/helpers/stack-frame'
 import { useOpenInEditor } from '../../helpers/use-open-in-editor'
 import { noop as css } from '../../helpers/noop-template'
 

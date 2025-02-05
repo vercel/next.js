@@ -3,7 +3,7 @@ use std::{fmt::Debug, hash::Hash, sync::Arc};
 use anyhow::Result;
 use async_trait::async_trait;
 use swc_core::{
-    atoms::Atom,
+    atoms::{atom, Atom},
     base::SwcComments,
     common::{collections::AHashMap, comments::Comments, util::take::Take, Mark, SourceMap},
     ecma::{
@@ -164,11 +164,12 @@ impl EcmascriptInputTransform {
                 let config = Options {
                     runtime: Some(runtime),
                     development: Some(*development),
-                    import_source: import_source.await?.as_deref().map(ToString::to_string),
+                    import_source: import_source.await?.as_deref().map(Atom::from),
                     refresh: if *refresh {
                         Some(swc_core::ecma::transforms::react::RefreshOptions {
-                            refresh_reg: "__turbopack_refresh__.register".to_string(),
-                            refresh_sig: "__turbopack_refresh__.signature".to_string(),
+                            // __turbopack_context__.k is __turbopack_refresh__
+                            refresh_reg: atom!("__turbopack_context__.k.register"),
+                            refresh_sig: atom!("__turbopack_context__.k.signature"),
                             ..Default::default()
                         })
                     } else {
@@ -192,7 +193,7 @@ impl EcmascriptInputTransform {
                         // AMP / No-JS mode does not inject these helpers
                         "\nif (typeof globalThis.$RefreshHelpers$ === 'object' && \
                          globalThis.$RefreshHelpers !== null) { \
-                         __turbopack_refresh__.registerExports(module, \
+                         __turbopack_context__.k.registerExports(module, \
                          globalThis.$RefreshHelpers$); }\n" as Stmt
                     );
 

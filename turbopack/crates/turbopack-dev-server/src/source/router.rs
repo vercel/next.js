@@ -65,7 +65,6 @@ async fn get_introspection_children(
             .chain(std::iter::once((RcStr::default(), *fallback)))
             .map(|(path, source)| async move {
                 Ok(ResolvedVc::try_sidecast::<Box<dyn Introspectable>>(source)
-                    .await?
                     .map(|i| (ResolvedVc::cell(path), i)))
             })
             .try_join()

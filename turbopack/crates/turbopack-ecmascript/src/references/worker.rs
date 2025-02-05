@@ -20,6 +20,7 @@ use crate::{
     code_gen::{CodeGenerateable, CodeGeneration},
     create_visitor,
     references::AstPath,
+    runtime_functions::TURBOPACK_REQUIRE,
     worker_chunk::module::WorkerLoaderModule,
 };
 
@@ -69,8 +70,7 @@ impl WorkerAssetReference {
         let Some(module) = *module.first_module().await? else {
             return Ok(None);
         };
-        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module).await?
-        else {
+        let Some(chunkable) = ResolvedVc::try_downcast::<Box<dyn ChunkableModule>>(module) else {
             CodeGenerationIssue {
                 severity: IssueSeverity::Bug.resolved_cell(),
                 title: StyledString::Text("non-ecmascript placeable asset".into()).resolved_cell(),
@@ -140,7 +140,8 @@ impl CodeGenerateable for WorkerAssetReference {
                         Some(ExprOrSpread { spread: None, expr }) => {
                             let item_id = Expr::Lit(Lit::Str(item_id.to_string().into()));
                             *expr = quote_expr!(
-                                "__turbopack_require__($item_id)",
+                                "$turbopack_require($item_id)",
+                                turbopack_require: Expr = TURBOPACK_REQUIRE.into(),
                                 item_id: Expr = item_id
                             );
 
@@ -175,6 +176,6 @@ impl CodeGenerateable for WorkerAssetReference {
             );
         });
 
-        Ok(CodeGeneration::visitors(vec![visitor]))
+        Ok(CodeGeneration::visitors(vec![visitor]).cell())
     }
 }

@@ -96,9 +96,7 @@ impl RuleCondition {
             }
             RuleCondition::ReferenceType(condition_ty) => condition_ty.includes(reference_type),
             RuleCondition::ResourceIsVirtualSource => {
-                ResolvedVc::try_downcast_type::<VirtualSource>(source)
-                    .await?
-                    .is_some()
+                ResolvedVc::try_downcast_type::<VirtualSource>(source).is_some()
             }
             RuleCondition::ResourcePathGlob { glob, base } => {
                 if let Some(path) = base.get_relative_path_to(path) {

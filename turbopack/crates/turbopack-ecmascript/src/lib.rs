@@ -22,6 +22,7 @@ pub mod minify;
 pub mod parse;
 mod path_visitor;
 pub mod references;
+pub mod runtime_functions;
 pub mod side_effect_optimization;
 pub(crate) mod special_cases;
 pub(crate) mod static_code;
@@ -86,12 +87,10 @@ use turbopack_core::{
 // TODO remove this
 pub use turbopack_resolve::ecmascript as resolve;
 
-use self::{
-    chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports},
-    code_gen::{CodeGen, CodeGenerateableWithAsyncModuleInfo, CodeGenerateables},
-};
+use self::chunk::{EcmascriptChunkItemContent, EcmascriptChunkType, EcmascriptExports};
 use crate::{
     chunk::EcmascriptChunkPlaceable,
+    code_gen::CodeGens,
     references::{analyse_ecmascript_module, async_module::OptionAsyncModule},
     transform::remove_shebang,
 };
@@ -756,60 +755,45 @@ impl EcmascriptModuleContent {
         module_graph: Vc<ModuleGraph>,
         chunking_context: Vc<Box<dyn ChunkingContext>>,
         references: Vc<ModuleReferences>,
-        code_generation: Vc<CodeGenerateables>,
+        code_generation: Vc<CodeGens>,
         async_module: Vc<OptionAsyncModule>,
         generate_source_map: Vc<bool>,
         original_source_map: ResolvedVc<OptionSourceMap>,
         exports: Vc<EcmascriptExports>,
         async_module_info: Option<Vc<AsyncModuleInfo>>,
     ) -> Result<Vc<Self>> {
-        let mut code_gens = Vec::new();
+        let mut code_gen_cells = Vec::new();
         for r in references.await?.iter() {
-            let r = r.resolve().await?;
-            if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateableWithAsyncModuleInfo>>(r).await?
-            {
-                code_gens.push(code_gen.code_generation(
-                    module_graph,
-                    chunking_context,
-                    async_module_info,
-                ));
-            } else if let Some(code_gen) =
-                ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(r).await?
-            {
-                code_gens.push(code_gen.code_generation(module_graph, chunking_context));
+            if let Some(code_gen) = ResolvedVc::try_sidecast::<Box<dyn CodeGenerateable>>(*r) {
+                code_gen_cells.push(code_gen.code_generation(module_graph, chunking_context));
             }
         }
         if let Some(async_module) = *async_module.await? {
-            code_gens.push(async_module.code_generation(async_module_info, references));
-        }
-        for c in code_generation.await?.iter() {
-            match c {
-                CodeGen::CodeGenerateable(c) => {
-                    code_gens.push(c.code_generation(module_graph, chunking_context));
-                }
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(c) => {
-                    code_gens.push(c.code_generation(
-                        module_graph,
-                        chunking_context,
-                        async_module_info,
-                    ));
-                }
-            }
+            code_gen_cells.push(async_module.code_generation(
+                async_module_info,
+                references,
+                module_graph,
+                chunking_context,
+            ));
         }
         if let EcmascriptExports::EsmExports(exports) = *exports.await? {
-            code_gens.push(exports.code_generation(module_graph, chunking_context));
+            code_gen_cells.push(exports.code_generation(module_graph, chunking_context));
         }
 
-        // need to keep that around to allow references into that
-        let code_gens = code_gens.into_iter().try_join().await?;
-        let code_gens = code_gens.iter().map(|cg| &**cg).collect::<Vec<_>>();
+        let code_gens = code_generation
+            .await?
+            .iter()
+            .map(|c| c.code_generation(module_graph, chunking_context))
+            .try_join()
+            .await?;
+        let code_gen_cells = code_gen_cells.into_iter().try_join().await?;
 
+        let code_gens = code_gen_cells.iter().map(|c| &**c).chain(code_gens.iter());
         gen_content_with_code_gens(
             parsed,
             ident,
             specified_module_type,
-            &code_gens,
+            code_gens,
             generate_source_map,
             original_source_map,
         )
@@ -840,7 +824,7 @@ async fn gen_content_with_code_gens(
     parsed: ResolvedVc<ParseResult>,
     ident: ResolvedVc<AssetIdent>,
     specified_module_type: SpecifiedModuleType,
-    code_gens: &[&CodeGeneration],
+    code_gens: impl IntoIterator<Item = &CodeGeneration>,
     generate_source_map: Vc<bool>,
     original_source_map: ResolvedVc<OptionSourceMap>,
 ) -> Result<Vc<EcmascriptModuleContent>> {
@@ -933,11 +917,11 @@ async fn gen_content_with_code_gens(
     }
 }
 
-fn process_content_with_code_gens(
+fn process_content_with_code_gens<'a>(
     program: &mut Program,
     globals: &Globals,
     top_level_mark: Option<Mark>,
-    code_gens: &[&CodeGeneration],
+    code_gens: impl IntoIterator<Item = &'a CodeGeneration>,
 ) {
     let mut visitors = Vec::new();
     let mut root_visitors = Vec::new();

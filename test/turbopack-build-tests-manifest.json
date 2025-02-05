@@ -16649,6 +16649,7 @@
         "required server files should have correct cache-control for notFound with revalidate",
         "required server files should have correct cache-control for redirect no revalidate",
         "required server files should have correct cache-control for redirect with revalidate",
+        "required server files should handle data routes with optional catch-all params",
         "required server files should have correct resolvedUrl from dynamic route",
         "required server files should have correct resolvedUrl from rewrite",
         "required server files should have correct resolvedUrl from rewrite with added query",

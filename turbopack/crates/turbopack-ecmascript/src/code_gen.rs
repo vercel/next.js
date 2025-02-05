@@ -5,10 +5,19 @@ use swc_core::ecma::{
     visit::{AstParentKind, VisitMut},
 };
 use turbo_rcstr::RcStr;
-use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, ResolvedVc, Vc};
-use turbopack_core::{
-    chunk::{AsyncModuleInfo, ChunkingContext},
-    module_graph::ModuleGraph,
+use turbo_tasks::{debug::ValueDebugFormat, trace::TraceRawVcs, NonLocalValue, Vc};
+use turbopack_core::{chunk::ChunkingContext, module_graph::ModuleGraph};
+
+use crate::references::{
+    amd::AmdDefineWithDependenciesCodeGen,
+    cjs::CjsRequireCacheAccess,
+    constant_condition::ConstantConditionCodeGen,
+    constant_value::ConstantValueCodeGen,
+    dynamic_expression::DynamicExpression,
+    esm::{EsmBinding, EsmModuleItem, ImportMetaBinding, ImportMetaRef},
+    ident::IdentReplacement,
+    member::MemberReplacement,
+    unreachable::Unreachable,
 };
 
 /// impl of code generation inferred from a ModuleReference.
@@ -41,37 +50,33 @@ impl CodeGeneration {
         visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>,
         hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
         early_hoisted_stmts: Vec<CodeGenerationHoistedStmt>,
-    ) -> Vc<Self> {
+    ) -> Self {
         CodeGeneration {
             visitors,
             hoisted_stmts,
             early_hoisted_stmts,
         }
-        .cell()
     }
 
-    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Vc<Self> {
+    pub fn visitors(visitors: Vec<(Vec<AstParentKind>, Box<dyn VisitorFactory>)>) -> Self {
         CodeGeneration {
             visitors,
             ..Default::default()
         }
-        .cell()
     }
 
-    pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Vc<Self> {
+    pub fn hoisted_stmt(key: RcStr, stmt: Stmt) -> Self {
         CodeGeneration {
             hoisted_stmts: vec![CodeGenerationHoistedStmt::new(key, stmt)],
             ..Default::default()
         }
-        .cell()
     }
 
-    pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Vc<Self> {
+    pub fn hoisted_stmts(hoisted_stmts: Vec<CodeGenerationHoistedStmt>) -> Self {
         CodeGeneration {
             hoisted_stmts,
             ..Default::default()
         }
-        .cell()
     }
 }
 
@@ -102,42 +107,47 @@ pub trait CodeGenerateable {
     ) -> Vc<CodeGeneration>;
 }
 
-#[turbo_tasks::value_trait]
-pub trait CodeGenerateableWithAsyncModuleInfo {
-    fn code_generation(
-        self: Vc<Self>,
-        module_graph: Vc<ModuleGraph>,
-        chunking_context: Vc<Box<dyn ChunkingContext>>,
-        async_module_info: Option<Vc<AsyncModuleInfo>>,
-    ) -> Vc<CodeGeneration>;
+#[derive(PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue)]
+pub enum CodeGen {
+    AmdDefineWithDependenciesCodeGen(AmdDefineWithDependenciesCodeGen),
+    CjsRequireCacheAccess(CjsRequireCacheAccess),
+    ConstantConditionCodeGen(ConstantConditionCodeGen),
+    ConstantValueCodeGen(ConstantValueCodeGen),
+    DynamicExpression(DynamicExpression),
+    EsmBinding(EsmBinding),
+    EsmModuleItem(EsmModuleItem),
+    IdentReplacement(IdentReplacement),
+    ImportMetaBinding(ImportMetaBinding),
+    ImportMetaRef(ImportMetaRef),
+    MemberReplacement(MemberReplacement),
+    Unreachable(Unreachable),
 }
 
-pub enum UnresolvedCodeGen {
-    CodeGenerateable(Vc<Box<dyn CodeGenerateable>>),
-    CodeGenerateableWithAsyncModuleInfo(Vc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
-}
-
-impl UnresolvedCodeGen {
-    pub async fn to_resolved(&self) -> Result<CodeGen> {
-        Ok(match self {
-            Self::CodeGenerateable(vc) => CodeGen::CodeGenerateable(vc.to_resolved().await?),
-            Self::CodeGenerateableWithAsyncModuleInfo(vc) => {
-                CodeGen::CodeGenerateableWithAsyncModuleInfo(vc.to_resolved().await?)
-            }
-        })
+impl CodeGen {
+    pub async fn code_generation(
+        &self,
+        g: Vc<ModuleGraph>,
+        ctx: Vc<Box<dyn ChunkingContext>>,
+    ) -> Result<CodeGeneration> {
+        match self {
+            Self::AmdDefineWithDependenciesCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::CjsRequireCacheAccess(v) => v.code_generation(g, ctx).await,
+            Self::ConstantConditionCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::ConstantValueCodeGen(v) => v.code_generation(g, ctx).await,
+            Self::DynamicExpression(v) => v.code_generation(g, ctx).await,
+            Self::EsmBinding(v) => v.code_generation(g, ctx).await,
+            Self::EsmModuleItem(v) => v.code_generation(g, ctx).await,
+            Self::IdentReplacement(v) => v.code_generation(g, ctx).await,
+            Self::ImportMetaBinding(v) => v.code_generation(g, ctx).await,
+            Self::ImportMetaRef(v) => v.code_generation(g, ctx).await,
+            Self::MemberReplacement(v) => v.code_generation(g, ctx).await,
+            Self::Unreachable(v) => v.code_generation(g, ctx).await,
+        }
     }
 }
 
-#[derive(
-    Clone, Copy, PartialEq, Eq, Serialize, Deserialize, TraceRawVcs, ValueDebugFormat, NonLocalValue,
-)]
-pub enum CodeGen {
-    CodeGenerateable(ResolvedVc<Box<dyn CodeGenerateable>>),
-    CodeGenerateableWithAsyncModuleInfo(ResolvedVc<Box<dyn CodeGenerateableWithAsyncModuleInfo>>),
-}
-
 #[turbo_tasks::value(transparent)]
-pub struct CodeGenerateables(Vec<CodeGen>);
+pub struct CodeGens(Vec<CodeGen>);
 
 pub fn path_to(
     path: &[AstParentKind],

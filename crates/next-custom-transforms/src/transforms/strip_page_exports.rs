@@ -7,6 +7,7 @@ use std::{cell::RefCell, mem::take, rc::Rc};
 
 use rustc_hash::{FxHashMap, FxHashSet};
 use swc_core::{
+    atoms::Atom,
     common::{
         errors::HANDLER,
         pass::{Repeat, Repeated},
@@ -57,7 +58,7 @@ impl PageMode {
 /// Note: This transform requires running `resolver` **before** running it.
 pub fn next_transform_strip_page_exports(
     filter: ExportFilter,
-    ssr_removed_packages: Rc<RefCell<FxHashSet<String>>>,
+    ssr_removed_packages: Rc<RefCell<FxHashSet<Atom>>>,
 ) -> impl Pass {
     fold_pass(Repeat::new(NextSsg {
         state: State {
@@ -103,7 +104,7 @@ struct State {
 
     /// Track the import packages which are removed alongside
     /// `getServerSideProps` in SSR.
-    ssr_removed_packages: Rc<RefCell<FxHashSet<String>>>,
+    ssr_removed_packages: Rc<RefCell<FxHashSet<Atom>>>,
 }
 
 /// The type of export associated to an identifier.
@@ -733,7 +734,7 @@ impl Fold for NextSsg {
                         self.state
                             .ssr_removed_packages
                             .borrow_mut()
-                            .insert(import_src.to_string());
+                            .insert(import_src.clone());
                     }
                     tracing::trace!(
                         "Dropping import `{}{:?}` because it should be removed",

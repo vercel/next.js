@@ -326,17 +326,16 @@ impl ChunkingContext for BrowserChunkingContext {
     }
 
     #[turbo_tasks::function]
-    async fn asset_url(self: Vc<Self>, ident: Vc<AssetIdent>) -> Result<Vc<RcStr>> {
-        let this = self.await?;
-        let asset_path = ident.path().await?.to_string();
+    async fn asset_url(&self, ident: Vc<FileSystemPath>) -> Result<Vc<RcStr>> {
+        let asset_path = ident.await?.to_string();
         let asset_path = asset_path
-            .strip_prefix(&format!("{}/", this.client_root.await?.path))
+            .strip_prefix(&format!("{}/", self.client_root.await?.path))
             .context("expected asset_path to contain client_root")?;
 
         Ok(Vc::cell(
             format!(
                 "{}{}",
-                this.asset_base_path
+                self.asset_base_path
                     .await?
                     .as_ref()
                     .map(|s| s.as_str())

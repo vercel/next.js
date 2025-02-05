@@ -25,10 +25,9 @@ OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR
 IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 */
-use std::sync::Arc;
 
-use fxhash::FxHashMap;
 use napi::bindgen_prelude::*;
+use rustc_hash::FxHashMap;
 use serde::Deserialize;
 use swc_core::{
     base::{config::JsMinifyOptions, try_with_handler, BoolOrDataConfig, TransformOutput},
@@ -42,7 +41,7 @@ use swc_core::{
 use crate::{get_compiler, util::MapErr};
 
 pub struct MinifyTask {
-    c: Arc<swc_core::base::Compiler>,
+    c: swc_core::base::Compiler,
     code: MinifyTarget,
     opts: swc_core::base::config::JsMinifyOptions,
 }

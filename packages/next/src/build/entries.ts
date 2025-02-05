@@ -9,6 +9,7 @@ import type {
   MiddlewareMatcher,
   PageStaticInfo,
 } from './analysis/get-page-static-info'
+import * as Log from './output/log'
 import type { LoadedEnvFiles } from '@next/env'
 import type { AppLoaderOptions } from './webpack/loaders/next-app-loader'
 
@@ -517,9 +518,15 @@ export function runDependingOnPageType<T>(params: {
   }
 
   if (isMiddlewareFile(params.page)) {
-    params.onEdgeServer()
-    return
+    if (params.pageRuntime === 'nodejs') {
+      params.onServer()
+      return
+    } else {
+      params.onEdgeServer()
+      return
+    }
   }
+
   if (isAPIRoute(params.page)) {
     if (isEdgeRuntime(params.pageRuntime)) {
       params.onEdgeServer()
@@ -650,6 +657,20 @@ export async function createEntrypoints(
 
       const isInstrumentation =
         isInstrumentationHookFile(page) && pagesType === PAGE_TYPES.ROOT
+
+      let pageRuntime = staticInfo?.runtime
+
+      if (
+        isMiddlewareFile(page) &&
+        !config.experimental.nodeMiddleware &&
+        pageRuntime === 'nodejs'
+      ) {
+        Log.warn(
+          'nodejs runtime support for middleware requires experimental.nodeMiddleware be enabled in your next.config'
+        )
+        pageRuntime = 'edge'
+      }
+
       runDependingOnPageType({
         page,
         pageRuntime: staticInfo.runtime,
@@ -692,6 +713,20 @@ export async function createEntrypoints(
                 isEdgeServer: false,
                 isDev: false,
               })
+          } else if (isMiddlewareFile(page)) {
+            server[serverBundlePath] = getEdgeServerEntry({
+              ...params,
+              rootDir,
+              absolutePagePath: absolutePagePath,
+              bundlePath: clientBundlePath,
+              isDev: false,
+              isServerComponent,
+              page,
+              middleware: staticInfo?.middleware,
+              pagesType,
+              preferredRegion: staticInfo.preferredRegion,
+              middlewareConfig: staticInfo.middleware,
+            })
           } else if (isAPIRoute(page)) {
             server[serverBundlePath] = [
               getRouteLoaderEntry({

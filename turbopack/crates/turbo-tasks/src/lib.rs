@@ -73,6 +73,7 @@ mod shrink_to_fit;
 pub mod small_duration;
 mod state;
 pub mod task;
+pub mod task_statistics;
 pub mod trace;
 mod trait_helpers;
 mod trait_ref;
@@ -102,12 +103,12 @@ pub use join_iter_ext::{JoinIterExt, TryFlatJoinIterExt, TryJoinIterExt};
 pub use key_value_pair::KeyValuePair;
 pub use magic_any::MagicAny;
 pub use manager::{
-    dynamic_call, emit, mark_finished, mark_session_dependent, mark_stateful, prevent_gc, run_once,
-    run_once_with_reason, spawn_blocking, spawn_thread, trait_call, turbo_tasks, turbo_tasks_scope,
-    CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks, TurboTasksApi,
-    TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused, UpdateInfo,
+    dynamic_call, emit, mark_finished, mark_root, mark_session_dependent, mark_stateful,
+    prevent_gc, run_once, run_once_with_reason, spawn_blocking, spawn_thread, trait_call,
+    turbo_tasks, turbo_tasks_scope, CurrentCellRef, ReadConsistency, TaskPersistence, TurboTasks,
+    TurboTasksApi, TurboTasksBackendApi, TurboTasksBackendApiExt, TurboTasksCallApi, Unused,
+    UpdateInfo,
 };
-pub use native_function::{FunctionMeta, NativeFunction};
 pub use output::OutputContent;
 pub use raw_vc::{CellId, RawVc, ReadRawVcFuture, ResolveTypeError};
 pub use read_ref::ReadRef;
@@ -130,6 +131,7 @@ pub use vc::{
 
 pub type FxIndexSet<T> = indexmap::IndexSet<T, BuildHasherDefault<FxHasher>>;
 pub type FxIndexMap<K, V> = indexmap::IndexMap<K, V, BuildHasherDefault<FxHasher>>;
+pub type FxDashMap<K, V> = dashmap::DashMap<K, V, BuildHasherDefault<FxHasher>>;
 
 // Copied from indexmap! and indexset!
 #[macro_export]

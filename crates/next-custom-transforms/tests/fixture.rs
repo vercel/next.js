@@ -2,6 +2,7 @@ use std::{
     env::current_dir,
     iter::FromIterator,
     path::{Path, PathBuf},
+    sync::Arc,
 };
 
 use next_custom_transforms::transforms::{
@@ -25,6 +26,7 @@ use next_custom_transforms::transforms::{
 use rustc_hash::FxHashSet;
 use serde::de::DeserializeOwned;
 use swc_core::{
+    atoms::atom,
     common::{comments::SingleThreadedComments, FileName, Mark, SyntaxContext},
     ecma::{
         ast::Pass,
@@ -129,8 +131,8 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -149,8 +151,8 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -169,8 +171,8 @@ fn next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -275,8 +277,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -295,8 +297,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -315,8 +317,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 true,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -335,8 +337,8 @@ fn app_dir_next_dynamic_fixture(input: PathBuf) {
                 false,
                 false,
                 NextDynamicMode::Turbopack {
-                    dynamic_client_transition_name: "next-client-dynamic".to_string(),
-                    dynamic_transition_name: "next-dynamic".to_string(),
+                    dynamic_client_transition_name: atom!("next-client-dynamic"),
+                    dynamic_transition_name: atom!("next-dynamic"),
                 },
                 FileName::Real(PathBuf::from("/some-project/src/some-file.js")).into(),
                 Some("/some-project/src".into()),
@@ -363,8 +365,8 @@ fn next_ssg_fixture(input: PathBuf) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some("__jsx".into()),
-                    pragma_frag: Some("__jsxFrag".into()),
+                    pragma: Some(Arc::new("__jsx".into())),
+                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     refresh: Default::default(),
@@ -777,8 +779,8 @@ fn run_stip_page_exports_test(input: &Path, output: &Path, mode: ExportFilter) {
                     next: false.into(),
                     runtime: None,
                     import_source: Some("".into()),
-                    pragma: Some("__jsx".into()),
-                    pragma_frag: Some("__jsxFrag".into()),
+                    pragma: Some(Arc::new("__jsx".into())),
+                    pragma_frag: Some(Arc::new("__jsxFrag".into())),
                     throw_if_namespace: false.into(),
                     development: false.into(),
                     ..Default::default()
@@ -854,6 +856,7 @@ fn test_edge_assert(input: PathBuf) {
                         is_unresolved_ref_safe: false,
                         unresolved_ctxt: SyntaxContext::empty().apply_mark(unresolved_mark),
                         in_strict: false,
+                        remaining_depth: 4,
                     },
                     true,
                     true,

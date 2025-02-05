@@ -614,12 +614,7 @@ export async function getPagesPageStaticInfo({
   const config = parsePagesSegmentConfig(exportedConfig, route)
   const isAnAPIRoute = isAPIRoute(route)
 
-  const resolvedRuntime =
-    isEdgeRuntime(config.runtime ?? config.config?.runtime) ||
-    getServerSideProps ||
-    getStaticProps
-      ? config.runtime ?? config.config?.runtime
-      : undefined
+  const resolvedRuntime = config.runtime ?? config.config?.runtime
 
   if (resolvedRuntime === SERVER_RUNTIME.experimentalEdge) {
     warnAboutExperimentalEdge(isAnAPIRoute ? page! : null)

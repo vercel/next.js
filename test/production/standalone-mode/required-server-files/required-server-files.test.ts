@@ -244,6 +244,42 @@ describe('required server files', () => {
     }
   )
 
+  it('should handle data routes with optional catch-all params', async () => {
+    let res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    let json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: undefined,
+    })
+
+    res = await fetchViaHTTP(
+      appPort,
+      `/_next/data/${next.buildId}/catch-all/next.js.json`,
+      {},
+      {
+        headers: {
+          'x-matched-path': `/_next/data/${next.buildId}/catch-all/next.js.json`,
+        },
+      }
+    )
+    expect(res.status).toBe(200)
+
+    json = await res.json()
+    expect(json.pageProps.params).toEqual({
+      rest: ['next.js'],
+    })
+  })
+
   it.each([
     {
       case: 'notFound no revalidate',

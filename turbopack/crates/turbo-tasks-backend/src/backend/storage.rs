@@ -1,12 +1,10 @@
 use std::{
-    hash::{BuildHasherDefault, Hash},
+    hash::Hash,
     ops::{Deref, DerefMut},
     thread::available_parallelism,
 };
 
-use dashmap::DashMap;
-use rustc_hash::FxHasher;
-use turbo_tasks::TaskId;
+use turbo_tasks::{FxDashMap, TaskId};
 
 use crate::{
     backend::dynamic_storage::DynamicStorage,
@@ -502,7 +500,7 @@ impl InnerStorage {
 }
 
 pub struct Storage {
-    map: DashMap<TaskId, Box<InnerStorage>, BuildHasherDefault<FxHasher>>,
+    map: FxDashMap<TaskId, Box<InnerStorage>>,
 }
 
 impl Storage {
@@ -510,7 +508,7 @@ impl Storage {
         let shard_amount =
             (available_parallelism().map_or(4, |v| v.get()) * 64).next_power_of_two();
         Self {
-            map: DashMap::with_capacity_and_hasher_and_shard_amount(
+            map: FxDashMap::with_capacity_and_hasher_and_shard_amount(
                 1024 * 1024,
                 Default::default(),
                 shard_amount,
@@ -588,7 +586,7 @@ macro_rules! get_mut {
         use $crate::backend::operation::TaskGuard;
         if let Some($crate::data::CachedDataItemValueRefMut::$key {
             value,
-        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input).as_mut() {
+        }) = $task.get_mut(&$crate::data::CachedDataItemKey::$key $input) {
             let () = $crate::data::allow_mut_access::$key;
             Some(value)
         } else {

@@ -1,7 +1,6 @@
 import { useState, useMemo, useEffect, useRef } from 'react'
 import type { DebugInfo } from '../../../types'
 import { Overlay } from '../components/overlay'
-import type { ReadyRuntimeError } from '../helpers/get-error-by-type'
 import { noop as css } from '../helpers/noop-template'
 import { RuntimeError } from './runtime-error'
 import { getErrorSource } from '../../../../../../shared/lib/error-source'
@@ -17,6 +16,7 @@ import {
 } from '../../../../errors/console-error'
 import { extractNextErrorCode } from '../../../../../../lib/error-telemetry-utils'
 import { ErrorOverlayLayout } from '../components/errors/error-overlay-layout/error-overlay-layout'
+import type { ReadyRuntimeError } from '../../../internal/helpers/get-error-by-type'
 import type { ErrorBaseProps } from '../components/errors/error-overlay/error-overlay'
 
 export interface ErrorsProps extends ErrorBaseProps {
@@ -208,12 +208,12 @@ export const styles = css`
   p.nextjs__container_errors__link {
     color: var(--color-red-900);
     font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
   }
   p.nextjs__container_errors__notes {
     color: var(--color-stack-notes);
-    font-weight: 600;
-    font-size: 15px;
+    font-size: 14px;
+    line-height: 1.5;
   }
   .nextjs-container-errors-body > h2:not(:first-child) {
     margin-top: calc(var(--size-gap-double) + var(--size-gap));
@@ -269,5 +269,8 @@ export const styles = css`
   }
   .error-overlay-notes-container {
     padding: 0 var(--size-4);
+  }
+  .error-overlay-notes-container p {
+    white-space: pre-wrap;
   }
 `

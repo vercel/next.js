@@ -9,6 +9,18 @@ import isInternal, {
 
 export type SourcePackage = 'react' | 'next'
 
+export interface OriginalStackFramesRequest {
+  frames: StackFrame[]
+  isServer: boolean
+  isEdgeServer: boolean
+  isAppDirectory: boolean
+}
+
+export type OriginalStackFramesResponse = OriginalStackFrameResponseResult[]
+
+export type OriginalStackFrameResponseResult =
+  PromiseSettledResult<OriginalStackFrameResponse>
+
 export interface OriginalStackFrameResponse {
   originalStackFrame?: (StackFrame & { ignored: boolean }) | null
   originalCodeFrame?: string | null

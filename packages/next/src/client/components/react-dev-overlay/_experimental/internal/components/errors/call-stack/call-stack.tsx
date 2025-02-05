@@ -1,5 +1,5 @@
-import type { OriginalStackFrame } from '../../../helpers/stack-frame'
-import { useMemo, useRef, useState } from 'react'
+import type { OriginalStackFrame } from '../../../../../internal/helpers/stack-frame'
+import { useMemo, useState, useRef } from 'react'
 import { CallStackFrame } from '../../call-stack-frame/call-stack-frame'
 import { noop as css } from '../../../helpers/noop-template'
 import { useMeasureHeight } from '../../../hooks/use-measure-height'
@@ -81,32 +81,26 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
           </button>
         )}
       </div>
+      <div className="error-overlay-call-stack-body">
+        {visibleFrames.map((frame, frameIndex) => (
+          <CallStackFrame
+            key={`call-stack-leading-${frameIndex}`}
+            frame={frame}
+            index={frameIndex}
+          />
+        ))}
 
-      {visibleFrames.map((frame, frameIndex) => (
-        <CallStackFrame
-          key={`call-stack-leading-${frameIndex}`}
-          frame={frame}
-          index={frameIndex}
-        />
-      ))}
-
-      <div
-        // Hide from screen readers / tab navigation when closed
-        tabIndex={isIgnoreListOpen ? undefined : -1}
-        aria-hidden={isIgnoreListOpen ? false : true}
-        style={{
-          display: isIgnoreListOpen ? 'block' : 'none',
-        }}
-      >
-        <div ref={ignoreListRef}>
-          {ignoredFrames.map((frame, frameIndex) => (
-            <CallStackFrame
-              key={`call-stack-ignored-${frameIndex}`}
-              frame={frame}
-              index={frameIndex}
-            />
-          ))}
-        </div>
+        {isIgnoreListOpen && (
+          <div ref={ignoreListRef}>
+            {ignoredFrames.map((frame, frameIndex) => (
+              <CallStackFrame
+                key={`call-stack-ignored-${frameIndex}`}
+                frame={frame}
+                index={frameIndex}
+              />
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
@@ -133,10 +127,15 @@ function ChevronUpDown() {
 
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
-    padding: 16px;
-    /* To optically align last item */
-    padding-bottom: 4px;
+    border-top: 1px solid var(--color-gray-400);
     position: relative;
+  }
+
+  .error-overlay-call-stack-body {
+    padding: var(--size-4) var(--size-3);
+    padding-top: 0;
+    /* To optically align last item */
+    padding-bottom: 8px;
   }
 
   .error-overlay-call-stack-header {
@@ -144,7 +143,19 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    margin-bottom: 8px;
+    padding: var(--size-4) var(--size-5) var(--size-3) var(--size-4);
+    background: rgba(255, 255, 255, 0.7);
+    mask-image: linear-gradient(to top, transparent, #000 12%);
+    backdrop-filter: blur(8px);
+    width: 100%;
+    position: fixed;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+
+    @media (prefers-color-scheme: dark) {
+      background: #0a0a0a70;
+    }
   }
 
   .error-overlay-call-stack-title {

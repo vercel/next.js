@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use anyhow::Result;
+use rustc_hash::FxHashSet;
 use turbo_rcstr::RcStr;
 use turbo_tasks::{ResolvedVc, Value, Vc};
 use turbo_tasks_fs::{glob::Glob, FileSystemPath};
@@ -45,7 +44,7 @@ impl AfterResolvePluginCondition {
 #[turbo_tasks::value]
 pub enum BeforeResolvePluginCondition {
     Request(ResolvedVc<Glob>),
-    Modules(HashSet<RcStr>),
+    Modules(FxHashSet<RcStr>),
 }
 
 #[turbo_tasks::value_impl]

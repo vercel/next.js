@@ -14,6 +14,7 @@ use crate::{
         data::EcmascriptChunkData, EcmascriptChunkItem, EcmascriptChunkItemContent,
         EcmascriptChunkType,
     },
+    runtime_functions::TURBOPACK_EXPORT_VALUE,
     utils::StringifyJs,
 };
 
@@ -52,7 +53,7 @@ impl EcmascriptChunkItem for ManifestChunkItem {
 
         let code = formatdoc! {
             r#"
-                __turbopack_export_value__({:#});
+                {TURBOPACK_EXPORT_VALUE}({:#});
             "#,
             StringifyJs(&chunks_data)
         };

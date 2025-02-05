@@ -1,9 +1,8 @@
-import type { ReadyRuntimeError } from '../../../helpers/get-error-by-type'
-
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { noop as css } from '../../../helpers/noop-template'
 import { LeftArrow } from '../../../icons/left-arrow'
 import { RightArrow } from '../../../icons/right-arrow'
+import type { ReadyRuntimeError } from '../../../../../internal/helpers/get-error-by-type'
 
 type ErrorPaginationProps = {
   readyErrors: ReadyRuntimeError[]

@@ -467,7 +467,8 @@ export async function createHotReloaderTurbopack(
     includeIssues: boolean,
     endpoint: Endpoint,
     makePayload: (
-      change: TurbopackResult
+      change: TurbopackResult,
+      hash: string
     ) => Promise<HMR_ACTION_TYPES> | HMR_ACTION_TYPES | void,
     onError?: (
       error: Error
@@ -486,7 +487,8 @@ export async function createHotReloaderTurbopack(
 
       for await (const change of changed) {
         processIssues(currentEntryIssues, key, change, false, true)
-        const payload = await makePayload(change)
+        // TODO: Get an actual content hash from Turbopack.
+        const payload = await makePayload(change, String(++hmrHash))
         if (payload) {
           sendHmr(key, payload)
         }
@@ -910,6 +912,7 @@ export async function createHotReloaderTurbopack(
         await clearAllModuleContexts()
         this.send({
           action: HMR_ACTIONS_SENT_TO_BROWSER.SERVER_COMPONENT_CHANGES,
+          hash: String(++hmrHash),
         })
       }
     },
@@ -1058,6 +1061,13 @@ export async function createHotReloaderTurbopack(
             finishBuilding()
           }
         })
+    },
+    close() {
+      for (const wsClient of clients) {
+        // it's okay to not cleanly close these websocket connections, this is dev
+        wsClient.terminate()
+      }
+      clients.clear()
     },
   }
 
