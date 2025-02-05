@@ -886,8 +886,6 @@ function isPossiblyPageComponent(
     ref === undefined && // server components receive an undefined ref arg
     typeof props === 'object' &&
     typeof props.params === 'object' &&
-    typeof props.params.then === 'function' &&
-    typeof props.searchParams === 'object' &&
-    typeof props.searchParams.then === 'function'
+    typeof props.searchParams === 'object'
   )
 }
