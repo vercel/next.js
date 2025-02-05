@@ -101,17 +101,21 @@ describe('use-cache', () => {
 
   it('should error when cookies/headers/draftMode is used inside "use cache"', async () => {
     const browser = await next.browser('/errors')
-    expect(await browser.waitForElementByCss('#cookies').text()).toContain(
-      isNextDev
-        ? 'Route /errors used "cookies" inside "use cache".'
-        : GENERIC_RSC_ERROR
-    )
-    expect(await browser.waitForElementByCss('#headers').text()).toContain(
-      isNextDev
-        ? 'Route /errors used "headers" inside "use cache".'
-        : GENERIC_RSC_ERROR
-    )
-    expect(await browser.waitForElementByCss('#draft-mode').text()).toContain(
+
+    await retry(async () => {
+      expect(await browser.elementById('cookies').text()).toContain(
+        isNextDev
+          ? 'Route /errors used "cookies" inside "use cache".'
+          : GENERIC_RSC_ERROR
+      )
+      expect(await browser.elementById('headers').text()).toContain(
+        isNextDev
+          ? 'Route /errors used "headers" inside "use cache".'
+          : GENERIC_RSC_ERROR
+      )
+    })
+
+    expect(await browser.elementById('draft-mode').text()).toContain(
       'Editing: false'
     )
 
