@@ -214,17 +214,20 @@ function checkCustomBabelConfigDeprecation(
             `\t- '@emotion/babel-plugin' can be enabled via 'compiler.emotion' in 'next.config.js'`
           )
           break
+        case 'relay':
         case 'babel-plugin-relay':
           pluginReasons.push(
-            `\t- 'babel-plugin-relay' can be enabled via 'compiler.relay' in 'next.config.js'`
+            `\t- 'relay' can be enabled via 'compiler.relay' in 'next.config.js'`
           )
           break
         case 'react-remove-properties':
+        case 'babel-plugin-react-remove-properties':
           pluginReasons.push(
             `\t- 'react-remove-properties' can be enabled via 'compiler.reactRemoveProperties' in 'next.config.js'`
           )
           break
         case 'transform-remove-console':
+        case 'babel-plugin-transform-remove-console':
           pluginReasons.push(
             `\t- 'transform-remove-console' can be enabled via 'compiler.removeConsole' in 'next.config.js'`
           )
