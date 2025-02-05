@@ -34,7 +34,7 @@ use crate::{
 pub struct EsmAsyncAssetReference {
     pub origin: ResolvedVc<Box<dyn ResolveOrigin>>,
     pub request: ResolvedVc<Request>,
-    pub path: ResolvedVc<AstPath>,
+    pub path: AstPath,
     pub annotations: ImportAnnotations,
     pub issue_source: IssueSource,
     pub in_try: bool,
@@ -57,7 +57,7 @@ impl EsmAsyncAssetReference {
     pub fn new(
         origin: ResolvedVc<Box<dyn ResolveOrigin>>,
         request: ResolvedVc<Request>,
-        path: ResolvedVc<AstPath>,
+        path: AstPath,
         issue_source: IssueSource,
         annotations: Value<ImportAnnotations>,
         in_try: bool,
@@ -140,10 +140,9 @@ impl CodeGenerateable for EsmAsyncAssetReference {
         )
         .await?;
 
-        let path = &self.path.await?;
         let import_externals = self.import_externals;
 
-        let visitor = create_visitor!(path, visit_mut_expr(expr: &mut Expr) {
+        let visitor = create_visitor!(self.path, visit_mut_expr(expr: &mut Expr) {
             let old_expr = expr.take();
             let message = if let Expr::Call(CallExpr { args, ..}) = old_expr {
                 match args.into_iter().next() {
