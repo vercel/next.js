@@ -641,12 +641,161 @@ export async function handleAction({
     }
   }
 
+  const handleNonFetchAction = async (): Promise<HandleActionResult> => {
+    // This might be an MPA action, but it might also be a random POST request.
+
+    if (!isMultipartAction) {
+      // Not a fetch action and not multipart.
+      // It can't be an action request.
+      return { type: 'not-an-action' }
+    }
+
+    if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME === 'edge' &&
+      isWebNextRequest(req)
+    ) {
+      // Use react-server-dom-webpack/server.edge
+      const { decodeAction, decodeFormState } = ComponentMod
+
+      // TODO-APP: Add streaming support
+      const formData = await req.request.formData()
+
+      let action: Awaited<ReturnType<typeof decodeAction>>
+      try {
+        action = await decodeAction(
+          formData,
+          throwIfActionNotInModuleMap(serverModuleMap)
+        )
+      } catch (err) {
+        if (err instanceof ActionNotInModuleMapError) {
+          console.error(err)
+          return { type: 'not-found' }
+        } else {
+          throw err
+        }
+      }
+
+      if (typeof action !== 'function') {
+        // We couldn't decode an action, so this POST request turned out not to be a server action request.
+        return { type: 'not-an-action' }
+      }
+
+      // an MPA action.
+
+      // Only warn if it's a server action, otherwise skip for other post requests
+      warnBadServerActionRequest()
+
+      const actionReturnedState = await executeActionAndPrepareForRender(
+        action as () => Promise<unknown>,
+        [],
+        workStore,
+        requestStore
+      )
+
+      const formState = await decodeFormState(
+        actionReturnedState,
+        formData,
+        serverModuleMap
+      )
+
+      // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
+      return {
+        type: 'form-state',
+        formState,
+      }
+    } else if (
+      // The type check here ensures that `req` is correctly typed, and the
+      // environment variable check provides dead code elimination.
+      process.env.NEXT_RUNTIME !== 'edge' &&
+      isNodeNextRequest(req)
+    ) {
+      // Use react-server-dom-webpack/server.node
+      const { decodeAction, decodeFormState } = require(
+        `./react-server.node`
+      ) as typeof import('./react-server.node')
+
+      const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
+      const sizeLimitedBody = getSizeLimitedRequestBodyNode(req, bodySizeLimit)
+
+      // Multipart POST, but not a fetch action.
+      // Potentially an MPA action, we have to try decoding it to check.
+
+      // React doesn't yet publish a busboy version of decodeAction
+      // so we polyfill the parsing of FormData.
+      const formData = await parseBodyAsFormDataNode(
+        sizeLimitedBody,
+        req.headers['content-type']
+      )
+
+      let action: Awaited<ReturnType<typeof decodeAction>>
+      try {
+        action = await decodeAction(
+          formData,
+          throwIfActionNotInModuleMap(serverModuleMap)
+        )
+      } catch (err) {
+        if (err instanceof ActionNotInModuleMapError) {
+          console.error(err)
+          return { type: 'not-found' }
+        } else {
+          throw err
+        }
+      }
+
+      if (typeof action !== 'function') {
+        // We couldn't decode an action, so this POST request turned out not to be a server action request.
+        return { type: 'not-an-action' }
+      }
+
+      // an MPA action.
+
+      // Only warn if it's a server action, otherwise skip for other post requests
+      warnBadServerActionRequest()
+
+      const actionReturnedState = await executeActionAndPrepareForRender(
+        action as () => Promise<unknown>,
+        [],
+        workStore,
+        requestStore
+      )
+
+      const formState = await decodeFormState(
+        actionReturnedState,
+        formData,
+        serverModuleMap
+      )
+
+      // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
+      return {
+        type: 'form-state',
+        formState,
+      }
+    } else {
+      throw new Error('Invariant: Unknown request type.')
+    }
+  }
+
   try {
     return await actionAsyncStorage.run(
       { isAction: true },
       async (): Promise<HandleActionResult> => {
-        // We only use these for fetch actions -- MPA actions handle them inside `decodeAction`.
+        if (!isFetchAction) {
+          return await handleNonFetchAction()
+        }
+
+        // A fetch action (initiated by the client router).
+
+        // Check the action id. if it's not valid, we can bail out immediately.
         let actionModId: string
+        try {
+          actionModId = getActionModIdOrError(actionId, serverModuleMap)
+        } catch (err) {
+          return handleUnrecognizedFetchAction(err)
+        }
+
+        // Parse the action arguments.
         let boundActionArguments: unknown[]
 
         if (
@@ -662,96 +811,21 @@ export async function handleAction({
           // TODO: add body limit
 
           // Use react-server-dom-webpack/server.edge
-          const {
-            createTemporaryReferenceSet,
-            decodeReply,
-            decodeAction,
-            decodeFormState,
-          } = ComponentMod
-
-          temporaryReferences = createTemporaryReferenceSet()
+          const { decodeReply } = ComponentMod
 
           if (isMultipartAction) {
             // TODO-APP: Add streaming support
             const formData = await req.request.formData()
-            if (isFetchAction) {
-              try {
-                actionModId = getActionModIdOrError(actionId, serverModuleMap)
-              } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+            // A fetch action with a multipart body.
+
+            boundActionArguments = await decodeReply(
+              formData,
+              serverModuleMap,
+              {
+                temporaryReferences,
               }
-
-              // A fetch action with a multipart body.
-              boundActionArguments = await decodeReply(
-                formData,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              // Multipart POST, but not a fetch action.
-              // Potentially an MPA action, we have to try decoding it to check.
-
-              let action: Awaited<ReturnType<typeof decodeAction>>
-              try {
-                action = await decodeAction(
-                  formData,
-                  throwIfActionNotInModuleMap(serverModuleMap)
-                )
-              } catch (err) {
-                if (err instanceof ActionNotInModuleMapError) {
-                  console.error(err)
-                  return { type: 'not-found' }
-                } else {
-                  throw err
-                }
-              }
-
-              if (typeof action !== 'function') {
-                // We couldn't decode an action, so this POST request turned out not to be a server action request.
-                return { type: 'not-an-action' }
-              }
-
-              // an MPA action.
-
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState =
-                await executeActionAndPrepareForRender(
-                  action as () => Promise<unknown>,
-                  [],
-                  workStore,
-                  requestStore
-                )
-
-              const formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-
-              // Skip the fetch path.
-              // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
-              return {
-                type: 'form-state',
-                formState,
-              }
-            }
+            )
           } else {
-            // POST with non-multipart body.
-
-            // If it's not multipart AND not a fetch action,
-            // then it can't be an action request.
-            if (!isFetchAction) {
-              return { type: 'not-an-action' }
-            }
-
-            try {
-              actionModId = getActionModIdOrError(actionId, serverModuleMap)
-            } catch (err) {
-              return handleUnrecognizedFetchAction(err)
-            }
-
             // A fetch action with a non-multipart body.
             // In practice, this happens if `encodeReply` returned a string instead of FormData,
             // which can happen for very simple JSON-like values that don't need multiple flight rows.
@@ -763,10 +837,8 @@ export async function handleAction({
               if (done) {
                 break
               }
-
               chunks.push(value)
             }
-
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
             if (isURLEncodedAction) {
@@ -774,13 +846,17 @@ export async function handleAction({
               boundActionArguments = await decodeReply(
                 formData,
                 serverModuleMap,
-                { temporaryReferences }
+                {
+                  temporaryReferences,
+                }
               )
             } else {
               boundActionArguments = await decodeReply(
                 actionData,
                 serverModuleMap,
-                { temporaryReferences }
+                {
+                  temporaryReferences,
+                }
               )
             }
           }
@@ -791,17 +867,9 @@ export async function handleAction({
           isNodeNextRequest(req)
         ) {
           // Use react-server-dom-webpack/server.node which supports streaming
-          const {
-            createTemporaryReferenceSet,
-            decodeReply,
-            decodeReplyFromBusboy,
-            decodeAction,
-            decodeFormState,
-          } = require(
+          const { decodeReply, decodeReplyFromBusboy } = require(
             `./react-server.node`
           ) as typeof import('./react-server.node')
-
-          temporaryReferences = createTemporaryReferenceSet()
 
           const bodySizeLimit = resolveBodySizeLimitNode(serverActions)
           const sizeLimitedBody = getSizeLimitedRequestBodyNode(
@@ -810,112 +878,36 @@ export async function handleAction({
           )
 
           if (isMultipartAction) {
-            if (isFetchAction) {
-              // A fetch action with a multipart body.
+            // A fetch action with a multipart body.
 
-              try {
-                actionModId = getActionModIdOrError(actionId, serverModuleMap)
-              } catch (err) {
-                return handleUnrecognizedFetchAction(err)
+            const { pipeline } =
+              require('node:stream') as typeof import('node:stream')
+
+            const busboy = (
+              require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
+            )({
+              defParamCharset: 'utf8',
+              headers: req.headers,
+              limits: { fieldSize: bodySizeLimit.byteLength },
+            })
+
+            // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
+            pipeline(
+              sizeLimitedBody,
+              busboy,
+              // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
+              // We'll propagate the errors properly when consuming the stream.
+              () => {}
+            )
+
+            boundActionArguments = await decodeReplyFromBusboy(
+              busboy,
+              serverModuleMap,
+              {
+                temporaryReferences,
               }
-
-              const { pipeline } =
-                require('node:stream') as typeof import('node:stream')
-
-              const busboy = (
-                require('next/dist/compiled/busboy') as typeof import('next/dist/compiled/busboy')
-              )({
-                defParamCharset: 'utf8',
-                headers: req.headers,
-                limits: { fieldSize: bodySizeLimit.byteLength },
-              })
-
-              // We need to use `pipeline(one, two)` instead of `one.pipe(two)` to propagate size limit errors correctly.
-              pipeline(
-                sizeLimitedBody,
-                busboy,
-                // Avoid unhandled errors from `pipeline()` by passing an empty completion callback.
-                // We'll propagate the errors properly when consuming the stream.
-                () => {}
-              )
-
-              boundActionArguments = await decodeReplyFromBusboy(
-                busboy,
-                serverModuleMap,
-                { temporaryReferences }
-              )
-            } else {
-              // Multipart POST, but not a fetch action.
-              // Potentially an MPA action, we have to try decoding it to check.
-
-              // React doesn't yet publish a busboy version of decodeAction
-              // so we polyfill the parsing of FormData.
-              const formData = await parseBodyAsFormDataNode(
-                sizeLimitedBody,
-                req.headers['content-type']
-              )
-
-              let action: Awaited<ReturnType<typeof decodeAction>>
-              try {
-                action = await decodeAction(
-                  formData,
-                  throwIfActionNotInModuleMap(serverModuleMap)
-                )
-              } catch (err) {
-                if (err instanceof ActionNotInModuleMapError) {
-                  console.error(err)
-                  return { type: 'not-found' }
-                } else {
-                  throw err
-                }
-              }
-
-              if (typeof action !== 'function') {
-                // We couldn't decode an action, so this POST request turned out not to be a server action request.
-                return { type: 'not-an-action' }
-              }
-
-              // an MPA action.
-
-              // Only warn if it's a server action, otherwise skip for other post requests
-              warnBadServerActionRequest()
-
-              const actionReturnedState =
-                await executeActionAndPrepareForRender(
-                  action as () => Promise<unknown>,
-                  [],
-                  workStore,
-                  requestStore
-                )
-
-              const formState = await decodeFormState(
-                actionReturnedState,
-                formData,
-                serverModuleMap
-              )
-
-              // Skip the fetch path.
-              // We need to render a full HTML version of the page for the response, we'll handle that in app-render.
-              return {
-                type: 'form-state',
-                formState,
-              }
-            }
+            )
           } else {
-            // POST with non-multipart body.
-
-            // If it's not multipart AND not a fetch action,
-            // then it can't be an action request.
-            if (!isFetchAction) {
-              return { type: 'not-an-action' }
-            }
-
-            try {
-              actionModId = getActionModIdOrError(actionId, serverModuleMap)
-            } catch (err) {
-              return handleUnrecognizedFetchAction(err)
-            }
-
             // A fetch action with a non-multipart body.
             // In practice, this happens if `encodeReply` returned a string instead of FormData,
             // which can happen for very simple JSON-like values that don't need multiple flight rows.
@@ -924,7 +916,6 @@ export async function handleAction({
             for await (const chunk of sizeLimitedBody) {
               chunks.push(Buffer.from(chunk))
             }
-
             const actionData = Buffer.concat(chunks).toString('utf-8')
 
             if (isURLEncodedAction) {
@@ -946,10 +937,7 @@ export async function handleAction({
           throw new Error('Invariant: Unknown request type.')
         }
 
-        // Handle a fetch action.
-
-        // Ensure that non-fetch codepaths can't reach this part.
-        isFetchAction satisfies true
+        // Get the action function.
 
         // actions.js
         // app/page.js
