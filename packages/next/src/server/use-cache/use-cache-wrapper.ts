@@ -544,21 +544,6 @@ export function cache(
           ? createHangingInputAbortSignal(workUnitStore)
           : undefined
 
-      // TODO: Improve heuristic, with the help of the compiler. E.g. mark
-      // cache functions with a symbol that can be used by createComponentTree
-      // to pass in a page-identifying prop that we can use here.
-      const isPossiblyPageComponent =
-        args.length === 2 &&
-        args[1] === undefined && // undefined ref of a server component
-        typeof args[0] === 'object' && // props of a server component
-        typeof args[0].params === 'object' &&
-        typeof args[0].searchParams === 'object'
-
-      const shouldErrorOnSearchParamsAccess =
-        workUnitStore?.type === 'prerender-ppr' ||
-        workUnitStore?.type === 'prerender-legacy' ||
-        (workUnitStore?.type === 'request' && !workStore.dynamicIOEnabled)
-
       // When dynamicIO is not enabled, we can not encode searchParams as
       // hanging promises. To still avoid unused search params from making a
       // page dynamic, we overwrite them here with a promise that resolves to an
@@ -567,17 +552,15 @@ export function cache(
       // searchParams prop before invoking the original function. This ensures
       // that used searchParams inside of cached functions would still yield an
       // error.
-      if (isPossiblyPageComponent && shouldErrorOnSearchParamsAccess) {
+      if (!workStore.dynamicIOEnabled && isPossiblyPageComponent(args)) {
         args[0] = { ...args[0], searchParams: Promise.resolve({}) }
 
         const originalFn = fn
 
         fn = {
           [name]: async function ({ params }: any) {
-            const searchParams = makeErroringExoticSearchParamsForUseCache(
-              workStore,
-              workUnitStore
-            )
+            const searchParams =
+              makeErroringExoticSearchParamsForUseCache(workStore)
 
             return originalFn.apply(null, [{ params, searchParams }])
           },
@@ -882,4 +865,29 @@ function createLazyResult<TResult>(
       return pendingResult.then(onfulfilled, onrejected)
     },
   }
+}
+
+// TODO(useCache): Improve heuristic, e.g. let createComponentTree detect a page
+// component with "use cache" by looking at $$typeof and $$id, and then passing
+// in a page-identifying symbol prop that we can use here.
+function isPossiblyPageComponent(
+  args: any[]
+): args is [
+  { params: Promise<unknown>; searchParams: Promise<unknown> },
+  undefined,
+] {
+  if (args.length !== 2) {
+    return false
+  }
+
+  const [props, ref] = args
+
+  return (
+    ref === undefined && // server components receive an undefined ref arg
+    typeof props === 'object' &&
+    typeof props.params === 'object' &&
+    typeof props.params.then === 'function' &&
+    typeof props.searchParams === 'object' &&
+    typeof props.searchParams.then === 'function'
+  )
 }
