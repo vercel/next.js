@@ -143,10 +143,6 @@ pub struct FunctionMeta {
     /// task-local state. The function call itself will not be cached, but cells will be created on
     /// the parent task.
     pub local: bool,
-    /// Changes the behavior of `Vc::cell` to create local cells that are not
-    /// cached across task executions. Cells can be converted to their non-local
-    /// versions by calling `Vc::resolve`.
-    pub local_cells: bool,
 }
 
 /// A native (rust) turbo-tasks function. It's used internally by
@@ -241,7 +237,7 @@ impl NativeFunction {
                 tracing::trace_span!(
                     "turbo_tasks::function",
                     name = self.name.as_str(),
-                    local_cells = true,
+                    local = true,
                 )
             }
         }
