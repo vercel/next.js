@@ -443,10 +443,7 @@ async function collectMetadata({
   const hasErrorConventionComponent = Boolean(
     errorConvention && tree[2][errorConvention]
   )
-  // If it's default.js, ignore the metadata
-  if (tree[0] === DEFAULT_SEGMENT_KEY) {
-    return
-  }
+
   if (errorConvention) {
     mod = await getComponentTypeModule(tree, 'layout')
     modType = errorConvention
@@ -554,6 +551,15 @@ async function resolveMetadataItemsImpl(
     }
   }
 
+  const pageKey = tree[0]
+
+  // If it's default.js, ignore the metadata
+  // webpack loader: pageKey of the default.js is DEFAULT_SEGMENT_KEY ('__DEFAULT__')
+  // turbopack loader: pageKey of the parallel route @bar is 'page$'
+  const isDefaultPage = pageKey === DEFAULT_SEGMENT_KEY || pageKey === 'page$'
+  if (isDefaultPage) {
+    return metadataItems
+  }
   await collectMetadata({
     tree,
     metadataItems,
