@@ -178,7 +178,7 @@ import { scheduleOnNextTick } from '../lib/scheduler'
 import { SegmentPrefixRSCPathnameNormalizer } from './normalizers/request/segment-prefix-rsc'
 import {
   shouldServeStreamingMetadata,
-  shouldSkipPostponedState,
+  isHtmlBotRequestStreamingMetadata,
 } from './lib/streaming-metadata'
 
 export type FindComponentsResult = {
@@ -2170,10 +2170,13 @@ export default abstract class Server<
     const hasDebugFallbackShellQuery =
       hasDebugStaticShellQuery && query.__nextppronly === 'fallback'
 
-    const skipPostponed = shouldSkipPostponedState(
+    const isHtmlBotRequest = isHtmlBotRequestStreamingMetadata(
       req,
       this.renderOpts.experimental.streamingMetadata
     )
+    if (isHtmlBotRequest) {
+      this.renderOpts.serveStreamingMetadata = false
+    }
 
     // This page supports PPR if it is marked as being `PARTIALLY_STATIC` in the
     // prerender manifest and this is an app page.
@@ -2467,7 +2470,7 @@ export default abstract class Server<
         isDynamicRSCRequest ||
         // When we're not sending the postponed state, we don't serve the partial shell as well.
         // Instead we need to proceed a full dynamic rendering.
-        skipPostponed
+        (!isHtmlBotRequest && !opts.dev)
 
       const origQuery = parseUrl(req.url || '', true).query
 
@@ -3539,7 +3542,7 @@ export default abstract class Server<
       }
 
       // Mark that the request did postpone.
-      if (didPostpone && !skipPostponed) {
+      if (didPostpone && !isHtmlBotRequest) {
         res.setHeader(NEXT_DID_POSTPONE_HEADER, '1')
       }
 
@@ -3589,14 +3592,13 @@ export default abstract class Server<
         }
       }
 
-      // When the postponed state is skipped, we don't consume the `postponed` state from build cache.
+      // When serves html bot request, we don't consume the `postponed` state from build cache.
       // Pass down a `undefined` postponed state to the renderer to avoid resume rendering.
-      if (skipPostponed) {
+      if (isHtmlBotRequest) {
         const result = await doRender({
+          // No postpone and no resume, this is a dynamic rendering.
           postponed: undefined,
           pagesFallback: undefined,
-          // This is a resume render, not a fallback render, so we don't need to
-          // set this.
           fallbackRouteParams: null,
         })
 

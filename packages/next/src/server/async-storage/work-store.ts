@@ -56,6 +56,7 @@ export type WorkStoreContext = {
     RenderOpts,
     | 'assetPrefix'
     | 'supportsDynamicResponse'
+    | 'serveStreamingMetadata'
     | 'isRevalidate'
     | 'nextExport'
     | 'isDraftMode'
@@ -98,7 +99,16 @@ export function createWorkStore({
   const isStaticGeneration =
     !renderOpts.supportsDynamicResponse &&
     !renderOpts.isDraftMode &&
-    !renderOpts.isServerAction
+    !renderOpts.isServerAction &&
+    // Disable SSG when we cannot serve streaming metadata.
+    // TODO: refine this condition once we removed the experimental.streamingMetadata flag.
+    // Currently when supportsDynamicResponse is false (not supporting streaming response),
+    // isStaticGeneration becomes true. But in PPR it will serve partial content.
+    // We still need another flag to disable SSG but generate full page.
+    // e.g. rename supportsDynamicResponse -> support streaming response.
+    // rename serveStreamingMetadata -> is not html limited bots request.
+    // They're 2 dimensions to consider if we need to disable SSG to serve full page and wether serve the blocking response.
+    renderOpts.serveStreamingMetadata !== false
 
   const store: WorkStore = {
     isStaticGeneration,
