@@ -81,27 +81,25 @@ export function CallStack({ frames, dialogResizerRef }: CallStackProps) {
           </button>
         )}
       </div>
-      <div className="error-overlay-call-stack-body">
-        {visibleFrames.map((frame, frameIndex) => (
-          <CallStackFrame
-            key={`call-stack-leading-${frameIndex}`}
-            frame={frame}
-            index={frameIndex}
-          />
-        ))}
+      {visibleFrames.map((frame, frameIndex) => (
+        <CallStackFrame
+          key={`call-stack-leading-${frameIndex}`}
+          frame={frame}
+          index={frameIndex}
+        />
+      ))}
 
-        {isIgnoreListOpen && (
-          <div ref={ignoreListRef}>
-            {ignoredFrames.map((frame, frameIndex) => (
-              <CallStackFrame
-                key={`call-stack-ignored-${frameIndex}`}
-                frame={frame}
-                index={frameIndex}
-              />
-            ))}
-          </div>
-        )}
-      </div>
+      {isIgnoreListOpen && (
+        <div ref={ignoreListRef}>
+          {ignoredFrames.map((frame, frameIndex) => (
+            <CallStackFrame
+              key={`call-stack-ignored-${frameIndex}`}
+              frame={frame}
+              index={frameIndex}
+            />
+          ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -127,15 +125,11 @@ function ChevronUpDown() {
 
 export const CALL_STACK_STYLES = css`
   .error-overlay-call-stack-container {
-    border-top: 1px solid var(--color-gray-400);
     position: relative;
-  }
-
-  .error-overlay-call-stack-body {
     padding: var(--size-4) var(--size-3);
-    padding-top: 0;
     /* To optically align last item */
     padding-bottom: 8px;
+    position: relative;
   }
 
   .error-overlay-call-stack-header {
@@ -143,19 +137,9 @@ export const CALL_STACK_STYLES = css`
     justify-content: space-between;
     align-items: center;
     min-height: 28px;
-    padding: var(--size-4) var(--size-5) var(--size-3) var(--size-4);
-    background: rgba(255, 255, 255, 0.7);
-    mask-image: linear-gradient(to top, transparent, #000 12%);
-    backdrop-filter: blur(8px);
+    margin-bottom: var(--size-3);
+    padding: 0 var(--size-2);
     width: 100%;
-    position: fixed;
-    position: sticky;
-    top: 0;
-    z-index: 2;
-
-    @media (prefers-color-scheme: dark) {
-      background: #0a0a0a70;
-    }
   }
 
   .error-overlay-call-stack-title {

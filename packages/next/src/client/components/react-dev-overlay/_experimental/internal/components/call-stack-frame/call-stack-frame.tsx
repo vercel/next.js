@@ -89,7 +89,6 @@ export const CALL_STACK_FRAME_STYLES = css`
     user-select: text;
     display: block;
     box-sizing: border-box;
-    width: calc(100% + 16px);
 
     user-select: text;
     -webkit-user-select: text;
@@ -97,8 +96,6 @@ export const CALL_STACK_FRAME_STYLES = css`
     -ms-user-select: text;
 
     padding: 6px 8px;
-    margin-left: -8px;
-    margin-bottom: var(--size-1);
 
     border-radius: var(--rounded-lg);
     transition: background 100ms ease-out;
