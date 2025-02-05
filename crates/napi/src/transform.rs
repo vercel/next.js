@@ -31,7 +31,6 @@ use std::{
     fs::read_to_string,
     panic::{catch_unwind, AssertUnwindSafe},
     rc::Rc,
-    sync::Arc,
 };
 
 use anyhow::{anyhow, bail, Context as _};
@@ -58,7 +57,7 @@ pub enum Input {
 }
 
 pub struct TransformTask {
-    pub c: Arc<Compiler>,
+    pub c: Compiler,
     pub input: Input,
     pub options: Buffer,
 }
