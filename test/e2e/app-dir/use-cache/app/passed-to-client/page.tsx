@@ -1,4 +1,4 @@
-import { Form } from '../../form'
+import { Form } from '../form'
 
 function getRandomValue() {
   const v = Math.random()

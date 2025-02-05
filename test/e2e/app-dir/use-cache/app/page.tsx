@@ -1,4 +1,4 @@
-import { Foo } from '../client'
+import { Foo } from './client'
 
 async function getCachedRandom(x: number, children: React.ReactNode) {
   'use cache'

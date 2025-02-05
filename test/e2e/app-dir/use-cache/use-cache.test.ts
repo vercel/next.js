@@ -277,6 +277,49 @@ describe('use-cache', () => {
   }
 
   if (isNextStart) {
+    it('should prerender fully cacheable pages as static HTML', async () => {
+      const prerenderManifest = JSON.parse(
+        await next.readFile('.next/prerender-manifest.json')
+      )
+
+      let prerenderedRoutes = Object.keys(prerenderManifest.routes).sort()
+
+      if (process.env.__NEXT_EXPERIMENTAL_PPR === 'true') {
+        // For the purpose of this test we don't consider an incomplete shell.
+        prerenderedRoutes = prerenderedRoutes.filter((route) => {
+          const filename = route.replace(/^\//, '').replace(/^$/, 'index')
+
+          return next
+            .readFileSync(`.next/server/app/${filename}.html`)
+            .endsWith('</html>')
+        })
+      }
+
+      expect(prerenderedRoutes).toEqual([
+        // [id] route, first entry in generateStaticParams
+        expect.stringMatching(/\/a\d/),
+        // [id] route, second entry in generateStaticParams
+        expect.stringMatching(/\/b\d/),
+        '/cache-fetch',
+        '/cache-fetch-no-store',
+        '/cache-life',
+        '/cache-tag',
+        // TODO(useCache): Should be prerendered when NAR-85 is fixed.
+        // '/form',
+        '/imported-from-client',
+        '/logs',
+        '/method-props',
+        // TODO(useCache): Should be prerendered when NAR-85 is fixed.
+        // '/not-found',
+        '/passed-to-client',
+        '/react-cache',
+        '/static-class-method',
+        '/use-action-state',
+        // TODO(useCache): Should be prerendered when NAR-85 is fixed.
+        // '/with-server-action',
+      ])
+    })
+
     it('should match the expected revalidate config on the prerender manifest', async () => {
       const prerenderManifest = JSON.parse(
         await next.readFile('.next/prerender-manifest.json')
