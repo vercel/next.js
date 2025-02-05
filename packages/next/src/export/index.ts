@@ -33,6 +33,7 @@ import {
   SERVER_REFERENCE_MANIFEST,
   APP_PATH_ROUTES_MANIFEST,
   ROUTES_MANIFEST,
+  FUNCTIONS_CONFIG_MANIFEST,
 } from '../shared/lib/constants'
 import loadConfig from '../server/config'
 import type { ExportPathMap } from '../server/config-shared'
@@ -476,7 +477,13 @@ async function exportAppImpl(
         join(distDir, SERVER_DIRECTORY, MIDDLEWARE_MANIFEST)
       ) as MiddlewareManifest
 
-      hasMiddleware = Object.keys(middlewareManifest.middleware).length > 0
+      const functionsConfigManifest = require(
+        join(distDir, SERVER_DIRECTORY, FUNCTIONS_CONFIG_MANIFEST)
+      )
+
+      hasMiddleware =
+        Object.keys(middlewareManifest.middleware).length > 0 ||
+        Boolean(functionsConfigManifest.functions?.['/_middleware'])
     } catch {}
 
     // Warn if the user defines a path for an API page
